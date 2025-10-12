@@ -449,201 +449,149 @@ class FaviconCache(BaseCache):
                             return None
                         return item
 
+    def _prepare_cache_entry(
+        self, value: Any, ttl: float | None, ts_now: float
+    ) -> dict:
+        """Prepare cache entry with timestamp and TTL."""
+        if isinstance(value, dict):
+            to_store = dict(value)
+        else:
+            to_store = {"value": value}
+        to_store.setdefault("timestamp", ts_now)
+        if ttl is not None:
+            to_store["ttl"] = float(ttl)
+        return to_store
+
+    def _update_timestamp_index(self, db, key: str, timestamp: float) -> None:
+        """Update timestamp index with new entry."""
+        try:
+            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+            if key in idx:
+                idx.pop(key, None)
+            idx[key] = float(timestamp)
+            db["__ts_index__"] = idx
+        except Exception:
+            pass
+
+    def _sync_db(self, db) -> None:
+        """Sync database to disk."""
+        try:
+            sync = getattr(db, "sync", None)
+            if callable(sync):
+                sync()
+        except Exception:
+            pass
+
+    def _clean_phantom_keys(self, db, idx: OrderedDict) -> None:
+        """Remove phantom keys from index that don't exist in DB."""
+        for idx_key in list(idx.keys()):
+            if idx_key not in db or idx_key.startswith("__"):
+                idx.pop(idx_key, None)
+
+    def _evict_by_index(self, db, idx: OrderedDict, max_size: int) -> None:
+        """Evict oldest entries using index."""
+        while len(idx) > max_size:
+            try:
+                oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+            except ValueError:
+                break
+            idx.pop(oldest_key, None)
+            try:
+                if oldest_key in db:
+                    del db[oldest_key]
+            except Exception:
+                pass
+
+    def _fallback_evict_by_scan(self, db, idx: OrderedDict, max_size: int) -> None:
+        """Fallback eviction by scanning DB if index is incomplete."""
+        try:
+            non_service = [k for k in db.keys() if not k.startswith("__")]
+            if len(non_service) <= max_size:
+                return
+
+            items: list[tuple[str, float]] = []
+            for candidate_key in non_service:
+                try:
+                    entry = db.get(candidate_key)
+                    ts_val = (
+                        float(entry.get("timestamp", 0.0))
+                        if isinstance(entry, dict)
+                        else 0.0
+                    )
+                except Exception:
+                    ts_val = 0.0
+                items.append((candidate_key, ts_val))
+
+            items.sort(key=lambda kv: kv[1])
+            for victim_key, _ in items[max_size:]:
+                try:
+                    if victim_key in db:
+                        del db[victim_key]
+                    if victim_key in idx:
+                        idx.pop(victim_key, None)
+                except Exception:
+                    pass
+            db["__ts_index__"] = idx
+        except Exception:
+            pass
+
+    def _enforce_size_limit(self, db) -> None:
+        """Enforce cache size limit using index-based eviction."""
+        try:
+            max_size = self._get_max_size()
+            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+
+            # Clean phantom keys
+            self._clean_phantom_keys(db, idx)
+
+            # Evict by index
+            self._evict_by_index(db, idx, max_size)
+            db["__ts_index__"] = idx
+
+            # Fallback eviction if needed
+            self._fallback_evict_by_scan(db, idx, max_size)
+
+            # Sync changes
+            self._sync_db(db)
+        except Exception:
+            pass
+
+    def _store_entry_in_db(self, db, key: str, value: Any, ttl: float | None) -> None:
+        """Store entry in database with size enforcement."""
+        ts_now = self._now()
+        to_store = self._prepare_cache_entry(value, ttl, ts_now)
+
+        db[key] = to_store
+        self._update_timestamp_index(db, key, to_store.get("timestamp", ts_now))
+        logger.debug("[cache] SAVE %s", key)
+        self._sync_db(db)
+        self._enforce_size_limit(db)
+
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
+        """Set cache entry with optional TTL."""
         with self._lock:
-            # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
                 if self._persistent_enabled:
-                    # Ensure db is open
+                    # Persistent mode: use already-open DB
                     if self._db is None:
                         self._open_db()
                     db = self._db
                     if db is None:
                         return
-                    # Do not pre-clean before write; enforce size limit via index below
-                    if isinstance(value, dict):
-                        to_store = dict(value)
-                    else:
-                        to_store = {"value": value}
-                    ts_now = self._now()
-                    to_store.setdefault("timestamp", ts_now)
-                    if ttl is not None:
-                        to_store["ttl"] = float(ttl)
-                    db[key] = to_store
-                    # Update timestamp index: move key to end as newest
-                    try:
-                        idx: OrderedDict[str, float] = (
-                            db.get("__ts_index__") or OrderedDict()
-                        )
-                        if key in idx:
-                            idx.pop(key, None)
-                        idx[key] = float(to_store.get("timestamp", ts_now))
-                        db["__ts_index__"] = idx
-                    except Exception:
-                        pass
-                    logger.debug("[cache] SAVE %s", key)
-                    try:
-                        sync = getattr(db, "sync", None)
-                        if callable(sync):
-                            sync()
-                    except Exception:
-                        pass
-                    # Enforce size limit immediately using index (avoid full sort)
-                    try:
-                        max_size = self._get_max_size()
-                        idx: OrderedDict[str, float] = (
-                            db.get("__ts_index__") or OrderedDict()
-                        )
-                        # Remove phantom keys not present in DB
-                        for idx_key in list(idx.keys()):
-                            if idx_key not in db or idx_key.startswith("__"):
-                                idx.pop(idx_key, None)
-                        # Evict based on index ordering
-                        while len(idx) > max_size:
-                            try:
-                                oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
-                            except ValueError:
-                                break
-                            idx.pop(oldest_key, None)
-                            try:
-                                if oldest_key in db:
-                                    del db[oldest_key]
-                            except Exception:
-                                pass
-                        db["__ts_index__"] = idx
-                        # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
-                        try:
-                            non_service = [
-                                candidate
-                                for candidate in db.keys()
-                                if not candidate.startswith("__")
-                            ]
-                            if len(non_service) > max_size:
-                                items: list[tuple[str, float]] = []
-                                for candidate_key in non_service:
-                                    try:
-                                        entry = db.get(candidate_key)
-                                        ts_val = (
-                                            float(entry.get("timestamp", 0.0))
-                                            if isinstance(entry, dict)
-                                            else 0.0
-                                        )
-                                    except Exception:
-                                        ts_val = 0.0
-                                    items.append((candidate_key, ts_val))
-                                items.sort(key=lambda kv: kv[1])
-                                for victim_key, _ in items[max_size:]:
-                                    try:
-                                        if victim_key in db:
-                                            del db[victim_key]
-                                        if victim_key in idx:
-                                            idx.pop(victim_key, None)
-                                    except Exception:
-                                        pass
-                                db["__ts_index__"] = idx
-                        except Exception:
-                            pass
-                        try:
-                            sync = getattr(db, "sync", None)
-                            if callable(sync):
-                                sync()
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
+                    self._store_entry_in_db(db, key, value, ttl)
                 else:
-                    # Non-persistent mode: open/close on every operation (legacy behaviour)
+                    # Non-persistent mode: open/close on every operation
                     try:
                         icon_path_service.ensure_user_icons_dir()
                     except Exception:
                         pass
                     with closing(shelve.open(current_path)) as db:
-                        # Do not pre-clean before write; enforce size limit via index below
-                        if isinstance(value, dict):
-                            to_store = dict(value)
-                        else:
-                            to_store = {"value": value}
-                        ts_now = self._now()
-                        to_store.setdefault("timestamp", ts_now)
-                        if ttl is not None:
-                            to_store["ttl"] = float(ttl)
-                        db[key] = to_store
-                        # Update timestamp index: move key to end as newest
+                        self._store_entry_in_db(db, key, value, ttl)
+                        # Set last cleanup marker
                         try:
-                            idx: OrderedDict[str, float] = (
-                                db.get("__ts_index__") or OrderedDict()
-                            )
-                            if key in idx:
-                                idx.pop(key, None)
-                            idx[key] = float(to_store.get("timestamp", ts_now))
-                            db["__ts_index__"] = idx
-                        except Exception:
-                            pass
-                        logger.debug("[cache] SAVE %s", key)
-                        # Enforce size limit immediately via index (no full sort)
-                        try:
-                            max_size = self._get_max_size()
-                            idx: OrderedDict[str, float] = (
-                                db.get("__ts_index__") or OrderedDict()
-                            )
-                            # Remove phantom keys absent in DB
-                            for idx_key in list(idx.keys()):
-                                if idx_key not in db or idx_key.startswith("__"):
-                                    idx.pop(idx_key, None)
-                            # Evict using index
-                            while len(idx) > max_size:
-                                try:
-                                    oldest_key = min(idx.items(), key=lambda kv: kv[1])[
-                                        0
-                                    ]
-                                except ValueError:
-                                    break
-                                idx.pop(oldest_key, None)
-                                try:
-                                    if oldest_key in db:
-                                        del db[oldest_key]
-                                except Exception:
-                                    pass
-                            db["__ts_index__"] = idx
-                            # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
-                            try:
-                                non_service = [
-                                    candidate
-                                    for candidate in db.keys()
-                                    if not candidate.startswith("__")
-                                ]
-                                if len(non_service) > max_size:
-                                    items: list[tuple[str, float]] = []
-                                    for candidate_key in non_service:
-                                        try:
-                                            entry = db.get(candidate_key)
-                                            ts_val = (
-                                                float(entry.get("timestamp", 0.0))
-                                                if isinstance(entry, dict)
-                                                else 0.0
-                                            )
-                                        except Exception:
-                                            ts_val = 0.0
-                                        items.append((candidate_key, ts_val))
-                                    items.sort(key=lambda kv: kv[1])
-                                    for victim_key, _ in items[max_size:]:
-                                        try:
-                                            if victim_key in db:
-                                                del db[victim_key]
-                                            if victim_key in idx:
-                                                idx.pop(victim_key, None)
-                                        except Exception:
-                                            pass
-                                    db["__ts_index__"] = idx
-                            except Exception:
-                                pass
-                        except Exception:
-                            pass
-                        # Set last cleanup marker (for tests/deferred cleanup)
-                        try:
-                            db["__last_cleanup_ts__"] = ts_now
+                            db["__last_cleanup_ts__"] = self._now()
                         except Exception:
                             pass
 

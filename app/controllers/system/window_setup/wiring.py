@@ -198,7 +198,7 @@ def _connect_sphere_change_signals(
         )
     except (AttributeError, TypeError) as e:
         logger.error("Failed to connect sphere button update: %s", e)
-    
+
     structure_business.active_sphere_changed.connect(window._update_left_panel_style)
 
 
@@ -238,7 +238,7 @@ def _connect_structure_reload_handler(
                     raise SetupError("Failed to trigger structure reload") from e
 
             handler = _on_active_sphere_changed
-        
+
         structure_business.active_sphere_changed.connect(handler)
     except (AttributeError, TypeError) as e:
         raise SetupError(
@@ -376,13 +376,13 @@ def _connect_tree_selection_signals(window: Any) -> None:
     """Connect tree selection signals to statusbar update."""
     if not hasattr(window, "tree") or not window.tree:
         return
-    
+
     tree = window.tree
     try:
         sel_model = tree.selectionModel()
     except (AttributeError, TypeError):
         sel_model = None
-    
+
     if not sel_model:
         return
 
@@ -406,13 +406,13 @@ def _connect_table_selection_signals(window: Any) -> None:
     """Connect table selection signals to statusbar update."""
     if not hasattr(window, "table") or not window.table:
         return
-    
+
     table = window.table
     try:
         selection_model = table.selectionModel()
     except (AttributeError, TypeError):
         selection_model = None
-    
+
     if not selection_model:
         return
 
@@ -435,7 +435,7 @@ def _connect_table_populated_signal(window: Any) -> None:
     """Connect table populated signal to statusbar update."""
     if not hasattr(window, "table") or not window.table:
         return
-    
+
     table = window.table
     try:
         if hasattr(table, "table_populated") and hasattr(
@@ -450,16 +450,16 @@ def _connect_ui_signals(window: Any) -> None:
     """Connect UI signals."""
     if hasattr(window, "_ui_signals_connected") and window._ui_signals_connected:
         return
-    
+
     # Connect tree selection signals
     _connect_tree_selection_signals(window)
-    
+
     # Connect table selection signals
     _connect_table_selection_signals(window)
-    
+
     # Connect table populated signal
     _connect_table_populated_signal(window)
-    
+
     window._ui_signals_connected = True
 
 
@@ -612,10 +612,8 @@ class DatabaseEventHandler:
         """Validate structure_business has required attributes."""
         if not hasattr(sb, "spheres_loaded"):
             logger.error("structure_business.spheres_loaded signal is required")
-            raise SetupError(
-                "structure_business must expose 'spheres_loaded' signal"
-            )
-        
+            raise SetupError("structure_business must expose 'spheres_loaded' signal")
+
         signal = sb.spheres_loaded
         if not hasattr(signal, "connect") or not hasattr(signal, "disconnect"):
             logger.error(
@@ -624,7 +622,7 @@ class DatabaseEventHandler:
             raise SetupError(
                 "structure_business.spheres_loaded must support connect/disconnect"
             )
-        
+
         if not hasattr(sb, "get_current_sphere_id") or not hasattr(
             sb, "set_current_sphere"
         ):
@@ -638,16 +636,13 @@ class DatabaseEventHandler:
     @staticmethod
     def _setup_first_sphere_handler(sb: Any) -> None:
         """Setup handler to set first sphere on spheres_loaded."""
+
         def _set_first_sphere_once(spheres_list):
             try:
                 has_get = hasattr(sb, "get_current_sphere_id") and callable(
                     sb.get_current_sphere_id
                 )
-                if (
-                    spheres_list
-                    and has_get
-                    and sb.get_current_sphere_id() is None
-                ):
+                if spheres_list and has_get and sb.get_current_sphere_id() is None:
                     first_sphere_id = spheres_list[0].get("id", 1)
                     sb.set_current_sphere(first_sphere_id)
             finally:
@@ -672,7 +667,7 @@ class DatabaseEventHandler:
             )
         except Exception:
             curr_id = None
-        
+
         if isinstance(curr_id, int) and curr_id > 0:
             try:
                 from . import _resolve_structure_loader
@@ -686,9 +681,7 @@ class DatabaseEventHandler:
                     exc_info=True,
                 )
         else:
-            if hasattr(sb, "load_spheres_async") and callable(
-                sb.load_spheres_async
-            ):
+            if hasattr(sb, "load_spheres_async") and callable(sb.load_spheres_async):
                 sb.load_spheres_async()
 
     @staticmethod
@@ -696,10 +689,10 @@ class DatabaseEventHandler:
         """Update business logic with new DB."""
         if not hasattr(window, "structure_business"):
             return
-        
+
         sb = window.structure_business
         sb.db = new_db
-        
+
         try:
             DatabaseEventHandler._validate_structure_business(sb)
             DatabaseEventHandler._setup_first_sphere_handler(sb)
