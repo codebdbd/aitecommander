@@ -496,7 +496,7 @@ async def batch_convert_icons_async(
             continue
         queue.put_nowait((src_path, dst_path, size))
 
-    async def worker(worker_id: int) -> None:
+    async def worker(_worker_id: int) -> None:
         while True:
             try:
                 src_path, dst_path, size = await queue.get()

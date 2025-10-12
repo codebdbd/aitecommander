@@ -141,7 +141,7 @@ class MainWindowProtocol(Protocol):
         """Return the window height."""
         ...
 
-    def setUpdatesEnabled(self, enable: bool) -> None:
+    def setUpdatesEnabled(self, _enable: bool) -> None:
         """Enable or disable widget updates."""
         ...
 
@@ -153,7 +153,7 @@ class MainWindowProtocol(Protocol):
         """Assign the central widget."""
         ...
 
-    def setMenuBar(self, menubar: QWidget) -> None:
+    def setMenuBar(self, _menubar: QWidget) -> None:
         """Install the menu bar."""
         ...
 

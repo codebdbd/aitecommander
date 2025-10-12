@@ -112,7 +112,7 @@ class ResourceManager:
     def __enter__(self) -> ResourceManager:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, _exc_val, _exc_tb) -> None:
         self.cleanup_all()
 
     def __del__(self) -> None:  # pragma: no cover - best-effort cleanup

@@ -308,7 +308,7 @@ class DeleteLinkCmd(BaseCommand):
 
 class BatchSaveLinksCmd(BaseCommand):
     def __init__(
-        self, links_data: list[dict], old_link_data: dict | None, main_window
+        self, links_data: list[dict], _old_link_data: dict | None, main_window
     ):
         super().__init__("Batch save links", main_window)
         self.main = main_window
