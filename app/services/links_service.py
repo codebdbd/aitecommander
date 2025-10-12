@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from app.models.db import Database
 
@@ -17,10 +17,16 @@ class LinksService:
     def __init__(self, db: Database):
         self.db = db
         self.repo = db.links  # short alias
+        self._chunk_size = 900
 
     # --- Reading ---
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         return self.repo.get_links(category_id)
+
+    def get_links_for_categories(
+        self, category_ids: List[int]
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        return self.repo.get_links_for_categories(category_ids)
 
     def get_all_links(self) -> List[Dict[str, Any]]:
         return self.repo.get_all_links()
@@ -99,7 +105,15 @@ class LinksService:
         # IMPORTANT: batch_update_links inside repository already manages transaction
         # via self.transaction(). Cannot wrap in UnitOfWork — this will lead
         # to nested transaction (SQLite: "cannot start a transaction within a transaction").
-        return self.repo.batch_update_links(links_data)
+        if not links_data:
+            return False
+        success = True
+        for chunk in self._iter_chunks(links_data):
+            if not chunk:
+                continue
+            result = self.repo.batch_update_links(chunk)
+            success = success and bool(result)
+        return success
 
     def batch_create_or_update_links(
         self, links_data: List[Dict[str, Any]]
@@ -111,8 +125,56 @@ class LinksService:
         """
         # IMPORTANT: batch_upsert_links manages transaction itself via self.transaction()
         # Wrapping in UnitOfWork will lead to nested transaction in SQLite.
-        return self.repo.batch_upsert_links(links_data)
+        if not links_data:
+            return []
+        created_ids: List[int] = []
+        for chunk in self._iter_chunks(links_data):
+            if not chunk:
+                continue
+            created_ids.extend(self.repo.batch_upsert_links(chunk))
+        return created_ids
 
     def count_favorites(self) -> int:
         """Returns number of favorite links."""
         return self.repo.count_favorites()
+
+    def batch_delete_links(self, link_ids: List[int]) -> int:
+        """Delete multiple links by IDs in a single transaction."""
+        if not link_ids:
+            return 0
+        valid_ids = [
+            int(x)
+            for x in link_ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
+        if not valid_ids:
+            return 0
+        unique_ids = list(dict.fromkeys(valid_ids))
+        deleted = 0
+        for chunk in self._iter_id_chunks(unique_ids):
+            if not chunk:
+                continue
+            deleted += self.repo.batch_delete_links(chunk)
+        return deleted
+
+    def _iter_chunks(
+        self, items: Iterable[Dict[str, Any]]
+    ) -> Iterable[List[Dict[str, Any]]]:
+        buffer: List[Dict[str, Any]] = []
+        for item in items or []:
+            buffer.append(item)
+            if len(buffer) >= self._chunk_size:
+                yield buffer
+                buffer = []
+        if buffer:
+            yield buffer
+
+    def _iter_id_chunks(self, ids: Iterable[int]) -> Iterable[List[int]]:
+        buffer: List[int] = []
+        for item in ids or []:
+            buffer.append(int(item))
+            if len(buffer) >= self._chunk_size:
+                yield buffer
+                buffer = []
+        if buffer:
+            yield buffer

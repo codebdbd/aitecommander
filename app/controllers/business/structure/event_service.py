@@ -63,6 +63,17 @@ class StructureEventService:
                     exc_info=True,
                 )
 
+        if touched:
+            try:
+                self._cache_service.invalidate_structure_cache()
+            except Exception as exc:
+                self._logger.debug(
+                    "end_batch: failed to invalidate structure cache: %s",
+                    exc,
+                    exc_info=True,
+                )
+            return
+
         try:
             self._cache_service.invalidate_structure_cache()
             from app.config_data import app_config
@@ -177,6 +188,8 @@ class StructureEventService:
             if item_type == "link":
                 self._async_service.schedule_structure_reload(None)
                 return
+            if self._batch_mode and self._batch_touched_sections:
+                return
             self._cache_service.invalidate_structure_cache()
             self._async_service.schedule_structure_reload(0)
         except (ValueError, KeyError, TypeError) as exc:
@@ -237,4 +250,25 @@ class StructureEventService:
         return set(self._batch_touched_sections)
 
     def replace_touched_sections(self, sections: set[int]) -> None:
-        self._batch_touched_sections = set(sections)
+        normalized = {
+            int(sid)
+            for sid in sections
+            if isinstance(sid, int) and sid > 0
+        }
+        if not normalized:
+            if self._batch_mode:
+                self._batch_touched_sections.clear()
+            return
+        if not self._batch_mode:
+            for section_id in normalized:
+                try:
+                    self._async_service.load_categories_async(section_id)
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    self._logger.debug(
+                        "replace_touched_sections: failed to load section %s immediately: %s",
+                        section_id,
+                        exc,
+                        exc_info=True,
+                    )
+            return
+        self._batch_touched_sections = normalized

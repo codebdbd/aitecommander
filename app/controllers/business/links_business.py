@@ -1,6 +1,7 @@
 # app/controllers/links_business.py
 
 import logging
+from collections import defaultdict
 from functools import wraps
 from typing import Any, Callable, Optional, List, Dict, Tuple
 
@@ -177,6 +178,21 @@ class LinksBusinessLogic(QObject):
             ),
             task_id=task_id,
         )
+
+    @handle_errors
+    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+        """Return links for a category synchronously (used by import/export flows)."""
+        if not isinstance(category_id, int) or category_id <= 0:
+            self.logger.warning("Invalid category_id: %s", category_id)
+            return []
+
+        cache_key = f"sync_links:{category_id}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        links = self.links.get_links(category_id) or []
+        self._cache[cache_key] = links
+        return links
 
     @measure_time("search_links", log_threshold_ms=300)
     def search_links(self, query: str) -> None:
@@ -444,6 +460,92 @@ class LinksBusinessLogic(QObject):
             description="batch_update_links_async",
             on_finished=self._on_batch_updated,
         )
+
+    @handle_errors
+    def create_links_for_import_bulk(
+        self, links_payload: List[Dict[str, Any]]
+    ) -> int:
+        """Bulk create/update links during import without per-link cache churn."""
+        if not isinstance(links_payload, list) or not links_payload:
+            return 0
+
+        category_ids: set[int] = set()
+        for item in links_payload:
+            if not isinstance(item, dict):
+                continue
+            cid = item.get("category_id")
+            if isinstance(cid, int) and cid > 0:
+                category_ids.add(int(cid))
+        if not category_ids:
+            return 0
+
+        existing_pairs: Dict[int, set[tuple[str, str]]] = defaultdict(set)
+        try:
+            existing_links = self.links.get_links_for_categories(list(category_ids))
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.debug(
+                "create_links_for_import_bulk: failed to preload existing links: %s",
+                exc,
+                exc_info=True,
+            )
+            existing_links = {}
+        for cid, rows in (existing_links or {}).items():
+            bucket = existing_pairs.setdefault(int(cid), set())
+            for row in rows or []:
+                name = str(row.get("name") or "").strip()
+                url = str(row.get("url") or "").strip()
+                if name and url:
+                    bucket.add((name, url))
+
+        batch_pairs: Dict[int, set[tuple[str, str]]] = defaultdict(set)
+        prepared: List[Dict[str, Any]] = []
+
+        for raw_link in links_payload:
+            if not isinstance(raw_link, dict):
+                continue
+            data = dict(raw_link)
+            category_id = data.get("category_id")
+            if not isinstance(category_id, int) or category_id <= 0:
+                continue
+
+            link_type = data.get("type") or "web"
+            url = (data.get("url") or "").strip()
+            name = (data.get("name") or "").strip()
+            if not url:
+                continue
+            if not name:
+                name = url
+            if not validate_link_form_data(name, url, link_type):
+                continue
+
+            normalized_pair = (name.strip(), url.strip())
+            if normalized_pair in existing_pairs.get(category_id, set()):
+                continue
+            if normalized_pair in batch_pairs[category_id]:
+                continue
+            batch_pairs[category_id].add(normalized_pair)
+
+            prepared_link: Dict[str, Any] = {
+                "category_id": category_id,
+                "name": name,
+                "url": url,
+                "type": link_type,
+                "notes": data.get("notes") or "",
+                "is_favorite": int(data.get("is_favorite") or 0),
+                "icon_path": data.get("icon_path") or "",
+                "args": data.get("args") or "",
+            }
+            browser_key = data.get("browser_key")
+            if browser_key is not None:
+                prepared_link["browser_key"] = browser_key
+            prepared.append(prepared_link)
+
+        if not prepared:
+            return 0
+
+        result_ids = self.links.batch_create_or_update_links(prepared) or []
+        self._invalidate_cache()
+        return len(result_ids) if result_ids else len(prepared)
 
     @validate_link_form
     @handle_errors

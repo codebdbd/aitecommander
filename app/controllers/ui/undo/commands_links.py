@@ -151,8 +151,18 @@ class BatchDeleteLinksCmd(BaseCommand):
         ids = [x.get("id") for x in self.links if isinstance(x.get("id"), int)]
         if not ids:
             return
-        # Batch deletion via service layer
-        LinksService(self.db).batch_delete_links(ids)
+        links_business = getattr(self.main, "links_business", None)
+        if links_business and hasattr(links_business, "links"):
+            try:
+                links_business.links.batch_delete_links(ids)
+            except Exception as exc:
+                logger.warning(
+                    "BatchDeleteLinksCmd.redo: links_business batch_delete failed, fallback to service: %s",
+                    exc,
+                )
+                LinksService(self.db).batch_delete_links(ids)
+        else:
+            LinksService(self.db).batch_delete_links(ids)
         # Single table reload if not suppressed
         try:
             if not getattr(self, "_suppress_ui", False):
@@ -177,8 +187,12 @@ class BatchDeleteLinksCmd(BaseCommand):
     @log_command
     def undo(self):
         # Restore all deleted records (batch upsert)
+        links_business = getattr(self.main, "links_business", None)
         try:
-            LinksService(self.db).batch_create_or_update_links(self.links)
+            if links_business and hasattr(links_business, "links"):
+                links_business.links.batch_create_or_update_links(self.links)
+            else:
+                LinksService(self.db).batch_create_or_update_links(self.links)
         except Exception as exc:
             # Fallback: per-link
             logger.warning(
@@ -187,13 +201,16 @@ class BatchDeleteLinksCmd(BaseCommand):
             )
             for link in self.links:
                 try:
-                    LinksService(self.db).create_or_update_link(link)
-                except Exception as exc:
+                    if links_business and hasattr(links_business, "links"):
+                        links_business.links.create_or_update_link(link)
+                    else:
+                        LinksService(self.db).create_or_update_link(link)
+                except Exception as inner_exc:
                     # continue attempts for the rest
                     logger.debug(
                         "BatchDeleteLinksCmd.undo: per-link upsert failed for id=%s: %s",
                         link.get("id"),
-                        exc,
+                        inner_exc,
                         exc_info=True,
                     )
         # UI update after restore (ignore suppression for Undo)

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Any, Optional, TYPE_CHECKING, Set
 
 try:
     from app.utils.metrics import measure_time
@@ -23,6 +24,12 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
     from .async_service import StructureAsyncService
     from .cache_service import StructureCacheService
+
+
+@dataclass(slots=True)
+class MoveCategoriesBatchResult:
+    moved_ids: list[int]
+    touched_sections: Set[int]
 
 
 class StructureCrudService:
@@ -219,9 +226,9 @@ class StructureCrudService:
             or not isinstance(target_section_id, int)
             or target_section_id <= 0
         ):
-            return []
+            return MoveCategoriesBatchResult(moved_ids=[], touched_sections=set())
 
-        source_sections: set[int] = set()
+        source_sections: Set[int] = set()
         try:
             for cid in category_ids:
                 try:
@@ -247,22 +254,36 @@ class StructureCrudService:
             self._logger.exception("Critical error in move_categories_batch: %s", e)
             raise
 
-        self._owner.begin_batch()
-        try:
-            moved_ids = self._structure_service.move_categories_to_section_bulk(
-                category_ids, target_section_id, base_row
-            )
+        moved_ids = self._structure_service.move_categories_to_section_bulk(
+            category_ids, target_section_id, base_row
+        ) or []
 
+        touched_sections: Set[int] = set(source_sections)
+        if isinstance(target_section_id, int) and target_section_id > 0:
+            touched_sections.add(int(target_section_id))
+
+        for sid in touched_sections:
             try:
-                for sid in source_sections:
-                    self._cache_service.invalidate_categories_cache(sid)
+                self._cache_service.invalidate_categories_cache(sid)
             except Exception:  # pragma: no cover - defensive
                 pass
-            self._cache_service.invalidate_categories_cache(target_section_id)
 
-            return moved_ids or []
-        finally:
-            self._owner.end_batch()
+        try:
+            self._cache_service.invalidate_structure_cache()
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        try:
+            from app.config_data import app_config
+
+            delay = int(app_config.ui.get_structure_reload_immediate_delay_ms())
+            self._async_service.schedule_structure_reload(delay)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        return MoveCategoriesBatchResult(
+            moved_ids=moved_ids, touched_sections=touched_sections
+        )
 
     def create_categories_bulk(
         self, items: list[dict[str, Any]]

@@ -77,6 +77,58 @@ class StructureCacheService:
         if async_service and hasattr(async_service, "schedule_structure_reload"):
             async_service.schedule_structure_reload(delay_ms)
 
+    def load_structure(self, sphere_id: int) -> list[dict[str, Any]]:
+        """Load structure for a sphere, synchronize caches, and emit payload to the owner."""
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
+            self._logger.warning("load_structure called with invalid sphere_id: %s", sphere_id)
+            try:
+                self._owner.structure_loaded.emit([])
+            except Exception:
+                pass
+            return []
+
+        cache_key = f"structure_{sphere_id}"
+        payload = self._cache_manager.get(cache_key)
+        if payload is not None:
+            if _metrics:
+                _metrics.record_cache_hit("structure_cache")
+        else:
+            if _metrics:
+                _metrics.record_cache_miss("structure_cache")
+            try:
+                payload = self._loader_service.load_structure_from_db(
+                    self._structure_model,
+                    sphere_id,
+                    self._logger,
+                ) or []
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self._logger.error("Failed to load structure for sphere %s: %s", sphere_id, exc, exc_info=True)
+                payload = []
+            self._cache_manager.set(cache_key, payload)
+
+        try:
+            sections_snapshot: list[dict[str, Any]] = []
+            for section in payload or []:
+                if not isinstance(section, dict):
+                    continue
+                section_id = section.get("id")
+                if isinstance(section_id, int) and section_id > 0:
+                    categories = section.get("categories") or []
+                    self._cache_manager.set(f"categories_{section_id}", categories)
+                sections_snapshot.append({k: v for k, v in section.items() if k != "categories"})
+
+            if sections_snapshot:
+                self._cache_manager.set(f"sections_{sphere_id}", sections_snapshot)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self._logger.debug("Failed to prime section/category caches: %s", exc, exc_info=True)
+
+        try:
+            self._owner.structure_loaded.emit(payload or [])
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self._logger.error("Failed to emit structure_loaded: %s", exc, exc_info=True)
+
+        return payload or []
+
     def get_spheres(self) -> list[dict[str, Any]]:
         """Получает список всех сфер с кэшированием.
         

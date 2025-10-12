@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Iterable, Optional
 
 from PyQt6.QtWidgets import QApplication
 
+from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
 from app.services.links_service import LinksService
 from app.services.structure_service import StructureService
 from app.services.protocols import DatabaseProtocol
@@ -176,7 +178,9 @@ class StructureContextService:
                 return []
 
             # 1) Category preparation and batch creation
-            batch_cats = self._prepare_categories_for_section(trees, section_id)
+            batch_cats, bindings = self._prepare_categories_for_section(
+                trees, section_id
+            )
             if not batch_cats:
                 return []
 
@@ -184,19 +188,28 @@ class StructureContextService:
             if not created_list:
                 return []
 
-            # Index by name to match created ids with source trees
-            index_by_name: dict[str, list[dict]] = {}
-            for c in created_list:
-                nm = c.get("name")
-                if nm is None:
-                    continue
-                index_by_name.setdefault(nm, []).append(c)
+            created_by_uuid = {
+                str(row.get(CATEGORY_BULK_UUID_FIELD)): dict(row)
+                for row in created_list
+                if row.get(CATEGORY_BULK_UUID_FIELD)
+            }
 
             # 2) Lazy link generation and created category collection
             created_categories: list[dict] = []
-            links_iter = self._iter_links_for_created_categories(
-                trees, index_by_name, created_categories
-            )
+            if created_by_uuid:
+                links_iter = self._iter_links_for_created_categories_by_uuid(
+                    bindings, created_by_uuid, created_categories
+                )
+            else:
+                index_by_name: dict[str, list[dict]] = {}
+                for c in created_list:
+                    nm = c.get("name")
+                    if nm is None:
+                        continue
+                    index_by_name.setdefault(nm, []).append(c)
+                links_iter = self._iter_links_for_created_categories(
+                    trees, index_by_name, created_categories
+                )
             # Collect links into list once for batch insertion
             all_links = list(links_iter)
             if all_links:
@@ -212,24 +225,34 @@ class StructureContextService:
     # --- Internal helpers ---
     def _prepare_categories_for_section(
         self, trees: Iterable[dict], section_id: int
-    ) -> list[dict]:
+    ) -> tuple[list[dict], list[tuple[str, dict]]]:
         """Prepares category data for insertion into specified section.
 
-        Returns list of dicts for batch creation. Excludes id/section_id fields from source data.
+        Returns
+        -------
+        tuple[list[dict], list[tuple[str, dict]]]
+            Prepared category payloads and a binding list that keeps a mapping
+            from generated client UUID to the original tree node.
         """
 
-        def gen():
-            sid = int(section_id)
-            for tree in trees:
-                src_cat = dict((tree or {}).get("category", {}))
-                # exclude service fields
-                new_cat = {
-                    k: v for k, v in src_cat.items() if k not in {"id", "section_id"}
-                }
-                new_cat["section_id"] = sid
-                yield new_cat
+        sid = int(section_id)
+        prepared: list[dict] = []
+        bindings: list[tuple[str, dict]] = []
 
-        return list(gen())
+        for tree in trees:
+            tree_dict = dict(tree or {})
+            src_cat = dict(tree_dict.get("category", {}) or {})
+            # exclude service fields
+            new_cat = {
+                k: v for k, v in src_cat.items() if k not in {"id", "section_id"}
+            }
+            new_cat["section_id"] = sid
+            token = uuid.uuid4().hex
+            new_cat[CATEGORY_BULK_UUID_FIELD] = token
+            prepared.append(new_cat)
+            bindings.append((token, tree_dict))
+
+        return prepared, bindings
 
     def _iter_links_for_created_categories(
         self,
@@ -244,7 +267,6 @@ class StructureContextService:
         """
         for tree in trees:
             src_cat = dict((tree or {}).get("category", {}))
-            src_links = (tree or {}).get("links", []) or []
             nm = src_cat.get("name")
             if not nm:
                 continue
@@ -253,32 +275,67 @@ class StructureContextService:
             cat_row = index_by_name[nm].pop(0)
             if not cat_row:
                 continue
-            created_categories_out.append(dict(cat_row))
-            new_cat_id = int(cat_row.get("id"))
+            yield from self._yield_links_for_tree(
+                tree, cat_row, created_categories_out
+            )
 
-            for link in src_links:
-                src = dict(link or {})
-                name = src.get("name") or ""
-                url = src.get("url") or ""
-                if not name or not url:
-                    continue
-                ltype = src.get("type") or "web"
-                notes = src.get("notes") or ""
-                is_favorite = int(src.get("is_favorite") or 0)
-                icon_path = src.get("icon_path") or "default.ico"
-                args = src.get("args") or ""
-                browser_key = src.get("browser_key")
+    def _iter_links_for_created_categories_by_uuid(
+        self,
+        bindings: Iterable[tuple[str, dict]],
+        created_by_uuid: dict[str, dict],
+        created_categories_out: list[dict],
+    ) -> Iterable[dict]:
+        """Generates links using client-side UUID bindings."""
+        for token, tree in bindings:
+            if not token:
+                continue
+            cat_row = created_by_uuid.get(token)
+            if not cat_row:
+                continue
+            yield from self._yield_links_for_tree(
+                tree, cat_row, created_categories_out
+            )
 
-                payload = {
-                    "category_id": new_cat_id,
-                    "name": name,
-                    "url": url,
-                    "type": ltype,
-                    "notes": notes,
-                    "is_favorite": is_favorite,
-                    "icon_path": icon_path,
-                    "args": args,
-                }
-                if browser_key is not None:
-                    payload["browser_key"] = browser_key
-                yield payload
+    def _yield_links_for_tree(
+        self,
+        tree: dict,
+        cat_row: dict,
+        created_categories_out: list[dict],
+    ) -> Iterable[dict]:
+        """Yield link payloads for a single tree node and created category row."""
+        cat_copy = dict(cat_row or {})
+        if not cat_copy:
+            return
+        try:
+            new_cat_id = int(cat_copy.get("id"))
+        except (TypeError, ValueError):
+            return
+        created_categories_out.append(cat_copy)
+
+        src_links = (tree or {}).get("links", []) or []
+        for link in src_links:
+            src = dict(link or {})
+            name = src.get("name") or ""
+            url = src.get("url") or ""
+            if not name or not url:
+                continue
+            ltype = src.get("type") or "web"
+            notes = src.get("notes") or ""
+            is_favorite = int(src.get("is_favorite") or 0)
+            icon_path = src.get("icon_path") or "default.ico"
+            args = src.get("args") or ""
+            browser_key = src.get("browser_key")
+
+            payload = {
+                "category_id": new_cat_id,
+                "name": name,
+                "url": url,
+                "type": ltype,
+                "notes": notes,
+                "is_favorite": is_favorite,
+                "icon_path": icon_path,
+                "args": args,
+            }
+            if browser_key is not None:
+                payload["browser_key"] = browser_key
+            yield payload

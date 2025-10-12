@@ -6,6 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..base.db_base import DatabaseBase, ValidationError
+from .constants import CATEGORY_BULK_UUID_FIELD
 
 logger = logging.getLogger(__name__)
 
@@ -135,21 +136,35 @@ class CategoryModel(DatabaseBase):
         if not items:
             return []
 
-        # Input data validation
+        # Input data validation + normalization metadata
+        prepared_info: Dict[int, tuple[int, str, str]] = {}
+        has_uuid_tokens = False
         for it in items:
             self._validate_required_fields(
                 it or {}, ["name", "section_id"], "category"
             )
-
-        # Group by section_id for position calculation
-        by_section: Dict[int, List[Dict[str, Any]]] = {}
-        for it in items:
             try:
                 sid = int(it.get("section_id"))
             except Exception:
                 raise ValidationError(
                     "Incorrect section_id in one of batch elements"
                 )
+            raw_name = it.get("name")
+            name_canon = str(raw_name).strip() if raw_name is not None else ""
+            name_norm = name_canon.lower()
+            prepared_info[id(it)] = (sid, name_canon, name_norm)
+            if not has_uuid_tokens:
+                token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
+                if token_raw is not None and str(token_raw).strip():
+                    has_uuid_tokens = True
+
+        # Group by section_id for position calculation
+        by_section: Dict[int, List[Dict[str, Any]]] = {}
+        for it in items:
+            info = prepared_info.get(id(it))
+            if not info:
+                continue
+            sid, _, _ = info
             by_section.setdefault(sid, []).append(it)
 
         # Формируем батч вставки
@@ -208,12 +223,11 @@ class CategoryModel(DatabaseBase):
                     seen_in_batch = set()
 
                     for it in group:
-                        raw_name = it.get("name")
-                        # Canonicalize for comparison and storage: remove spaces around.
-                        # For comparison use lower(), but store in original case without spaces.
-                        name_canon = str(raw_name).strip() if raw_name is not None else ""
-                        name_norm = name_canon.lower()
-                        # Skip if name empty — validation above, but just in case
+                        info = prepared_info.get(id(it))
+                        if not info:
+                            continue
+                        _, name_canon, name_norm = info
+                        # Skip if name empty (validation above), but keep guard for safety
                         if not name_norm:
                             continue
                         # Skip if already exists in DB or already seen in this batch
@@ -236,12 +250,12 @@ class CategoryModel(DatabaseBase):
                 seen = set()
                 for section_id, group in by_section.items():
                     for g in group:
-                        nm = g.get("name")
-                        if nm is None:
+                        info = prepared_info.get(id(g))
+                        if not info:
                             continue
+                        _, nm_canon, _ = info
                         # Search should use canonical name (without spaces around),
                         # as we store exactly that in DB.
-                        nm_canon = str(nm).strip()
                         key = (section_id, nm_canon)
                         if key in seen:
                             continue
@@ -264,7 +278,46 @@ class CategoryModel(DatabaseBase):
                 rows = self._execute_with_error_handling(
                     query, tuple(flat_params), fetch_method="all"
                 )
-                return [dict(r) for r in (rows or [])]
+                if not has_uuid_tokens:
+                    return [dict(r) for r in (rows or [])]
+
+                rows_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
+                for r in rows or []:
+                    try:
+                        section_id = (
+                            int(r["section_id"])
+                            if r["section_id"] is not None
+                            else None
+                        )
+                    except Exception:
+                        section_id = None
+                    if section_id is None:
+                        continue
+                    name_value = (
+                        str(r["name"]).strip().lower()
+                        if r["name"] is not None
+                        else ""
+                    )
+                    rows_by_key[(section_id, name_value)] = dict(r)
+
+                result: List[Dict[str, Any]] = []
+                for it in items:
+                    info = prepared_info.get(id(it))
+                    if not info:
+                        continue
+                    section_id, _, name_norm = info
+                    if not name_norm:
+                        continue
+                    row = rows_by_key.get((section_id, name_norm))
+                    if not row:
+                        continue
+                    payload = dict(row)
+                    token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
+                    token = str(token_raw).strip() if token_raw is not None else ""
+                    if token:
+                        payload[CATEGORY_BULK_UUID_FIELD] = token
+                    result.append(payload)
+                return result
         except Exception:
             # Initiate rollback and propagate further
             raise

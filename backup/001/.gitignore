@@ -1,0 +1,58 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Package/build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testing and coverage
+.pytest_cache/
+.coverage*
+htmlcov/
+.tox/
+.nox/
+
+# Linters and tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytype/
+.cache/
+
+# IDE/project settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Environment/config
+.env
+.env.*
+*.sqlite3
+*.db
+
+# PyInstaller
+*.spec
+
+# Qt / UI build leftovers (if any)
+*.qmlc
+*.jsc
+
+# Node (if present in submodules/tools)
+node_modules/

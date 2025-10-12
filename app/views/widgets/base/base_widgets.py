@@ -1,9 +1,10 @@
 """Base widgets for reuse within the AITE UI."""
 
+import logging
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, List, Optional
 
-from PyQt6.QtCore import QEvent, QModelIndex, Qt, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QEvent, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -34,6 +35,8 @@ from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
 from app.utils.ui.dnd.pixmap import create_default_pixmap, create_text_pixmap
 from app.utils.ui.icon.icon_resolver import resolve_icon_path
 from app.views.widgets.protocols import LinksBusinessProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class BasePanelWidget(QWidget):
@@ -573,14 +576,39 @@ class BaseDragDropTableWidget(QTableView):
             return self._create_multi_row_pixmap(row_count)
 
         except (AttributeError, ValueError, TypeError) as e:
-            # Catch specific exceptions when creating drag pixmap
             logger.warning("Failed to create drag pixmap: %s", e)
             return None
 
+    def _create_single_row_pixmap(self, row: int) -> Optional[QPixmap]:
+        """Create a pixmap for a single row selection."""
+        try:
+            model = getattr(self, "model", lambda: None)()
+            if not model:
+                return self._create_default_pixmap()
+
+            max_columns = min(3, getattr(model, "columnCount", lambda: 0)())
+            texts: list[str] = []
+            for col in range(max_columns):
+                idx = model.index(row, col)
+                if not idx or not idx.isValid():
+                    continue
+                value = model.data(idx, Qt.ItemDataRole.DisplayRole)
+                snippet = str(value or '').strip()
+                if not snippet:
+                    continue
+                if len(snippet) > 40:
+                    snippet = snippet[:37] + '...'
+                texts.append(snippet)
+            if not texts:
+                return self._create_default_pixmap()
+            text = ' | '.join(texts)
+            return self._create_text_pixmap(text, single_row=True)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to create single-row drag pixmap: %s", exc)
+            return self._create_default_pixmap()
+
     def _create_multi_row_pixmap(self, count: int) -> QPixmap:
         """Create a pixmap for multi-row selection with a counter."""
-        from PyQt6.QtCore import QCoreApplication
-
         text = QCoreApplication.translate(
             "BaseDragDropTable", "%n item selected", None, count
         )

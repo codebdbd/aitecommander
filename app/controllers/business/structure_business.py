@@ -29,6 +29,7 @@ from .structure import (
     StructureValidationService,
     StructureWarmupService,
 )
+from .structure.crud_service import MoveCategoriesBatchResult
 
 
 class StructureBusinessLogic(QObject):
@@ -322,9 +323,14 @@ class StructureBusinessLogic(QObject):
         self, category_ids: List[int], target_section_id: int, base_row: int = 0
     ) -> List[int]:
         """Move categories via the CRUD service."""
-        return self.crud_service.move_categories_batch(
+        result = self.crud_service.move_categories_batch(
             category_ids, target_section_id, base_row
         )
+        if isinstance(result, MoveCategoriesBatchResult):
+            if result.touched_sections:
+                self.event_service.replace_touched_sections(result.touched_sections)
+            return result.moved_ids
+        return result or []
 
     @handle_exceptions(default_return=[])
     def create_categories_bulk(

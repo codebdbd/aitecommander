@@ -1,15 +1,50 @@
 import base64
 import binascii
 import logging
+import uuid
 from collections import defaultdict
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
 from app.config_data import app_config
+from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.validators.link_validators import validate_link_form_data
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_import_url(raw_url: str) -> str:
+    """Normalize URLs coming from legacy bookmark exports."""
+    if not isinstance(raw_url, str):
+        return ""
+
+    candidate = raw_url.strip()
+    if not candidate:
+        return ""
+
+    # Handle protocol-relative URLs ("//example.com")
+    if candidate.startswith("//"):
+        candidate = f"https:{candidate}"
+
+    parsed = urlparse(candidate)
+
+    if not parsed.scheme:
+        host_candidate = ""
+        if parsed.netloc:
+            host_candidate = parsed.netloc
+        elif parsed.path:
+            host_candidate = parsed.path.split("/")[0]
+
+        if host_candidate and "." in host_candidate and " " not in host_candidate:
+            candidate = f"http://{candidate}"
+            parsed = urlparse(candidate)
+
+    if parsed.scheme:
+        return candidate
+
+    return candidate if parsed.netloc else ""
 
 
 class BrowserBookmarksImporter:
@@ -137,10 +172,19 @@ class BrowserBookmarksImporter:
         except (RuntimeError, OSError, ValueError) as e:
             logger.warning("resolve_icon_for_link failed, using empty icon: %s", e, exc_info=True)
             default_icon = ""
-        bulk_items = [
-            {"name": name, "section_id": section_id, "icon_path": default_icon}
-            for name in missing_names
-        ]
+        token_by_name: dict[str, str] = {}
+        bulk_items = []
+        for name in missing_names:
+            token = uuid.uuid4().hex
+            token_by_name[name] = token
+            bulk_items.append(
+                {
+                    "name": name,
+                    "section_id": section_id,
+                    "icon_path": default_icon,
+                    CATEGORY_BULK_UUID_FIELD: token,
+                }
+            )
         if bulk_items:
             try:
                 created = (
@@ -161,8 +205,8 @@ class BrowserBookmarksImporter:
         categories_after = structure_business_logic.get_categories(section_id) or []
         name_to_id = {c.get("name"): c.get("id") for c in categories_after}
 
-        # 5) Insert links without duplicates
-        added = 0
+        # 5) Prepare link payloads
+        links_by_category: dict[int, list[dict]] = defaultdict(list)
         for cat_name, links in categories.items():
             logger.debug(
                 "DEBUG: Processing category '%s', links: %s", cat_name, len(links)
@@ -170,11 +214,104 @@ class BrowserBookmarksImporter:
             category_id = name_to_id.get(cat_name)
             if not category_id:
                 logger.error(
-                    f"ERROR: Category ID '{cat_name}' not found after batch insert; skipping links"
+                    "ERROR: Category ID '%s' not found after batch insert; skipping links",
+                    cat_name,
                 )
                 continue
 
-            existing_name_url = set()
+            for link in links:
+                raw_url = link.get("url", "")
+                url = _normalize_import_url(raw_url)
+                name = (link.get("name", "") or "").strip()
+                if not url:
+                    logger.debug(
+                        "DEBUG: Skipping link '%s' in category '%s' due to missing URL (raw='%s')",
+                        name,
+                        cat_name,
+                        raw_url,
+                    )
+                    continue
+                if not name:
+                    name = url
+
+                if not validate_link_form_data(name, url, "web"):
+                    logger.debug(
+                        "DEBUG: Skipping link '%s' in category '%s' due to failed validation (url='%s')",
+                        name,
+                        cat_name,
+                        url,
+                    )
+                    continue
+
+                payload = {
+                    "category_id": int(category_id),
+                    "name": name.strip(),
+                    "url": url.strip(),
+                    "type": "web",
+                    "notes": "",
+                    "is_favorite": int(link.get("is_favorite") or 0),
+                    "icon_path": link.get("icon_path", "") or "",
+                    "args": link.get("args", "") or "",
+                }
+                browser_key = link.get("browser_key")
+                if browser_key is not None:
+                    payload["browser_key"] = browser_key
+
+                links_by_category[int(category_id)].append(payload)
+
+        link_payloads = [
+            dict(payload)
+            for payloads in links_by_category.values()
+            for payload in payloads
+        ]
+
+        added = 0
+        if link_payloads:
+            bulk_callable = None
+            if links_business_logic and hasattr(
+                links_business_logic, "create_links_for_import_bulk"
+            ):
+                bulk_callable = links_business_logic.create_links_for_import_bulk
+            elif hasattr(structure_business_logic, "links_business") and hasattr(
+                structure_business_logic.links_business, "create_links_for_import_bulk"
+            ):
+                bulk_callable = (
+                    structure_business_logic.links_business.create_links_for_import_bulk
+                )
+
+            if bulk_callable:
+                try:
+                    added = int(bulk_callable(link_payloads) or 0)
+                except Exception as exc:
+                    logger.exception(
+                        "Bulk link import failed, falling back to sequential mode: %s",
+                        exc,
+                        exc_info=True,
+                    )
+                    added = self._fallback_import_links(
+                        links_business_logic,
+                        structure_business_logic,
+                        links_by_category,
+                    )
+            else:
+                added = self._fallback_import_links(
+                    links_business_logic,
+                    structure_business_logic,
+                    links_by_category,
+                )
+
+        return True, f"Added links: {added}", added
+
+    def _fallback_import_links(
+        self,
+        links_business_logic,
+        structure_business_logic,
+        links_by_category: dict[int, list[dict]],
+    ) -> int:
+        """Sequential link import with duplicate checks as a safety fallback."""
+        added = 0
+        for category_id, payloads in links_by_category.items():
+            existing_pairs = set()
             try:
                 if links_business_logic:
                     existing_links = links_business_logic.get_links(category_id)
@@ -184,87 +321,56 @@ class BrowserBookmarksImporter:
                     )
                 else:
                     existing_links = []
-            except Exception as e:
+            except Exception as exc:
                 logger.warning(
-                    "Failed to get existing links for category %s: %s",
+                    "Failed to load existing links for fallback import (category %s): %s",
                     category_id,
-                    e,
+                    exc,
                 )
                 existing_links = []
 
             for el in existing_links:
                 try:
-                    existing_name_url.add(
+                    existing_pairs.add(
                         (
                             str(el.get("name", "")).strip(),
                             str(el.get("url", "")).strip(),
                         )
                     )
-                except (AttributeError, ValueError, TypeError) as ex:
-                    logger.debug("skip malformed existing link entry: %s", ex, exc_info=True)
-
-            for link in links:
-                icon_path = link.get("icon_path", "")
-                url = link.get("url", "")
-                name = link.get("name", "")
-                logger.debug(
-                    "DEBUG: Checking duplicate: name='%s', url='%s', category_id=%s",
-                    name,
-                    url,
-                    category_id,
-                )
-                if (name.strip(), url.strip()) in existing_name_url:
-                    logger.debug(
-                        "DEBUG: Skipped duplicate '%s' (%s) in category '%s' (id=%s)",
-                        name,
-                        url,
-                        cat_name,
-                        category_id,
-                    )
+                except (AttributeError, ValueError, TypeError):
                     continue
 
-                link_data = {
-                    "category_id": category_id,
-                    "name": link.get("name", ""),
-                    "type": "web",
-                    "notes": "",
-                    "is_favorite": 0,
-                    "last_used": None,
-                    "icon_path": icon_path,
-                    "args": "",
-                }
+            for payload in payloads:
+                normalized_pair = (
+                    payload.get("name", "").strip(),
+                    payload.get("url", "").strip(),
+                )
+                if normalized_pair in existing_pairs:
+                    continue
+                existing_pairs.add(normalized_pair)
 
                 try:
-                    if links_business_logic:
-                        link_id = links_business_logic.create_link_for_import(link_data)
-                    else:
-                        link_id = (
-                            structure_business_logic.links_business.create_link_for_import(
-                                link_data
-                            )
-                            if hasattr(structure_business_logic, "links_business")
-                            else None
-                        )
+                    target_logic = links_business_logic or getattr(
+                        structure_business_logic, "links_business", None
+                    )
+                    link_id = (
+                        target_logic.create_link_for_import(dict(payload))
+                        if target_logic
+                        else None
+                    )
                     if link_id:
-                        logger.debug(
-                            "DEBUG: Added link '%s' to category '%s' (id=%s)",
-                            link.get("name", ""),
-                            cat_name,
-                            category_id,
-                        )
                         added += 1
                     else:
                         logger.error(
-                            "ERROR: Failed to add link '%s' to category '%s'",
-                            link.get("name", ""),
-                            cat_name,
+                            "ERROR: Failed to add link '%s' to category %s (fallback)",
+                            payload.get("name", ""),
+                            category_id,
                         )
-                except Exception as e:
+                except Exception as exc:
                     logger.exception(
-                        "ERROR: Failed to add link '%s' to category '%s': %s",
-                        link.get("name", ""),
-                        cat_name,
-                        e,
+                        "ERROR: Fallback link import failed for '%s' (category %s): %s",
+                        payload.get("name", ""),
+                        category_id,
+                        exc,
                     )
-
-        return True, f"Added links: {added}", added
+        return added
