@@ -102,7 +102,6 @@ class DuplicateResolver:
                 # Group handler
                 def process_group(table: str, ids: list[int]):
                     ids_sorted = sorted(int(i) for i in ids)
-                    _keep = ids_sorted[0]
                     to_change = ids_sorted[1:]
                     affected = 0
                     if strategy == "rename":

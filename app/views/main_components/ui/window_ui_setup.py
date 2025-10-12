@@ -274,9 +274,9 @@ class WindowUISetup:
         self.main_layout.setContentsMargins(*app_config.ui.get_main_layout_margins())
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         try:
-            left, _top, r, b = self.main_layout.getContentsMargins()
+            left, _, r, b = self.main_layout.getContentsMargins()
         except (RuntimeError, AttributeError):
-            left, _top, r, b = (0, 0, 0, 0)
+            left, r, b = 0, 0, 0
         try:
             self.main_layout.setContentsMargins(left, 0, r, b)
         except (RuntimeError, AttributeError):
