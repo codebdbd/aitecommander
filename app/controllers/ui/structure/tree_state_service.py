@@ -88,7 +88,9 @@ class TreeStateService(QObject):
             )
 
     # --- Helper methods ---
-    def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
+    def _iter_indexes(self, parent: QModelIndex | None = None):
+        if parent is None:
+            parent = QModelIndex()
         rows = self._model.rowCount(parent)
         for row in range(rows):
             index = self._model.index(row, 0, parent)
