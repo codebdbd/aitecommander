@@ -33,9 +33,9 @@ for name in (
     "type_change_mixin",
     "validation_mixin",
 ):
-    _MODULE_ALIASES[
-        f"{_LEGACY_PREFIX}.handlers_mixins.{name}"
-    ] = f"{_TARGET_PREFIX}.handlers_mixins.{name}"
+    _MODULE_ALIASES[f"{_LEGACY_PREFIX}.handlers_mixins.{name}"] = (
+        f"{_TARGET_PREFIX}.handlers_mixins.{name}"
+    )
 
 
 def _install_aliases() -> None:
@@ -55,4 +55,3 @@ from app.views.windows.dialogs.link_dialog.link_dialog_signals import *  # noqa:
 from app.views.windows.dialogs.link_dialog.link_dialog_ui import *  # noqa: F401,F403,E402
 
 __all__ = []  # populated dynamically by star-imports above
-

@@ -277,9 +277,7 @@ class StructureModel:
         try:
             return self.db.categories.insert_categories_bulk(items or []) or []
         except Exception as e:
-            self.logger.error(
-                "Error bulk creating categories: %s", e, exc_info=True
-            )
+            self.logger.error("Error bulk creating categories: %s", e, exc_info=True)
             return []
 
     def create_link(self, link_data: dict[str, Any]) -> Optional[int]:

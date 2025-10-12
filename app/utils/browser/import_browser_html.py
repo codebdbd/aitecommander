@@ -95,7 +95,10 @@ class BrowserBookmarksImporter:
                     used_encoding = "utf-8(replace)"
             except OSError as e:
                 logger.warning(
-                    "parse_bookmarks: failed to read file %s: %s", html_path, e, exc_info=True
+                    "parse_bookmarks: failed to read file %s: %s",
+                    html_path,
+                    e,
+                    exc_info=True,
                 )
                 raise (last_err or e) from e
         logger.debug("DEBUG: using encoding = %s", used_encoding)
@@ -116,7 +119,9 @@ class BrowserBookmarksImporter:
                     with open(icon_file, "wb") as f:
                         f.write(base64.b64decode(b64))
                 except (binascii.Error, ValueError, OSError) as e:
-                    logger.debug("save_icon_from_base64 failed for %s: %s", url, e, exc_info=True)
+                    logger.debug(
+                        "save_icon_from_base64 failed for %s: %s", url, e, exc_info=True
+                    )
                     return ""
             return icon_fname
 
@@ -170,7 +175,9 @@ class BrowserBookmarksImporter:
         try:
             default_icon = resolve_icon_for_link({"type": "category", "icon_path": ""})
         except (RuntimeError, OSError, ValueError) as e:
-            logger.warning("resolve_icon_for_link failed, using empty icon: %s", e, exc_info=True)
+            logger.warning(
+                "resolve_icon_for_link failed, using empty icon: %s", e, exc_info=True
+            )
             default_icon = ""
         token_by_name: dict[str, str] = {}
         bulk_items = []
@@ -197,9 +204,7 @@ class BrowserBookmarksImporter:
                 )
             except Exception as e:
                 # Use exception to preserve stack (unexpected service layer errors)
-                logger.exception(
-                    "ERROR: Batch category creation failed: %s", e
-                )
+                logger.exception("ERROR: Batch category creation failed: %s", e)
 
         # 4) Actual name->id map
         categories_after = structure_business_logic.get_categories(section_id) or []

@@ -1,4 +1,5 @@
 """CLI for database diagnostics and maintenance."""
+
 import argparse
 import json
 import logging

@@ -1,7 +1,7 @@
 """Utilities for validating user input in dialogs.
 
 Provides functions to verify data correctness before
- processing.                                        """
+ processing."""
 
 import re
 from pathlib import Path
@@ -12,8 +12,10 @@ from PyQt6.QtCore import QCoreApplication
 
 _TR_CONTEXT = "Validators"
 
+
 def _tr(text: str) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text)
+
 
 def validate_url(url: str) -> tuple[bool, Optional[str]]:
     """Validate a URL string.
@@ -36,7 +38,9 @@ def validate_url(url: str) -> tuple[bool, Optional[str]]:
         return False, _tr("Invalid URL format")
 
 
-def validate_file_path(path: str, must_exist: bool = False) -> tuple[bool, Optional[str]]:
+def validate_file_path(
+    path: str, must_exist: bool = False
+) -> tuple[bool, Optional[str]]:
     """Validate a file path.
 
     Args:
@@ -60,7 +64,9 @@ def validate_file_path(path: str, must_exist: bool = False) -> tuple[bool, Optio
         return False, _tr("Invalid file path")
 
 
-def validate_folder_path(path: str, must_exist: bool = False) -> tuple[bool, Optional[str]]:
+def validate_folder_path(
+    path: str, must_exist: bool = False
+) -> tuple[bool, Optional[str]]:
     """Validate a folder path.
 
     Args:
@@ -84,7 +90,9 @@ def validate_folder_path(path: str, must_exist: bool = False) -> tuple[bool, Opt
         return False, _tr("Invalid folder path")
 
 
-def validate_name(name: str, min_length: int = 1, max_length: int = 255) -> tuple[bool, Optional[str]]:
+def validate_name(
+    name: str, min_length: int = 1, max_length: int = 255
+) -> tuple[bool, Optional[str]]:
     """Validate a name (category, section, link).
 
     Args:
@@ -107,7 +115,9 @@ def validate_name(name: str, min_length: int = 1, max_length: int = 255) -> tupl
     return True, None
 
 
-def validate_icon_path(path: str, supported_formats: Optional[list] = None) -> tuple[bool, Optional[str]]:
+def validate_icon_path(
+    path: str, supported_formats: Optional[list] = None
+) -> tuple[bool, Optional[str]]:
     """Validate an icon path.
 
     Args:
@@ -130,7 +140,9 @@ def validate_icon_path(path: str, supported_formats: Optional[list] = None) -> t
         if supported_formats:
             suffix = path_obj.suffix.lower()
             if suffix not in supported_formats:
-                return False, _tr(f"Unsupported icon format. Supported: {', '.join(supported_formats)}")
+                return False, _tr(
+                    f"Unsupported icon format. Supported: {', '.join(supported_formats)}"
+                )
 
         return True, None
     except Exception:
@@ -150,7 +162,7 @@ def validate_email(email: str) -> tuple[bool, Optional[str]]:
         return False, _tr("Email cannot be empty")
 
     email = email.strip()
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
     if not re.match(email_pattern, email):
         return False, _tr("Invalid email format")
@@ -196,12 +208,12 @@ def sanitize_filename(filename: str) -> str:
     """
     # Replace invalid characters with underscore
     invalid_chars = r'[<>:"|?*/\\]'
-    cleaned = re.sub(invalid_chars, '_', filename)
+    cleaned = re.sub(invalid_chars, "_", filename)
 
     # Collapse multiple underscores
-    cleaned = re.sub(r'_+', '_', cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned)
 
     # Trim underscores at both ends
-    cleaned = cleaned.strip('_')
+    cleaned = cleaned.strip("_")
 
     return cleaned if cleaned else "unnamed"

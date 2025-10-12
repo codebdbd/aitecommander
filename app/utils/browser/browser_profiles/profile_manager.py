@@ -74,9 +74,7 @@ class BrowserProfileManager:
         # Unified profile cache: persistent JSON + TTL
         self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
 
-        logger.info(
-            "Initialized profile manager for %s browsers", len(self.finders)
-        )
+        logger.info("Initialized profile manager for %s browsers", len(self.finders))
 
         # Persistent cache loads data from disk during initialization
 

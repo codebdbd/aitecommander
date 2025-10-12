@@ -66,7 +66,7 @@ def retry_on_failure(
                 except Exception as callback_error:
                     logger.warning("Retry callback failed: %s", callback_error)
 
-            wait_time = delay * (2 ** attempt if exponential_backoff else 1)
+            wait_time = delay * (2**attempt if exponential_backoff else 1)
             logger.warning(
                 "Attempt %d/%d failed, retrying in %.2fs: %s",
                 attempt + 1,
@@ -148,9 +148,7 @@ def _setup_main_window_post_creation(
     return main_window
 
 
-def _apply_theme_post_creation(
-    theme_controller: Any, settings: AppSettings
-) -> bool:
+def _apply_theme_post_creation(theme_controller: Any, settings: AppSettings) -> bool:
     """Apply theme after window creation."""
     theme_name = settings.get_theme()
     theme_controller.apply(theme_name)
@@ -346,7 +344,9 @@ class ApplicationInitializer:
         except Exception as exc_type:
             _exc_val, _exc_tb = sys.exc_info()
             logger.error(
-                "Error during ApplicationInitializer cleanup: %s", exc_type, exc_info=True
+                "Error during ApplicationInitializer cleanup: %s",
+                exc_type,
+                exc_info=True,
             )
         finally:
             duration = time.perf_counter() - start_time
@@ -373,7 +373,9 @@ class ApplicationInitializer:
         critical_message="Unexpected error initializing settings",
     )
     def initialize_settings(self) -> bool:
-        self.settings = _create_component(AppSettings) if self.settings is None else self.settings
+        self.settings = (
+            _create_component(AppSettings) if self.settings is None else self.settings
+        )
         self._register_if_cleanable(self.settings, "settings")
         return True
 
@@ -461,7 +463,11 @@ class ApplicationInitializer:
         critical_message="Unexpected error applying theme",
     )
     def apply_initial_theme(self) -> bool:
-        if self.mode != StartupMode.GUI or not self.theme_controller or not self.settings:
+        if (
+            self.mode != StartupMode.GUI
+            or not self.theme_controller
+            or not self.settings
+        ):
             return True
         return _apply_theme_post_creation(self.theme_controller, self.settings)
 
@@ -483,9 +489,7 @@ class ApplicationInitializer:
 
         for step_name, step_func in initialization_steps:
             if not step_func():
-                logger.critical(
-                    "Critical error during initialization of %s", step_name
-                )
+                logger.critical("Critical error during initialization of %s", step_name)
                 return False
         return True
 

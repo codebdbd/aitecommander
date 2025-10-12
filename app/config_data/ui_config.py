@@ -451,9 +451,7 @@ class UIConfig(BaseConfig):
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return self.get(
-            "ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"]
-        )
+        return self.get("ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"])
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""

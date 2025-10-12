@@ -100,6 +100,7 @@ class StructureUIController(QObject):
                         self.selection_handler.bind_to_selection_model(sel_model)
                     except Exception:
                         import logging
+
                         logging.getLogger(__name__).debug(
                             "Selection reconnect: bind failed", exc_info=True
                         )
@@ -108,8 +109,10 @@ class StructureUIController(QObject):
             except Exception:
                 # Not critical, log in DEBUG only
                 import logging
+
                 logging.getLogger(__name__).debug(
-                    "Failed to schedule selection reconnect after modelReset", exc_info=True
+                    "Failed to schedule selection reconnect after modelReset",
+                    exc_info=True,
                 )
 
         # Subscribe ONLY to modelReset to perform a single pass
@@ -247,7 +250,10 @@ class StructureUIController(QObject):
                 if isinstance(current_id, int):
                     return current_id
         except Exception:
-            logger.debug("StructureUIController.get_current_category_id: tiles lookup failed", exc_info=True)
+            logger.debug(
+                "StructureUIController.get_current_category_id: tiles lookup failed",
+                exc_info=True,
+            )
 
         # 2) Try to get category via TreeManagement (considering saved state)
         try:

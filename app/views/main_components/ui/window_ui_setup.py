@@ -40,7 +40,6 @@ _SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP("WindowUISetup", "Search\u2026 (Ctrl+F)"
 
 
 class _AutoHideTreeFilter(QObject):
-
     def __init__(
         self,
         window,
@@ -59,7 +58,9 @@ class _AutoHideTreeFilter(QObject):
         self._prev_stack_index = None
         self._logger = logger_
         try:
-            self._manage_topbar_panels = bool(app_config.ui.get_auto_hide_manage_topbar())
+            self._manage_topbar_panels = bool(
+                app_config.ui.get_auto_hide_manage_topbar()
+            )
         except (AttributeError, TypeError, ValueError):
             self._manage_topbar_panels = False
 
@@ -67,7 +68,7 @@ class _AutoHideTreeFilter(QObject):
         splitter = getattr(self.window, "splitter", None)
         stack = getattr(self.window, "stack", None)
         table = getattr(self.window, "table", None)
-        
+
         # FIX: obtain current window width
         try:
             w = self.window.width()
@@ -105,7 +106,9 @@ class _AutoHideTreeFilter(QObject):
                         )
 
                 try:
-                    switch_to_table = bool(app_config.ui.get_auto_hide_switch_to_table())
+                    switch_to_table = bool(
+                        app_config.ui.get_auto_hide_switch_to_table()
+                    )
                 except (AttributeError, TypeError, ValueError):
                     switch_to_table = False
                 if switch_to_table and stack is not None and table is not None:
@@ -186,7 +189,6 @@ class _AutoHideTreeFilter(QObject):
 
 
 class WindowUISetup:
-
     def __init__(self, window_initializer: Any) -> None:
         self.window_initializer = window_initializer
         self.window = window_initializer.window
@@ -205,7 +207,9 @@ class WindowUISetup:
             try:
                 self.window.destroyed.connect(self._disconnect_language_service)
             except Exception:
-                logger.debug("WindowUISetup: failed to connect destroyed cleanup", exc_info=True)
+                logger.debug(
+                    "WindowUISetup: failed to connect destroyed cleanup", exc_info=True
+                )
 
     def setup_basic_attributes(self) -> None:
         self.window.settings = self.window_initializer.settings
@@ -310,7 +314,9 @@ class WindowUISetup:
             return
         try:
             if hasattr(self.window, "shown"):
-                self.window.shown.connect(partial(self._schedule_topbar_initialization, mgr))
+                self.window.shown.connect(
+                    partial(self._schedule_topbar_initialization, mgr)
+                )
             else:
                 QTimer.singleShot(0, partial(self._schedule_topbar_initialization, mgr))
         except Exception:
@@ -334,7 +340,9 @@ class WindowUISetup:
                     if not host.isVisible():
                         host.setVisible(True)
                 except (RuntimeError, AttributeError):
-                    logger.debug("TopPanel: failed to show top_bar_host early", exc_info=True)
+                    logger.debug(
+                        "TopPanel: failed to show top_bar_host early", exc_info=True
+                    )
             QTimer.singleShot(0, partial(self._finalize_topbar_startup, mgr))
 
         if suspend_updates is not None and isinstance(self.window, QWidget):
@@ -343,7 +351,8 @@ class WindowUISetup:
                     _activate()
             except (RuntimeError, AttributeError, TypeError):
                 logger.debug(
-                    "TopPanel: suspend_updates failed during initialization", exc_info=True
+                    "TopPanel: suspend_updates failed during initialization",
+                    exc_info=True,
                 )
                 _activate()
         else:
@@ -359,25 +368,25 @@ class WindowUISetup:
             mgr.prepare_initial_layout()
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
-        
+
         controller = getattr(self.window, "top_panels_controller", None)
-        
+
         # FIX: schedule fallback timeout in case data never loads
         try:
             if hasattr(mgr, "_schedule_data_ready_fallback"):
                 mgr._schedule_data_ready_fallback()
         except Exception as e:
             logger.debug(f"TopPanel: failed to schedule data_ready fallback: {e}")
-        
+
         # FIX: streamline initialization by removing redundant adjustments
         # Check whether the new ``data_loaded`` signal exists
         if controller and hasattr(controller, "data_loaded"):
             try:
                 # Connect to the data loading signal (single-shot)
                 from PyQt6.QtCore import Qt
+
                 controller.data_loaded.connect(
-                    mgr.mark_data_ready, 
-                    Qt.ConnectionType.SingleShotConnection
+                    mgr.mark_data_ready, Qt.ConnectionType.SingleShotConnection
                 )
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
@@ -386,9 +395,11 @@ class WindowUISetup:
                 QTimer.singleShot(100, mgr.mark_data_ready)
         else:
             # FIX: fallback for older versions — trigger once instead of twice
-            logger.debug("TopPanel: data_loaded signal not available, using timer fallback")
+            logger.debug(
+                "TopPanel: data_loaded signal not available, using timer fallback"
+            )
             QTimer.singleShot(100, mgr.mark_data_ready)
-        
+
         # Trigger data refresh
         def _refresh():
             if controller and hasattr(controller, "refresh_all"):
@@ -399,7 +410,7 @@ class WindowUISetup:
                         "TopPanel: top_panels_controller.refresh_all() failed",
                         exc_info=True,
                     )
-        
+
         QTimer.singleShot(0, _refresh)
 
     def _schedule_top_panels_refresh(self) -> None:
@@ -423,13 +434,18 @@ class WindowUISetup:
         # Update search placeholder
         try:
             from PyQt6.QtCore import QCoreApplication
+
             search = getattr(self.window, "search", None)
             if search is not None and hasattr(search, "setPlaceholderText"):
                 # Use translated placeholder instead of hardcoded config value
-                placeholder = QCoreApplication.translate("WindowUISetup", "Search\u2026 (Ctrl+F)")
+                placeholder = QCoreApplication.translate(
+                    "WindowUISetup", "Search\u2026 (Ctrl+F)"
+                )
                 search.setPlaceholderText(placeholder)
         except Exception:
-            logger.debug("WindowUISetup: failed to update search placeholder", exc_info=True)
+            logger.debug(
+                "WindowUISetup: failed to update search placeholder", exc_info=True
+            )
 
         # Update status bar
         try:
@@ -463,7 +479,9 @@ class WindowUISetup:
             self.window.destroyed.connect(manager.cleanup)
             self.window._topbar_cleanup_connected = True
         except Exception:
-            logger.debug("WindowUISetup: failed to connect top bar cleanup", exc_info=True)
+            logger.debug(
+                "WindowUISetup: failed to connect top bar cleanup", exc_info=True
+            )
 
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         try:
@@ -527,7 +545,11 @@ class WindowUISetup:
             top_bar.addWidget(widget)
             try:
                 lay = getattr(widget, "panel_layout", None)
-                if lay is not None and hasattr(lay, "spacing") and hasattr(lay, "setSpacing"):
+                if (
+                    lay is not None
+                    and hasattr(lay, "spacing")
+                    and hasattr(lay, "setSpacing")
+                ):
                     cur = int(lay.spacing())
                     lay.setSpacing(max(0, cur - 1))
             except Exception:
@@ -608,10 +630,13 @@ class WindowUISetup:
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
         from PyQt6.QtCore import QCoreApplication
+
         t_start = time.perf_counter()
         self.window.search = QLineEdit()
         # Use translated placeholder
-        placeholder = QCoreApplication.translate("WindowUISetup", "Search\u2026 (Ctrl+F)")
+        placeholder = QCoreApplication.translate(
+            "WindowUISetup", "Search\u2026 (Ctrl+F)"
+        )
         self.window.search.setPlaceholderText(placeholder)
         self.window.search.setClearButtonEnabled(True)
         try:
@@ -783,6 +808,7 @@ class WindowUISetup:
 
     def setup_bottom_panel(self) -> None:
         from app.views.main_components.ui.bottom_panel_setup import BottomPanelBuilder
+
         BottomPanelBuilder(self).build()
 
     def setup_status_bar(self) -> None:
@@ -814,49 +840,56 @@ class WindowUISetup:
         ]
 
         if hasattr(sys, "_MEIPASS"):
-            candidates.extend([
-                Path(sys._MEIPASS) / "app" / "views" / "resources" / "logo" / "logo.png",
-                Path(sys._MEIPASS) / "resources" / "logo" / "logo.png",
-                Path(sys._MEIPASS) / "logo" / "logo.png",
-            ])
+            candidates.extend(
+                [
+                    Path(sys._MEIPASS)
+                    / "app"
+                    / "views"
+                    / "resources"
+                    / "logo"
+                    / "logo.png",
+                    Path(sys._MEIPASS) / "resources" / "logo" / "logo.png",
+                    Path(sys._MEIPASS) / "logo" / "logo.png",
+                ]
+            )
 
         logo_path = next((str(p) for p in candidates if p.exists()), None)
         if logo_path:
             self.window.setWindowIcon(create_icon_from_path(logo_path))
         else:
             logger.warning("Logo icon not found in expected locations: %s", candidates)
-    
+
     def cleanup(self) -> None:
         """Clean up `WindowUISetup` resources.
 
         FIX: explicitly remove event filters to avoid memory leaks.
         """
         logger.debug("WindowUISetup: starting cleanup")
-        
+
         # Clear `_AutoHideTreeFilter`
-        if hasattr(self.window, '_auto_hide_tree_filter'):
+        if hasattr(self.window, "_auto_hide_tree_filter"):
             try:
                 filter_obj = self.window._auto_hide_tree_filter
                 if filter_obj is not None:
                     # Disconnect signal
-                    if hasattr(self.window, 'shown'):
+                    if hasattr(self.window, "shown"):
                         try:
                             self.window.shown.disconnect(filter_obj._apply)
                         except (TypeError, RuntimeError):
                             pass
-                    
+
                     # Remove event filter
                     try:
                         self.window.removeEventFilter(filter_obj)
                     except (RuntimeError, AttributeError):
                         pass
-                    
+
                     # Delete object
                     try:
                         filter_obj.deleteLater()
                     except (RuntimeError, AttributeError):
                         pass
-                    
+
                     self.window._auto_hide_tree_filter = None
                     logger.debug("WindowUISetup: cleaned up _auto_hide_tree_filter")
             except (RuntimeError, AttributeError) as cleanup_error:
@@ -864,5 +897,5 @@ class WindowUISetup:
                     "WindowUISetup: error cleaning up _auto_hide_tree_filter: %s",
                     cleanup_error,
                 )
-        
+
         logger.info("WindowUISetup: cleanup completed")

@@ -90,7 +90,9 @@ class DbReadyGate:
 
         # Skip setup if a timer is already running
         if self._timer is not None:
-            self._logger.debug("DbReadyGate: polling already in progress; callback queued")
+            self._logger.debug(
+                "DbReadyGate: polling already in progress; callback queued"
+            )
             return
 
         # Start timer polling
@@ -163,9 +165,13 @@ class DbReadyGate:
             self._logger.warning("DbReadyGate: proceeding as ready after check failure")
             self._execute_callbacks_and_metrics()
 
-    def _execute_callbacks_and_metrics(self, single_callback: Callable[[], None] | None = None) -> None:
+    def _execute_callbacks_and_metrics(
+        self, single_callback: Callable[[], None] | None = None
+    ) -> None:
         """Execute callbacks (all or the provided one) and log wait metrics."""
-        callbacks_to_execute = [single_callback] if single_callback else self._pending_callbacks
+        callbacks_to_execute = (
+            [single_callback] if single_callback else self._pending_callbacks
+        )
         for callback in callbacks_to_execute:
             if callback:
                 try:

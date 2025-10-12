@@ -107,7 +107,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
             return self.controller.get_selected_links()
         except Exception:
             # In rare cases when controller is unavailable, return empty list
-            logger.debug("clipboard.get_selected_links: controller unavailable", exc_info=True)
+            logger.debug(
+                "clipboard.get_selected_links: controller unavailable", exc_info=True
+            )
             return []
 
     def _validate_clipboard_data(self) -> list[dict]:

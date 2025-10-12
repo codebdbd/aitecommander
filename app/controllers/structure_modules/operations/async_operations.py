@@ -89,18 +89,29 @@ class AsyncOperations(QObject):
             if self._worker_signals:
                 # Disconnect all signals
                 signals_to_disconnect = [
-                    'spheres_loaded', 'structure_loaded', 'sections_loaded',
-                    'categories_loaded', 'search_results', 'links_loaded',
-                    'link_info_finished', 'count_finished', 'item_created',
-                    'item_updated', 'item_deleted', 'operation_started',
-                    'operation_finished', 'loading_started', 'update_ui',
-                    'error', 'simple_error'
+                    "spheres_loaded",
+                    "structure_loaded",
+                    "sections_loaded",
+                    "categories_loaded",
+                    "search_results",
+                    "links_loaded",
+                    "link_info_finished",
+                    "count_finished",
+                    "item_created",
+                    "item_updated",
+                    "item_deleted",
+                    "operation_started",
+                    "operation_finished",
+                    "loading_started",
+                    "update_ui",
+                    "error",
+                    "simple_error",
                 ]
-                
+
                 for signal_name in signals_to_disconnect:
                     try:
                         signal = getattr(self._worker_signals, signal_name, None)
-                        if signal and hasattr(signal, 'disconnect'):
+                        if signal and hasattr(signal, "disconnect"):
                             signal.disconnect()
                     except TypeError:  # Already disconnected
                         pass
@@ -114,25 +125,31 @@ class AsyncOperations(QObject):
         # Clear pending tasks
         with self._pending_tasks_lock:
             if self._pending_tasks:
-                self.logger.debug("AsyncOperations: clearing %d pending tasks", len(self._pending_tasks))
+                self.logger.debug(
+                    "AsyncOperations: clearing %d pending tasks",
+                    len(self._pending_tasks),
+                )
                 self._pending_tasks.clear()
 
         # Clear metrics
         with self._metrics_lock:
             if self._active_metric_spans:
-                self.logger.debug("AsyncOperations: clearing %d active metric spans", len(self._active_metric_spans))
+                self.logger.debug(
+                    "AsyncOperations: clearing %d active metric spans",
+                    len(self._active_metric_spans),
+                )
                 self._active_metric_spans.clear()
 
     def _add_pending_task(self, task_id: str, task_data: Any = True) -> bool:
         """Добавляет pending task с проверкой лимита.
-        
+
         ИСПРАВЛЕНИЕ: Ограничивает количество pending tasks для предотвращения
         неконтролируемого роста памяти.
-        
+
         Args:
             task_id: Уникальный идентификатор задачи
             task_data: Данные задачи (по умолчанию True)
-            
+
         Returns:
             bool: True если задача добавлена, False если достигнут лимит
         """
@@ -140,21 +157,21 @@ class AsyncOperations(QObject):
             if len(self._pending_tasks) >= MAX_PENDING_TASKS:
                 self.logger.warning(
                     "Pending tasks limit (%d) reached, dropping oldest task",
-                    MAX_PENDING_TASKS
+                    MAX_PENDING_TASKS,
                 )
                 # Удаляем самую старую задачу (FIFO)
                 if self._pending_tasks:
                     oldest_key = next(iter(self._pending_tasks))
                     del self._pending_tasks[oldest_key]
-            
+
             self._pending_tasks[task_id] = task_data
             return True
-    
+
     def _remove_pending_task(self, task_id: str) -> None:
         """Удаляет pending task по ID."""
         with self._pending_tasks_lock:
             self._pending_tasks.pop(task_id, None)
-    
+
     def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
         return self._worker_signals
@@ -404,7 +421,9 @@ class AsyncOperations(QObject):
             description=f"load_sections(sphere_id={sphere_id})",
             on_finished=lambda sections: (
                 self._worker_signals.sections_loaded.emit(sections, sphere_id),
-                self._worker_signals.operation_finished.emit(self.tr("Sections loaded")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Sections loaded")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
@@ -429,7 +448,9 @@ class AsyncOperations(QObject):
             description=f"load_categories(section_id={section_id})",
             on_finished=lambda categories: (
                 self._worker_signals.categories_loaded.emit(categories, section_id),
-                self._worker_signals.operation_finished.emit(self.tr("Categories loaded")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Categories loaded")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
@@ -448,9 +469,7 @@ class AsyncOperations(QObject):
             self.logger.error("Section name is required")
             return
         if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self.logger.error(
-                "Sphere ID must be greater than 0 to create a section"
-            )
+            self.logger.error("Sphere ID must be greater than 0 to create a section")
             return
         # Предчек дубликатов для улучшения UX: избегаем падения на ограничении уникальности
         try:
@@ -459,7 +478,7 @@ class AsyncOperations(QObject):
                 str(row["name"]).strip().lower() == name.lower() for row in existing
             ):
                 msg = self.tr(
-                    "Section named \"{name}\" already exists in the selected sphere"
+                    'Section named "{name}" already exists in the selected sphere'
                 ).format(name=name)
                 self.logger.info(msg)
                 # Покажем пользователю понятное сообщение без запуска воркера
@@ -467,9 +486,7 @@ class AsyncOperations(QObject):
                 return
         except Exception as e:
             # Не блокируем создание при сбое проверки, только логируем
-            self.logger.warning(
-                "Failed to perform section duplicate pre-check: %s", e
-            )
+            self.logger.warning("Failed to perform section duplicate pre-check: %s", e)
 
         def _create():
             service = StructureService(self.db)
@@ -490,7 +507,9 @@ class AsyncOperations(QObject):
             description=f"create_section(name={name!r})",
             on_finished=lambda res: (
                 self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit(self.tr("Section created")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Section created")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
@@ -509,9 +528,7 @@ class AsyncOperations(QObject):
             self.logger.error("Category name is required")
             return
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error(
-                "Section ID must be greater than 0 to create a category"
-            )
+            self.logger.error("Section ID must be greater than 0 to create a category")
             return
 
         def _create():
@@ -533,7 +550,9 @@ class AsyncOperations(QObject):
             description=f"create_category(name={name!r})",
             on_finished=lambda res: (
                 self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit(self.tr("Category created")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Category created")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
@@ -568,7 +587,9 @@ class AsyncOperations(QObject):
             description=f"update_section(id={section_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit(self.tr("Section updated")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Section updated")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
@@ -603,7 +624,9 @@ class AsyncOperations(QObject):
             description=f"update_category(id={category_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit(self.tr("Category updated")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Category updated")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
@@ -636,7 +659,9 @@ class AsyncOperations(QObject):
             description=f"delete_section(id={section_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_deleted.emit(*res),
-                self._worker_signals.operation_finished.emit(self.tr("Section deleted")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Section deleted")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Delete error"),
@@ -663,9 +688,7 @@ class AsyncOperations(QObject):
                 return None
 
             self.logger.info("Starting async deletion of category %s", category_id)
-            self._worker_signals.operation_started.emit(
-                self.tr("Deleting category…")
-            )
+            self._worker_signals.operation_started.emit(self.tr("Deleting category…"))
 
             def _delete():
                 old_data = {}
@@ -687,7 +710,9 @@ class AsyncOperations(QObject):
                 description=f"delete_category(id={category_id})",
                 on_finished=lambda res: (
                     self._worker_signals.item_deleted.emit(*res),
-                    self._worker_signals.operation_finished.emit(self.tr("Category deleted")),
+                    self._worker_signals.operation_finished.emit(
+                        self.tr("Category deleted")
+                    ),
                 ),
                 on_error=lambda e: self._worker_signals.error.emit(
                     self.tr("Delete error"),
@@ -739,7 +764,9 @@ class AsyncOperations(QObject):
                 self._worker_signals.item_updated.emit(
                     "section_count", section_id, count_data
                 ),
-                self._worker_signals.operation_finished.emit(self.tr("Count completed")),
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Count completed")
+                ),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Count error"),
@@ -750,11 +777,16 @@ class AsyncOperations(QObject):
 
 class AsyncSignalHandlers(QObject):
     """Класс для обработки сигналов от асинхронных операций.
-    
+
     Наследуется от QObject для правильного использования слотов PyQt6.
     """
 
-    def __init__(self, controller_instance, top_panels_controller: Optional[Any] = None, parent: Optional[QObject] = None):
+    def __init__(
+        self,
+        controller_instance,
+        top_panels_controller: Optional[Any] = None,
+        parent: Optional[QObject] = None,
+    ):
         super().__init__(parent)
         self.controller = controller_instance
         self.logger = controller_instance.logger
@@ -777,9 +809,7 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_structure_loaded(
-        self, structure: list[SectionData], sphere_id: int
-    ) -> None:
+    def on_structure_loaded(self, structure: list[SectionData], sphere_id: int) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
             self.logger.debug(
@@ -810,6 +840,7 @@ class AsyncSignalHandlers(QObject):
             # Опционально отбрасываем устаревшие снапшоты, если включен флаг в конфиге
             try:
                 from app.config_data import app_config
+
                 drop_stale = bool(app_config.ui.get_drop_stale_structure_snapshots())
             except Exception:
                 drop_stale = False
@@ -850,9 +881,7 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_sections_loaded(
-        self, sections: list[SectionData], sphere_id: int
-    ) -> None:
+    def on_sections_loaded(self, sections: list[SectionData], sphere_id: int) -> None:
         """Обработчик завершения загрузки разделов."""
         try:
             self.logger.info(

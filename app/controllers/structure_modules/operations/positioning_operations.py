@@ -177,15 +177,21 @@ class PositioningOperations(BaseOperations):
             return "ID list cannot be empty or None"
 
         if not isinstance(ids_in_order, list):
-            return f"ids_in_order must be a list, received: {type(ids_in_order).__name__}"
+            return (
+                f"ids_in_order must be a list, received: {type(ids_in_order).__name__}"
+            )
 
         # Проверка типов элементов списка
         for i, id_val in enumerate(ids_in_order):
             if not isinstance(id_val, int):
-                return f"Element {i} must be an integer, received: {type(id_val).__name__}"
+                return (
+                    f"Element {i} must be an integer, received: {type(id_val).__name__}"
+                )
 
             if id_val <= 0:
-                return f"IDs must be positive numbers, received: {id_val} at position {i}"
+                return (
+                    f"IDs must be positive numbers, received: {id_val} at position {i}"
+                )
 
         # Проверка на дубликаты
         if len(set(ids_in_order)) != len(ids_in_order):

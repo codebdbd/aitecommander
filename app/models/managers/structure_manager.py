@@ -1,4 +1,5 @@
 """Module for managing full data structure in DB."""
+
 import copy
 import logging
 import time
@@ -119,24 +120,36 @@ class StructureManager:
         try:
             t0 = time.perf_counter()
             root = copy.deepcopy(data or [])
-            
+
             # Count elements for progress
             total_items = (
-                len(root) +
-                sum(len((s or {}).get("sections", [])) for s in root) +
-                sum(len((sec or {}).get("categories", []))
-                    for s in root for sec in (s or {}).get("sections", [])) +
-                sum(len((cat or {}).get("links", []))
-                    for s in root for sec in (s or {}).get("sections", [])
-                    for cat in (sec or {}).get("categories", []))
+                len(root)
+                + sum(len((s or {}).get("sections", [])) for s in root)
+                + sum(
+                    len((sec or {}).get("categories", []))
+                    for s in root
+                    for sec in (s or {}).get("sections", [])
+                )
+                + sum(
+                    len((cat or {}).get("links", []))
+                    for s in root
+                    for sec in (s or {}).get("sections", [])
+                    for cat in (sec or {}).get("categories", [])
+                )
             )
             self.db.operation_started.emit(operation, total_items or 1)
 
             # --- Preparation phase: normalize input and build relations ---
-            self.db.operation_progress.emit(operation, 0, total_items or 1, "Preparing data...")
+            self.db.operation_progress.emit(
+                operation, 0, total_items or 1, "Preparing data..."
+            )
             spheres_items: list[dict] = []  # {ref, id?, name, icon_path, position}
-            sections_items: list[dict] = []  # {ref, id?, name, sphere_ref, icon_path, position}
-            categories_items: list[dict] = []  # {ref, id?, name, section_ref, icon_path, position}
+            sections_items: list[
+                dict
+            ] = []  # {ref, id?, name, sphere_ref, icon_path, position}
+            categories_items: list[
+                dict
+            ] = []  # {ref, id?, name, section_ref, icon_path, position}
             links_with_id: list[dict] = []  # ready for executemany
             links_without_id: list[dict] = []  # individual INSERT
             current = 0
@@ -194,7 +207,9 @@ class StructureManager:
                             ld = dict(ln)
                             # Minimum normalization
                             try:
-                                ld["type"] = LinkType.from_value(ld.get("type", "web")).value
+                                ld["type"] = LinkType.from_value(
+                                    ld.get("type", "web")
+                                ).value
                             except Exception:
                                 ld["type"] = LinkType.WEB.value
                             ld["is_favorite"] = int(ld.get("is_favorite", 0) or 0)
@@ -212,14 +227,21 @@ class StructureManager:
             with db_lock:
                 with self.db.connection:
                     # Clear tables in dependency order
-                    self.db.operation_progress.emit(operation, current, total_items or 1, "Clearing tables...")
+                    self.db.operation_progress.emit(
+                        operation, current, total_items or 1, "Clearing tables..."
+                    )
                     self.db.connection.execute("DELETE FROM link")
                     self.db.connection.execute("DELETE FROM category")
                     self.db.connection.execute("DELETE FROM section")
                     self.db.connection.execute("DELETE FROM sphere")
 
                     # 1) Spheres
-                    self.db.operation_progress.emit(operation, current, total_items or 1, f"Inserting spheres: {len(spheres_items)}")
+                    self.db.operation_progress.emit(
+                        operation,
+                        current,
+                        total_items or 1,
+                        f"Inserting spheres: {len(spheres_items)}",
+                    )
                     spheres_with_id = [x for x in spheres_items if x.get("id")]
                     spheres_no_id = [x for x in spheres_items if not x.get("id")]
 
@@ -243,14 +265,25 @@ class StructureManager:
                     for x in spheres_no_id:
                         cur = self.db.connection.execute(
                             "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
-                            (x.get("name", ""), x.get("icon_path", ""), int(x.get("position", 0))),
+                            (
+                                x.get("name", ""),
+                                x.get("icon_path", ""),
+                                int(x.get("position", 0)),
+                            ),
                         )
                         sphere_ref_to_id[x["ref"]] = int(cur.lastrowid)
 
                     # 2) Sections
-                    self.db.operation_progress.emit(operation, len(spheres_items), total_items or 1, f"Inserting sections: {len(sections_items)}")
+                    self.db.operation_progress.emit(
+                        operation,
+                        len(spheres_items),
+                        total_items or 1,
+                        f"Inserting sections: {len(sections_items)}",
+                    )
                     for x in sections_items:
-                        x["sphere_id"] = sphere_ref_to_id.get(x["sphere_ref"])  # ensure FK
+                        x["sphere_id"] = sphere_ref_to_id.get(
+                            x["sphere_ref"]
+                        )  # ensure FK
                     sections_with_id = [x for x in sections_items if x.get("id")]
                     sections_no_id = [x for x in sections_items if not x.get("id")]
 
@@ -285,9 +318,16 @@ class StructureManager:
                         section_ref_to_id[x["ref"]] = int(cur.lastrowid)
 
                     # 3) Categories
-                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items), total_items or 1, f"Inserting categories: {len(categories_items)}")
+                    self.db.operation_progress.emit(
+                        operation,
+                        len(spheres_items) + len(sections_items),
+                        total_items or 1,
+                        f"Inserting categories: {len(categories_items)}",
+                    )
                     for x in categories_items:
-                        x["section_id"] = section_ref_to_id.get(x["section_ref"])  # ensure FK
+                        x["section_id"] = section_ref_to_id.get(
+                            x["section_ref"]
+                        )  # ensure FK
                     categories_with_id = [x for x in categories_items if x.get("id")]
                     categories_no_id = [x for x in categories_items if not x.get("id")]
 
@@ -323,7 +363,14 @@ class StructureManager:
 
                     # 4) Links
                     total_links = len(links_with_id) + len(links_without_id)
-                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items) + len(categories_items), total_items or 1, f"Inserting links: {total_links}")
+                    self.db.operation_progress.emit(
+                        operation,
+                        len(spheres_items)
+                        + len(sections_items)
+                        + len(categories_items),
+                        total_items or 1,
+                        f"Inserting links: {total_links}",
+                    )
                     # Set actual category_id from map
                     for link in links_with_id:
                         if not link.get("category_id"):
@@ -415,14 +462,14 @@ class StructureManager:
             logger.info(
                 "import_full_structure: spheres=%d (with_id=%d, no_id=%d), sections=%d (with_id=%d, no_id=%d), categories=%d (with_id=%d, no_id=%d), links=%d (with_id=%d, no_id=%d), total_ms=%.2f",
                 len(spheres_items),
-                sum(1 for x in spheres_items if x.get('id')),
-                sum(1 for x in spheres_items if not x.get('id')),
+                sum(1 for x in spheres_items if x.get("id")),
+                sum(1 for x in spheres_items if not x.get("id")),
                 len(sections_items),
-                sum(1 for x in sections_items if x.get('id')),
-                sum(1 for x in sections_items if not x.get('id')),
+                sum(1 for x in sections_items if x.get("id")),
+                sum(1 for x in sections_items if not x.get("id")),
                 len(categories_items),
-                sum(1 for x in categories_items if x.get('id')),
-                sum(1 for x in categories_items if not x.get('id')),
+                sum(1 for x in categories_items if x.get("id")),
+                sum(1 for x in categories_items if not x.get("id")),
                 len(links_with_id) + len(links_without_id),
                 len(links_with_id),
                 len(links_without_id),
@@ -430,7 +477,7 @@ class StructureManager:
             )
 
             self.db.operation_finished.emit(operation, True)
-            
+
             # Create a backup asynchronously after a large import operation
             try:
                 self.db.backup_async(
@@ -440,11 +487,9 @@ class StructureManager:
                 )
             except Exception as backup_err:
                 logger.warning(
-                    "Failed to start backup after import: %s",
-                    backup_err,
-{{ ... }}
+                    "Failed to start backup after import: %s", backup_err, {{...}}
                 )
-            
+
             # Notify UI about successful structure import
             try:
                 self.db.structure_loaded.emit()

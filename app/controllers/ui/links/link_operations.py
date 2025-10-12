@@ -160,4 +160,3 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link = selected_links[0]
 
         self.business.toggle_favorite(link)
-

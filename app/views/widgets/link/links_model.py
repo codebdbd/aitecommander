@@ -19,6 +19,7 @@ from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link.item_builders import ItemBuildersMixin
 
+
 # Global icon cache to avoid memory leaks with lru_cache on methods
 @lru_cache(maxsize=100)
 def _get_icon_cached(icon_path: str) -> QIcon | None:
@@ -43,7 +44,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]  # source strings
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
-    def __init__(self, links: Sequence[dict[str, Any]] | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        links: Sequence[dict[str, Any]] | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         QAbstractTableModel.__init__(self, parent)
         ReTranslatable.__init__(self)
         self._headers: list[str] = []
@@ -68,7 +73,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         ]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
-            self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
+            self.headerDataChanged.emit(
+                Qt.Orientation.Horizontal, 0, len(self._headers) - 1
+            )
 
     # --- Required methods ---
     def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
@@ -85,7 +92,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return 0
         return len(self._headers)
 
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | int | QIcon | dict | None:  # type: ignore[override]
+    def data(
+        self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
+    ) -> str | int | QIcon | dict | None:  # type: ignore[override]
         if not index.isValid():
             return QVariant()
         row = index.row()

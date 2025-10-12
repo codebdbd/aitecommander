@@ -99,6 +99,7 @@ def update_status_bar(window) -> None:
     - Build the path of the current structure item and active sphere
     """
     try:
+
         def _set_text_if_changed(label, text: str) -> None:
             try:
                 if label is None:

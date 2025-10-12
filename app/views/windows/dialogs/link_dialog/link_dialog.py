@@ -42,7 +42,9 @@ _TR_CONTEXT = "LinkDialog"
 
 
 def _tr(text: str, disambiguation: str | None = None, n: int | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation, n if n is not None else -1)
+    return QCoreApplication.translate(
+        _TR_CONTEXT, text, disambiguation, n if n is not None else -1
+    )
 
 
 @runtime_checkable
@@ -215,7 +217,9 @@ class LinkDialog(BaseDialog):
         except (AttributeError, RuntimeError) as e:
             # Do not block the dialog if neon effect fails
             logger.warning(
-                "Failed to install neon effect on link type buttons: %s", e, exc_info=True
+                "Failed to install neon effect on link type buttons: %s",
+                e,
+                exc_info=True,
             )
 
         # Event handlers
@@ -240,7 +244,11 @@ class LinkDialog(BaseDialog):
         for 300 ms and then cleared.
         """
         try:
-            for cb in (self._get_sphere_cb(), self._get_section_cb(), self._get_category_cb()):
+            for cb in (
+                self._get_sphere_cb(),
+                self._get_section_cb(),
+                self._get_category_cb(),
+            ):
                 if cb and not getattr(cb, "_focus_guard_installed", False):
                     cb.installEventFilter(self)
                     cb._focus_guard_installed = True
@@ -277,7 +285,9 @@ class LinkDialog(BaseDialog):
                 informative_text=self.tr(
                     "Icons directory is not set. Specify the path in the application settings or config."
                 ),
-                details=self.tr("Configuration parameter for icons is missing or empty."),
+                details=self.tr(
+                    "Configuration parameter for icons is missing or empty."
+                ),
             )
             self.close()
             return False
@@ -343,14 +353,20 @@ class LinkDialog(BaseDialog):
         #  - others: focus "Browse" button
         try:
             lt = LinkType.from_value(self.link_type)
+
             def _apply_initial_focus():
                 try:
                     if lt == LinkType.WEB:
-                        self._get_url_le().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                        self._get_url_le().setFocus(
+                            Qt.FocusReason.ActiveWindowFocusReason
+                        )
                     else:
-                        self._get_browse_btn().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                        self._get_browse_btn().setFocus(
+                            Qt.FocusReason.ActiveWindowFocusReason
+                        )
                 except Exception:
                     pass
+
             QTimer.singleShot(0, _apply_initial_focus)
         except Exception:
             pass
@@ -521,7 +537,7 @@ class LinkDialog(BaseDialog):
 
         # Clean event filters to prevent leaks
         try:
-            if hasattr(self, '_neon_link_filter') and self._neon_link_filter:
+            if hasattr(self, "_neon_link_filter") and self._neon_link_filter:
                 self._neon_link_filter.cleanup()
                 self._neon_link_filter = None
         except Exception:
@@ -541,9 +557,7 @@ class LinkDialog(BaseDialog):
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
         # Window title
-        self.setWindowTitle(
-            self.tr("Edit link") if self.link else self.tr("Add link")
-        )
+        self.setWindowTitle(self.tr("Edit link") if self.link else self.tr("Add link"))
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()

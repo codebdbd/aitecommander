@@ -13,7 +13,9 @@ class ResourceManager:
 
     def __init__(self, name: str = "ResourceManager") -> None:
         self._name = name
-        self._resources: list[tuple[str, Any, str | None, Callable[[], None] | None]] = []
+        self._resources: list[
+            tuple[str, Any, str | None, Callable[[], None] | None]
+        ] = []
         self._cleaned_up = False
         self._cleanup_errors: list[tuple[str, Exception]] = []
 
@@ -33,7 +35,7 @@ class ResourceManager:
             return
 
         resource_name = name or f"{type(resource).__name__}@{id(resource)}"
-        
+
         if cleanup_func is not None:
             # Explicit cleanup function
             self._resources.append((resource_name, None, None, cleanup_func))
@@ -67,11 +69,15 @@ class ResourceManager:
             logger.debug("%s: cleanup_all called multiple times, ignoring", self._name)
             return
 
-        logger.debug("%s: starting cleanup of %d resources", self._name, len(self._resources))
+        logger.debug(
+            "%s: starting cleanup of %d resources", self._name, len(self._resources)
+        )
         self._cleaned_up = True
         self._cleanup_errors.clear()
 
-        for resource_name, resource_obj, method_name, cleanup_func in reversed(self._resources):
+        for resource_name, resource_obj, method_name, cleanup_func in reversed(
+            self._resources
+        ):
             try:
                 if cleanup_func is not None:
                     # Explicit cleanup function

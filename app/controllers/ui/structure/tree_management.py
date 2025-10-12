@@ -35,7 +35,9 @@ class TreeManagement(QObject):
             raise TypeError(
                 "category_tiles_controller must implement CategoryTilesControllerProtocol"
             )
-        self.tiles_controller: CategoryTilesControllerProtocol = category_tiles_controller
+        self.tiles_controller: CategoryTilesControllerProtocol = (
+            category_tiles_controller
+        )
 
         # Explicit reference to tree model and contract check
         try:
@@ -76,13 +78,12 @@ class TreeManagement(QObject):
                 key=lambda s: str(s.get("name", "")).lower(),
             )
         except (TypeError, AttributeError, KeyError):
-            logger.exception(
-                "TreeManagement._on_structure_loaded: sections sort error"
-            )
+            logger.exception("TreeManagement._on_structure_loaded: sections sort error")
 
         # Update model with single snapshot
         if sections_data is None:
             sections_data = []
+
         def _on_snapshot_error() -> None:
             logger.exception(
                 "TreeManagement._on_structure_loaded: model failed to accept snapshot"
@@ -124,7 +125,9 @@ class TreeManagement(QObject):
         )
 
     @pyqtSlot(str, int, dict)
-    def _on_item_added(self, item_type: str, parent_id: int, data: dict[str, Any]) -> None:
+    def _on_item_added(
+        self, item_type: str, parent_id: int, data: dict[str, Any]
+    ) -> None:
         # Incremental insert via model
         # Note: on insert error full structure reload required —
         # expected model errors (ValueError, RuntimeError) logged and re-raised,
@@ -134,7 +137,9 @@ class TreeManagement(QObject):
         self._updates.handle_item_added(item_type, parent_id, data)
 
     @pyqtSlot(str, int, dict)
-    def _on_item_updated(self, item_type: str, item_id: int, data: dict[str, Any]) -> None:
+    def _on_item_updated(
+        self, item_type: str, item_id: int, data: dict[str, Any]
+    ) -> None:
         self._updates.handle_item_updated(item_type, item_id, data)
 
     @pyqtSlot(str, int)

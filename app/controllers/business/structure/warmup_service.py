@@ -47,7 +47,9 @@ class StructureWarmupService:
             self._schedule_category_preload(payload, sphere_id)
         except Exception as exc:  # pragma: no cover - defensive logging
             try:
-                self._logger.debug("Warm cache after structure_loaded failed: %s", exc, exc_info=True)
+                self._logger.debug(
+                    "Warm cache after structure_loaded failed: %s", exc, exc_info=True
+                )
             except Exception:
                 pass
 
@@ -77,7 +79,9 @@ class StructureWarmupService:
         except Exception as ex:  # pragma: no cover - defensive logging
             self._logger.debug("Immediate warm cache failed: %s", ex, exc_info=True)
 
-    def _schedule_category_preload(self, payload: list[dict[str, Any]], sphere_id: int) -> None:
+    def _schedule_category_preload(
+        self, payload: list[dict[str, Any]], sphere_id: int
+    ) -> None:
         try:
             if not isinstance(payload, list) or not payload:
                 return
@@ -97,14 +101,18 @@ class StructureWarmupService:
 
                 QTimer.singleShot(
                     delay,
-                    lambda sid=section_id, token=planned_token, psid=planned_sphere: self._preload_section(
-                        sid, token, psid
-                    ),
+                    lambda sid=section_id,
+                    token=planned_token,
+                    psid=planned_sphere: self._preload_section(sid, token, psid),
                 )
         except Exception:  # pragma: no cover - defensive logging
-            self._logger.debug("Warm cache: preload categories scheduling failed", exc_info=True)
+            self._logger.debug(
+                "Warm cache: preload categories scheduling failed", exc_info=True
+            )
 
-    def _preload_section(self, section_id: int, planned_token: int, planned_sphere: int) -> None:
+    def _preload_section(
+        self, section_id: int, planned_token: int, planned_sphere: int
+    ) -> None:
         try:
             current_token = int(getattr(self._owner, "_switch_token", 0))
             if current_token != int(planned_token):

@@ -2,7 +2,9 @@
 
 # SQLite parameters and limits
 SQLITE_MAX_VARIABLES = 999  # Maximum number of variables in SQLite query by default
-SQLITE_SAFE_BATCH_SIZE = 400  # Safe batch size for operations with 2+ parameters per write
+SQLITE_SAFE_BATCH_SIZE = (
+    400  # Safe batch size for operations with 2+ parameters per write
+)
 SQLITE_SAFE_SELECT_CHUNK = 900  # Safe chunk size for SELECT queries
 
 # Backup

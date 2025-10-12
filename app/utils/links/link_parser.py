@@ -237,7 +237,9 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str])
         else:
             return Path(path).stem
     except (OSError, ValueError, RuntimeError, AttributeError, TypeError) as e:
-        logger.error("Error getting name for link_type=%s path=%s: %s", link_type, path, e)
+        logger.error(
+            "Error getting name for link_type=%s path=%s: %s", link_type, path, e
+        )
         return "Unknown"
 
 

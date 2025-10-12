@@ -71,46 +71,48 @@ class BaseLinksPanelWidget:
     - Provide the configuration object via dependency injection
     - Supply ``batch_size`` for asynchronous population
     """
-    
+
     # Backward compatible signal (parent uses actionRequested)
     linkClicked: pyqtSignal = pyqtSignal(object)
 
     def __init__(
-        self, 
-        main_window: Optional[QWidget] = None, 
+        self,
+        main_window: Optional[QWidget] = None,
         links_business: LinksBusinessProtocol = None,
-        batch_size: int = 50
+        batch_size: int = 50,
     ) -> None:
         # Import locally to avoid circular import
         from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
-        
+
         # Call unified base with specified batch_size
-        BaseTopPanelWidget.__init__(self, main_window=main_window, config=None, batch_size=batch_size)
-        
+        BaseTopPanelWidget.__init__(
+            self, main_window=main_window, config=None, batch_size=batch_size
+        )
+
         # Store for backward compatibility with older code/tests
         self.links_business = links_business
-    
+
     # Compatibility property: tests expect ``main_window`` while parent uses ``_main_window``
     @property
     def main_window(self):
         """Backward compatible accessor for main_window."""
         return self._main_window
-    
+
     @main_window.setter
     def main_window(self, value):
         """Backward compatible setter for main_window."""
         self._main_window = value
-    
+
     # Compatibility method: tests call ``_populate_batch()``, parent uses ``_populate_batched()``
     def _populate_batch(self) -> None:
         """Backward compatible wrapper for _process_batch()."""
-        if not hasattr(self, '_pending_items') or not self._pending_items:
+        if not hasattr(self, "_pending_items") or not self._pending_items:
             self._finish_populate()
             return
-        
+
         # Process one batch using parent logic
         self._process_batch()
-    
+
     def _populate_panel(
         self,
         items: list[dict[str, Any]],
@@ -118,7 +120,7 @@ class BaseLinksPanelWidget:
     ) -> None:
         """Override to keep backward compatible logging for tests."""
         self._clear_layout()
-        
+
         # Use parent logic for consistency
         if self._batch_size > 0:
             self._pending_items = list(items)
@@ -128,7 +130,7 @@ class BaseLinksPanelWidget:
         else:
             # Synchronous mode – call parent logic directly
             super()._populate_panel(items, create_button_func)
-    
+
     def _process_batch(self) -> None:
         """Process one batch with backward compatible logging."""
         if not self._pending_items:
@@ -139,15 +141,19 @@ class BaseLinksPanelWidget:
         batch_size = app_config.ui.get("panel_batch_size", 50)
         batch = self._pending_items[:batch_size]
         self._pending_items = self._pending_items[batch_size:]
-        
+
         for _i, link in enumerate(batch):
             try:
                 button = self._create_button_func(link)
             except (AttributeError, KeyError, ValueError, TypeError) as expected:
                 # Catch specific exceptions instead of broad Exception
-                logger.debug("Failed to create button for link %s: %s", link.get('id', 'unknown'), expected)
+                logger.debug(
+                    "Failed to create button for link %s: %s",
+                    link.get("id", "unknown"),
+                    expected,
+                )
                 continue
-            
+
             if button is not None:
                 self.panel_layout.addWidget(button)
             else:
@@ -155,11 +161,12 @@ class BaseLinksPanelWidget:
                     "create_button_func returned None for: %s",
                     link.get("name", "Unknown"),
                 )
-        
+
         # Schedule next batch
         from PyQt6.QtCore import QTimer
+
         QTimer.singleShot(0, self._populate_batch)
-    
+
     def _finish_populate(self) -> None:
         """Finish population with backward compatible logging."""
         try:
@@ -167,9 +174,9 @@ class BaseLinksPanelWidget:
                 self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to add stretch to layout: %s", e)
-        
+
         self.setUpdatesEnabled(True)
-        
+
         try:
             self.updateGeometry()
         except (AttributeError, RuntimeError) as e:
@@ -179,10 +186,10 @@ class BaseLinksPanelWidget:
                 e,
                 exc_info=True,
             )
-        
+
         self._pending_items = []
         self._create_button_func = None
-    
+
     def _handle_link_click_base(self, link_info: Any) -> None:
         """Emit linkClicked signal (backward compatible)."""
         logger.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
@@ -200,14 +207,12 @@ class BaseLinksPanelWidget:
                 }
             except Exception:
                 link_ctx = {"raw": repr(link_info)}
-            logger.exception(
-                "Error while emitting linkClicked; context=%s", link_ctx
-            )
+            logger.exception("Error while emitting linkClicked; context=%s", link_ctx)
             raise
-    
+
     def _find_icon(self, icon_path: str) -> str:
         """Backward compatible shim for tests that patch resolve_icon_path.
-        
+
         Tests expect to patch 'app.views.widgets.base.base_widgets.resolve_icon_path'.
         This method delegates to the parent but uses the local resolve_icon_path import.
         """
@@ -221,9 +226,7 @@ class BaseLinksPanelWidget:
             return str(self._get_default_icon_path())
         except (AttributeError, ValueError, TypeError) as e:
             # Catch specific exceptions for different error types
-            logger.warning(
-                "Error while resolving icon '%s': %s", icon_path, e
-            )
+            logger.warning("Error while resolving icon '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
 
@@ -545,7 +548,7 @@ class BaseDragDropTableWidget(QTableView):
         except (AttributeError, RuntimeError) as e:
             # Catch specific exceptions when updating viewport
             logger.debug("Failed to update viewport after row move: %s", e)
-        
+
         try:
             self.update()
         except (AttributeError, RuntimeError) as e:
@@ -593,15 +596,15 @@ class BaseDragDropTableWidget(QTableView):
                 if not idx or not idx.isValid():
                     continue
                 value = model.data(idx, Qt.ItemDataRole.DisplayRole)
-                snippet = str(value or '').strip()
+                snippet = str(value or "").strip()
                 if not snippet:
                     continue
                 if len(snippet) > 40:
-                    snippet = snippet[:37] + '...'
+                    snippet = snippet[:37] + "..."
                 texts.append(snippet)
             if not texts:
                 return self._create_default_pixmap()
-            text = ' | '.join(texts)
+            text = " | ".join(texts)
             return self._create_text_pixmap(text, single_row=True)
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.warning("Failed to create single-row drag pixmap: %s", exc)

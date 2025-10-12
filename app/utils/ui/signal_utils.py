@@ -30,7 +30,9 @@ class _SignalBlocker:
     def __exit__(self, exc_type, exc, tb):
         if self._supports_blocking:
             try:
-                restore_state = self._previous_state if self._previous_state is not None else False
+                restore_state = (
+                    self._previous_state if self._previous_state is not None else False
+                )
                 self._target.blockSignals(restore_state)
             except Exception:
                 pass

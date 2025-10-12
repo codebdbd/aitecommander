@@ -26,9 +26,7 @@ class BrowserProfilesLoader:
             self.main_window.shown.connect(self._on_window_shown)
         except (AttributeError, TypeError, RuntimeError) as e:
             # Narrowly scoped Qt signal connection exceptions
-            logger.debug(
-                "Failed to connect lazy profile loading: %s", e, exc_info=True
-            )
+            logger.debug("Failed to connect lazy profile loading: %s", e, exc_info=True)
 
     def _on_window_shown(self) -> None:
         """Window shown handler to start profile loading."""
@@ -167,4 +165,6 @@ class BrowserProfilesLoader:
                             exc_info=True,
                         )
             except Exception as cache_err:
-                logger.debug("Error reading existing profile cache: %s", cache_err, exc_info=True)
+                logger.debug(
+                    "Error reading existing profile cache: %s", cache_err, exc_info=True
+                )

@@ -24,10 +24,14 @@ _BOTTOM_ACTION_TEXTS: dict[str, str] = {
 
 _BOTTOM_ACTION_TOOLTIPS: dict[str, str] = {
     "add_section": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new section."),
-    "add_category": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new category in the selected section."),
+    "add_category": QT_TRANSLATE_NOOP(
+        _BOTTOM_PANEL_CONTEXT, "Create a new category in the selected section."
+    ),
     "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new link."),
     "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit the selected item."),
-    "delete_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Delete the selected item."),
+    "delete_link": QT_TRANSLATE_NOOP(
+        _BOTTOM_PANEL_CONTEXT, "Delete the selected item."
+    ),
 }
 
 _ACTION_BUTTON_DESC_TEMPLATE = QT_TRANSLATE_NOOP(
@@ -130,6 +134,7 @@ def retranslate_bottom_panel(window: QWidget) -> None:
 @runtime_checkable
 class WindowUISetupProtocol(Protocol):
     """Protocol for WindowUISetup to enable better type checking without circular imports."""
+
     window: QWidget
     main_layout: Any  # Typically QVBoxLayout
     fonts: Any  # Typically dict with 'bottom_bar_button_px'
@@ -161,7 +166,7 @@ class BottomPanelBuilder:
 
         # Bottom bar font is centralized via ui.fonts.bottom_bar_button_px (ThemeController)
         # Apply the font here for consistency (if not handled by QSS)
-        if hasattr(self.ui, 'fonts') and hasattr(self.ui.fonts, 'bottom_bar_button_px'):
+        if hasattr(self.ui, "fonts") and hasattr(self.ui.fonts, "bottom_bar_button_px"):
             pass
             # Note: in practice apply via QApplication.setFont or stylesheet
 
@@ -170,7 +175,9 @@ class BottomPanelBuilder:
         self.window.switch_sphere_button = None
         placeholder = QWidget()  # Temporary spacer for the future button
         placeholder.setFixedWidth(0)  # Takes no space initially
-        placeholder.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
+        placeholder.setSizePolicy(
+            QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed
+        )
         bottom_layout.addWidget(placeholder)
 
         # Additional buttons from configuration (cached for performance)
@@ -236,7 +243,8 @@ class BottomPanelBuilder:
             except (RuntimeError, AttributeError) as e:
                 logger.debug(
                     "BottomPanel: failed to set 'last' property on final button: %s",
-                    e, exc_info=True,
+                    e,
+                    exc_info=True,
                 )
 
         # Container for bottom bar
@@ -258,7 +266,8 @@ class BottomPanelBuilder:
         except (RuntimeError, TypeError) as e:
             logger.debug(
                 "BottomPanel: failed to set size policy on bottom bar container: %s",
-                e, exc_info=True,
+                e,
+                exc_info=True,
             )
 
         # Add the container into the main layout (at the end, before a separator if present)
@@ -306,12 +315,12 @@ class BottomPanelBuilder:
             action_id = self._coerce_to_str(spec.get("id"))
             handler_name = self._coerce_to_str(spec.get("handler"))
             label = self._coerce_to_str(
-                spec.get("label")
-                or spec.get("text")
-                or spec.get("title")
+                spec.get("label") or spec.get("text") or spec.get("title")
             )
             shortcut = self._coerce_to_str(spec.get("shortcut"))
-            tooltip = self._coerce_to_str(spec.get("tooltip") or spec.get("description"))
+            tooltip = self._coerce_to_str(
+                spec.get("tooltip") or spec.get("description")
+            )
         elif isinstance(spec, (list, tuple)):
             parts = list(spec)
             if len(parts) < 2:
@@ -391,7 +400,7 @@ class BottomPanelBuilder:
 
     def _find_separator_in_layout(self, layout: Any) -> QWidget | None:
         """Helper: find a separator in the layout by objectName."""
-        if not hasattr(layout, 'itemAt') or not callable(layout.itemAt):
+        if not hasattr(layout, "itemAt") or not callable(layout.itemAt):
             return None
         for i in range(layout.count()):
             item = layout.itemAt(i)
@@ -404,8 +413,13 @@ class BottomPanelBuilder:
 
     def add_switch_sphere_button(self, button: QPushButton) -> None:
         """Add a sphere-switch button at the beginning of the bottom layout (after the placeholder)."""
-        if not hasattr(self.window, 'bottom_bar_container') or self.window.bottom_bar_container is None:
-            logger.warning("BottomPanel: cannot add switch button - container not built yet")
+        if (
+            not hasattr(self.window, "bottom_bar_container")
+            or self.window.bottom_bar_container is None
+        ):
+            logger.warning(
+                "BottomPanel: cannot add switch button - container not built yet"
+            )
             return
         bottom_layout = self.window.bottom_bar_container.layout()
         if bottom_layout is None or not isinstance(bottom_layout, QHBoxLayout):

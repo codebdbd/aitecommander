@@ -34,7 +34,7 @@ class StructureEventService:
     # ------------------------------------------------------------------
     def begin_batch(self) -> None:
         """Начинает batch режим для группировки операций.
-        
+
         В batch режиме обновления кэша откладываются до вызова end_batch().
         Это оптимизирует производительность при массовых операциях.
         """
@@ -43,7 +43,7 @@ class StructureEventService:
 
     def end_batch(self) -> None:
         """Завершает batch режим и применяет отложенные обновления.
-        
+
         Перезагружает категории для всех затронутых разделов и
         инвалидирует кэш структуры.
         """
@@ -91,9 +91,11 @@ class StructureEventService:
     # ------------------------------------------------------------------
     # Event handlers
     # ------------------------------------------------------------------
-    def on_item_added(self, item_type: str, parent_id: int, item_data: dict[str, Any]) -> None:
+    def on_item_added(
+        self, item_type: str, parent_id: int, item_data: dict[str, Any]
+    ) -> None:
         """Обработчик события добавления элемента.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Улучшена обработка ошибок и добавлена проверка на None.
         """
         try:
@@ -127,7 +129,9 @@ class StructureEventService:
             self._async_service.schedule_structure_reload(delay)
         except (ValueError, KeyError, TypeError) as exc:
             # ✅ Ожидаемые ошибки валидации данных
-            self._logger.error("Validation error in on_item_added handler: %s", exc, exc_info=True)
+            self._logger.error(
+                "Validation error in on_item_added handler: %s", exc, exc_info=True
+            )
         except AttributeError as exc:
             # ✅ Неожиданные ошибки - отсутствие атрибутов
             self._logger.exception("Critical error in on_item_added handler: %s", exc)
@@ -137,9 +141,11 @@ class StructureEventService:
             self._logger.exception("Unexpected error in on_item_added handler: %s", exc)
             raise
 
-    def on_item_updated(self, item_type: str, item_id: int, item_data: dict[str, Any]) -> None:
+    def on_item_updated(
+        self, item_type: str, item_id: int, item_data: dict[str, Any]
+    ) -> None:
         """Обработчик события обновления элемента.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Улучшена обработка ошибок и добавлена проверка на None.
         """
         try:
@@ -170,19 +176,23 @@ class StructureEventService:
             self._async_service.schedule_structure_reload(0)
         except (ValueError, KeyError, TypeError) as exc:
             # ✅ Ожидаемые ошибки валидации данных
-            self._logger.error("Validation error in on_item_updated handler: %s", exc, exc_info=True)
+            self._logger.error(
+                "Validation error in on_item_updated handler: %s", exc, exc_info=True
+            )
         except AttributeError as exc:
             # ✅ Неожиданные ошибки - отсутствие атрибутов
             self._logger.exception("Critical error in on_item_updated handler: %s", exc)
             raise
         except Exception as exc:
             # ✅ Все остальные критические ошибки
-            self._logger.exception("Unexpected error in on_item_updated handler: %s", exc)
+            self._logger.exception(
+                "Unexpected error in on_item_updated handler: %s", exc
+            )
             raise
 
     def on_item_deleted(self, item_type: str, item_id: int) -> None:
         """Обработчик события удаления элемента.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Улучшена обработка ошибок.
         """
         try:
@@ -251,11 +261,7 @@ class StructureEventService:
         return set(self._batch_touched_sections)
 
     def replace_touched_sections(self, sections: set[int]) -> None:
-        normalized = {
-            int(sid)
-            for sid in sections
-            if isinstance(sid, int) and sid > 0
-        }
+        normalized = {int(sid) for sid in sections if isinstance(sid, int) and sid > 0}
         if not normalized:
             if self._batch_mode:
                 self._batch_touched_sections.clear()

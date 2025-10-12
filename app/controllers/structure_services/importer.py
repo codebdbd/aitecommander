@@ -24,7 +24,10 @@ class ImportService:
                 service = StructureService(model.db)
             except (ImportError, AttributeError, RuntimeError) as service_error:
                 if logger:
-                    logger.warning("Failed to create StructureService, using direct model: %s", service_error)
+                    logger.warning(
+                        "Failed to create StructureService, using direct model: %s",
+                        service_error,
+                    )
 
             if service:
                 category_id = service.create_category(category_data)

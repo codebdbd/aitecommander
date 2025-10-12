@@ -113,7 +113,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
         except Exception as e:
             # Any other errors considered setup error to not mask DI defects
             logger.exception("Unexpected error wiring LinksUIHandlers business signals")
-            raise SetupError("Failed to connect LinksUIHandlers to business signals") from e
+            raise SetupError(
+                "Failed to connect LinksUIHandlers to business signals"
+            ) from e
         self._signals_connected = True
 
     def _connect_table_signals(self):
@@ -330,7 +332,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 else None
             )
             if idx and safe_call(idx, "isValid", default=False):
-                val = safe_call(model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None)
+                val = safe_call(
+                    model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None
+                )
                 visible_name = str(val) if val is not None else "Unknown"
             else:
                 visible_name = "Unknown"
@@ -401,8 +405,12 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Exclusivity: when selecting in table, clear tree selection."""
         try:
             # Early exit: if selection actually empty, don't touch tree
-            if _selected is not None and bool(safe_call(_selected, "isEmpty", default=False)):
-                logger.debug("Table selection change: selected is empty; skip clearing tree")
+            if _selected is not None and bool(
+                safe_call(_selected, "isEmpty", default=False)
+            ):
+                logger.debug(
+                    "Table selection change: selected is empty; skip clearing tree"
+                )
                 return
 
             tree = self._structure_tree
@@ -411,7 +419,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 return
             if hasattr(tree, "clearSelection") and callable(tree.clearSelection):
                 safe_call(tree, "clearSelection")
-                logger.debug("Cleared selection in structure_tree due to table selection change")
+                logger.debug(
+                    "Cleared selection in structure_tree due to table selection change"
+                )
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:

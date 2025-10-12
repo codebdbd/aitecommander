@@ -38,5 +38,5 @@ __all__ = [
     "ValidationIssue",
     "DetailedValidationResult",
     "TypeValidator",
-    "StructureDataValidator"
+    "StructureDataValidator",
 ]

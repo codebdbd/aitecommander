@@ -94,7 +94,9 @@ class DatabaseErrorHandler:
             )
         else:
             self._show_info(
-                "Information", "A record with the same parameters already exists.", context
+                "Information",
+                "A record with the same parameters already exists.",
+                context,
             )
         return False
 
@@ -109,9 +111,7 @@ class DatabaseErrorHandler:
 
     def _handle_validation(self, error_msg: str, context: Any) -> bool:
         """Handle validation constraint issues."""
-        self._show_error(
-            "Validation error", "Incorrect data was provided.", context
-        )
+        self._show_error("Validation error", "Incorrect data was provided.", context)
         return False
 
     def _show_info(self, title: str, message: str, context: Any):

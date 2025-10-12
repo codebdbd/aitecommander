@@ -36,6 +36,6 @@ class CategoryDeletionInfo:
             "color": None,
             "icon": None,
             "created_at": None,
-            "updated_at": None
+            "updated_at": None,
         }
         return cls(False, empty_category, 0)

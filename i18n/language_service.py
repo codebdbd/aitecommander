@@ -56,11 +56,17 @@ class LanguageService(QObject):
 
         self._languages = {
             "en": LanguageDescriptor("en", "English", "English"),
-            "uk": LanguageDescriptor("uk", "Ukrainian", "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430"),
-            "ru": LanguageDescriptor("ru", "Russian", "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"),
+            "uk": LanguageDescriptor(
+                "uk",
+                "Ukrainian",
+                "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430",
+            ),
+            "ru": LanguageDescriptor(
+                "ru", "Russian", "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"
+            ),
             "fr": LanguageDescriptor("fr", "French", "Fran\xe7ais"),
             "es": LanguageDescriptor("es", "Spanish", "Espa\xf1ol"),
-            "de": LanguageDescriptor("de", "German", "Deutsch")
+            "de": LanguageDescriptor("de", "German", "Deutsch"),
         }
 
         self._load_saved_language()
@@ -176,7 +182,9 @@ class LanguageService(QObject):
             return False
 
         if self._current_language == "en":
-            logger.debug("install_translator: English locale active, translator not required")
+            logger.debug(
+                "install_translator: English locale active, translator not required"
+            )
             return True
 
         try:

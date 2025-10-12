@@ -48,14 +48,15 @@ def safe_getattr(obj: Any, name: str, default: Any = None) -> Any:
     """
     if obj is None:
         return default
-    
+
     try:
         from sip import isdeleted
+
         if isdeleted(obj):
             return default
     except ImportError:
         pass
-    
+
     try:
         return getattr(obj, name, default)
     except (RuntimeError, AttributeError):

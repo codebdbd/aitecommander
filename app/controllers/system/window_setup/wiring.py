@@ -67,9 +67,9 @@ def _connect_favorites_widget(
         raise SetupError("Favorites widget is required for wiring")
     if not top_panels_controller:
         raise SetupError("TopPanelsController is required for favorites panel wiring")
-    
+
     _connect_widget_action_signal(fav_widget, links_actions, "Favorites")
-    
+
     try:
         if not hasattr(fav_widget, "refreshRequested"):
             raise SetupError(
@@ -91,16 +91,18 @@ def _connect_favorites_widget(
 
 
 def _connect_recent_widget(
-    recent_links_widget: Any, top_panels_controller: TopPanelsController, links_actions: Any
+    recent_links_widget: Any,
+    top_panels_controller: TopPanelsController,
+    links_actions: Any,
 ) -> None:
     """Connect recent links widget."""
     if not recent_links_widget:
         raise SetupError("Recent links widget is required for wiring")
     if not top_panels_controller:
         raise SetupError("TopPanelsController is required for recent panel wiring")
-    
+
     _connect_widget_action_signal(recent_links_widget, links_actions, "Recent")
-    
+
     try:
         if not hasattr(recent_links_widget, "refreshRequested"):
             raise SetupError(
@@ -116,33 +118,43 @@ def _connect_recent_widget(
         ) from e
 
 
-def _connect_widget_action_signal(widget: Any, links_actions: Any, widget_name: str) -> None:
+def _connect_widget_action_signal(
+    widget: Any, links_actions: Any, widget_name: str
+) -> None:
     """Connect widget's actionRequested signal to links_actions."""
     try:
         if hasattr(widget, "actionRequested"):
             action_signal = widget.actionRequested
-            if hasattr(action_signal, "connect") and hasattr(
-                links_actions, "on_action_requested"
-            ) and callable(links_actions.on_action_requested):
+            if (
+                hasattr(action_signal, "connect")
+                and hasattr(links_actions, "on_action_requested")
+                and callable(links_actions.on_action_requested)
+            ):
                 action_signal.connect(links_actions.on_action_requested)
             else:
                 logger.debug(
                     f"{widget_name} action wiring skipped: missing connect() or handler"
                 )
         else:
-            logger.debug(f"{widget_name} widget has no actionRequested; skipping action wiring")
+            logger.debug(
+                f"{widget_name} widget has no actionRequested; skipping action wiring"
+            )
     except (AttributeError, TypeError) as e:
-        logger.debug(f"{widget_name} actionRequested wiring failed (non-critical): %s", e)
+        logger.debug(
+            f"{widget_name} actionRequested wiring failed (non-critical): %s", e
+        )
 
 
-def _setup_ui_adjustments(auto_hide_tree_filter: Any | None, topbar_manager: Any | None) -> None:
+def _setup_ui_adjustments(
+    auto_hide_tree_filter: Any | None, topbar_manager: Any | None
+) -> None:
     """Set up additional UI adjustments."""
     if auto_hide_tree_filter is not None:
         if not hasattr(auto_hide_tree_filter, "_apply") or not callable(
             auto_hide_tree_filter._apply
         ):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
-    
+
     if topbar_manager is not None:
         if not hasattr(topbar_manager, "adjust") or not callable(topbar_manager.adjust):
             raise SetupError("_topbar_manager must provide callable adjust()")
@@ -170,7 +182,7 @@ def setup_signal_connections(
     )
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
-    
+
     # Refresh is called in window_ui_setup._finalize_topbar_startup(), duplicate removed
 
 
@@ -195,7 +207,7 @@ def _connect_structure_signals(
     except (AttributeError, TypeError) as e:
         logger.error("Failed to connect sphere button update: %s", e)
     structure_business.active_sphere_changed.connect(window._update_left_panel_style)
-    
+
     top_ctrl = top_panels_controller
 
     try:
@@ -215,6 +227,7 @@ def _connect_structure_signals(
                 )
 
             from . import _resolve_structure_loader
+
             loader = _resolve_structure_loader(structure_business)
 
             def _on_active_sphere_changed(*_args: Any) -> None:
@@ -440,7 +453,9 @@ class DatabaseEventHandler:
             window.structure.categories = new_db.categories
 
     @staticmethod
-    def _update_links_controllers(window: WindowProtocol, new_db: DatabaseProtocol, links_actions: Any):
+    def _update_links_controllers(
+        window: WindowProtocol, new_db: DatabaseProtocol, links_actions: Any
+    ):
         """Update link controllers with new DB."""
         if links_actions is None:
             raise SetupError("links_actions is required when switching database")
@@ -543,7 +558,8 @@ class DatabaseEventHandler:
                 try:
                     curr_id = (
                         sb.get_current_sphere_id()
-                        if hasattr(sb, "get_current_sphere_id") and callable(sb.get_current_sphere_id)
+                        if hasattr(sb, "get_current_sphere_id")
+                        and callable(sb.get_current_sphere_id)
                         else None
                     )
                 except Exception:
@@ -551,6 +567,7 @@ class DatabaseEventHandler:
                 if isinstance(curr_id, int) and curr_id > 0:
                     try:
                         from . import _resolve_structure_loader
+
                         loader_now = _resolve_structure_loader(sb)
                         loader_now()
                     except Exception as e:
@@ -576,15 +593,17 @@ class DatabaseEventHandler:
             try:
                 curr_id = (
                     sb.get_current_sphere_id()
-                    if hasattr(sb, "get_current_sphere_id") and callable(sb.get_current_sphere_id)
+                    if hasattr(sb, "get_current_sphere_id")
+                    and callable(sb.get_current_sphere_id)
                     else None
                 )
             except Exception:
                 curr_id = None
-            
+
             if isinstance(curr_id, int) and curr_id > 0:
                 try:
                     from . import _resolve_structure_loader
+
                     loader_now = _resolve_structure_loader(sb)
                     loader_now()
                 except Exception as e:

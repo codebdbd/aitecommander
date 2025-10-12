@@ -66,12 +66,16 @@ class CategoryTiles(QWidget):
         try:
             tile_w, tile_h = app_config.ui.get_tile_size()
         except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Tile size config read failed; using defaults (120x100): %s", e)
+            logger.warning(
+                "Tile size config read failed; using defaults (120x100): %s", e
+            )
             tile_w, tile_h = (120, 100)
         try:
             icon_w, icon_h = app_config.ui.get_tile_icon_size()
         except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Icon size config read failed; using defaults (48x48): %s", e)
+            logger.warning(
+                "Icon size config read failed; using defaults (48x48): %s", e
+            )
             icon_w, icon_h = (48, 48)
         try:
             spacing = int(app_config.ui.get_tile_spacing())
@@ -86,11 +90,17 @@ class CategoryTiles(QWidget):
 
         # Pass parameters to the delegate and the view
         try:
-            self.delegate.icon_size = self.delegate.icon_size.__class__(int(icon_w), int(icon_h))
-            self.delegate.tile_size = self.delegate.tile_size.__class__(int(tile_w), int(tile_h))
+            self.delegate.icon_size = self.delegate.icon_size.__class__(
+                int(icon_w), int(icon_h)
+            )
+            self.delegate.tile_size = self.delegate.tile_size.__class__(
+                int(tile_w), int(tile_h)
+            )
             self.delegate.padding = max(0, int(padding))
         except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Failed to apply delegate parameters; using existing defaults: %s", e)
+            logger.warning(
+                "Failed to apply delegate parameters; using existing defaults: %s", e
+            )
         except Exception:
             logger.exception("Unexpected error applying delegate parameters")
         self.view.setItemDelegate(self.delegate)
@@ -160,7 +170,9 @@ class CategoryTiles(QWidget):
             else:
                 self._font_point_size = None
         except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("update_font_size: invalid fs=%r, resetting to None: %s", fs, e)
+            logger.warning(
+                "update_font_size: invalid fs=%r, resetting to None: %s", fs, e
+            )
             self._font_point_size = None
         # Repaint and refresh size calculations
         try:
@@ -307,4 +319,3 @@ class CategoryTiles(QWidget):
     def _execute_add_link(self, category_id: int) -> None:
         logger.debug("Emit addLinkRequested for ID %s", category_id)
         self.addLinkRequested.emit(category_id)
-

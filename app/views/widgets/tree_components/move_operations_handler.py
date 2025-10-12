@@ -93,7 +93,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             self._show_warning(
                 self.tr("Undo history is unavailable. Move canceled."),
                 self.tr("Undo history unavailable"),
-                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
+                informative_text=self.tr(
+                    "Enable undo/redo support or initialize undo_stack in the main window."
+                ),
             )
             logger.warning("Undo stack not found for moving a category")
 
@@ -135,7 +137,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             self._show_warning(
                 self.tr("Undo history is unavailable. Batch move canceled."),
                 self.tr("Undo history unavailable"),
-                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
+                informative_text=self.tr(
+                    "Enable undo/redo support or initialize undo_stack in the main window."
+                ),
             )
             logger.warning("Undo stack not found for batch move of categories")
 
@@ -237,15 +241,11 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Invalid source_id type for category move")
             return
         if not pdata:
-            logger.warning(
-                "Invalid target parent data for category move"
-            )
+            logger.warning("Invalid target parent data for category move")
             return
         parent_type, parent_id = pdata
         if parent_type != "section" or not isinstance(parent_id, int):
-            logger.warning(
-                "Invalid target parent data for category move"
-            )
+            logger.warning("Invalid target parent data for category move")
             return
         new_section_id = parent_id
 
@@ -253,14 +253,14 @@ class MoveOperationsHandler(TreeHandlerBase):
             main_win.undo_stack.push(
                 MoveCategoryCommand(source_id, new_section_id, main_win)
             )
-            logger.info(
-                "Category moved: %s -> section %s", source_id, new_section_id
-            )
+            logger.info("Category moved: %s -> section %s", source_id, new_section_id)
         else:
             self._show_warning(
                 self.tr("History is unavailable. Move between sections canceled."),
                 self.tr("Undo history unavailable"),
-                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
+                informative_text=self.tr(
+                    "Enable undo/redo support or initialize undo_stack in the main window."
+                ),
             )
             logger.warning(
                 "Undo stack not found for moving a category between sections"
@@ -302,7 +302,7 @@ class MoveOperationsHandler(TreeHandlerBase):
     ) -> dict[str, Any]:
         """Prepare parameters for position update (QTreeView)."""
 
-            # Use model and business logic
+        # Use model and business logic
         try:
             model = getattr(self.tree_widget, "model", lambda: None)()
             if not model:
@@ -382,9 +382,13 @@ class MoveOperationsHandler(TreeHandlerBase):
 
         if result == "duplicate":
             self._show_info(
-                self.tr("A category with the same name already exists in the selected section."),
+                self.tr(
+                    "A category with the same name already exists in the selected section."
+                ),
                 self.tr("Category duplicate"),
-                informative_text=self.tr("Rename the category or choose another section."),
+                informative_text=self.tr(
+                    "Rename the category or choose another section."
+                ),
             )
             return
 
@@ -416,7 +420,6 @@ class MoveOperationsHandler(TreeHandlerBase):
             except Exception:
                 pass
 
-        
         try:
             tw = self.tree_widget
             section_id = None

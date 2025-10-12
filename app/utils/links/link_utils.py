@@ -221,9 +221,7 @@ class SecurityValidator:
 
         # If --incognito but no --new-window, add --new-window for forced new window creation
         if has_incognito and not has_new_window:
-            validated.insert(
-                0, "--new-window"
-            )  # Add to beginning for correct order
+            validated.insert(0, "--new-window")  # Add to beginning for correct order
 
         return validated
 

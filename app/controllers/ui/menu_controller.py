@@ -47,13 +47,17 @@ class MenuController(QObject):
     @pyqtSlot(str)
     def _on_language_changed(self, _lang_code: str) -> None:
         """Rebuild the main menu when language changes."""
-        logger.info("MenuController._on_language_changed called with lang_code=%s", _lang_code)
+        logger.info(
+            "MenuController._on_language_changed called with lang_code=%s", _lang_code
+        )
         try:
             logger.info("MenuController: rebuilding menu after language change")
             self.rebuild_after_language_change()
             logger.info("MenuController: menu rebuilt successfully")
         except Exception:
-            logger.exception("MenuController: failed to rebuild menu after language change")
+            logger.exception(
+                "MenuController: failed to rebuild menu after language change"
+            )
 
     def _cleanup(self) -> None:
         """Disconnect signals when window is destroyed."""

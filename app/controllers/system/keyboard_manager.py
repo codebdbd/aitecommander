@@ -34,9 +34,10 @@ WIDGET_OBJECT_NAMES = {"CATEGORY_TILES": "tiles"}
 
 class MainWindowProtocol(Protocol):
     """Protocol for main window with required attributes.
-    
+
     ✅ FIX: Added protocol for strict typing.
     """
+
     structure: Any  # StructureUIController
     table: Any  # LinksTableView
     links_actions: Any  # LinkOperationsController
@@ -45,13 +46,13 @@ class MainWindowProtocol(Protocol):
 
 class BaseKeyHandler:
     """Base class for key handlers.
-    
+
     ✅ FIX: Added typing via Protocol.
     """
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initializes key handler.
-        
+
         Args:
             main_window: Main application window
         """
@@ -102,9 +103,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_select_all(self) -> None:
         """Handles Ctrl+A depending on context.
-        
+
         ✅ FIX: Added documentation.
-        
+
         - Tree: selects all categories of current section
         - Table: selects all rows
         """
@@ -147,9 +148,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
             )
         # QTreeView: use model and selectionModel
         try:
-            if hasattr(tree, "currentIndex") and callable(
-                tree.currentIndex
-            ):
+            if hasattr(tree, "currentIndex") and callable(tree.currentIndex):
                 idx = tree.currentIndex()
                 if not (idx and idx.isValid()):
                     return
@@ -194,7 +193,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_copy(self) -> None:
         """Handles Ctrl+C - copying selected links.
-        
+
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -207,7 +206,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_cut(self) -> None:
         """Handles Ctrl+X - cutting selected links.
-        
+
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -220,7 +219,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_paste(self) -> None:
         """Handles Ctrl+V - pasting links from clipboard.
-        
+
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -400,7 +399,9 @@ class SearchKeyHandler(BaseKeyHandler):
     def __init__(self, main_window: Any) -> None:
         super().__init__(main_window)
         self._search_text: str = ""
-        self._search_timer: QTimer = QTimer(parent=main_window)  # ✅ Fixed: parent=main_window
+        self._search_timer: QTimer = QTimer(
+            parent=main_window
+        )  # ✅ Fixed: parent=main_window
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._reset_search)
 

@@ -134,14 +134,20 @@ class ImportBrowserDialog(BaseDialog):
         try:
             cached_spheres = self.structure_business_logic.get_cached_spheres()
         except Exception as exc:
-            logger.debug("ImportBrowserDialog: cached spheres unavailable: %s", exc, exc_info=True)
+            logger.debug(
+                "ImportBrowserDialog: cached spheres unavailable: %s",
+                exc,
+                exc_info=True,
+            )
 
         if cached_spheres:
             self._apply_spheres(cached_spheres)
             return
 
         if self._db is None:
-            self._handle_spheres_error(RuntimeError("Database connection is not available"))
+            self._handle_spheres_error(
+                RuntimeError("Database connection is not available")
+            )
             return
 
         with QSignalBlocker(self.sphere_cb):
@@ -170,7 +176,9 @@ class ImportBrowserDialog(BaseDialog):
 
         cached_sections: list[dict[str, Any]] = []
         try:
-            cached_sections = self.structure_business_logic.get_cached_sections(sphere_id)
+            cached_sections = self.structure_business_logic.get_cached_sections(
+                sphere_id
+            )
         except Exception as exc:
             logger.debug(
                 "ImportBrowserDialog: cached sections unavailable for %s: %s",
@@ -184,7 +192,10 @@ class ImportBrowserDialog(BaseDialog):
             return
 
         if self._db is None:
-            self._handle_sections_error(self._sections_request_token, RuntimeError("Database connection is not available"))
+            self._handle_sections_error(
+                self._sections_request_token,
+                RuntimeError("Database connection is not available"),
+            )
             return
 
         self._sections_request_token += 1
@@ -206,12 +217,17 @@ class ImportBrowserDialog(BaseDialog):
     ) -> None:
         if token != self._sections_request_token:
             return
-        if self._latest_requested_sphere is not None and sphere_id != self._latest_requested_sphere:
+        if (
+            self._latest_requested_sphere is not None
+            and sphere_id != self._latest_requested_sphere
+        ):
             return
         self._apply_sections(sections)
 
     def _handle_spheres_error(self, error: Exception) -> None:
-        logger.error("Failed to load spheres for import dialog: %s", error, exc_info=True)
+        logger.error(
+            "Failed to load spheres for import dialog: %s", error, exc_info=True
+        )
         with QSignalBlocker(self.sphere_cb):
             self.sphere_cb.clear()
             self.sphere_cb.addItem(self.tr("Failed to load spheres"))
@@ -221,7 +237,9 @@ class ImportBrowserDialog(BaseDialog):
     def _handle_sections_error(self, token: int, error: Exception) -> None:
         if token != self._sections_request_token:
             return
-        logger.error("Failed to load sections for import dialog: %s", error, exc_info=True)
+        logger.error(
+            "Failed to load sections for import dialog: %s", error, exc_info=True
+        )
         self._show_error_message(str(error))
 
     def _apply_spheres(self, spheres: list[dict[str, Any]]) -> None:
@@ -240,7 +258,9 @@ class ImportBrowserDialog(BaseDialog):
                 self.sphere_cb.setEnabled(True)
                 self.sphere_cb.setCurrentIndex(0)
         current_data = self.sphere_cb.currentData()
-        self._latest_requested_sphere = current_data if isinstance(current_data, int) else None
+        self._latest_requested_sphere = (
+            current_data if isinstance(current_data, int) else None
+        )
         if isinstance(current_data, int):
             self._load_sections_async(current_data)
         else:
@@ -293,9 +313,7 @@ class ImportBrowserDialog(BaseDialog):
         self.show_error(
             self.tr("Failed to load sections."),
             self.tr("Sections load error"),
-            informative_text=self.tr(
-                "Check the database connection and try again."
-            ),
+            informative_text=self.tr("Check the database connection and try again."),
             details=message,
         )
 
@@ -378,5 +396,3 @@ class ImportBrowserDialog(BaseDialog):
         if self.selected_section_id:
             return self.get_selected_section_info()
         return None
-
-

@@ -55,22 +55,26 @@ class RestoreDbDialog(BaseDialog):
 
         self._init_ui()
         self._load_backups()
-        
+
         # Connect to language change signal
         from i18n.language_service import LanguageService
+
         LanguageService.instance().languageChanged.connect(self._on_language_changed)
         self.destroyed.connect(self._disconnect_language_service)
-        
+
         # Translate after widgets are created
         self.retranslateUi()
-    
+
     def _on_language_changed(self, _lang_code: str) -> None:
         self.retranslateUi()
-    
+
     def _disconnect_language_service(self) -> None:
         try:
             from i18n.language_service import LanguageService
-            LanguageService.instance().languageChanged.disconnect(self._on_language_changed)
+
+            LanguageService.instance().languageChanged.disconnect(
+                self._on_language_changed
+            )
         except Exception:
             pass
 
@@ -111,7 +115,9 @@ class RestoreDbDialog(BaseDialog):
         logger.debug("Found %s automatic backups", len(backups))
 
         single_backup_path = self.paths.get_db_backup_path()
-        single_exists = single_backup_path.exists() and single_backup_path.stat().st_size > 0
+        single_exists = (
+            single_backup_path.exists() and single_backup_path.stat().st_size > 0
+        )
 
         if single_exists:
             if self._add_backup_item(single_backup_path, kind="single", highlight=True):
@@ -137,7 +143,9 @@ class RestoreDbDialog(BaseDialog):
 
         self._update_ok_state()
 
-    def _add_backup_item(self, path: Path, *, kind: str, highlight: bool = False) -> bool:
+    def _add_backup_item(
+        self, path: Path, *, kind: str, highlight: bool = False
+    ) -> bool:
         size_bytes = path.stat().st_size
         if size_bytes == 0:
             return False
@@ -146,7 +154,9 @@ class RestoreDbDialog(BaseDialog):
         if timestamp is None:
             timestamp = datetime.datetime.fromtimestamp(path.stat().st_mtime)
 
-        meta = BackupMeta(kind=kind, path=path, timestamp=timestamp, size_bytes=size_bytes)
+        meta = BackupMeta(
+            kind=kind, path=path, timestamp=timestamp, size_bytes=size_bytes
+        )
 
         item = QListWidgetItem()
         item.setData(Qt.ItemDataRole.UserRole, meta)
@@ -254,7 +264,7 @@ class RestoreDbDialog(BaseDialog):
                 _tr("No backup selected."),
                 _tr("Backup selection required"),
                 informative_text=_tr(
-                    "Choose a file from the list and press \"Restore\". "
+                    'Choose a file from the list and press "Restore". '
                     "If the list is empty, check the backups directory."
                 ),
             )

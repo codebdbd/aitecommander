@@ -29,7 +29,7 @@ class WidthCalculator:
         self._panel_width_cache: OrderedDict[tuple[int, int], int] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
-    
+
     def _safe_get(self, obj: Any | None, name: str) -> Any | None:
         """Safely read an attribute from ``obj``.
 
@@ -41,11 +41,12 @@ class WidthCalculator:
             return getattr(obj, name, None)
         except (RuntimeError, AttributeError):
             return None
-    
+
     def _is_deleted(self, obj) -> bool:
         """Check whether a Qt object has been deleted."""
         try:
             from sip import isdeleted
+
             return isdeleted(obj)
         except ImportError:
             return False
@@ -58,7 +59,7 @@ class WidthCalculator:
         self._panel_width_cache.clear()
         self._cache_hits = 0
         self._cache_misses = 0
-    
+
     def invalidate_cache_for_panel(self, panel: QWidget) -> int:
         """Invalidate cached widths for a specific panel.
 
@@ -73,15 +74,15 @@ class WidthCalculator:
         """
         if not panel or self._is_deleted(panel):
             return 0
-        
+
         panel_id = id(panel)
         keys_to_remove = [k for k in self._panel_width_cache if k[0] == panel_id]
-        
+
         for key in keys_to_remove:
             del self._panel_width_cache[key]
-        
+
         return len(keys_to_remove)
-    
+
     def get_cache_stats(self) -> dict[str, int]:
         """Return cache-usage statistics.
 
@@ -118,16 +119,19 @@ class WidthCalculator:
         # Fix: validate parameters
         if count < 0:
             raise ValueError(f"count must be >= 0, got {count}")
-        
+
         if buttons is None:
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning("panel_width called with None buttons, returning MIN_PANEL_WIDTH")
+            logger.warning(
+                "panel_width called with None buttons, returning MIN_PANEL_WIDTH"
+            )
             return self.MIN_PANEL_WIDTH
-        
+
         if not panel or self._is_deleted(panel):
             return self.MIN_PANEL_WIDTH
-        
+
         # Fix: probe the LRU cache
         cache_key = (id(panel), count)
         if cache_key in self._panel_width_cache:
@@ -135,9 +139,9 @@ class WidthCalculator:
             # Fix: move the key to the MRU position
             self._panel_width_cache.move_to_end(cache_key)
             return self._panel_width_cache[cache_key]
-        
+
         self._cache_misses += 1
-        
+
         # Clamp desired visible count to available buttons to avoid IndexError
         safe_count = max(0, min(count, len(buttons)))
         if safe_count <= 0:
@@ -210,6 +214,7 @@ class WidthCalculator:
         # Account for the ``bg_frame`` border without double-counting margins
         try:
             import PyQt6.QtWidgets as _qtw
+
             if isinstance(bg, _qtw.QFrame):
                 try:
                     fw = int(bg.frameWidth())
@@ -226,12 +231,12 @@ class WidthCalculator:
 
         # Enforce minimal width
         result = max(self.MIN_PANEL_WIDTH, total)
-        
+
         # Fix: perform LRU eviction when the cache is full
         if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
             # ``OrderedDict.popitem(last=False)`` deletes the oldest entry
             self._panel_width_cache.popitem(last=False)
-        
+
         # Append at the end (most recently used)
         self._panel_width_cache[cache_key] = result
         return result
@@ -269,5 +274,5 @@ class WidthCalculator:
         total = sum(items) + spacing * max(0, len(items) - 1)
         margins = top_bar.contentsMargins()
         total += margins.left() + margins.right()
-        
+
         return total

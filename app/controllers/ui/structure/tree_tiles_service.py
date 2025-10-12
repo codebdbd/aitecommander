@@ -59,9 +59,7 @@ class TreeTilesService:
                 else:
                     parent = cur
                 section_meta = (
-                    get_tree_tuple(parent, 0)
-                    if parent and parent.isValid()
-                    else None
+                    get_tree_tuple(parent, 0) if parent and parent.isValid() else None
                 )
                 if section_meta and section_meta[0] == "section":
                     self.refresh_section_tiles(section_meta[1])
@@ -81,4 +79,3 @@ class TreeTilesService:
             logger.exception(
                 "TreeTilesService.refresh_after_section_edit: refresh failed"
             )
-

@@ -218,7 +218,9 @@ class ResourceManagerProtocol(Protocol):
     Improvement note: adds a dedicated Protocol for resource lifecycle control.
     """
 
-    def register_resource(self, resource: Any, cleanup_func: Callable[[], None]) -> None:
+    def register_resource(
+        self, resource: Any, cleanup_func: Callable[[], None]
+    ) -> None:
         """Register a resource for automatic cleanup."""
         ...
 

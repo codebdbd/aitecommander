@@ -87,7 +87,7 @@ class ThemeController:
             "\u0441\u0432\u0456\u0442\u043b\u0430": "light",
             "\u0441\u0432\u0456\u0442\u043b\u0438\u0439": "light",
             "\u0441\u0432\u0456\u0442\u043b\u0430 \u0442\u0435\u043c\u0430": "light",
-            "light theme": "light"
+            "light theme": "light",
         }
         return synonyms.get(v, v)
 
@@ -115,9 +115,7 @@ class ThemeController:
         try:
             current_theme = self.settings.get_theme()
             if not current_theme:
-                logger.warning(
-                    "Current theme not set, using light theme by default"
-                )
+                logger.warning("Current theme not set, using light theme by default")
                 return False
             # Normalize name and try to find config
             norm = self._normalize_theme_input(current_theme)
@@ -272,13 +270,13 @@ class ThemeController:
             from app.utils.ui.updates import suspend_updates
         except Exception as exc:
             suspend_updates = None  # fallback if module unavailable
-            logger.debug(
-                "Failed to import suspend_updates: %s", exc, exc_info=True
-            )
+            logger.debug("Failed to import suspend_updates: %s", exc, exc_info=True)
 
         # Policy: require suspend_updates for batch UI update
         try:
-            require_suspend = bool(getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False))
+            require_suspend = bool(
+                getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False)
+            )
         except Exception:
             require_suspend = False
 
@@ -302,20 +300,18 @@ class ThemeController:
                 if structure and hasattr(structure, "reload_icons"):
                     structure.reload_icons()
             except Exception as exc:
-                logger.warning(
-                    "Structure icons reload error: %s", exc, exc_info=True
-                )
+                logger.warning("Structure icons reload error: %s", exc, exc_info=True)
             try:
                 self.top_panels_controller.refresh_all()
             except Exception as exc:
-                logger.warning(
-                    "Error updating top panels: %s", exc, exc_info=True
-                )
+                logger.warning("Error updating top panels: %s", exc, exc_info=True)
             return
 
         # Main path: execute bulk updates with suspended window repaint
         if require_suspend:
-            logger.debug("ThemeController: executing batch UI update with suspend_updates (strict mode)")
+            logger.debug(
+                "ThemeController: executing batch UI update with suspend_updates (strict mode)"
+            )
         try:
             with suspend_updates(mw):
                 # Rebuild main menu
@@ -344,9 +340,7 @@ class ThemeController:
                 try:
                     self.top_panels_controller.refresh_all()
                 except Exception as exc:
-                    logger.warning(
-                        "Top panels update error: %s", exc, exc_info=True
-                    )
+                    logger.warning("Top panels update error: %s", exc, exc_info=True)
         except Exception as exc:
             logger.warning(
                 "ThemeController: batch UI update failure: %s",
@@ -427,6 +421,7 @@ class ThemeController:
             menu_indicator_size = int(app_config.ui.get_menu_indicator_size())
         except Exception:
             menu_indicator_size = None
+
         # Unified font registry from config (ui.fonts.*)
         def _get_font_px(key: str, default: int | None) -> int | None:
             try:
@@ -522,12 +517,14 @@ class ThemeController:
                 lines.append("QMenuBar::item:selected { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
-        
+
         # Table/tree headers (QHeaderView): final font size override
         if table_header_px and table_header_px > 0:
             fs = sz(table_header_px)
             lines.append(f"QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
-            lines.append(f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
+            lines.append(
+                f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}"
+            )
             # Don't force bold in interactive states
             lines.append(
                 "QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }"
@@ -552,7 +549,9 @@ class ThemeController:
             # Increase specificity for bottom panel: support both container names
             fsb = sz(bottom_bar_button_px)
             lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fsb}; }}")
-            lines.append(f"QWidget#bottomBarContainer QPushButton {{ font-size: {fsb}; }}")
+            lines.append(
+                f"QWidget#bottomBarContainer QPushButton {{ font-size: {fsb}; }}"
+            )
 
         # Main menu and dropdown menus
         if menu_item_px and menu_item_px > 0:
@@ -561,7 +560,9 @@ class ThemeController:
             lines.append(f"QMenu::item {{ font-size: {fs}; }}")
         if context_menu_px and context_menu_px > 0:
             # Context menus are also QMenu; separate key allows distinction if needed
-            lines.append(f"QMenu[contextMenuPolicy] {{ font-size: {sz(context_menu_px)}; }}")
+            lines.append(
+                f"QMenu[contextMenuPolicy] {{ font-size: {sz(context_menu_px)}; }}"
+            )
 
         # Tooltips (ToolTip)
         if tooltip_px and tooltip_px > 0:
@@ -582,9 +583,9 @@ class ThemeController:
         # Link type selection buttons (QToolButton with property link_type)
         if link_type_button_px and link_type_button_px > 0:
             fs = sz(link_type_button_px)
-            lines.append(f"QToolButton[link_type=\"true\"] {{ font-size: {fs}; }}")
+            lines.append(f'QToolButton[link_type="true"] {{ font-size: {fs}; }}')
         return "\n".join(lines)
-        
+
         # Note: code below won't execute due to early return; preserved for future
 
     def get_cache_stats(self) -> dict[str, Any]:
@@ -596,4 +597,3 @@ class ThemeController:
                 "cached_themes": list(self._qss_cache.keys()),
                 "common_qss_loaded": self._common_qss is not None,
             }
-

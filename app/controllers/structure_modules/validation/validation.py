@@ -20,6 +20,7 @@ def _get_service() -> "ValidationService":
     global _service
     if _service is None:
         from app.controllers.structure_services.validation import ValidationService
+
         _service = ValidationService()
     return _service
 

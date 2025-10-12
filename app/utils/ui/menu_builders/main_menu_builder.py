@@ -46,7 +46,9 @@ class MainMenuBuilder:
 
     def _create_actions_menu(self, menubar: QMenuBar):
         """Create the '&Actions' menu as the first item, unified with context menus."""
-        actions_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Actions"))
+        actions_menu = menubar.addMenu(
+            QCoreApplication.translate("MainMenu", "&Actions")
+        )
 
         # Add section
         actions_menu.addAction(
@@ -77,9 +79,7 @@ class MainMenuBuilder:
                 if hasattr(self.main_window, "show_link_dialog_for_category"):
                     self.main_window.show_link_dialog_for_category(cat_id)
             except Exception:
-                logger.exception(
-                    "[MainMenu] Error adding link from Actions menu"
-                )
+                logger.exception("[MainMenu] Error adding link from Actions menu")
 
         actions_menu.addAction(
             self.actions.create(
@@ -144,7 +144,9 @@ class MainMenuBuilder:
 
         data_menu.addAction(
             self.actions.create(
-                MenuTexts.SAVE_DATABASE, self._save_database, icon=self._get_icon("export")
+                MenuTexts.SAVE_DATABASE,
+                self._save_database,
+                icon=self._get_icon("export"),
             )
         )
         data_menu.addAction(
@@ -156,7 +158,9 @@ class MainMenuBuilder:
         )
         data_menu.addAction(
             self.actions.create(
-                MenuTexts.CONNECT_DATABASE, self._connect_database, icon=self._get_icon("import")
+                MenuTexts.CONNECT_DATABASE,
+                self._connect_database,
+                icon=self._get_icon("import"),
             )
         )
 

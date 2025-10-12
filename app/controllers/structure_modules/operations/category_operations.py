@@ -66,7 +66,7 @@ class CategoryOperations(BaseOperations):
                 error_msg = f"Category with ID {category_id} was not found"
                 self.logger.error(error_msg)
                 return CategoryDeletionInfo.create_empty()
-            
+
             # ✅ Convert to strongly typed data
             typed_category_data: CategoryData = category_data  # type: ignore
 
@@ -90,9 +90,12 @@ class CategoryOperations(BaseOperations):
     def confirm_delete_category(self, category_id: int) -> bool:
         """Confirm and perform category deletion."""
         if not self._structure_service:
+
             def _raise_service_error():
-                raise RuntimeError("StructureService is unavailable for category deletion")
-            
+                raise RuntimeError(
+                    "StructureService is unavailable for category deletion"
+                )
+
             return self._execute_with_error_handling(
                 _raise_service_error,
                 f"delete category {category_id}",
@@ -251,9 +254,7 @@ class CategoryOperations(BaseOperations):
         # Check cache
         cached_id = self._cache_manager.get_first_category_id()
         if cached_id is not None:
-            self.logger.debug(
-                "Using cached first category: %s", cached_id
-            )
+            self.logger.debug("Using cached first category: %s", cached_id)
             return cached_id
 
         def _get_first_category_operation():
@@ -313,7 +314,9 @@ class CategoryOperations(BaseOperations):
                         continue
                     cats = get_categories(int(sid)) or []
                     if cats:
-                        first_id = cats[0].get("id") if isinstance(cats[0], dict) else None
+                        first_id = (
+                            cats[0].get("id") if isinstance(cats[0], dict) else None
+                        )
                         return int(first_id) if first_id is not None else None
                 return None
             except Exception as e:

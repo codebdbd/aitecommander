@@ -33,10 +33,12 @@ logger = logging.getLogger(__name__)
 
 class TableDelegate(QStyledItemDelegate):
     """Unified delegate: row hover highlight and character-based elision for the ``Name`` column."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.hovered_row = -1
         self.hover_color = QColor("#444444")  # Hover color for table rows
+
         # Font size settings pulled from the centralized ``ui.fonts.*`` registry
         def _get_px(key: str) -> int | None:
             try:
@@ -44,9 +46,12 @@ class TableDelegate(QStyledItemDelegate):
                 return int(v) if v is not None else None
             except Exception:
                 return None
+
         # Font units: ``px`` or ``pt``
         try:
-            self._font_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
+            self._font_units = (
+                str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
+            )
         except Exception:
             self._font_units = "px"
         if self._font_units not in ("px", "pt"):
@@ -54,12 +59,14 @@ class TableDelegate(QStyledItemDelegate):
 
         # Individual column sizes (backward compatibility)
         self.col_opened_px = _get_px("table_opened_col_px")  # "Opened" column (index=2)
-        self.col_notes_px = _get_px("table_notes_col_px")    # "Notes" column (index=3)
+        self.col_notes_px = _get_px("table_notes_col_px")  # "Notes" column (index=3)
 
         # Modern approach: array of sizes for all columns
         self.col_sizes: dict[int, int] = {}
         try:
-            arr = app_config.ui.get("ui.fonts.table_cols_px")  # expected to be a list of numbers or None
+            arr = app_config.ui.get(
+                "ui.fonts.table_cols_px"
+            )  # expected to be a list of numbers or None
         except Exception:
             arr = None
         if isinstance(arr, (list, tuple)):
@@ -108,9 +115,9 @@ class TableDelegate(QStyledItemDelegate):
         # Text color for "Opened" column (index=2) comes from ``LinksTableView.openedColColor``
         try:
             if index.column() == 2:
-                view = self.parent() if hasattr(self, 'parent') else None
+                view = self.parent() if hasattr(self, "parent") else None
                 color = None
-                if view is not None and hasattr(view, 'openedColColor'):
+                if view is not None and hasattr(view, "openedColColor"):
                     color = view.openedColColor
                 if isinstance(color, QColor) and color.isValid():
                     pal = QPalette(opt.palette)
@@ -123,9 +130,9 @@ class TableDelegate(QStyledItemDelegate):
         # Text color for "Notes" column (index=3) comes from ``LinksTableView.notesColColor``
         try:
             if index.column() == 3:
-                view = self.parent() if hasattr(self, 'parent') else None
+                view = self.parent() if hasattr(self, "parent") else None
                 color = None
-                if view is not None and hasattr(view, 'notesColColor'):
+                if view is not None and hasattr(view, "notesColColor"):
                     color = view.notesColColor
                 if isinstance(color, QColor) and color.isValid():
                     pal = QPalette(opt.palette)
@@ -162,7 +169,7 @@ class LinksTableView(
     RowOperationsMixin,
     PopulationManagerMixin,
     DragDropHandlerMixin,
-    ):
+):
     """Primary links table view with modular architecture."""
 
     # qproperty: color for the "Opened" column (QSS: ``qproperty-openedColColor``)
@@ -182,7 +189,9 @@ class LinksTableView(
         except Exception:
             pass
 
-    openedColColor = pyqtProperty(QColor, fget=_get_opened_col_color, fset=_set_opened_col_color)
+    openedColColor = pyqtProperty(
+        QColor, fget=_get_opened_col_color, fset=_set_opened_col_color
+    )
 
     # qproperty: color for the "Notes" column (QSS: ``qproperty-notesColColor``)
     def _get_notes_col_color(self) -> QColor:
@@ -201,7 +210,9 @@ class LinksTableView(
         except Exception:
             pass
 
-    notesColColor = pyqtProperty(QColor, fget=_get_notes_col_color, fset=_set_notes_col_color)
+    notesColColor = pyqtProperty(
+        QColor, fget=_get_notes_col_color, fset=_set_notes_col_color
+    )
 
     # Signal emitted after bulk population/update of the table
     table_populated: pyqtSignal = pyqtSignal()
@@ -329,7 +340,9 @@ class LinksTableView(
             )
         # Column 2 ("Opened") resize mode is driven by config
         try:
-            col2_mode = str(app_config.ui.get("ui.links_table_col2_mode", "fixed")).lower()
+            col2_mode = str(
+                app_config.ui.get("ui.links_table_col2_mode", "fixed")
+            ).lower()
         except Exception:
             col2_mode = "fixed"
         try:
@@ -404,21 +417,23 @@ class LinksTableView(
     def __del__(self):
         """Disconnect signals to prevent memory leaks."""
         try:
-            if hasattr(self, 'entered'):
+            if hasattr(self, "entered"):
                 self.entered.disconnect()
-            if hasattr(self, 'horizontalHeader'):
+            if hasattr(self, "horizontalHeader"):
                 header = self.horizontalHeader()
                 if header:
                     header.sectionClicked.disconnect()
-            if hasattr(self, 'model'):
+            if hasattr(self, "model"):
                 model = self.model()
-                if model and hasattr(model, 'layoutChanged'):
+                if model and hasattr(model, "layoutChanged"):
                     model.layoutChanged.disconnect()
-            if hasattr(self, 'items_reordered'):
+            if hasattr(self, "items_reordered"):
                 self.items_reordered.disconnect()
-            if hasattr(self, '_lang_service') and self._lang_service:
+            if hasattr(self, "_lang_service") and self._lang_service:
                 try:
-                    self._lang_service.languageChanged.disconnect(self._on_language_changed)
+                    self._lang_service.languageChanged.disconnect(
+                        self._on_language_changed
+                    )
                 except Exception:
                     pass
         except (RuntimeError, TypeError):
@@ -429,7 +444,7 @@ class LinksTableView(
         """Update localized headers on language change."""
         try:
             m = self.model()
-            if m is not None and hasattr(m, 'retranslate'):
+            if m is not None and hasattr(m, "retranslate"):
                 m.retranslate()
         except Exception:
             pass

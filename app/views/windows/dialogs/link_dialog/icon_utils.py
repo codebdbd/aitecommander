@@ -177,9 +177,7 @@ def make_icon(icon_path_str: str) -> Optional[QIcon]:
             "OS error while accessing icon '%s': %s", icon_path_str, result.message
         )
     elif result.error_kind == IconErrorKind.INVALID_PATH:
-        logger.warning(
-            "Invalid icon path '%s': %s", icon_path_str, result.message
-        )
+        logger.warning("Invalid icon path '%s': %s", icon_path_str, result.message)
     elif result.error_kind == IconErrorKind.UNEXPECTED_ERROR:
         logger.exception(
             "Unexpected error while creating icon '%s': %s",

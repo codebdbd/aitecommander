@@ -140,9 +140,7 @@ class BaseOperations:
     ) -> None:
         """Basic data validation."""
         if not isinstance(data, dict):
-            raise ValidationError(
-                "Data must be a dict", item_type=item_type.value
-            )
+            raise ValidationError("Data must be a dict", item_type=item_type.value)
 
         if not data.get("name", "").strip():
             raise ValidationError(
@@ -229,9 +227,9 @@ class BaseOperations:
             raise StructureOperationError(
                 f"Invalid data for {item_type.value}: {e.message}",
                 "validation",
-                item_type.value
+                item_type.value,
             ) from e
-        
+
         # Check item type support
         if not ItemTypeRegistry.is_supported(item_type):
             raise StructureOperationError(
@@ -287,7 +285,7 @@ class BaseOperations:
             "✅ %s %s '%s' (validation passed)",
             config.ru_name.capitalize(),
             operation_name,
-            data_copy.get("name", "unnamed")
+            data_copy.get("name", "unnamed"),
         )
 
         return result_id
@@ -319,7 +317,9 @@ class BaseOperations:
                 emit_signal=emit_signal.emit,
             )
 
-        operation_name = "update" if is_update else "create"  # For logging/error handling
+        operation_name = (
+            "update" if is_update else "create"
+        )  # For logging/error handling
         result = self._execute_with_validation(
             _process_operation,
             data,
@@ -407,7 +407,9 @@ class BaseOperations:
 
             # Log deletion
             ru_name = ItemTypeRegistry.get_config(item_type).ru_name
-            self.slogger.log_operation("deleted", item_type.value, str(item_id), ru_name)
+            self.slogger.log_operation(
+                "deleted", item_type.value, str(item_id), ru_name
+            )
             return True
 
         return self._execute_with_error_handling(

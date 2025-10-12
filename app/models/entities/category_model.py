@@ -28,7 +28,9 @@ class CategoryModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_categories_for_sections(self, section_ids: list[int]) -> list[dict[str, Any]]:
+    def get_categories_for_sections(
+        self, section_ids: list[int]
+    ) -> list[dict[str, Any]]:
         """Returns categories for multiple sections in one query in dict format."""
         if not section_ids:
             return []
@@ -140,9 +142,7 @@ class CategoryModel(DatabaseBase):
         prepared_info: dict[int, tuple[int, str, str]] = {}
         has_uuid_tokens = False
         for it in items:
-            self._validate_required_fields(
-                it or {}, ["name", "section_id"], "category"
-            )
+            self._validate_required_fields(it or {}, ["name", "section_id"], "category")
             try:
                 sid = int(it.get("section_id"))
             except Exception as e:
@@ -294,9 +294,7 @@ class CategoryModel(DatabaseBase):
                     if section_id is None:
                         continue
                     name_value = (
-                        str(r["name"]).strip().lower()
-                        if r["name"] is not None
-                        else ""
+                        str(r["name"]).strip().lower() if r["name"] is not None else ""
                     )
                     rows_by_key[(section_id, name_value)] = dict(r)
 
@@ -400,7 +398,9 @@ class CategoryModel(DatabaseBase):
                     pre_count = 0
                 else:
                     try:
-                        pre_count = int(pre_count_row["cnt"])  # sqlite3.Row is indexed by key
+                        pre_count = int(
+                            pre_count_row["cnt"]
+                        )  # sqlite3.Row is indexed by key
                     except Exception:
                         pre_count = 0
 
@@ -434,9 +434,7 @@ class CategoryModel(DatabaseBase):
                     self._reindex_positions(sid)
             except Exception:
                 # Don't interrupt deletion, but log at top level
-                logger.warning(
-                    "Failed to reindex category positions after deletion"
-                )
+                logger.warning("Failed to reindex category positions after deletion")
 
         logger.info(
             "Bulk deleted categories (count=%s), ids=%s",
@@ -509,9 +507,7 @@ class CategoryModel(DatabaseBase):
             if nm in existing_names:
                 continue
             to_move_ids.append(cid)
-            existing_names.add(
-                nm
-            )  # reserve name to exclude repeats within set
+            existing_names.add(nm)  # reserve name to exclude repeats within set
 
         if not to_move_ids:
             return []
@@ -639,9 +635,7 @@ class CategoryModel(DatabaseBase):
     ):
         """Checks for category duplicate in section."""
         # Check for duplicate ignoring case
-        query = (
-            "SELECT COUNT(*) as count FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE"
-        )
+        query = "SELECT COUNT(*) as count FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE"
         # Normalize input for predictable behavior
         try:
             category_name = str(category_name).strip()

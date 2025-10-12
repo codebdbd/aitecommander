@@ -184,9 +184,7 @@ class PersistentProfileCache(BaseCache):
             self._maybe_flush_locked(force=True)
 
     def periodic_flush(self) -> None:
-        """External periodic point: flush if time has come.
-
-        """
+        """External periodic point: flush if time has come."""
         with self._lock:
             self._maybe_flush_locked(force=False)
 

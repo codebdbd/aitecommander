@@ -33,7 +33,10 @@ class ActionController(QObject):
         try:
             tree = self.main_window.tree
             fw = self.main_window.focusWidget()
-            return bool(tree.hasFocus() or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw)))
+            return bool(
+                tree.hasFocus()
+                or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw))
+            )
         except Exception:
             return False
 
@@ -47,7 +50,10 @@ class ActionController(QObject):
         try:
             table = self.main_window.table
             fw = self.main_window.focusWidget()
-            return bool(table.hasFocus() or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw)))
+            return bool(
+                table.hasFocus()
+                or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw))
+            )
         except Exception:
             return False
 
@@ -169,5 +175,8 @@ class ActionController(QObject):
         try:
             return self.main_window.links_actions.get_selected_links()
         except Exception:
-            logger.debug("ActionController: failed to get selected links via facade", exc_info=True)
+            logger.debug(
+                "ActionController: failed to get selected links via facade",
+                exc_info=True,
+            )
             return []

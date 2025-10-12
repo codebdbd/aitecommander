@@ -1,6 +1,5 @@
 """Utilities for generating display text and tooltips for model roles (``QAbstractTableModel``)."""
 
-
 # Constants for magic numbers
 MAX_NOTES_LENGTH = 462
 # Favorite marker: heart symbol instead of the default star

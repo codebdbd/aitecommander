@@ -80,6 +80,7 @@ def _ensure_gui_thread(context: str = "") -> bool:
 
 # === SVG ICON CREATION ===
 
+
 def _create_svg_icon(svg_path: str) -> QIcon:
     """Create QIcon from SVG file.
 
@@ -267,9 +268,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         metrics_record_disk_load(load_time)
         # Cache the result
         set_icon(icon_name, theme, icon)
-        if (
-            load_time > 0.1
-        ):  # If load took more than 100 ms, log at INFO level
+        if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
             logger.info(
                 "Slow disk load: icon '%s' for theme '%s' took %.2fms",
                 icon_name,
@@ -569,4 +568,3 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
             load_time * 1000,
         )
     return icon
-

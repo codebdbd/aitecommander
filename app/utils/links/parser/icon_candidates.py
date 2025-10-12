@@ -625,7 +625,6 @@ def find_favicon_candidates(
     on_manifest_icons: Callable[[list[str]], None] | None = None,
     use_external: bool = False,
 ) -> list[str]:
-   
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
     _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
 

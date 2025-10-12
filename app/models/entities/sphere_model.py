@@ -60,9 +60,7 @@ class SphereModel(DatabaseBase):
     def get_sphere_name(self, sphere_id: int) -> str:
         """Returns sphere name by its ID."""
         row = self._execute_with_error_handling(
-            "SELECT name FROM sphere WHERE id=?",
-            (sphere_id,),
-            fetch_method="one"
+            "SELECT name FROM sphere WHERE id=?", (sphere_id,), fetch_method="one"
         )
         return dict(row)["name"] if row else ""
 
@@ -115,6 +113,4 @@ class SphereModel(DatabaseBase):
                 logger.info("Initial sphere data already exists")
         except Exception as e:
             logger.error("Error initializing initial sphere data: %s", e)
-            raise DatabaseError(
-                f"Failed to initialize initial sphere data: {e}"
-            ) from e
+            raise DatabaseError(f"Failed to initialize initial sphere data: {e}") from e

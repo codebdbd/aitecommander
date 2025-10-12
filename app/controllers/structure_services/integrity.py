@@ -35,19 +35,19 @@ class IntegrityService:
             total_categories = 0
             current_sphere_sections = 0
             current_sphere_categories = 0
-            
+
             # Cache for sections to avoid calling get_sections twice for current_sphere
             sections_cache = {}
-            
+
             for sphere in spheres:
                 sphere_id = sphere.get("id")
                 if sphere_id is None:
                     continue
-                    
+
                 sections = get_sections(sphere_id) or []
                 sections_cache[sphere_id] = sections
                 total_sections += len(sections)
-                
+
                 # Count categories for all sections of sphere
                 sphere_categories = sum(
                     len(get_categories(section.get("id")) or [])
@@ -55,7 +55,7 @@ class IntegrityService:
                     if section.get("id") is not None
                 )
                 total_categories += sphere_categories
-                
+
                 # If this is the current sphere, save statistics
                 if sphere_id == current_sphere_id:
                     current_sphere_sections = len(sections)
@@ -99,56 +99,58 @@ class IntegrityService:
             }
 
             spheres = get_spheres() or []
-            
+
             # Optimization: collect all errors in one pass
             errors = []
-            
+
             for sphere in spheres:
                 sphere_id = sphere.get("id")
                 if sphere_id is None:
                     continue
-                    
+
                 sections = get_sections(sphere_id)
                 if not sections:
                     continue
-                    
+
                 # Check section-sphere relationships
                 invalid_sections = [
-                    section for section in sections
+                    section
+                    for section in sections
                     if section.get("sphere_id") != sphere_id
                 ]
-                
+
                 for section in invalid_sections:
                     errors.append(
-                    f"Section {section.get('id')} has invalid sphere relationship"
-                )
-                
+                        f"Section {section.get('id')} has invalid sphere relationship"
+                    )
+
                 # Check category-section relationships
                 for section in sections:
                     section_id = section.get("id")
                     if section_id is None:
                         continue
-                        
+
                     categories = get_categories(section_id)
                     if not categories:
                         continue
-                        
+
                     # Find categories with invalid relationships
                     invalid_categories = [
-                        category for category in categories
+                        category
+                        for category in categories
                         if category.get("section_id") != section_id
                     ]
-                    
+
                     for category in invalid_categories:
                         errors.append(
                             f"Category {category.get('id')} has invalid section relationship"
                         )
-            
+
             # Set results
             integrity_report["errors"] = errors
             integrity_report["is_valid"] = len(errors) == 0
             integrity_report["statistics"] = get_statistics()
-            
+
             return integrity_report
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:

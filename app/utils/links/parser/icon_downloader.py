@@ -53,6 +53,7 @@ _ICON_EXECUTOR = None
 _ICON_EXECUTOR_SIZE = 0  # current pool size
 _ICON_EXECUTOR_GUARD = threading.Lock()
 
+
 def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit path
     global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
     try:
@@ -68,6 +69,7 @@ def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit pa
         logger.debug("icon executor shutdown failed: %s", e)
     finally:
         _ICON_EXECUTOR_SIZE = 0
+
 
 def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
     """Returns shared ThreadPoolExecutor for icon downloads.
@@ -327,7 +329,8 @@ class IconDownloader:
         meta: dict | None = None,
     ) -> str | None:
         path = str(
-            icon_path_service.get_user_icons_dir() / f"web_{domain.replace('.', '_')}.png"
+            icon_path_service.get_user_icons_dir()
+            / f"web_{domain.replace('.', '_')}.png"
         )
         width, height = img.size
         lock = _get_icon_lock(domain)

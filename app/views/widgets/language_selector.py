@@ -51,7 +51,9 @@ class LanguageSelector(QComboBox, ReTranslatable):
             logger.warning("LanguageSelector: no code for index %d", index)
             return
         current = service.current_language()
-        logger.debug("LanguageSelector: current language=%s, selected=%s", current, code)
+        logger.debug(
+            "LanguageSelector: current language=%s, selected=%s", current, code
+        )
         if code == current:
             logger.debug("LanguageSelector: language unchanged, skipping")
             return
@@ -60,7 +62,11 @@ class LanguageSelector(QComboBox, ReTranslatable):
         # After switching language, refresh selection to reflect any normalization.
         normalized = service.current_language()
         normalized_index = self.findData(normalized)
-        logger.debug("LanguageSelector: after set_language, normalized=%s, index=%d", normalized, normalized_index)
+        logger.debug(
+            "LanguageSelector: after set_language, normalized=%s, index=%d",
+            normalized,
+            normalized_index,
+        )
         if normalized_index >= 0:
             self.blockSignals(True)
             self.setCurrentIndex(normalized_index)

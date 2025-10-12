@@ -7,10 +7,10 @@ from .import_worker import ImportStructureWorker
 from .initialization_worker import InitializationWorker
 
 __all__ = [
-    'DatabaseWorker',
-    'WorkerSignals',
-    'ImportStructureWorker',
-    'ExportStructureWorker',
-    'BackupWorker',
-    'InitializationWorker',
+    "DatabaseWorker",
+    "WorkerSignals",
+    "ImportStructureWorker",
+    "ExportStructureWorker",
+    "BackupWorker",
+    "InitializationWorker",
 ]

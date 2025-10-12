@@ -49,6 +49,7 @@ def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
 
 class _SearchResultsModel(QAbstractTableModel):
     """Table model holding file search results for the dialog."""
+
     HEADERS = [
         _tr_model("Name"),
         _tr_model("Path"),
@@ -331,9 +332,7 @@ class FileSearchDialog(BaseDialog):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Name
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Path
-        header.setSectionResizeMode(
-            2, QHeaderView.ResizeMode.ResizeToContents
-        )  # Size
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Size
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Date
         header.setSectionResizeMode(
             4, QHeaderView.ResizeMode.ResizeToContents
@@ -410,7 +409,11 @@ class FileSearchDialog(BaseDialog):
             self.add_link_btn.setText(self.tr("Add as link"))
         if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:
             self.open_folder_btn.setText(self.tr("Open in file explorer"))
-        if hasattr(self, "status_label") and self.status_label is not None and not self.is_searching:
+        if (
+            hasattr(self, "status_label")
+            and self.status_label is not None
+            and not self.is_searching
+        ):
             self.status_label.setText(self.tr("Ready to search"))
 
         # Placeholders
@@ -496,17 +499,23 @@ class FileSearchDialog(BaseDialog):
 
             if system == "Windows":
                 # Windows: explorer with /select flag
-                subprocess.run(["explorer", "/select,", str(file_path_obj)], shell=False)
+                subprocess.run(
+                    ["explorer", "/select,", str(file_path_obj)], shell=False
+                )
             elif system == "Darwin":  # macOS
                 # macOS: use `open -R`
                 subprocess.run(["open", "-R", str(file_path_obj)], check=True)
             elif system == "Linux":
                 # Linux: attempt several file managers sequentially
                 try:
-                    subprocess.run(["nautilus", "--select", str(file_path_obj)], check=True)
+                    subprocess.run(
+                        ["nautilus", "--select", str(file_path_obj)], check=True
+                    )
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     try:
-                        subprocess.run(["dolphin", "--select", str(file_path_obj)], check=True)
+                        subprocess.run(
+                            ["dolphin", "--select", str(file_path_obj)], check=True
+                        )
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         try:
                             subprocess.run(
@@ -519,7 +528,9 @@ class FileSearchDialog(BaseDialog):
                                 )
                             except (subprocess.CalledProcessError, FileNotFoundError):
                                 folder_path = file_path_obj.parent
-                                subprocess.run(["xdg-open", str(folder_path)], check=True)
+                                subprocess.run(
+                                    ["xdg-open", str(folder_path)], check=True
+                                )
             else:
                 folder_path = file_path_obj.parent
                 subprocess.run(["xdg-open", str(folder_path)], check=True)
@@ -529,9 +540,7 @@ class FileSearchDialog(BaseDialog):
                 self.tr("Failed to open file in explorer: {error}").format(error=str(e))
             )
         except Exception as e:
-            self.show_warning(
-                self.tr("Unexpected error: {error}").format(error=str(e))
-            )
+            self.show_warning(self.tr("Unexpected error: {error}").format(error=str(e)))
 
     def _setup_defaults(self):
         """Reset default values."""
@@ -593,9 +602,9 @@ class FileSearchDialog(BaseDialog):
                 re.compile(content_pattern, flags)
             except re.error as e:
                 self.show_warning(
-                    self.tr(
-                        "Invalid regular expression for content: {error}"
-                    ).format(error=e)
+                    self.tr("Invalid regular expression for content: {error}").format(
+                        error=e
+                    )
                 )
                 return False
 

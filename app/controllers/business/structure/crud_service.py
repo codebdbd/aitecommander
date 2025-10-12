@@ -12,7 +12,9 @@ except ImportError:
     def measure_time(name: str, **kwargs):
         def decorator(func):
             return func
+
         return decorator
+
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from logging import Logger
@@ -59,7 +61,7 @@ class StructureCrudService:
     @measure_time("create_section", log_threshold_ms=200)
     def create_section(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт раздел и эмитит сигнал.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием sphere_id.
         ✅ Метрика производительности: измеряется время выполнения.
         """
@@ -88,7 +90,7 @@ class StructureCrudService:
         self, section_id: int, data: dict[str, Any]
     ) -> dict[str, Any] | None:
         """Обновляет раздел и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         ok = self._structure_service.update_section(section_id, data)
@@ -108,11 +110,9 @@ class StructureCrudService:
         return section_data or None
 
     @measure_time("delete_section", log_threshold_ms=300)
-    def delete_section(
-        self, section_id: int
-    ) -> tuple[bool, dict[str, Any], int, int]:
+    def delete_section(self, section_id: int) -> tuple[bool, dict[str, Any], int, int]:
         """Удаляет раздел и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         section_before = self._structure_service.get_section_by_id(section_id) or {}
@@ -146,7 +146,7 @@ class StructureCrudService:
     @measure_time("create_category", log_threshold_ms=200)
     def create_category(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт категорию и эмитит сигнал.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием section_id.
         ✅ Метрика производительности: измеряется время выполнения.
         """
@@ -173,7 +173,7 @@ class StructureCrudService:
         self, category_id: int, data: dict[str, Any]
     ) -> dict[str, Any] | None:
         """Обновляет категорию и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         ok = self._structure_service.update_category(category_id, data)
@@ -193,7 +193,7 @@ class StructureCrudService:
     @measure_time("delete_category", log_threshold_ms=300)
     def delete_category(self, category_id: int) -> tuple[bool, dict[str, Any], int]:
         """Удаляет категорию и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         category_before = self._structure_service.get_category_by_id(category_id) or {}
@@ -218,7 +218,7 @@ class StructureCrudService:
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
     ) -> list[int]:
         """Перемещает категории batch операцией.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         if (
@@ -239,7 +239,9 @@ class StructureCrudService:
                     cdata = None
                 except Exception as e:
                     # ✅ Неожиданные ошибки
-                    self._logger.exception("Unexpected error getting category %s: %s", cid, e)
+                    self._logger.exception(
+                        "Unexpected error getting category %s: %s", cid, e
+                    )
                     cdata = None
                 if isinstance(cdata, dict):
                     sid = cdata.get("section_id")
@@ -254,9 +256,12 @@ class StructureCrudService:
             self._logger.exception("Critical error in move_categories_batch: %s", e)
             raise
 
-        moved_ids = self._structure_service.move_categories_to_section_bulk(
-            category_ids, target_section_id, base_row
-        ) or []
+        moved_ids = (
+            self._structure_service.move_categories_to_section_bulk(
+                category_ids, target_section_id, base_row
+            )
+            or []
+        )
 
         touched_sections: set[int] = set(source_sections)
         if isinstance(target_section_id, int) and target_section_id > 0:
@@ -309,9 +314,7 @@ class StructureCrudService:
             pass
         return created_or_existing or []
 
-    def create_category_for_import(
-        self, category_data: dict[str, Any]
-    ) -> int | None:
+    def create_category_for_import(self, category_data: dict[str, Any]) -> int | None:
         """Create a category during import workflow and refresh caches."""
 
         category_id = self._import_service.create_category_for_import(

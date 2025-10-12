@@ -32,7 +32,7 @@ class SetupError(Exception):
 
 class TopPanelsController(QObject):
     """Controller for top panels (Favorites/Recents)."""
-    
+
     # FIX: Signal to notify when data loading is complete
     data_loaded = pyqtSignal()
 
@@ -511,7 +511,7 @@ class TopPanelsController(QObject):
                 "TopPanelsController: business signal 'recent_links_loaded' not present; falling back to sync mode"
             )
         return connected_all
-    
+
     def cleanup(self) -> None:
         """Stop timers and disconnect signals upon destruction.
 
@@ -525,20 +525,26 @@ class TopPanelsController(QObject):
             self._recent_refresh_timer,
             self._structure_refresh_timer,
         ]
-        
+
         for timer in timers:
             if timer and timer.isActive():
                 timer.stop()
-        
+
         logger.debug("TopPanelsController: all timers stopped")
-        
+
         # Disconnect business logic signals
         try:
             if hasattr(self.links_business, "favorite_links_loaded"):
-                self.links_business.favorite_links_loaded.disconnect(self._on_favorite_links_loaded)
+                self.links_business.favorite_links_loaded.disconnect(
+                    self._on_favorite_links_loaded
+                )
             if hasattr(self.links_business, "recent_links_loaded"):
-                self.links_business.recent_links_loaded.disconnect(self._on_recent_links_loaded)
+                self.links_business.recent_links_loaded.disconnect(
+                    self._on_recent_links_loaded
+                )
         except TypeError:  # Signals already disconnected
             pass
         except Exception as e:
-            logger.warning("TopPanelsController cleanup: failed to disconnect signals: %s", e)
+            logger.warning(
+                "TopPanelsController cleanup: failed to disconnect signals: %s", e
+            )

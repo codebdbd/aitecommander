@@ -314,18 +314,26 @@ class LinkDialogUI:
                 self.browse_btn.setText(_tr("Browse…"))
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
                 # Do not override if dialog set a specific profile summary text
-                if not self.profile_btn.text() or self.profile_btn.text() == _tr("Profile"):
+                if not self.profile_btn.text() or self.profile_btn.text() == _tr(
+                    "Profile"
+                ):
                     self.profile_btn.setText(_tr("Profile"))
             # Update label via labelForField
             if hasattr(self, "form") and self.form is not None:
-                lbl = self.form.labelForField(self.parent.findChild(QWidget, None) or self.parent)
+                lbl = self.form.labelForField(
+                    self.parent.findChild(QWidget, None) or self.parent
+                )
             # Safer: explicitly query URL/Path row by passing layout used as field
             # (Qt doesn't give direct handle here; skip if not applicable)
         except Exception:
             pass
         try:
             # Name row label
-            if hasattr(self, "form") and self.form is not None and hasattr(self, "name_le"):
+            if (
+                hasattr(self, "form")
+                and self.form is not None
+                and hasattr(self, "name_le")
+            ):
                 name_label = self.form.labelForField(self.name_le)
                 if name_label is not None:
                     name_label.setText(_tr("Name:"))
@@ -359,7 +367,11 @@ class LinkDialogUI:
 
         # Notes label and favorites
         try:
-            if hasattr(self, "form") and self.form is not None and hasattr(self, "notes_te"):
+            if (
+                hasattr(self, "form")
+                and self.form is not None
+                and hasattr(self, "notes_te")
+            ):
                 notes_label = self.form.labelForField(self.notes_te)
                 if notes_label is not None:
                     notes_label.setText(_tr("Notes:"))
@@ -372,7 +384,9 @@ class LinkDialogUI:
         try:
             if hasattr(self, "button_box") and self.button_box is not None:
                 ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
-                cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+                cancel_btn = self.button_box.button(
+                    QDialogButtonBox.StandardButton.Cancel
+                )
                 if ok_btn is not None:
                     ok_btn.setText(_tr("Save"))
                 if cancel_btn is not None:

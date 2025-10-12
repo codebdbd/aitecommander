@@ -174,7 +174,9 @@ class BrowserProfileDialog(BaseDialog):
             self._pending_browser_key = browser_key
             self._set_controls_enabled(False)
             self.status_label.setText(self.tr("Loading profiles…"))
-            if not self.async_manager.load_browser_profiles_async(browser_key, use_cache=True):
+            if not self.async_manager.load_browser_profiles_async(
+                browser_key, use_cache=True
+            ):
                 self._pending_browser_key = None
                 self._set_controls_enabled(True)
                 self.status_label.setText(self.tr("Failed to start loading"))
@@ -215,9 +217,7 @@ class BrowserProfileDialog(BaseDialog):
         for profile in working_profiles:
             browser_name = profile.get("browser_name", "")
             profile_name = (
-                profile.get("email")
-                or profile.get("name")
-                or self.tr("Unnamed")
+                profile.get("email") or profile.get("name") or self.tr("Unnamed")
             )
             text = self.tr("{profile} ({browser})").format(
                 profile=profile_name, browser=browser_name
@@ -264,7 +264,9 @@ class BrowserProfileDialog(BaseDialog):
 
     def closeEvent(self, event):
         try:
-            self.async_manager.browser_profiles_ready.disconnect(self._on_async_profiles_ready)
+            self.async_manager.browser_profiles_ready.disconnect(
+                self._on_async_profiles_ready
+            )
             self.async_manager.loading_error.disconnect(self._on_async_profiles_error)
         except (TypeError, RuntimeError):
             pass
@@ -392,5 +394,3 @@ class BrowserProfileDialog(BaseDialog):
                 "BrowserProfileDialog: failed to update save enabled state",
                 exc_info=True,
             )
-
-

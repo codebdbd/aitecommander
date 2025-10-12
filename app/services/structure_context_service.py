@@ -28,9 +28,9 @@ class StructureContextService:
 
     def __init__(self, db: DatabaseProtocol):
         """Initializes context menu service.
-        
+
         ✅ FIX: Uses DatabaseProtocol instead of Any.
-        
+
         Args:
             db: Database instance
         """
@@ -275,9 +275,7 @@ class StructureContextService:
             cat_row = index_by_name[nm].pop(0)
             if not cat_row:
                 continue
-            yield from self._yield_links_for_tree(
-                tree, cat_row, created_categories_out
-            )
+            yield from self._yield_links_for_tree(tree, cat_row, created_categories_out)
 
     def _iter_links_for_created_categories_by_uuid(
         self,
@@ -292,9 +290,7 @@ class StructureContextService:
             cat_row = created_by_uuid.get(token)
             if not cat_row:
                 continue
-            yield from self._yield_links_for_tree(
-                tree, cat_row, created_categories_out
-            )
+            yield from self._yield_links_for_tree(tree, cat_row, created_categories_out)
 
     def _yield_links_for_tree(
         self,

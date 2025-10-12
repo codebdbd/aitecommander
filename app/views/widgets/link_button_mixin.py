@@ -5,6 +5,7 @@ Usage:
   ``pathlib.Path`` to the default icon (with caching).
 - The mixin adds `_find_icon` and `_create_link_button` methods.
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,9 @@ class LinkButtonMixin:
             logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
-            logger.exception("Unexpected error while resolving icon '%s': %s", icon_path, e)
+            logger.exception(
+                "Unexpected error while resolving icon '%s': %s", icon_path, e
+            )
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: dict[str, Any]) -> QToolButton:
@@ -89,7 +92,9 @@ class LinkButtonMixin:
                     dpr,
                 )
             except Exception as diag_exc:
-                logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
+                logging.debug(
+                    "[TopBarIconDiag] failed to log diagnostics: %s", diag_exc
+                )
         except Exception as e:
             logger.warning(
                 "Failed to create icon for link '%s': %s",
