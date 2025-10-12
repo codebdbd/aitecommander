@@ -297,78 +297,90 @@ class MoveOperationsHandler(TreeHandlerBase):
             on_error=self._on_db_error,
         )
 
+    def _get_section_ids_in_order(self, model):
+        """Get section IDs in display order."""
+        ids_in_order: list[int] = []
+        rows = model.rowCount()
+        for r in range(rows):
+            idx = model.index(r, 0)
+            t = get_tree_tuple(idx, 0)
+            if t and t[0] == "section" and isinstance(t[1], int):
+                ids_in_order.append(int(t[1]))
+        return ids_in_order
+
+    def _get_section_id_from_hierarchy(self, source_id):
+        """Get section ID from category hierarchy."""
+        try:
+            main_window = self.tree_widget.window()
+            if (
+                hasattr(main_window, "structure_business")
+                and main_window.structure_business
+            ):
+                hierarchy = main_window.structure_business.get_category_hierarchy(
+                    source_id
+                )
+                if isinstance(hierarchy, dict):
+                    return hierarchy.get("section_id")
+        except Exception:
+            pass
+        return None
+
+    def _get_section_id_from_current_index(self):
+        """Get section ID from current tree index."""
+        cur = getattr(self.tree_widget, "currentIndex", lambda: None)()
+        if cur and cur.isValid():
+            parent_idx = cur.parent()
+            pt = (
+                get_tree_tuple(parent_idx, 0)
+                if parent_idx and parent_idx.isValid()
+                else None
+            )
+            if pt and pt[0] == "section" and isinstance(pt[1], int):
+                return pt[1]
+        return None
+
+    def _get_category_ids_in_order(self, model, section_id):
+        """Get category IDs in display order for section."""
+        sec_idx = (
+            model.index_for("section", int(section_id))
+            if hasattr(model, "index_for")
+            else None
+        )
+        if not (sec_idx and sec_idx.isValid()):
+            return []
+        
+        ids_in_order: list[int] = []
+        rows = model.rowCount(sec_idx)
+        for r in range(rows):
+            idx = model.index(r, 0, sec_idx)
+            t = get_tree_tuple(idx, 0)
+            if t and t[0] == "category" and isinstance(t[1], int):
+                ids_in_order.append(int(t[1]))
+        return ids_in_order
+
     def _prepare_position_params(
         self, source_type: str, source_id: int, parent
     ) -> dict[str, Any]:
         """Prepare parameters for position update (QTreeView)."""
-
-        # Use model and business logic
         try:
             model = getattr(self.tree_widget, "model", lambda: None)()
             if not model:
                 return {}
 
-            # Sections: top level of the model
             if source_type == "section":
-                ids_in_order: list[int] = []
-                rows = model.rowCount()
-                for r in range(rows):
-                    idx = model.index(r, 0)
-                    t = get_tree_tuple(idx, 0)
-                    if t and t[0] == "section" and isinstance(t[1], int):
-                        ids_in_order.append(int(t[1]))
+                ids_in_order = self._get_section_ids_in_order(model)
                 if not ids_in_order:
                     return {}
                 return {"table_name": "section", "ids_in_order": ids_in_order}
 
-            # Categories: determine parent section via business logic
             if source_type == "category" and isinstance(source_id, int):
-                try:
-                    hierarchy = None
-                    main_window = self.tree_widget.window()
-                    if (
-                        hasattr(main_window, "structure_business")
-                        and main_window.structure_business
-                    ):
-                        hierarchy = (
-                            main_window.structure_business.get_category_hierarchy(
-                                source_id
-                            )
-                        )
-                except Exception:
-                    hierarchy = None
-                section_id = None
-                if isinstance(hierarchy, dict):
-                    section_id = hierarchy.get("section_id")
+                section_id = self._get_section_id_from_hierarchy(source_id)
                 if not isinstance(section_id, int):
-                    # Fallback: try to take current index and its parent
-                    cur = getattr(self.tree_widget, "currentIndex", lambda: None)()
-                    if cur and cur.isValid():
-                        parent_idx = cur.parent()
-                        pt = (
-                            get_tree_tuple(parent_idx, 0)
-                            if parent_idx and parent_idx.isValid()
-                            else None
-                        )
-                        if pt and pt[0] == "section" and isinstance(pt[1], int):
-                            section_id = pt[1]
+                    section_id = self._get_section_id_from_current_index()
                 if not isinstance(section_id, int):
                     return {}
-                # Iterate over the children of the section index
-                sec_idx = (
-                    model.index_for("section", int(section_id))
-                    if hasattr(model, "index_for")
-                    else None
-                )
-                if not (sec_idx and sec_idx.isValid()):
-                    return {}
-                ids_in_order: list[int] = []
-                rows = model.rowCount(sec_idx)
-                for r in range(rows):
-                    idx = model.index(r, 0, sec_idx)
-                    t = get_tree_tuple(idx, 0)
-                    if t and t[0] == "category" and isinstance(t[1], int):
-                        ids_in_order.append(int(t[1]))
+                
+                ids_in_order = self._get_category_ids_in_order(model, section_id)
                 if not ids_in_order:
                     return {}
                 return {"table_name": "category", "ids_in_order": ids_in_order}
@@ -407,11 +419,8 @@ class MoveOperationsHandler(TreeHandlerBase):
         # Update UI after error
         self._refresh_ui_after_move()
 
-    def _refresh_ui_after_move(self) -> None:
-        """Refresh UI after a move."""
-        main_win = self.tree_widget.window()
-
-        # After moving, if current sphere doesn't match the target — switch it
+    def _switch_sphere_if_needed(self, main_win):
+        """Switch sphere if current doesn't match target."""
         if hasattr(main_win, "structure_business") and main_win.structure_business:
             try:
                 sc = getattr(main_win, "spheres_controller", None)
@@ -420,54 +429,81 @@ class MoveOperationsHandler(TreeHandlerBase):
             except Exception:
                 pass
 
+    def _get_section_id_from_tree(self):
+        """Get section ID from current tree selection."""
+        tw = self.tree_widget
+        if not hasattr(tw, "currentIndex"):
+            return None
+        
+        index = tw.currentIndex()
+        if not index or not index.isValid():
+            return None
+        
+        t = get_tree_tuple(index, 0)
+        if not t:
+            return None
+        
+        typ, id_ = t
+        if typ == "section" and isinstance(id_, int):
+            return id_
+        elif typ == "category":
+            parent_index = index.parent()
+            if parent_index and parent_index.isValid():
+                pt = get_tree_tuple(parent_index, 0)
+                if pt and pt[0] == "section" and isinstance(pt[1], int):
+                    return pt[1]
+        return None
+
+    def _suppress_signals(self, struct):
+        """Suppress selection and tree signals."""
+        selection = getattr(struct, "selection_handler", None)
+        tree = getattr(struct, "tree", None)
+        if selection is not None:
+            try:
+                selection.begin_suppress_selection()
+            except Exception:
+                pass
+        if tree is not None:
+            try:
+                tree.blockSignals(True)
+            except Exception:
+                pass
+        return selection, tree
+
+    def _restore_signals(self, selection, tree):
+        """Restore selection and tree signals."""
+        if tree is not None:
+            try:
+                tree.blockSignals(False)
+            except Exception:
+                pass
+        if selection is not None:
+            try:
+                selection.end_suppress_selection()
+            except Exception:
+                pass
+
+    def _emit_section_selected(self, main_win, section_id):
+        """Emit section_selected signal with suppressed UI updates."""
+        if not section_id:
+            return
+        if not hasattr(main_win, "structure_business") or not main_win.structure_business:
+            return
+        
+        struct = getattr(main_win, "structure", None)
+        selection, tree = self._suppress_signals(struct)
         try:
-            tw = self.tree_widget
-            section_id = None
-            if hasattr(tw, "currentIndex"):
-                index = tw.currentIndex()
-                if index and index.isValid():
-                    t = get_tree_tuple(index, 0)
-                    if t:
-                        typ, id_ = t
-                        if typ == "section" and isinstance(id_, int):
-                            section_id = id_
-                        elif typ == "category":
-                            parent_index = index.parent()
-                            if parent_index and parent_index.isValid():
-                                pt = get_tree_tuple(parent_index, 0)
-                                if pt and pt[0] == "section" and isinstance(pt[1], int):
-                                    section_id = pt[1]
-            if (
-                section_id
-                and hasattr(main_win, "structure_business")
-                and main_win.structure_business
-            ):
-                struct = getattr(main_win, "structure", None)
-                selection = getattr(struct, "selection_handler", None)
-                tree = getattr(struct, "tree", None)
-                try:
-                    if selection is not None:
-                        try:
-                            selection.begin_suppress_selection()
-                        except Exception:
-                            pass
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(True)
-                        except Exception:
-                            pass
-                    main_win.structure_business.section_selected.emit(section_id)
-                finally:
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(False)
-                        except Exception:
-                            pass
-                    if selection is not None:
-                        try:
-                            selection.end_suppress_selection()
-                        except Exception:
-                            pass
+            main_win.structure_business.section_selected.emit(section_id)
+        finally:
+            self._restore_signals(selection, tree)
+
+    def _refresh_ui_after_move(self) -> None:
+        """Refresh UI after a move."""
+        main_win = self.tree_widget.window()
+        self._switch_sphere_if_needed(main_win)
+        
+        try:
+            section_id = self._get_section_id_from_tree()
+            self._emit_section_selected(main_win, section_id)
         except Exception:
-            # Do not block the UI thread due to auxiliary tiles refresh
             pass

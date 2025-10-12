@@ -92,6 +92,52 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return 0
         return len(self._headers)
 
+    def _get_display_data(self, col, link):
+        """Get display data for column."""
+        if col == 0:
+            return self._star_display_text(bool(link.get("is_favorite")))
+        if col == 1:
+            return self._name_display_text(link, mode="normal")
+        if col == 2:
+            return self._last_used_display_text(link.get("last_used"))
+        if col == 3:
+            display, _ = self._notes_display_and_tooltip(
+                link.get("notes", ""), truncate=False
+            )
+            return display
+        return None
+
+    def _get_decoration_data(self, col, link):
+        """Get decoration data for column."""
+        if col == 1:
+            try:
+                resolved_path = resolve_icon_for_link(link)
+                if resolved_path:
+                    return self._get_cached_icon(resolved_path)
+            except Exception:
+                pass
+        return None
+
+    def _get_tooltip_data(self, col, link):
+        """Get tooltip data for column."""
+        if col == 1:
+            tip = self._name_tooltip(link)
+            if tip:
+                return tip
+        if col == 3:
+            _, tip = self._notes_display_and_tooltip(
+                link.get("notes", ""), truncate=False
+            )
+            if tip:
+                return tip
+        return None
+
+    def _get_alignment_data(self, col):
+        """Get alignment data for column."""
+        if col in (0, 2):
+            return int(Qt.AlignmentFlag.AlignCenter)
+        return None
+
     def data(
         self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
     ) -> str | int | QIcon | dict | None:  # type: ignore[override]
@@ -104,51 +150,24 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         link = self._links[row]
 
-        # UserRole: return the original link dict
         if role == Qt.ItemDataRole.UserRole:
             return link
 
-        # Display/Decoration/ToolTip per column
-        # 0: ★, 1: Name, 2: Last opened, 3: Notes
         if role == Qt.ItemDataRole.DisplayRole:
-            if col == 0:
-                return self._star_display_text(bool(link.get("is_favorite")))
-            if col == 1:
-                # Always "normal" mode here; search uses a separate model/view
-                return self._name_display_text(link, mode="normal")
-            if col == 2:
-                return self._last_used_display_text(link.get("last_used"))
-            if col == 3:
-                display, _ = self._notes_display_and_tooltip(
-                    link.get("notes", ""), truncate=False
-                )
-                return display
+            result = self._get_display_data(col, link)
+            return result if result is not None else QVariant()
 
         if role == Qt.ItemDataRole.DecorationRole:
-            if col == 1:
-                # Link icon: use LRU cache to avoid memory leaks
-                try:
-                    resolved_path = resolve_icon_for_link(link)
-                    if resolved_path:
-                        return self._get_cached_icon(resolved_path)
-                except Exception:
-                    pass
+            result = self._get_decoration_data(col, link)
+            return result if result is not None else QVariant()
 
         if role == Qt.ItemDataRole.ToolTipRole:
-            if col == 1:
-                tip = self._name_tooltip(link)
-                if tip:
-                    return tip
-            if col == 3:
-                _, tip = self._notes_display_and_tooltip(
-                    link.get("notes", ""), truncate=False
-                )
-                if tip:
-                    return tip
+            result = self._get_tooltip_data(col, link)
+            return result if result is not None else QVariant()
 
         if role == Qt.ItemDataRole.TextAlignmentRole:
-            if col in (0, 2):
-                return int(Qt.AlignmentFlag.AlignCenter)
+            result = self._get_alignment_data(col)
+            return result if result is not None else QVariant()
 
         return QVariant()
 

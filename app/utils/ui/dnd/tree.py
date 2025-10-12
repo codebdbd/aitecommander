@@ -232,21 +232,8 @@ class DragDropHandler(TreeHandlerBase):
 
         return int(new_section_id), int(base_row)
 
-    def move_categories(
-        self, category_ids: list[int], section_id: int, base_row: int
-    ) -> int:
-        """Moves list of categories to specified section and position.
-
-        Attempts to use atomic command for multiple items.
-        Returns number of actually moved items. In single path
-        generates itemsMoved signal for each successful move.
-        """
-        if not category_ids:
-            return 0
-
-        model = self.tree_widget.model()
-
-        # Atomic command for multiple moves
+    def _try_atomic_move(self, category_ids, section_id, base_row):
+        """Try atomic command for multiple moves."""
         if len(category_ids) > 1 and hasattr(
             self.tree_widget, "move_operations_handler"
         ):
@@ -254,68 +241,59 @@ class DragDropHandler(TreeHandlerBase):
                 self.tree_widget.move_operations_handler.execute_move_categories_command(
                     [int(i) for i in category_ids], int(section_id), int(base_row)
                 )
-                # Поведение сохраняем: при командном переносе отдельных itemsMoved не шлём
                 return len(category_ids)
             except Exception:
-                # Fallback — individual moves below
                 pass
+        return None
 
-        moved_count = 0
-        insert_offset = 0
-        main_win = self.tree_widget.window()
-        structure_business = getattr(main_win, "structure_business", None)
-        batch_started = False
-        touched_sections: set[int] = set()
+    def _begin_batch_operation(self, structure_business):
+        """Begin batch operation if supported."""
         if structure_business and hasattr(structure_business, "begin_batch"):
             try:
                 structure_business.begin_batch()
-                batch_started = True
+                return True
             except Exception:
-                batch_started = False
+                pass
+        return False
 
-        for cid in category_ids:
-            if not isinstance(cid, int):
-                continue
-            target_row = int(base_row + insert_offset)
-            moved = False
+    def _move_single_category(self, cid, section_id, target_row, structure_business, model):
+        """Move single category using business logic or model."""
+        if structure_business:
+            try:
+                result = structure_business.move_categories_batch(
+                    [int(cid)], int(section_id), target_row
+                )
+                if isinstance(result, list):
+                    return bool(result)
+                elif isinstance(result, tuple) and result:
+                    return True
+            except Exception:
+                pass
 
-            if structure_business:
-                try:
-                    result = structure_business.move_categories_batch(
-                        [int(cid)], int(section_id), target_row
-                    )
-                    if isinstance(result, list):
-                        moved = bool(result)
-                    elif isinstance(result, tuple) and result:
-                        moved = True
-                except Exception:
-                    moved = False
+        try:
+            return hasattr(model, "move_category") and model.move_category(
+                int(cid), int(section_id), target_row
+            )
+        except Exception:
+            return False
 
-            if not moved:
-                try:
-                    moved = hasattr(model, "move_category") and model.move_category(
-                        int(cid), int(section_id), target_row
-                    )
-                except Exception:
-                    moved = False
+    def _emit_items_moved(self, cid, section_id, target_row):
+        """Emit itemsMoved signal."""
+        try:
+            self.tree_widget.itemsMoved.emit(
+                {
+                    "type": "internal_move",
+                    "source_type": "category",
+                    "category_id": int(cid),
+                    "section_id": int(section_id),
+                    "new_row": target_row,
+                }
+            )
+        except Exception:
+            pass
 
-            if moved:
-                moved_count += 1
-                insert_offset += 1
-                touched_sections.add(int(section_id))
-                try:
-                    self.tree_widget.itemsMoved.emit(
-                        {
-                            "type": "internal_move",
-                            "source_type": "category",
-                            "category_id": int(cid),
-                            "section_id": int(section_id),
-                            "new_row": target_row,
-                        }
-                    )
-                except Exception:
-                    pass
-
+    def _finalize_batch(self, batch_started, structure_business, touched_sections):
+        """Finalize batch operation."""
         if batch_started:
             try:
                 if touched_sections:
@@ -332,6 +310,45 @@ class DragDropHandler(TreeHandlerBase):
                 )
             except Exception:
                 pass
+
+    def move_categories(
+        self, category_ids: list[int], section_id: int, base_row: int
+    ) -> int:
+        """Moves list of categories to specified section and position.
+
+        Attempts to use atomic command for multiple items.
+        Returns number of actually moved items. In single path
+        generates itemsMoved signal for each successful move.
+        """
+        if not category_ids:
+            return 0
+
+        atomic_result = self._try_atomic_move(category_ids, section_id, base_row)
+        if atomic_result is not None:
+            return atomic_result
+
+        model = self.tree_widget.model()
+        main_win = self.tree_widget.window()
+        structure_business = getattr(main_win, "structure_business", None)
+        
+        batch_started = self._begin_batch_operation(structure_business)
+        moved_count = 0
+        insert_offset = 0
+        touched_sections: set[int] = set()
+
+        for cid in category_ids:
+            if not isinstance(cid, int):
+                continue
+            target_row = int(base_row + insert_offset)
+            
+            moved = self._move_single_category(cid, section_id, target_row, structure_business, model)
+            if moved:
+                moved_count += 1
+                insert_offset += 1
+                touched_sections.add(int(section_id))
+                self._emit_items_moved(cid, section_id, target_row)
+
+        self._finalize_batch(batch_started, structure_business, touched_sections)
 
         return moved_count
 

@@ -19,95 +19,97 @@ class SaveLinkCmd(BaseCommand):
         self.old_data = dict(old_data) if old_data else None
         self.created_id: int | None = None
 
-    @log_command
-    def redo(self):
-        # Fill missing fields from old_data if dialog returned partial payload
+    def _merge_old_data(self):
+        """Merge missing fields from old_data into new_data."""
         try:
             if self.old_data:
-                # Key fields required for correct update
-                for k in (
-                    "id",
-                    "category_id",
-                    "position",
-                    "favorite",
-                ):
+                for k in ("id", "category_id", "position", "favorite"):
                     if k not in self.new_data and k in self.old_data:
                         self.new_data[k] = self.old_data[k]
-                # Base fields that may be unchanged and absent in new_data
                 for k in ("name", "url", "args", "icon_path"):
                     if k not in self.new_data and k in self.old_data:
                         self.new_data[k] = self.old_data[k]
         except Exception as exc:
             logger.exception("SaveLinkCmd.redo: failed to merge old/new data: %s", exc)
 
-        # Save link via service layer (UnitOfWork inside)
+    def _save_link(self):
+        """Save link via service layer."""
         if hasattr(self.main, "links_business") and self.main.links_business:
             result = self.main.links_business.links.create_or_update_link(self.new_data)
         else:
-            # Fallback via service layer
             result = LinksService(self.db).create_or_update_link(self.new_data)
         if result and not self.new_data.get("id"):
             self.new_data["id"] = result
             self.created_id = result
-        # UI update signal via LinksBusinessLogic, if available
+
+    def _emit_link_updated(self):
+        """Emit link_updated signal."""
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.new_data)
             except Exception as exc:
                 logger.warning("SaveLinkCmd.redo: link_updated emit failed: %s", exc)
-            # Reload table for current category if not suppressed
-            try:
-                if not getattr(self, "_suppress_ui", False):
-                    cat_id = self.new_data.get("category_id") or (
-                        self.old_data or {}
-                    ).get("category_id")
-                    if isinstance(cat_id, int) and cat_id > 0:
-                        ctrl = getattr(self.main, "links_table_controller", None)
-                        if ctrl:
-                            ctrl.reload(cat_id)
-                        else:
-                            # Fallback without direct UI: load data via business layer
-                            links_business = getattr(self.main, "links_business", None)
-                            if links_business:
-                                try:
-                                    links_business.load_links(cat_id)
-                                except Exception as exc:
-                                    logger.debug(
-                                        "SaveLinkCmd.redo: links_business.load_links(%s) failed: %s",
-                                        cat_id,
-                                        exc,
-                                        exc_info=True,
-                                    )
-            except Exception as exc:
-                logger.warning(
-                    "SaveLinkCmd.redo: reload failed: %s",
-                    exc,
-                )
+
+    def _reload_table_if_needed(self):
+        """Reload table for current category if not suppressed."""
+        try:
+            if not getattr(self, "_suppress_ui", False):
+                cat_id = self.new_data.get("category_id") or (
+                    self.old_data or {}
+                ).get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception as exc:
+                                logger.debug(
+                                    "SaveLinkCmd.redo: links_business.load_links(%s) failed: %s",
+                                    cat_id,
+                                    exc,
+                                    exc_info=True,
+                                )
+        except Exception as exc:
+            logger.warning(
+                "SaveLinkCmd.redo: reload failed: %s",
+                exc,
+            )
 
     @log_command
-    def undo(self):
-        # If newly created — delete
-        link_id = self.new_data.get("id")
-        if self.old_data is None and link_id:
-            if hasattr(self.main, "links_business") and self.main.links_business:
-                self.main.links_business.links.delete_link(link_id)
-            else:
-                LinksService(self.db).delete_link(link_id)
+    def redo(self):
+        self._merge_old_data()
+        self._save_link()
+        self._emit_link_updated()
+        self._reload_table_if_needed()
+
+    def _undo_new_link(self, link_id):
+        """Delete newly created link."""
+        if hasattr(self.main, "links_business") and self.main.links_business:
+            self.main.links_business.links.delete_link(link_id)
         else:
-            # Otherwise restore old data
-            if self.old_data:
-                if hasattr(self.main, "links_business") and self.main.links_business:
-                    self.main.links_business.links.create_or_update_link(self.old_data)
-                else:
-                    LinksService(self.db).create_or_update_link(self.old_data)
-                if hasattr(self.main, "links_business") and self.main.links_business:
-                    try:
-                        self.main.links_business.link_updated.emit(self.old_data)
-                    except Exception as exc:
-                        logger.warning(
-                            "SaveLinkCmd.undo: link_updated emit failed: %s", exc
-                        )
-        # Reload table for corresponding category if not suppressed
+            LinksService(self.db).delete_link(link_id)
+
+    def _undo_update_link(self):
+        """Restore old link data."""
+        if self.old_data:
+            if hasattr(self.main, "links_business") and self.main.links_business:
+                self.main.links_business.links.create_or_update_link(self.old_data)
+            else:
+                LinksService(self.db).create_or_update_link(self.old_data)
+            if hasattr(self.main, "links_business") and self.main.links_business:
+                try:
+                    self.main.links_business.link_updated.emit(self.old_data)
+                except Exception as exc:
+                    logger.warning(
+                        "SaveLinkCmd.undo: link_updated emit failed: %s", exc
+                    )
+
+    def _reload_table_for_undo(self):
+        """Reload table for corresponding category if not suppressed."""
         try:
             if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.old_data or {}).get("category_id") or self.new_data.get(
@@ -134,6 +136,15 @@ class SaveLinkCmd(BaseCommand):
                 "SaveLinkCmd.undo: reload failed: %s",
                 exc,
             )
+
+    @log_command
+    def undo(self):
+        link_id = self.new_data.get("id")
+        if self.old_data is None and link_id:
+            self._undo_new_link(link_id)
+        else:
+            self._undo_update_link()
+        self._reload_table_for_undo()
 
 
 class BatchDeleteLinksCmd(BaseCommand):

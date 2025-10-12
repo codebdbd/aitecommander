@@ -202,64 +202,53 @@ class LinkDialogController:
 
         return links_data
 
-    def _prepare_profile_links(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
-        """Prepares links with profiles of any browsers."""
-        from app.utils.browser.browser_profiles import (
-            UniversalProfileProcessor,
-        )
-
-        processor = UniversalProfileProcessor(self.database)
+    def _get_existing_link_data(self, form_data):
+        """Get existing link data if editing."""
         is_edit = form_data.get("link_id") is not None
-        existing_link = None
-        if is_edit:
-            # Pass all necessary fields for proper profile comparison
-            existing_link = {
-                "id": form_data["link_id"],
-                "args": form_data.get(
-                    "args", ""
-                ),  # Ключевое поле для сравнения профилей
-                "last_used": form_data.get("last_used"),
-                "position": form_data.get("position", 0),
-            }
+        if not is_edit:
+            return None
+        return {
+            "id": form_data["link_id"],
+            "args": form_data.get("args", ""),
+            "last_used": form_data.get("last_used"),
+            "position": form_data.get("position", 0),
+        }
 
-        # Process selected profiles
-        selected_profiles = form_data["selected_profiles"]
-        if not selected_profiles:
-            return []
+    def _detect_browser_key(self, profile, manager):
+        """Detect browser key for profile."""
+        browser_key = profile.get("browser_key")
+        if browser_key:
+            return browser_key
+        
+        browser_key = manager.detect_browser_from_args(profile.get("args", ""))
+        if browser_key:
+            return browser_key
+        
+        for key, finder in manager.finders.items():
+            try:
+                if hasattr(finder, "validate_profile_data") and finder.validate_profile_data(profile):
+                    return key
+            except Exception:
+                continue
+        return None
 
-        # Separate profiles by browsers (use unified manager per controller)
-        manager = self.profile_manager
+    def _group_profiles_by_browser(self, selected_profiles, manager):
+        """Group profiles by browser key."""
         profiles_by_browser = {}
-
         for profile in selected_profiles:
-            # Determine browser_key for each profile
-            browser_key = profile.get("browser_key")
+            browser_key = self._detect_browser_key(profile, manager)
             if not browser_key:
-                # Fallback 1: attempt by args
-                browser_key = manager.detect_browser_from_args(profile.get("args", ""))
-                if not browser_key:
-                    # Fallback 2: iterate through finders and validate profile
-                    for key, finder in manager.finders.items():
-                        try:
-                            if hasattr(
-                                finder, "validate_profile_data"
-                            ) and finder.validate_profile_data(profile):
-                                browser_key = key
-                                break
-                        except Exception:
-                            continue
-                if not browser_key:
-                    logger.debug(
-                        f"_prepare_profile_links: пропущен профиль без определённого браузера: {profile}"
-                    )
-                    continue  # Пропускаем профиль, если не можем определить браузер
-
-            # Group profiles by browser_key
+                logger.debug(
+                    f"_prepare_profile_links: пропущен профиль без определённого браузера: {profile}"
+                )
+                continue
             if browser_key not in profiles_by_browser:
                 profiles_by_browser[browser_key] = []
             profiles_by_browser[browser_key].append(profile)
+        return profiles_by_browser
 
-        # Log profile information for debugging
+    def _log_profile_groups(self, profiles_by_browser):
+        """Log profile grouping information."""
         try:
             summary = {bk: len(ps) for bk, ps in profiles_by_browser.items()}
             logger.info(
@@ -279,20 +268,30 @@ class LinkDialogController:
                     profile.get("directory", "None"),
                 )
 
+    def _prepare_profile_links(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
+        """Prepares links with profiles of any browsers."""
+        from app.utils.browser.browser_profiles import UniversalProfileProcessor
+
+        processor = UniversalProfileProcessor(self.database)
+        existing_link = self._get_existing_link_data(form_data)
+        selected_profiles = form_data["selected_profiles"]
+        if not selected_profiles:
+            return []
+
+        manager = self.profile_manager
+        profiles_by_browser = self._group_profiles_by_browser(selected_profiles, manager)
+        self._log_profile_groups(profiles_by_browser)
+
         if not profiles_by_browser:
             return []
 
-        # Process profiles for each browser separately
         result_links = []
-
-        # For editing determine current browser_key from existing link
         current_browser_key = None
         if existing_link and existing_link.get("args"):
             current_browser_key = manager.detect_browser_from_args(
                 existing_link.get("args", "")
             )
 
-        # Determine if user manually changed arguments (for first browser)
         first_browser_key = next(iter(profiles_by_browser))
         first_profiles = profiles_by_browser[first_browser_key]
         user_args = self._get_user_args_if_modified(

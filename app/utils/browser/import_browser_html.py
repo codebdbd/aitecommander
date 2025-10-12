@@ -65,18 +65,17 @@ class BrowserBookmarksImporter:
         return path or ""
 
     # === Data layer ===
-    def parse_bookmarks(self, html_path: str) -> dict:
-        """Parses HTML browser bookmarks export into structure {category_name: [links...]}."""
+    def _read_file_with_encoding(self, html_path):
+        """Read file trying multiple encodings."""
         encodings_to_try = ("utf-8", "utf-8-sig", "cp1251", "latin-1")
         last_err = None
-        text = None
-        used_encoding = None
+        
         for enc in encodings_to_try:
             try:
                 with open(html_path, encoding=enc) as f:
                     text = f.read()
-                    used_encoding = enc
-                    break
+                    logger.debug("DEBUG: using encoding = %s", enc)
+                    return text
             except (OSError, UnicodeDecodeError) as e:
                 last_err = e
                 logger.debug(
@@ -86,72 +85,80 @@ class BrowserBookmarksImporter:
                     e,
                     exc_info=True,
                 )
-                continue
-        if text is None:
+        
+        # Fallback: read as binary with error replacement
+        try:
+            with open(html_path, "rb") as fb:
+                raw = fb.read()
+                text = raw.decode("utf-8", errors="replace")
+                logger.debug("DEBUG: using encoding = utf-8(replace)")
+                return text
+        except OSError as e:
+            logger.warning(
+                "parse_bookmarks: failed to read file %s: %s",
+                html_path,
+                e,
+                exc_info=True,
+            )
+            raise (last_err or e) from e
+
+    def _save_icon_from_base64(self, icon_data, url, icons_dir):
+        """Save base64 icon to file."""
+        domain = ""
+        if url:
+            domain = urlparse(url).netloc.replace(":", "_").replace(".", "_")
+        icon_fname = f"web_{domain}.png" if domain else "web_unknown.png"
+        icon_file = icons_dir / icon_fname
+        if not icon_file.exists():
             try:
-                with open(html_path, "rb") as fb:
-                    raw = fb.read()
-                    text = raw.decode("utf-8", errors="replace")
-                    used_encoding = "utf-8(replace)"
-            except OSError as e:
-                logger.warning(
-                    "parse_bookmarks: failed to read file %s: %s",
-                    html_path,
-                    e,
-                    exc_info=True,
+                b64 = icon_data.split("base64,", 1)[-1]
+                with open(icon_file, "wb") as f:
+                    f.write(base64.b64decode(b64))
+            except (binascii.Error, ValueError, OSError) as e:
+                logger.debug(
+                    "save_icon_from_base64 failed for %s: %s", url, e, exc_info=True
                 )
-                raise (last_err or e) from e
-        logger.debug("DEBUG: using encoding = %s", used_encoding)
+                return ""
+        return icon_fname
+
+    def _process_bookmark_node(self, node, current_cat, categories, icons_dir):
+        """Process bookmark node recursively."""
+        for child in node.find_all(recursive=False):
+            if child.name == "h3":
+                current_cat = child.get_text()
+            elif child.name == "a":
+                if current_cat not in categories:
+                    categories[current_cat] = []
+                url = child.get("href")
+                name = child.get_text() or url
+                icon_data = child.get("icon")
+                icon_path = ""
+                if icon_data and icon_data.startswith("data:image/"):
+                    icon_path = self._save_icon_from_base64(icon_data, url, icons_dir)
+                link = {"name": name, "url": url, "icon_path": icon_path}
+                categories[current_cat].append(link)
+            elif child.name == "dl":
+                self._process_bookmark_node(child, current_cat, categories, icons_dir)
+            elif child.name in ["p", "dt"]:
+                self._process_bookmark_node(child, current_cat, categories, icons_dir)
+
+    def parse_bookmarks(self, html_path: str) -> dict:
+        """Parses HTML browser bookmarks export into structure {category_name: [links...]}."""
+        text = self._read_file_with_encoding(html_path)
         logger.debug("DEBUG: file head = %s", text[:500])
+        
         soup = BeautifulSoup(text, "html.parser")
         categories = defaultdict(list)
         icons_dir = app_config.paths.get_link_icons_dir()
 
-        def save_icon_from_base64(icon_data, url):
-            domain = ""
-            if url:
-                domain = urlparse(url).netloc.replace(":", "_").replace(".", "_")
-            icon_fname = f"web_{domain}.png" if domain else "web_unknown.png"
-            icon_file = icons_dir / icon_fname
-            if not icon_file.exists():
-                try:
-                    b64 = icon_data.split("base64,", 1)[-1]
-                    with open(icon_file, "wb") as f:
-                        f.write(base64.b64decode(b64))
-                except (binascii.Error, ValueError, OSError) as e:
-                    logger.debug(
-                        "save_icon_from_base64 failed for %s: %s", url, e, exc_info=True
-                    )
-                    return ""
-            return icon_fname
-
         root_dl = soup.find("dl")
         logger.debug("DEBUG: soup.find('dl') = %s", root_dl)
 
-        def process_node(node, current_cat):
-            for child in node.find_all(recursive=False):
-                if child.name == "h3":
-                    current_cat = child.get_text()
-                elif child.name == "a":
-                    if current_cat not in categories:
-                        categories[current_cat] = []
-                    url = child.get("href")
-                    name = child.get_text() or url
-                    icon_data = child.get("icon")
-                    icon_path = ""
-                    if icon_data and icon_data.startswith("data:image/"):
-                        icon_path = save_icon_from_base64(icon_data, url)
-                    link = {"name": name, "url": url, "icon_path": icon_path}
-                    categories[current_cat].append(link)
-                elif child.name == "dl":
-                    process_node(child, current_cat)
-                elif child.name in ["p", "dt"]:
-                    process_node(child, current_cat)
-
         if root_dl:
-            process_node(root_dl, "Uncategorized")
+            self._process_bookmark_node(root_dl, "Uncategorized", categories, icons_dir)
             total_links = sum(len(links) for links in categories.values())
             logger.debug("DEBUG: Total links found: %s", total_links)
+        
         return dict(categories)
 
     # === Business слой ===

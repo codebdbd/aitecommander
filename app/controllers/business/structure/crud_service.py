@@ -213,6 +213,53 @@ class StructureCrudService:
                 self._cache_service.invalidate_categories_cache(section_id)
         return success, category_before, 0
 
+    def _collect_source_sections(self, category_ids, target_section_id):
+        """Collect source sections from category IDs."""
+        source_sections: set[int] = set()
+        try:
+            for cid in category_ids:
+                try:
+                    cdata = self._structure_service.get_category_by_id(int(cid))
+                except (ValueError, TypeError) as e:
+                    self._logger.debug("Invalid category_id %s: %s", cid, e)
+                    cdata = None
+                except Exception as e:
+                    self._logger.exception(
+                        "Unexpected error getting category %s: %s", cid, e
+                    )
+                    cdata = None
+                if isinstance(cdata, dict):
+                    sid = cdata.get("section_id")
+                    if isinstance(sid, int) and sid > 0 and sid != target_section_id:
+                        source_sections.add(int(sid))
+        except (ValueError, TypeError) as e:
+            self._logger.warning("Error collecting source sections: %s", e)
+            source_sections = set()
+        except Exception as e:
+            self._logger.exception("Critical error in move_categories_batch: %s", e)
+            raise
+        return source_sections
+
+    def _invalidate_caches_and_reload(self, touched_sections):
+        """Invalidate caches and schedule structure reload."""
+        for sid in touched_sections:
+            try:
+                self._cache_service.invalidate_categories_cache(sid)
+            except Exception:  # pragma: no cover - defensive
+                pass
+
+        try:
+            self._cache_service.invalidate_structure_cache()
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        try:
+            from app.config_data import app_config
+            delay = int(app_config.ui.get_structure_reload_immediate_delay_ms())
+            self._async_service.schedule_structure_reload(delay)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
     @measure_time("move_categories_batch", log_threshold_ms=500)
     def move_categories_batch(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
@@ -228,33 +275,7 @@ class StructureCrudService:
         ):
             return MoveCategoriesBatchResult(moved_ids=[], touched_sections=set())
 
-        source_sections: set[int] = set()
-        try:
-            for cid in category_ids:
-                try:
-                    cdata = self._structure_service.get_category_by_id(int(cid))
-                except (ValueError, TypeError) as e:
-                    # ✅ Ожидаемые ошибки валидации
-                    self._logger.debug("Invalid category_id %s: %s", cid, e)
-                    cdata = None
-                except Exception as e:
-                    # ✅ Неожиданные ошибки
-                    self._logger.exception(
-                        "Unexpected error getting category %s: %s", cid, e
-                    )
-                    cdata = None
-                if isinstance(cdata, dict):
-                    sid = cdata.get("section_id")
-                    if isinstance(sid, int) and sid > 0 and sid != target_section_id:
-                        source_sections.add(int(sid))
-        except (ValueError, TypeError) as e:
-            # ✅ Ожидаемые ошибки
-            self._logger.warning("Error collecting source sections: %s", e)
-            source_sections = set()
-        except Exception as e:
-            # ✅ Неожиданные ошибки
-            self._logger.exception("Critical error in move_categories_batch: %s", e)
-            raise
+        source_sections = self._collect_source_sections(category_ids, target_section_id)
 
         moved_ids = (
             self._structure_service.move_categories_to_section_bulk(
@@ -267,24 +288,7 @@ class StructureCrudService:
         if isinstance(target_section_id, int) and target_section_id > 0:
             touched_sections.add(int(target_section_id))
 
-        for sid in touched_sections:
-            try:
-                self._cache_service.invalidate_categories_cache(sid)
-            except Exception:  # pragma: no cover - defensive
-                pass
-
-        try:
-            self._cache_service.invalidate_structure_cache()
-        except Exception:  # pragma: no cover - defensive
-            pass
-
-        try:
-            from app.config_data import app_config
-
-            delay = int(app_config.ui.get_structure_reload_immediate_delay_ms())
-            self._async_service.schedule_structure_reload(delay)
-        except Exception:  # pragma: no cover - defensive
-            pass
+        self._invalidate_caches_and_reload(touched_sections)
 
         return MoveCategoriesBatchResult(
             moved_ids=moved_ids, touched_sections=touched_sections
