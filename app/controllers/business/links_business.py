@@ -104,7 +104,7 @@ class LinksBusinessLogic(QObject):
     def __init__(
         self,
         db: Database,
-        parent: QObject = None,
+        parent: Optional[QObject] = None,
         logger: Optional[logging.Logger] = None,
         tasks_lock_instance=None,
         scheduler=None,

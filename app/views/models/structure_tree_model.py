@@ -75,7 +75,7 @@ class StructureTreeModel(QAbstractItemModel):
             return self.createIndex(row, 0, child)
         return QModelIndex()
 
-    def parent(self, index: QModelIndex) -> QModelIndex:  # noqa: N802
+    def parent(self, index: QModelIndex) -> QModelIndex:  # type: ignore[override]  # noqa: N802
         if not index.isValid():
             return QModelIndex()
         node: TreeNode = index.internalPointer()
@@ -176,7 +176,7 @@ class StructureTreeModel(QAbstractItemModel):
     def mimeTypes(self) -> list[str]:  # noqa: N802
         return ["application/x-structure-tree-index"]
 
-    def mimeData(self, indexes: list[QModelIndex]):  # noqa: N802
+    def mimeData(self, indexes: list[QModelIndex]) -> QMimeData:  # type: ignore[override]  # noqa: N802
         import json
 
         from PyQt6.QtCore import QByteArray, QMimeData

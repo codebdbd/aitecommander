@@ -44,7 +44,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         self.border_radius = 4
         self._font_diag_logged = False
 
-    def paint(
+    def paint(  # type: ignore[override]
         self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
     ) -> None:
         """Render a tile: icon on top, text below."""
@@ -205,7 +205,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         height = self.padding + self.icon_size.height() + 5 + text_h + self.padding
         return QSize(self.tile_size.width(), height)
 
-    def helpEvent(
+    def helpEvent(  # type: ignore[override]
         self,
         event: QHelpEvent,
         view: QAbstractItemView,

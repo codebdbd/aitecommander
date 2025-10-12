@@ -3,7 +3,7 @@ Universal processor for handling profiles of any browsers.
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from app.utils.links.link_factory import make_profile_link_record
 from app.utils.validators import (
@@ -41,9 +41,9 @@ class UniversalProfileProcessor:
         category_id: int,
         browser_key: str,
         selected_profiles: list[dict],
-        existing_link: dict = None,
-        user_args: str = None,
-        existing_links_in_category: list[dict] = None,
+        existing_link: Optional[dict[Any, Any]] = None,
+        user_args: Optional[str] = None,
+        existing_links_in_category: Optional[list[dict[Any, Any]]] = None,
     ) -> list[dict]:
         """
         Processes browser profiles and creates corresponding links.

@@ -9,7 +9,10 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.views.widgets.protocols import IconProviderProtocol
 
 from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
@@ -31,6 +34,15 @@ def _tr(text: str) -> str:
 
 
 class LinkButtonMixin:
+    """Mixin for creating link buttons with icon resolution.
+    
+    This mixin expects to be used with a class that implements IconProviderProtocol.
+    """
+    
+    # Type hint for the host class
+    if TYPE_CHECKING:
+        def __init__(self: "IconProviderProtocol") -> None: ...
+    
     def _find_icon(self, icon_path: str) -> str:
         """Return icon path via the common resolver with a fallback."""
         if not icon_path:

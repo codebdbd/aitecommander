@@ -84,6 +84,7 @@ def _safe_decode_bytes_preview(data: bytes) -> str | None:
             return data.decode(enc, errors="strict")
         except UnicodeDecodeError:
             continue
+    return None
 
 
 def _is_valid_svg(path: Path) -> bool:

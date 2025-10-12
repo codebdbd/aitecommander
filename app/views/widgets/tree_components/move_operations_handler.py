@@ -3,7 +3,10 @@
 """Handler for move operations in the structure tree (QTreeView-only)."""
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.views.widgets.protocols import TranslatableProtocol
 
 from PyQt6.QtWidgets import QMessageBox
 
@@ -14,13 +17,19 @@ from app.utils.ui.dnd.commands import (
     MoveCategoryCommand,
     MoveLinksCommand,
 )
-from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 
 
 class MoveOperationsHandler(TreeHandlerBase):
-    """Move operations handler for items in the structure tree."""
+    """Move operations handler for items in the structure tree.
+    
+    This handler expects to be used with a class that implements TranslatableProtocol.
+    """
+    
+    # Type hint for the host class
+    if TYPE_CHECKING:
+        def tr(self, text: str) -> str: ...
 
     def _show_message(
         self,
@@ -31,7 +40,11 @@ class MoveOperationsHandler(TreeHandlerBase):
         details: str | None = None,
         silent: bool = False,
     ) -> None:
-        msg = QMessageBox(self.tree_widget)
+        """Show message dialog."""
+        if silent:
+            return
+        msg = QMessageBox()
+        msg.setWindowTitle(title)
         if kind == "info":
             msg.setIcon(QMessageBox.Icon.Information)
         elif kind == "warning":

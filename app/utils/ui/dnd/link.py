@@ -11,9 +11,13 @@ dependencies on QTableWidget/QTableWidgetItem have been removed.
 """
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import Qt
+
+if TYPE_CHECKING:
+    from PyQt6.QtCore import QModelIndex
+    from app.views.widgets.protocols import LinkTableProtocol
 
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 
@@ -22,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 class DragDropHandlerMixin:
-    """Mixin for handling Drag & Drop in link table (QTableView)."""
+    """Mixin for handling Drag & Drop in link table (QTableView).
+    
+    This mixin expects to be used with a class that implements LinkTableProtocol.
+    """
+    
+    # Type hint for the host class
+    if TYPE_CHECKING:
+        def __init__(self: "LinkTableProtocol") -> None: ...
 
     def _extract_item_ids_from_items(self, items) -> list[int]:
         """Extracts link IDs from selected indexes (QModelIndex).
