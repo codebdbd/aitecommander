@@ -489,12 +489,8 @@ class LinksBusinessLogic(QObject):
             on_finished=self._on_batch_updated,
         )
 
-    @handle_errors
-    def create_links_for_import_bulk(self, links_payload: list[dict[str, Any]]) -> int:
-        """Bulk create/update links during import without per-link cache churn."""
-        if not isinstance(links_payload, list) or not links_payload:
-            return 0
-
+    def _extract_category_ids(self, links_payload: list[dict[str, Any]]) -> set[int]:
+        """Extract unique category IDs from links payload."""
         category_ids: set[int] = set()
         for item in links_payload:
             if not isinstance(item, dict):
@@ -502,9 +498,12 @@ class LinksBusinessLogic(QObject):
             cid = item.get("category_id")
             if isinstance(cid, int) and cid > 0:
                 category_ids.add(int(cid))
-        if not category_ids:
-            return 0
+        return category_ids
 
+    def _load_existing_links(
+        self, category_ids: set[int]
+    ) -> dict[int, set[tuple[str, str]]]:
+        """Load existing links and build (name, url) pairs for deduplication."""
         existing_pairs: dict[int, set[tuple[str, str]]] = defaultdict(set)
         try:
             existing_links = self.links.get_links_for_categories(list(category_ids))
@@ -514,7 +513,8 @@ class LinksBusinessLogic(QObject):
                 exc,
                 exc_info=True,
             )
-            existing_links = {}
+            return existing_pairs
+
         for cid, rows in (existing_links or {}).items():
             bucket = existing_pairs.setdefault(int(cid), set())
             for row in rows or []:
@@ -522,53 +522,96 @@ class LinksBusinessLogic(QObject):
                 url = str(row.get("url") or "").strip()
                 if name and url:
                     bucket.add((name, url))
+        return existing_pairs
 
+    def _prepare_link_data(self, raw_link: dict[str, Any]) -> dict[str, Any] | None:
+        """Prepare and validate single link data for import."""
+        if not isinstance(raw_link, dict):
+            return None
+
+        data = dict(raw_link)
+        category_id = data.get("category_id")
+        if not isinstance(category_id, int) or category_id <= 0:
+            return None
+
+        link_type = data.get("type") or "web"
+        url = (data.get("url") or "").strip()
+        name = (data.get("name") or "").strip()
+
+        if not url:
+            return None
+        if not name:
+            name = url
+        if not validate_link_form_data(name, url, link_type):
+            return None
+
+        prepared_link: dict[str, Any] = {
+            "category_id": category_id,
+            "name": name,
+            "url": url,
+            "type": link_type,
+            "notes": data.get("notes") or "",
+            "is_favorite": int(data.get("is_favorite") or 0),
+            "icon_path": data.get("icon_path") or "",
+            "args": data.get("args") or "",
+        }
+        browser_key = data.get("browser_key")
+        if browser_key is not None:
+            prepared_link["browser_key"] = browser_key
+
+        return prepared_link
+
+    def _deduplicate_and_prepare_links(
+        self,
+        links_payload: list[dict[str, Any]],
+        existing_pairs: dict[int, set[tuple[str, str]]],
+    ) -> list[dict[str, Any]]:
+        """Deduplicate links and prepare for batch insert."""
         batch_pairs: dict[int, set[tuple[str, str]]] = defaultdict(set)
         prepared: list[dict[str, Any]] = []
 
         for raw_link in links_payload:
-            if not isinstance(raw_link, dict):
-                continue
-            data = dict(raw_link)
-            category_id = data.get("category_id")
-            if not isinstance(category_id, int) or category_id <= 0:
+            prepared_link = self._prepare_link_data(raw_link)
+            if not prepared_link:
                 continue
 
-            link_type = data.get("type") or "web"
-            url = (data.get("url") or "").strip()
-            name = (data.get("name") or "").strip()
-            if not url:
-                continue
-            if not name:
-                name = url
-            if not validate_link_form_data(name, url, link_type):
-                continue
-
+            category_id = prepared_link["category_id"]
+            name = prepared_link["name"]
+            url = prepared_link["url"]
             normalized_pair = (name.strip(), url.strip())
+
+            # Skip if already exists in DB
             if normalized_pair in existing_pairs.get(category_id, set()):
                 continue
+            # Skip if already in current batch
             if normalized_pair in batch_pairs[category_id]:
                 continue
-            batch_pairs[category_id].add(normalized_pair)
 
-            prepared_link: dict[str, Any] = {
-                "category_id": category_id,
-                "name": name,
-                "url": url,
-                "type": link_type,
-                "notes": data.get("notes") or "",
-                "is_favorite": int(data.get("is_favorite") or 0),
-                "icon_path": data.get("icon_path") or "",
-                "args": data.get("args") or "",
-            }
-            browser_key = data.get("browser_key")
-            if browser_key is not None:
-                prepared_link["browser_key"] = browser_key
+            batch_pairs[category_id].add(normalized_pair)
             prepared.append(prepared_link)
 
+        return prepared
+
+    @handle_errors
+    def create_links_for_import_bulk(self, links_payload: list[dict[str, Any]]) -> int:
+        """Bulk create/update links during import without per-link cache churn."""
+        if not isinstance(links_payload, list) or not links_payload:
+            return 0
+
+        # Extract category IDs
+        category_ids = self._extract_category_ids(links_payload)
+        if not category_ids:
+            return 0
+
+        # Load existing links for deduplication
+        existing_pairs = self._load_existing_links(category_ids)
+
+        # Deduplicate and prepare links
+        prepared = self._deduplicate_and_prepare_links(links_payload, existing_pairs)
         if not prepared:
             return 0
 
+        # Batch insert
         result_ids = self.links.batch_create_or_update_links(prepared) or []
         self._invalidate_cache()
         return len(result_ids) if result_ids else len(prepared)
