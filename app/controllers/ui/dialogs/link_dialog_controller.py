@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
@@ -10,23 +10,67 @@ from app.utils.browser.browser_profiles import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from app.controllers.business.structure_business import StructureBusinessLogic
+
 
 class LinkDialogController:
     """Controller for managing link dialog business logic."""
 
-    def __init__(self, database: Database):
+    def __init__(
+        self,
+        database: Database,
+        *,
+        structure_business: Optional["StructureBusinessLogic"] = None,
+    ):
         self.database = database
+        self.structure_business = structure_business
         self.links_business = LinksBusinessLogic(database)
         self.result_data: List[Dict[str, Any]] = []
-        # Unified profile manager via factory — exclude repeated profile scans
+        # Unified profile manager via factory - exclude repeated profile scans
         self.profile_manager = get_profile_manager()
+
+    def _get_spheres_cached(self) -> List[Dict[str, Any]]:
+        if self.structure_business is not None:
+            try:
+                spheres = self.structure_business.get_cached_spheres()
+                if spheres:
+                    return spheres
+            except Exception as exc:
+                logger.debug("Failed to read cached spheres: %s", exc, exc_info=True)
+        return self.database.spheres.get_spheres() or []
+
+    def _get_sections_cached(self, sphere_id: int) -> List[Dict[str, Any]]:
+        if self.structure_business is not None:
+            try:
+                sections = self.structure_business.get_cached_sections(sphere_id)
+                if sections:
+                    return sections
+            except Exception as exc:
+                logger.debug("Failed to read cached sections for %s: %s", sphere_id, exc, exc_info=True)
+        return self.database.sections.get_sections(sphere_id) or []
+
+    def _get_categories_cached(self, section_id: int) -> List[Dict[str, Any]]:
+        if self.structure_business is not None:
+            try:
+                categories = self.structure_business.get_cached_categories(section_id)
+                if categories:
+                    return categories
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read cached categories for %s: %s",
+                    section_id,
+                    exc,
+                    exc_info=True,
+                )
+        return self.database.categories.get_categories(section_id) or []
 
     def get_initialization_data(
         self, category_id: Optional[int] = None, link: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Gets data for dialog initialization."""
         # Get spheres
-        spheres = self.database.spheres.get_spheres()
+        spheres = self._get_spheres_cached()
 
         # Determine category hierarchy
         category_hierarchy = None
@@ -81,11 +125,11 @@ class LinkDialogController:
 
     def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Gets sections for sphere."""
-        return self.database.sections.get_sections(sphere_id)
+        return self._get_sections_cached(sphere_id)
 
     def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
         """Gets categories for section."""
-        return self.database.categories.get_categories(section_id)
+        return self._get_categories_cached(section_id)
 
     def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validates form data and prepares for saving."""

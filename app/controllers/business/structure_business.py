@@ -1,5 +1,6 @@
 """Business layer for managing spheres, sections, and categories."""
 
+import copy
 import logging
 import time
 from typing import Any, Optional, Union, List, Dict, TYPE_CHECKING
@@ -16,6 +17,7 @@ from app.controllers.structure_services.utilities import UtilityService
 from app.controllers.structure_services.validation import ValidationService
 from app.models import Database, StructureModel
 from app.services.structure_service import StructureService
+from app.utils.db.api import run_db
 
 if TYPE_CHECKING:
     from app.controllers.ui.top_panels_controller import TopPanelsController
@@ -118,10 +120,18 @@ class StructureBusinessLogic(QObject):
             validation_facade=self.validation_facade,
             logger=self.logger,
         )
+        self._structure_cache_ready = False
+        self._structure_preload_in_progress = False
+        self._cached_spheres: list[dict[str, Any]] = []
+        self._cached_sections: dict[int, list[dict[str, Any]]] = {}
+        self._cached_categories: dict[int, list[dict[str, Any]]] = {}
         self._last_switch_started_ms: Optional[float] = None
 
         self._initialize_system()
 
+        self._connect_internal_signals()
+
+    def _connect_internal_signals(self) -> None:
         try:
             self.item_added.connect(self.event_service.on_item_added)
             self.item_updated.connect(self.event_service.on_item_updated)
@@ -130,15 +140,33 @@ class StructureBusinessLogic(QObject):
         except (AttributeError, RuntimeError) as e:
             self.logger.warning(
                 "Failed to attach internal signal handlers: %s",
-                e, exc_info=True,
+                e,
+                exc_info=True,
             )
+
+        for signal in (
+            self.item_added,
+            self.item_updated,
+            self.item_deleted,
+            self.items_batch_deleted,
+        ):
+            try:
+                signal.connect(self._handle_structure_mutation)
+            except (AttributeError, RuntimeError):
+                pass
+
+        try:
+            self.structure_loaded.connect(self._handle_structure_reloaded)
+        except (AttributeError, RuntimeError):
+            pass
 
         try:
             self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
         except (AttributeError, RuntimeError) as e:
             self.logger.debug(
                 "Failed to attach warm-cache handler to structure_loaded: %s",
-                e, exc_info=True,
+                e,
+                exc_info=True,
             )
 
     def shutdown(self, timeout: int = 5000) -> None:
@@ -150,6 +178,11 @@ class StructureBusinessLogic(QObject):
                 self.item_updated.disconnect(self.event_service.on_item_updated)
                 self.item_deleted.disconnect(self.event_service.on_item_deleted)
                 self.items_batch_deleted.disconnect(self.event_service.on_items_batch_deleted)
+                self.item_added.disconnect(self._handle_structure_mutation)
+                self.item_updated.disconnect(self._handle_structure_mutation)
+                self.item_deleted.disconnect(self._handle_structure_mutation)
+                self.items_batch_deleted.disconnect(self._handle_structure_mutation)
+                self.structure_loaded.disconnect(self._handle_structure_reloaded)
                 self.structure_loaded.disconnect(self._on_structure_loaded_warm_cache)
             except (TypeError, RuntimeError) as e:
                 self.logger.debug("Error while disconnecting signals: %s", e)
@@ -170,6 +203,166 @@ class StructureBusinessLogic(QObject):
     def _initialize_system(self) -> None:
         """Initialise auxiliary components."""
         self.logger.info("StructureBusinessLogic initialised")
+        self.preload_structure_async()
+
+    def preload_structure_async(self) -> None:
+        """Preload full structure snapshot asynchronously to warm caches."""
+        if self._structure_preload_in_progress or not getattr(self, "db", None):
+            return
+
+        self._structure_preload_in_progress = True
+
+        run_db(
+            self._build_structure_snapshot,
+            description="structure_preload",
+            on_finished=self._on_structure_snapshot_ready,
+            on_error=self._on_structure_snapshot_error,
+        )
+
+    def _build_structure_snapshot(
+        self,
+    ) -> tuple[
+        list[dict[str, Any]],
+        dict[int, list[dict[str, Any]]],
+        dict[int, list[dict[str, Any]]],
+    ]:
+        structure = self.db.structure_manager.get_full_structure() or []
+
+        spheres: list[dict[str, Any]] = []
+        sections_map: dict[int, list[dict[str, Any]]] = {}
+        categories_map: dict[int, list[dict[str, Any]]] = {}
+
+        for sphere in structure:
+            try:
+                sphere_id = int(sphere.get("id"))
+            except Exception:
+                continue
+
+            sphere_copy = {
+                key: copy.deepcopy(value)
+                for key, value in sphere.items()
+                if key != "sections"
+            }
+            sphere_copy["id"] = sphere_id
+            spheres.append(sphere_copy)
+
+            sections = sphere.get("sections") or []
+            section_entries: list[dict[str, Any]] = []
+
+            for section in sections:
+                try:
+                    section_id = int(section.get("id"))
+                except Exception:
+                    continue
+
+                section_copy = {
+                    key: copy.deepcopy(value)
+                    for key, value in section.items()
+                    if key != "categories"
+                }
+                section_copy["id"] = section_id
+                section_copy["sphere_id"] = sphere_id
+                section_entries.append(section_copy)
+
+                categories = section.get("categories") or []
+                category_entries: list[dict[str, Any]] = []
+
+                for category in categories:
+                    try:
+                        category_id = int(category.get("id"))
+                    except Exception:
+                        continue
+
+                    category_copy = {
+                        key: copy.deepcopy(value)
+                        for key, value in category.items()
+                        if key != "links"
+                    }
+                    category_copy["id"] = category_id
+                    category_copy["section_id"] = section_id
+                    category_entries.append(category_copy)
+
+                categories_map[section_id] = category_entries
+
+            sections_map[sphere_id] = section_entries
+
+        return spheres, sections_map, categories_map
+
+    def _on_structure_snapshot_ready(
+        self,
+        payload: tuple[
+            list[dict[str, Any]],
+            dict[int, list[dict[str, Any]]],
+            dict[int, list[dict[str, Any]]],
+        ],
+    ) -> None:
+        spheres, sections_map, categories_map = payload
+
+        self._cached_spheres = spheres
+        self._cached_sections = sections_map
+        self._cached_categories = categories_map
+        self._structure_cache_ready = True
+        self._structure_preload_in_progress = False
+
+        try:
+            self.cache_manager.set(
+                "all_spheres", [dict(entry) for entry in self._cached_spheres]
+            )
+            for sphere_id, sections in self._cached_sections.items():
+                self.cache_manager.set(
+                    f"sections_{sphere_id}",
+                    [dict(entry) for entry in sections],
+                )
+            for section_id, categories in self._cached_categories.items():
+                self.cache_manager.set(
+                    f"categories_{section_id}",
+                    [dict(entry) for entry in categories],
+                )
+        except Exception as exc:
+            self.logger.debug(
+                "Failed to propagate structure snapshot to CacheManager: %s",
+                exc,
+                exc_info=True,
+            )
+
+    def _on_structure_snapshot_error(self, error: Exception) -> None:
+        self._structure_preload_in_progress = False
+        self.logger.warning("Structure preload failed: %s", error)
+
+    def _handle_structure_mutation(self, *args, **kwargs) -> None:
+        self._structure_cache_ready = False
+        self._cached_spheres.clear()
+        self._cached_sections.clear()
+        self._cached_categories.clear()
+        try:
+            self.cache_manager.invalidate()
+        except Exception:
+            pass
+        self.preload_structure_async()
+
+    def _handle_structure_reloaded(self, *args, **kwargs) -> None:
+        self.preload_structure_async()
+
+    def get_cached_spheres(self) -> list[Dict[str, Any]]:
+        if not self._structure_cache_ready:
+            return []
+        return [dict(entry) for entry in self._cached_spheres]
+
+    def get_cached_sections(self, sphere_id: int) -> list[Dict[str, Any]]:
+        if not self._structure_cache_ready:
+            return []
+        sections = self._cached_sections.get(int(sphere_id))
+        if not sections:
+            return []
+        return [dict(entry) for entry in sections]
+
+    def get_cached_categories(self, section_id: int) -> list[Dict[str, Any]]:
+        if not self._structure_cache_ready:
+            return []
+        categories = self._cached_categories.get(int(section_id))
+        if not categories:
+            return []
+        return [dict(entry) for entry in categories]
 
     def set_current_sphere(self, sphere_id: int) -> None:
         """Set the currently active sphere."""

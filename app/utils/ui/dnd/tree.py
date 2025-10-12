@@ -263,20 +263,47 @@ class DragDropHandler(TreeHandlerBase):
 
         moved_count = 0
         insert_offset = 0
+        main_win = self.tree_widget.window()
+        structure_business = getattr(main_win, "structure_business", None)
+        batch_started = False
+        touched_sections: set[int] = set()
+        if structure_business and hasattr(structure_business, "begin_batch"):
+            try:
+                structure_business.begin_batch()
+                batch_started = True
+            except Exception:
+                batch_started = False
+
         for cid in category_ids:
             if not isinstance(cid, int):
                 continue
             target_row = int(base_row + insert_offset)
-            try:
-                ok = hasattr(model, "move_category") and model.move_category(
-                    int(cid), int(section_id), target_row
-                )
-            except Exception:
-                ok = False
-            if ok:
+            moved = False
+
+            if structure_business:
+                try:
+                    result = structure_business.move_categories_batch(
+                        [int(cid)], int(section_id), target_row
+                    )
+                    if isinstance(result, list):
+                        moved = bool(result)
+                    elif isinstance(result, tuple) and result:
+                        moved = True
+                except Exception:
+                    moved = False
+
+            if not moved:
+                try:
+                    moved = hasattr(model, "move_category") and model.move_category(
+                        int(cid), int(section_id), target_row
+                    )
+                except Exception:
+                    moved = False
+
+            if moved:
                 moved_count += 1
                 insert_offset += 1
-                # Signal for successful item move
+                touched_sections.add(int(section_id))
                 try:
                     self.tree_widget.itemsMoved.emit(
                         {
@@ -289,6 +316,23 @@ class DragDropHandler(TreeHandlerBase):
                     )
                 except Exception:
                     pass
+
+        if batch_started:
+            try:
+                if touched_sections:
+                    structure_business.event_service.replace_touched_sections(
+                        touched_sections
+                    )
+                structure_business.end_batch()
+            except Exception:
+                pass
+        elif structure_business and touched_sections:
+            try:
+                structure_business.event_service.replace_touched_sections(
+                    touched_sections
+                )
+            except Exception:
+                pass
 
         return moved_count
 
