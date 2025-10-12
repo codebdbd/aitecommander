@@ -361,7 +361,7 @@ class LinkModel(DatabaseBase):
                     exc_info=True,
                 )
             # If not found — propagate as DatabaseError, but without extra noise
-            raise DatabaseError(f"UNIQUE constraint failed: {e}")
+            raise DatabaseError(f"UNIQUE constraint failed: {e}") from e
 
     def get_link_by_unique_fields(
         self,
@@ -437,7 +437,7 @@ class LinkModel(DatabaseBase):
             logger.info("Deleted link with ID %s", link_id)
         except Exception as e:
             logger.error("Error deleting link: %s", e, exc_info=True)
-            raise DatabaseError(f"Failed to delete link: {e}")
+            raise DatabaseError(f"Failed to delete link: {e}") from e
 
     def update_link_last_used(self, link_id: int):
         """Updates last used time for link."""
@@ -464,7 +464,7 @@ class LinkModel(DatabaseBase):
             logger.info("Cleared all favorite links")
         except Exception as e:
             logger.error("Error clearing favorites: %s", e)
-            raise DatabaseError(f"Failed to clear favorites: {e}")
+            raise DatabaseError(f"Failed to clear favorites: {e}") from e
 
     def search_links(self, query: str):
         """Searches links throughout tree where name, URL or notes contain query substring."""
@@ -670,7 +670,7 @@ class LinkModel(DatabaseBase):
             # If something went wrong with uniqueness — propagate as DatabaseError
             raise DatabaseError(
                 f"UNIQUE constraint failed during batch_upsert_links: {e}"
-            )
+            ) from e
         except Exception as e:
             logger.error("Error batch saving links: %s", e)
             raise
@@ -834,7 +834,7 @@ class LinkModel(DatabaseBase):
         try:
             self.connection.executemany(update_sql, updates)
         except sqlite3.IntegrityError as e:
-            raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
+            raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}") from e
 
         update_ids = [int(p[-1]) for p in updates]
         if update_ids:
@@ -895,7 +895,7 @@ class LinkModel(DatabaseBase):
                 params_with_id,
             )
         except sqlite3.IntegrityError as e:
-            raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
+            raise DatabaseError(f"Integrity error on inserts_with_id: {e}") from e
         for rec in inserts_with_id:
             try:
                 iid = int(rec.get("id") or 0)
@@ -1039,4 +1039,4 @@ class LinkModel(DatabaseBase):
             return deleted
         except Exception as e:
             logger.error("Error batch deleting links: %s", e)
-            raise DatabaseError(f"Failed to perform batch deletion: {e}")
+            raise DatabaseError(f"Failed to perform batch deletion: {e}") from e
