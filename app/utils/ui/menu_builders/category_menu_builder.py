@@ -11,7 +11,7 @@ from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CategoryMenuBuilder:
     """Context menu builder for category tiles."""
 
-    def __init__(self, list_widget: QListWidget, main_window: "MainWindow"):
+    def __init__(self, list_widget: QListWidget, main_window: "MainWindowProtocol"):
         self.list_widget = list_widget
         self.main_window = main_window
         self.actions = ActionBuilder(list_widget)

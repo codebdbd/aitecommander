@@ -3,6 +3,7 @@
 """Module providing category operations."""
 
 import logging
+from importlib import import_module
 from typing import Any, Callable, Optional
 
 from app.models import StructureModel
@@ -17,9 +18,24 @@ from ..models.types import (
 )
 from .base import BaseOperations
 
-try:
-    from .normalization import validate_normalized_data
-except ImportError:  # pragma: no cover - fallback for typing/runtime
+_normalization_module = None
+try:  # pragma: no cover - optional import for runtime
+    _normalization_module = import_module(
+        "app.controllers.structure_modules.operations.normalization"
+    )
+except ModuleNotFoundError:
+    _normalization_module = None
+
+if _normalization_module and hasattr(_normalization_module, "validate_normalized_data"):
+
+    def validate_normalized_data(
+        items: list[dict[str, Any]], *, required_keys: list[str] | None = None
+    ) -> bool:
+        return _normalization_module.validate_normalized_data(
+            items, required_keys=required_keys
+        )
+
+else:
 
     def validate_normalized_data(
         items: list[dict[str, Any]], *, required_keys: list[str] | None = None
@@ -442,8 +458,6 @@ class CategoryOperations(BaseOperations):
         """Validate category data after batch loading."""
         if not categories:
             return []
-
-        from .normalization import validate_normalized_data
 
         # Require `section_id` key for grouping in coordination.py
         if not validate_normalized_data(categories, required_keys=["section_id"]):

@@ -19,7 +19,7 @@ from app.utils.ui.qt.roles import get_tree_tuple
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class StructureMenuBuilder:
     """Context menu builder for the structure tree."""
 
-    def __init__(self, tree_widget, main_window: "MainWindow"):
+    def __init__(self, tree_widget, main_window: "MainWindowProtocol"):
         self.tree_widget = tree_widget
         self.main_window = main_window
         self.actions = ActionBuilder(tree_widget)
