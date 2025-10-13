@@ -116,12 +116,12 @@ class CategoryModel(DatabaseBase):
             return None
 
         position = self._get_next_position("category", "section_id", data["section_id"])
-        cursor = self._execute_with_error_handling(
+        insert_cursor = self._execute_with_error_handling(
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
         logger.info("Добавлена новая категория: %s", data["name"])
-        lastrowid = getattr(cursor, "lastrowid", None)
+        lastrowid = getattr(insert_cursor, "lastrowid", None)
         return int(lastrowid) if lastrowid is not None else None
 
     def _validate_and_prepare_items(
@@ -136,8 +136,11 @@ class CategoryModel(DatabaseBase):
 
         for it in items:
             self._validate_required_fields(it or {}, ["name", "section_id"], "category")
+            section_id_raw = it.get("section_id")
             try:
-                sid = int(it.get("section_id"))
+                if section_id_raw is None:
+                    raise ValueError("section_id is missing")
+                sid = int(section_id_raw)
             except Exception as e:
                 raise ValidationError(
                     "Incorrect section_id in one of batch elements"
@@ -289,7 +292,7 @@ class CategoryModel(DatabaseBase):
             query, tuple(flat_params), fetch_method="all"
         )
         rows = self._ensure_row_list(rows_raw)
-        return [dict(r) for r in rows]
+        return [row_to_dict(r) for r in rows]
 
     def _build_category_index(
         self, rows: list[dict[str, Any]]
@@ -327,7 +330,7 @@ class CategoryModel(DatabaseBase):
             row = rows_by_key.get((section_id, name_norm))
             if not row:
                 continue
-            payload = row_to_dict(row)
+            payload = dict(row)
             token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
             token = str(token_raw).strip() if token_raw is not None else ""
             if token:
@@ -729,5 +732,10 @@ class CategoryModel(DatabaseBase):
             query += " AND id != ?"
             params.append(exclude_id)
 
-        result = self._execute_with_error_handling(query, params, fetch_method="one")
-        return result["count"] > 0
+        result_row = self._execute_with_error_handling(
+            query,
+            tuple(params),
+            fetch_method="one",
+        )
+        result_dict = row_to_dict(result_row)
+        return bool(result_dict.get("count", 0))

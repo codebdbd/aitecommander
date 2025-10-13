@@ -16,7 +16,7 @@ from ..models.types import (
     CategoryUpdateData,
     StructureItemType,
 )
-from .base import BaseOperations
+from .base import BaseOperations, StructureSignalEmitter
 
 _normalization_module = None
 try:  # pragma: no cover - optional import for runtime
@@ -61,13 +61,18 @@ class CategoryOperations(BaseOperations):
         emit_signal_callback: Callable,
         cache_manager,
     ):
-        super().__init__(structure_model, logger, execute_with_error_handling)
-        self._execute_with_validation = execute_with_validation
-        self._emit_signal = emit_signal_callback
+        super().__init__(
+            structure_model, logger, execute_with_error_handling, emit_signal_callback
+        )
+        self._execute_with_validation_fn: Callable[
+            [Callable[[], Optional[int]], Any, StructureItemType, str], Optional[int]
+        ] = execute_with_validation
         self._cache_manager = cache_manager
         # Service layer: transactions and reads without duplicating SQL
         try:
-            self._structure_service = StructureService(structure_model.db)
+            self._structure_service: Optional[StructureService] = StructureService(
+                structure_model.db
+            )
         except Exception:
             self._structure_service = None
 
@@ -208,77 +213,73 @@ class CategoryOperations(BaseOperations):
 
     def _process_item(
         self,
-        data: dict[str, Any],
         item_type: StructureItemType,
-        item_id: Optional[int] = None,
+        data: Any,
+        emit_signal: "StructureSignalEmitter",
         is_update: bool = False,
-        *,
-        require_parent: bool = True,
-    ) -> bool:
-        """Override processing for categories by using `StructureService` mutations.
+        item_id: Optional[int] = None,
+    ) -> Optional[int]:
+        """Handle category mutations via `StructureService`, preserving base signature."""
 
-        Fall back to the base implementation for other item types.
-        """
-        # If this is not a category, delegate to the base implementation
-        if item_type is not StructureItemType.CATEGORY:
+        if item_type is not StructureItemType.CATEGORY or not getattr(
+            self, "_structure_service", None
+        ):
             return super()._process_item(
-                data, item_type, item_id, is_update, require_parent=require_parent
+                item_type,
+                data,
+                emit_signal,
+                is_update=is_update,
+                item_id=item_id,
             )
 
-        # Without a service layer we safely delegate to the base implementation
-        if not getattr(self, "_structure_service", None):
-            return super()._process_item(
-                data, item_type, item_id, is_update, require_parent=require_parent
-            )
-
-        def _operation():
+        def _operation() -> Optional[int]:
+            assert self._structure_service is not None
             if is_update:
-                # Update via the service layer
-                self._structure_service.update_category(int(item_id), data)  # type: ignore[arg-type]
+                assert item_id is not None
+                self._structure_service.update_category(int(item_id), data)
                 current = self._structure_service.get_category_by_id(int(item_id)) or {}
-                # parent_or_id = element ID for updated items
-                self._emit_item_signal(
-                    SignalTypes.ITEM_UPDATED, item_type, int(item_id), current
-                )  # type: ignore[arg-type]
-                # Invalidate the lightweight first-category cache
-                try:
-                    self._cache_manager.invalidate_first_category_cache()
-                except Exception:
-                    pass
-                return True
-            else:
-                # Create via the service layer
-                new_id = self._structure_service.create_category(data)
-                if not new_id:
-                    return False
-                current = self._structure_service.get_category_by_id(int(new_id)) or {
-                    **data,
-                    "id": int(new_id),
-                }
-                parent_id = (
-                    (current.get("section_id") if isinstance(current, dict) else None)
-                    or data.get("section_id")
-                    or 0
-                )
-                # parent_or_id = section_id for added items
-                self._emit_item_signal(
-                    SignalTypes.ITEM_ADDED, item_type, int(parent_id), current
+                emit_signal.emit(
+                    SignalTypes.ITEM_UPDATED,
+                    item_type.value,
+                    int(item_id),
+                    current,
                 )
                 try:
                     self._cache_manager.invalidate_first_category_cache()
                 except Exception:
                     pass
-                return True
+                return int(item_id)
 
-        operation_name = "update" if is_update else "create"
-        result = self._execute_with_validation(
+            new_id = self._structure_service.create_category(data)
+            if not new_id:
+                return None
+            current = self._structure_service.get_category_by_id(int(new_id)) or {
+                **data,
+                "id": int(new_id),
+            }
+            parent_id = (
+                (current.get("section_id") if isinstance(current, dict) else None)
+                or data.get("section_id")
+                or 0
+            )
+            emit_signal.emit(
+                SignalTypes.ITEM_ADDED,
+                item_type.value,
+                int(parent_id),
+                current,
+            )
+            try:
+                self._cache_manager.invalidate_first_category_cache()
+            except Exception:
+                pass
+            return int(new_id)
+
+        return self._execute_with_validation_fn(
             _operation,
             data,
             item_type,
-            operation_name,
-            require_parent=require_parent,
+            "update" if is_update else "create",
         )
-        return result if result is not None else False
 
     def get_first_category_id(self) -> Optional[int]:
         """Return the first category ID with caching for optimization."""

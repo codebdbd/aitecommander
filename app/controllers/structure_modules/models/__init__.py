@@ -2,6 +2,7 @@
 from .types import (
     AnyCreateData,
     AnyItemData,
+    AnyItemPayload,
     AnyUpdateData,
     CategoryData,
     ItemTypeConfig,
@@ -24,5 +25,6 @@ __all__ = [
     "AnyItemData",
     "AnyCreateData",
     "AnyUpdateData",
+    "AnyItemPayload",
     "ItemTypeConfig",
 ]

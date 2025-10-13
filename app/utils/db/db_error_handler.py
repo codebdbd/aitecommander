@@ -1,16 +1,41 @@
 # app/utils/db_error_handler.py
 """Centralised database error handler."""
 
+from __future__ import annotations
+
 import logging
 import sqlite3
-from typing import Any
+from typing import Any, Optional, TYPE_CHECKING, Type
 
-try:
-    from app.models.db import DatabaseError
-except ImportError:
+if TYPE_CHECKING:  # pragma: no cover - typings only
+    from app.models.base.db_base import DatabaseError as _DatabaseError
+else:  # Fallback for runtime before DatabaseError becomes available
+    _DatabaseError = Exception  # type: ignore[assignment]
 
-    class DatabaseError(Exception):
-        pass
+_DATABASE_ERROR_CLS: Optional[Type[Exception]] = None
+
+
+def _get_database_error_cls() -> Optional[Type[Exception]]:
+    """Lazily import ``DatabaseError`` to avoid circular import during startup."""
+
+    global _DATABASE_ERROR_CLS
+    if _DATABASE_ERROR_CLS is not None:
+        return _DATABASE_ERROR_CLS
+
+    try:  # Attempt import only when needed
+        from app.models.base.db_base import DatabaseError as DatabaseErrorRuntime
+
+        _DATABASE_ERROR_CLS = DatabaseErrorRuntime
+    except Exception:
+        _DATABASE_ERROR_CLS = None
+    return _DATABASE_ERROR_CLS
+
+
+def _is_database_error(error: Exception) -> bool:
+    """Check whether ``error`` is an instance of ``DatabaseError`` without eager import."""
+
+    cls = _get_database_error_cls()
+    return cls is not None and isinstance(error, cls)
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +69,7 @@ class DatabaseErrorHandler:
         error_msg = str(error).lower()
         if isinstance(error, sqlite3.IntegrityError):
             return self._handle_sqlite_integrity_error(error_msg, context)
-        elif isinstance(error, DatabaseError):
+        elif _is_database_error(error):
             return self._handle_database_error(error_msg, context)
         else:
             self._show_error("Database error", str(error), context)
