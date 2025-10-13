@@ -49,7 +49,7 @@ class TaskScheduler(QObject):
     # Class signal for thread-safe scheduling (QueuedConnection between threads)
     _schedule_sig = pyqtSignal(object, object, object, object, bool)
 
-    def __init__(self, max_threads=4):
+    def __init__(self, max_threads=4) -> None:
         super().__init__()
         # Bind handler to signal (in main thread)
         self._schedule_sig.connect(self._handle_schedule_request)

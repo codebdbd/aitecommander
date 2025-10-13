@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import weakref
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any
 
+from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
 from .panel_state import PanelState
@@ -12,21 +14,25 @@ from .panel_state import PanelState
 logger = logging.getLogger(__name__)
 
 
-class WidthCalculator:
+class WidthCalculator(QObject):
     """Compute panel widths and the overall top-bar budget.
 
     Fix: add named constants for former magic numbers and cache results.
+    Uses weakref for automatic widget lifetime tracking.
     """
 
     MIN_PANEL_WIDTH = 50  # Minimal panel width in pixels
     DEFAULT_BUTTON_SIZE = 32  # Default button size
     CACHE_MAX_SIZE = 100  # Maximum cache size
 
-    def __init__(self, button_size: int = DEFAULT_BUTTON_SIZE):
+    def __init__(self, button_size: int = DEFAULT_BUTTON_SIZE, parent: QObject | None = None):
+        super().__init__(parent)
         self._button_size = button_size
-        # Fix: LRU cache for ``panel_width`` — key: (panel_id, count), value: width
-        # ``OrderedDict`` provides O(1) access and preserves insertion order for LRU
-        self._panel_width_cache: OrderedDict[tuple[int, int], int] = OrderedDict()
+        # Use weakref-based cache: key is (weakref, count), value is width
+        # weakref automatically becomes dead when widget is destroyed
+        self._panel_width_cache: OrderedDict[tuple[Any, int], int] = OrderedDict()
+        # Track finalizers for cleanup
+        self._finalizers: dict[int, weakref.finalize] = {}
         self._cache_hits = 0
         self._cache_misses = 0
 
@@ -44,12 +50,15 @@ class WidthCalculator:
 
     def _is_deleted(self, obj) -> bool:
         """Check whether a Qt object has been deleted."""
+        if isinstance(obj, weakref.ref):
+            return obj() is None
+        # For raw QWidget, check if it's still valid
         try:
-            from sip import isdeleted
-
-            return isdeleted(obj)
-        except ImportError:
+            # Try to access a basic property
+            _ = obj.isVisible
             return False
+        except (RuntimeError, AttributeError):
+            return True
 
     def clear_cache(self) -> None:
         """Clear the panel-width cache.
@@ -57,6 +66,10 @@ class WidthCalculator:
         Fix: allow manual cache reset, e.g. after configuration or button-size changes.
         """
         self._panel_width_cache.clear()
+        # Clear all finalizers
+        for finalizer in self._finalizers.values():
+            finalizer.detach()
+        self._finalizers.clear()
         self._cache_hits = 0
         self._cache_misses = 0
 
@@ -75,11 +88,20 @@ class WidthCalculator:
         if not panel or self._is_deleted(panel):
             return 0
 
-        panel_id = id(panel)
-        keys_to_remove = [k for k in self._panel_width_cache if k[0] == panel_id]
+        # Find keys where the weakref points to this panel
+        keys_to_remove = [
+            k for k in self._panel_width_cache
+            if isinstance(k[0], weakref.ref) and k[0]() is panel
+        ]
 
         for key in keys_to_remove:
             del self._panel_width_cache[key]
+
+        # Remove finalizer if exists
+        panel_id = id(panel)
+        if panel_id in self._finalizers:
+            self._finalizers[panel_id].detach()
+            del self._finalizers[panel_id]
 
         return len(keys_to_remove)
 
@@ -185,6 +207,27 @@ class WidthCalculator:
             pass
         return total
 
+    def _register_panel_cleanup(self, panel: QWidget, panel_ref: weakref.ref) -> None:
+        """Register cleanup callback for when panel is destroyed."""
+        panel_id = id(panel)
+        if panel_id in self._finalizers:
+            return  # Already registered
+
+        def cleanup():
+            """Remove all cache entries for this panel."""
+            keys_to_remove = [
+                k for k in list(self._panel_width_cache.keys())
+                if k[0] is panel_ref
+            ]
+            for key in keys_to_remove:
+                self._panel_width_cache.pop(key, None)
+            self._finalizers.pop(panel_id, None)
+            logger.debug("Auto-cleaned %d cache entries for destroyed panel", len(keys_to_remove))
+
+        # Use weakref.finalize for automatic cleanup
+        finalizer = weakref.finalize(panel, cleanup)
+        self._finalizers[panel_id] = finalizer
+
     def panel_width(
         self, panel: QWidget | None, buttons: list[QToolButton], count: int
     ) -> int:
@@ -207,13 +250,23 @@ class WidthCalculator:
         if not panel or self._is_deleted(panel):
             return self.MIN_PANEL_WIDTH
 
-        cache_key = (id(panel), count)
+        # Use weakref for automatic lifetime tracking
+        panel_ref = weakref.ref(panel)
+        cache_key = (panel_ref, count)
+
+        # Clean stale entries (where weakref is dead)
+        self._clean_stale_entries()
+
+        # Check cache
         if cache_key in self._panel_width_cache:
             self._cache_hits += 1
             self._panel_width_cache.move_to_end(cache_key)
             return self._panel_width_cache[cache_key]
 
         self._cache_misses += 1
+
+        # Register cleanup for this panel
+        self._register_panel_cleanup(panel, panel_ref)
 
         safe_count = max(0, min(count, len(buttons)))
         if safe_count <= 0:
@@ -235,11 +288,46 @@ class WidthCalculator:
 
         result = max(self.MIN_PANEL_WIDTH, total)
 
+        # Evict oldest entry if cache is full
         if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
             self._panel_width_cache.popitem(last=False)
 
         self._panel_width_cache[cache_key] = result
         return result
+
+    def _clean_stale_entries(self) -> None:
+        """Remove cache entries where weakref is dead (widget destroyed)."""
+        keys_to_remove = [
+            k for k in self._panel_width_cache
+            if isinstance(k[0], weakref.ref) and k[0]() is None
+        ]
+        for key in keys_to_remove:
+            del self._panel_width_cache[key]
+        if keys_to_remove:
+            logger.debug("Cleaned %d stale cache entries", len(keys_to_remove))
+
+    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
+        """Event filter to auto-invalidate cache on style/font changes."""
+        if event is None:
+            return False
+
+        # Invalidate cache on events that affect widget geometry
+        if event.type() in (
+            QEvent.Type.StyleChange,
+            QEvent.Type.FontChange,
+            QEvent.Type.PaletteChange,
+            QEvent.Type.ApplicationFontChange,
+        ):
+            if isinstance(watched, QWidget):
+                removed = self.invalidate_cache_for_panel(watched)
+                if removed > 0:
+                    logger.debug(
+                        "Auto-invalidated %d cache entries for panel after %s",
+                        removed,
+                        event.type().name,
+                    )
+
+        return super().eventFilter(watched, event)
 
     def total_width(
         self,

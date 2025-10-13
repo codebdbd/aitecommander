@@ -35,6 +35,18 @@ class DragDropHandlerMixin:
     if TYPE_CHECKING:
         def __init__(self: "LinkTableProtocol") -> None: ...
 
+    def get_link_at(self, row: int) -> Optional[dict[str, Any]]:  # type: ignore[misc]
+        """Get link data at row. To be implemented by host class."""
+        raise NotImplementedError("Host class must implement get_link_at")
+
+    def _extract_source_rows_from_mime(self, event) -> list[int]:  # type: ignore[misc]
+        """Extract source rows from MIME data. To be implemented by host class."""
+        raise NotImplementedError("Host class must implement _extract_source_rows_from_mime")
+
+    def _get_selected_rows(self) -> list[int]:  # type: ignore[misc]
+        """Get selected rows. To be implemented by host class."""
+        raise NotImplementedError("Host class must implement _get_selected_rows")
+
     def _extract_item_ids_from_items(self, items) -> list[int]:
         """Extracts link IDs from selected indexes (QModelIndex).
 
@@ -214,7 +226,9 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> list[int]:
 
         source_rows: list[int] = []
         model = getattr(table, "model", lambda: None)()
-        total = model.rowCount() if model is not None else 0
+        if model is None:
+            return []
+        total = model.rowCount()
         for row in range(total):
             idx = model.index(row, 0)
             data = model.data(idx, Qt.ItemDataRole.UserRole)
@@ -280,7 +294,9 @@ def get_current_order(table) -> list[int]:
     try:
         ids: list[int] = []
         model = getattr(table, "model", lambda: None)()
-        total = model.rowCount() if model is not None else 0
+        if model is None:
+            return []
+        total = model.rowCount()
         for row in range(total):
             try:
                 link_data = table.get_link_at(row)

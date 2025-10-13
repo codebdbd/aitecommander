@@ -119,7 +119,7 @@ class BaseOperations:
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         emit_signal_func: Optional[
-            Callable[[str, str, int, dict[str, Any]], None]
+            Callable[[str, str, int, AnyItemData], None]
         ] = None,
     ):
         self.structure_model = structure_model

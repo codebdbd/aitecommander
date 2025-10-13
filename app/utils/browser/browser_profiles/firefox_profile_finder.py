@@ -56,7 +56,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                             {
                                 "name": name,
                                 "email": email or name,
-                                "path": full_path,
+                                "path": str(full_path),
                                 "directory": path,
                                 "args": f'-P "{name}"',
                             }

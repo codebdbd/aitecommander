@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class TreeManagement(QObject):
-    def __init__(self, controller, category_tiles_controller):
+    def __init__(self, controller, category_tiles_controller) -> None:
         parent = controller if isinstance(controller, QObject) else None
         super().__init__(parent=parent)
         self.controller = controller

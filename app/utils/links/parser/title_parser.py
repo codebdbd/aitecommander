@@ -3,9 +3,11 @@ from __future__ import annotations
 import html as _html
 import json
 import re
+from typing import Any, TypedDict
 from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from requests.exceptions import RequestException
 
 from .constants import BS_PARSER, logger
@@ -48,43 +50,58 @@ _GENERAL_SUFFIX_SEPARATORS = [
 
 _HTML_TITLE_SEPARATORS = [" | ", " - ", " :: ", " • ", " — ", " – ", " : "]
 
+class SoupIndex(TypedDict, total=False):
+    title_tag: Tag | None
+    h1_first: Tag | None
+    meta_by_name: dict[str, list[Tag]]
+    meta_by_prop: dict[str, list[Tag]]
+    scripts_jsonld: list[Tag]
 
-def _build_soup_index(soup: BeautifulSoup) -> dict:
+
+def _build_soup_index(soup: BeautifulSoup) -> SoupIndex:
     """Pre-index frequently used elements to avoid repeated find() calls.
     Returns dictionary with pre-selected tags/values.
     """
     try:
-        metas = soup.find_all("meta")
+        metas = list(soup.find_all("meta"))
     except Exception:
         metas = []
 
-    meta_by_name: dict[str, Any] = {}
-    meta_by_prop: dict[str, Any] = {}
+    meta_by_name: dict[str, list[Tag]] = {}
+    meta_by_prop: dict[str, list[Tag]] = {}
     for m in metas:
+        if not isinstance(m, Tag):
+            continue
         try:
-            n = (m.get("name") or "").strip().lower()
-            p = (m.get("property") or "").strip().lower()
-            if n:
-                meta_by_name.setdefault(n, []).append(m)
-            if p:
-                meta_by_prop.setdefault(p, []).append(m)
+            name_val = m.get("name")
+            prop_val = m.get("property")
+            if isinstance(name_val, str):
+                n = name_val.strip().lower()
+                if n:
+                    meta_by_name.setdefault(n, []).append(m)
+            if isinstance(prop_val, str):
+                p = prop_val.strip().lower()
+                if p:
+                    meta_by_prop.setdefault(p, []).append(m)
         except Exception:
             continue
 
     try:
-        scripts_jsonld = soup.find_all("script", type="application/ld+json")
+        scripts_jsonld = list(soup.find_all("script", type="application/ld+json"))
     except Exception:
         scripts_jsonld = []
 
-    idx = {
-        "title_tag": getattr(soup, "title", None),
+    title_candidate = getattr(soup, "title", None)
+    idx: SoupIndex = {
+        "title_tag": title_candidate if isinstance(title_candidate, Tag) else None,
         "h1_first": None,
         "meta_by_name": meta_by_name,
         "meta_by_prop": meta_by_prop,
-        "scripts_jsonld": scripts_jsonld,
+        "scripts_jsonld": [script for script in scripts_jsonld if isinstance(script, Tag)],
     }
     try:
-        idx["h1_first"] = soup.find("h1")
+        first_h1 = soup.find("h1")
+        idx["h1_first"] = first_h1 if isinstance(first_h1, Tag) else None
     except Exception:
         idx["h1_first"] = None
     return idx
@@ -194,7 +211,9 @@ def _fetch_youtube_title(url: str, config) -> str | None:
     return None
 
 
-def _extract_jsonld_title(soup: BeautifulSoup, soup_index: dict | None = None) -> str:
+def _extract_jsonld_title(
+    soup: BeautifulSoup, soup_index: SoupIndex | None = None
+) -> str:
     """Extract title from JSON-LD structured data"""
     scripts = (
         (soup_index or {}).get("scripts_jsonld") if soup_index is not None else None
@@ -202,6 +221,8 @@ def _extract_jsonld_title(soup: BeautifulSoup, soup_index: dict | None = None) -
     if scripts is None:
         scripts = soup.find_all("script", type="application/ld+json")
     for script in scripts:
+        if not isinstance(script, Tag):
+            continue
         try:
             if not script.string:
                 continue
@@ -230,17 +251,17 @@ def _extract_jsonld_title(soup: BeautifulSoup, soup_index: dict | None = None) -
     return ""
 
 
-def _try_selector(soup: BeautifulSoup, tag: str, **kwargs):
+def _try_selector(soup: BeautifulSoup, tag: str, **kwargs) -> str | None:
     """Try to find element and extract text."""
     elem = soup.find(tag, **kwargs)
-    if elem:
+    if isinstance(elem, Tag):
         text = elem.get_text(strip=True)
         return text if text else None
     return None
 
 
 def _extract_site_specific_title(
-    soup: BeautifulSoup, domain: str, soup_index: dict | None = None
+    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
 ) -> str | None:
     """Special handling for popular sites"""
     domain_lower = domain.lower()
@@ -439,18 +460,20 @@ def _smart_postprocess_title(title: str, domain: str) -> str:
 
 
 def _meta_content(
-    soup: BeautifulSoup, *selectors: tuple[str, str], soup_index: dict | None = None
+    soup: BeautifulSoup,
+    *selectors: tuple[str, str],
+    soup_index: SoupIndex | None = None,
 ) -> str:
     """Extract content from meta tags with multiple selector fallbacks"""
     for attr, value in selectors:
         tag = None
         if soup_index is not None:
-            key = (value or "").strip().lower()
+            key = value.strip().lower()
             try:
                 if attr == "name":
-                    candidates = (soup_index.get("meta_by_name", {}) or {}).get(key, [])
+                    candidates = soup_index.get("meta_by_name", {}).get(key, [])
                 elif attr == "property":
-                    candidates = (soup_index.get("meta_by_prop", {}) or {}).get(key, [])
+                    candidates = soup_index.get("meta_by_prop", {}).get(key, [])
                 else:
                     candidates = []
                 tag = candidates[0] if candidates else None
@@ -458,21 +481,28 @@ def _meta_content(
                 tag = None
         if tag is None:
             tag = soup.find("meta", attrs={attr: value})
-        if tag and tag.get("content"):
-            content = (tag.get("content") or "").strip()
+        if isinstance(tag, Tag):
+            raw_content = tag.get("content")
+            if isinstance(raw_content, str):
+                content = raw_content.strip()
+            elif isinstance(raw_content, list):
+                content = " ".join(str(part).strip() for part in raw_content if part).strip()
+            else:
+                content = ""
             if content:
                 return content
     return ""
 
 
 def _extract_html_title(
-    soup: BeautifulSoup, domain: str, soup_index: dict | None = None
+    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
 ) -> str:
     """Extract and clean HTML title tag"""
     title_tag = (soup_index or {}).get("title_tag") if soup_index is not None else None
     if title_tag is None:
-        title_tag = soup.title
-    if not title_tag:
+        title_candidate = soup.title
+        title_tag = title_candidate if isinstance(title_candidate, Tag) else None
+    if not isinstance(title_tag, Tag):
         return ""
 
     # Get text from all child elements
@@ -539,7 +569,7 @@ def _extract_title(soup: BeautifulSoup, url: str) -> str:
 
     # 6. First H1 tag
     h1 = soup_index.get("h1_first")
-    if h1:
+    if isinstance(h1, Tag):
         h1_text = h1.get_text(strip=True)
         if h1_text:
             candidates.append((h1_text, "h1"))

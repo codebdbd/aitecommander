@@ -18,7 +18,7 @@ class CategoryTilesController:
     `attach_tiles_widget()`.
     """
 
-    def __init__(self, ui_state, structure_business, *, main_window=None):
+    def __init__(self, ui_state, structure_business, *, main_window=None) -> None:
         if ui_state is None or structure_business is None:
             raise ValueError(
                 "CategoryTilesController requires ui_state and structure_business"

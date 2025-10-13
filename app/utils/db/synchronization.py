@@ -166,13 +166,12 @@ class EnhancedLock:
 class LockManager:
     """Lock manager with deadlock prevention."""
 
-    def __init__(self):
-        # Acquisition order to prevent deadlocks
+    def __init__(self) -> None:
+        """Initialize lock manager with thread-safe storage."""
         self._lock_order = [LockType.DATABASE, LockType.TASKS, LockType.UI_STATE]
         self._locks: dict[str, EnhancedLock] = {}
         self._thread_locks: dict[int, set[EnhancedLock]] = {}
         self._manager_lock = RLock()
-
     def create_lock(
         self, name: str, lock_type: LockType, reentrant: bool = True
     ) -> EnhancedLock:
@@ -272,7 +271,7 @@ class SignalGuard:
     Tracks active slot invocations and prevents re-entrancy while executing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._active_calls: dict[int, set[str]] = {}
         self._lock = threading.RLock()
         self._call_counts: dict[str, int] = {}
