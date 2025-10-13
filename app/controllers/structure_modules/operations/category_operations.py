@@ -4,6 +4,7 @@
 
 import logging
 from importlib import import_module
+from types import ModuleType
 from typing import Any, Callable, Optional
 
 from app.models import StructureModel
@@ -18,7 +19,7 @@ from ..models.types import (
 )
 from .base import BaseOperations, StructureSignalEmitter
 
-_normalization_module = None
+_normalization_module: ModuleType | None = None
 try:  # pragma: no cover - optional import for runtime
     _normalization_module = import_module(
         "app.controllers.structure_modules.operations.normalization"

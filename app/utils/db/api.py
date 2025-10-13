@@ -62,7 +62,7 @@ class _TaskHandleImpl:
 
 
 def run_db(
-    func: Callable[[], T],
+    func: Callable[..., T],
     *,
     use_lock: bool = True,
     description: str | None = None,
@@ -111,8 +111,8 @@ def run_db(
     def _call_with_reporter(report_progress: Callable[[int], None]) -> T:
         if use_lock:
             with db_lock:
-                return func(report_progress)  # type: ignore[misc]
-        return func(report_progress)  # type: ignore[misc]
+                return func(report_progress)
+        return func(report_progress)
 
     def _call_without_reporter() -> T:
         if use_lock:

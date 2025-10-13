@@ -1,5 +1,7 @@
 # app/controllers/structure_modules/types.py
 
+from __future__ import annotations
+
 """Strict types for structure_modules - PyQt6 Best Practices.
 
 This module contains TypedDict definitions for all data structures
@@ -8,7 +10,7 @@ concrete typed structures for better type safety.
 """
 
 from enum import Enum
-from typing import Any, Optional, TypedDict, Union
+from typing import Any, Optional, TypedDict, TypeAlias, Union
 
 # ===== ENUMS =====
 
@@ -206,10 +208,10 @@ class CategoryUpdateData(TypedDict, total=False):
 # ===== GENERIC ITEM TYPES =====
 
 
-AnyItemData = Union[SphereData, SectionData, CategoryData]
-AnyCreateData = Union[SphereCreateData, SectionCreateData, CategoryCreateData]
-AnyUpdateData = Union[SphereUpdateData, SectionUpdateData, CategoryUpdateData]
-AnyItemPayload = Union[AnyItemData, BaseItemData, dict[str, Any]]
+AnyItemData: TypeAlias = Union[SphereData, SectionData, CategoryData]
+AnyCreateData: TypeAlias = Union[SphereCreateData, SectionCreateData, CategoryCreateData]
+AnyUpdateData: TypeAlias = Union[SphereUpdateData, SectionUpdateData, CategoryUpdateData]
+AnyItemPayload: TypeAlias = Union[AnyItemData, BaseItemData, dict[str, Any]]
 
 
 # ===== LINK TYPES =====
@@ -390,16 +392,3 @@ class ItemTypeConfig:
         self.parent_field = parent_field
         self.ru_name = ru_name
         self.upsert_method_name = upsert_method_name
-
-
-# ===== UNION TYPES =====
-
-# Union of all item data types
-AnyItemData = SphereData | SectionData | CategoryData
-AnyCreateData = SphereCreateData | SectionCreateData | CategoryCreateData
-AnyUpdateData = SphereUpdateData | SectionUpdateData | CategoryUpdateData
-
-# Union of all payload types
-AnySignalPayload = (
-    ItemCreatedPayload | ItemUpdatedPayload | ItemDeletedPayload | ErrorPayload
-)
