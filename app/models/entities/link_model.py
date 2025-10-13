@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from typing import Any, Optional
 
-from ..base.db_base import DatabaseBase, DatabaseError
+from ..base.db_base import DatabaseBase, DatabaseError, row_to_dict
 from ..types.link_type import LinkType
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows]
         except Exception as e:
             logger.error(
                 "Error getting links for category %s: %s",
@@ -150,10 +150,11 @@ class LinkModel(DatabaseBase):
             )
             for row in rows or []:
                 try:
-                    cid = int(row["category_id"])
+                    row_dict = row_to_dict(row)
+                    cid = int(row_dict["category_id"])
                 except Exception:
                     continue
-                result.setdefault(cid, []).append(dict(row))
+                result.setdefault(cid, []).append(row_dict)
 
         return {cid: rows for cid, rows in result.items() if rows}
 
@@ -165,7 +166,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
-            return int(result["cnt"]) if result else 0
+            return int(row_to_dict(result)["cnt"]) if result else 0
         except Exception as e:
             logger.error(
                 "Error counting links for category %s: %s",
@@ -202,10 +203,11 @@ class LinkModel(DatabaseBase):
                 )
                 for r in rows or []:
                     try:
+                        r_dict = row_to_dict(r)
                         cat_id = int(
-                            r["category_id"]
-                        )  # sqlite3.Row supports key access
-                        cnt = int(r["cnt"])  # aggregated alias
+                            r_dict["category_id"]
+                        )  # sqlite3.Row converted to dict
+                        cnt = int(r_dict["cnt"])  # aggregated alias
                         result[cat_id] = result.get(cat_id, 0) + cnt
                     except Exception:
                         continue
@@ -349,7 +351,7 @@ class LinkModel(DatabaseBase):
                 )
                 if row:
                     try:
-                        rec_id = int(dict(row).get("id", 0))
+                        rec_id = int(row_to_dict(row).get("id", 0))
                         if rec_id:
                             return rec_id
                     except (KeyError, TypeError, ValueError) as conv_err:
@@ -382,7 +384,7 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
-                return dict(row)
+                return row_to_dict(row)
             return None
         except Exception as e:
             logger.error("Error finding link by unique fields: %s", e, exc_info=True)
@@ -403,7 +405,7 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
-                return dict(row)
+                return row_to_dict(row)
             return None
         except Exception as e:
             logger.error("Error finding link by (name,url,args): %s", e, exc_info=True)
@@ -418,7 +420,7 @@ class LinkModel(DatabaseBase):
                 "FROM link ORDER BY position ASC",
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows]
         except Exception as e:
             logger.error("Error getting all links: %s", e, exc_info=True)
             raise
@@ -448,7 +450,7 @@ class LinkModel(DatabaseBase):
             "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
             fetch_method="one",
         )
-        return int(row["cnt"]) if row else 0
+        return int(row_to_dict(row)["cnt"]) if row else 0
 
     def clear_favorites(self):
         """Resets favorite flag for all links."""
@@ -483,7 +485,7 @@ class LinkModel(DatabaseBase):
                 (search_term, search_term, search_term, search_term),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows]
         except Exception as e:
             logger.error("Error searching links: %s", e)
             raise
@@ -499,7 +501,7 @@ class LinkModel(DatabaseBase):
                 (pattern,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows] if rows else []
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error selecting links by args pattern: %s", e)
             raise
@@ -523,7 +525,7 @@ class LinkModel(DatabaseBase):
                 "SELECT args FROM link WHERE args IS NOT NULL AND TRIM(args) != ''",
                 fetch_method="all",
             )
-            return [dict(row) for row in rows] if rows else []
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting non-empty args: %s", e)
             raise
@@ -541,7 +543,7 @@ class LinkModel(DatabaseBase):
                 (limit,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows]
         except Exception as e:
             logger.error("Error getting recent links: %s", e, exc_info=True)
             raise
@@ -554,7 +556,7 @@ class LinkModel(DatabaseBase):
                 (1,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows]
         except Exception as e:
             logger.error("Error getting favorite links: %s", e, exc_info=True)
             raise
@@ -565,7 +567,7 @@ class LinkModel(DatabaseBase):
             row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE id = ?", (link_id,), fetch_method="one"
             )
-            return dict(row) if row else None
+            return row_to_dict(row) if row else None
         except Exception as e:
             logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
             raise
@@ -635,7 +637,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
-            return int(result["next_pos"]) if result else 1
+            return int(row_to_dict(result)["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
                 "Error getting next position for category %s: %s",
@@ -951,7 +953,7 @@ class LinkModel(DatabaseBase):
                     fetch_method="one",
                 )
                 if row:
-                    rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
+                    rec["id"] = row[0] if isinstance(row, tuple) else row_to_dict(row)["id"]
 
     def _upsert_links_no_tx(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().

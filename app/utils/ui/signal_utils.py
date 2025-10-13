@@ -75,7 +75,7 @@ class _LegacyWeakMethod:
     def __init__(self, method: Callable):
         try:
             self._func = method.__func__  # type: ignore[attr-defined]
-            self._self_ref = weakref.ref(method.__self__)  # type: ignore[attr-defined]
+            self._self_ref: weakref.ReferenceType[Any] | None = weakref.ref(method.__self__)  # type: ignore[attr-defined]
         except AttributeError:
             # Plain function (not a bound method)
             self._func = method
@@ -106,7 +106,7 @@ class _LegacyWeakMethod:
 
 # Override WeakMethod only if it hasn't been replaced yet
 if getattr(weakref.WeakMethod, "__module__", "") != __name__:
-    weakref.WeakMethod = _LegacyWeakMethod  # type: ignore[assignment]
+    weakref.WeakMethod = _LegacyWeakMethod  # type: ignore[assignment, misc]
 
 
 __all__ = ["signal_guard"]

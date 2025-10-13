@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Protocol, runtime_checkable
 
-from PyQt6.QtCore import QCoreApplication, Qt, QTimer
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -255,7 +255,7 @@ class LinkDialog(BaseDialog):
         except Exception:
             pass
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
         try:
             # If a preferred focus widget is set and current object tries to grab focus, restore it
             if event and event.type() == event.Type.FocusIn:

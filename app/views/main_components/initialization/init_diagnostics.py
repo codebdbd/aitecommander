@@ -168,7 +168,7 @@ class DiagnosticsInstaller:
                     pos_s = "?"
                 logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
 
-            def eventFilter(self, obj, event):
+            def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
                 """Filter and log resize/move events."""
                 try:
                     et = event.type()
@@ -214,7 +214,7 @@ class DiagnosticsInstaller:
         dump_cb = self._dump_top_levels
 
         class _TopLevelWatcher(QObject):
-            def eventFilter(self, obj, event):
+            def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
                 try:
                     et = event.type()
                     if et in (

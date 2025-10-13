@@ -4,9 +4,9 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QObject, QThreadPool, pyqtBoundSignal, pyqtSignal
 
 if TYPE_CHECKING:
     pass  # QObject already imported above
@@ -78,6 +78,8 @@ class Database(QObject):
 
         # Thread pool for async operations
         self._thread_pool = QThreadPool.globalInstance()
+        if self._thread_pool is None:
+            raise RuntimeError("QThreadPool.globalInstance() returned None")
         max_threads = app_config.get("threading.max_db_threads", 4)
         self._thread_pool.setMaxThreadCount(max_threads)
 
@@ -211,7 +213,7 @@ class Database(QObject):
         self._thread_pool.start(worker)
         logger.info("Started async DB initialization")
 
-    def _safe_emit(self, signal: pyqtSignal, *args) -> None:
+    def _safe_emit(self, signal: pyqtBoundSignal | pyqtSignal, *args: Any) -> None:
         """Emit a Qt signal only when a QApplication instance exists.
 
         Prevents crashes when the database layer is exercised outside the GUI
@@ -233,7 +235,7 @@ class Database(QObject):
                 return
 
             # Emit signal
-            signal.emit(*args)
+            signal.emit(*args)  # type: ignore[attr-defined]
 
         except Exception as e:
             # Don't interrupt main operation on signal error

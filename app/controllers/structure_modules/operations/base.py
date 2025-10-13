@@ -50,7 +50,7 @@ class StructureSignalEmitter:
     def __init__(
         self,
         emit_signal_func: Optional[
-            Callable[[str, str, int, dict[str, Any]], None]
+            Callable[[str, str, int, AnyItemData], None]
         ] = None,
     ):
         self._emit_signal = emit_signal_func
@@ -140,11 +140,11 @@ class BaseOperations:
     ) -> None:
         """Basic data validation."""
         if not isinstance(data, dict):
-            raise ValidationError("Data must be a dict", item_type=item_type.value)
+            raise ValidationError(f"Data must be a dict for {item_type.value}")
 
         if not data.get("name", "").strip():
             raise ValidationError(
-                "Field 'name' is required", field="name", item_type=item_type.value
+                f"Field 'name' is required for {item_type.value}"
             )
 
         if require_parent:
@@ -153,12 +153,10 @@ class BaseOperations:
                 parent_field = config.parent_field
                 if parent_field not in data or data[parent_field] is None:
                     raise ValidationError(
-                        f"Field '{parent_field}' is required",
-                        field=parent_field,
-                        item_type=item_type.value,
+                        f"Field '{parent_field}' is required for {item_type.value}"
                     )
             except ValueError as e:
-                raise ValidationError(str(e), item_type=item_type.value) from e
+                raise ValidationError(f"{item_type.value}: {e}") from e
 
     def _exec_with_norm(
         self, operation_func: Callable, operation_name: str, default_return: Any
@@ -174,7 +172,7 @@ class BaseOperations:
     def _execute_with_validation(
         self,
         operation_func: Callable,
-        data: dict[str, Any],
+        data: Any,  # Accept both dict[str, Any] and TypedDict variants
         item_type: StructureItemType,
         operation_name: str,
         require_parent: bool = True,
@@ -202,10 +200,10 @@ class BaseOperations:
             return None
 
     def _emit_signal(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: dict[str, Any]
+        self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
     ) -> None:
         """Emit a signal via the configured emitter."""
-        self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)
+        self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)  # type: ignore[arg-type]
 
     def _upsert_and_emit(
         self,
@@ -213,7 +211,7 @@ class BaseOperations:
         data: dict[str, Any],
         is_update: bool,
         item_id: Optional[int],
-        emit_signal: Callable[[str, str, int, dict[str, Any]], None],
+        emit_signal: Callable[[str, str, int, AnyItemData], None],
     ) -> Optional[int]:
         """Generic create/update method for structure items.
 
@@ -277,7 +275,7 @@ class BaseOperations:
             signal_type = SignalType.ITEM_UPDATED
             signal_parent_or_id = item_id  # type: ignore[arg-type]
 
-        emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)
+        emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)  # type: ignore[arg-type]
 
         # Log successful operation with validation confirmation
         operation_name = "updated" if is_update else "created"
@@ -293,7 +291,7 @@ class BaseOperations:
     def _process_item(
         self,
         item_type: StructureItemType,
-        data: AnyItemData,
+        data: Any,  # Accept AnyItemData, AnyCreateData, AnyUpdateData
         emit_signal: "StructureSignalEmitter",
         is_update: bool = False,
         item_id: Optional[int] = None,

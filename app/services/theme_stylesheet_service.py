@@ -4,6 +4,7 @@ import logging
 import re
 from collections import OrderedDict
 from threading import RLock
+from typing import cast
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
@@ -325,8 +326,9 @@ class ThemeStylesheetService:
     def _generate_dialog_styles(self, lines: list[str]) -> None:
         """Generate QDialog font styles."""
         try:
-            app = QApplication.instance()
-            if app:
+            app_instance = QApplication.instance()
+            if app_instance:
+                app = cast(QApplication, app_instance)
                 dialog_font_size = app.font().pointSize()
                 if dialog_font_size and dialog_font_size > 0:
                     lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")

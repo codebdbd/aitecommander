@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
-from ..base.db_base import DatabaseBase, DatabaseError
+from ..base.db_base import DatabaseBase, DatabaseError, row_to_dict
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class SphereModel(DatabaseBase):
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
             fetch_method="all",
         )
-        return [dict(row) for row in rows] if rows else []
+        return [row_to_dict(row) for row in rows] if rows else []
 
     def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Returns sphere by its ID in dict format."""
@@ -30,7 +30,7 @@ class SphereModel(DatabaseBase):
             (sphere_id,),
             fetch_method="one",
         )
-        return dict(row) if row else None
+        return row_to_dict(row) if row else None
 
     def insert_sphere(self, data: dict[str, Any]) -> int:
         """Inserts new sphere and returns its ID."""
@@ -62,7 +62,7 @@ class SphereModel(DatabaseBase):
         row = self._execute_with_error_handling(
             "SELECT name FROM sphere WHERE id=?", (sphere_id,), fetch_method="one"
         )
-        return dict(row)["name"] if row else ""
+        return row_to_dict(row)["name"] if row else ""
 
     def initialize_default_spheres(self):
         """Initializes initial data for sphere table if it's empty.

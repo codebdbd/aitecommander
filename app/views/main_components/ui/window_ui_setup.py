@@ -213,7 +213,7 @@ class _AutoHideTreeFilter(QObject):
         elif w > self.threshold and self._is_collapsed:
             self._handle_wide_window(splitter, stack)
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
         if obj is self.window and event.type() == QEvent.Type.Resize:
             self._apply()
         return super().eventFilter(obj, event)
