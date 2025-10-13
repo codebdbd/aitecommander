@@ -19,6 +19,12 @@ class RowOperationsMixin:
     
     if TYPE_CHECKING:
         _current_links: dict[int, dict[str, Any]]
+        def _links_equal(
+            self,
+            link1: dict[str, Any],
+            link2: dict[str, Any],
+            mode: str,
+        ) -> bool: ...
 
     def _link_table(self) -> "LinkTableWidgetProtocol":
         """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""

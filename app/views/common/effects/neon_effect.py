@@ -140,12 +140,12 @@ class NeonEventFilter(QObject):
 
     def _maybe_connect_toggled(self, w: QWidget) -> None:
         try:
-            if hasattr(w, "toggled") and callable(w.toggled):
-                if not getattr(w, "_neon_toggled_connected", False):
+            if hasattr(w, "toggled") and callable(getattr(w, "toggled")):
+                if not bool(getattr(w, "_neon_toggled_connected", False)):
                     w.toggled.connect(
                         lambda checked, ww=w: self._on_toggled(ww, checked)
                     )
-                    w._neon_toggled_connected = True
+                    setattr(w, "_neon_toggled_connected", True)
         except Exception:
             pass
 
@@ -164,7 +164,7 @@ class NeonEventFilter(QObject):
             eff.setBlurRadius(self._blur)
             eff.setColor(self._color)
             eff.setOffset(self._x, self._y)
-            w._neon_effect = eff
+            setattr(w, "_neon_effect", eff)
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:

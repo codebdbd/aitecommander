@@ -234,13 +234,15 @@ class TableViewProtocol(Protocol):
     def blockSignals(self, block: bool) -> None:
         """Enable or disable signal emission."""
         ...
-    
+
     def setCurrentIndex(self, index: QModelIndex) -> None:
         """Set the current index."""
         ...
+
+    def scrollTo(self, index: QModelIndex) -> None:
         """Scroll to the given index."""
         ...
-    
+
     def selectRow(self, row: int) -> None:
         """Select the given row."""
         ...
@@ -289,3 +291,51 @@ class TranslatableProtocol(Protocol):
 
 class LinkTableWidgetProtocol(LinkTableProtocol, SupportsUpdates, Protocol):
     """Protocol for link table widgets that also support suspend_updates."""
+    
+
+class SelectionModelProtocol(Protocol):
+    """Protocol for Qt selection models used in structure tree workflows."""
+
+    SelectionFlag: type[QItemSelectionModel.SelectionFlag]
+
+    def hasSelection(self) -> bool: ...
+
+    def setCurrentIndex(
+        self,
+        index: QModelIndex,
+        command: QItemSelectionModel.SelectionFlag,
+    ) -> None: ...
+
+
+class StructureTreeModelProtocol(Protocol):
+    """Protocol describing the structure tree model interface."""
+
+    def rowCount(self) -> int: ...
+
+    def index(self, row: int, column: int) -> QModelIndex: ...
+
+    def index_for(self, item_type: str, item_id: int) -> QModelIndex | None: ...
+
+
+class StructureTreeViewProtocol(Protocol):
+    """Protocol for the tree widget used by selection workflows."""
+
+    def model(self) -> StructureTreeModelProtocol | None: ...
+
+    def selectionModel(self) -> SelectionModelProtocol | None: ...
+
+    def blockSignals(self, block: bool) -> None: ...
+
+    def scrollTo(self, index: QModelIndex) -> None: ...
+
+
+class StructureActionsProtocol(Protocol):
+    """Protocol describing actions invoked during selection workflows."""
+
+    def focus_tree(self) -> None: ...
+
+    def clear_table_selection(self) -> None: ...
+
+    def refresh_tiles(self, section_id: int) -> None: ...
+
+    def load_category_via_ui_state(self, category_id: int, *, source: str) -> None: ...

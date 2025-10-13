@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QKeyEvent, QMouseEvent
+from typing import cast
+
+from PyQt6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, pyqtSignal
+from PyQt6.QtGui import QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
 
 from app.config_data import app_config
@@ -19,6 +21,10 @@ class CategoryListView(QListView):
     # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
 
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._press_pos: QPoint | None = None
+
     def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         # Ensure currentIndex is set at click position (for DnD and context menu)
         try:
@@ -27,16 +33,18 @@ class CategoryListView(QListView):
             idx = self.indexAt(p)
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                self.selectionModel().setCurrentIndex(
-                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
-                )
+                selection_model = self.selectionModel()
+                if selection_model is not None:
+                    selection_model.setCurrentIndex(
+                        idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
+                    )
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mousePressEvent: %s", e)
         except Exception:
             logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
 
-    def startDrag(self, supportedActions: Qt.DropAction) -> None:
+    def startDrag(self, supportedActions: Qt.DropActions) -> None:
         index = self.currentIndex()
         if not index or not index.isValid():
             logger.debug("CategoryListView.startDrag: no current index")
@@ -72,7 +80,7 @@ class CategoryListView(QListView):
                 if idx.isValid():
                     # Threshold from system settings
                     threshold = QApplication.startDragDistance()
-                    start = getattr(self, "_press_pos", event.position().toPoint())
+                    start = self._press_pos or event.position().toPoint()
                     if (
                         event.position().toPoint() - start
                     ).manhattanLength() >= threshold:
@@ -111,15 +119,17 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
-    def contextMenuEvent(self, event: QEvent) -> None:  # type: ignore[override]
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # type: ignore[override]
         # Always set current index on right-click and emit signal
         try:
             idx = self.indexAt(event.pos())
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                self.selectionModel().setCurrentIndex(
-                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
-                )
+                selection_model = self.selectionModel()
+                if selection_model is not None:
+                    selection_model.setCurrentIndex(
+                        idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
+                    )
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.contextMenuEvent: %s", e)
         except Exception:
@@ -145,7 +155,8 @@ class CategoryListView(QListView):
         # Guaranteed interception of QContextMenuEvent from viewport()
         try:
             if obj is self.viewport() and event.type() == QEvent.Type.ContextMenu:
-                pos = event.pos()
+                ctx_event = cast(QContextMenuEvent, event)
+                pos = ctx_event.pos()
                 logger.debug("Viewport eventFilter: ContextMenu at %s", pos)
                 self.customContextMenuRequested.emit(pos)
                 event.accept()
