@@ -5,7 +5,7 @@ CategoryModel - model for working with categories in database.
 import logging
 from typing import Any, Optional
 
-from ..base.db_base import DatabaseBase, ValidationError
+from ..base.db_base import DatabaseBase, ValidationError, row_to_dict
 from .constants import CATEGORY_BULK_UUID_FIELD
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class CategoryModel(DatabaseBase):
             (section_id,),
             fetch_method="all",
         )
-        return [dict(row) for row in rows] if rows else []
+        return [row_to_dict(row) for row in rows] if rows else []
 
     def get_categories_for_sections(
         self, section_ids: list[int]
@@ -43,14 +43,14 @@ class CategoryModel(DatabaseBase):
             ORDER BY section_id, position
         """
         rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
-        return [dict(row) for row in rows] if rows else []
+        return [row_to_dict(row) for row in rows] if rows else []
 
     def get_category_by_id(self, category_id: int) -> Optional[dict[str, Any]]:
         """Returns category by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
         )
-        return dict(row) if row else None
+        return row_to_dict(row) if row else None
 
     def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
         """Get category hierarchy (sphere -> section -> category).
@@ -71,9 +71,10 @@ class CategoryModel(DatabaseBase):
         )
 
         if result:
+            result_dict = row_to_dict(result)
             return {
-                "sphere_id": result["sphere_id"],
-                "section_id": result["section_id"],
+                "sphere_id": result_dict["sphere_id"],
+                "section_id": result_dict["section_id"],
                 "category_id": category_id,
             }
         return None
@@ -181,7 +182,8 @@ class CategoryModel(DatabaseBase):
             query, tuple(section_ids), fetch_method="all"
         )
         for row in rows or []:
-            max_pos_map[row["section_id"]] = row["max_pos"]
+            row_dict = row_to_dict(row)
+            max_pos_map[row_dict["section_id"]] = row_dict["max_pos"]
         return max_pos_map
 
     def _load_existing_names(self, section_ids: list[int]) -> dict[int, set]:
@@ -321,7 +323,7 @@ class CategoryModel(DatabaseBase):
             row = rows_by_key.get((section_id, name_norm))
             if not row:
                 continue
-            payload = dict(row)
+            payload = row_to_dict(row)
             token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
             token = str(token_raw).strip() if token_raw is not None else ""
             if token:
@@ -470,8 +472,8 @@ class CategoryModel(DatabaseBase):
                 else:
                     try:
                         pre_count = int(
-                            pre_count_row["cnt"]
-                        )  # sqlite3.Row is indexed by key
+                            row_to_dict(pre_count_row)["cnt"]
+                        )  # sqlite3.Row converted to dict
                     except Exception:
                         pre_count = 0
 

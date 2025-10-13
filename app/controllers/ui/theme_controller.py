@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PyQt6.QtGui import QIcon
@@ -211,10 +211,11 @@ class ThemeController:
             if self._stylesheet_applier is not None:
                 self._stylesheet_applier(qss_content)
             else:
-                app = QApplication.instance()
-                if not app:
+                app_instance = QApplication.instance()
+                if not app_instance:
                     logger.error("QApplication instance not found")
                     return False
+                app = cast(QApplication, app_instance)
                 app.setStyleSheet(qss_content)
 
             # Custom menu shadows fully disabled — doing nothing

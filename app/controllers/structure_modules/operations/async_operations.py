@@ -345,13 +345,14 @@ class AsyncOperations(QObject):
         def _fetch():
             return self.db.spheres.get_spheres() or []
 
+        def _on_spheres_loaded(spheres: list) -> None:
+            self._worker_signals.spheres_loaded.emit(spheres)
+            self._worker_signals.operation_finished.emit(self.tr("Spheres loaded"))
+
         run_db(
             _fetch,
             description="load_spheres",
-            on_finished=lambda spheres: (
-                self._worker_signals.spheres_loaded.emit(spheres),
-                self._worker_signals.operation_finished.emit(self.tr("Spheres loaded")),
-            ),
+            on_finished=_on_spheres_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
                 self.tr("Failed to load spheres: {error}").format(error=e),
@@ -416,15 +417,14 @@ class AsyncOperations(QObject):
             )
         )
 
+        def _on_sections_loaded(sections: list) -> None:
+            self._worker_signals.sections_loaded.emit(sections, sphere_id)
+            self._worker_signals.operation_finished.emit(self.tr("Sections loaded"))
+
         run_db(
             lambda: self.db.sections.get_sections(sphere_id) or [],
             description=f"load_sections(sphere_id={sphere_id})",
-            on_finished=lambda sections: (
-                self._worker_signals.sections_loaded.emit(sections, sphere_id),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Sections loaded")
-                ),
-            ),
+            on_finished=_on_sections_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
                 self.tr("Failed to load sections: {error}").format(error=e),
@@ -443,15 +443,14 @@ class AsyncOperations(QObject):
             )
         )
 
+        def _on_categories_loaded(categories: list) -> None:
+            self._worker_signals.categories_loaded.emit(categories, section_id)
+            self._worker_signals.operation_finished.emit(self.tr("Categories loaded"))
+
         run_db(
             lambda: self.db.categories.get_categories(section_id) or [],
             description=f"load_categories(section_id={section_id})",
-            on_finished=lambda categories: (
-                self._worker_signals.categories_loaded.emit(categories, section_id),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Categories loaded")
-                ),
-            ),
+            on_finished=_on_categories_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
                 self.tr("Failed to load categories: {error}").format(error=e),
@@ -502,15 +501,14 @@ class AsyncOperations(QObject):
             )
         )
 
+        def _on_section_created(res: tuple) -> None:
+            self._worker_signals.item_created.emit(*res)
+            self._worker_signals.operation_finished.emit(self.tr("Section created"))
+
         run_db(
             _create,
             description=f"create_section(name={name!r})",
-            on_finished=lambda res: (
-                self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Section created")
-                ),
-            ),
+            on_finished=_on_section_created,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
                 self.tr("Failed to create section: {error}").format(error=e),
@@ -545,15 +543,14 @@ class AsyncOperations(QObject):
             )
         )
 
+        def _on_category_created(res: tuple) -> None:
+            self._worker_signals.item_created.emit(*res)
+            self._worker_signals.operation_finished.emit(self.tr("Category created"))
+
         run_db(
             _create,
             description=f"create_category(name={name!r})",
-            on_finished=lambda res: (
-                self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Category created")
-                ),
-            ),
+            on_finished=_on_category_created,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
                 self.tr("Failed to create category: {error}").format(error=e),
@@ -582,15 +579,14 @@ class AsyncOperations(QObject):
             StructureService(self.db).update_section(section_id, dict(data))
             return ("section", section_id, dict(data))
 
+        def _on_section_updated(res: tuple) -> None:
+            self._worker_signals.item_updated.emit(*res)
+            self._worker_signals.operation_finished.emit(self.tr("Section updated"))
+
         run_db(
             _update,
             description=f"update_section(id={section_id})",
-            on_finished=lambda res: (
-                self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Section updated")
-                ),
-            ),
+            on_finished=_on_section_updated,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
                 self.tr("Failed to update section: {error}").format(error=e),
@@ -619,15 +615,14 @@ class AsyncOperations(QObject):
             StructureService(self.db).update_category(category_id, dict(data))
             return ("category", category_id, dict(data))
 
+        def _on_category_updated(res: tuple) -> None:
+            self._worker_signals.item_updated.emit(*res)
+            self._worker_signals.operation_finished.emit(self.tr("Category updated"))
+
         run_db(
             _update,
             description=f"update_category(id={category_id})",
-            on_finished=lambda res: (
-                self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Category updated")
-                ),
-            ),
+            on_finished=_on_category_updated,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
                 self.tr("Failed to update category: {error}").format(error=e),
@@ -654,15 +649,14 @@ class AsyncOperations(QObject):
             StructureService(self.db).delete_section(section_id)
             return ("section", section_id, old_data)
 
+        def _on_section_deleted(res: tuple) -> None:
+            self._worker_signals.item_deleted.emit(*res)
+            self._worker_signals.operation_finished.emit(self.tr("Section deleted"))
+
         run_db(
             _delete,
             description=f"delete_section(id={section_id})",
-            on_finished=lambda res: (
-                self._worker_signals.item_deleted.emit(*res),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Section deleted")
-                ),
-            ),
+            on_finished=_on_section_deleted,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Delete error"),
                 self.tr("Failed to delete section: {error}").format(error=e),
@@ -705,15 +699,14 @@ class AsyncOperations(QObject):
             # ИСПРАВЛЕНИЕ: Используем helper метод с проверкой лимита
             self._add_pending_task(task_id, True)
 
+            def _on_category_deleted(res: tuple) -> None:
+                self._worker_signals.item_deleted.emit(*res)
+                self._worker_signals.operation_finished.emit(self.tr("Category deleted"))
+
             run_db(
                 _delete,
                 description=f"delete_category(id={category_id})",
-                on_finished=lambda res: (
-                    self._worker_signals.item_deleted.emit(*res),
-                    self._worker_signals.operation_finished.emit(
-                        self.tr("Category deleted")
-                    ),
-                ),
+                on_finished=_on_category_deleted,
                 on_error=lambda e: self._worker_signals.error.emit(
                     self.tr("Delete error"),
                     self.tr("Failed to delete category: {error}").format(error=e),
@@ -757,17 +750,14 @@ class AsyncOperations(QObject):
                 "links_count": links_count,
             }
 
+        def _on_count_completed(count_data: dict) -> None:
+            self._worker_signals.item_updated.emit("section_count", section_id, count_data)
+            self._worker_signals.operation_finished.emit(self.tr("Count completed"))
+
         run_db(
             _count,
             description=f"count_nested(section_id={section_id})",
-            on_finished=lambda count_data: (
-                self._worker_signals.item_updated.emit(
-                    "section_count", section_id, count_data
-                ),
-                self._worker_signals.operation_finished.emit(
-                    self.tr("Count completed")
-                ),
-            ),
+            on_finished=_on_count_completed,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Count error"),
                 self.tr("Failed to count items: {error}").format(error=e),

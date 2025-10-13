@@ -124,6 +124,11 @@ class TreeManagement(QObject):
             on_error=_on_snapshot_error,
         )
 
+    def _after_snapshot_applied(self, expanded_state: Any, current_selection: Any) -> None:
+        """Hook called after snapshot is applied to tree model."""
+        # Placeholder for future expansion state/selection restoration
+        pass
+
     @pyqtSlot(str, int, dict)
     def _on_item_added(
         self, item_type: str, parent_id: int, data: dict[str, Any]

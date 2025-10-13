@@ -98,6 +98,8 @@ class LinksBusinessProtocol(Protocol):
 
     def clear_favorites(self) -> None: ...
 
+    def clear_favorites_async(self) -> None: ...
+
 
 @runtime_checkable
 class MainWindowProtocol(Protocol):

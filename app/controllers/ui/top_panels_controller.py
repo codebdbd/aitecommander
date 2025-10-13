@@ -512,14 +512,14 @@ class TopPanelsController(QObject):
         favorite_signal = getattr(self.links_business, "favorite_links_loaded", None)
         recent_signal = getattr(self.links_business, "recent_links_loaded", None)
         connected_all = True
-        if hasattr(favorite_signal, "connect"):
+        if favorite_signal is not None and hasattr(favorite_signal, "connect"):
             favorite_signal.connect(self._on_favorite_links_loaded)
         else:
             connected_all = False
             logger.debug(
                 "TopPanelsController: business signal 'favorite_links_loaded' not present; falling back to sync mode"
             )
-        if hasattr(recent_signal, "connect"):
+        if recent_signal is not None and hasattr(recent_signal, "connect"):
             recent_signal.connect(self._on_recent_links_loaded)
         else:
             connected_all = False

@@ -146,7 +146,7 @@ class LanguageService(QObject):
             return None
 
         if getattr(sys, "frozen", False):
-            base_path = Path(sys._MEIPASS)
+            base_path = Path(getattr(sys, "_MEIPASS", "."))
         else:
             base_path = Path(__file__).resolve().parent.parent
 

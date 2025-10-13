@@ -1,7 +1,7 @@
 # app/views/effects/neon_effect.py
 from __future__ import annotations
 
-from PyQt6.QtCore import QEvent, QObject
+from PyQt6.QtCore import QChildEvent, QEvent, QObject
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -99,9 +99,10 @@ class NeonEventFilter(QObject):
         # eligible child widgets
         if et == QEvent.Type.ChildAdded:
             try:
-                child = event.child()
-                if isinstance(child, QWidget):
-                    self._attach_to_tree(child)
+                if isinstance(event, QChildEvent):
+                    child = event.child()
+                    if isinstance(child, QWidget):
+                        self._attach_to_tree(child)
             except Exception:
                 pass
 

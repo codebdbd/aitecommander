@@ -76,7 +76,7 @@ class _FallbackCacheMetrics:
 try:
     from .metrics import CacheMetrics as _RuntimeCacheMetrics  # type: ignore
 except Exception:  # noqa: BLE001
-    _RuntimeCacheMetrics = None  # type: ignore[assignment]
+    _RuntimeCacheMetrics = None  # type: ignore[assignment, misc]
 
 if TYPE_CHECKING:
     # For static typing: mypy will see the correct class

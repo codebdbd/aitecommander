@@ -180,7 +180,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
 
-    def flags(self, index: QModelIndex) -> QtCore.Qt.ItemFlags:  # type: ignore[override]
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # By default the table is not editable via delegates
@@ -249,11 +249,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         return False
 
-    def supportedDropActions(self) -> QtCore.Qt.DropActions:  # type: ignore[override]
+    def supportedDropActions(self) -> Qt.DropAction:  # type: ignore[override]
         # Support moving rows only
         return Qt.DropAction.MoveAction
 
-    def supportedDragActions(self) -> QtCore.Qt.DropActions:  # type: ignore[override]
+    def supportedDragActions(self) -> Qt.DropAction:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
     # --- Data mutations ---

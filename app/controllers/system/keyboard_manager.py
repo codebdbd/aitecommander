@@ -448,14 +448,14 @@ class KeyboardManager(QObject):
         self.main_window: MainWindowProtocol = cast(MainWindowProtocol, main_window)
         self.shortcuts: list = []
 
-        self.global_handler = GlobalKeyHandler(main_window)
-        self.editing_handler = EditingKeyHandler(main_window)
-        self.clipboard_handler = ClipboardKeyHandler(main_window)
-        self.search_handler = SearchKeyHandler(main_window)
+        self.global_handler = GlobalKeyHandler(self.main_window)
+        self.editing_handler = EditingKeyHandler(self.main_window)
+        self.clipboard_handler = ClipboardKeyHandler(self.main_window)
+        self.search_handler = SearchKeyHandler(self.main_window)
 
         self._last_enter_time = 0
 
-        self.main_window.installEventFilter(self)
+        self._parent_widget.installEventFilter(self)
         self._setup_shortcuts()
 
     def _setup_shortcuts(self) -> None:
@@ -514,8 +514,10 @@ class KeyboardManager(QObject):
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
         """Event filter for intercepting keys."""
+        if event is None or obj is None:
+            return False
         if event.type() == event.Type.KeyPress:
             if self._is_enter_duplicate(event):
                 return True

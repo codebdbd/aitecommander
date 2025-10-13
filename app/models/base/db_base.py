@@ -10,6 +10,11 @@ from app.utils.db.synchronization import db_lock
 logger = logging.getLogger(__name__)
 
 
+def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    """Safely convert sqlite3.Row to dict."""
+    return {key: row[key] for key in row.keys()}
+
+
 class DatabaseError(Exception):
     """Base class for database errors"""
 
@@ -127,7 +132,7 @@ class DatabaseBase:
                     fetch_method="one",
                 )
 
-            max_pos = None if row is None else dict(row).get("max_pos")
+            max_pos = None if row is None else row_to_dict(row).get("max_pos")
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error("Error getting position for table %s: %s", table_name, e)

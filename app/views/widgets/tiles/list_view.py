@@ -6,7 +6,7 @@ from typing import cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
-from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
+from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView, QWidget
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
@@ -21,7 +21,7 @@ class CategoryListView(QListView):
     # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._press_pos: QPoint | None = None
 
@@ -44,7 +44,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
 
-    def startDrag(self, supportedActions: Qt.DropActions) -> None:
+    def startDrag(self, supportedActions: Qt.DropAction) -> None:  # type: ignore[override]
         index = self.currentIndex()
         if not index or not index.isValid():
             logger.debug("CategoryListView.startDrag: no current index")

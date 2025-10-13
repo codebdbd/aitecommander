@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from ..base.db_base import DatabaseBase
+from ..base.db_base import DatabaseBase, row_to_dict
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -18,14 +18,14 @@ class SectionModel(DatabaseBase):
             (sphere_id,),
             fetch_method="all",
         )
-        return [dict(row) for row in rows] if rows else []
+        return [row_to_dict(row) for row in rows] if rows else []
 
     def get_section_by_id(self, section_id: int) -> Optional[dict[str, Any]]:
         """Returns section by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT * FROM section WHERE id=?", (section_id,), fetch_method="one"
         )
-        return dict(row) if row else None
+        return row_to_dict(row) if row else None
 
     def insert_section(self, data: dict[str, Any]) -> int:
         """Inserts new section and returns its ID."""
@@ -52,7 +52,7 @@ class SectionModel(DatabaseBase):
             (section_id,),
             fetch_method="one",
         )
-        sphere_id = int(row["sphere_id"]) if row is not None else None
+        sphere_id = int(row_to_dict(row)["sphere_id"]) if row is not None else None
 
         self._execute_with_error_handling(
             "DELETE FROM section WHERE id=?", (section_id,)

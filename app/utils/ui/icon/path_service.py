@@ -522,10 +522,12 @@ def get_current_theme() -> str:
 
     # Slow path: try to get from GUI without holding lock
     try:
+        from typing import cast
         from PyQt6.QtWidgets import QApplication  # local import
 
-        app = QApplication.instance()
-        if app:
+        app_instance = QApplication.instance()
+        if app_instance:
+            app = cast(QApplication, app_instance)
             for widget in app.topLevelWidgets():
                 # expect settings.get_theme() to be available
                 settings = getattr(widget, "settings", None)

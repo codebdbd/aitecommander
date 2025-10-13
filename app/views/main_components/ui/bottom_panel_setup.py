@@ -172,7 +172,7 @@ class BottomPanelBuilder:
 
         # Switch-sphere button (created after controllers init)
         # Add a placeholder for future insertion (e.g., at the start of the layout)
-        self.window.switch_sphere_button = None
+        setattr(self.window, "switch_sphere_button", None)  # type: ignore[attr-defined]
         placeholder = QWidget()  # Temporary spacer for the future button
         placeholder.setFixedWidth(0)  # Takes no space initially
         placeholder.setSizePolicy(
@@ -187,10 +187,14 @@ class BottomPanelBuilder:
             for index, spec in enumerate(bottom_actions)
         ]
         parsed_actions = [action for action in parsed_actions if action is not None]
-        self.window._bottom_bar_bindings = []
+        setattr(self.window, "_bottom_bar_bindings", [])  # type: ignore[attr-defined]
         bottom_btns: list[QPushButton] = []
         for action in parsed_actions:
+            if action is None:  # Type guard
+                continue
             handler_name = action["handler"]
+            if not handler_name:  # Skip if handler_name is None or empty
+                continue
             action_id = action.get("id")
             log_label = action.get("label") or action_id or handler_name
 
@@ -212,7 +216,7 @@ class BottomPanelBuilder:
                 )
 
             # Connect click handler and add to the panel
-            handler = getattr(self.window, handler_name, None)
+            handler = getattr(self.window, str(handler_name), None)
             if not callable(handler):
                 logger.warning(
                     "BottomPanel: click handler '%s' not found for button '%s' — skipping",
