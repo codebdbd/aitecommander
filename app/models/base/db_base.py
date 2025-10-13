@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union, overload
 
 from app.utils.db.synchronization import db_lock
 
@@ -149,8 +149,42 @@ class DatabaseBase:
                 f"Failed to calculate position for {table_name}: {e}"
             ) from e
 
+    @overload
     def _execute_with_error_handling(
-        self, query: str, params: tuple = (), fetch_method: Optional[str] = None
+        self,
+        query: str,
+        params: tuple[Any, ...] = ...,
+        *,
+        fetch_method: Literal["one"],
+    ) -> sqlite3.Row | None:
+        ...
+
+    @overload
+    def _execute_with_error_handling(
+        self,
+        query: str,
+        params: tuple[Any, ...] = ...,
+        *,
+        fetch_method: Literal["all"],
+    ) -> list[sqlite3.Row]:
+        ...
+
+    @overload
+    def _execute_with_error_handling(
+        self,
+        query: str,
+        params: tuple[Any, ...] = ...,
+        *,
+        fetch_method: None = ...,
+    ) -> sqlite3.Cursor:
+        ...
+
+    def _execute_with_error_handling(
+        self,
+        query: str,
+        params: tuple[Any, ...] = (),
+        *,
+        fetch_method: Optional[str] = None,
     ) -> Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]:
         """Executes SQL query with error handling and locking."""
         try:
@@ -171,7 +205,7 @@ class DatabaseBase:
         return cursor
 
     def _execute_many_with_error_handling(
-        self, query: str, seq_of_params: list[tuple]
+        self, query: str, seq_of_params: list[tuple[Any, ...]]
     ) -> sqlite3.Cursor:
         """
         Executes SQL executemany query with error handling and locking.

@@ -108,29 +108,27 @@ def run_db(
 
     expects_reporter = _expects_reporter(func)
 
-    if expects_reporter:
+    def _call_with_reporter(report_progress: Callable[[int], None]) -> T:
         if use_lock:
-
-            def _wrapped(report_progress: Callable[[int], None]) -> T:
-                with db_lock:
-                    return func(report_progress)  # type: ignore[misc]
-        else:
-
-            def _wrapped(report_progress: Callable[[int], None]) -> T:
+            with db_lock:
                 return func(report_progress)  # type: ignore[misc]
-    else:
+        return func(report_progress)  # type: ignore[misc]
+
+    def _call_without_reporter() -> T:
         if use_lock:
-
-            def _wrapped() -> T:
-                with db_lock:
-                    return func()
-        else:
-
-            def _wrapped() -> T:
+            with db_lock:
                 return func()
+        return func()
+
+    if expects_reporter:
+        task_callable: Callable[..., T] = _call_with_reporter
+    else:
+        task_callable = _call_without_reporter
 
     task = DatabaseTask[T](
-        _wrapped, description=description, reporter=(on_progress or (lambda *_: None))
+        task_callable,
+        description=description,
+        reporter=(on_progress or (lambda *_: None)),
     )
 
     if on_finished is not None:

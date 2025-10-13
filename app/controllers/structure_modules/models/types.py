@@ -8,7 +8,7 @@ concrete typed structures for better type safety.
 """
 
 from enum import Enum
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional, TypedDict, Union
 
 # ===== ENUMS =====
 
@@ -78,7 +78,9 @@ class SphereData(BaseItemData):
     description: Optional[str]
     color: Optional[str]
     icon: Optional[str]
-    is_active: bool
+
+
+# ===== SPHERE TYPES =====
 
 
 class SphereCreateData(TypedDict):
@@ -199,6 +201,15 @@ class CategoryUpdateData(TypedDict, total=False):
     is_active: bool
     color: Optional[str]
     icon: Optional[str]
+
+
+# ===== GENERIC ITEM TYPES =====
+
+
+AnyItemData = Union[SphereData, SectionData, CategoryData]
+AnyCreateData = Union[SphereCreateData, SectionCreateData, CategoryCreateData]
+AnyUpdateData = Union[SphereUpdateData, SectionUpdateData, CategoryUpdateData]
+AnyItemPayload = Union[AnyItemData, BaseItemData, dict[str, Any]]
 
 
 # ===== LINK TYPES =====

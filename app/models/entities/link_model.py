@@ -704,8 +704,11 @@ class LinkModel(DatabaseBase):
             raw.clear()
             raw.update(data)
 
+            category_raw = data.get("category_id")
+            if category_raw is None:
+                raise ValidationError("Missing category_id for link batch item")
             try:
-                category_id = int(data["category_id"])
+                category_id = int(category_raw)
             except (TypeError, ValueError) as exc:
                 raise ValidationError("Invalid category_id for link batch item") from exc
 

@@ -2,11 +2,12 @@
 """Base classes, enums and constants for structure operations."""
 
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TypeVar, cast
 
 from ..models.types import (
     AnyCreateData,
     AnyItemData,
+    AnyItemPayload,
     AnyUpdateData,
     ItemTypeConfig,
     SignalType,
@@ -15,6 +16,9 @@ from ..models.types import (
 from ..validation.validators import ValidationError, validate_and_raise
 
 logger = logging.getLogger(__name__)
+
+
+TExecResult = TypeVar("TExecResult")
 
 
 class StructureOperationError(Exception):
@@ -49,19 +53,28 @@ class StructureSignalEmitter:
 
     def __init__(
         self,
-        emit_signal_func: Optional[Callable[[str, str, int, AnyItemData], None]] = None,
+        emit_signal_func: Optional[
+            Callable[[str, str, int, AnyItemPayload | None], None]
+        ] = None,
     ):
         self._emit_signal = emit_signal_func
 
     def emit(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
+        self,
+        signal_type: str,
+        item_type: str,
+        parent_or_id: int,
+        data: AnyItemPayload | None = None,
     ) -> None:
         """Emit a signal."""
         if not self._emit_signal:
             return  # Если функция не установлена, просто ничего не делаем
 
         try:
-            self._emit_signal(signal_type, item_type, parent_or_id, data)
+            if data is None:
+                self._emit_signal(signal_type, item_type, parent_or_id, None)
+            else:
+                self._emit_signal(signal_type, item_type, parent_or_id, data)
         except (AttributeError, TypeError, ValueError) as e:
             # Expected errors — log as warning
             logger.warning("Signal emission error: %s", e)
@@ -165,12 +178,12 @@ class BaseOperations:
 
     def _execute_with_validation(
         self,
-        operation_func: Callable,
+        operation_func: Callable[[], TExecResult],
         data: Any,  # Accept both dict[str, Any] and TypedDict variants
         item_type: StructureItemType,
         operation_name: str,
         require_parent: bool = True,
-    ) -> Optional[bool]:
+    ) -> Optional[TExecResult]:
         """Perform validation and operation with error handling."""
         try:
             # Валидация
@@ -194,10 +207,14 @@ class BaseOperations:
             return None
 
     def _emit_signal(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
+        self,
+        signal_type: str,
+        item_type: str,
+        parent_or_id: int,
+        data: AnyItemPayload | None = None,
     ) -> None:
         """Emit a signal via the configured emitter."""
-        self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)  # type: ignore[arg-type]
+        self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)
 
     def _upsert_and_emit(
         self,
@@ -205,7 +222,7 @@ class BaseOperations:
         data: dict[str, Any],
         is_update: bool,
         item_id: Optional[int],
-        emit_signal: Callable[[str, str, int, AnyItemData], None],
+        emit_signal: Callable[[str, str, int, AnyItemPayload | None], None],
     ) -> Optional[int]:
         """Generic create/update method for structure items.
 
@@ -269,7 +286,13 @@ class BaseOperations:
             signal_type = SignalType.ITEM_UPDATED
             signal_parent_or_id = item_id  # type: ignore[arg-type]
 
-        emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)  # type: ignore[arg-type]
+        payload = cast(AnyItemPayload, data_copy)
+        emit_signal(
+            signal_type.value,
+            item_type.value,
+            signal_parent_or_id,
+            payload,
+        )
 
         # Log successful operation with validation confirmation
         operation_name = "updated" if is_update else "created"

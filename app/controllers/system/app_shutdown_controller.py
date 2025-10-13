@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Any, Callable, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QThreadPool
+from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
 from app.config_data import app_config
