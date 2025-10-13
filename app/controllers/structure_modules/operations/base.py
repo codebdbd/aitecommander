@@ -129,7 +129,9 @@ class BaseOperations:
         structure_model: Any,  # StructureModel из app.models.structure_model
         logger: logging.Logger,
         execute_with_error_handling: Callable,
-        emit_signal_func: Optional[Callable[[str, str, int, AnyItemData], None]] = None,
+        emit_signal_func: Optional[
+            Callable[[str, str, int, AnyItemPayload | None], None]
+        ] = None,
     ):
         self.structure_model = structure_model
         # Сохраняем обычный logger для совместимости со старыми модулями
