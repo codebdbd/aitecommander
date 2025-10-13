@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from app.views.widgets.protocols import TranslatableProtocol
+    pass
 
 from PyQt6.QtWidgets import QMessageBox
 
@@ -17,18 +17,20 @@ from app.utils.ui.dnd.commands import (
     MoveCategoryCommand,
     MoveLinksCommand,
 )
+from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 
 
 class MoveOperationsHandler(TreeHandlerBase):
     """Move operations handler for items in the structure tree.
-    
+
     This handler expects to be used with a class that implements TranslatableProtocol.
     """
-    
+
     # Type hint for the host class
     if TYPE_CHECKING:
+
         def tr(self, text: str) -> str: ...
 
     def _show_message(

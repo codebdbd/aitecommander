@@ -49,9 +49,7 @@ class StructureSignalEmitter:
 
     def __init__(
         self,
-        emit_signal_func: Optional[
-            Callable[[str, str, int, AnyItemData], None]
-        ] = None,
+        emit_signal_func: Optional[Callable[[str, str, int, AnyItemData], None]] = None,
     ):
         self._emit_signal = emit_signal_func
 
@@ -118,9 +116,7 @@ class BaseOperations:
         structure_model: Any,  # StructureModel из app.models.structure_model
         logger: logging.Logger,
         execute_with_error_handling: Callable,
-        emit_signal_func: Optional[
-            Callable[[str, str, int, AnyItemData], None]
-        ] = None,
+        emit_signal_func: Optional[Callable[[str, str, int, AnyItemData], None]] = None,
     ):
         self.structure_model = structure_model
         # Сохраняем обычный logger для совместимости со старыми модулями
@@ -143,9 +139,7 @@ class BaseOperations:
             raise ValidationError(f"Data must be a dict for {item_type.value}")
 
         if not data.get("name", "").strip():
-            raise ValidationError(
-                f"Field 'name' is required for {item_type.value}"
-            )
+            raise ValidationError(f"Field 'name' is required for {item_type.value}")
 
         if require_parent:
             try:

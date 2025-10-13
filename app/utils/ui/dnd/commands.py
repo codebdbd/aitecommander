@@ -278,9 +278,13 @@ class MoveCategoriesCommand(BaseCommand):
 
         self.base_row = int(base_row) if isinstance(base_row, int) else 0
 
-        self._old_states: list[dict[str, Any]] = []  # [{id, name, section_id, position, icon_path}]
+        self._old_states: list[
+            dict[str, Any]
+        ] = []  # [{id, name, section_id, position, icon_path}]
 
-        self._new_states: list[dict[str, Any]] = []  # same format but with target section/position
+        self._new_states: list[
+            dict[str, Any]
+        ] = []  # same format but with target section/position
 
         self._prepared = False
 

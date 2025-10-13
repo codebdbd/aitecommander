@@ -72,10 +72,10 @@ class StructureManager:
             # Distribute links by categories
             for ln in links_rows:
                 ld = dict(ln)
-                cat_id = ld.get("category_id")
-                if cat_id is None:
+                cat_id_value = ld.get("category_id")
+                if cat_id_value is None or not isinstance(cat_id_value, int):
                     continue
-                cat_obj = categories_by_id.get(int(cat_id))
+                cat_obj = categories_by_id.get(cat_id_value)
                 if cat_obj is not None:
                     cat_obj["links"].append(ld)
 
@@ -310,7 +310,7 @@ class StructureManager:
                     (
                         int(x["id"]),
                         x.get("name", ""),
-                        int(x.get("sphere_id")),
+                        int(x.get("sphere_id") or 0),
                         x.get("icon_path", ""),
                         int(x.get("position", 0)),
                     )
@@ -326,7 +326,7 @@ class StructureManager:
                 "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
                 (
                     x.get("name", ""),
-                    int(x.get("sphere_id")),
+                    int(x.get("sphere_id") or 0),
                     x.get("icon_path", ""),
                     int(x.get("position", 0)),
                 ),
@@ -364,7 +364,7 @@ class StructureManager:
                     (
                         int(x["id"]),
                         x.get("name", ""),
-                        int(x.get("section_id")),
+                        int(x.get("section_id") or 0),
                         x.get("icon_path", ""),
                         int(x.get("position", 0)),
                     )
@@ -380,7 +380,7 @@ class StructureManager:
                 "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
                 (
                     x.get("name", ""),
-                    int(x.get("section_id")),
+                    int(x.get("section_id") or 0),
                     x.get("icon_path", ""),
                     int(x.get("position", 0)),
                 ),
@@ -432,8 +432,8 @@ class StructureManager:
                 sql,
                 [
                     (
-                        int(link.get("id")),
-                        int(link.get("category_id")),
+                        int(link.get("id") or 0),
+                        int(link.get("category_id") or 0),
                         link.get("name", ""),
                         link.get("url", ""),
                         link.get("type", "web"),
@@ -469,7 +469,7 @@ class StructureManager:
                 self.db.connection.execute(
                     sql,
                     (
-                        int(link.get("category_id")),
+                        int(link.get("category_id") or 0),
                         link.get("name", ""),
                         link.get("url", ""),
                         link.get("type", "web"),

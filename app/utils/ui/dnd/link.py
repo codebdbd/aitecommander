@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from PyQt6.QtCore import Qt
 
 if TYPE_CHECKING:
-    from PyQt6.QtCore import QModelIndex
+
     from app.views.widgets.protocols import LinkTableProtocol
 
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
@@ -27,12 +27,13 @@ logger = logging.getLogger(__name__)
 
 class DragDropHandlerMixin:
     """Mixin for handling Drag & Drop in link table (QTableView).
-    
+
     This mixin expects to be used with a class that implements LinkTableProtocol.
     """
-    
+
     # Type hint for the host class
     if TYPE_CHECKING:
+
         def __init__(self: "LinkTableProtocol") -> None: ...
 
     def get_link_at(self, row: int) -> Optional[dict[str, Any]]:  # type: ignore[misc]
@@ -41,7 +42,9 @@ class DragDropHandlerMixin:
 
     def _extract_source_rows_from_mime(self, event) -> list[int]:  # type: ignore[misc]
         """Extract source rows from MIME data. To be implemented by host class."""
-        raise NotImplementedError("Host class must implement _extract_source_rows_from_mime")
+        raise NotImplementedError(
+            "Host class must implement _extract_source_rows_from_mime"
+        )
 
     def _get_selected_rows(self) -> list[int]:  # type: ignore[misc]
         """Get selected rows. To be implemented by host class."""
@@ -189,7 +192,9 @@ class DragDropHandlerMixin:
             else:
                 target_row = row_count
         except Exception as exc:
-            logger.debug("[DROP] Failed to compute drop target row: %s", exc, exc_info=True)
+            logger.debug(
+                "[DROP] Failed to compute drop target row: %s", exc, exc_info=True
+            )
             model = getattr(self, "model", lambda: None)()
             row_count = model.rowCount() if model is not None else 0
             target_row = row_count

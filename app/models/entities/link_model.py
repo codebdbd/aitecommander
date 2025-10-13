@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from typing import Any, Optional
 
-from ..base.db_base import DatabaseBase, DatabaseError, row_to_dict
+from ..base.db_base import DatabaseBase, DatabaseError, ValidationError, row_to_dict
 from ..types.link_type import LinkType
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="all",
             )
-            return [row_to_dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error(
                 "Error getting links for category %s: %s",
@@ -166,7 +166,11 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
-            return int(row_to_dict(result)["cnt"]) if result else 0
+            if result is None:
+                return 0
+            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
+            cnt_data = row_to_dict(result)
+            return int(cnt_data.get("cnt", 0)) if cnt_data.get("cnt") is not None else 0
         except Exception as e:
             logger.error(
                 "Error counting links for category %s: %s",
@@ -281,7 +285,7 @@ class LinkModel(DatabaseBase):
                 )
 
                 # If record was not updated, insert new with specified ID
-                if cursor.rowcount == 0:
+                if isinstance(cursor, sqlite3.Cursor) and cursor.rowcount == 0:
                     insert_fields = all_possible_fields
                     insert_placeholders = ", ".join(["?"] * len(insert_fields))
                     insert_values = [data[f] for f in insert_fields]
@@ -306,14 +310,14 @@ class LinkModel(DatabaseBase):
                 # Silent duplicate handling on demand:
                 # Duplicate = matching Name (name), Path (url) and Argument (args) within category
                 existing = self.get_link_by_name_url_args(
-                    data["category_id"],
-                    data.get("name", ""),
-                    data.get("url", ""),
-                    data.get("args", ""),
+                    int(data["category_id"] or 0),
+                    str(data.get("name", "")),
+                    str(data.get("url", "")),
+                    str(data.get("args", "")),
                 )
                 if existing:
                     # Silently return existing ID without errors/warnings
-                    return existing.get("id")
+                    return int(existing.get("id", 0))
 
                 columns = [f for f in all_possible_fields if f != "id"]
                 placeholders = ", ".join(["?"] * len(columns))
@@ -324,7 +328,9 @@ class LinkModel(DatabaseBase):
                     tuple(values),
                 )
 
-                new_id = cursor.lastrowid
+                new_id = 0
+                if isinstance(cursor, sqlite3.Cursor):
+                    new_id = cursor.lastrowid or 0
                 logger.info(
                     "Added new link: %s, browser_key=%s",
                     data.get("name", "Untitled"),
@@ -351,6 +357,7 @@ class LinkModel(DatabaseBase):
                 )
                 if row:
                     try:
+                        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
                         rec_id = int(row_to_dict(row).get("id", 0))
                         if rec_id:
                             return rec_id
@@ -384,6 +391,7 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
+                assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
                 return row_to_dict(row)
             return None
         except Exception as e:
@@ -405,25 +413,13 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
+                assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
                 return row_to_dict(row)
             return None
         except Exception as e:
             logger.error("Error finding link by (name,url,args): %s", e, exc_info=True)
             return None
 
-    def get_all_links(self) -> list[dict[str, Any]]:
-        """Returns all links from database as list of dictionaries."""
-        try:
-            rows = self._execute_with_error_handling(
-                "SELECT id, category_id, name, url, type, notes, "
-                "is_favorite, last_used, icon_path, args, browser_key, position "
-                "FROM link ORDER BY position ASC",
-                fetch_method="all",
-            )
-            return [row_to_dict(row) for row in rows]
-        except Exception as e:
-            logger.error("Error getting all links: %s", e, exc_info=True)
-            raise
 
     def delete_link(self, link_id: int):
         """Deletes link by its ID."""
@@ -450,6 +446,7 @@ class LinkModel(DatabaseBase):
             "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
             fetch_method="one",
         )
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return int(row_to_dict(row)["cnt"]) if row else 0
 
     def clear_favorites(self):
@@ -485,7 +482,7 @@ class LinkModel(DatabaseBase):
                 (search_term, search_term, search_term, search_term),
                 fetch_method="all",
             )
-            return [row_to_dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error searching links: %s", e)
             raise
@@ -543,7 +540,7 @@ class LinkModel(DatabaseBase):
                 (limit,),
                 fetch_method="all",
             )
-            return [row_to_dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting recent links: %s", e, exc_info=True)
             raise
@@ -556,7 +553,7 @@ class LinkModel(DatabaseBase):
                 (1,),
                 fetch_method="all",
             )
-            return [row_to_dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting favorite links: %s", e, exc_info=True)
             raise
@@ -567,6 +564,7 @@ class LinkModel(DatabaseBase):
             row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE id = ?", (link_id,), fetch_method="one"
             )
+            assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
             return row_to_dict(row) if row else None
         except Exception as e:
             logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
@@ -637,6 +635,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
+            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
             return int(row_to_dict(result)["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
@@ -705,7 +704,12 @@ class LinkModel(DatabaseBase):
             raw.clear()
             raw.update(data)
 
-            by_cat.setdefault(int(data["category_id"]), []).append(raw)
+            try:
+                category_id = int(data["category_id"])
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("Invalid category_id for link batch item") from exc
+
+            by_cat.setdefault(category_id, []).append(raw)
         return by_cat
 
     def _fetch_existing_maps(
@@ -720,16 +724,21 @@ class LinkModel(DatabaseBase):
         Returns tuple (existing_by_key, existing_by_id, max_pos).
         key = (name, url, args)
         """
-        rows = self._execute_with_error_handling(
+        rows_result = self._execute_with_error_handling(
             "SELECT id, name, url, args, position FROM link WHERE category_id=?",
             (category_id,),
             fetch_method="all",
         )
-
+        rows = self._ensure_row_list(rows_result)
         existing_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
         existing_by_id: dict[int, dict[str, Any]] = {}
         max_pos = -1
-        for rid, rname, rurl, rargs, rpos in rows:
+        for row in rows:
+            rid = row["id"]
+            rname = row["name"]
+            rurl = row["url"]
+            rargs = row["args"]
+            rpos = row["position"]
             existing_by_id[int(rid)] = {
                 "id": int(rid),
                 "name": rname or "",
@@ -953,7 +962,10 @@ class LinkModel(DatabaseBase):
                     fetch_method="one",
                 )
                 if row:
-                    rec["id"] = row[0] if isinstance(row, tuple) else row_to_dict(row)["id"]
+                    assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+                    rec["id"] = (
+                        row[0] if isinstance(row, tuple) else row_to_dict(row)["id"]
+                    )
 
     def _upsert_links_no_tx(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().

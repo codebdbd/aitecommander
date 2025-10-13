@@ -701,7 +701,9 @@ class AsyncOperations(QObject):
 
             def _on_category_deleted(res: tuple) -> None:
                 self._worker_signals.item_deleted.emit(*res)
-                self._worker_signals.operation_finished.emit(self.tr("Category deleted"))
+                self._worker_signals.operation_finished.emit(
+                    self.tr("Category deleted")
+                )
 
             run_db(
                 _delete,
@@ -751,7 +753,9 @@ class AsyncOperations(QObject):
             }
 
         def _on_count_completed(count_data: dict) -> None:
-            self._worker_signals.item_updated.emit("section_count", section_id, count_data)
+            self._worker_signals.item_updated.emit(
+                "section_count", section_id, count_data
+            )
             self._worker_signals.operation_finished.emit(self.tr("Count completed"))
 
         run_db(

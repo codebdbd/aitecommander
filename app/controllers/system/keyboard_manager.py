@@ -7,7 +7,14 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar, cast
 if TYPE_CHECKING:
     pass
 
-from PyQt6.QtCore import QEvent, QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
+from PyQt6.QtCore import (
+    QEvent,
+    QItemSelection,
+    QItemSelectionModel,
+    QObject,
+    Qt,
+    QTimer,
+)
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -93,7 +100,12 @@ class BaseKeyHandler:
         return _common_safe_getattr(obj, attr, default)
 
     def _safe_call(
-        self, obj: Any, method_name: str, *args: Any, default: Optional[T] = None, **kwargs: Any
+        self,
+        obj: Any,
+        method_name: str,
+        *args: Any,
+        default: Optional[T] = None,
+        **kwargs: Any,
     ) -> Any:
         # Delegate to shared common utils
         return _common_safe_call(obj, method_name, *args, default=default, **kwargs)

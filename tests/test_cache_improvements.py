@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import time
-import weakref
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from PyQt6.QtCore import QEvent, QObject
+from PyQt6.QtCore import QEvent
 from PyQt6.QtGui import QIcon, QPixmapCache
 from PyQt6.QtWidgets import QApplication, QToolButton, QWidget
 
@@ -58,7 +56,9 @@ class TestWidthCalculatorWeakrefTracking:
         stats = width_calculator.get_cache_stats()
         assert stats["hits"] == 1
 
-    def test_automatic_cleanup_on_widget_destruction(self, qtbot: QtBot, width_calculator):
+    def test_automatic_cleanup_on_widget_destruction(
+        self, qtbot: QtBot, width_calculator
+    ):
         """Test that cache entries are automatically cleaned when widget is destroyed."""
         panel = QWidget()
         qtbot.addWidget(panel)

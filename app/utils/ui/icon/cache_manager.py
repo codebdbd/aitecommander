@@ -223,7 +223,7 @@ class ThreadSafeIconCache:
 
     def _ensure_fresh_ttls(self) -> None:
         """Updates cached TTLs when getters change in app_config.
-        
+
         This method checks if config getters changed and refreshes TTLs
         WITHOUT holding the cache lock to avoid contention.
         """
@@ -287,9 +287,7 @@ class ThreadSafeIconCache:
                 return None
 
             # Personal TTL takes precedence over global TTL for paths
-            ttl = (
-                entry.ttl_override if entry.ttl_override is not None else ttl_icon
-            )
+            ttl = entry.ttl_override if entry.ttl_override is not None else ttl_icon
             if not entry.is_valid(ttl):
                 self._path_cache.pop(key, None)
                 self._path_lru.remove(key)
@@ -422,11 +420,7 @@ class ThreadSafeIconCache:
                             exc_info=True,
                         )
                     return None
-                ttl = (
-                    entry.ttl_override
-                    if entry.ttl_override is not None
-                    else ttl_icon
-                )
+                ttl = entry.ttl_override if entry.ttl_override is not None else ttl_icon
                 if not entry.is_valid(ttl):
                     self._path_cache.pop(k, None)
                     self._path_lru.remove(k)
@@ -456,7 +450,11 @@ class ThreadSafeIconCache:
                     base_ttl = ttl_negative
                 else:
                     base_ttl = ttl_abs if theme == "__abs__" else ttl_icon
-                ttl = qicon_entry.ttl_override if qicon_entry.ttl_override is not None else base_ttl
+                ttl = (
+                    qicon_entry.ttl_override
+                    if qicon_entry.ttl_override is not None
+                    else base_ttl
+                )
                 if not qicon_entry.is_valid(ttl):
                     self._qicon_cache.pop(k, None)
                     self._qicon_lru.remove(k)
@@ -562,7 +560,9 @@ class ThreadSafeIconCache:
         try:
             QPixmapCache.remove(f"icon:{key}")
         except Exception as exc:  # noqa: BLE001
-            logger.debug("Failed to remove pixmap from QPixmapCache for %s: %s", key, exc)
+            logger.debug(
+                "Failed to remove pixmap from QPixmapCache for %s: %s", key, exc
+            )
 
     def _get_from_qpixmapcache(self, key: str) -> QPixmap | None:
         """Try to retrieve pixmap from Qt's QPixmapCache."""

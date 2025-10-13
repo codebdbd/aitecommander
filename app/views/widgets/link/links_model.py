@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
-from PyQt6 import QtCore
 from PyQt6.QtCore import QAbstractTableModel, QCoreApplication, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
@@ -375,9 +374,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
-            self._links = (
-                remaining[:insert_at] + segment_items + remaining[insert_at:]
-            )
+            self._links = remaining[:insert_at] + segment_items + remaining[insert_at:]
         finally:
             self.layoutChanged.emit()
 

@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from typing import Any, Optional
 
 from ..base.db_base import DatabaseBase, row_to_dict
@@ -18,13 +19,16 @@ class SectionModel(DatabaseBase):
             (sphere_id,),
             fetch_method="all",
         )
-        return [row_to_dict(row) for row in rows] if rows else []
+        if rows is None:
+            return []
+        return [row_to_dict(row) for row in rows if row is not None]
 
     def get_section_by_id(self, section_id: int) -> Optional[dict[str, Any]]:
         """Returns section by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT * FROM section WHERE id=?", (section_id,), fetch_method="one"
         )
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return row_to_dict(row) if row else None
 
     def insert_section(self, data: dict[str, Any]) -> int:
@@ -37,7 +41,9 @@ class SectionModel(DatabaseBase):
             (data["name"], data["sphere_id"], data.get("icon_path", ""), position),
         )
         logger.info("Added new section: %s", data["name"])
-        return cursor.lastrowid
+        if isinstance(cursor, sqlite3.Cursor):
+            return cursor.lastrowid or 0
+        return 0
 
     def update_section(self, section_id: int, data: dict[str, Any]):
         """Updates existing section."""
@@ -52,7 +58,15 @@ class SectionModel(DatabaseBase):
             (section_id,),
             fetch_method="one",
         )
-        sphere_id = int(row_to_dict(row)["sphere_id"]) if row is not None else None
+        if row is None:
+            return
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+        sphere_data = row_to_dict(row)
+        sphere_id = (
+            int(sphere_data["sphere_id"])
+            if sphere_data.get("sphere_id") is not None
+            else None
+        )
 
         self._execute_with_error_handling(
             "DELETE FROM section WHERE id=?", (section_id,)
@@ -103,7 +117,7 @@ class SectionModel(DatabaseBase):
                     section_data["id"],
                 ),
             )
-            if cursor.rowcount == 0:
+            if isinstance(cursor, sqlite3.Cursor) and cursor.rowcount == 0:
                 # No record existed, do insertion with required id
                 self._execute_with_error_handling(
                     "INSERT INTO section (id, name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",

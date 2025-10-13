@@ -5,8 +5,21 @@ configuration object is created only when code first accesses attributes on
 `app_config`.
 """
 
-# Re-export the loader class for direct use when needed (without side effects)
-from .config_loader import AppConfig  # noqa: F401
+# Публичные символы модуля
+from typing import Any, TYPE_CHECKING
+
+__all__ = ["app_config", "get_app_config", "AppConfig"]
+
+if TYPE_CHECKING:  # pragma: no cover - только для подсказок типов
+    from .config_loader import AppConfig as AppConfig
+
+
+def get_app_config() -> "AppConfig":
+    """Получить лениво инициализированный экземпляр `AppConfig`."""
+    instance = app_config._get_instance()
+    if instance is None:
+        raise RuntimeError("AppConfig instance was not initialized")
+    return instance
 
 
 class _LazyAppConfig:
@@ -65,3 +78,16 @@ class _LazyAppConfig:
 
 # Global lazy proxy to the application configuration
 app_config = _LazyAppConfig()
+
+
+def __getattr__(name: str) -> Any:
+    if name == "AppConfig":
+        from .config_loader import AppConfig as _AppConfig
+
+        globals()["AppConfig"] = _AppConfig
+        return _AppConfig
+    raise AttributeError(f"module 'app.config_data' has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))

@@ -11,8 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-if TYPE_CHECKING:
-    from app.views.widgets.protocols import IconProviderProtocol
+from app.views.widgets.protocols import IconProviderProtocol
 
 from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
@@ -35,18 +34,19 @@ def _tr(text: str) -> str:
 
 class LinkButtonMixin:
     """Mixin for creating link buttons with icon resolution.
-    
+
     This mixin expects to be used with a class that implements IconProviderProtocol.
     """
-    
+
     # Type hint for the host class
     if TYPE_CHECKING:
+
         def __init__(self: "IconProviderProtocol") -> None: ...
 
-    def _icon_provider(self) -> "IconProviderProtocol":
+    def _icon_provider(self) -> IconProviderProtocol:
         """Return host typed as ``IconProviderProtocol`` with validation."""
 
-        provider = cast("IconProviderProtocol", self)
+        provider = cast(IconProviderProtocol, self)
         if not hasattr(provider, "_get_default_icon_path"):
             raise NotImplementedError(
                 "Host widget must implement _get_default_icon_path()"
@@ -58,7 +58,7 @@ class LinkButtonMixin:
 
         provider = self._icon_provider()
         return str(provider._get_default_icon_path())
-    
+
     def _find_icon(self, icon_path: str) -> str:
         """Return icon path via the common resolver with a fallback."""
         if not icon_path:

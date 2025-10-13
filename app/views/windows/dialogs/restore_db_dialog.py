@@ -96,6 +96,8 @@ class RestoreDbDialog(BaseDialog):
         self.list_widget.itemDoubleClicked.connect(self.accept)
 
     def _load_backups(self) -> None:
+        if not self.list_widget:
+            return
         self.list_widget.clear()
         self.list_widget.setEnabled(True)
 
@@ -139,6 +141,8 @@ class RestoreDbDialog(BaseDialog):
             logger.info("No backups available")
             self._show_placeholder("placeholder")
         else:
+            if not self.list_widget:
+                return
             self.list_widget.setCurrentRow(0)
 
         self._update_ok_state()
@@ -146,6 +150,8 @@ class RestoreDbDialog(BaseDialog):
     def _add_backup_item(
         self, path: Path, *, kind: str, highlight: bool = False
     ) -> bool:
+        if not self.list_widget:
+            return False
         size_bytes = path.stat().st_size
         if size_bytes == 0:
             return False
@@ -175,6 +181,8 @@ class RestoreDbDialog(BaseDialog):
         item = QListWidgetItem()
         item.setFlags(Qt.ItemFlag.NoItemFlags)
         item.setData(Qt.ItemDataRole.UserRole, BackupMeta(kind=kind, message=message))
+        if not self.list_widget:
+            return
         self.list_widget.addItem(item)
         self.list_widget.setEnabled(False)
         self._update_item_text(item)
@@ -225,6 +233,8 @@ class RestoreDbDialog(BaseDialog):
                 item.setText(_tr("Failed to scan backups"))
 
     def _refresh_items(self) -> None:
+        if not self.list_widget:
+            return
         for index in range(self.list_widget.count()):
             self._update_item_text(self.list_widget.item(index))
 
@@ -242,6 +252,8 @@ class RestoreDbDialog(BaseDialog):
             self._refresh_items()
 
     def get_selected_backup(self) -> Path | None:
+        if not self.list_widget:
+            return None
         if not self.list_widget.isEnabled():
             return None
         item = self.list_widget.currentItem()

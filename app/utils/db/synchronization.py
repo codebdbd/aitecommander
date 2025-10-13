@@ -172,6 +172,7 @@ class LockManager:
         self._locks: dict[str, EnhancedLock] = {}
         self._thread_locks: dict[int, set[EnhancedLock]] = {}
         self._manager_lock = RLock()
+
     def create_lock(
         self, name: str, lock_type: LockType, reentrant: bool = True
     ) -> EnhancedLock:

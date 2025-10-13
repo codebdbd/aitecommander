@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import Any, Callable, Optional, cast
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
@@ -42,7 +43,12 @@ class ThemeController:
         # Dependency injection for testability
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
         self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
-        # Note: reentrancy protection is not used — restoring original behavior
+        # Initialize cache attributes for get_cache_stats method
+        self._cache_lock = threading.Lock()
+        self._qss_cache: dict[str, Any] = {}
+        self._max_cache_size = 100
+        self._common_qss: Optional[str] = None
+        # Note: reentrancy protection is not used — restoring original behaviort_cache_stats method
 
         # Themes are fixed (light/dark)
         self._init_fixed_themes()
@@ -289,7 +295,8 @@ class ThemeController:
     def _refresh_top_panels(self) -> None:
         """Refresh top panels (Favorites/Recent)."""
         try:
-            self.top_panels_controller.refresh_all()
+            if self.top_panels_controller is not None:
+                self.top_panels_controller.refresh_all()
         except Exception as exc:
             logger.warning("Top panels update error: %s", exc, exc_info=True)
 
