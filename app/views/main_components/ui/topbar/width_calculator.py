@@ -25,7 +25,9 @@ class WidthCalculator(QObject):
     DEFAULT_BUTTON_SIZE = 32  # Default button size
     CACHE_MAX_SIZE = 100  # Maximum cache size
 
-    def __init__(self, button_size: int = DEFAULT_BUTTON_SIZE, parent: QObject | None = None):
+    def __init__(
+        self, button_size: int = DEFAULT_BUTTON_SIZE, parent: QObject | None = None
+    ):
         super().__init__(parent)
         self._button_size = button_size
         # Use weakref-based cache: key is (weakref, count), value is width
@@ -90,7 +92,8 @@ class WidthCalculator(QObject):
 
         # Find keys where the weakref points to this panel
         keys_to_remove = [
-            k for k in self._panel_width_cache
+            k
+            for k in self._panel_width_cache
             if isinstance(k[0], weakref.ref) and k[0]() is panel
         ]
 
@@ -216,13 +219,14 @@ class WidthCalculator(QObject):
         def cleanup():
             """Remove all cache entries for this panel."""
             keys_to_remove = [
-                k for k in list(self._panel_width_cache.keys())
-                if k[0] is panel_ref
+                k for k in list(self._panel_width_cache.keys()) if k[0] is panel_ref
             ]
             for key in keys_to_remove:
                 self._panel_width_cache.pop(key, None)
             self._finalizers.pop(panel_id, None)
-            logger.debug("Auto-cleaned %d cache entries for destroyed panel", len(keys_to_remove))
+            logger.debug(
+                "Auto-cleaned %d cache entries for destroyed panel", len(keys_to_remove)
+            )
 
         # Use weakref.finalize for automatic cleanup
         finalizer = weakref.finalize(panel, cleanup)
@@ -298,7 +302,8 @@ class WidthCalculator(QObject):
     def _clean_stale_entries(self) -> None:
         """Remove cache entries where weakref is dead (widget destroyed)."""
         keys_to_remove = [
-            k for k in self._panel_width_cache
+            k
+            for k in self._panel_width_cache
             if isinstance(k[0], weakref.ref) and k[0]() is None
         ]
         for key in keys_to_remove:

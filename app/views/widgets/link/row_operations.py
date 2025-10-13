@@ -4,21 +4,21 @@ from typing import TYPE_CHECKING, Any, Collection, Mapping, cast
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
 
-if TYPE_CHECKING:
-    from app.views.widgets.protocols import LinkTableWidgetProtocol
+from app.views.widgets.protocols import LinkTableWidgetProtocol
 
 logger = logging.getLogger(__name__)
 
 
 class RowOperationsMixin:
     """Mixin with row-level operations for the links table.
-    
+
     This mixin expects to be used with a class that implements LinkTableProtocol.
     Provides methods for updating, adding, and removing individual rows.
     """
-    
+
     if TYPE_CHECKING:
         _current_links: dict[int, dict[str, Any]]
+
         def _links_equal(
             self,
             link1: dict[str, Any],
@@ -26,10 +26,10 @@ class RowOperationsMixin:
             mode: str,
         ) -> bool: ...
 
-    def _link_table(self) -> "LinkTableWidgetProtocol":
+    def _link_table(self) -> LinkTableWidgetProtocol:
         """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""
 
-        return cast("LinkTableWidgetProtocol", self)
+        return cast(LinkTableWidgetProtocol, self)
 
     def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Helper access to current links cache."""

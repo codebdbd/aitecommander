@@ -241,7 +241,9 @@ class TaskScheduler(QObject):
         # Clear executed operations
         operations.clear()
 
-    def cancel_operation(self, operation_id: str, task_type: Optional[TaskType] = None) -> bool:
+    def cancel_operation(
+        self, operation_id: str, task_type: Optional[TaskType] = None
+    ) -> bool:
         """
         Cancels scheduled operation.
 
@@ -361,12 +363,16 @@ def get_task_scheduler() -> TaskScheduler:
     return _task_scheduler_instance
 
 
-def schedule_focus(widget_focus_func: Callable, widget_name: Optional[str] = None) -> str:
+def schedule_focus(
+    widget_focus_func: Callable, widget_name: Optional[str] = None
+) -> str:
     """Global function for scheduling focus setting."""
     return get_task_scheduler().schedule_focus_operation(widget_focus_func, widget_name)
 
 
-def schedule_selection_restore(restore_func: Callable, item_id: Optional[Any] = None) -> str:
+def schedule_selection_restore(
+    restore_func: Callable, item_id: Optional[Any] = None
+) -> str:
     """Global function for scheduling selection restoration."""
     return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
 

@@ -3,7 +3,6 @@
 import logging
 
 try:
-
     BS_PARSER = "lxml"
 except Exception:
     BS_PARSER = "html.parser"

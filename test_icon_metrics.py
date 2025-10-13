@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """Test script to verify icon metrics are working correctly."""
 
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
 
 try:
     # Import PyQt6 components for GUI thread testing
+    from PyQt6.QtCore import QTimer
     from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtCore import QTimer, QThread
 
     def test_in_gui_thread():
         try:
-            from app.utils.ui.icon.path_service import get_icon_metrics_stats
             from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+            from app.utils.ui.icon.path_service import get_icon_metrics_stats
 
             print("Testing icon metrics in GUI thread...")
 
@@ -33,12 +34,16 @@ try:
                 print(f"Final metrics: {final_metrics}")
 
                 # Check if metrics were recorded properly
-                if final_metrics.get('disk_loads', 0) > initial_metrics.get('disk_loads', 0):
+                if final_metrics.get("disk_loads", 0) > initial_metrics.get(
+                    "disk_loads", 0
+                ):
                     print("✅ Disk load was recorded in metrics")
                 else:
                     print("❌ Disk load was NOT recorded in metrics")
 
-                if final_metrics.get('load_count', 0) > initial_metrics.get('load_count', 0):
+                if final_metrics.get("load_count", 0) > initial_metrics.get(
+                    "load_count", 0
+                ):
                     print("✅ Load timing was recorded in metrics")
                 else:
                     print("❌ Load timing was NOT recorded in metrics")
@@ -49,6 +54,7 @@ try:
         except Exception as e:
             print(f"Error during test: {e}")
             import traceback
+
             traceback.print_exc()
         finally:
             # Exit the application
@@ -56,7 +62,11 @@ try:
 
     if __name__ == "__main__":
         # Create QApplication for GUI thread testing
-        app = QApplication(sys.argv) if not QApplication.instance() else QApplication.instance()
+        app = (
+            QApplication(sys.argv)
+            if not QApplication.instance()
+            else QApplication.instance()
+        )
 
         # Use QTimer to run the test in the GUI thread
         QTimer.singleShot(100, test_in_gui_thread)
@@ -67,4 +77,5 @@ try:
 except Exception as e:
     print(f"Error setting up GUI test: {e}")
     import traceback
+
     traceback.print_exc()

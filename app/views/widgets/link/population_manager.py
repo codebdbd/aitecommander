@@ -7,28 +7,26 @@ from typing import TYPE_CHECKING, Any, cast
 from PyQt6.QtCore import Qt
 
 from app.utils.ui.updates import suspend_updates
-
-if TYPE_CHECKING:
-    from app.views.widgets.protocols import LinkTableWidgetProtocol
+from app.views.widgets.protocols import LinkTableWidgetProtocol
 
 
 class PopulationManagerMixin:
     """Mixin that populates and refreshes the links table.
-    
+
     This mixin expects to be used with a class that implements LinkTableProtocol.
     Typically used with QTableView-based classes for link management.
     """
-    
+
     # Module-level logger
     logger = logging.getLogger(__name__)
-    
+
     if TYPE_CHECKING:
         _current_mode: Any
 
-    def _link_table(self) -> "LinkTableWidgetProtocol":
+    def _link_table(self) -> LinkTableWidgetProtocol:
         """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""
 
-        return cast("LinkTableWidgetProtocol", self)
+        return cast(LinkTableWidgetProtocol, self)
 
     def _capture_ui_state(self):
         """Capture current UI state (selection, scroll, sorting)."""
@@ -61,9 +59,7 @@ class PopulationManagerMixin:
         try:
             table.blockSignals(True)
         except Exception:
-            self.logger.debug(
-                "populate: failed to block table signals", exc_info=True
-            )
+            self.logger.debug("populate: failed to block table signals", exc_info=True)
 
         header = table.horizontalHeader()
         if header is None:
@@ -72,9 +68,7 @@ class PopulationManagerMixin:
         try:
             header.blockSignals(True)
         except Exception:
-            self.logger.debug(
-                "populate: failed to block header signals", exc_info=True
-            )
+            self.logger.debug("populate: failed to block header signals", exc_info=True)
 
     def _unblock_signals(self) -> None:
         """Unblock table and header signals."""

@@ -21,8 +21,7 @@ class CategoryModel(DatabaseBase):
     def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Returns list of categories for specified section in dict format."""
         rows = self._execute_with_error_handling(
-            "SELECT id, name, section_id, position, icon_path FROM category "
-            "WHERE section_id=? ORDER BY position",
+            "SELECT id, name, section_id, position, icon_path FROM category WHERE section_id = ?",
             (section_id,),
             fetch_method="all",
         )
@@ -42,7 +41,10 @@ class CategoryModel(DatabaseBase):
             WHERE section_id IN ({placeholders}) 
             ORDER BY section_id, position
         """
-        rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
+        rows_raw = self._execute_with_error_handling(
+            query, tuple(section_ids), fetch_method="all"
+        )
+        rows = self._ensure_row_list(rows_raw)
         return [row_to_dict(row) for row in rows] if rows else []
 
     def get_category_by_id(self, category_id: int) -> Optional[dict[str, Any]]:
@@ -119,7 +121,8 @@ class CategoryModel(DatabaseBase):
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
         logger.info("Добавлена новая категория: %s", data["name"])
-        return cursor.lastrowid
+        lastrowid = getattr(cursor, "lastrowid", None)
+        return int(lastrowid) if lastrowid is not None else None
 
     def _validate_and_prepare_items(
         self, items: list[dict[str, Any]]
@@ -178,10 +181,10 @@ class CategoryModel(DatabaseBase):
             f"FROM category WHERE section_id IN ({placeholders}) "
             f"GROUP BY section_id"
         )
-        rows = self._execute_with_error_handling(
+        rows_raw = self._execute_with_error_handling(
             query, tuple(section_ids), fetch_method="all"
         )
-        for row in rows or []:
+        for row in self._ensure_row_list(rows_raw):
             row_dict = row_to_dict(row)
             max_pos_map[row_dict["section_id"]] = row_dict["max_pos"]
         return max_pos_map
@@ -197,10 +200,10 @@ class CategoryModel(DatabaseBase):
             f"SELECT section_id, LOWER(name) AS lname FROM category "
             f"WHERE section_id IN ({placeholders})"
         )
-        rows = self._execute_with_error_handling(
+        rows_raw = self._execute_with_error_handling(
             query_names, tuple(section_ids), fetch_method="all"
         )
-        for r in rows or []:
+        for r in self._ensure_row_list(rows_raw):
             sid = int(r["section_id"]) if r["section_id"] is not None else None
             if sid is None:
                 continue
@@ -282,10 +285,11 @@ class CategoryModel(DatabaseBase):
             "FROM category WHERE (section_id, name) IN (" + placeholders + ") "
             "ORDER BY section_id, position"
         )
-        rows = self._execute_with_error_handling(
+        rows_raw = self._execute_with_error_handling(
             query, tuple(flat_params), fetch_method="all"
         )
-        return [dict(r) for r in (rows or [])]
+        rows = self._ensure_row_list(rows_raw)
+        return [dict(r) for r in rows]
 
     def _build_category_index(
         self, rows: list[dict[str, Any]]
@@ -442,12 +446,16 @@ class CategoryModel(DatabaseBase):
         for i in range(0, len(unique_ids), CHUNK):
             chunk = unique_ids[i : i + CHUNK]
             placeholders = ",".join(["?"] * len(chunk))
-            rows = self._execute_with_error_handling(
+            rows_raw = self._execute_with_error_handling(
                 f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
                 tuple(chunk),
                 fetch_method="all",
             )
-            affected_sections.extend(int(r["section_id"]) for r in (rows or []))
+            for row in self._ensure_row_list(rows_raw):
+                section_id = row["section_id"]
+                if section_id is None:
+                    continue
+                affected_sections.append(int(section_id))
 
         deleted_categories = 0
         with self.transaction():
@@ -482,11 +490,10 @@ class CategoryModel(DatabaseBase):
                     f"DELETE FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
                 )
-                try:
-                    # Prefer to use actual rowcount if available
-                    rc = cursor.rowcount
+                rc = getattr(cursor, "rowcount", None)
+                if rc is not None:
                     deleted_categories += int(rc)
-                except AttributeError:
+                else:
                     # Log missing rowcount and use pre-count
                     logger.warning(
                         "delete_categories_bulk: cursor.rowcount not available; using pre-count (%s) for chunk %s",
@@ -548,16 +555,17 @@ class CategoryModel(DatabaseBase):
 
         # Get category data (id, name, section_id, position), filter existing
         placeholders = ",".join(["?"] * len(unique_ids))
-        rows = self._execute_with_error_handling(
+        rows_raw = self._execute_with_error_handling(
             f"SELECT id, name, section_id, position FROM category WHERE id IN ({placeholders})",
             tuple(unique_ids),
             fetch_method="all",
         )
+        rows = self._ensure_row_list(rows_raw)
         if not rows:
             return []
 
         # Dictionary by id
-        data_by_id: dict[int, dict] = {int(r["id"]): dict(r) for r in rows}
+        data_by_id: dict[int, dict[str, Any]] = {int(r["id"]): dict(r) for r in rows}
 
         # Preserve user-defined order (sequence unique_ids)
         ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
@@ -569,7 +577,8 @@ class CategoryModel(DatabaseBase):
             fetch_method="all",
         )
         existing_names = {
-            str(r["name"]).strip().lower() for r in (existing_names_rows or [])
+            str(r["name"]).strip().lower()
+            for r in self._ensure_row_list(existing_names_rows)
         }
 
         # Filter by name duplicates (in target section)
@@ -637,12 +646,12 @@ class CategoryModel(DatabaseBase):
         Executed without own begin/commit, assuming external transaction context.
         """
         # Get category ids in required order
-        rows = self._execute_with_error_handling(
+        rows_raw = self._execute_with_error_handling(
             "SELECT id FROM category WHERE section_id = ? ORDER BY position, id",
             (section_id,),
             fetch_method="all",
         )
-        ids_in_order = [int(r["id"]) for r in (rows or [])]
+        ids_in_order = [int(r["id"]) for r in self._ensure_row_list(rows_raw)]
         if not ids_in_order:
             return
         # Prepare batch of position updates 0..n-1

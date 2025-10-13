@@ -582,7 +582,7 @@ def _append_og_image(
 
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
-            if meta and hasattr(meta, 'get'):
+            if meta and hasattr(meta, "get"):
                 content = meta.get("content")
                 if content and isinstance(content, str):
                     og_content = content or ""

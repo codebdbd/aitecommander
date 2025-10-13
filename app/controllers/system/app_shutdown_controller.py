@@ -10,7 +10,6 @@ from enum import Enum
 from typing import Any, Callable, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QThreadPool
-from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
 from app.config_data import app_config
@@ -133,7 +132,7 @@ class AppShutdownController:
         if self._shutdown_lock is None:
             logger.error("Shutdown lock is None, cannot proceed safely")
             return
-        
+
         with self._shutdown_lock:
             if self.shutdown_in_progress:
                 logger.warning(

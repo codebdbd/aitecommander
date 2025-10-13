@@ -26,7 +26,6 @@ from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 from ..cache_manager import (
     get_icon,
     record_actual_miss,
-    record_disk_load,
     record_not_found,
     set_icon,
 )
@@ -477,7 +476,7 @@ def _create_png_icon_fast(file_path: str, target_size: int = 24) -> QIcon:
             icon = QIcon(str(path_obj))
 
             # Check if icon was created successfully and has valid sizes
-            if not icon.isNull() and not icon.availableSizes().isEmpty():
+            if not icon.isNull() and len(icon.availableSizes()) > 0:
                 return icon
 
         # Fall back to simple creation
@@ -523,8 +522,13 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         path_obj = Path(icon_path)
 
         # Use fast loading for PNG files with common sizes
-        if (path_obj.suffix.lower() in ('.png', '.jpg', '.jpeg', '.bmp', '.gif') and
-            app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128)):
+        if path_obj.suffix.lower() in (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".bmp",
+            ".gif",
+        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
         else:
             icon = _create_icon_from_file_path(icon_path)
@@ -580,9 +584,16 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
             path_obj = Path(icon_path)
 
             # Use fast loading for PNG files with common sizes
-            if (path_obj.suffix.lower() in ('.png', '.jpg', '.jpeg', '.bmp', '.gif') and
-                app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128)):
-                return _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
+            if path_obj.suffix.lower() in (
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".bmp",
+                ".gif",
+            ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
+                return _create_png_icon_fast(
+                    icon_path, app_config.get_default_icon_size()
+                )
             else:
                 return QIcon(icon_path)
         else:
@@ -635,8 +646,13 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
         path_obj = Path(icon_path)
 
         # Use fast loading for PNG files with common sizes
-        if (path_obj.suffix.lower() in ('.png', '.jpg', '.jpeg', '.bmp', '.gif') and
-            app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128)):
+        if path_obj.suffix.lower() in (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".bmp",
+            ".gif",
+        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
         else:
             icon = QIcon(icon_path)

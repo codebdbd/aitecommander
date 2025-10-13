@@ -3,7 +3,7 @@ from __future__ import annotations
 import html as _html
 import json
 import re
-from typing import Any, TypedDict
+from typing import TypedDict
 from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
@@ -49,6 +49,7 @@ _GENERAL_SUFFIX_SEPARATORS = [
 ]
 
 _HTML_TITLE_SEPARATORS = [" | ", " - ", " :: ", " • ", " — ", " – ", " : "]
+
 
 class SoupIndex(TypedDict, total=False):
     title_tag: Tag | None
@@ -97,7 +98,9 @@ def _build_soup_index(soup: BeautifulSoup) -> SoupIndex:
         "h1_first": None,
         "meta_by_name": meta_by_name,
         "meta_by_prop": meta_by_prop,
-        "scripts_jsonld": [script for script in scripts_jsonld if isinstance(script, Tag)],
+        "scripts_jsonld": [
+            script for script in scripts_jsonld if isinstance(script, Tag)
+        ],
     }
     try:
         first_h1 = soup.find("h1")
@@ -480,13 +483,17 @@ def _meta_content(
             except Exception:
                 tag = None
         if tag is None:
-            tag = soup.find("meta", attrs={attr: value})
+            found_tag = soup.find("meta", attrs={attr: value})
+            # Ensure we only assign Tag objects, not NavigableString or other types
+            tag = found_tag if isinstance(found_tag, Tag) else None
         if isinstance(tag, Tag):
             raw_content = tag.get("content")
             if isinstance(raw_content, str):
                 content = raw_content.strip()
             elif isinstance(raw_content, list):
-                content = " ".join(str(part).strip() for part in raw_content if part).strip()
+                content = " ".join(
+                    str(part).strip() for part in raw_content if part
+                ).strip()
             else:
                 content = ""
             if content:

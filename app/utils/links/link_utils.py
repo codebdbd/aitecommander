@@ -496,7 +496,9 @@ class LinkOpener:
     """Main class for opening various types of links"""
 
     def __init__(
-        self, powershell_path: Optional[str] = None, logger_obj: Optional[logging.Logger] = None
+        self,
+        powershell_path: Optional[str] = None,
+        logger_obj: Optional[logging.Logger] = None,
     ):
         # Use module logger by default with DI support
         self.logger = (
@@ -592,7 +594,9 @@ def create_link_opener(powershell_path: Optional[str] = None) -> LinkOpener:
     return LinkOpener(powershell_path)
 
 
-def open_link_from_dict(link_dict: dict[str, Any], powershell_path: Optional[str] = None) -> None:
+def open_link_from_dict(
+    link_dict: dict[str, Any], powershell_path: Optional[str] = None
+) -> None:
     """
     Opens link from dictionary data.
 

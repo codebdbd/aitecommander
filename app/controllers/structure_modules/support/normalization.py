@@ -124,7 +124,9 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> dict[str
     return {}
 
 
-def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> list[dict[str, Any]]:
+def normalize_rows(
+    rows: Any, logger: Optional[logging.Logger] = None
+) -> list[dict[str, Any]]:
     """Normalize list of DB rows to list of dictionaries.
 
     Args:
@@ -159,12 +161,12 @@ def validate_required_keys(
 ) -> bool:
     """Validate normalized data.
 
-    Args:
-        data: Normalized data (dictionary or list of dictionaries)
-{{ ... }}
+        Args:
+            data: Normalized data (dictionary or list of dictionaries)
+    {{ ... }}
 
-    Returns:
-        bool: True if data is valid, False otherwise
+        Returns:
+            bool: True if data is valid, False otherwise
     """
     if required_keys is None:
         required_keys = []
@@ -186,7 +188,7 @@ def validate_required_keys(
 __all__ = [
     "normalize_row",
     "normalize_rows",
-    "validate_normalized_data",
+    "validate_required_keys",
     "SupportedRowType",
     "RowLike",
 ]

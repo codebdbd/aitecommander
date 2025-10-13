@@ -85,10 +85,12 @@ class ImportBrowserDialog(BaseDialog):
 
         # Configure button texts
         ok_btn = button_box.button(QDialogButtonBox.StandardButton.Ok)
-        ok_btn.setText(self.tr("Import"))
+        if ok_btn:
+            ok_btn.setText(self.tr("Import"))
 
         cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        cancel_btn.setText(self.tr("Cancel"))
+        if cancel_btn:
+            cancel_btn.setText(self.tr("Cancel"))
 
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -102,23 +104,31 @@ class ImportBrowserDialog(BaseDialog):
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update all user-facing texts on language change."""
         self.setWindowTitle(self.tr("Import from browser"))
-        if self._header_label is not None:
+        if self._header_label:
             self._header_label.setText(self.tr("Select where to import links:"))
         # Update form labels via labelForField
         # (FormLayout auto-creates QLabel instances for string labels)
         try:
             # Find the form layout by scanning the top-level layout
+            if not self.layout():
+                return
             for i in range(self.layout().count()):
                 item = self.layout().itemAt(i)
+                if not item:
+                    continue
                 form = isinstance(item.layout(), QFormLayout) and item.layout() or None
-                if form:
-                    sphere_label = form.labelForField(self.sphere_cb)
-                    if sphere_label is not None:
-                        sphere_label.setText(self.tr("Sphere:"))
-                    section_label = form.labelForField(self.section_cb)
-                    if section_label is not None:
-                        section_label.setText(self.tr("Section:"))
-                    break
+                if not form:
+                    continue
+                sphere_label = (
+                    form.labelForField(self.sphere_cb) if self.sphere_cb else None
+                )
+                if sphere_label is not None:
+                    sphere_label.setText(self.tr("Sphere:"))
+                section_label = (
+                    form.labelForField(self.section_cb) if self.section_cb else None
+                )
+                if section_label is not None:
+                    section_label.setText(self.tr("Section:"))
         except Exception:
             pass
         if self._button_box is not None:

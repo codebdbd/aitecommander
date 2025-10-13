@@ -21,7 +21,9 @@ class SphereModel(DatabaseBase):
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
             fetch_method="all",
         )
-        return [row_to_dict(row) for row in rows] if rows else []
+        if rows is None:
+            return []
+        return [row_to_dict(row) for row in rows if row is not None]
 
     def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Returns sphere by its ID in dict format."""
@@ -30,6 +32,7 @@ class SphereModel(DatabaseBase):
             (sphere_id,),
             fetch_method="one",
         )
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return row_to_dict(row) if row else None
 
     def insert_sphere(self, data: dict[str, Any]) -> int:
@@ -42,7 +45,9 @@ class SphereModel(DatabaseBase):
             (data["name"], data.get("icon_path", ""), position),
         )
         logger.info("Added new sphere: %s", data["name"])
-        return cursor.lastrowid
+        if isinstance(cursor, sqlite3.Cursor):
+            return cursor.lastrowid or 0
+        return 0
 
     def update_sphere(self, sphere_id: int, data: dict[str, Any]):
         """Updates existing sphere."""
@@ -62,7 +67,11 @@ class SphereModel(DatabaseBase):
         row = self._execute_with_error_handling(
             "SELECT name FROM sphere WHERE id=?", (sphere_id,), fetch_method="one"
         )
-        return row_to_dict(row)["name"] if row else ""
+        if row is None:
+            return ""
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+        name = row_to_dict(row).get("name", "")
+        return name if name is not None else ""
 
     def initialize_default_spheres(self):
         """Initializes initial data for sphere table if it's empty.

@@ -523,6 +523,7 @@ def get_current_theme() -> str:
     # Slow path: try to get from GUI without holding lock
     try:
         from typing import cast
+
         from PyQt6.QtWidgets import QApplication  # local import
 
         app_instance = QApplication.instance()

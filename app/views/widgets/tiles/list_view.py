@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-
 from typing import cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
-from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView, QWidget
+from PyQt6.QtWidgets import QApplication, QListView, QWidget
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser

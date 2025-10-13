@@ -75,7 +75,9 @@ class _LegacyWeakMethod:
     def __init__(self, method: Callable):
         try:
             self._func = method.__func__  # type: ignore[attr-defined]
-            self._self_ref: weakref.ReferenceType[Any] | None = weakref.ref(method.__self__)  # type: ignore[attr-defined]
+            self._self_ref: weakref.ReferenceType[Any] | None = weakref.ref(
+                method.__self__  # type: ignore[attr-defined]
+            )  # type: ignore[attr-defined]
         except AttributeError:
             # Plain function (not a bound method)
             self._func = method
