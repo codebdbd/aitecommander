@@ -17,6 +17,21 @@ from ..models.types import (
 )
 from .base import BaseOperations
 
+try:
+    from .normalization import validate_normalized_data
+except ImportError:  # pragma: no cover - fallback for typing/runtime
+
+    def validate_normalized_data(
+        items: list[dict[str, Any]], *, required_keys: list[str] | None = None
+    ) -> bool:
+        required_keys = required_keys or []
+        for item in items:
+            if not isinstance(item, dict):
+                return False
+            if any(key not in item for key in required_keys):
+                return False
+        return True
+
 
 class CategoryOperations(BaseOperations):
     """Operations handler for categories."""

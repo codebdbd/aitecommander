@@ -1,13 +1,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 
 # Tree node types
 NodeType = str  # "section" | "category" | "root"
+
+
+if TYPE_CHECKING:  # pragma: no cover - imported for typing only
+    from PyQt6.QtCore import QMimeData
+
+
+def _coerce_optional_int(value: Any) -> int | None:
+    """Return ``int(value)`` when the input can be safely coerced, else ``None``."""
+
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, str)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 @dataclass(eq=False)
@@ -218,7 +235,7 @@ class StructureTreeModel(QAbstractItemModel):
         for i, s in enumerate(sections):
             sec_node = TreeNode(
                 type="section",
-                id=int(s.get("id")) if s.get("id") is not None else None,
+                id=_coerce_optional_int(s.get("id")),
                 name=str(s.get("name", "")),
                 parent=self._root,
                 icon=(s.get("icon") if isinstance(s.get("icon"), QIcon) else None),
@@ -245,7 +262,7 @@ class StructureTreeModel(QAbstractItemModel):
         for i, c in enumerate(categories):
             cat_node = TreeNode(
                 type="category",
-                id=int(c.get("id")) if c.get("id") is not None else None,
+                id=_coerce_optional_int(c.get("id")),
                 name=str(c.get("name", "")),
                 parent=sec_node,
                 icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
@@ -369,7 +386,7 @@ class StructureTreeModel(QAbstractItemModel):
         for s in sections or []:
             sec_node = TreeNode(
                 type="section",
-                id=int(s.get("id")) if s.get("id") is not None else None,
+                id=_coerce_optional_int(s.get("id")),
                 name=str(s.get("name", "")),
                 parent=self._root,
                 icon=s.get("icon"),
@@ -382,7 +399,7 @@ class StructureTreeModel(QAbstractItemModel):
             for c in s.get("categories") or []:
                 cat_node = TreeNode(
                     type="category",
-                    id=int(c.get("id")) if c.get("id") is not None else None,
+                    id=_coerce_optional_int(c.get("id")),
                     name=str(c.get("name", "")),
                     parent=sec_node,
                     icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),

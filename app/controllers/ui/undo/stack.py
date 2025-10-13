@@ -8,6 +8,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from PyQt6.QtCore import QObject
 from PyQt6.QtGui import QUndoStack
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class UndoManager:
     and a context manager macro(name).
     """
 
-    def __init__(self, parent: object | None = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         self.stack = QUndoStack(parent)
 
     def push(self, cmd) -> None:

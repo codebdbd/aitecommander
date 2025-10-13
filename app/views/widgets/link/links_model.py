@@ -4,13 +4,8 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
-from PyQt6.QtCore import (
-    QAbstractTableModel,
-    QCoreApplication,
-    QModelIndex,
-    Qt,
-    QVariant,
-)
+from PyQt6 import QtCore
+from PyQt6.QtCore import QAbstractTableModel, QCoreApplication, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
@@ -140,13 +135,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def data(
         self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
-    ) -> str | int | QIcon | dict | None:  # type: ignore[override]
+    ) -> object:  # type: ignore[override]
         if not index.isValid():
-            return QVariant()
+            return None
         row = index.row()
         col = index.column()
         if not (0 <= row < len(self._links)):
-            return QVariant()
+            return None
 
         link = self._links[row]
 
@@ -155,21 +150,21 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         if role == Qt.ItemDataRole.DisplayRole:
             result = self._get_display_data(col, link)
-            return result if result is not None else QVariant()
+            return result if result is not None else None
 
         if role == Qt.ItemDataRole.DecorationRole:
             result = self._get_decoration_data(col, link)
-            return result if result is not None else QVariant()
+            return result if result is not None else None
 
         if role == Qt.ItemDataRole.ToolTipRole:
             result = self._get_tooltip_data(col, link)
-            return result if result is not None else QVariant()
+            return result if result is not None else None
 
         if role == Qt.ItemDataRole.TextAlignmentRole:
             result = self._get_alignment_data(col)
-            return result if result is not None else QVariant()
+            return result if result is not None else None
 
-        return QVariant()
+        return None
 
     def headerData(
         self,
@@ -185,7 +180,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlags:  # type: ignore[override]
+    def flags(self, index: QModelIndex) -> QtCore.Qt.ItemFlags:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # By default the table is not editable via delegates
@@ -254,11 +249,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         return False
 
-    def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
+    def supportedDropActions(self) -> QtCore.Qt.DropActions:  # type: ignore[override]
         # Support moving rows only
         return Qt.DropAction.MoveAction
 
-    def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
+    def supportedDragActions(self) -> QtCore.Qt.DropActions:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
     # --- Data mutations ---
@@ -376,11 +371,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         remaining: list[dict[str, Any]] = [
             item for i, item in enumerate(self._links) if i not in src_set
         ]
-        segment: list[dict[str, Any]] = [self._links[i] for i in src]
+        segment_items: list[dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
-            self._links = remaining[:insert_at] + segment + remaining[insert_at:]
+            self._links = (
+                remaining[:insert_at] + segment_items + remaining[insert_at:]
+            )
         finally:
             self.layoutChanged.emit()
 
@@ -437,10 +434,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return str(link.get("notes", "")).casefold()
             # Unknown column — sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
-            try:
-                return int(lid)
-            except Exception:
-                return self._links.index(link)
+            if isinstance(lid, (int, str)):
+                try:
+                    return int(lid)
+                except ValueError:
+                    pass
+            return self._links.index(link)
 
         reverse = order == Qt.SortOrder.DescendingOrder
         self.layoutAboutToBeChanged.emit()

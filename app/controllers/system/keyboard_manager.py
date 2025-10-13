@@ -2,12 +2,12 @@
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar, cast
 
 if TYPE_CHECKING:
     pass
 
-from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
+from PyQt6.QtCore import QEvent, QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -64,8 +64,8 @@ class BaseKeyHandler:
         class_name_to_check = WIDGET_CLASSES[widget_type]
         object_name_to_check = WIDGET_OBJECT_NAMES.get(widget_type)
 
-        current = widget
-        while current:
+        current: Optional[QWidget] = widget
+        while current is not None:
             class_name = current.__class__.__name__
             if class_name_to_check in class_name:
                 return True
@@ -75,7 +75,8 @@ class BaseKeyHandler:
                 and object_name_to_check in current.objectName().lower()
             ):
                 return True
-            current = current.parent()
+            parent_obj = current.parent()
+            current = parent_obj if isinstance(parent_obj, QWidget) else None
         return False
 
     def _is_tree_focused(self, widget: Optional[QWidget]) -> bool:
@@ -443,7 +444,8 @@ class KeyboardManager(QObject):
 
     def __init__(self, main_window: QWidget):
         super().__init__(parent=main_window)  # ✅ Fixed: added parent
-        self.main_window: QWidget = main_window
+        self._parent_widget: QWidget = main_window
+        self.main_window: MainWindowProtocol = cast(MainWindowProtocol, main_window)
         self.shortcuts: list = []
 
         self.global_handler = GlobalKeyHandler(main_window)
@@ -456,7 +458,7 @@ class KeyboardManager(QObject):
         self.main_window.installEventFilter(self)
         self._setup_shortcuts()
 
-    def _setup_shortcuts(self):
+    def _setup_shortcuts(self) -> None:
         """Setup QShortcut for key combinations."""
 
         global_shortcuts = [
@@ -469,7 +471,7 @@ class KeyboardManager(QObject):
         ]
 
         for key_seq, handler in global_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
+            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
             try:
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             except Exception as e:
@@ -499,7 +501,7 @@ class KeyboardManager(QObject):
 
         # Register on main window so it works even if table is not yet created
         for key_seq, handler in table_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
+            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
             # Scope: on widget and its children (table inside window)
             try:
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -512,7 +514,7 @@ class KeyboardManager(QObject):
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         """Event filter for intercepting keys."""
         if event.type() == event.Type.KeyPress:
             if self._is_enter_duplicate(event):

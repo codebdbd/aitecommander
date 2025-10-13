@@ -2,9 +2,17 @@ from __future__ import annotations
 
 import logging
 
+from typing import Final
+
 from PyQt6.QtCore import QModelIndex, QObject
 
 from app.utils.ui.qt.roles import get_tree_tuple
+from app.views.widgets.protocols import (
+    SelectionModelProtocol,
+    StructureActionsProtocol,
+    StructureTreeModelProtocol,
+    StructureTreeViewProtocol,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,32 +20,43 @@ logger = logging.getLogger(__name__)
 class SelectionWorkflowService(QObject):
     """Encapsulates complex selection workflows for the structure tree."""
 
-    def __init__(self, *, handler, tree, actions) -> None:
+    def __init__(
+        self,
+        *,
+        handler: QObject | None,
+        tree: StructureTreeViewProtocol,
+        actions: StructureActionsProtocol,
+    ) -> None:
         parent = handler if isinstance(handler, QObject) else None
         super().__init__(parent=parent)
-        self._handler = handler
-        self._tree = tree
-        self._actions = actions
+        self._tree: Final[StructureTreeViewProtocol] = tree
+        self._actions: Final[StructureActionsProtocol] = actions
 
     # ------------------------------------------------------------------
     # Helper access methods
-    def _get_model_and_selection(self) -> tuple[object | None, object | None]:
+    def _get_model_and_selection(
+        self,
+    ) -> tuple[StructureTreeModelProtocol | None, SelectionModelProtocol | None]:
         try:
             model = self._tree.model()
             selection_model = self._tree.selectionModel()
-            return model, selection_model
         except Exception:
             logger.debug(
                 "SelectionWorkflowService: failed to access tree model/selection",
                 exc_info=True,
             )
             return None, None
+        return model, selection_model
+
+    @staticmethod
+    def _is_valid_index(index: QModelIndex | None) -> bool:
+        return bool(index and index.isValid())
 
     # ------------------------------------------------------------------
     # Public API for SelectionHandling
     def select_first_item_if_needed(self) -> None:
         model, selection_model = self._get_model_and_selection()
-        if not model or selection_model is None:
+        if model is None or selection_model is None:
             return
         try:
             has_selection = selection_model.hasSelection()
@@ -59,7 +78,7 @@ class SelectionWorkflowService(QObject):
                 exc_info=True,
             )
             return
-        if not first_index or not first_index.isValid():
+        if not self._is_valid_index(first_index):
             return
         try:
             selection_model.setCurrentIndex(
@@ -117,7 +136,7 @@ class SelectionWorkflowService(QObject):
         self, item_type: str, item_id: int
     ) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
-        if not model or selection_model is None or not hasattr(model, "index_for"):
+        if model is None or selection_model is None:
             return None
         try:
             index = model.index_for(item_type, item_id)
@@ -127,23 +146,24 @@ class SelectionWorkflowService(QObject):
                 exc_info=True,
             )
             return None
-        if index and index.isValid():
-            try:
-                self._tree.blockSignals(True)
-                selection_model.setCurrentIndex(
-                    index, selection_model.SelectionFlag.ClearAndSelect
-                )
-                self._tree.scrollTo(index)
-            finally:
-                self._tree.blockSignals(False)
-            return index
-        return None
+        if not self._is_valid_index(index):
+            return None
+        assert index is not None
+        try:
+            self._tree.blockSignals(True)
+            selection_model.setCurrentIndex(
+                index, selection_model.SelectionFlag.ClearAndSelect
+            )
+            self._tree.scrollTo(index)
+        finally:
+            self._tree.blockSignals(False)
+        return index
 
     def set_focus_on_new_item_by_id(
         self, item_type: str, item_id: int
     ) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
-        if not model or selection_model is None or not hasattr(model, "index_for"):
+        if model is None or selection_model is None:
             return None
         try:
             index = model.index_for(item_type, item_id)
@@ -153,22 +173,23 @@ class SelectionWorkflowService(QObject):
                 exc_info=True,
             )
             return None
-        if index and index.isValid():
-            selection_model.setCurrentIndex(
-                index, selection_model.SelectionFlag.ClearAndSelect
+        if not self._is_valid_index(index):
+            return None
+        assert index is not None
+        selection_model.setCurrentIndex(
+            index, selection_model.SelectionFlag.ClearAndSelect
+        )
+        self._tree.scrollTo(index)
+        self._actions.focus_tree()
+        if item_type == "category":
+            self._actions.load_category_via_ui_state(
+                item_id, source="SelectionHandling._handle_item_selection"
             )
-            self._tree.scrollTo(index)
-            self._actions.focus_tree()
-            if item_type == "category":
-                self._actions.load_category_via_ui_state(
-                    item_id, source="SelectionHandling._handle_item_selection"
-                )
-            return index
-        return None
+        return index
 
     def restore_category_selection(self, category_id: int) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
-        if not model or selection_model is None or not hasattr(model, "index_for"):
+        if model is None or selection_model is None:
             return None
         try:
             index = model.index_for("category", category_id)
@@ -178,15 +199,16 @@ class SelectionWorkflowService(QObject):
                 exc_info=True,
             )
             return None
-        if index and index.isValid():
-            try:
-                self._tree.blockSignals(True)
-                selection_model.setCurrentIndex(
-                    index, selection_model.SelectionFlag.ClearAndSelect
-                )
-                self._tree.scrollTo(index)
-            finally:
-                self._tree.blockSignals(False)
-            self._actions.focus_tree()
-            return index
-        return None
+        if not self._is_valid_index(index):
+            return None
+        assert index is not None
+        try:
+            self._tree.blockSignals(True)
+            selection_model.setCurrentIndex(
+                index, selection_model.SelectionFlag.ClearAndSelect
+            )
+            self._tree.scrollTo(index)
+        finally:
+            self._tree.blockSignals(False)
+        self._actions.focus_tree()
+        return index

@@ -58,7 +58,7 @@ class TaskScheduler(QObject):
 
         # Initialize timers
         self._active_timers: dict[str, QTimer] = {}
-        self._pending_operations: dict[TaskType, dict[str, Callable]] = {
+        self._pending_operations: dict[TaskType, dict[str, Callable[..., Any]]] = {
             task_type: {} for task_type in TaskType
         }
         self._default_delays = {
@@ -77,10 +77,10 @@ class TaskScheduler(QObject):
 
     def _handle_schedule_request(
         self,
-        operation: Callable,
+        operation: Callable[..., Any],
         task_type: TaskType,
         delay: Optional[int],
-        operation_id: Optional[str],
+        operation_id: str,
         replace_existing: bool,
     ) -> None:
         """Signal handler: executes scheduling logic in object owner thread."""
@@ -118,7 +118,7 @@ class TaskScheduler(QObject):
 
     def schedule_operation(
         self,
-        operation: Callable,
+        operation: Callable[..., Any],
         task_type: TaskType = TaskType.GENERAL,
         delay: Optional[int] = None,
         operation_id: Optional[str] = None,
@@ -141,37 +141,36 @@ class TaskScheduler(QObject):
             delay = self._default_delays[task_type]
 
         if operation_id is None:
-            operation_id = f"{task_type.value}_{id(operation)}"
-        
-        # Ensure operation_id is always a string at this point
-        assert isinstance(operation_id, str), "operation_id must be a string"
+            operation_key = f"{task_type.value}_{id(operation)}"
+        else:
+            operation_key = str(operation_id)
 
         # If called from another thread — send request via signal (queued connection)
         if QThread.currentThread() is not self.thread():
             try:
                 self._schedule_sig.emit(
-                    operation, task_type, delay, operation_id, replace_existing
+                    operation, task_type, delay, operation_key, replace_existing
                 )
             except Exception as e:
                 logger.error(
                     "Failed to schedule operation via signal %s: %s",
-                    operation_id,
+                    operation_key,
                     e,
                 )
-            return operation_id
+            return operation_key
 
         # Otherwise — same thread, can schedule directly
         self._schedule_operation_internal(
-            operation, task_type, delay, operation_id, replace_existing
+            operation, task_type, delay, operation_key, replace_existing
         )
-        return operation_id
+        return operation_key
 
     def _schedule_operation_internal(
         self,
-        operation: Callable,
+        operation: Callable[..., Any],
         task_type: TaskType,
         delay: Optional[int],
-        operation_id: Optional[str],
+        operation_id: str,
         replace_existing: bool,
     ) -> None:
         """Common logic for queuing operation and starting timer.
