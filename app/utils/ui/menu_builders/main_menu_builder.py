@@ -10,7 +10,7 @@ from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class MainMenuBuilder:
     """Builder for the application main menu."""
 
-    def __init__(self, main_window: "MainWindow"):
+    def __init__(self, main_window: "MainWindowProtocol"):
         self.main_window = main_window
         self.actions = ActionBuilder(main_window)
         self.theme = main_window.settings.get_theme()

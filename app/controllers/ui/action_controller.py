@@ -8,7 +8,7 @@ from PyQt6.QtCore import QObject, pyqtSlot
 from app.config_data import app_config
 
 if TYPE_CHECKING:
-    from app.views.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ActionController(QObject):
     """Controller for handling user actions."""
 
-    def __init__(self, main_window: "MainWindow"):
+    def __init__(self, main_window: "MainWindowProtocol"):
         parent = main_window if isinstance(main_window, QObject) else None
         super().__init__(parent=parent)
         self.main_window = main_window

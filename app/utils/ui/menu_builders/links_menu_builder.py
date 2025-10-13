@@ -12,7 +12,7 @@ from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Sh
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class LinksMenuBuilder:
     """Context menu builder for the links table."""
 
-    def __init__(self, table_widget: QWidget, main_window: "MainWindow"):
+    def __init__(self, table_widget: QWidget, main_window: "MainWindowProtocol"):
         self.table_widget = table_widget
         self.main_window = main_window
         self.actions = ActionBuilder(table_widget)
