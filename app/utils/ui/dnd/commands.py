@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class MoveLinksCommand(BaseCommand):
     """Move one or more links to another category with undo/redo support."""
 
-    def __init__(self, link_ids, new_category_id, main_window):
+    def __init__(self, link_ids, new_category_id, main_window) -> None:
         super().__init__(f"Moving {len(list(link_ids))} links", main_window)
         self.link_ids = [int(lid) for lid in link_ids]
         self.new_category_id = int(new_category_id)
@@ -125,7 +125,7 @@ class MoveLinksCommand(BaseCommand):
 class MoveCategoryCommand(BaseCommand):
     """Moving category between sections."""
 
-    def __init__(self, category_id, new_section_id, main_window):
+    def __init__(self, category_id, new_section_id, main_window) -> None:
         super().__init__("Moving category", main_window)
 
         self.category_id = category_id
@@ -267,7 +267,7 @@ class MoveCategoriesCommand(BaseCommand):
 
     """
 
-    def __init__(self, category_ids, new_section_id, base_row, main_window):
+    def __init__(self, category_ids, new_section_id, base_row, main_window) -> None:
         super().__init__(f"Moving {len(category_ids)} categories", main_window)
 
         self.category_ids = list(category_ids or [])
@@ -278,9 +278,9 @@ class MoveCategoriesCommand(BaseCommand):
 
         self.base_row = int(base_row) if isinstance(base_row, int) else 0
 
-        self._old_states = []  # [{id, name, section_id, position, icon_path}]
+        self._old_states: list[dict[str, Any]] = []  # [{id, name, section_id, position, icon_path}]
 
-        self._new_states = []  # same format but with target section/position
+        self._new_states: list[dict[str, Any]] = []  # same format but with target section/position
 
         self._prepared = False
 

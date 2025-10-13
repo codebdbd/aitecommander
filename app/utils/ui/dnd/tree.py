@@ -34,9 +34,7 @@ class DragDropHandler(TreeHandlerBase):
         mime = event.mimeData()
         if self.accepts_mime_type(mime):
             event.acceptProposedAction()
-        else:
-            # Delegate to parent class for internal operations
-            super(type(self.tree_widget), self.tree_widget).dragEnterEvent(event)
+        # Note: No parent class delegation since TreeHandlerBase doesn't inherit from Qt classes
 
     def handle_drag_move_event(self, event) -> None:
         """Visual feedback during dragging."""

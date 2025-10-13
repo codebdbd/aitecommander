@@ -74,6 +74,18 @@ class IconCache:
         self, icon_names: list[str], theme: str | None = None
     ) -> dict[str, QIcon]:
         """Preload multiple icons asynchronously."""
+        # Guard against missing QApplication - fail fast
+        from PyQt6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app is None:
+            logger.error(
+                "preload_icons_async called before QApplication initialization. "
+                "Skipping preload."
+            )
+            # Return empty icons for all requested names
+            return {name: QIcon() for name in icon_names}
+
         if theme is None:
             theme = get_current_theme()
         theme = validate_theme(theme)

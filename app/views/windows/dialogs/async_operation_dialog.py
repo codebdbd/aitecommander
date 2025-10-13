@@ -69,6 +69,7 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
 
         self._cancelled = False
         self._auto_close = True
+        self.cancel_button: Optional[QPushButton] = None
 
         # Layout
         layout = QVBoxLayout(self)

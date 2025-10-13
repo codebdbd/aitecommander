@@ -582,14 +582,16 @@ def _append_og_image(
 
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
-            if meta and meta.get("content"):
-                og_content = meta.get("content") or ""
-                og_url = urljoin(base_url, og_content)
-                low = og_url.lower()
-                if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
-                    # In strict mode, require keywords; in soft mode, absence of banned markers is sufficient.
-                    if (not strict) or any(k in low for k in ["icon", "favicon"]):
-                        og_urls.append(og_url)
+            if meta and hasattr(meta, 'get'):
+                content = meta.get("content")
+                if content and isinstance(content, str):
+                    og_content = content or ""
+                    og_url = urljoin(base_url, og_content)
+                    low = og_url.lower()
+                    if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
+                        # In strict mode, require keywords; in soft mode, absence of banned markers is sufficient.
+                        if (not strict) or any(k in low for k in ["icon", "favicon"]):
+                            og_urls.append(og_url)
 
         _maybe_add_og("og:image")
         _maybe_add_og("og:image:secure_url")
@@ -650,7 +652,12 @@ def find_favicon_candidates(
     og_urls = _append_og_image(soup, base_url, candidates)
     ordered_urls = [c.url for c in candidates] + og_urls
     seen = set()
-    ordered_urls = [url for url in ordered_urls if not (url in seen or seen.add(url))]
+    filtered_urls = []
+    for url in ordered_urls:
+        if url not in seen:
+            seen.add(url)
+            filtered_urls.append(url)
+    ordered_urls = filtered_urls
     return ordered_urls
 
 

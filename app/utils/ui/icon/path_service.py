@@ -323,7 +323,7 @@ class IconPathResolver:
             path_str = str(idx_hit)
             set_path(icon_name, norm_theme, path_str)
             try:
-                _ICON_METRICS.record_disk_load()
+                metrics_record_disk_load()
             finally:
                 _maybe_log_metrics()
             return path_str
@@ -334,7 +334,7 @@ class IconPathResolver:
                 path_str = str(light_idx)
                 set_path(icon_name, norm_theme, path_str)
                 try:
-                    _ICON_METRICS.record_disk_load()
+                    metrics_record_disk_load()
                 finally:
                     _maybe_log_metrics()
                 return path_str
@@ -360,7 +360,7 @@ class IconPathResolver:
                         set_path(icon_name, norm_theme, path_str)
                         logger.debug("Using up-to-date PNG: %s", themed_png)
                         try:
-                            _ICON_METRICS.record_disk_load()
+                            metrics_record_disk_load()
                         finally:
                             _maybe_log_metrics()
                         return path_str
@@ -416,7 +416,7 @@ class IconPathResolver:
                                 "Using up-to-date PNG (from light SVG): %s", themed_png
                             )
                             try:
-                                _ICON_METRICS.record_disk_load()
+                                metrics_record_disk_load()
                             finally:
                                 _maybe_log_metrics()
                             return path_str

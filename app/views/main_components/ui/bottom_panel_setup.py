@@ -254,13 +254,13 @@ class BottomPanelBuilder:
         # Container for bottom bar
         container_parent = (
             getattr(self.main_layout, "parentWidget", lambda: None)()
-            or self.window.centralWidget()
+            or self.window.centralWidget()  # type: ignore[attr-defined]
         )
         bottom_bar_container = QWidget(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bottom_layout)
         # Store the widget on the window for further focus configuration
-        self.window.bottom_bar_container = bottom_bar_container
+        self.window.bottom_bar_container = bottom_bar_container  # type: ignore[attr-defined]
         # Explicit policy: horizontal expanding/shrinking, vertical fixed
         try:
             bottom_bar_container.setSizePolicy(
@@ -386,7 +386,7 @@ class BottomPanelBuilder:
         bindings = getattr(self.window, "_bottom_bar_bindings", None)
         if bindings is None:
             bindings = []
-            self.window._bottom_bar_bindings = bindings
+            self.window._bottom_bar_bindings = bindings  # type: ignore[attr-defined]
         bindings.append({"button": button, "action": dict(action)})
 
     def _apply_localized_text(
@@ -438,10 +438,10 @@ class BottomPanelBuilder:
                 bottom_layout.removeWidget(placeholder_item.widget())
                 placeholder_item.widget().setParent(None)
                 placeholder_item.widget().deleteLater()
-                self.window.switch_sphere_button = button
+                self.window.switch_sphere_button = button  # type: ignore[attr-defined]
                 logger.debug("BottomPanel: added switch sphere button")
             else:
                 # Fallback: add at the beginning
                 bottom_layout.insertWidget(0, button)
-                self.window.switch_sphere_button = button
+                self.window.switch_sphere_button = button  # type: ignore[attr-defined]
                 logger.debug("BottomPanel: added switch sphere button (fallback)")

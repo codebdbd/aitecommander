@@ -3,7 +3,7 @@ Central manager for working with profiles of all browsers.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, TypedDict
 
 from .base_profile_finder import BaseBrowserProfileFinder
 from .chromium_base_finder import (
@@ -19,6 +19,12 @@ from .persistent_cache import PersistentProfileCache
 from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
+
+
+class BrowserAvailability(TypedDict):
+    key: str
+    name: str
+    profile_count: int
 
 
 class BrowserProfileManager:
@@ -138,9 +144,9 @@ class BrowserProfileManager:
         """Returns profiles from cache only if they are fresh (TTL); doesn't block loading."""
         return self.cache.get(browser_key)
 
-    def get_available_browsers(self) -> list[dict[str, str]]:
+    def get_available_browsers(self) -> list[BrowserAvailability]:
         """Gets list of available browsers with profiles."""
-        available = []
+        available: list[BrowserAvailability] = []
 
         for browser_key, finder in self.finders.items():
             try:

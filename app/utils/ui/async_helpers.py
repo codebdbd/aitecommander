@@ -91,6 +91,8 @@ def run_async_import(
     )
     dialog.exec()
 
+    return result_success, result_message, result_stats
+
 
 def run_async_export(
     db,
