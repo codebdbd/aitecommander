@@ -50,6 +50,12 @@ class MainWindowProtocol(Protocol):
     links_actions: Any  # LinkOperationsController
     links: Any  # LinksUIController
 
+    def removeEventFilter(self, obj: QObject) -> None:
+        ...
+
+    def installEventFilter(self, obj: QObject) -> None:
+        ...
+
 
 class BaseKeyHandler:
     """Base class for key handlers.
