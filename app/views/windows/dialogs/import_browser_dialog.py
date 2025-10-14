@@ -112,22 +112,26 @@ class ImportBrowserDialog(BaseDialog):
             # Find the form layout by scanning the top-level layout
             if not self.layout():
                 return
-            for i in range(self.layout().count()):
-                item = self.layout().itemAt(i)
+            layout = self.layout()
+            if layout is None:
+                return
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
                 if not item:
                     continue
-                form = isinstance(item.layout(), QFormLayout) and item.layout() or None
+                item_layout = item.layout()
+                form = item_layout if isinstance(item_layout, QFormLayout) else None
                 if not form:
                     continue
                 sphere_label = (
-                    form.labelForField(self.sphere_cb) if self.sphere_cb else None
+                    form.labelForField(self.sphere_cb) if self.sphere_cb is not None else None
                 )
-                if sphere_label is not None:
+                if sphere_label is not None and hasattr(sphere_label, 'setText'):
                     sphere_label.setText(self.tr("Sphere:"))
                 section_label = (
-                    form.labelForField(self.section_cb) if self.section_cb else None
+                    form.labelForField(self.section_cb) if self.section_cb is not None else None
                 )
-                if section_label is not None:
+                if section_label is not None and hasattr(section_label, 'setText'):
                     section_label.setText(self.tr("Section:"))
         except Exception:
             pass
@@ -160,10 +164,11 @@ class ImportBrowserDialog(BaseDialog):
             )
             return
 
-        with QSignalBlocker(self.sphere_cb):
-            self.sphere_cb.clear()
-            self.sphere_cb.addItem(self.tr("Loading…"))
-            self.sphere_cb.setEnabled(False)
+        if self.sphere_cb is not None:
+            with QSignalBlocker(self.sphere_cb):
+                self.sphere_cb.clear()
+                self.sphere_cb.addItem(self.tr("Loading…"))
+                self.sphere_cb.setEnabled(False)
 
         run_db(
             lambda: self._db.spheres.get_spheres() or [],
@@ -238,10 +243,11 @@ class ImportBrowserDialog(BaseDialog):
         logger.error(
             "Failed to load spheres for import dialog: %s", error, exc_info=True
         )
-        with QSignalBlocker(self.sphere_cb):
-            self.sphere_cb.clear()
-            self.sphere_cb.addItem(self.tr("Failed to load spheres"))
-            self.sphere_cb.setEnabled(False)
+        if self.sphere_cb is not None:
+            with QSignalBlocker(self.sphere_cb):
+                self.sphere_cb.clear()
+                self.sphere_cb.addItem(self.tr("Failed to load spheres"))
+                self.sphere_cb.setEnabled(False)
         self._show_error_message(str(error))
 
     def _handle_sections_error(self, token: int, error: Exception) -> None:
@@ -253,6 +259,8 @@ class ImportBrowserDialog(BaseDialog):
         self._show_error_message(str(error))
 
     def _apply_spheres(self, spheres: list[dict[str, Any]]) -> None:
+        if self.sphere_cb is None:
+            return
         with QSignalBlocker(self.sphere_cb):
             self.sphere_cb.clear()
             if not spheres:
@@ -277,6 +285,8 @@ class ImportBrowserDialog(BaseDialog):
             self._show_no_sections_message(self.tr("Select a sphere first"))
 
     def _apply_sections(self, sections: list[dict[str, Any]]) -> None:
+        if self.section_cb is None:
+            return
         with QSignalBlocker(self.section_cb):
             self.section_cb.clear()
             if not sections:
@@ -295,17 +305,19 @@ class ImportBrowserDialog(BaseDialog):
         self.selected_section_id = self.get_selected_section_id()
 
     def _set_section_placeholder(self, text: str, *, enabled: bool) -> None:
-        with QSignalBlocker(self.section_cb):
-            self.section_cb.clear()
-            self.section_cb.addItem(text)
-            self.section_cb.setEnabled(enabled)
+        if self.section_cb is not None:
+            with QSignalBlocker(self.section_cb):
+                self.section_cb.clear()
+                self.section_cb.addItem(text)
+                self.section_cb.setEnabled(enabled)
 
     def _show_no_data_message(self, message: str) -> None:
         """Display a message when no spheres are available."""
-        with QSignalBlocker(self.sphere_cb):
-            self.sphere_cb.clear()
-            self.sphere_cb.addItem(message)
-            self.sphere_cb.setEnabled(False)
+        if self.sphere_cb is not None:
+            with QSignalBlocker(self.sphere_cb):
+                self.sphere_cb.clear()
+                self.sphere_cb.addItem(message)
+                self.sphere_cb.setEnabled(False)
         self._set_section_placeholder(self.tr("No data"), enabled=False)
         logger.warning("%s", message)
 
@@ -329,14 +341,18 @@ class ImportBrowserDialog(BaseDialog):
 
     def _on_section_changed(self) -> None:
         """Handle changes in the selected section."""
+        if self.section_cb is None:
+            return
         section_id = self.section_cb.currentData()
         if section_id:
-            sphere_name = self.sphere_cb.currentText()
+            sphere_name = self.sphere_cb.currentText() if self.sphere_cb is not None else ""
             section_name = self.section_cb.currentText()
             logger.debug("Selected section: %s / %s", sphere_name, section_name)
 
     def get_selected_section_id(self) -> Optional[int]:
         """Return the selected section ID."""
+        if self.section_cb is None:
+            return None
         if not self.section_cb.isEnabled():
             return None
         return self.section_cb.currentData()
@@ -345,6 +361,8 @@ class ImportBrowserDialog(BaseDialog):
         """Return information about the selected section and sphere."""
         section_id = self.get_selected_section_id()
         if not section_id:
+            return None
+        if self.sphere_cb is None or self.section_cb is None:
             return None
         return {
             "section_id": section_id,

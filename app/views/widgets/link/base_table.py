@@ -3,7 +3,12 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtProperty, pyqtSignal
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal
+
+try:
+    from PyQt6.QtCore import pyqtProperty  # type: ignore[attr-defined]
+except ImportError:
+    pyqtProperty = property  # type: ignore[misc,assignment]
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -183,7 +188,9 @@ class LinksTableView(
                 self._opened_col_color = value
             else:
                 self._opened_col_color = QColor(str(value))
-            self.viewport().update()
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
         except Exception:
             pass
 
@@ -204,7 +211,9 @@ class LinksTableView(
                 self._notes_col_color = value
             else:
                 self._notes_col_color = QColor(str(value))
-            self.viewport().update()
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
         except Exception:
             pass
 
@@ -218,7 +227,7 @@ class LinksTableView(
     def update_font_size(self, font_size: int):
         """Apply the local font size to every table cell."""
         # Check whether the font size actually changed
-        if hasattr(self, "_current_font_size") and self._current_font_size == font_size:
+        if hasattr(self, "_current_font_size") and getattr(self, "_current_font_size", None) == font_size:
             return
 
         self._current_font_size = font_size
@@ -230,7 +239,9 @@ class LinksTableView(
         self.setFont(font)
 
         # Refresh the viewport
-        self.viewport().update()
+        viewport = self.viewport()
+        if viewport is not None:
+            viewport.update()
 
     # Override base-class constants (align with centralized helpers)
     MIME_TYPE = get_link_mime()

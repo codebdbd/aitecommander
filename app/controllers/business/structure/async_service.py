@@ -28,7 +28,9 @@ class StructureAsyncService(QObject):
             db, logger, parent=self
         )  # ✅ Добавлен parent
         self._handlers = AsyncSignalHandlers(owner, parent=self)  # ✅ Добавлен parent
-        self.async_operations.connect_signal_handlers(self._handlers)
+        # Type-safe connection
+        if hasattr(self.async_operations, 'connect_signal_handlers'):
+            self.async_operations.connect_signal_handlers(self._handlers)  # type: ignore[arg-type]
 
         self._structure_reload_timer = QTimer(self)
         self._structure_reload_timer.setSingleShot(True)
@@ -59,7 +61,7 @@ class StructureAsyncService(QObject):
             pass  # Сигнал уже отключен
 
         try:
-            self.async_operations.shutdown(timeout=timeout)
+            getattr(self.async_operations, 'shutdown', lambda **kw: None)(timeout=timeout)
         except AttributeError:
             pass
         except Exception as exc:  # pragma: no cover - defensive

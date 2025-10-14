@@ -69,10 +69,10 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
 
-    def update(self) -> None:
+    def update(self, *args, **kwargs) -> None:
         """Requests data update from external sources."""
         # Base implementation does nothing to avoid circular refresh paths
-        return
+        super().update(*args, **kwargs)
 
     def clear(self) -> None:
         """Initiates clearing - to be implemented by subclasses if needed."""
@@ -212,7 +212,9 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
         for i, link in enumerate(batch):
             try:
-                button = self._create_button_func(link)
+                if self._create_button_func is None:
+                    break
+                button = self._create_button_func(link)  # type: ignore[misc]
                 if button:
                     self.panel_layout.addWidget(button)
             except Exception:

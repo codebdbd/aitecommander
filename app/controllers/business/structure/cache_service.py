@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 try:
     from app.utils.metrics import get_metrics
+    from app.utils.metrics import PerformanceMetrics
 
-    _metrics = get_metrics()
+    _metrics: PerformanceMetrics | None = get_metrics()
 except ImportError:
-    _metrics = None
+    _metrics = None  # type: ignore[assignment]
+except Exception:
+    _metrics = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from logging import Logger

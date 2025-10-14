@@ -94,6 +94,8 @@ def _register_cleanup_handler(
     )
     try:
         app.aboutToQuit.connect(about_to_quit_cleanup)
+        # Store reference to the specific function for later disconnection
+        app._about_to_quit_cleanup = about_to_quit_cleanup
         return True
     except Exception as exc:
         logger.debug("Failed to bind aboutToQuit cleanup handler: %s", exc)
@@ -208,7 +210,10 @@ def _cleanup_resources(
 
     if about_to_quit_cleanup_registered and hasattr(app, "aboutToQuit"):
         try:
-            app.aboutToQuit.disconnect()  # type: ignore[attr-defined]
+            # Only disconnect our specific cleanup handler, not all handlers
+            if hasattr(app, "_about_to_quit_cleanup"):
+                app.aboutToQuit.disconnect(app._about_to_quit_cleanup)  # type: ignore[attr-defined]
+                delattr(app, "_about_to_quit_cleanup")
         except Exception:
             pass
 
