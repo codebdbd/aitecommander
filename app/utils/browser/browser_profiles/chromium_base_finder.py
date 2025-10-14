@@ -5,6 +5,7 @@ Base class for all Chromium-based browsers (Chrome, Edge, Brave, Vivaldi, etc.).
 import json
 import logging
 import os
+import platform
 from pathlib import Path
 from typing import Optional
 
@@ -18,13 +19,15 @@ def detect_chrome_profiles_dir():
     candidates = []
     if os.name == "nt":
         candidates.append(os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"))
-    elif os.name == "posix" and os.uname().sysname == "Darwin":
-        candidates.append(
-            os.path.expanduser("~/Library/Application Support/Google/Chrome")
-        )
-    elif os.name == "posix" and os.uname().sysname == "Linux":
-        candidates.append(os.path.expanduser("~/.config/google-chrome"))
-        candidates.append(os.path.expanduser("~/.config/chromium"))
+    elif os.name == "posix":
+        system = platform.system()
+        if system == "Darwin":
+            candidates.append(
+                os.path.expanduser("~/Library/Application Support/Google/Chrome")
+            )
+        elif system == "Linux":
+            candidates.append(os.path.expanduser("~/.config/google-chrome"))
+            candidates.append(os.path.expanduser("~/.config/chromium"))
     for path in candidates:
         if Path(path).exists():
             return path
