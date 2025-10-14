@@ -1,6 +1,8 @@
 # Module for populating and updating the links table
 # Provides bulk-update helpers
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
 
@@ -21,7 +23,8 @@ class PopulationManagerMixin:
     logger = logging.getLogger(__name__)
 
     if TYPE_CHECKING:
-        _current_mode: Any
+        from app.views.widgets.link.data_management import DataManagementMixin
+
         _current_links: dict[int, dict[str, Any]]
 
     _current_mode: str = ""
@@ -30,6 +33,13 @@ class PopulationManagerMixin:
         """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""
 
         return cast(LinkTableWidgetProtocol, self)
+
+    def _data_helpers(self) -> "DataManagementMixin":
+        """Return self casted to data-management mixin for typing."""
+
+        from app.views.widgets.link.data_management import DataManagementMixin
+
+        return cast(DataManagementMixin, self)
 
     def _capture_ui_state(self):
         """Capture current UI state (selection, scroll, sorting)."""
@@ -97,6 +107,7 @@ class PopulationManagerMixin:
 
     def _should_full_refresh(self, links, sort_col):
         """Check if full refresh is needed."""
+        helpers = self._data_helpers()
         current_order = self._get_current_order()
         new_order = [link.get("id") for link in links if link and "id" in link]
         if (sort_col == -1) and current_order and (current_order != new_order):
@@ -105,8 +116,8 @@ class PopulationManagerMixin:
             )
             return True
 
-        current_ids = self._get_current_link_ids()
-        new_ids = self._get_new_link_ids(links)
+        current_ids = helpers._get_current_link_ids()
+        new_ids = helpers._get_new_link_ids(links)
         bulk_changes = len(new_ids - current_ids) + len(current_ids - new_ids)
         if bulk_changes >= 30 or len(links) >= 200:
             self.logger.info(
@@ -118,20 +129,22 @@ class PopulationManagerMixin:
 
     def _get_current_order(self):
         """Get current order of link IDs in table."""
-        ids = []
+        helpers = self._data_helpers()
+        ids: list[int] = []
         model = self._link_table().model()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
-            data = self.get_link_at(row)
+            data = helpers.get_link_at(row)
             if data and "id" in data:
                 ids.append(data["id"])
         return ids
 
     def _perform_incremental_update(self, links, mode, sort_col):
         """Perform incremental update of table."""
-        current_ids = self._get_current_link_ids()
-        new_ids = self._get_new_link_ids(links)
-        new_link_map = self._create_link_id_to_data_map(links)
+        helpers = self._data_helpers()
+        current_ids = helpers._get_current_link_ids()
+        new_ids = helpers._get_new_link_ids(links)
+        new_link_map = helpers._create_link_id_to_data_map(links)
         ids_to_remove = current_ids - new_ids
         ids_to_add = new_ids - current_ids
         ids_to_check = current_ids & new_ids

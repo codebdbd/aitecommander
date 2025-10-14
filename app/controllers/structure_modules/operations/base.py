@@ -419,7 +419,10 @@ class BaseOperations:
             # Execute deletion and emit signal
             delete_func()
             self._emit_signal(
-                SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {}
+                SignalType.ITEM_DELETED.value,
+                item_type.value,
+                item_id,
+                emit_data or {},
             )
 
             # Log deletion

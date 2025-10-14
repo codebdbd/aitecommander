@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Configuration entry point with lazy initialization semantics.
 
 Avoids performing filesystem I/O while importing `app.config_data`; the actual
@@ -27,11 +29,13 @@ class _LazyAppConfig:
 
     __slots__ = ("_instance",)
 
-    def __init__(self):
+    _instance: "AppConfig | None"
+
+    def __init__(self) -> None:
         # use ``object.__setattr__`` to avoid triggering the overridden ``__setattr__``
         object.__setattr__(self, "_instance", None)
 
-    def _get_instance(self):
+    def _get_instance(self) -> "AppConfig":
         if self._instance is None:
             # Local import; the loader itself performs no I/O at import time
             from .config_loader import AppConfig as _AppConfig
@@ -39,10 +43,10 @@ class _LazyAppConfig:
             self._instance = _AppConfig()
         return self._instance
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self._get_instance(), name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         # Forward assignments to the real AppConfig so monkeypatching keeps working
         if name == "_instance":
             object.__setattr__(self, name, value)
@@ -56,7 +60,7 @@ class _LazyAppConfig:
             object.__setattr__(self, "_instance", inst)
         setattr(inst, name, value)
 
-    def __delattr__(self, name):
+    def __delattr__(self, name: str) -> None:
         # Delegate attribute deletion to the real AppConfig (needed for monkeypatch teardown)
         if name == "_instance":
             raise AttributeError("Нельзя удалять служебный атрибут _instance")

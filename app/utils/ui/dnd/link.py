@@ -35,6 +35,9 @@ class DragDropHandlerMixin:
     if TYPE_CHECKING:
 
         def __init__(self: "LinkTableProtocol") -> None: ...
+        from app.views.widgets.link.data_management import DataManagementMixin as _DM
+
+        _current_links: dict[int, dict[str, Any]]
 
     def get_link_at(self, row: int) -> Optional[dict[str, Any]]:  # type: ignore[misc]
         """Get link data at row. To be implemented by host class."""
