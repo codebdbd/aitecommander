@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -134,45 +135,56 @@ class StructureTreeModel(QAbstractItemModel):
             node.name = str(value)
             self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
             return True
+
         if role == Qt.ItemDataRole.DecorationRole:
             if isinstance(value, QIcon):
                 node.icon = value
                 self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
                 return True
-        if role == Qt.ItemDataRole.UserRole:
-            try:
-                if isinstance(value, (tuple, list)) and len(value) == 2:
-                    t_val, i_val = value
-                    if isinstance(t_val, str) and (
-                        isinstance(i_val, int) or i_val is None
-                    ):
-                        old_type, old_id = node.type, node.id
-                        if (
-                            old_type == "section"
-                            and isinstance(old_id, int)
-                            and old_id in self._section_by_id
-                        ):
-                            del self._section_by_id[old_id]
-                        if (
-                            old_type == "category"
-                            and isinstance(old_id, int)
-                            and old_id in self._category_by_id
-                        ):
-                            del self._category_by_id[old_id]
+            elif isinstance(value, str):
+                # Если это путь к иконке - загружаем её
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                    node.icon = icon_cache.get_icon(value, source="tree_model")
+                    self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
+                    return True
+                except Exception:
+                    node.icon = None
+                    self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
+                    return True
 
-                        node.type = t_val
-                        node.id = int(i_val) if isinstance(i_val, int) else None
-
-                        if node.type == "section" and isinstance(node.id, int):
-                            self._section_by_id[node.id] = node
-                        if node.type == "category" and isinstance(node.id, int):
-                            self._category_by_id[node.id] = node
-
-                        self.dataChanged.emit(index, index, [Qt.ItemDataRole.UserRole])
-                        return True
-            except Exception:
-                return False
         return False
+
+    def _preload_category_icons(self, categories: list[dict[str, Any]]) -> None:
+        """Предзагрузка иконок для новых категорий перед их отображением."""
+        try:
+            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+
+            # Собираем уникальные пути к иконкам
+            icon_paths = set()
+            for category in categories:
+                icon_path = category.get("icon_path")
+                if icon_path and isinstance(icon_path, str) and icon_path.strip():
+                    icon_paths.add(icon_path.strip())
+
+            if not icon_paths:
+                return
+
+            # Предзагружаем иконки синхронно для надежности и мгновенного отображения
+            for icon_path in icon_paths:
+                if icon_path:
+                    try:
+                        # Загружаем иконку в кэш синхронно
+                        icon_cache.get_icon(icon_path, source="tree_preload")
+                    except Exception as exc:
+                        # Игнорируем ошибки предзагрузки
+                        logger = logging.getLogger(__name__)
+                        logger.debug("Icon preload failed for %s: %s", icon_path, exc)
+
+        except Exception as exc:
+            # Предзагрузка не должна нарушать основную функциональность
+            logger = logging.getLogger(__name__)
+            logger.debug("Failed to preload icons: %s", exc)
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # noqa: N802
         if not index.isValid():
@@ -233,12 +245,24 @@ class StructureTreeModel(QAbstractItemModel):
             return
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i, s in enumerate(sections):
+            # Обрабатываем иконку секции правильно
+            icon = s.get("icon")
+            if isinstance(icon, str):
+                # Если это путь к иконке - загружаем её
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                    icon = icon_cache.get_icon(icon, source="tree_model")
+                except Exception:
+                    icon = None
+            elif not isinstance(icon, QIcon):
+                icon = None
+
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
                 name=str(s.get("name", "")),
                 parent=self._root,
-                icon=(s.get("icon") if isinstance(s.get("icon"), QIcon) else None),
+                icon=icon,
                 payload=s,
             )
             self._root.children.insert(row + i, sec_node)
@@ -258,20 +282,47 @@ class StructureTreeModel(QAbstractItemModel):
         count = len(categories or [])
         if count == 0:
             return
+
+        # Сначала предзагружаем иконки для новых категорий
+        self._preload_category_icons(categories)
+
         self.beginInsertRows(parent_index, row, row + count - 1)
         for i, c in enumerate(categories):
+            # Обрабатываем иконку категории правильно
+            icon = c.get("icon")
+            if isinstance(icon, str):
+                # Если это путь к иконке - загружаем её
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                    icon = icon_cache.get_icon(icon, source="tree_model")
+                except Exception:
+                    icon = None
+            elif not isinstance(icon, QIcon):
+                icon = None
+
             cat_node = TreeNode(
                 type="category",
                 id=_coerce_optional_int(c.get("id")),
                 name=str(c.get("name", "")),
                 parent=sec_node,
-                icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
+                icon=icon,
                 payload=c,
             )
             sec_node.children.insert(row + i, cat_node)
             if isinstance(cat_node.id, int):
                 self._category_by_id[cat_node.id] = cat_node
         self.endInsertRows()
+
+        # Принудительно уведомляем вид об изменении данных для мгновенного обновления
+        # Это гарантирует, что иконки отобразятся сразу после вставки строк
+        if count > 0:
+            # Создаем индекс для первой вставленной категории
+            first_cat_index = self.createIndex(row, 0, sec_node.children[row])
+            if first_cat_index.isValid():
+                # Уведомляем об изменении данных для всех ролей
+                last_cat_index = self.createIndex(row + count - 1, 0, sec_node.children[row + count - 1])
+                self.dataChanged.emit(first_cat_index, last_cat_index,
+                                    [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
 
     def update_item(
         self, item_type: NodeType, item_id: int, data: dict[str, Any]
@@ -282,8 +333,19 @@ class StructureTreeModel(QAbstractItemModel):
         node: TreeNode = idx.internalPointer()
         if "name" in data:
             node.name = str(data.get("name", node.name))
-        if "icon" in data and isinstance(data.get("icon"), QIcon):
-            node.icon = data.get("icon")
+        if "icon" in data:
+            icon = data.get("icon")
+            if isinstance(icon, QIcon):
+                node.icon = icon
+            elif isinstance(icon, str):
+                # Если это путь к иконке - загружаем её
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                    node.icon = icon_cache.get_icon(icon, source="tree_model")
+                except Exception:
+                    node.icon = None
+            else:
+                node.icon = None
         if data:
             node.payload.update(data)
         self.dataChanged.emit(
@@ -384,12 +446,24 @@ class StructureTreeModel(QAbstractItemModel):
         self._category_by_id.clear()
 
         for s in sections or []:
+            # Обрабатываем иконку секции правильно
+            icon = s.get("icon")
+            if isinstance(icon, str):
+                # Если это путь к иконке - загружаем её
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                    icon = icon_cache.get_icon(icon, source="tree_model")
+                except Exception:
+                    icon = None
+            elif not isinstance(icon, QIcon):
+                icon = None
+
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
                 name=str(s.get("name", "")),
                 parent=self._root,
-                icon=s.get("icon"),
+                icon=icon,
                 payload=s,
             )
             self._root.children.append(sec_node)
@@ -397,12 +471,24 @@ class StructureTreeModel(QAbstractItemModel):
                 self._section_by_id[sec_node.id] = sec_node
 
             for c in s.get("categories") or []:
+                # Обрабатываем иконку категории правильно
+                icon = c.get("icon")
+                if isinstance(icon, str):
+                    # Если это путь к иконке - загружаем её
+                    try:
+                        from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+                        icon = icon_cache.get_icon(icon, source="tree_model")
+                    except Exception:
+                        icon = None
+                elif not isinstance(icon, QIcon):
+                    icon = None
+
                 cat_node = TreeNode(
                     type="category",
                     id=_coerce_optional_int(c.get("id")),
                     name=str(c.get("name", "")),
                     parent=sec_node,
-                    icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
+                    icon=icon,
                     payload=c,
                 )
                 sec_node.children.append(cat_node)

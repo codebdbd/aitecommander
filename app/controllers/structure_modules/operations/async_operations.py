@@ -10,7 +10,7 @@ Migrated to the new `run_db` facade instead of the legacy workers from
 import logging
 import time
 from threading import Lock
-from typing import Any, Optional
+from typing import Any, Callable, Optional, Protocol
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
@@ -29,21 +29,36 @@ from ..models.types import (
 )
 from ..signals.signals import StructureSignals
 
-try:
-    # Корректная точка доступа к метрикам старта
-    from app.utils.metrics.startup_metrics import get_metrics  # type: ignore
+class _MetricsProtocol(Protocol):
+    def start(self, name: str) -> None: ...
 
-    metrics = get_metrics()
-except Exception:  # надёжный фоллбэк: метрики отключены, логика не ломается
+    def stop(self, name: str) -> None: ...
 
-    class _NoOpMetrics:
-        def start(self, _name: str) -> None:
-            pass
 
-        def stop(self, _name: str) -> None:
-            pass
+class _SignalLike(Protocol):
+    def connect(self, *args: Any, **kwargs: Any) -> object: ...
 
-    metrics = _NoOpMetrics()
+    def disconnect(self, *args: Any, **kwargs: Any) -> None: ...
+
+
+class _NoOpMetrics:
+    def start(self, _name: str) -> None:
+        pass
+
+    def stop(self, _name: str) -> None:
+        pass
+
+
+def _create_metrics() -> _MetricsProtocol:
+    try:
+        from app.utils.metrics.startup_metrics import get_metrics  # type: ignore
+
+        return get_metrics()
+    except Exception:  # надёжный фоллбэк: метрики отключены, логика не ломается
+        return _NoOpMetrics()
+
+
+metrics: _MetricsProtocol = _create_metrics()
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +85,7 @@ class AsyncOperations(QObject):
         # Unified global task scheduler instead of QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
         # Pass parent to ensure correct memory ownership
-        self._worker_signals = StructureSignals(self)
+        self._worker_signals: StructureSignals = StructureSignals(self)
         # Thread-safe protection for shared state
         self._pending_tasks_lock = Lock()
         self._pending_tasks: dict[str, Any] = {}
@@ -86,7 +101,11 @@ class AsyncOperations(QObject):
         Invoked on destruction to prevent memory leaks.
         """
         try:
-            if self._worker_signals:
+            try:
+                worker_signals = self._worker_signals
+            except AttributeError:
+                worker_signals = None
+            if worker_signals is not None:
                 # Disconnect all signals
                 signals_to_disconnect = [
                     "spheres_loaded",
@@ -110,14 +129,13 @@ class AsyncOperations(QObject):
 
                 for signal_name in signals_to_disconnect:
                     try:
-                        signal = getattr(self._worker_signals, signal_name, None)
+                        signal = getattr(worker_signals, signal_name, None)
                         if signal and hasattr(signal, "disconnect"):
                             signal.disconnect()
                     except TypeError:  # Already disconnected
                         pass
 
-                self._worker_signals.deleteLater()
-                self._worker_signals = None
+                worker_signals.deleteLater()
                 self.logger.debug("AsyncOperations: all signals disconnected")
         except Exception as e:
             self.logger.debug("Error during AsyncOperations cleanup: %s", e)
@@ -301,7 +319,7 @@ class AsyncOperations(QObject):
         )
 
     # ===== Метрики асинхронных операций =====
-    def _start_async_metric(self, name: str, stop_signal: pyqtSignal) -> None:
+    def _start_async_metric(self, name: str, stop_signal: _SignalLike) -> None:
         """Start a metrics span and stop it on the first `stop_signal` emission.
 
         Prevents duplicated spans: subsequent calls are ignored while the span is active.
