@@ -228,7 +228,7 @@ class WindowUISetup:
         self.settings = window_initializer.settings
         self.theme_ctrl = window_initializer.theme_ctrl
 
-        self.main_layout = None
+        self.main_layout: QVBoxLayout | None = None
 
         # Subscribe to language changes
         self._language_service = LanguageService.instance()
@@ -280,7 +280,7 @@ class WindowUISetup:
         except (RuntimeError, AttributeError):
             left, r, b = 0, 0, 0
         try:
-            self.main_layout.setContentsMargins(left, 0, r, b)
+            self.main_layout.setContentsMargins(int(left or 0), 0, int(r or 0), int(b or 0))
         except (RuntimeError, AttributeError):
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",
@@ -295,7 +295,8 @@ class WindowUISetup:
     def _add_top_separator(self, container_parent: QWidget) -> None:
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_top)
+        if self.main_layout is not None:
+            self.main_layout.addWidget(h_line_top)
 
     def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
         t_widgets_start = time.perf_counter()
@@ -742,6 +743,8 @@ class WindowUISetup:
             search_index = -1
             for i in range(count):
                 it = top_bar.itemAt(i)
+                if it is None:
+                    continue
                 w = it.widget()
                 if w is search_widget:
                     search_index = i
@@ -772,21 +775,21 @@ class WindowUISetup:
         )
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_top)
+        if self.main_layout is not None:
+            self.main_layout.addWidget(h_line_top)
 
         mid = QHBoxLayout()
         mid.setContentsMargins(*app_config.ui.get_layout_margins("mid"))
-
+        mid.setSpacing(app_config.ui.get_main_layout_spacing())
         self.setup_left_panel(mid)
-
-        # Right panel containing tiles and table
         self.setup_right_panel(mid)
-
-        self.main_layout.addLayout(mid)
+        if self.main_layout is not None:
+            self.main_layout.addLayout(mid)
 
         h_line_2 = QWidget(container_parent)
         h_line_2.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_2)
+        if self.main_layout is not None:
+            self.main_layout.addWidget(h_line_2)
 
     def setup_left_panel(self, mid: QHBoxLayout) -> None:
         left_panel = QWidget()

@@ -31,6 +31,7 @@ class RowOperationsMixin:
 
         return cast(LinkTableWidgetProtocol, self)
 
+    @property
     def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Helper access to current links cache."""
         cache = getattr(self, "_current_links", None)
@@ -162,7 +163,7 @@ class RowOperationsMixin:
 
             # Refresh cache (legacy compatibility)
             try:
-                self._link_cache()[row] = link
+                self._link_cache[row] = link
             except Exception:
                 logger.debug(
                     "[LinksTableView] Failed to refresh cache for row %s",

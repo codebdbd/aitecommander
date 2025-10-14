@@ -1,5 +1,4 @@
 """CRUD helpers for structure business logic."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,7 +8,7 @@ try:
     from app.utils.metrics import measure_time
 except ImportError:
     # Fallback если метрики недоступны
-    def measure_time(name: str, **kwargs):
+    def measure_time(operation_name: str, log_threshold_ms: float = 0.0):  # type: ignore[misc]
         def decorator(func):
             return func
 
