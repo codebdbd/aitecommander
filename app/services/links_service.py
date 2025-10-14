@@ -29,10 +29,6 @@ class LinksService:
     ) -> dict[int, list[dict[str, Any]]]:
         return self.repo.get_links_for_categories(category_ids)
 
-    def get_all_links(self) -> list[dict[str, Any]]:
-        """Return all links ordered by category and position."""
-        return self.repo.get_all_links()
-
     def get_link_by_id(self, link_id: int) -> dict[str, Any] | None:
         return self.repo.get_link_by_id(link_id)
 
