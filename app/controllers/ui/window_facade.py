@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     LinkDict = dict[str, Any]
 
     from app.controllers.ui.links.links_actions import LinksActions
-    from app.controllers.ui.menu_controller import ActionController
+    # ActionController removed - not used
     from app.controllers.ui.state.ui_state_manager import UIStateManager
     from app.controllers.ui.structure.structure_ui_controller import (
         StructureUIController,
@@ -44,7 +44,7 @@ class WindowFacade:
         structure: StructureUIController,
         links_actions: LinksActions,
         ui_state: UIStateManager,
-        action_controller: ActionController,
+        action_controller: Any,  # ActionController removed
         theme_ctrl: ThemeController,
     ):
         """Initialize facade with required controllers.

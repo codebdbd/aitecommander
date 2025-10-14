@@ -35,7 +35,7 @@ class StructureMenuBuilder:
         # Initialize business-logic service
         dc = getattr(self.main_window, "database_controller", None)
         db = getattr(dc, "db", None)
-        self._svc = StructureContextService(db)
+        self._svc = StructureContextService(db)  # type: ignore[arg-type]
 
     def build(
         self,
@@ -455,7 +455,8 @@ class StructureMenuBuilder:
                     for idx in rows
                     if (
                         get_tree_tuple(idx, 0)
-                        and get_tree_tuple(idx, 0)[0] == StructureItemType.CATEGORY
+                        and get_tree_tuple(idx, 0) is not None
+                        and get_tree_tuple(idx, 0)[0] == StructureItemType.CATEGORY  # type: ignore[index]
                     )
                 ]
         except Exception:

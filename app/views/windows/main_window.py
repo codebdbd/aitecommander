@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     LinkDict = dict[str, Any]
     from app.controllers.ui.links.links_actions import LinksActions
-    from app.controllers.ui.menu_controller import ActionController, MenuController
+    from app.controllers.ui.menu_controller import MenuController
     from app.controllers.ui.state.ui_state_manager import UIStateManager
     from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
     from app.controllers.ui.structure.structure_ui_controller import (
@@ -54,7 +54,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     structure: Optional["StructureUIController"]
     menu_controller: Optional["MenuController"]
-    action_controller: Optional["ActionController"]
+    action_controller: Optional[Any]  # ActionController removed
     links_actions: Optional["LinksActions"]
     spheres_controller: Optional["SpheresBarController"]
     top_panels_controller: Optional["TopPanelsController"]

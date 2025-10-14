@@ -61,12 +61,12 @@ def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade
     try:
         from app.controllers.ui.window_facade import WindowFacade
 
-        window.facade = WindowFacade(
-            structure=window.structure,
-            links_actions=window.links_actions,
-            ui_state=window.ui_state,
-            action_controller=window.action_controller,
-            theme_ctrl=window.theme_ctrl,
+        window.facade = WindowFacade(  # type: ignore[attr-defined]
+            structure=window.structure,  # type: ignore[attr-defined]
+            links_actions=window.links_actions,  # type: ignore[attr-defined]
+            ui_state=window.ui_state,  # type: ignore[attr-defined]
+            action_controller=window.action_controller,  # type: ignore[attr-defined]
+            theme_ctrl=window.theme_ctrl,  # type: ignore[attr-defined]
         )
     except Exception:
         warnings.warn(
