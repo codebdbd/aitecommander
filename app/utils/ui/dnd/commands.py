@@ -1,13 +1,40 @@
 """Centralized Undo/Redo commands for drag-and-drop links and categories."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING, cast
 
 from app.controllers.ui.undo.base import BaseCommand
 from app.utils.common import get_value
 
+if TYPE_CHECKING:
+    from app.controllers.business.structure_business import StructureBusinessLogic
+    from app.views.windows.main_window_protocol import MainWindowProtocol
+
 logger = logging.getLogger(__name__)
 # get_value imported from app.utils.common
+
+
+def _require_main(main: object | None) -> MainWindowProtocol:
+    if main is None:
+        raise RuntimeError("Command requires an attached main window")
+    return cast("MainWindowProtocol", main)
+
+
+def _require_structure_business(main: object | None) -> StructureBusinessLogic:
+    main_window = _require_main(main)
+    structure_business = getattr(main_window, "structure_business", None)
+    if structure_business is None:
+        raise RuntimeError("Main window is missing structure_business")
+    return cast("StructureBusinessLogic", structure_business)
+
+
+def _get_structure_business(main: object | None) -> StructureBusinessLogic | None:
+    try:
+        return _require_structure_business(main)
+    except RuntimeError:
+        return None
 
 
 class MoveLinksCommand(BaseCommand):
@@ -146,7 +173,7 @@ class MoveCategoryCommand(BaseCommand):
 
         # Get category data via business logic
 
-        structure_business = self.main.structure_business
+        structure_business = _require_structure_business(self.main)
 
         category_data = structure_business.get_category_data(self.category_id)
 
@@ -162,7 +189,7 @@ class MoveCategoryCommand(BaseCommand):
     def _set_section(self, section_id):
         """Sets section for category via business logic."""
 
-        structure_business = self.main.structure_business
+        structure_business = _require_structure_business(self.main)
 
         # Get full category data for update
 
@@ -196,7 +223,7 @@ class MoveCategoryCommand(BaseCommand):
 
             # Check duplicates via business logic
 
-            structure_business = self.main.structure_business
+            structure_business = _require_structure_business(self.main)
 
             if structure_business.has_duplicate_category(
                 self.new_section_id, self.cat_name, self.category_id
@@ -240,9 +267,10 @@ class MoveCategoryCommand(BaseCommand):
 
         # through business logic signals (item_updated etc.). Focus needed category.
 
-        if hasattr(self.main, "structure_business") and self.main.structure_business:
+        structure_business = _get_structure_business(self.main)
+        if structure_business:
             try:
-                self.main.structure_business.select_category(self.category_id)
+                structure_business.select_category(self.category_id)
 
                 logger.info("Switched focus to moved category %s", self.category_id)
 
@@ -292,7 +320,7 @@ class MoveCategoriesCommand(BaseCommand):
         if self._prepared:
             return
 
-        sb = self.main.structure_business
+        sb = _require_structure_business(self.main)
 
         # Load original states
 
@@ -481,8 +509,9 @@ class MoveCategoriesCommand(BaseCommand):
         if not states:
             return
 
-        sb = self.main.structure_business
-        struct = getattr(self.main, "structure", None)
+        main_window = _require_main(self.main)
+        sb = _require_structure_business(main_window)
+        struct = getattr(main_window, "structure", None)
         tree = getattr(struct, "tree", None)
         selection = getattr(struct, "selection_handler", None)
 
@@ -549,11 +578,13 @@ class MoveCategoriesCommand(BaseCommand):
             self._restore_ui_signals(selection, tree)
 
     def _refresh_ui(self, focus_section_id=None, focus_category_id=None):
-        sb = getattr(self.main, "structure_business", None)
+        main_window = _require_main(self.main)
+        sb = getattr(main_window, "structure_business", None)
         if not sb:
             return
+        sb = cast("StructureBusinessLogic", sb)
 
-        struct = getattr(self.main, "structure", None)
+        struct = getattr(main_window, "structure", None)
         selection = getattr(struct, "selection_handler", None)
         tree = getattr(struct, "tree", None)
 
