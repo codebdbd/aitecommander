@@ -32,9 +32,11 @@ class LinksMenuBuilder:
 
         if idx.isValid():
             link = self.main_window.get_link_at_row(idx.row())
-            self._add_link_item_actions(menu, link)
+            if link is not None:
+                self._add_link_item_actions(menu, link)  # type: ignore[arg-type]
             self._add_common_link_actions(menu, paste_link_cb)
-            self._add_additional_actions(menu, link)
+            if link is not None:
+                self._add_additional_actions(menu, link)  # type: ignore[arg-type]
         else:
             self._add_empty_area_actions(menu, paste_link_cb)
         return menu
@@ -328,7 +330,7 @@ class LinksMenuBuilder:
             if app is None:
                 return False
 
-            clipboard = app.clipboard()
+            clipboard = app.clipboard()  # type: ignore[attr-defined]
             if clipboard is None:
                 return False
 
