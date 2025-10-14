@@ -80,8 +80,12 @@ class TreeUpdateService(QObject):
     def _insert_section(self, data: dict[str, Any]) -> None:
         row = data.get("row")
         row_index = int(row) if isinstance(row, int) else -1
+
+        # Преобразуем icon_path в QIcon перед передачей в модель
+        processed_data = self._preprocess_section_data(data)
+
         try:
-            self._model.insert_sections(row_index, [data])
+            self._model.insert_sections(row_index, [processed_data])
         except (ValueError, RuntimeError):
             logger.exception("TreeUpdateService._insert_section: model insert failed")
             raise
@@ -89,13 +93,57 @@ class TreeUpdateService(QObject):
     def _insert_category(self, parent_id: int, data: dict[str, Any]) -> None:
         row = data.get("row")
         row_index = int(row) if isinstance(row, int) else -1
+
+        # Преобразуем icon_path в QIcon перед передачей в модель
+        processed_data = self._preprocess_category_data(data)
+
         try:
-            self._model.insert_categories(parent_id, row_index, [data])
+            self._model.insert_categories(parent_id, row_index, [processed_data])
         except (ValueError, RuntimeError):
             logger.exception("TreeUpdateService._insert_category: model insert failed")
             raise
         if not bool(data.get("__from_undo__")):
             self._manager.refresh_section_tiles(parent_id)
+
+    def _preprocess_section_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Преобразуем icon_path в QIcon для секции."""
+        try:
+            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+        except ImportError:
+            logger.debug("Icon cache not available, returning original data")
+            return data
+
+        processed = dict(data)
+        icon_path = data.get("icon_path")
+        if isinstance(icon_path, str) and icon_path.strip():
+            try:
+                processed["icon"] = icon_cache.get_icon(icon_path, source="tree_update")
+            except Exception:
+                processed["icon"] = None
+        else:
+            processed["icon"] = None
+
+        return processed
+
+    def _preprocess_category_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Преобразуем icon_path в QIcon для категории."""
+        try:
+            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+        except ImportError:
+            logger.debug("Icon cache not available, returning original data")
+            return data
+
+        processed = dict(data)
+        icon_path = data.get("icon_path")
+        if isinstance(icon_path, str) and icon_path.strip():
+            try:
+                processed["icon"] = icon_cache.get_icon(icon_path, source="tree_update")
+            except Exception:
+                processed["icon"] = None
+        else:
+            processed["icon"] = None
+
+        return processed
 
     def _focus_on_new_item(self, item_type: str, item_id: Any) -> None:
         if not isinstance(item_id, int):
