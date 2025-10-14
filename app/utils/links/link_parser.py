@@ -4,7 +4,7 @@ import shutil
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pythoncom
 import win32api
@@ -164,7 +164,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
             )
             img.save(save_path, format="ICO")
             logger.debug("Extracted EXE icon saved: %s", save_path)
-            return save_path
+            return str(save_path)
     except win32ui.error as e:
         logger.error("Win32 error extracting icon from %s: %s", exe_path, e)
     except OSError as e:
@@ -183,13 +183,13 @@ def _parse_lnk(lnk_path: str) -> dict[str, str]:
         return {}
     try:
         with com_context():
-            shortcut = pythoncom.CoCreateInstance(
+            shortcut: Any = pythoncom.CoCreateInstance(
                 shell.CLSID_ShellLink,
                 None,
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLink,
             )
-            persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
+            persist_file: Any = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
             persist_file.Load(lnk_path)
             path, _ = shortcut.GetPath(shell.SLGP_UNCPRIORITY)
             args = shortcut.GetArguments()
@@ -320,7 +320,7 @@ def _get_icon_for_link_type(
     link_type: str, path: str, lnk_info: dict[str, str], config, icons_dir: str
 ) -> str:
     """Determines icon for link based on type"""
-    icon = None
+    icon: Optional[str] = None
     try:
         if link_type == "folder":
             icon = _handle_folder_icon(config)
@@ -338,10 +338,11 @@ def _get_icon_for_link_type(
             lnk_info,
             e,
         )
-    if not is_valid_icon_file(icon):
-        icon = _get_default_icon(link_type, config)
-        logger.debug("Fallback to default icon: %s", icon)
-    return icon or ""
+    if icon and is_valid_icon_file(icon):
+        return icon
+    fallback = _get_default_icon(link_type, config)
+    logger.debug("Fallback to default icon: %s", fallback)
+    return fallback or ""
 
 
 def parse_local_link(
@@ -356,7 +357,7 @@ def parse_local_link(
         return {"name": "Error", "icon": ""}
     if not validate_config_for_icons(config):
         logger.error("Config.LINK_ICONS_DIR not found")
-        return None
+        return {"name": "Error", "icon": ""}
     icons_dir = str(icon_path_service.get_user_icons_dir())
     lnk_info = {}
     if path.lower().endswith(".lnk"):

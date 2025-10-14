@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Optional, Protocol, Union
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.services import share_service
@@ -95,7 +95,13 @@ class LinksActions:
         return self._share(link, share_service.copy_email_template)
 
     # --- Internal helpers ---
-    def _share(self, link: dict, handler: Callable[[str, str], bool]) -> bool:
+    class _ShareHandler(Protocol):
+        def __call__(self, name: Optional[str], url: str) -> Union[
+            bool, tuple[bool, Optional[str]]
+        ]:
+            ...
+
+    def _share(self, link: dict, handler: _ShareHandler) -> bool:
         """Extract name/url and call the provided share handler.
 
         Returns False when link is missing or url is empty.
@@ -106,7 +112,11 @@ class LinksActions:
         url = link.get("url") or link.get("href")
         if not url:
             return False
-        return bool(handler(name, url))
+        result = handler(name, url)
+        if isinstance(result, tuple):
+            success, _message = result
+            return bool(success)
+        return bool(result)
 
     # --- Social networks: X(Twitter), Facebook, LinkedIn ---
     def share_via_x(self, link: dict) -> bool:

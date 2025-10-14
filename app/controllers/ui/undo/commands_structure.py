@@ -3,11 +3,22 @@ from __future__ import annotations
 
 import logging
 
+from typing import Any, Optional
+
 from app.controllers.ui.undo.base import BaseCommand, log_command
+from app.models.db import Database
 from app.services.structure_service import StructureService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_database(main_window: Any) -> Database:
+    dc = getattr(main_window, "database_controller", None)
+    db_obj = getattr(dc, "db", None)
+    if not isinstance(db_obj, Database):
+        raise RuntimeError("Main window database is not available")
+    return db_obj
 
 
 class SaveSectionCmd(BaseCommand):
@@ -18,9 +29,8 @@ class SaveSectionCmd(BaseCommand):
     def __init__(self, new_data: dict, old_data: dict | None, main_window):
         super().__init__("Save section", main_window)
         self.main = main_window
-        dc = getattr(main_window, "database_controller", None)
-        self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        self.db: Database = _resolve_database(main_window)
+        self.structure_service: StructureService = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -122,19 +132,27 @@ class DeleteSectionCmd(BaseCommand):
     def __init__(self, section_data: dict, main_window):
         super().__init__("Delete section", main_window)
         self.main = main_window
-        dc = getattr(main_window, "database_controller", None)
-        self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        self.db: Database = _resolve_database(main_window)
+        self.structure_service: StructureService = StructureService(self.db)
         self.section = dict(section_data) if section_data else {}
-        # Backup full section tree
-        self._backup_tree = self.structure_service.export_section_tree(
-            self.section.get("id")
-        )
+        self._backup_tree: Optional[dict] = None
+        section_id_obj = self.section.get("id")
+        if isinstance(section_id_obj, int):
+            try:
+                self._backup_tree = self.structure_service.export_section_tree(
+                    section_id_obj
+                )
+            except Exception as exc:
+                logger.warning(
+                    "DeleteSectionCmd.__init__: unable to export section tree: %s",
+                    exc,
+                )
 
     def redo(self):
-        section_id = self.section.get("id")
-        if section_id is None:
+        section_id_obj = self.section.get("id")
+        if not isinstance(section_id_obj, int):
             return
+        section_id = section_id_obj
         self.structure_service.delete_section(section_id)
         try:
             business = getattr(self.main, "structure_business", None)
@@ -149,30 +167,38 @@ class DeleteSectionCmd(BaseCommand):
             )
 
     def undo(self):
+        if not self._backup_tree:
+            return
         try:
             self.structure_service.import_section_tree(self._backup_tree)
-            section_id = self._backup_tree["section"]["id"]
+            section_payload = self._backup_tree.get("section") or {}
+            section_id_obj = section_payload.get("id")
+            if not isinstance(section_id_obj, int):
+                return
+            section_id = section_id_obj
             # If restored categories exist — select the first one
             try:
                 categories = self._backup_tree.get("categories") or []
                 first_cat = None
                 for item in categories:
                     cat = (item or {}).get("category") or {}
-                    if cat.get("id") is not None:
+                    cat_id_obj = cat.get("id")
+                    if isinstance(cat_id_obj, int):
                         first_cat = cat
                         break
                 if first_cat is not None:
-                    cat_id = first_cat.get("id")
-                    try:
-                        business = getattr(self.main, "structure_business", None)
-                        if business:
-                            business.select_category(cat_id)
-                    except Exception as exc:
-                        logger.debug(
-                            "DeleteSectionCmd.undo: select_category failed: %s",
-                            exc,
-                            exc_info=True,
-                        )
+                    cat_id_obj = first_cat.get("id")
+                    if isinstance(cat_id_obj, int):
+                        try:
+                            business = getattr(self.main, "structure_business", None)
+                            if business:
+                                business.select_category(cat_id_obj)
+                        except Exception as exc:
+                            logger.debug(
+                                "DeleteSectionCmd.undo: select_category failed: %s",
+                                exc,
+                                exc_info=True,
+                            )
             except Exception as exc:
                 logger.warning(
                     "DeleteSectionCmd.undo: categories handling failed: %s", exc
@@ -215,9 +241,8 @@ class SaveCategoryCmd(BaseCommand):
     ):
         super().__init__("Save category", main_window)
         self.main = main_window
-        dc = getattr(main_window, "database_controller", None)
-        self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        self.db: Database = _resolve_database(main_window)
+        self.structure_service: StructureService = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -230,9 +255,19 @@ class SaveCategoryCmd(BaseCommand):
         try:
             business = getattr(self.main, "structure_business", None)
             if business:
-                # Category icons might have changed — clear cache so tiles redraw actual icons
+                # Очищать кэш только при изменении иконки категории
                 try:
-                    clear_icon_cache()
+                    # Проверяем, изменился ли путь к иконке категории
+                    icon_path_changed = (
+                        (self.old_data and self.new_data) and
+                        (self.new_data.get('icon_path') != self.old_data.get('icon_path'))
+                    )
+
+                    if icon_path_changed:
+                        clear_icon_cache()
+                        logger.debug("Category icon path changed, clearing icon cache")
+                    else:
+                        logger.debug("Category icon path unchanged, skipping cache clear")
                 except Exception as exc:
                     logger.warning(
                         "SaveCategoryCmd._emit_reload: clear_icon_cache failed: %s", exc
@@ -345,16 +380,24 @@ class DeleteCategoryCmd(BaseCommand):
     ):
         super().__init__("Delete category", main_window)
         self.main = main_window
-        dc = getattr(main_window, "database_controller", None)
-        self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        self.db: Database = _resolve_database(main_window)
+        self.structure_service: StructureService = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
         self.lightweight_reload = bool(lightweight_reload)
         # Backup of category subtree
-        self._backup_tree = self.structure_service.export_category_tree(
-            self.category.get("id")
-        )
+        self._backup_tree: Optional[dict] = None
+        cat_id_obj = self.category.get("id")
+        if isinstance(cat_id_obj, int):
+            try:
+                self._backup_tree = self.structure_service.export_category_tree(
+                    cat_id_obj
+                )
+            except Exception as exc:
+                logger.warning(
+                    "DeleteCategoryCmd.__init__: export_category_tree failed: %s",
+                    exc,
+                )
 
     def _handle_skip_reload(self, business, category_id):
         """Handle deletion with skip_reload mode."""
@@ -432,11 +475,13 @@ class DeleteCategoryCmd(BaseCommand):
                 exc,
                 exc_info=True,
             )
-        category_id = self.category.get("id")
-        if category_id is None:
+        category_id_obj = self.category.get("id")
+        if not isinstance(category_id_obj, int):
             return
+        category_id = category_id_obj
         self.structure_service.delete_category(category_id)
-        section_id = self.category.get("section_id")
+        section_id_obj = self.category.get("section_id")
+        section_id = section_id_obj if isinstance(section_id_obj, int) else None
         business = getattr(self.main, "structure_business", None)
 
         if self.skip_reload:
@@ -450,7 +495,8 @@ class DeleteCategoryCmd(BaseCommand):
     def undo(self):
         try:
             self.structure_service.import_category_tree(self._backup_tree)
-            category_id = self.category.get("id")
+            category_id_obj = self.category.get("id")
+            category_id = category_id_obj if isinstance(category_id_obj, int) else None
             # After restore select category via business logic (UI updates via subscribers)
             try:
                 business = getattr(self.main, "structure_business", None)
@@ -497,19 +543,24 @@ class DeleteCategoriesBatchCmd(BaseCommand):
     def __init__(self, categories_data: list[dict], main_window):
         super().__init__("Delete categories (batch)", main_window)
         self.main = main_window
-        dc = getattr(main_window, "database_controller", None)
-        self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        self.db: Database = _resolve_database(main_window)
+        self.structure_service: StructureService = StructureService(self.db)
         # Save flat list of category data and their backups for undo
         self.categories = [dict(c) for c in (categories_data or [])]
-        self._backups = []
+        self._backups: list[Optional[dict]] = []
         for cat in self.categories:
-            try:
-                backup = self.structure_service.export_category_tree(cat.get("id"))
-            except Exception as exc:
-                logger.warning(
-                    "DeleteCategoriesBatchCmd.__init__: export backup failed: %s", exc
-                )
+            cat_id = cat.get("id")
+            backup: Optional[dict]
+            if isinstance(cat_id, int):
+                try:
+                    backup = self.structure_service.export_category_tree(cat_id)
+                except Exception as exc:
+                    logger.warning(
+                        "DeleteCategoriesBatchCmd.__init__: export backup failed: %s",
+                        exc,
+                    )
+                    backup = None
+            else:
                 backup = None
             self._backups.append(backup)
 
@@ -631,7 +682,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         except Exception:
             pass
         business = getattr(self.main, "structure_business", None)
-        section_id_for_focus = None
+        section_id_for_focus: Optional[int] = None
         try:
             ids_dbg = [c.get("id") for c in self.categories if c.get("id") is not None]
             logger.debug(
@@ -645,7 +696,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             )
         tree, selection = self._suppress_ui_signals()
         try:
-            ids = [c.get("id") for c in self.categories if c.get("id") is not None]
+            ids = [c_id for c_id in (c.get("id") for c in self.categories) if isinstance(c_id, int)]
             touched_sections = {
                 int(cat.get("section_id"))
                 for cat in self.categories
@@ -653,7 +704,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             }
             for cat in self.categories:
                 sid = cat.get("section_id")
-                if sid is not None:
+                if isinstance(sid, int):
                     section_id_for_focus = sid
             batch_started = self._perform_batch_delete(business, ids, touched_sections)
         finally:
@@ -682,7 +733,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         for backup in self._backups:
             if backup and backup.get("category"):
                 section_id = backup["category"].get("section_id")
-                if section_id is not None:
+                if isinstance(section_id, int):
                     return section_id
         return None
 
@@ -719,7 +770,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
     def _update_category_focus(self, business, category_id_for_focus):
         """Update category focus."""
         try:
-            if business and category_id_for_focus is not None:
+            if business and isinstance(category_id_for_focus, int):
                 business.select_category(category_id_for_focus)
         except Exception as exc:
             logger.debug(

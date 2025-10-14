@@ -12,6 +12,9 @@ from collections.abc import Iterable
 from PyQt6.QtWidgets import QApplication
 
 from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
+from typing import Any, cast
+
+from app.models.db import Database
 from app.services.links_service import LinksService
 from app.services.protocols import DatabaseProtocol
 from app.services.structure_service import StructureService
@@ -35,8 +38,10 @@ class StructureContextService:
             db: Database instance
         """
         self.db = db
-        self._ss = StructureService(db)
-        self._ls = LinksService(db)
+
+        concrete_db = cast(Database, db)
+        self._ss = StructureService(concrete_db)
+        self._ls = LinksService(concrete_db)
 
     # --- Qt helpers ---
     def _get_qapp(self):
@@ -145,7 +150,8 @@ class StructureContextService:
             if payload.get("type") == "category_tree" and isinstance(
                 payload.get("tree"), dict
             ):
-                return [payload.get("tree")]  # type: ignore[return-value]
+                tree_value = payload.get("tree")
+                return [dict(tree_value)] if isinstance(tree_value, dict) else []
             if payload.get("type") == "category" and payload.get("id"):
                 return [self._ss.export_category_tree(int(payload["id"]))]
             if payload.get("type") == "category_trees" and isinstance(
@@ -156,15 +162,15 @@ class StructureContextService:
                     if isinstance(t, dict) and {"category", "links"}.issubset(
                         set(t.keys())
                     ):
-                        out.append(t)
+                        out.append(dict(t))
                 return out
             return []
         if isinstance(payload, list):
-            return [
-                t
-                for t in payload
-                if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys()))
-            ]
+            normalized: list[dict] = []
+            for t in payload:
+                if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys())):
+                    normalized.append(dict(t))
+            return normalized
         return []
 
     def paste_from_clipboard_to_section(self, section_id: int) -> list[dict]:
@@ -302,8 +308,14 @@ class StructureContextService:
         cat_copy = dict(cat_row or {})
         if not cat_copy:
             return
+
+        cat_id_obj: Any = cat_copy.get("id")
+        if cat_id_obj is None:
+            return
+        if not isinstance(cat_id_obj, (int, str)):
+            return
         try:
-            new_cat_id = int(cat_copy.get("id"))
+            new_cat_id = int(cat_id_obj)
         except (TypeError, ValueError):
             return
         created_categories_out.append(cat_copy)

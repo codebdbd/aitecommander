@@ -31,6 +31,8 @@ def validate_link_form(func: Callable[..., Any]) -> Callable[..., Any]:
         name = link_data.get("name")
         url = link_data.get("url")
         link_type = link_data.get("type")
+        if not isinstance(name, str) or not isinstance(url, str) or not isinstance(link_type, str):
+            raise ValueError(self.tr("Invalid link data provided"))
         category_id = link_data.get("category_id")
         if not (
             validate_link_form_data(name, url, link_type)

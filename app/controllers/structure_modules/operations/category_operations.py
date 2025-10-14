@@ -5,7 +5,7 @@
 import logging
 from importlib import import_module
 from types import ModuleType
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Protocol, cast
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
@@ -19,6 +19,15 @@ from ..models.types import (
 )
 from .base import BaseOperations, StructureSignalEmitter
 
+class _NormalizationValidator(Protocol):
+    def __call__(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        required_keys: list[str] | None = None,
+    ) -> bool: ...
+
+
 _normalization_module: ModuleType | None = None
 try:  # pragma: no cover - optional import for runtime
     _normalization_module = import_module(
@@ -27,27 +36,26 @@ try:  # pragma: no cover - optional import for runtime
 except ModuleNotFoundError:
     _normalization_module = None
 
-if _normalization_module and hasattr(_normalization_module, "validate_normalized_data"):
+_normalize_fn: _NormalizationValidator | None = None
+if _normalization_module is not None:
+    _candidate = getattr(_normalization_module, "validate_normalized_data", None)
+    if callable(_candidate):
+        _normalize_fn = cast(_NormalizationValidator, _candidate)
 
-    def validate_normalized_data(
-        items: list[dict[str, Any]], *, required_keys: list[str] | None = None
-    ) -> bool:
-        return _normalization_module.validate_normalized_data(
-            items, required_keys=required_keys
-        )
 
-else:
+def validate_normalized_data(
+    items: list[dict[str, Any]], *, required_keys: list[str] | None = None
+) -> bool:
+    if _normalize_fn is not None:
+        return _normalize_fn(items, required_keys=required_keys)
 
-    def validate_normalized_data(
-        items: list[dict[str, Any]], *, required_keys: list[str] | None = None
-    ) -> bool:
-        required_keys = required_keys or []
-        for item in items:
-            if not isinstance(item, dict):
-                return False
-            if any(key not in item for key in required_keys):
-                return False
-        return True
+    required_keys = required_keys or []
+    for item in items:
+        if not isinstance(item, dict):
+            return False
+        if any(key not in item for key in required_keys):
+            return False
+    return True
 
 
 class CategoryOperations(BaseOperations):

@@ -141,6 +141,18 @@ class UniversalProfileProcessor:
         result_links: list[dict] = []
         is_edit = existing_link is not None
 
+        existing_link_data = existing_link if existing_link is not None else None
+        existing_last_used = (
+            existing_link_data.get("last_used") if existing_link_data is not None else None
+        )
+        existing_position = 0
+        if existing_link_data is not None:
+            position_value = existing_link_data.get("position", 0)
+            try:
+                existing_position = int(position_value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                existing_position = 0
+
         for profile in selected_profiles:
             try:
                 logger.debug("Processing profile: %s", profile)
@@ -169,8 +181,14 @@ class UniversalProfileProcessor:
                     continue
 
                 # Determine if this is the current edited profile
-                existing_args = existing_link.get("args", "") if existing_link else ""
-                existing_id = existing_link.get("id") if existing_link else None
+                existing_args = (
+                    existing_link_data.get("args", "")
+                    if existing_link_data is not None
+                    else ""
+                )
+                existing_id = (
+                    existing_link_data.get("id") if existing_link_data is not None else None
+                )
                 is_current = is_edit and prof_args == existing_args
 
                 # For profiles of another browser when editing, check by ID
@@ -251,9 +269,9 @@ class UniversalProfileProcessor:
                     prof_args=prof_args,
                     notes=notes,
                     category_id=category_id,
-                    last_used=existing_link.get("last_used") if existing_link else None,
-                    position=existing_link.get("position", 0) if existing_link else 0,
-                    link_id=existing_link.get("id") if is_current else None,
+                    last_used=existing_last_used,
+                    position=existing_position if existing_link_data is not None else 0,
+                    link_id=existing_id if is_current else None,
                     browser_key=browser_key,  # Add browser_key for proper launch
                 )
 
