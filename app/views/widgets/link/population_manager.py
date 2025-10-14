@@ -2,7 +2,7 @@
 # Provides bulk-update helpers
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
 
 from PyQt6.QtCore import Qt
 
@@ -22,6 +22,9 @@ class PopulationManagerMixin:
 
     if TYPE_CHECKING:
         _current_mode: Any
+        _current_links: dict[int, dict[str, Any]]
+
+    _current_mode: str = ""
 
     def _link_table(self) -> LinkTableWidgetProtocol:
         """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""
@@ -42,6 +45,8 @@ class PopulationManagerMixin:
 
         try:
             header = table.horizontalHeader()
+            if header is None:
+                raise AttributeError
             sort_col, sort_order = (
                 header.sortIndicatorSection(),
                 header.sortIndicatorOrder(),
@@ -131,9 +136,17 @@ class PopulationManagerMixin:
         ids_to_add = new_ids - current_ids
         ids_to_check = current_ids & new_ids
 
-        remove_op = getattr(self, "_remove_links", None)
-        update_op = getattr(self, "_update_links", None)
-        add_op = getattr(self, "_add_links", None)
+        remove_op = cast(
+            Callable[[Iterable[int]], None], getattr(self, "_remove_links", None)
+        )
+        update_op = cast(
+            Callable[[set[int], dict[int, dict[str, Any]], str], None],
+            getattr(self, "_update_links", None),
+        )
+        add_op = cast(
+            Callable[[list[dict[str, Any]], set[int], int], None],
+            getattr(self, "_add_links", None),
+        )
 
         missing_helpers = [
             name
