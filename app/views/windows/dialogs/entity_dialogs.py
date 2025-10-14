@@ -252,6 +252,8 @@ class BaseEntityDialog(BaseDialog):
 
     def _on_accept_base(self) -> Optional[dict]:
         """Perform base validation and collect name/icon data, returning ``None`` on error."""
+        if self.name_le is None:
+            return None
         name = self.name_le.text().strip()
         if not name:
             self.show_warning(
@@ -286,7 +288,8 @@ class SectionDialog(BaseEntityDialog):
         self._finalize_translations()
         # Focus the name field on open
         try:
-            self.name_le.setFocus()
+            if self.name_le is not None:
+                self.name_le.setFocus()
         except Exception:
             logger.debug("SectionDialog.__init__: setFocus failed", exc_info=True)
         if section_id:
@@ -386,7 +389,8 @@ class CategoryDialog(BaseEntityDialog):
         self._finalize_translations()
         # Focus the name field on open
         try:
-            self.name_le.setFocus()
+            if self.name_le is not None:
+                self.name_le.setFocus()
         except Exception:
             pass
         if category_id:
@@ -664,15 +668,19 @@ class SettingsDialog(BaseDialog):
             # Language selector label
             if self.language_selector is not None:
                 lang_label = self._form_layout.labelForField(self.language_selector)
-                if lang_label is not None:
+                if lang_label is not None and hasattr(lang_label, 'setText'):
                     lang_label.setText(self.tr("Language:"))
             # Max backups label
+            if self.max_backups_combo is None:
+                return
             max_label = self._form_layout.labelForField(self.max_backups_combo)
-            if max_label is not None:
+            if max_label is not None and hasattr(max_label, 'setText'):
                 max_label.setText(self.tr("Max backups:"))
             # Font size label
+            if self.font_size_combo is None:
+                return
             font_label = self._form_layout.labelForField(self.font_size_combo)
-            if font_label is not None:
+            if font_label is not None and hasattr(font_label, 'setText'):
                 font_label.setText(self.tr("Font size:"))
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
@@ -815,9 +823,12 @@ class ChromeProfileDialog(BaseDialog):
         self.setWindowTitle(self.tr("Select Chrome profile"))
         if self._title_label is not None:
             self._title_label.setText(self.tr("Choose a Chrome profile:"))
-        self.select_all_btn.setText(self.tr("Select all"))
-        self.deselect_all_btn.setText(self.tr("Deselect all"))
-        self.refresh_btn.setText(self.tr("Refresh profiles"))
+        if self.select_all_btn is not None:
+            self.select_all_btn.setText(self.tr("Select all"))
+        if self.deselect_all_btn is not None:
+            self.deselect_all_btn.setText(self.tr("Deselect all"))
+        if self.refresh_btn is not None:
+            self.refresh_btn.setText(self.tr("Refresh profiles"))
         if self._button_box is not None:
             save_btn = self._button_box.button(QDialogButtonBox.StandardButton.Save)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
@@ -827,6 +838,8 @@ class ChromeProfileDialog(BaseDialog):
                 cancel_btn.setText(self.tr("Cancel"))
 
     def _set_loading_state(self, loading: bool) -> None:
+        if self.refresh_btn is None:
+            return
         self.refresh_btn.setEnabled(not loading)
         if loading:
             self.refresh_btn.setText(self.tr("Loading…"))
@@ -887,9 +900,9 @@ class ChromeProfileDialog(BaseDialog):
 
     def accept(self) -> None:
         """Persist selected profiles and close the dialog."""
-        self.result = [cb.profile for cb in self.profile_checkboxes if cb.isChecked()]
+        self._selected_profiles = [cb.profile for cb in self.profile_checkboxes if cb.isChecked()]
         super().accept()
 
     def get_selected_profiles(self):
         """Return the list of selected profiles."""
-        return self.result
+        return getattr(self, '_selected_profiles', [])

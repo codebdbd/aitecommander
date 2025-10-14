@@ -223,7 +223,7 @@ class BrowserProfileDialog(BaseDialog):
                 profile=profile_name, browser=browser_name
             )
             cb = QCheckBox(text)
-            cb.profile_data = profile
+            setattr(cb, 'profile_data', profile)
             try:
                 cb.stateChanged.connect(self._update_save_enabled)
             except Exception:

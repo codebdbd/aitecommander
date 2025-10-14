@@ -177,7 +177,8 @@ class RestoreDbDialog(BaseDialog):
         return True
 
     def _show_placeholder(self, kind: str, message: str | None = None) -> None:
-        self.list_widget.clear()
+        if self.list_widget is not None:
+            self.list_widget.clear()
         item = QListWidgetItem()
         item.setFlags(Qt.ItemFlag.NoItemFlags)
         item.setData(Qt.ItemDataRole.UserRole, BackupMeta(kind=kind, message=message))
@@ -236,7 +237,9 @@ class RestoreDbDialog(BaseDialog):
         if not self.list_widget:
             return
         for index in range(self.list_widget.count()):
-            self._update_item_text(self.list_widget.item(index))
+            item = self.list_widget.item(index)
+            if item is not None:
+                self._update_item_text(item)
 
     def retranslateUi(self) -> None:
         self.setWindowTitle(_tr("Restore Database from Backup"))
@@ -265,6 +268,8 @@ class RestoreDbDialog(BaseDialog):
         return None
 
     def _update_ok_state(self) -> None:
+        if self.buttons is None:
+            return
         ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn is not None:
             ok_btn.setEnabled(self.get_selected_backup() is not None)

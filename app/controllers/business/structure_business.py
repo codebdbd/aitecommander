@@ -58,7 +58,7 @@ class StructureBusinessLogic(QObject):
     def __init__(
         self,
         db: Database,
-        parent: QObject = None,
+        parent: Optional[QObject] = None,
         logger: Optional[logging.Logger] = None,
     ):
         """Initialise structure business logic."""
@@ -247,7 +247,10 @@ class StructureBusinessLogic(QObject):
 
         for sphere in structure:
             try:
-                sphere_id = int(sphere.get("id"))
+                raw_id = sphere.get("id")
+                if raw_id is None:
+                    continue
+                sphere_id = int(raw_id)
             except Exception:
                 continue
 

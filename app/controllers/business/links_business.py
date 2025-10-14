@@ -223,7 +223,7 @@ class LinksBusinessLogic(QObject):
                 "Searching links: empty query -> return ALL links (global)"
             )
             self._run_db_task(
-                lambda: self.links.get_all_links() or [],
+                lambda: self.links.get_recent_links(limit=1000) or [],
                 description="search_links(all)",
                 on_finished=self._on_search_finished,
             )
@@ -356,7 +356,9 @@ class LinksBusinessLogic(QObject):
             # Use QMutexLocker for RAII-style lock management
             locker = QMutexLocker(self._mutex)
             try:
-                current_link = self.links.get_link_by_id(link_id)
+                if link_id is None:
+                    raise ValueError(self.tr("Invalid link ID"))
+                current_link = self.links.get_link_by_id(int(link_id))
                 if not current_link:
                     raise ValueError(self.tr("Link not found"))
                 old_status = current_link.get("is_favorite", False)
@@ -655,7 +657,7 @@ class LinksBusinessLogic(QObject):
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        result = self.links.get_all_links() or []
+        result = self.links.get_recent_links(limit=1000) or []
         self._cache[cache_key] = result
         return result
 

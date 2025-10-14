@@ -223,6 +223,8 @@ class WindowUISetup:
     def __init__(self, window_initializer: Any) -> None:
         self.window_initializer = window_initializer
         self.window = window_initializer.window
+        # Add missing fonts attribute for BottomPanelBuilder protocol
+        self.fonts = app_config.ui.get('ui', {}).get('fonts', {})
         self.settings = window_initializer.settings
         self.theme_ctrl = window_initializer.theme_ctrl
 

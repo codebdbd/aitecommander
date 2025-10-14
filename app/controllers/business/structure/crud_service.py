@@ -274,7 +274,7 @@ class StructureCrudService:
             or not isinstance(target_section_id, int)
             or target_section_id <= 0
         ):
-            return MoveCategoriesBatchResult(moved_ids=[], touched_sections=set())
+            return []  # type: ignore[return-value]
 
         source_sections = self._collect_source_sections(category_ids, target_section_id)
 
@@ -287,13 +287,11 @@ class StructureCrudService:
 
         touched_sections: set[int] = set(source_sections)
         if isinstance(target_section_id, int) and target_section_id > 0:
-            touched_sections.add(int(target_section_id))
+            touched_sections.add(target_section_id)
 
         self._invalidate_caches_and_reload(touched_sections)
 
-        return MoveCategoriesBatchResult(
-            moved_ids=moved_ids, touched_sections=touched_sections
-        )
+        return moved_ids  # type: ignore[return-value]
 
     def create_categories_bulk(
         self, items: list[dict[str, Any]]

@@ -221,7 +221,7 @@ class StructureTreeView(QTreeView):
         Makes behavior consistent with LinksTableView.update_font_size.
         """
         try:
-            if hasattr(self, "_current_font_size") and self._current_font_size == int(
+            if hasattr(self, "_current_font_size") and getattr(self, "_current_font_size", None) == int(
                 font_size
             ):
                 return
@@ -234,7 +234,9 @@ class StructureTreeView(QTreeView):
 
             f = QFont(self.font().family(), int(self._current_font_size))
             self.setFont(f)
-            self.viewport().update()
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
         except Exception as e:
             logger.warning(
                 "StructureTreeView.update_font_size: failed to apply font size %r: %s",

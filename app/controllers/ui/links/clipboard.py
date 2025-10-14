@@ -81,13 +81,13 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 command = BatchDeleteLinksCmd(
                     links_to_delete=links, main_window=self.main
                 )
-                command._suppress_ui = True
+                setattr(command, '_suppress_ui', True)  # type: ignore[attr-defined]
                 self.main.undo_stack.push(command)
         else:
             for link in links:
-                command = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
-                command._suppress_ui = True
-                self.main.undo_stack.push(command)
+                cmd = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
+                setattr(cmd, '_suppress_ui', True)  # type: ignore[attr-defined]
+                self.main.undo_stack.push(cmd)
 
         # Update display (command suppresses internal UI, here — one reload)
         if category_id is not None:
@@ -140,7 +140,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             with self.main.undo_stack.macro(f"Inserting {len(links)} links"):
                 cmd = BatchSaveLinksCmd(
                     links_data=links,
-                    old_link_data=None,
+                    _old_link_data=None,
                     main_window=self.main,
                 )
                 # Command will perform single reload; external updates not needed

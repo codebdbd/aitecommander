@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, Optional
 
-from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, QObject, Qt, pyqtSignal, QPoint
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QAbstractItemView, QVBoxLayout, QWidget
 
@@ -188,12 +189,12 @@ class CategoryTiles(QWidget):
             if val > 0:
                 self._font_point_size = val
             else:
-                self._font_point_size = None
+                self._font_point_size = 0
         except (AttributeError, ValueError, TypeError) as e:
             logger.warning(
-                "update_font_size: invalid fs=%r, resetting to None: %s", fs, e
+                "update_font_size: invalid fs=%r, resetting to 0: %s", fs, e
             )
-            self._font_point_size = None
+            self._font_point_size = 0
         # Repaint and refresh size calculations
         try:
             self.view.viewport().update()
@@ -243,11 +244,13 @@ class CategoryTiles(QWidget):
         if dialog_provider:
             self.dialog_provider = dialog_provider
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, obj: Optional[QObject], event: Optional[QEvent]) -> bool:
         # Guaranteed interception of QContextMenuEvent from viewport()
         try:
-            if obj is self.view.viewport() and event.type() == event.Type.ContextMenu:
-                pos = event.pos()
+            if obj is self.view.viewport() and event is not None and event.type() == QEvent.Type.ContextMenu:
+                pos = getattr(event, 'pos', lambda: None)()
+                if pos is None:
+                    return False
                 logger.debug("Viewport eventFilter: ContextMenu at %s", pos)
                 self._show_context_menu(pos)
                 event.accept()

@@ -41,7 +41,7 @@ class MenuController(QObject):
     def create_main_menu(self) -> QMenuBar:
         """Create the main menu bar."""
         if not self._main_menu_builder:
-            self._main_menu_builder = MainMenuBuilder(self.main_window)
+            self._main_menu_builder = MainMenuBuilder(self.main_window)  # type: ignore[arg-type]
         return self._main_menu_builder.build()
 
     @pyqtSlot(str)
@@ -77,7 +77,7 @@ class MenuController(QObject):
         """Create context menu for the structure tree."""
         if not self._structure_menu_builder:
             self._structure_menu_builder = StructureMenuBuilder(
-                tree_widget, self.main_window
+                tree_widget, self.main_window  # type: ignore[arg-type]
             )
         return self._structure_menu_builder.build(
             item, delete_item_cb, add_new_section_cb, sort_tree_cb
@@ -88,7 +88,7 @@ class MenuController(QObject):
     ) -> QMenu:
         """Create context menu for the links table."""
         if not self._links_menu_builder:
-            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)
+            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)  # type: ignore[arg-type]
         return self._links_menu_builder.build(idx, paste_link_cb)
 
     def create_category_tile_context_menu(
@@ -102,7 +102,7 @@ class MenuController(QObject):
         """Create context menu for a category tile."""
         if not self._category_menu_builder:
             self._category_menu_builder = CategoryMenuBuilder(
-                list_widget, self.main_window
+                list_widget, self.main_window  # type: ignore[arg-type]
             )
         return self._category_menu_builder.build(item_id, edit_cb, delete_cb, add_cb)
 
