@@ -222,8 +222,12 @@ class LinksBusinessLogic(QObject):
             self.logger.debug(
                 "Searching links: empty query -> return ALL links (global)"
             )
+
+            def _load_all_links() -> list[dict[str, Any]]:
+                return self._get_all_links_safe()
+
             self._run_db_task(
-                lambda: self.links.get_all_links() or [],
+                _load_all_links,
                 description="search_links(all)",
                 on_finished=self._on_search_finished,
             )
@@ -655,7 +659,12 @@ class LinksBusinessLogic(QObject):
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        result = self.links.get_all_links() or []
+        try:
+            result = self.links.get_all_links() or []
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.error("Failed to load all links: %s", exc)
+            result = []
+
         self._cache[cache_key] = result
         return result
 
