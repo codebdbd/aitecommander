@@ -158,6 +158,20 @@ class LinkModel(DatabaseBase):
 
         return {cid: rows for cid, rows in result.items() if rows}
 
+    def get_all_links(self) -> list[dict[str, Any]]:
+        """Return all links ordered by category and position."""
+        try:
+            rows = self._execute_with_error_handling(
+                "SELECT id, category_id, name, url, type, notes, "
+                "is_favorite, last_used, icon_path, args, browser_key, position "
+                "FROM link ORDER BY category_id, position",
+                fetch_method="all",
+            )
+            return [row_to_dict(row) for row in rows] if rows else []
+        except Exception as e:
+            logger.error("Error getting all links: %s", e, exc_info=True)
+            raise
+
     def count_links_by_category(self, category_id: int) -> int:
         """Returns number of links for specified category (efficient count)."""
         try:
