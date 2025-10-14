@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
+from PyQt6.QtGui import QAction, QKeySequence, QUndoStack, QShowEvent, QCloseEvent
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from app.views.common.retranslatable import ReTranslatable
@@ -192,7 +192,8 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def _init_spheres_ui(self) -> None:
         """Initialize the spheres UI asynchronously."""
-        self.spheres_controller.init()
+        if self.spheres_controller is not None:
+            self.spheres_controller.init()
 
     def show_link_dialog(
         self,
@@ -255,13 +256,16 @@ class MainWindow(QMainWindow, ReTranslatable):
             self.facade.on_structure_item_changed(item_type, item_id, data)
 
     def show_about_dialog(self) -> None:
-        self.system_dialogs.show_about_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_about_dialog()
 
     def show_settings_dialog(self) -> None:
-        self.system_dialogs.show_settings_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_settings_dialog()
 
     def show_file_search_dialog(self) -> None:
-        self.system_dialogs.show_file_search_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_file_search_dialog()
 
     def update_theme(self) -> None:
         """Apply the current theme and refresh the UI."""
@@ -297,10 +301,13 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
 
         self._current_sphere_id = sphere_id
-        with suspend_updates(self.left_panel):
-            self.left_panel.setProperty("sphere", str(sphere_id))
-            self.left_panel.style().unpolish(self.left_panel)
-            self.left_panel.style().polish(self.left_panel)
+        if self.left_panel is not None:
+            with suspend_updates(self.left_panel):  # type: ignore[arg-type]
+                self.left_panel.setProperty("sphere", str(sphere_id))
+                style = self.left_panel.style()
+                if style is not None:
+                    style.unpolish(self.left_panel)
+                    style.polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
         """Schedule search execution after debounce."""
@@ -315,14 +322,14 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
         la.on_search(self._pending_search)
 
-    def showEvent(self, event: QEvent) -> None:
+    def showEvent(self, event: QShowEvent | None) -> None:
         """Emit ``shown`` signal the first time the window appears."""
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
             QTimer.singleShot(0, self.shown.emit)
 
-    def closeEvent(self, event: QEvent) -> None:
+    def closeEvent(self, event: QCloseEvent | None) -> None:
         """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
 
@@ -333,7 +340,7 @@ class MainWindow(QMainWindow, ReTranslatable):
                 logger.info(
                     "MainWindow.closeEvent: delegating to AppShutdownController"
                 )
-                self.app_shutdown.perform_shutdown(event)
+                self.app_shutdown.perform_shutdown(event)  # type: ignore[arg-type]
                 return
             except Exception:
                 logger.exception(
