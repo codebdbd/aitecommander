@@ -12,7 +12,8 @@ class PanelDefinition:
     Attributes:
         label: Panel identifier (use PanelLabel enum)
         attr_name: Attribute name on window object for the panel widget
-        button_object_name: Qt objectName for buttons in this panel (use ButtonObjectName enum)
+        button_object_name: Qt objectName for buttons in this panel
+            (use ButtonObjectName enum)
         min_attr: Attribute name on manager for minimum visible buttons
         max_attr: Attribute name on manager for maximum visible buttons
     """

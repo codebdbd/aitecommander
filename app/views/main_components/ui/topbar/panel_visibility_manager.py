@@ -296,7 +296,8 @@ class PanelVisibilityManager:
                     except Exception:
                         pass
                     logger.info(
-                        "[TopbarDiag:%s] visible=%s widths=%s computed_max=%s panel_hint=%s margins(panel)=%s",
+                        "[TopbarDiag:%s] visible=%s widths=%s "
+                        "computed_max=%s panel_hint=%s margins(panel)=%s",
                         low,
                         visible,
                         visible_btns,
@@ -339,6 +340,21 @@ class PanelVisibilityManager:
         group = QParallelAnimationGroup(panel)
         any_animation = False
 
+        any_animation |= self._animate_panel_width(
+            panel, buttons, target_visible, duration_ms, easing, group
+        )
+        any_animation |= self._animate_buttons(
+            buttons, target_visible, duration_ms, easing, group
+        )
+
+        if any_animation:
+            self._start_animation_group(group)
+        return target_visible
+
+    def _animate_panel_width(
+        self, panel, buttons, target_visible, duration_ms, easing, group
+    ) -> bool:
+        """Animate panel width change."""
         panel.setMinimumWidth(0)
         new_width = self._width_calculator.panel_width(panel, buttons, target_visible)
         old_width = int(panel.maximumWidth())
@@ -349,94 +365,97 @@ class PanelVisibilityManager:
             animation.setStartValue(old_width)
             animation.setEndValue(new_width)
             group.addAnimation(animation)
-            any_animation = True
-        else:
-            panel.setMaximumWidth(new_width)
+            return True
+        panel.setMaximumWidth(new_width)
+        return False
 
+    def _animate_buttons(
+        self, buttons, target_visible, duration_ms, easing, group
+    ) -> bool:
+        """Animate button visibility changes."""
+        any_animation = False
         for index, button in enumerate(buttons):
             need_visible = index < target_visible
             current_visible = button.isVisible()
-            effect = button.graphicsEffect()
-            if not isinstance(effect, QGraphicsOpacityEffect):
-                effect = QGraphicsOpacityEffect(button)
-                button.setGraphicsEffect(effect)
+            effect = self._get_or_create_opacity_effect(button)
+
             if need_visible and not current_visible:
-                button.setVisible(True)
-                effect.setOpacity(0.0)
-                animation = QPropertyAnimation(effect, b"opacity")
-                animation.setDuration(duration_ms)
-                animation.setEasingCurve(easing)
-                animation.setStartValue(0.0)
-                animation.setEndValue(1.0)
-                group.addAnimation(animation)
-                any_animation = True
+                any_animation |= self._animate_button_show(
+                    button, effect, duration_ms, easing, group
+                )
             elif (not need_visible) and current_visible:
-                effect.setOpacity(1.0)
-                animation = QPropertyAnimation(effect, b"opacity")
-                animation.setDuration(duration_ms)
-                animation.setEasingCurve(easing)
-                animation.setStartValue(1.0)
-                animation.setEndValue(0.0)
+                any_animation |= self._animate_button_hide(
+                    button, effect, duration_ms, easing, group
+                )
+        return any_animation
 
-                # Fix: use weak references to avoid memory leaks when hiding buttons
-                try:
-                    from weakref import ref
+    def _get_or_create_opacity_effect(self, button):
+        """Get existing opacity effect or create new one."""
+        effect = button.graphicsEffect()
+        if not isinstance(effect, QGraphicsOpacityEffect):
+            effect = QGraphicsOpacityEffect(button)
+            button.setGraphicsEffect(effect)
+        return effect
 
-                    button_ref = ref(button)
+    def _animate_button_show(self, button, effect, duration_ms, easing, group) -> bool:
+        """Animate button appearing."""
+        button.setVisible(True)
+        effect.setOpacity(0.0)
+        animation = QPropertyAnimation(effect, b"opacity")
+        animation.setDuration(duration_ms)
+        animation.setEasingCurve(easing)
+        animation.setStartValue(0.0)
+        animation.setEndValue(1.0)
+        group.addAnimation(animation)
+        return True
 
-                    def hide_callback(_ref=button_ref):
-                        btn = _ref()
-                        if btn is not None and not self._is_deleted(btn):
-                            try:
-                                btn.setVisible(False)
-                            except (RuntimeError, AttributeError):
-                                pass
+    def _animate_button_hide(self, button, effect, duration_ms, easing, group) -> bool:
+        """Animate button disappearing."""
+        effect.setOpacity(1.0)
+        animation = QPropertyAnimation(effect, b"opacity")
+        animation.setDuration(duration_ms)
+        animation.setEasingCurve(easing)
+        animation.setStartValue(1.0)
+        animation.setEndValue(0.0)
+        self._attach_hide_callback(animation, button)
+        group.addAnimation(animation)
+        return True
 
-                    animation.finished.connect(hide_callback)
-                except Exception as e:
-                    logger.debug("Failed to create hide callback: %s", e)
-
-        if any_animation:
-            # Fix: retain reference to the animation group
-            self._active_animations.append(group)
-            try:
-                # Fix: use weak references for cleanup to avoid circular references
-                from weakref import ref
-
-                group_ref = ref(group)
-
-                def cleanup_callback():
-                    grp = group_ref()
-                    if grp is not None:
-                        self._cleanup_animation(grp)
-
-                group.finished.connect(cleanup_callback)
-                group.start()
-            except Exception as e:
-                logger.warning("Failed to start animation group: %s", e)
-                # Fix: perform cleanup on failure
-                self._cleanup_animation(group)
-        return target_visible
-
-    def _create_hide_callback(self, button: QToolButton):
-        """Create a hide callback that avoids memory leaks."""
-
-        def hide_button():
-            try:
-                if button and not self._is_deleted(button):
-                    button.setVisible(False)
-            except (RuntimeError, AttributeError) as e:
-                logger.debug("Failed to hide button: %s", e)
-
-        return hide_button
-
-    def _safe_hide_button(self, button: QToolButton) -> None:
-        """Hide a button safely."""
+    def _attach_hide_callback(self, animation, button):
+        """Attach callback to hide button after animation."""
         try:
-            if button and not self._is_deleted(button):
-                button.setVisible(False)
-        except (RuntimeError, AttributeError):
-            pass
+            from weakref import ref
+            button_ref = ref(button)
+
+            def hide_callback(_ref=button_ref):
+                btn = _ref()
+                if btn is not None and not self._is_deleted(btn):
+                    try:
+                        btn.setVisible(False)
+                    except (RuntimeError, AttributeError):
+                        pass
+
+            animation.finished.connect(hide_callback)
+        except Exception as e:
+            logger.debug("Failed to create hide callback: %s", e)
+
+    def _start_animation_group(self, group):
+        """Start animation group with cleanup callback."""
+        self._active_animations.append(group)
+        try:
+            from weakref import ref
+            group_ref = ref(group)
+
+            def cleanup_callback():
+                grp = group_ref()
+                if grp is not None:
+                    self._cleanup_animation(grp)
+
+            group.finished.connect(cleanup_callback)
+            group.start()
+        except Exception as e:
+            logger.warning("Failed to start animation group: %s", e)
+            self._cleanup_animation(group)
 
     def _cleanup_animation(self, group: QParallelAnimationGroup) -> None:
         """Remove a completed animation group from the active list."""

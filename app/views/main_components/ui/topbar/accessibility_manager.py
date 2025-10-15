@@ -63,11 +63,11 @@ class AccessibilityManager(QObject):
                 )
 
                 if is_visible:
-                    button.setAccessibleDescription(
-                        self.tr(
-                            "Button {idx} of {total} in {panel}. Press Enter to activate, Arrow keys to navigate."
-                        ).format(idx=index + 1, total=visible_count, panel=panel_name)
-                    )
+                    desc = self.tr(
+                        "Button {idx} of {total} in {panel}. "
+                        "Press Enter to activate, Arrow keys to navigate."
+                    ).format(idx=index + 1, total=visible_count, panel=panel_name)
+                    button.setAccessibleDescription(desc)
                     button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
                     shortcut_num = start_shortcut_number + index

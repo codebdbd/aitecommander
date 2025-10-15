@@ -129,9 +129,6 @@ class WidthCalculator(QObject):
             raise ValueError(f"count must be >= 0, got {count}")
 
         if buttons is None:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.warning(
                 "panel_width called with None buttons, returning MIN_PANEL_WIDTH"
             )
@@ -354,7 +351,8 @@ class WidthCalculator(QObject):
                 state = panel_map.get(widget)
                 if state:
                     requested = counts.get(state.definition.label, 0)
-                    # Clamp to available buttons to keep estimation consistent with apply phase
+                    # Clamp to available buttons to keep estimation
+                    # consistent with apply phase
                     visible = max(0, min(requested, len(state.buttons)))
                     items.append(self.panel_width(widget, state.buttons, visible))
                 elif widget.isVisible():
