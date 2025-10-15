@@ -115,7 +115,6 @@ class TopBarInitializationService:
         self,
     ) -> dict[str, Any]:
         """Инициализация сервисов."""
-        from .lifecycle_manager import TopBarLifecycleManager
         from .search_manager import SearchWidgetManager
         from .separator_service import SeparatorVisibilityService
 
@@ -125,7 +124,7 @@ class TopBarInitializationService:
         visibility_manager = PanelVisibilityManager(width_calculator, parent_widget)
         visibility_solver = VisibilitySolver(width_calculator)
         search_manager = SearchWidgetManager(width_calculator)
-        separator_service = SeparatorVisibilityService()
+        separator_service = SeparatorVisibilityService(self._config)
 
         return {
             "width_calculator": width_calculator,

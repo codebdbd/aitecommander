@@ -11,9 +11,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .accessibility_manager import AccessibilityManager
 from ..models.panel_state import PanelState
 from ..utils.qt_utils import is_deleted
+from .accessibility_manager import AccessibilityManager
 from .width_calculator import WidthCalculator
 
 logger = logging.getLogger(__name__)

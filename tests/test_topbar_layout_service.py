@@ -10,6 +10,7 @@ from app.views.main_components.ui.topbar.models.types import PanelLabel
 from app.views.main_components.ui.topbar.services.layout_service import TopBarLayoutService
 from app.views.main_components.ui.topbar.services.visibility_solver import VisibilitySolver
 from app.views.main_components.ui.topbar.services.width_calculator import WidthCalculator
+from app.views.main_components.ui.topbar.models.config_protocol import MockTopBarConfig
 
 class DummyLayout:
     """Minimal layout stub that exposes only the APIs used by the service."""

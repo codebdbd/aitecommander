@@ -1,7 +1,7 @@
 """Protocol that defines configuration for top-bar components.
 
-Fix: introduce a protocol-based abstraction for dependency injection, simplifying
-testing and decoupling from ``app_config``.
+This module provides a protocol-based abstraction for dependency injection,
+simplifying testing and decoupling from global configuration.
 """
 
 from __future__ import annotations
@@ -89,16 +89,46 @@ class TopBarConfigProtocol(Protocol):
             Minimum number of visible buttons (typically 0).
         """
         ...
-
     def get_max_visible(self, panel: str) -> int:
         """Return the maximum number of visible buttons for the given panel."""
+        ...
+
+    def get_favorites_min_visible_threshold(self) -> int:
+        """Return the minimum number of visible favorites buttons before hiding.
+
+        Returns:
+            Threshold value (typically 5).
+        """
+        ...
+
+    def get_separator_search_spacing(self) -> int:
+        """Return the spacing around separators when search widget is present.
+
+        Returns:
+            Spacing in pixels (typically 4).
+        """
+        ...
+
+    def get_separator_hidden_spacing(self) -> int:
+        """Return the spacing around separators when hidden.
+
+        Returns:
+            Spacing in pixels (typically 0).
+        """
+        ...
+
+    def get_layout_spacing_fallback(self) -> int:
+        """Return the fallback spacing value when layout spacing is unavailable.
+
+        Returns:
+            Spacing in pixels (typically 6).
+        """
         ...
 
     def get(self, key: str, default: Any = None) -> Any:
         """Generic configuration accessor.
 
         Args:
-            key: Configuration key (e.g. ``"ui.topbar.throttle_ms"``).
             default: Fallback value when the key is missing.
 
         Returns:
@@ -106,12 +136,11 @@ class TopBarConfigProtocol(Protocol):
         """
         ...
 
-
-class AppConfigAdapter:
+class AppConfigAdapter(TopBarConfigProtocol):
     """Adapter over ``app_config`` that implements ``TopBarConfigProtocol``.
 
-    Fix: wrap the global ``app_config`` so it matches the protocol and can be used
-    through a single DI-friendly interface.
+    This adapter wraps the global ``app_config`` so it matches the protocol and 
+    can be used through a single DI-friendly interface.
 
     Example:
         >>> from app.config_data import app_config
@@ -206,11 +235,38 @@ class AppConfigAdapter:
         except (KeyError, AttributeError):
             return default
 
+    def get_favorites_min_visible_threshold(self) -> int:
+        """Return the minimum number of visible favorites buttons before hiding."""
+        try:
+            return int(self._config.get("topbar.favorites_min_visible_threshold", 5))
+        except (ValueError, TypeError, AttributeError):
+            return 5
+
+    def get_separator_search_spacing(self) -> int:
+        """Return the spacing around separators when search widget is present."""
+        try:
+            return int(self._config.get("topbar.separator_search_spacing", 4))
+        except (ValueError, TypeError, AttributeError):
+            return 4
+
+    def get_separator_hidden_spacing(self) -> int:
+        """Return the spacing around separators when hidden."""
+        try:
+            return int(self._config.get("topbar.separator_hidden_spacing", 0))
+        except (ValueError, TypeError, AttributeError):
+            return 0
+
+    def get_layout_spacing_fallback(self) -> int:
+        """Return the fallback spacing value when layout spacing is unavailable."""
+        try:
+            return int(self._config.get("topbar.layout_spacing_fallback", 6))
+        except (ValueError, TypeError, AttributeError):
+            return 6
 
 class MockTopBarConfig:
     """Mock configuration used in tests.
 
-    Fix: lightweight protocol implementation for unit tests without external
+    Lightweight protocol implementation for unit tests without external
     dependencies.
 
     Example:
@@ -276,3 +332,19 @@ class MockTopBarConfig:
     def set(self, key: str, value: Any) -> None:
         """Override a custom value for tests."""
         self._custom_values[key] = value
+
+    def get_favorites_min_visible_threshold(self) -> int:
+        """Return the minimum number of visible favorites buttons before hiding."""
+        return self._custom_values.get("favorites_min_visible_threshold", 5)
+
+    def get_separator_search_spacing(self) -> int:
+        """Return the spacing around separators when search widget is present."""
+        return self._custom_values.get("separator_search_spacing", 4)
+
+    def get_separator_hidden_spacing(self) -> int:
+        """Return the spacing around separators when hidden."""
+        return self._custom_values.get("separator_hidden_spacing", 0)
+
+    def get_layout_spacing_fallback(self) -> int:
+        """Return the fallback spacing value when layout spacing is unavailable."""
+        return self._custom_values.get("layout_spacing_fallback", 6)

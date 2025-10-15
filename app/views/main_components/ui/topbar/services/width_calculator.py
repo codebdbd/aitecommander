@@ -229,43 +229,56 @@ class WidthCalculator(QObject):
     def panel_width(
         self, panel: QWidget | None, buttons: list[QToolButton], count: int
     ) -> int:
-        """Calculate panel width based on visible buttons.
+        """Calculate panel width based on visible buttons."""
+        # Этап 1: Валидация параметров
+        if not self._validate_and_prepare(panel, buttons, count):
+            return self.MIN_PANEL_WIDTH
+        
+        # Этап 2: Работа с кэшем
+        panel_ref, cache_key = self._prepare_cache_key(panel, count)
+        cached_result = self._check_cache(cache_key)
+        if cached_result is not None:
+            return cached_result
+        
+        # Этап 3: Регистрация очистки кэша
+        self._register_panel_cleanup(panel, panel_ref)
+        
+        # Этап 4: Вычисление ширины
+        result = self._calculate_panel_width(panel, buttons, count)
+        
+        # Этап 5: Сохранение в кэш
+        self._save_to_cache(cache_key, result)
+        
+        return result
 
-        Args:
-            panel: Panel widget.
-            buttons: Panel buttons list (must not be ``None``).
-            count: Number of visible buttons (>= 0).
-
-        Returns:
-            Panel width in pixels (>= ``MIN_PANEL_WIDTH``).
-
-        Raises:
-            ValueError: If ``count`` is negative.
-        """
+    def _validate_and_prepare(self, panel: QWidget | None, buttons: list[QToolButton], count: int) -> bool:
+        """Validate parameters and check if calculation can proceed."""
         if not self._validate_panel_width_params(buttons, count):
-            return self.MIN_PANEL_WIDTH
-
+            return False
+        
         if not panel or is_deleted(panel):
-            return self.MIN_PANEL_WIDTH
-
-        # Use weakref for automatic lifetime tracking
+            return False
+            
+        return True
+    
+    def _prepare_cache_key(self, panel: QWidget, count: int) -> tuple[weakref.ref, int]:
+        """Prepare cache key and clean stale entries."""
         panel_ref = weakref.ref(panel)
         cache_key = (panel_ref, count)
-
-        # Clean stale entries (where weakref is dead)
         self._clean_stale_entries()
-
-        # Check cache
+        return panel_ref, cache_key
+    
+    def _check_cache(self, cache_key: tuple[weakref.ref, int]) -> int | None:
+        """Check if result is in cache."""
         if cache_key in self._panel_width_cache:
             self._cache_hits += 1
             self._panel_width_cache.move_to_end(cache_key)
             return self._panel_width_cache[cache_key]
-
         self._cache_misses += 1
-
-        # Register cleanup for this panel
-        self._register_panel_cleanup(panel, panel_ref)
-
+        return None
+    
+    def _calculate_panel_width(self, panel: QWidget, buttons: list[QToolButton], count: int) -> int:
+        """Calculate panel width based on visible buttons."""
         safe_count = max(0, min(count, len(buttons)))
         if safe_count <= 0:
             return self.MIN_PANEL_WIDTH
@@ -284,14 +297,15 @@ class WidthCalculator(QObject):
         total = sum(included_widths) + spacing * max(0, len(included_widths) - 1)
         total = self._add_margins_and_borders(total, layout, bg, panel)
 
-        result = max(self.MIN_PANEL_WIDTH, total)
-
+        return max(self.MIN_PANEL_WIDTH, total)
+    
+    def _save_to_cache(self, cache_key: tuple[weakref.ref, int], result: int) -> None:
+        """Save result to cache."""
         # Evict oldest entry if cache is full
         if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
             self._panel_width_cache.popitem(last=False)
 
         self._panel_width_cache[cache_key] = result
-        return result
 
     def _clean_stale_entries(self) -> None:
         """Remove cache entries where weakref is dead (widget destroyed)."""

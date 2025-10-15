@@ -5,10 +5,9 @@ import logging
 import time
 from collections.abc import Iterable
 from contextlib import contextmanager
-from typing import Any
 
-from PyQt6.QtCore import QEvent, QObject, QTimer, pyqtSignal
-from PyQt6.QtWidgets import QGraphicsOpacityEffect, QLineEdit, QWidget
+from PyQt6.QtCore import QEvent, QObject, pyqtSignal
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
 from ...common.decorators import require_main_thread
 from ...common.resource_manager import ResourceManager

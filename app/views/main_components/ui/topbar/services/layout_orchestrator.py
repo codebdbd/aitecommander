@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Iterable
-from contextlib import contextmanager
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
@@ -181,7 +180,14 @@ class LayoutOrchestrator:
             ctx, counts, self._last_applied, self._panel_labels
         )
 
-        if "fav" in counts and 0 < counts["fav"] < 5:
+        # Получаем порог из конфигурации вместо жестко закодированного значения
+        favorites_threshold = getattr(self._manager_ref, '_config', None)
+        if favorites_threshold and hasattr(favorites_threshold, 'get_favorites_min_visible_threshold'):
+            threshold = favorites_threshold.get_favorites_min_visible_threshold()
+        else:
+            threshold = 5  # значение по умолчанию
+        
+        if "fav" in counts and 0 < counts["fav"] < threshold:
             counts["fav"] = 0
 
         applied = self._apply_counts(ctx, ctx.panel_states, counts)

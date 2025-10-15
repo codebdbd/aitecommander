@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Mapping
+from collections.abc import Mapping
 
 from PyQt6.QtWidgets import QLayout, QLineEdit
 
