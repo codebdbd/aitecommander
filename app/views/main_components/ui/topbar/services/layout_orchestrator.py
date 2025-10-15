@@ -96,26 +96,28 @@ class LayoutOrchestrator:
         with self._adjust_lock:
             self._adjust_running = False
 
-    def perform_adjust(self, measure_operation_context) -> tuple[dict[str, int] | None, bool]:
-        """Выполнить layout adjustment. Возвращает (applied_counts, is_narrow)."""
+    def perform_adjust(self, measure_operation_context) -> tuple[dict[str, int], bool, int | None] | None:
+        """Выполнить layout adjustment. Возвращает (applied_counts, is_narrow, new_search_width) или None."""
         if self._init_state == InitializationState.WAITING_FOR_DATA:
             logger.debug(
                 "LayoutOrchestrator: skipping adjust - waiting for data (state=%s)",
                 self._init_state,
             )
-            return None, False
+            return None
 
         with measure_operation_context("adjust", self._slow_adjust_threshold_ms):
             ctx = self._prepare_layout_context()
             if not ctx:
-                return None, False
+                return None
 
             if ctx.effective_width <= self._narrow_threshold:
                 applied = self._handle_narrow_mode(ctx)
-                return applied, self._narrow_mode_active
+                new_width = self._clamp_search_width(ctx, applied)
+                return applied, self._narrow_mode_active, new_width
             else:
                 applied = self._handle_normal_mode(ctx)
-                return applied, self._narrow_mode_active
+                new_width = self._clamp_search_width(ctx, applied)
+                return applied, self._narrow_mode_active, new_width
 
     def _prepare_layout_context(self) -> LayoutContext | None:
         """Подготовить контекст для layout adjustment."""
@@ -132,7 +134,7 @@ class LayoutOrchestrator:
 
         search_widget = self._widget_accessor.safe_get(self.window, "search")
         search_qt = search_widget if isinstance(search_widget, QLineEdit) else None
-        panel_states = self._collect_panel_states()
+        panel_states = self.collect_panel_states()
         if not panel_states:
             return None
 
@@ -254,8 +256,8 @@ class LayoutOrchestrator:
                 self._min_search_width,
             )
 
-    def _collect_panel_states(self) -> list[PanelState]:
-        """Собрать состояния всех панелей."""
+    def collect_panel_states(self) -> list[PanelState]:
+        """Собрать состояния всех панелей (публичный метод)."""
         panel_states: list[PanelState] = []
         for definition in self._panel_definitions:
             widget = self._widget_accessor.safe_get(self.window, definition.attr_name)

@@ -6,9 +6,8 @@ import time
 from collections.abc import Iterable
 from contextlib import contextmanager
 from typing import Any
-from weakref import WeakSet
 
-from PyQt6.QtCore import QEasingCurve, QEvent, QObject, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QLineEdit, QWidget
 
 from ...common.decorators import require_main_thread
@@ -186,7 +185,7 @@ class TopBarLayoutManager(QObject):
         logger.debug("TopBarLM: state transition -> DATA_READY")
 
         # Reveal the panel
-        if hasattr(self, "_opacity_effect") and self._opacity_effect:
+        if self._opacity_effect is not None:
             try:
                 self._opacity_effect.setOpacity(1.0)
                 logger.debug("TopBarLM: container opacity set to 1")
@@ -223,19 +222,18 @@ class TopBarLayoutManager(QObject):
             return
 
         try:
-            applied_dict, is_narrow = self._orchestrator.perform_adjust(self._measure_operation)
+            result = self._orchestrator.perform_adjust(self._measure_operation)
+            if result is None:
+                return
             
-            if applied_dict is not None:
-                # Emit signals
-                self.layoutAdjusted.emit(applied_dict)
-                self.narrowModeChanged.emit(is_narrow)
-                
-                # Search width signal
-                ctx = self._orchestrator._prepare_layout_context()
-                if ctx:
-                    new_width = self._orchestrator._clamp_search_width(ctx, applied_dict)
-                    if new_width is not None:
-                        self.searchWidthChanged.emit(new_width)
+            applied_dict, is_narrow, new_search_width = result
+            
+            # Emit signals
+            self.layoutAdjusted.emit(applied_dict)
+            self.narrowModeChanged.emit(is_narrow)
+            
+            if new_search_width is not None:
+                self.searchWidthChanged.emit(new_search_width)
                 
         finally:
             self._orchestrator.release_adjust_lock()
@@ -246,7 +244,7 @@ class TopBarLayoutManager(QObject):
             top_bar = self._widget_accessor.get_top_bar()
             if top_bar is None:
                 return
-            panel_states = self._orchestrator._collect_panel_states()
+            panel_states = self._orchestrator.collect_panel_states()
             if not panel_states:
                 return
 
@@ -298,8 +296,8 @@ class TopBarLayoutManager(QObject):
                     container.setGraphicsEffect(None)
                 self._opacity_effect.deleteLater()
                 self._opacity_effect = None
-            except (RuntimeError, AttributeError):
-                pass
+            except (RuntimeError, AttributeError) as e:
+                logger.debug("TopBarLM: failed to cleanup opacity effect: %s", e)
         
         self._resource_manager.cleanup_all()
         self._lifecycle_manager.cleanup()
@@ -336,10 +334,12 @@ class TopBarLayoutManager(QObject):
         except Exception:
             pass
 
-
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         """Фильтр событий."""
         container = self._widget_accessor.get_container_widget()
+        if container is None:
+            return super().eventFilter(obj, event)
+        
         watched_panels = self._lifecycle_manager.get_watched_panels()
         
         if obj not in (container, self.window) and obj not in watched_panels:
