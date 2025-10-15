@@ -1,7 +1,10 @@
 import logging
+from typing import cast
 
 from PyQt6.QtCore import QCoreApplication, QSize, Qt
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDialog,
     QLineEdit,
@@ -54,59 +57,69 @@ def create_context_menu(widget):
 
     theme = get_current_theme()
 
-    undo_action = menu.addAction(
-        icon_cache.get_icon("undo", theme, "context_menu"), _tr("Undo")
+    undo_action = cast(
+        QAction,
+        menu.addAction(icon_cache.get_icon("undo", theme, "context_menu"), _tr("Undo")),
     )
     undo_action.triggered.connect(widget.undo)
     undo_action.setShortcut("Ctrl+Z")
 
-    redo_action = menu.addAction(
-        icon_cache.get_icon("redo", theme, "context_menu"), _tr("Redo")
+    redo_action = cast(
+        QAction,
+        menu.addAction(icon_cache.get_icon("redo", theme, "context_menu"), _tr("Redo")),
     )
     redo_action.triggered.connect(widget.redo)
     redo_action.setShortcut("Ctrl+Y")
 
     menu.addSeparator()
 
-    cut_action = menu.addAction(
-        icon_cache.get_icon("cut", theme, "context_menu"), _tr("Cut")
+    cut_action = cast(
+        QAction,
+        menu.addAction(icon_cache.get_icon("cut", theme, "context_menu"), _tr("Cut")),
     )
     cut_action.triggered.connect(widget.cut)
     cut_action.setShortcut("Ctrl+X")
 
-    copy_action = menu.addAction(
-        icon_cache.get_icon("copy", theme, "context_menu"), _tr("Copy")
+    copy_action = cast(
+        QAction,
+        menu.addAction(icon_cache.get_icon("copy", theme, "context_menu"), _tr("Copy")),
     )
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut("Ctrl+C")
 
     try:
-        from PyQt6.QtWidgets import QApplication
-
-        app = QApplication.instance()
         clip_has_text = False
-        if app is not None:
-            md = app.clipboard().mimeData()
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            md = clipboard.mimeData()
             clip_has_text = bool(md and md.hasText() and md.text())
         if clip_has_text:
-            paste_action = menu.addAction(
-                icon_cache.get_icon("paste", theme, "context_menu"), _tr("Paste")
+            paste_action = cast(
+                QAction,
+                menu.addAction(
+                    icon_cache.get_icon("paste", theme, "context_menu"),
+                    _tr("Paste"),
+                ),
             )
             paste_action.triggered.connect(widget.paste)
             paste_action.setShortcut("Ctrl+V")
     except (RuntimeError, AttributeError):
         logger.exception("Failed to evaluate clipboard state for context menu")
 
-    delete_action = menu.addAction(
-        icon_cache.get_icon("delete", theme, "context_menu"), _tr("Delete")
+    delete_action = cast(
+        QAction,
+        menu.addAction(icon_cache.get_icon("delete", theme, "context_menu"), _tr("Delete")),
     )
     delete_action.triggered.connect(widget.clear)
     delete_action.setShortcut("Del")
 
     menu.addSeparator()
 
-    select_all_action = menu.addAction(
-        icon_cache.get_icon("select_all", theme, "context_menu"), _tr("Select All")
+    select_all_action = cast(
+        QAction,
+        menu.addAction(
+            icon_cache.get_icon("select_all", theme, "context_menu"), _tr("Select All")
+        ),
     )
     select_all_action.triggered.connect(widget.selectAll)
     select_all_action.setShortcut("Ctrl+A")

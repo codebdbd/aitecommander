@@ -61,14 +61,18 @@ class BackupWorker(DatabaseWorker):
 
         self.emit_progress(2, 3, "Очистка старых backup...")
 
-        # Удаляем старые backup файлы (оставляем только последние 10)
+        # Получаем максимальное количество backup из настроек
+        from app.config_data import app_config
+        max_backups = app_config.settings.get_max_backups()
+
+        # Удаляем старые backup файлы (оставляем только последние N)
         backup_files = sorted(
             self.backup_dir.glob("osteen_path_*.db"),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
 
-        for old_backup in backup_files[10:]:  # Оставляем 10 последних
+        for old_backup in backup_files[max_backups:]:  # Оставляем max_backups последних
             try:
                 old_backup.unlink()
                 logger.info("Удален старый backup: %s", old_backup.name)

@@ -134,7 +134,8 @@ class CategoryOperations(BaseOperations):
 
     def confirm_delete_category(self, category_id: int) -> bool:
         """Confirm and perform category deletion."""
-        if not self._structure_service:
+        structure_service = self._structure_service
+        if structure_service is None:
 
             def _raise_service_error():
                 raise RuntimeError(
@@ -148,7 +149,7 @@ class CategoryOperations(BaseOperations):
             )
 
         def _delete():
-            self._structure_service.delete_category(category_id)
+            structure_service.delete_category(category_id)
 
         result = self.delete_item(
             StructureItemType.CATEGORY,
@@ -502,10 +503,21 @@ class CategoryOperations(BaseOperations):
             # Determine parent_id depending on the item type
             parent_id = self._get_parent_id_for_item_type(item_type, signal_data)
 
+            if parent_id is None:
+                self.logger.warning(
+                    "Cannot emit %s signal for %s: missing parent id",
+                    SignalTypes.ITEM_ADDED,
+                    item_type,
+                )
+                return result_id
+
             # Map string item type to enum and emit the signal centrally
             enum_type = self._to_item_enum(item_type)
             self._emit_item_signal(
-                SignalTypes.ITEM_ADDED, enum_type, parent_id, signal_data
+                SignalTypes.ITEM_ADDED,
+                enum_type,
+                parent_id,
+                signal_data,
             )
 
             self.logger.info(

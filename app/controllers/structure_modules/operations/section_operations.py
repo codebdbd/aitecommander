@@ -171,7 +171,7 @@ class SectionOperations(BaseOperations):
                 return DeletionInfo.create_empty()
 
             # Получаем нормализованные данные раздела
-            normalized_section_data = section_data
+            normalized_section_data = cast(SectionData, section_data)
 
             # Подсчитываем вложенные объекты
             if self._structure_service:
@@ -198,7 +198,8 @@ class SectionOperations(BaseOperations):
 
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Execute actual section deletion."""
-        if not self._structure_service:
+        structure_service = self._structure_service
+        if structure_service is None:
 
             def _raise_service_error():
                 raise RuntimeError("StructureService unavailable for section deletion")
@@ -210,7 +211,7 @@ class SectionOperations(BaseOperations):
             )
 
         def _delete():
-            self._structure_service.delete_section(section_id)
+            structure_service.delete_section(section_id)
 
         result = self.delete_item(
             StructureItemType.SECTION,
