@@ -40,8 +40,8 @@ class BackupManager:
             # 1) Create new backup
             self.db.operation_progress.emit(operation, 0, 2, "Creating backup...")
             now = datetime.datetime.now()
-            timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
-            dst = backup_dir / f"links_{timestamp}.db"
+            timestamp = now.strftime("%Y%m%d_%H%M%S")
+            dst = backup_dir / f"osteen_path_{timestamp}.db"
 
             with sqlite3.connect(self.db.db_path) as src, sqlite3.connect(dst) as dest:
                 src.backup(dest)
@@ -57,7 +57,7 @@ class BackupManager:
             self.db.operation_progress.emit(
                 operation, 1, 2, "Cleaning up old copies..."
             )
-            files = sorted(backup_dir.glob("links_*.db"))
+            files = sorted(backup_dir.glob("osteen_path_*.db"))
 
             if len(files) > max_bak:
                 candidates = [f for f in files if f != dst]

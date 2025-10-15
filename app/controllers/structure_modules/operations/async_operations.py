@@ -400,7 +400,7 @@ class AsyncOperations(QObject):
             section_ids = [s["id"] for s in sections_data]
             categories_raw = self.db.categories.get_categories_for_sections(section_ids)
             all_categories = categories_raw or []
-            categories_by_section = {}
+            categories_by_section: dict[int, list[dict[str, Any]]] = {}
             for category in all_categories:
                 sid = category["section_id"]
                 categories_by_section.setdefault(sid, []).append(category)

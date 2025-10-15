@@ -5,7 +5,7 @@ Asynchronous browser profile manager with background loading support.
 
 import logging
 import time
-from typing import Optional
+from typing import Optional, cast
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
@@ -205,7 +205,7 @@ class AsyncBrowserProfileManager(QObject):
 
         # Settings
         self._cache_timeout = self._sync_manager.cache.timeout
-        self._thread_pool = QThreadPool.globalInstance()
+        self._thread_pool: QThreadPool = cast(QThreadPool, QThreadPool.globalInstance())
 
         # Statistics
         self._stats = {

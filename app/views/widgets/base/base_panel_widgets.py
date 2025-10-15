@@ -114,12 +114,16 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """
         while self.panel_layout.count():
             item = self.panel_layout.takeAt(0)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-            elif item.spacerItem():
+                continue
+            spacer = item.spacerItem()
+            if spacer is not None:
                 # Explicitly delete spacer to prevent memory leaks
-                del item
+                del spacer
 
     def _populate_panel(
         self,

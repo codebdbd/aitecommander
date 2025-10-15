@@ -4,7 +4,7 @@ import shutil
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict
 
 import pythoncom
 import win32api
@@ -85,10 +85,16 @@ def com_context():
             pass
 
 
+class _GDIResources(TypedDict, total=False):
+    hdc_compat: Any
+    hdc: Any
+    icons: list[int]
+
+
 @contextmanager
 def gdi_context():
     """Context manager for GDI resources"""
-    resources = {}
+    resources: _GDIResources = {}
     try:
         yield resources
     finally:

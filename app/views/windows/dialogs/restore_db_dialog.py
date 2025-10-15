@@ -1,310 +1,434 @@
-"""Dialog to restore the database from a backup."""
+"""
+Диалог восстановления базы данных из резервной копии.
 
-from __future__ import annotations
+Исправления:
+- Наследование от BaseDialog
+- Убран отладочный код (print)
+- Добавлено логирование
+- Улучшена обработка ошибок
+"""
 
 import datetime
 import logging
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, Qt
-from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QListWidgetItem, QVBoxLayout
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
+from PyQt6.QtWidgets import (
+    QDialogButtonBox,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+)
 
 from app.config_data import app_config
-from i18n.locale_utils import format_datetime, format_decimal
+from app.views.common.retranslatable import ReTranslatable
 
 from .base_dialog import BaseDialog
+
+_TR_CONTEXT = "RestoreDbDialog"
+
+
+def _tr(text: str) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text)
+
+
+_LIST_ITEM_TEMPLATES: dict[str, str] = {
+    "no_backups": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Резервные копии не найдены"),
+    "single_backup": QT_TRANSLATE_NOOP(
+        _TR_CONTEXT,
+        "{backup_name} — до подключения новой базы: {timestamp} ({size} МБ)",
+    ),
+    "auto_backup_with_timestamp": QT_TRANSLATE_NOOP(
+        _TR_CONTEXT, "{backup_name} — {timestamp} ({size} МБ)"
+    ),
+    "auto_backup_without_timestamp": QT_TRANSLATE_NOOP(
+        _TR_CONTEXT,
+        "{backup_name} ({size} МБ)",
+    ),
+    "error": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Ошибка: {details}"),
+}
 
 logger = logging.getLogger(__name__)
 
 
-def _tr(text: str) -> str:
-    return QCoreApplication.translate("RestoreDbDialog", text)
-
-
-def _arg(template: str, *args: str) -> str:
-    result = template
-    for idx, value in enumerate(args, 1):
-        result = result.replace(f"%{idx}", value)
-    return result
-
-
-@dataclass
-class BackupMeta:
-    kind: str
-    path: Path | None = None
-    timestamp: datetime.datetime | None = None
-    size_bytes: int = 0
-    message: str | None = None
-
-
 class RestoreDbDialog(BaseDialog):
-    """Dialog that allows restoring the database from backups."""
+    """Диалог для восстановления базы данных из резервной копии."""
 
-    def __init__(self, backup_dir: Path | None = None, parent=None):
-        self.paths = app_config.paths
-        self.backup_dir = backup_dir or self.paths.get_backups_dir()
-        self.selected_backup: Path | None = None
-        self.list_widget: QListWidget | None = None
-        self.buttons: QDialogButtonBox | None = None
-
+    def __init__(self, backup_dir: Optional[Path] = None, parent=None):
         super().__init__(parent)
 
         self.resize(500, 300)
         self.setModal(True)
 
+        # Используем переданную директорию или получаем стандартную из PathConfig
+        self.paths = app_config.paths
+        self.backup_dir = backup_dir or self.paths.get_backups_dir()
+        self.selected_backup = None
+
         self._init_ui()
-        self._load_backups()
+        self._populate_list()
 
-        # Connect to language change signal
-        from i18n.language_service import LanguageService
-
-        LanguageService.instance().languageChanged.connect(self._on_language_changed)
-        self.destroyed.connect(self._disconnect_language_service)
-
-        # Translate after widgets are created
-        self.retranslateUi()
-
-    def _on_language_changed(self, _lang_code: str) -> None:
-        self.retranslateUi()
-
-    def _disconnect_language_service(self) -> None:
-        try:
-            from i18n.language_service import LanguageService
-
-            LanguageService.instance().languageChanged.disconnect(
-                self._on_language_changed
-            )
-        except Exception:
-            pass
+        # Подключаемся к языковой службе и выполняем первоначальную локализацию
+        ReTranslatable.__init__(self)
 
     def _init_ui(self) -> None:
+        """Инициализирует пользовательский интерфейс."""
         layout = QVBoxLayout(self)
 
+        # Список резервных копий
         self.list_widget = QListWidget(self)
-        self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         layout.addWidget(self.list_widget)
 
+        # Кнопки
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+
+        # Настройка кнопок
+        ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+
+        cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
 
+        # Подключение сигналов
         self.list_widget.currentRowChanged.connect(self._update_ok_state)
         self.list_widget.itemDoubleClicked.connect(self.accept)
 
-    def _load_backups(self) -> None:
-        if not self.list_widget:
-            return
+    def _populate_list(self) -> None:
+        """Заполняет список резервных копий."""
         self.list_widget.clear()
-        self.list_widget.setEnabled(True)
-
-        added = 0
 
         try:
+            # Создаем директорию если не существует
             self.backup_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as exc:
-            logger.error("Failed to create backups directory: %s", exc)
-            self._show_placeholder("error", message=str(exc))
-            self._update_ok_state()
-            return
+            logger.debug("Поиск резервных копий в: %s", self.backup_dir)
 
-        logger.debug("Searching for backups in: %s", self.backup_dir)
+            # Ищем файлы резервных копий
+            backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
+            logger.debug("Найдено резервных копий: %s", len(backups))
 
-        backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
-        logger.debug("Found %s automatic backups", len(backups))
+            # Проверяем наличие файла links.db.bak
+            single_backup_path = self.paths.get_db_backup_path()
+            single_backup_exists = (
+                single_backup_path.exists() and single_backup_path.stat().st_size > 0
+            )
 
-        single_backup_path = self.paths.get_db_backup_path()
-        single_exists = (
-            single_backup_path.exists() and single_backup_path.stat().st_size > 0
-        )
+            if not backups and not single_backup_exists:
+                self._show_no_backups_message()
+            else:
+                # Добавляем одиночную резервную копию в начало списка, если она существует
+                if single_backup_exists:
+                    self._add_single_backup_item(single_backup_path)
 
-        if single_exists:
-            if self._add_backup_item(single_backup_path, kind="single", highlight=True):
-                added += 1
+                if backups:
+                    self._populate_backup_list(backups)
+                else:
+                    # Если в наличии только одиночная резервная копия — выделяем ее
+                    if single_backup_exists and self.list_widget.count() > 0:
+                        self.list_widget.setEnabled(True)
+                        self.list_widget.setCurrentRow(0)
+                        self._update_ok_state()
 
-        for backup in backups:
-            if backup == single_backup_path:
-                continue
-            try:
-                if backup.stat().st_size == 0:
-                    logger.warning("Empty backup file skipped: %s", backup.name)
-                    continue
-                if self._add_backup_item(backup, kind="auto"):
-                    added += 1
-            except Exception as exc:
-                logger.warning("Failed to process backup %s: %s", backup.name, exc)
+        except Exception as e:
+            logger.error("Ошибка при поиске резервных копий: %s", e)
+            self._show_error_message(f"Ошибка при поиске резервных копий: {str(e)}")
 
-        if added == 0:
-            logger.info("No backups available")
-            self._show_placeholder("placeholder")
-        else:
-            if not self.list_widget:
+    def _show_no_backups_message(self) -> None:
+        """Показывает сообщение об отсутствии резервных копий."""
+        item = self._create_list_item("no_backups")
+        self.list_widget.addItem(item)
+        self.list_widget.setEnabled(False)
+        logger.info("Резервные копии не найдены")
+
+    def _add_single_backup_item(self, backup_path: Path) -> None:
+        """Добавляет одиночную резервную копию links.db.bak в список с визуальным выделением."""
+        try:
+            # Проверяем размер файла
+            if backup_path.stat().st_size == 0:
+                logger.warning("Пустой файл резервной копии: %s", backup_path.name)
                 return
-            self.list_widget.setCurrentRow(0)
+
+            # Получаем дату и время создания файла
+            stat = backup_path.stat()
+            creation_time = datetime.datetime.fromtimestamp(stat.st_mtime)
+            time_str = creation_time.strftime("%d.%m.%Y %H:%M")
+
+            # Форматируем отображение с выделением и датой создания
+            size_mb = backup_path.stat().st_size / (1024 * 1024)
+            item = self._create_list_item(
+                "single_backup",
+                backup_name=backup_path.name,
+                timestamp=time_str,
+                size=f"{size_mb:.1f}",
+                font_bold=True,
+            )
+
+            # Добавляем элемент в список
+            self.list_widget.addItem(item)
+
+            logger.debug("Добавлена одиночная резервная копия: %s", backup_path.name)
+
+        except Exception as e:
+            logger.warning("Ошибка при обработке файла %s: %s", backup_path.name, e)
+
+    def _populate_backup_list(self, backups: list) -> None:
+        """Заполняет список найденными резервными копиями."""
+        for backup in backups:
+            try:
+                # Проверяем размер файла
+                if backup.stat().st_size == 0:
+                    logger.warning("Пустой файл резервной копии: %s", backup.name)
+                    continue
+
+                # Форматируем отображение
+                dt_str = self._parse_datetime(backup.name)
+                size_mb = backup.stat().st_size / (1024 * 1024)
+
+                if dt_str:
+                    item = self._create_list_item(
+                        "auto_backup_with_timestamp",
+                        backup_name=backup.name,
+                        timestamp=dt_str,
+                        size=f"{size_mb:.1f}",
+                    )
+                else:
+                    item = self._create_list_item(
+                        "auto_backup_without_timestamp",
+                        backup_name=backup.name,
+                        size=f"{size_mb:.1f}",
+                    )
+
+                self.list_widget.addItem(item)
+                logger.debug("Добавлена резервная копия: %s", backup.name)
+
+            except Exception as e:
+                logger.warning("Ошибка при обработке файла %s: %s", backup.name, e)
+                continue
+
+        if self.list_widget.count() > 0:
+            self.list_widget.setEnabled(True)
+            self.list_widget.setCurrentRow(0)  # Выбираем самую новую
+        else:
+            self._show_no_backups_message()
 
         self._update_ok_state()
 
-    def _add_backup_item(
-        self, path: Path, *, kind: str, highlight: bool = False
-    ) -> bool:
-        if not self.list_widget:
-            return False
-        size_bytes = path.stat().st_size
-        if size_bytes == 0:
-            return False
-
-        timestamp = self._parse_timestamp(path.name)
-        if timestamp is None:
-            timestamp = datetime.datetime.fromtimestamp(path.stat().st_mtime)
-
-        meta = BackupMeta(
-            kind=kind, path=path, timestamp=timestamp, size_bytes=size_bytes
+    def _show_error_message(self, message: str) -> None:
+        """Показывает сообщение об ошибке."""
+        item = self._create_list_item(
+            "error",
+            details=message,
         )
-
-        item = QListWidgetItem()
-        item.setData(Qt.ItemDataRole.UserRole, meta)
-
-        if highlight:
-            font = item.font()
-            font.setBold(True)
-            item.setFont(font)
-
-        self.list_widget.addItem(item)
-        self._update_item_text(item)
-        return True
-
-    def _show_placeholder(self, kind: str, message: str | None = None) -> None:
-        if self.list_widget is not None:
-            self.list_widget.clear()
-        item = QListWidgetItem()
-        item.setFlags(Qt.ItemFlag.NoItemFlags)
-        item.setData(Qt.ItemDataRole.UserRole, BackupMeta(kind=kind, message=message))
-        if not self.list_widget:
-            return
         self.list_widget.addItem(item)
         self.list_widget.setEnabled(False)
-        self._update_item_text(item)
 
-    def _parse_timestamp(self, filename: str) -> datetime.datetime | None:
-        base = filename.replace("links_", "").replace(".db", "")
-        for pattern in ("%Y%m%d_%H%M%S_%f", "%Y%m%d_%H%M%S", "%Y-%m-%d_%H-%M-%S"):
-            try:
-                return datetime.datetime.strptime(base, pattern)
-            except ValueError:
-                continue
-        return None
+    def _parse_datetime(self, filename: str) -> Optional[str]:
+        """Парсит дату и время из имени файла резервной копии."""
+        try:
+            # Убираем префикс и суффикс
+            base = filename.replace("links_", "").replace(".db", "")
 
-    def _update_item_text(self, item: QListWidgetItem) -> None:
-        meta = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(meta, BackupMeta):
-            return
+            # Пробуем разные форматы
+            formats = [
+                "%Y%m%d_%H%M%S_%f",  # С микросекундами
+                "%Y%m%d_%H%M%S",  # Без микросекунд
+                "%Y-%m-%d_%H-%M-%S",  # Альтернативный формат
+            ]
 
-        if meta.kind in {"single", "auto"} and meta.path is not None:
-            timestamp_text = (
-                format_datetime(meta.timestamp)
-                if isinstance(meta.timestamp, datetime.datetime)
-                else _tr("Unknown time")
-            )
-            size_mb = meta.size_bytes / (1024 * 1024) if meta.size_bytes else 0
-            size_text = format_decimal(size_mb, precision=1)
-            if meta.kind == "single":
-                text = _arg(
-                    _tr("%1 — created before current database (%2, %3 MB)"),
-                    meta.path.name,
-                    timestamp_text,
-                    size_text,
-                )
-            else:
-                text = _arg(
-                    _tr("%1 — %2 (%3 MB)"),
-                    meta.path.name,
-                    timestamp_text,
-                    size_text,
-                )
-            item.setText(text)
-        elif meta.kind == "placeholder":
-            item.setText(_tr("No backups found"))
-        elif meta.kind == "error":
-            if meta.message:
-                item.setText(_arg(_tr("Failed to scan backups: %1"), meta.message))
-            else:
-                item.setText(_tr("Failed to scan backups"))
+            for fmt in formats:
+                try:
+                    dt = datetime.datetime.strptime(base, fmt)
+                    return dt.strftime("%d.%m.%Y %H:%M:%S")
+                except ValueError:
+                    continue
 
-    def _refresh_items(self) -> None:
-        if not self.list_widget:
-            return
-        for index in range(self.list_widget.count()):
-            item = self.list_widget.item(index)
-            if item is not None:
-                self._update_item_text(item)
-
-    def retranslateUi(self) -> None:
-        self.setWindowTitle(_tr("Restore Database from Backup"))
-        if self.buttons is not None:
-            ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
-            cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
-            if ok_btn is not None:
-                ok_btn.setText(_tr("Restore"))
-            if cancel_btn is not None:
-                cancel_btn.setText(_tr("Cancel"))
-        if self.list_widget is not None:
-            self.list_widget.setAccessibleName(_tr("Backups list"))
-            self._refresh_items()
-
-    def get_selected_backup(self) -> Path | None:
-        if not self.list_widget:
+            logger.debug("Не удалось распарсить дату из имени файла: %s", filename)
             return None
+
+        except Exception as e:
+            logger.debug("Ошибка при парсинге даты из %s: %s", filename, e)
+            return None
+
+    def get_selected_backup(self) -> Optional[Path]:
+        """Возвращает путь к выбранной резервной копии."""
         if not self.list_widget.isEnabled():
             return None
-        item = self.list_widget.currentItem()
-        if item is None:
+
+        row = self.list_widget.currentRow()
+        if row < 0:
             return None
-        meta = item.data(Qt.ItemDataRole.UserRole)
-        if isinstance(meta, BackupMeta):
-            return meta.path
-        return None
+
+        try:
+            # Проверяем наличие одиночной резервной копии
+            single_backup_path = self.paths.get_db_backup_path()
+            single_backup_exists = (
+                single_backup_path.exists() and single_backup_path.stat().st_size > 0
+            )
+
+            # Получаем список автоматических резервных копий
+            backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
+            # Фильтруем пустые файлы
+            valid_backups = [b for b in backups if b.stat().st_size > 0]
+
+            # Если есть одиночная резервная копия, она будет первой в списке
+            if single_backup_exists:
+                # Если выбрана первая строка (одиночная резервная копия)
+                if row == 0:
+                    logger.info(
+                        "Выбрана одиночная резервная копия: %s", single_backup_path.name
+                    )
+                    return single_backup_path
+                else:
+                    # Смещаем индекс для автоматических резервных копий
+                    adjusted_row = row - 1
+                    if adjusted_row >= len(valid_backups):
+                        logger.warning("Неверный индекс резервной копии: %s", row)
+                        return None
+
+                    selected = valid_backups[adjusted_row]
+                    logger.info(
+                        "Выбрана автоматическая резервная копия: %s", selected.name
+                    )
+                    return selected
+            else:
+                # Если нет одиночной резервной копии, работаем как раньше
+                if row >= len(valid_backups):
+                    logger.warning("Неверный индекс резервной копии: %s", row)
+                    return None
+
+                selected = valid_backups[row]
+                logger.info("Выбрана резервная копия: %s", selected.name)
+                return selected
+
+        except Exception as e:
+            logger.error("Ошибка при получении выбранной резервной копии: %s", e)
+            return None
 
     def _update_ok_state(self) -> None:
-        if self.buttons is None:
-            return
+        """Обновляет состояние кнопки OK."""
         ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
-        if ok_btn is not None:
-            ok_btn.setEnabled(self.get_selected_backup() is not None)
+        enabled = (
+            self.list_widget.isEnabled()
+            and self.list_widget.currentRow() >= 0
+            and self.list_widget.count() > 0
+        )
+        ok_btn.setEnabled(enabled)
 
     def accept(self) -> None:
+        """Подтверждение выбора резервной копии."""
         selected_backup = self.get_selected_backup()
+
         if not selected_backup:
             self.show_warning(
-                _tr("No backup selected."),
-                _tr("Backup selection required"),
-                informative_text=_tr(
-                    'Choose a file from the list and press "Restore". '
-                    "If the list is empty, check the backups directory."
+                self.tr("Резервная копия не выбрана."),
+                self.tr("Требуется выбор резервной копии"),
+                informative_text=self.tr(
+                    "Выберите файл из списка и нажмите 'Восстановить'. Если список пуст, проверьте каталог резервных копий."
                 ),
             )
             return
 
-        size_mb = selected_backup.stat().st_size / (1024 * 1024)
+        # Дополнительное подтверждение
         reply = self.ask_confirmation(
-            _tr("Restore the database from the selected backup?"),
-            _tr("Database restoration"),
-            informative_text=_tr(
-                "The current database will be completely replaced by the selected backup. "
-                "This action cannot be undone. Create a backup first if necessary."
+            self.tr("Восстановить базу данных из выбранной резервной копии?"),
+            self.tr("Восстановление базы данных"),
+            informative_text=(
+                self.tr("Данные текущей базы будут полностью заменены содержимым резервной копии.\n")
+                + self.tr("Операция необратима. Рекомендуется предварительно создать текущий бэкап.")
             ),
-            details=_arg(
-                _tr("Path: %1\nName: %2\nSize: %3 MB"),
-                str(selected_backup),
-                selected_backup.name,
-                format_decimal(size_mb, precision=1),
+            details=(
+                self.tr("Путь: {path}\n").format(path=str(selected_backup))
+                + self.tr("Имя: {name}\n").format(name=selected_backup.name)
+                + self.tr("Размер: {size} МБ").format(
+                    size=f"{selected_backup.stat().st_size / (1024 * 1024):.1f}"
+                )
             ),
         )
+
         if reply:
             self.selected_backup = selected_backup
             super().accept()
 
-    def get_result(self) -> Path | None:
+    def get_result(self) -> Optional[Path]:
+        """Возвращает выбранную резервную копию после закрытия диалога."""
         return self.selected_backup
+
+    def retranslateUi(self) -> None:
+        """Обновляет тексты интерфейса при смене языка."""
+        self.setWindowTitle(_tr("Восстановить базу из резервной копии"))
+
+        ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_btn is not None:
+            ok_btn.setText(_tr("Восстановить"))
+
+        cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setText(_tr("Отмена"))
+
+        # Обновляем существующие элементы списка
+        for index in range(self.list_widget.count()):
+            item = self.list_widget.item(index)
+            self._apply_item_translation(item)
+
+    def _create_list_item(
+        self, template_key: str, font_bold: bool = False, **format_kwargs: Any
+    ) -> QListWidgetItem:
+        sanitized_kwargs = self._sanitize_format_kwargs(format_kwargs)
+
+        item = QListWidgetItem()
+        item.setData(
+            Qt.ItemDataRole.UserRole,
+            {
+                "template_key": template_key,
+                "format_kwargs": sanitized_kwargs,
+                "font_bold": font_bold,
+            },
+        )
+        self._apply_item_translation(item)
+        return item
+
+    def _apply_item_translation(self, item: QListWidgetItem) -> None:
+        data = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(data, dict):
+            return
+
+        template_key = data.get("template_key", "")
+        format_kwargs = data.get("format_kwargs", {})
+
+        try:
+            template = _LIST_ITEM_TEMPLATES.get(template_key)
+            if template is None:
+                logger.warning("Неизвестный ключ шаблона для элемента списка: %s", template_key)
+                template = template_key
+            translated = _tr(template)
+            if format_kwargs:
+                translated = translated.format(**format_kwargs)
+            item.setText(translated)
+        except Exception:
+            fallback_template = template if template is not None else template_key
+            if format_kwargs and isinstance(fallback_template, str):
+                try:
+                    item.setText(fallback_template.format(**format_kwargs))
+                except Exception:
+                    item.setText(str(fallback_template))
+            else:
+                item.setText(str(fallback_template))
+
+        font_bold = bool(data.get("font_bold"))
+        font = item.font()
+        font.setBold(font_bold)
+        item.setFont(font)
+
+    @staticmethod
+    def _sanitize_format_kwargs(format_kwargs: dict[str, Any]) -> dict[str, Any]:
+        sanitized: dict[str, Any] = {}
+        for key, value in format_kwargs.items():
+            if isinstance(value, str):
+                sanitized[key] = value.replace("{", "{{").replace("}", "}}").strip()
+            else:
+                sanitized[key] = value
+        return sanitized

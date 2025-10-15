@@ -69,6 +69,13 @@ class SettingsConfig(BaseConfig):
         """Return whether automatic backups are enabled."""
         return self.get("database.backup_enabled", True)
 
+    def get_backup_interval_minutes(self) -> int:
+        """Return the interval for automatic backups in minutes (default 30)."""
+        val = self.get("database.backup_interval_minutes")
+        if val is None:
+            val = self.get("database.backup_interval", 30)
+        return max(1, int(val))
+
     # === File formats and types ===
 
     def get_supported_icon_formats(self) -> list[str]:
