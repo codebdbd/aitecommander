@@ -5,15 +5,15 @@ from collections.abc import Iterable
 from functools import wraps
 from typing import Callable
 
-from PyQt6.QtCore import QCoreApplication, QParallelAnimationGroup, QPropertyAnimation
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import (
-    QGraphicsOpacityEffect,
     QToolButton,
     QWidget,
 )
 
 from .accessibility_manager import AccessibilityManager
-from .panel_state import PanelState
+from ..models.panel_state import PanelState
+from ..utils.qt_utils import is_deleted
 from .width_calculator import WidthCalculator
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def safe_widget_operation(func: Callable) -> Callable:
 
     @wraps(func)
     def wrapper(self, widget: QWidget | None, *args, **kwargs):
-        if widget is None or self._is_deleted(widget):
+        if widget is None or is_deleted(widget):
             logger.debug(f"{func.__name__}: widget is None or deleted")
             # Return a sensible default
             if func.__name__.startswith("get"):
@@ -69,8 +69,6 @@ class PanelVisibilityManager:
             parent: Parent widget used by the accessibility manager.
         """
         self._width_calculator = width_calculator
-        # Fix: keep references to active animations to prevent GC collection
-        self._active_animations: list[QParallelAnimationGroup] = []
         # Fix: instantiate accessibility manager
         self._accessibility_manager = AccessibilityManager(parent)
 
@@ -88,13 +86,13 @@ class PanelVisibilityManager:
         Returns:
             List of matching buttons.
         """
-        if not panel_widget or self._is_deleted(panel_widget):
+        if not panel_widget or is_deleted(panel_widget):
             return []
 
         buttons: list[QToolButton] = []
         bg = getattr(panel_widget, "bg_frame", None)
 
-        if bg and isinstance(bg, QWidget) and not self._is_deleted(bg):
+        if bg and isinstance(bg, QWidget) and not is_deleted(bg):
             try:
                 layout = bg.layout()
                 if layout:
@@ -104,7 +102,7 @@ class PanelVisibilityManager:
                             widget = item.widget()
                             if (
                                 isinstance(widget, QToolButton)
-                                and not self._is_deleted(widget)
+                                and not is_deleted(widget)
                                 and widget.objectName() == object_name
                             ):
                                 buttons.append(widget)
@@ -114,7 +112,7 @@ class PanelVisibilityManager:
         # Fallback: search via ``findChildren``
         try:
             for button in panel_widget.findChildren(QToolButton, object_name):
-                if button not in buttons and not self._is_deleted(button):
+                if button not in buttons and not is_deleted(button):
                     buttons.append(button)
         except (RuntimeError, AttributeError):
             pass
@@ -135,7 +133,7 @@ class PanelVisibilityManager:
             return 0
         visible = max(0, min(count, len(buttons)))
         for index, button in enumerate(buttons):
-            if not self._is_deleted(button):
+            if not is_deleted(button):
                 try:
                     is_visible = index < visible
                     button.setVisible(is_visible)
@@ -313,166 +311,6 @@ class PanelVisibilityManager:
                     pass
         except (RuntimeError, AttributeError):
             pass
-
-    def apply_with_animation(
-        self,
-        panel: QWidget | None,
-        buttons: list[QToolButton],
-        target_visible: int,
-        duration_ms: int,
-        easing,
-    ) -> int:
-        """Animate button visibility changes.
-
-        Args:
-            panel: Panel widget.
-            buttons: Button list to animate.
-            target_visible: Desired visible button count.
-            duration_ms: Animation duration in milliseconds.
-            easing: Easing curve for the animation.
-
-        Returns:
-            Actual number of visible buttons.
-        """
-        if not panel:
-            return 0
-        target_visible = max(0, min(target_visible, len(buttons)))
-        group = QParallelAnimationGroup(panel)
-        any_animation = False
-
-        any_animation |= self._animate_panel_width(
-            panel, buttons, target_visible, duration_ms, easing, group
-        )
-        any_animation |= self._animate_buttons(
-            buttons, target_visible, duration_ms, easing, group
-        )
-
-        if any_animation:
-            self._start_animation_group(group)
-        return target_visible
-
-    def _animate_panel_width(
-        self, panel, buttons, target_visible, duration_ms, easing, group
-    ) -> bool:
-        """Animate panel width change."""
-        panel.setMinimumWidth(0)
-        new_width = self._width_calculator.panel_width(panel, buttons, target_visible)
-        old_width = int(panel.maximumWidth())
-        if old_width != new_width:
-            animation = QPropertyAnimation(panel, b"maximumWidth")
-            animation.setDuration(duration_ms)
-            animation.setEasingCurve(easing)
-            animation.setStartValue(old_width)
-            animation.setEndValue(new_width)
-            group.addAnimation(animation)
-            return True
-        panel.setMaximumWidth(new_width)
-        return False
-
-    def _animate_buttons(
-        self, buttons, target_visible, duration_ms, easing, group
-    ) -> bool:
-        """Animate button visibility changes."""
-        any_animation = False
-        for index, button in enumerate(buttons):
-            need_visible = index < target_visible
-            current_visible = button.isVisible()
-            effect = self._get_or_create_opacity_effect(button)
-
-            if need_visible and not current_visible:
-                any_animation |= self._animate_button_show(
-                    button, effect, duration_ms, easing, group
-                )
-            elif (not need_visible) and current_visible:
-                any_animation |= self._animate_button_hide(
-                    button, effect, duration_ms, easing, group
-                )
-        return any_animation
-
-    def _get_or_create_opacity_effect(self, button):
-        """Get existing opacity effect or create new one."""
-        effect = button.graphicsEffect()
-        if not isinstance(effect, QGraphicsOpacityEffect):
-            effect = QGraphicsOpacityEffect(button)
-            button.setGraphicsEffect(effect)
-        return effect
-
-    def _animate_button_show(self, button, effect, duration_ms, easing, group) -> bool:
-        """Animate button appearing."""
-        button.setVisible(True)
-        effect.setOpacity(0.0)
-        animation = QPropertyAnimation(effect, b"opacity")
-        animation.setDuration(duration_ms)
-        animation.setEasingCurve(easing)
-        animation.setStartValue(0.0)
-        animation.setEndValue(1.0)
-        group.addAnimation(animation)
-        return True
-
-    def _animate_button_hide(self, button, effect, duration_ms, easing, group) -> bool:
-        """Animate button disappearing."""
-        effect.setOpacity(1.0)
-        animation = QPropertyAnimation(effect, b"opacity")
-        animation.setDuration(duration_ms)
-        animation.setEasingCurve(easing)
-        animation.setStartValue(1.0)
-        animation.setEndValue(0.0)
-        self._attach_hide_callback(animation, button)
-        group.addAnimation(animation)
-        return True
-
-    def _attach_hide_callback(self, animation, button):
-        """Attach callback to hide button after animation."""
-        try:
-            from weakref import ref
-            button_ref = ref(button)
-
-            def hide_callback(_ref=button_ref):
-                btn = _ref()
-                if btn is not None and not self._is_deleted(btn):
-                    try:
-                        btn.setVisible(False)
-                    except (RuntimeError, AttributeError):
-                        pass
-
-            animation.finished.connect(hide_callback)
-        except Exception as e:
-            logger.debug("Failed to create hide callback: %s", e)
-
-    def _start_animation_group(self, group):
-        """Start animation group with cleanup callback."""
-        self._active_animations.append(group)
-        try:
-            from weakref import ref
-            group_ref = ref(group)
-
-            def cleanup_callback():
-                grp = group_ref()
-                if grp is not None:
-                    self._cleanup_animation(grp)
-
-            group.finished.connect(cleanup_callback)
-            group.start()
-        except Exception as e:
-            logger.warning("Failed to start animation group: %s", e)
-            self._cleanup_animation(group)
-
-    def _cleanup_animation(self, group: QParallelAnimationGroup) -> None:
-        """Remove a completed animation group from the active list."""
-        try:
-            if group in self._active_animations:
-                self._active_animations.remove(group)
-        except (ValueError, RuntimeError):
-            pass
-
-    def _is_deleted(self, obj) -> bool:
-        """Check whether a Qt object has been deleted."""
-        try:
-            from sip import isdeleted
-
-            return isdeleted(obj)
-        except ImportError:
-            return False
 
     @safe_widget_operation
     def _ensure_panel_visible(self, panel_widget: QWidget | None) -> None:

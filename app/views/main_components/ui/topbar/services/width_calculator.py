@@ -9,7 +9,9 @@ from typing import Any
 from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
-from .panel_state import PanelState
+from ..models.panel_state import PanelState
+from ..models.topbar_constants import TOPBAR_CONSTANTS as C
+from ..utils.qt_utils import is_deleted
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +23,10 @@ class WidthCalculator(QObject):
     Uses weakref for automatic widget lifetime tracking.
     """
 
-    MIN_PANEL_WIDTH = 50  # Minimal panel width in pixels
-    DEFAULT_BUTTON_SIZE = 32  # Default button size
-    CACHE_MAX_SIZE = 100  # Maximum cache size
+    # Use centralized constants
+    MIN_PANEL_WIDTH = C.MIN_PANEL_WIDTH
+    DEFAULT_BUTTON_SIZE = C.DEFAULT_BUTTON_SIZE
+    CACHE_MAX_SIZE = C.CACHE_MAX_SIZE
 
     def __init__(
         self, button_size: int = DEFAULT_BUTTON_SIZE, parent: QObject | None = None
@@ -54,13 +57,7 @@ class WidthCalculator(QObject):
         """Check whether a Qt object has been deleted."""
         if isinstance(obj, weakref.ref):
             return obj() is None
-        # For raw QWidget, check if it's still valid
-        try:
-            # Try to access a basic property
-            _ = obj.isVisible
-            return False
-        except (RuntimeError, AttributeError):
-            return True
+        return is_deleted(obj)
 
     def clear_cache(self) -> None:
         """Clear the panel-width cache.
@@ -248,7 +245,7 @@ class WidthCalculator(QObject):
         if not self._validate_panel_width_params(buttons, count):
             return self.MIN_PANEL_WIDTH
 
-        if not panel or self._is_deleted(panel):
+        if not panel or is_deleted(panel):
             return self.MIN_PANEL_WIDTH
 
         # Use weakref for automatic lifetime tracking

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from .layout_context import LayoutContext
-from .panel_state import PanelState
+from ..models.layout_context import LayoutContext
+from ..models.panel_state import PanelState
 from .width_calculator import WidthCalculator
 
 logger = logging.getLogger(__name__)
