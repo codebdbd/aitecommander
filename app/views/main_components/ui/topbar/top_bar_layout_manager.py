@@ -1,212 +1,159 @@
+"""TopBarLayoutManager - фасад для управления layout топ-бара."""
 from __future__ import annotations
 
 import logging
-import threading
 import time
 from collections.abc import Iterable
 from contextlib import contextmanager
-from enum import Enum, auto
 from typing import Any
 from weakref import WeakSet
 
 from PyQt6.QtCore import QEasingCurve, QEvent, QObject, QTimer, pyqtSignal
-from PyQt6.QtWidgets import QLayout, QLineEdit, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QLineEdit, QWidget
 
-from ...common.constants import PerformanceLimit, Size, Timeout
 from ...common.decorators import require_main_thread
 from ...common.resource_manager import ResourceManager
-from .config_protocol import AppConfigAdapter, TopBarConfigProtocol
-from .layout_context import LayoutContext
-from .panel_state import PanelDefinition, PanelState
-from .panel_visibility_manager import PanelVisibilityManager
-from .qt_utils import get_sip_statistics
-from .qt_utils import is_deleted as _sip_isdeleted
-from .types import ButtonObjectName, PanelLabel, TopBarWindow
-from .visibility_solver import VisibilitySolver
-from .width_calculator import WidthCalculator
+from .models.config_protocol import TopBarConfigProtocol
+from .models.panel_state import PanelState
+from .models.topbar_constants import TOPBAR_CONSTANTS as C
+from .models.types import TopBarWindow
+from .services.hysteresis_service import HysteresisService
+from .services.initialization_service import TopBarInitializationService
+from .services.layout_orchestrator import InitializationState, LayoutOrchestrator
+from .services.lifecycle_manager import TopBarLifecycleManager
+from .services.narrow_mode_service import NarrowModeService
+from .services.widget_accessor import WidgetAccessor
+from .utils.qt_utils import get_sip_statistics
+from .utils.qt_utils import is_deleted as _sip_isdeleted
 
 logger = logging.getLogger(__name__)
 
 
-class InitializationState(Enum):
-
-    NOT_STARTED = auto()
-    WAITING_FOR_DATA = auto()
-    DATA_READY = auto()
-    LAYOUT_APPLIED = auto()
-
-
 class TopBarLayoutManager(QObject):
+    """Фасад для управления layout топ-бара. Делегирует работу сервисам."""
 
     layoutAdjusted = pyqtSignal(dict)
     narrowModeChanged = pyqtSignal(bool)
     searchWidthChanged = pyqtSignal(int)
 
-    DEFAULT_THROTTLE_MS = Timeout.THROTTLE_RESIZE
-    DEFAULT_LOG_INFO = False
-    DEFAULT_MIN_SEARCH_WIDTH = 148
-    DEFAULT_MAX_RECENT = 10
-    DEFAULT_MAX_FAV = 10
-    DEFAULT_MAX_QUICK = 6
-    DEFAULT_MIN_RECENT = 0
-    DEFAULT_MIN_FAV = 0
-    DEFAULT_MIN_QUICK = 0
-    DEFAULT_NARROW_THRESHOLD = Size.NARROW_MODE_THRESHOLD
-
-    MIN_PANEL_WIDTH = Size.MIN_PANEL_WIDTH
-    MAX_WIDGET_WIDTH = Size.MAX_WIDGET_WIDTH
-    MIN_SEARCH_WIDTH_RANGE = (Size.MIN_SEARCH_WIDTH, 500)
-
-    MAX_VISIBLE_BUTTONS = Size.MAX_VISIBLE_BUTTONS
-    MIN_VISIBLE_BUTTONS = 0
-    MAX_SEARCH_WIDTH = Size.MAX_SEARCH_WIDTH
-    MIN_SEARCH_WIDTH_ABSOLUTE = Size.MIN_SEARCH_WIDTH
-    HYSTERESIS_THRESHOLD_BASE = Size.HYSTERESIS_THRESHOLD
-    HYSTERESIS_SPACING_MULTIPLIER = 2
-    SEPARATOR_SPACING_VISIBLE = 4
-    SEPARATOR_SPACING_HIDDEN = 0
-
-    SLOW_ADJUST_THRESHOLD_MS = PerformanceLimit.SLOW_ADJUST_THRESHOLD
-    SLOW_CLAMP_THRESHOLD_MS = PerformanceLimit.SLOW_CLAMP_THRESHOLD
+    # Константы (для обратной совместимости)
+    MIN_PANEL_WIDTH = C.MIN_PANEL_WIDTH
+    MAX_WIDGET_WIDTH = C.MAX_WIDGET_WIDTH
+    MAX_VISIBLE_BUTTONS = C.MAX_VISIBLE_BUTTONS
+    MIN_VISIBLE_BUTTONS = C.MIN_VISIBLE_BUTTONS
+    MAX_SEARCH_WIDTH = C.MAX_SEARCH_WIDTH
+    MIN_SEARCH_WIDTH_ABSOLUTE = C.MIN_SEARCH_WIDTH_ABSOLUTE
+    HYSTERESIS_THRESHOLD_BASE = C.HYSTERESIS_THRESHOLD_BASE
+    HYSTERESIS_SPACING_MULTIPLIER = C.HYSTERESIS_SPACING_MULTIPLIER
+    SEPARATOR_SPACING_VISIBLE = C.SEPARATOR_SPACING_VISIBLE
+    SEPARATOR_SPACING_HIDDEN = C.SEPARATOR_SPACING_HIDDEN
+    SLOW_ADJUST_THRESHOLD_MS = C.SLOW_ADJUST_THRESHOLD_MS
+    SLOW_CLAMP_THRESHOLD_MS = C.SLOW_CLAMP_THRESHOLD_MS
 
     def __init__(
         self, window: TopBarWindow, config: TopBarConfigProtocol | None = None
     ) -> None:
         super().__init__(window)
         self.window = window
-        self._container_widget: QWidget | None = None
-        self._watched_panels: WeakSet[QObject] = WeakSet()
-
         self._resource_manager = ResourceManager("TopBarLayoutManager")
+        self._opacity_effect: QGraphicsOpacityEffect | None = None
 
-        if config is None:
-            from app.config_data import app_config
+        # Инициализация через сервис
+        self._init_service = TopBarInitializationService(
+            window, config, self._resource_manager
+        )
+        self._config = self._init_service.get_config()
 
-            config = AppConfigAdapter(app_config)
-        self._config = config
+        # Настройки
+        settings = self._init_service.init_settings()
+        self._throttle_interval_ms = settings["throttle_interval_ms"]
+        self._log_info = settings["log_info"]
+        self._min_search_width = settings["min_search_width"]
+        self._narrow_threshold = settings["narrow_threshold"]
 
-        self._throttle_interval_ms = self._config.get_throttle_ms()
-        self._log_info = self._config.get_log_info()
-        self._min_search_width = self._config.get_search_min_width()
-        self._narrow_threshold = self.DEFAULT_NARROW_THRESHOLD
+        # Границы панелей
+        bounds = self._init_service.init_panel_bounds()
+        self._max_recent = bounds["max_recent"]
+        self._max_fav = bounds["max_fav"]
+        self._max_quick = bounds["max_quick"]
+        self._min_recent = bounds["min_recent"]
+        self._min_fav = bounds["min_fav"]
+        self._min_quick = bounds["min_quick"]
 
-        self._max_recent = self._validate_config_int(
-            self._config.get_max_visible("recent"),
-            self.DEFAULT_MAX_RECENT,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.max_visible.recent",
-        )
-        self._max_fav = self._validate_config_int(
-            self._config.get_max_visible("fav"),
-            self.DEFAULT_MAX_FAV,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.max_visible.fav",
-        )
-        self._max_quick = self._validate_config_int(
-            self._config.get_max_visible("quick"),
-            self.DEFAULT_MAX_QUICK,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.max_visible.quick",
-        )
+        # Определения панелей
+        self._panel_definitions = self._init_service.create_panel_definitions()
+        self._panel_labels = tuple(d.label for d in self._panel_definitions)
 
-        self._min_recent = self._validate_config_int(
-            self._config.get_min_visible("recent"),
-            self.DEFAULT_MIN_RECENT,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.min_visible.recent",
-        )
-        self._min_fav = self._validate_config_int(
-            self._config.get_min_visible("fav"),
-            self.DEFAULT_MIN_FAV,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.min_visible.fav",
-        )
-        self._min_quick = self._validate_config_int(
-            self._config.get_min_visible("quick"),
-            self.DEFAULT_MIN_QUICK,
-            self.MIN_VISIBLE_BUTTONS,
-            self.MAX_VISIBLE_BUTTONS,
-            "topbar.min_visible.quick",
+        # Сервисы
+        services = self._init_service.init_services()
+        self._width_calculator = services["width_calculator"]
+        self._visibility_manager = services["visibility_manager"]
+        self._visibility_solver = services["visibility_solver"]
+        self._search_manager = services["search_manager"]
+        self._separator_service = services["separator_service"]
+
+        # Дополнительные сервисы
+        self._widget_accessor = WidgetAccessor(window)
+        self._hysteresis_service = HysteresisService(self._width_calculator)
+        self._narrow_mode_service = NarrowModeService(
+            window, self._widget_accessor, self._search_manager, self._min_search_width
         )
 
-        self._panel_definitions: tuple[PanelDefinition, ...] = (
-            PanelDefinition(
-                label=PanelLabel.RECENT.value,
-                attr_name="recent_links_widget",
-                button_object_name=ButtonObjectName.RECENT.value,
-                min_attr="_min_recent",
-                max_attr="_max_recent",
-            ),
-            PanelDefinition(
-                label=PanelLabel.FAVORITES.value,
-                attr_name="fav_widget",
-                button_object_name=ButtonObjectName.FAVORITE.value,
-                min_attr="_min_fav",
-                max_attr="_max_fav",
-            ),
-            PanelDefinition(
-                label=PanelLabel.QUICK.value,
-                attr_name="quick_add_widget",
-                button_object_name=ButtonObjectName.QUICK.value,
-                min_attr="_min_quick",
-                max_attr="_max_quick",
-            ),
-        )
-        self._panel_labels = tuple(
-            definition.label for definition in self._panel_definitions
+        # Orchestrator
+        self._orchestrator = LayoutOrchestrator(
+            window=window,
+            widget_accessor=self._widget_accessor,
+            visibility_manager=self._visibility_manager,
+            visibility_solver=self._visibility_solver,
+            search_manager=self._search_manager,
+            separator_service=self._separator_service,
+            hysteresis_service=self._hysteresis_service,
+            narrow_mode_service=self._narrow_mode_service,
+            panel_definitions=self._panel_definitions,
+            panel_labels=self._panel_labels,
+            min_search_width=self._min_search_width,
+            narrow_threshold=self._narrow_threshold,
+            log_info=self._log_info,
+            slow_adjust_threshold_ms=self.SLOW_ADJUST_THRESHOLD_MS,
+            side_spacing=self._config.get_side_spacing(),
+            manager_ref=self,
         )
 
-        btn_size = self._config.get_button_size()
-        self._width_calculator = WidthCalculator(button_size=btn_size)
-        parent_widget = window if isinstance(window, QWidget) else None
-        self._visibility_manager = PanelVisibilityManager(
-            self._width_calculator, parent_widget
-        )
-        self._visibility_solver = VisibilitySolver(self._width_calculator)
+        # Lifecycle manager
+        self._lifecycle_manager = TopBarLifecycleManager(self)
 
-        self._throttle_timer = QTimer(self)
-        self._throttle_timer.setSingleShot(True)
-        self._throttle_timer.timeout.connect(self._run_adjust)
+        # Таймер
+        self._throttle_timer = self._init_service.init_timer(self, self._run_adjust)
 
-        self._resource_manager.register_resource(self._throttle_timer)
+        # Event handling
+        self._init_event_handling()
 
-        self._anim_curve = QEasingCurve.Type.OutCubic
-        self._anim_duration_ms = 140
-        self._animating = False
-
-        self._last_applied: tuple[int, ...] | None = None
-
-        self._init_state = InitializationState.NOT_STARTED
-
-        self._adjust_lock = threading.Lock()
-        self._adjust_running = False
-        self._narrow_mode_active = False
-
-        self._signal_connections: list[tuple[QObject, str, object]] = []
-
-        self._data_ready_timeout_ms = Timeout.DATA_READY_FALLBACK
-
-        self._install_event_filters()
+    def _init_event_handling(self) -> None:
+        """Инициализация обработки событий."""
+        # Установка event filters через lifecycle manager
+        widgets_to_watch = []
+        for attr_name in [
+            "top_bar_host",
+            "content_container",
+            "quick_add_widget",
+            "fav_widget",
+            "recent_links_widget",
+        ]:
+            widget = self._widget_accessor.safe_get(self.window, attr_name)
+            if isinstance(widget, QWidget):
+                widgets_to_watch.append(widget)
+        
+        if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
+            widgets_to_watch.append(self.window)
+        
+        self._lifecycle_manager.install_event_filters(widgets_to_watch)
+        
         if hasattr(self.window, "shown"):
-            self._connect_signal(self.window, "shown", self.adjust)
-
-    def _connect_signal(self, obj: QObject, signal_name: str, slot: object) -> None:
-        try:
-            signal = getattr(obj, signal_name, None)
-            if signal is not None:
-                signal.connect(slot)
-                self._signal_connections.append((obj, signal_name, slot))
-                logger.debug("TopBarLM: connected signal %s", signal_name)
-        except (AttributeError, TypeError, RuntimeError) as e:
-            logger.debug("TopBarLM: failed to connect signal %s: %s", signal_name, e)
+            self._lifecycle_manager.connect_signal(self.window, "shown", self.adjust)
 
     @contextmanager
     def _measure_operation(self, operation: str, threshold_ms: float):
+        """Измерить длительность операции."""
         start = time.perf_counter()
         try:
             yield
@@ -223,20 +170,22 @@ class TopBarLayoutManager(QObject):
                 logger.info(f"TopBarLM: {operation}: {duration:.1f}ms")
 
     def mark_data_ready(self) -> None:
-        if self._init_state == InitializationState.DATA_READY:
+        """Отметить что данные готовы."""
+        state = self._orchestrator.get_init_state()
+        if state == InitializationState.DATA_READY:
             logger.debug(
                 "TopBarLM: data already marked as ready, ignoring duplicate call"
             )
             return
 
-        if self._init_state == InitializationState.LAYOUT_APPLIED:
+        if state == InitializationState.LAYOUT_APPLIED:
             logger.debug("TopBarLM: layout already applied, ignoring mark_data_ready")
             return
 
-        self._init_state = InitializationState.DATA_READY
+        self._orchestrator.set_init_state(InitializationState.DATA_READY)
         logger.debug("TopBarLM: state transition -> DATA_READY")
 
-        # Immediately reveal the panel
+        # Reveal the panel
         if hasattr(self, "_opacity_effect") and self._opacity_effect:
             try:
                 self._opacity_effect.setOpacity(1.0)
@@ -246,24 +195,9 @@ class TopBarLayoutManager(QObject):
 
         self.adjust()
 
-    def _schedule_data_ready_fallback(self) -> None:
-
-        def _fallback():
-            if self._init_state == InitializationState.WAITING_FOR_DATA:
-                logger.warning(
-                    "TopBarLM: data_ready timeout (%dms) expired, "
-                    "forcing state transition",
-                    self._data_ready_timeout_ms,
-                )
-                self._init_state = InitializationState.DATA_READY
-                self.adjust()
-
-        QTimer.singleShot(self._data_ready_timeout_ms, _fallback)
-
     def prepare_initial_layout(self) -> None:
-        from PyQt6.QtWidgets import QGraphicsOpacityEffect
-
-        container = self._get_container_widget()
+        """Подготовить начальный layout."""
+        container = self._widget_accessor.get_container_widget()
         if container:
             try:
                 effect = QGraphicsOpacityEffect(container)
@@ -274,231 +208,65 @@ class TopBarLayoutManager(QObject):
             except Exception as e:
                 logger.debug("TopBarLM: failed to set opacity effect: %s", e)
 
-        if self._init_state == InitializationState.NOT_STARTED:
-            self._init_state = InitializationState.WAITING_FOR_DATA
+        state = self._orchestrator.get_init_state()
+        if state == InitializationState.NOT_STARTED:
+            self._orchestrator.set_init_state(InitializationState.WAITING_FOR_DATA)
             logger.debug("TopBarLM: state transition -> WAITING_FOR_DATA")
 
     @require_main_thread
     def adjust(self) -> None:
+        """Выполнить layout adjustment."""
         if self._throttle_timer.isActive():
             return
 
-        if not self._acquire_adjust_lock():
+        if not self._orchestrator.acquire_adjust_lock():
             return
 
         try:
-            self._perform_adjust()
+            applied_dict, is_narrow = self._orchestrator.perform_adjust(self._measure_operation)
+            
+            if applied_dict is not None:
+                # Emit signals
+                self.layoutAdjusted.emit(applied_dict)
+                self.narrowModeChanged.emit(is_narrow)
+                
+                # Search width signal
+                ctx = self._orchestrator._prepare_layout_context()
+                if ctx:
+                    new_width = self._orchestrator._clamp_search_width(ctx, applied_dict)
+                    if new_width is not None:
+                        self.searchWidthChanged.emit(new_width)
+                
         finally:
-            with self._adjust_lock:
-                self._adjust_running = False
+            self._orchestrator.release_adjust_lock()
 
-    def _acquire_adjust_lock(self) -> bool:
-        with self._adjust_lock:
-            if self._adjust_running:
-                return False
-            self._adjust_running = True
-            return True
-
-    def _perform_adjust(self):
-        if self._init_state == InitializationState.WAITING_FOR_DATA:
-            logger.debug(
-                "TopBarLM: skipping adjust - waiting for data (state=%s)",
-                self._init_state,
-            )
-            return
-
-        with self._measure_operation("adjust", self.SLOW_ADJUST_THRESHOLD_MS):
-            ctx = self._prepare_layout_context()
-            if not ctx:
+    def retranslate_topbar(self) -> None:
+        """Перевести топ-бар на другой язык."""
+        try:
+            top_bar = self._widget_accessor.get_top_bar()
+            if top_bar is None:
+                return
+            panel_states = self._orchestrator._collect_panel_states()
+            if not panel_states:
                 return
 
-            if ctx.effective_width <= self._narrow_threshold:
-                self._handle_narrow_mode(ctx)
+            last_applied = self._orchestrator.get_last_applied()
+            if last_applied is not None:
+                visible_counts = {
+                    label: last_applied[i]
+                    for i, label in enumerate(self._panel_labels)
+                }
             else:
-                self._handle_normal_mode(ctx)
+                visible_counts = self._visible_counts_from_state(panel_states)
 
-    def _prepare_layout_context(self):
-        container = self._get_container_widget()
-        if not container:
-            return None
-        if container.width() <= 0 or not container.isVisible():
-            self._freeze_search_width()
-            return None
-
-        top_bar = self._get_top_bar()
-        if not isinstance(top_bar, QLayout):
-            return None
-
-        search_widget = self._safe_get(self.window, "search")
-        search_qt = search_widget if isinstance(search_widget, QLineEdit) else None
-        panel_states = self._collect_panel_states()
-        if not panel_states:
-            return None
-
-        width = container.width()
-        effective_width = self._compute_effective_width(width)
-
-        return LayoutContext(
-            container=container,
-            width=width,
-            effective_width=effective_width,
-            min_search_width=self._min_search_width,
-            top_bar=top_bar,
-            search=search_qt,
-            panel_states=tuple(panel_states),
-        )
-
-    def _handle_narrow_mode(self, ctx):
-        counts = {}
-        for state in ctx.panel_states:
-            if state.definition.label == "quick":
-                counts[state.definition.label] = len(state.buttons)
-            else:
-                counts[state.definition.label] = state.min_visible
-
-        applied = self._apply_counts(ctx, ctx.panel_states, counts)
-        self._finalize_regular_layout(ctx, applied)
-
-        is_narrow = all(
-            value == 0 for label, value in applied.items() if label != "quick"
-        )
-        if is_narrow:
-            self._apply_narrow_mode(ctx.top_bar, ctx.search)
-
-        if is_narrow != self._narrow_mode_active:
-            self._narrow_mode_active = is_narrow
-            self.narrowModeChanged.emit(is_narrow)
-
-        self.layoutAdjusted.emit(applied)
-
-    def _handle_normal_mode(self, ctx):
-        counts = self._visibility_solver.compute_visible_counts(ctx)
-        counts = self._apply_hysteresis(ctx, counts)
-
-        if "fav" in counts and 0 < counts["fav"] < 5:
-            counts["fav"] = 0
-
-        applied = self._apply_counts(ctx, ctx.panel_states, counts)
-        self._finalize_regular_layout(ctx, applied)
-
-        if self._init_state == InitializationState.DATA_READY:
-            self._init_state = InitializationState.LAYOUT_APPLIED
-            logger.debug("TopBarLM: state transition -> LAYOUT_APPLIED")
-
-        self.layoutAdjusted.emit(applied)
-
-        if self._narrow_mode_active and any(v > 0 for v in applied.values()):
-            self._narrow_mode_active = False
-            self.narrowModeChanged.emit(False)
-
-    def get_sip_statistics(self) -> dict:
-        return get_sip_statistics()
-
-    def cleanup(self) -> None:
-        self._log_cleanup_start()
-        self._resource_manager.cleanup_all()
-        self._cleanup_signals()
-        self._cleanup_event_filters()
-        self._log_cleanup_result()
-
-    def _log_cleanup_start(self):
-        if not logger.isEnabledFor(logging.DEBUG):
-            return
-
-        logger.debug("TopBarLM: starting cleanup")
-        stats = self.get_sip_statistics()
-        if not stats["sip_available"] and stats["total_calls"] > 0:
-            logger.debug(
-                "TopBarLM: sip fallback stats - calls: %d, "
-                "errors: %d, success_rate: %.1f%%",
-                stats["total_calls"],
-                stats["error_count"],
-                stats["success_rate"],
-            )
-
-    def _cleanup_signals(self):
-        for obj, signal_name, slot in self._signal_connections:
-            self._disconnect_signal(obj, signal_name, slot)
-        self._signal_connections.clear()
-
-    def _disconnect_signal(self, obj, signal_name, slot):
-        try:
-            if not _sip_isdeleted(obj):
-                signal = getattr(obj, signal_name, None)
-                if signal is not None:
-                    signal.disconnect(slot)
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug("TopBarLM: disconnected signal %s", signal_name)
-        except (TypeError, RuntimeError, AttributeError) as e:
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("TopBarLM: failed to disconnect %s: %s", signal_name, e)
-
-    def _cleanup_event_filters(self):
-        for panel in list(self._watched_panels):
-            try:
-                if not _sip_isdeleted(panel):
-                    panel.removeEventFilter(self)
-            except (RuntimeError, AttributeError):
-                pass
-
-        if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
-            try:
-                self.window.removeEventFilter(self)
-            except (RuntimeError, AttributeError):
-                pass
-
-        self._watched_panels.clear()
-        self._container_widget = None
-
-    def _log_cleanup_result(self):
-        errors = self._resource_manager.get_cleanup_errors()
-        if errors:
-            logger.warning(
-                "TopBarLM: cleanup completed with %d errors: %s", len(errors), errors
-            )
-        elif logger.isEnabledFor(logging.DEBUG):
-            logger.debug("TopBarLM: cleanup completed successfully")
-
-    def __del__(self):
-        try:
-            self.cleanup()
-        except Exception:
-            pass
-
-    def _apply_counts(
-        self,
-        ctx: LayoutContext,
-        panel_states: Iterable[PanelState],
-        counts: dict[str, int],
-    ) -> dict[str, int]:
-        try:
-            from app.utils.ui.updates import suspend_updates
-        except (ImportError, AttributeError) as e:
-            logger.debug("suspend_updates not available: %s", e)
-            suspend_updates = None
-
-        applied: dict[str, int] = {}
-
-        def _apply() -> None:
-            nonlocal applied
-            self._log_layout_snapshot(ctx, counts)
-            applied = self._visibility_manager.apply_counts(panel_states, counts)
-
-        if suspend_updates is not None and isinstance(ctx.container, QWidget):
-            try:
-                with suspend_updates(ctx.container):
-                    _apply()
-            except Exception:
-                _apply()
-        else:
-            _apply()
-
-        self._last_applied = self._counts_tuple(applied)
-        return applied
+            self._visibility_manager.retranslate_panels(panel_states, visible_counts)
+        except Exception as e:
+            logger.debug("TopBarLM: retranslate_topbar failed: %s", e)
 
     def _visible_counts_from_state(
         self, panel_states: Iterable[PanelState]
     ) -> dict[str, int]:
+        """Получить counts из текущего состояния панелей."""
         counts: dict[str, int] = {label: 0 for label in self._panel_labels}
         try:
             for state in panel_states:
@@ -514,104 +282,67 @@ class TopBarLayoutManager(QObject):
             pass
         return counts
 
-    def retranslate_topbar(self) -> None:
-        try:
-            top_bar = self._get_top_bar()
-            if not isinstance(top_bar, QLayout):
-                return
-            panel_states = self._collect_panel_states()
-            if not panel_states:
-                return
+    def get_sip_statistics(self) -> dict:
+        """Получить статистику SIP."""
+        return get_sip_statistics()
 
-            if self._last_applied is not None:
-                visible_counts = {
-                    label: self._last_applied[i]
-                    for i, label in enumerate(self._panel_labels)
-                }
-            else:
-                visible_counts = self._visible_counts_from_state(panel_states)
+    def cleanup(self) -> None:
+        """Очистить все ресурсы."""
+        self._log_cleanup_start()
+        
+        # Очистка opacity effect
+        if self._opacity_effect is not None:
+            try:
+                container = self._widget_accessor.get_container_widget()
+                if container and not _sip_isdeleted(container):
+                    container.setGraphicsEffect(None)
+                self._opacity_effect.deleteLater()
+                self._opacity_effect = None
+            except (RuntimeError, AttributeError):
+                pass
+        
+        self._resource_manager.cleanup_all()
+        self._lifecycle_manager.cleanup()
+        self._widget_accessor.clear_cache()
+        self._log_cleanup_result()
 
-            self._visibility_manager.retranslate_panels(panel_states, visible_counts)
-        except Exception as e:
-            logger.debug("TopBarLM: retranslate_topbar failed: %s", e)
-
-    def _finalize_regular_layout(
-        self, ctx: LayoutContext, applied_counts: dict[str, int]
-    ) -> None:
-        top_bar = ctx.top_bar
-        search = ctx.search
-        side = self._config.get_side_spacing()
-        self._set_top_bar_margins(top_bar, side, 0, side, 0)
-        self._enforce_stretches(top_bar, search)
-        self._update_separators_visibility(
-            top_bar,
-            applied_counts,
-            search is not None,
-        )
-        self._clamp_search_width(ctx, applied_counts)
-        if self._log_info:
-            applied_repr = ", ".join(
-                f"{label}={applied_counts.get(label, 0)}"
-                for label in self._panel_labels
-            )
-            logger.info(
-                "[TopBar] visible: %s; min_search=%s",
-                applied_repr,
-                self._min_search_width,
-            )
-
-    def _collect_panel_states(self) -> list[PanelState]:
-        panel_states: list[PanelState] = []
-        for definition in self._panel_definitions:
-            widget = self._safe_get(self.window, definition.attr_name)
-            widget_qt = widget if isinstance(widget, QWidget) else None
-            buttons = self._visibility_manager.iter_buttons(
-                widget_qt, definition.button_object_name
-            )
-            max_visible = self._safe_int_attr(definition.max_attr, default=0)
-
-            min_visible = self._safe_int_attr(definition.min_attr, default=0)
-            min_visible = max(0, min(min_visible, max_visible))
-
-            if definition.label == "quick":
-                fixed = len(buttons)
-                max_visible = fixed
-                min_visible = fixed
-            panel_states.append(
-                PanelState(
-                    definition=definition,
-                    widget=widget_qt,
-                    buttons=buttons,
-                    min_visible=min_visible,
-                    max_visible=max_visible,
+    def _log_cleanup_start(self):
+        """Логировать начало cleanup."""
+        if logger.isEnabledFor(logging.DEBUG):
+            stats = get_sip_statistics()
+            if stats:
+                logger.debug(
+                    "TopBarLM: cleanup start - alive=%s, deleted=%s, success_rate=%.1f%%",
+                    stats["alive"],
+                    stats["deleted"],
+                    stats["success_rate"],
                 )
-            )
-        return panel_states
 
-    def _build_panel_counts_zero(self) -> dict[str, int]:
-        return {label: 0 for label in self._panel_labels}
+    def _log_cleanup_result(self):
+        """Логировать результат cleanup."""
+        if logger.isEnabledFor(logging.DEBUG):
+            stats = get_sip_statistics()
+            if stats:
+                logger.debug(
+                    "TopBarLM: cleanup done - alive=%s, deleted=%s",
+                    stats["alive"],
+                    stats["deleted"],
+                )
 
-    def _counts_tuple(self, counts: dict[str, int]) -> tuple[int, ...]:
-        return tuple(counts.get(label, 0) for label in self._panel_labels)
+    def __del__(self):
+        """Деструктор."""
+        try:
+            self.cleanup()
+        except Exception:
+            pass
 
-    def _install_event_filters(self) -> None:
-        for attr_name in [
-            "top_bar_host",
-            "content_container",
-            "quick_add_widget",
-            "fav_widget",
-            "recent_links_widget",
-        ]:
-            widget = self._safe_get(self.window, attr_name)
-            if isinstance(widget, QWidget) and widget not in self._watched_panels:
-                widget.installEventFilter(self)
-                self._watched_panels.add(widget)
-        if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
-            self.window.installEventFilter(self)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        container = self._container_widget
-        if obj not in (container, self.window) and obj not in self._watched_panels:
+        """Фильтр событий."""
+        container = self._widget_accessor.get_container_widget()
+        watched_panels = self._lifecycle_manager.get_watched_panels()
+        
+        if obj not in (container, self.window) and obj not in watched_panels:
             return super().eventFilter(obj, event)
 
         if event.type() == QEvent.Type.Resize:
@@ -619,552 +350,12 @@ class TopBarLayoutManager(QObject):
                 if not self._throttle_timer.isActive():
                     self._throttle_timer.start(self._throttle_interval_ms)
         elif event.type() in (QEvent.Type.Show, QEvent.Type.Hide):
-            if obj in self._watched_panels:
+            if obj in watched_panels:
                 if not self._throttle_timer.isActive():
                     self._throttle_timer.start(self._throttle_interval_ms)
 
         return super().eventFilter(obj, event)
 
     def _run_adjust(self) -> None:
+        """Запустить adjust (callback для таймера)."""
         self.adjust()
-
-    def _safe_get(self, obj: Any | None, name: str) -> Any | None:
-        if obj is None or (isinstance(obj, QObject) and _sip_isdeleted(obj)):
-            return None
-        try:
-            return getattr(obj, name, None)
-        except RuntimeError:
-            return None
-
-    def _get_top_bar(self) -> QLayout | None:
-        for attr in ["top_bar_host", "content_container"]:
-            host = self._safe_get(self.window, attr)
-            if isinstance(host, QWidget):
-                layout = host.layout()
-                if layout:
-                    return layout
-        return None
-
-    def _get_container_widget(self) -> QWidget | None:
-        if self._container_widget and not _sip_isdeleted(self._container_widget):
-            return self._container_widget
-        self._container_widget = self._safe_get(
-            self.window, "top_bar_host"
-        ) or self._safe_get(self.window, "content_container")
-        return self._container_widget
-
-    def _apply_hysteresis(
-        self, ctx: LayoutContext, counts: dict[str, int]
-    ) -> dict[str, int]:
-        if self._last_applied is None:
-            return counts
-        try:
-            prev_counts = {
-                label: self._last_applied[i]
-                for i, label in enumerate(self._panel_labels)
-            }
-            total_new = self._width_calculator.total_width(
-                ctx.top_bar, ctx.search, ctx.panel_states, counts, ctx.min_search_width
-            )
-            total_prev = self._width_calculator.total_width(
-                ctx.top_bar,
-                ctx.search,
-                ctx.panel_states,
-                prev_counts,
-                ctx.min_search_width,
-            )
-
-            slack_new = ctx.width - total_new
-            slack_prev = ctx.width - total_prev
-
-            try:
-                spacing = int(ctx.top_bar.spacing() or 0)
-            except Exception:
-                spacing = 6
-            threshold = max(
-                self.HYSTERESIS_THRESHOLD_BASE,
-                spacing * self.HYSTERESIS_SPACING_MULTIPLIER,
-            )
-
-            if abs(slack_new) < threshold and abs(slack_prev) < threshold:
-                return prev_counts
-        except Exception:
-            pass
-        return counts
-
-    def _build_state_map(self, ctx):
-        return {
-            state.widget: state
-            for state in ctx.panel_states
-            if state.widget is not None
-        }
-
-    def _calculate_spacer_width(self, item):
-        spacer = item.spacerItem()
-        if spacer is not None:
-            sp_w = max(0, spacer.sizeHint().width())
-            if sp_w > 0:
-                return sp_w
-        return 0
-
-    def _calculate_panel_width(self, state, applied_counts):
-        vis = max(0, applied_counts.get(state.definition.label, 0))
-        if vis <= 0:
-            return 0
-        try:
-            w_panel = int(
-                self._width_calculator.panel_width(state.widget, state.buttons, vis)
-            )
-        except Exception:
-            w_panel = 0
-        return max(self.MIN_PANEL_WIDTH, w_panel)
-
-    def _calculate_widget_width(self, widget):
-        if not widget.isVisible():
-            return 0
-        try:
-            w_hint = int(widget.sizeHint().width())
-        except Exception:
-            w_hint = 0
-        return w_hint if w_hint > 0 else 0
-
-    def _calculate_occupied_space(self, ctx, applied_counts, state_map, search):
-        occupied = 0
-        top_bar = ctx.top_bar
-        count = top_bar.count()
-        occupy_items = 0
-        search_index = -1
-
-        for index in range(count):
-            item = top_bar.itemAt(index)
-            widget = item.widget()
-
-            if widget is None:
-                sp_w = self._calculate_spacer_width(item)
-                if sp_w > 0:
-                    occupied += sp_w
-                    occupy_items += 1
-                continue
-
-            if widget is search:
-                search_index = index
-                continue
-
-            state = state_map.get(widget)
-            if state:
-                w_use = self._calculate_panel_width(state, applied_counts)
-            else:
-                w_use = self._calculate_widget_width(widget)
-
-            if w_use > 0:
-                occupied += w_use
-                occupy_items += 1
-
-        spacing = top_bar.spacing() or 0
-        occupied += spacing * max(0, occupy_items - 1)
-        margins = top_bar.contentsMargins()
-        occupied += margins.left() + margins.right()
-
-        return occupied, search_index
-
-    def _apply_search_constraints(self, search, search_index, ctx, min_search):
-        if search_index >= 0:
-            try:
-                ctx.top_bar.setStretch(search_index, 1)
-            except Exception:
-                pass
-
-        if search.minimumWidth() != min_search:
-            search.setMinimumWidth(min_search)
-            self.searchWidthChanged.emit(min_search)
-        if search.maximumWidth() != self.MAX_WIDGET_WIDTH:
-            search.setMaximumWidth(self.MAX_WIDGET_WIDTH)
-
-    def _clamp_search_width(
-        self, ctx: LayoutContext, applied_counts: dict[str, int]
-    ) -> None:
-        search = ctx.search
-        if not isinstance(search, QLineEdit):
-            return
-
-        with self._measure_operation(
-            "clamp_search_width", self.SLOW_CLAMP_THRESHOLD_MS
-        ):
-            try:
-                state_map = self._build_state_map(ctx)
-                occupied, search_index = self._calculate_occupied_space(
-                    ctx, applied_counts, state_map, search
-                )
-
-                min_search = int(self._min_search_width)
-                cur_min = int(search.minimumWidth()) if search.minimumWidth() > 0 else 0
-                if cur_min > 0:
-                    min_search = max(min_search, cur_min)
-
-                self._apply_search_constraints(search, search_index, ctx, min_search)
-            except Exception:
-                logger.debug("TopBarLM: failed to clamp search width", exc_info=True)
-
-    def _build_panel_widgets_map(self) -> dict[int, tuple[str, QWidget]]:
-        panel_widgets = {}
-        for state_label, attr_name in (
-            (PanelLabel.RECENT.value, "recent_links_widget"),
-            (PanelLabel.FAVORITES.value, "fav_widget"),
-            (PanelLabel.QUICK.value, "quick_add_widget"),
-        ):
-            widget = self._safe_get(self.window, attr_name)
-            if widget:
-                panel_widgets[id(widget)] = (state_label, widget)
-        return panel_widgets
-
-    def _build_widgets_map(self, top_bar: QLayout) -> dict[int, QWidget]:
-        count = top_bar.count()
-        widgets_map = {}
-        for index in range(count):
-            item = top_bar.itemAt(index)
-            widget = item.widget()
-            if widget is not None:
-                widgets_map[index] = widget
-        return widgets_map
-
-    def _find_neighbor_widget(
-        self, widgets_map: dict[int, QWidget], index: int, direction: int, count: int
-    ) -> QWidget | None:
-        if direction < 0:
-            for idx in range(index - 1, -1, -1):
-                if idx in widgets_map:
-                    return widgets_map[idx]
-        else:
-            for idx in range(index + 1, count):
-                if idx in widgets_map:
-                    return widgets_map[idx]
-        return None
-
-    def _is_panel_visible(
-        self,
-        widget: QWidget | None,
-        panel_widgets: dict[int, tuple[str, QWidget]],
-        applied_counts: dict[str, int],
-    ) -> bool:
-        if not widget:
-            return False
-        panel_info = panel_widgets.get(id(widget))
-        if panel_info:
-            state_label, panel_widget = panel_info
-            return applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible()
-        return False
-
-    def _find_next_visible_widget(
-        self,
-        widgets_map: dict[int, QWidget],
-        panel_widgets: dict[int, tuple[str, QWidget]],
-        applied_counts: dict[str, int],
-        start_index: int,
-        step: int,
-        count: int,
-    ) -> QWidget | None:
-        idx = start_index + step
-        while 0 <= idx < count:
-            widget = widgets_map.get(idx)
-            if widget is None:
-                idx += step
-                continue
-            if widget.objectName() == "vSeparator":
-                idx += step
-                continue
-
-            panel_info = panel_widgets.get(id(widget))
-            if panel_info:
-                state_label, panel_widget = panel_info
-                if applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible():
-                    return panel_widget
-                idx += step
-                continue
-
-            return widget
-        return None
-
-    def _should_show_separator(
-        self,
-        left_widget: QWidget | None,
-        right_widget: QWidget | None,
-        panel_widgets: dict[int, tuple[str, QWidget]],
-        applied_counts: dict[str, int],
-        has_search: bool,
-        widgets_map: dict[int, QWidget],
-        index: int,
-        count: int,
-    ) -> tuple[bool, QWidget | None]:
-        left_visible = self._is_panel_visible(
-            left_widget, panel_widgets, applied_counts
-        )
-        right_visible = self._is_panel_visible(
-            right_widget, panel_widgets, applied_counts
-        )
-
-        show_sep = left_visible and (
-            right_visible or (has_search and isinstance(right_widget, QLineEdit))
-        )
-
-        target_right_widget = right_widget
-
-        if (
-            not show_sep
-            and left_visible
-            and not right_visible
-            and right_widget is not None
-            and panel_widgets.get(id(right_widget))
-        ):
-            bridged_right = self._find_next_visible_widget(
-                widgets_map, panel_widgets, applied_counts, index, +1, count
-            )
-            if bridged_right is not None and (
-                self._is_panel_visible(bridged_right, panel_widgets, applied_counts)
-                or (has_search and isinstance(bridged_right, QLineEdit))
-            ):
-                target_right_widget = bridged_right
-                show_sep = True
-
-        return show_sep, target_right_widget
-
-    def _update_spacer_sizes(
-        self,
-        top_bar: QLayout,
-        index: int,
-        count: int,
-        show_sep: bool,
-        target_right_widget: QWidget | None,
-    ) -> None:
-        left_sp = top_bar.itemAt(index - 1).spacerItem() if index - 1 >= 0 else None
-        right_sp = top_bar.itemAt(index + 1).spacerItem() if index + 1 < count else None
-
-        if show_sep:
-            if left_sp:
-                left_sp.changeSize(
-                    self.SEPARATOR_SPACING_VISIBLE,
-                    0,
-                    QSizePolicy.Policy.Fixed,
-                    QSizePolicy.Policy.Fixed,
-                )
-            if right_sp:
-                right_sp.changeSize(
-                    self.SEPARATOR_SPACING_VISIBLE,
-                    0,
-                    QSizePolicy.Policy.Fixed,
-                    QSizePolicy.Policy.Fixed,
-                )
-        else:
-            is_search_right = isinstance(target_right_widget, QLineEdit)
-            spacing = (
-                self.SEPARATOR_SPACING_VISIBLE
-                if is_search_right
-                else self.SEPARATOR_SPACING_HIDDEN
-            )
-            if left_sp:
-                left_sp.changeSize(
-                    spacing,
-                    0,
-                    QSizePolicy.Policy.Fixed,
-                    QSizePolicy.Policy.Fixed,
-                )
-            if right_sp:
-                right_sp.changeSize(
-                    spacing,
-                    0,
-                    QSizePolicy.Policy.Fixed,
-                    QSizePolicy.Policy.Fixed,
-                )
-
-    def _update_separators_visibility(
-        self,
-        top_bar: QLayout,
-        applied_counts: dict[str, int],
-        has_search: bool,
-    ) -> None:
-        panel_widgets = self._build_panel_widgets_map()
-        widgets_map = self._build_widgets_map(top_bar)
-        count = top_bar.count()
-
-        for index in range(count):
-            item = top_bar.itemAt(index)
-            widget = item.widget()
-            if widget is None or widget.objectName() != "vSeparator":
-                continue
-
-            left_widget = self._find_neighbor_widget(widgets_map, index, -1, count)
-            right_widget = self._find_neighbor_widget(widgets_map, index, +1, count)
-
-            show_sep, target_right_widget = self._should_show_separator(
-                left_widget,
-                right_widget,
-                panel_widgets,
-                applied_counts,
-                has_search,
-                widgets_map,
-                index,
-                count,
-            )
-
-            widget.setVisible(show_sep)
-            self._update_spacer_sizes(
-                top_bar, index, count, show_sep, target_right_widget
-            )
-
-    def _apply_narrow_mode(self, top_bar: QLayout, search: QLineEdit | None) -> None:
-        def _neighbor_widget(idx: int, step: int) -> QWidget | None:
-            pos = idx + step
-            count = top_bar.count()
-            while 0 <= pos < count:
-                item = top_bar.itemAt(pos)
-                widget = item.widget()
-                if widget is not None:
-                    return widget
-                pos += step
-            return None
-
-        for index in range(top_bar.count()):
-            item = top_bar.itemAt(index)
-            widget = item.widget()
-            if widget is None:
-                spacer = item.spacerItem()
-                if spacer is not None:
-                    left_neighbor = _neighbor_widget(index, -1)
-                    right_neighbor = _neighbor_widget(index, +1)
-                    keep_spacing = False
-                    if isinstance(left_neighbor, QLineEdit) or isinstance(
-                        right_neighbor, QLineEdit
-                    ):
-                        keep_spacing = True
-                    elif (
-                        left_neighbor and left_neighbor.objectName() == "vSeparator"
-                    ) or (
-                        right_neighbor and right_neighbor.objectName() == "vSeparator"
-                    ):
-                        keep_spacing = True
-                    target_width = (
-                        self.SEPARATOR_SPACING_VISIBLE
-                        if keep_spacing
-                        else self.SEPARATOR_SPACING_HIDDEN
-                    )
-                    spacer.changeSize(
-                        target_width,
-                        0,
-                        QSizePolicy.Policy.Fixed,
-                        QSizePolicy.Policy.Fixed,
-                    )
-                continue
-            if isinstance(search, QLineEdit) and widget is search:
-                continue
-            try:
-                widget.setVisible(False)
-            except Exception:
-                pass
-
-    def _freeze_search_width(self) -> None:
-        search = self._safe_get(self.window, "search")
-        if isinstance(search, QLineEdit):
-            try:
-                search.setMaximumWidth(self._min_search_width)
-                search.setMinimumWidth(self._min_search_width)
-            except Exception:
-                pass
-
-    def _validate_config_int(
-        self, value: Any, default: int, min_val: int, max_val: int, config_key: str = ""
-    ) -> int:
-        try:
-            int_value = int(value)
-            if not min_val <= int_value <= max_val:
-                logger.warning(
-                    "Config %s=%s out of range [%s, %s], using default=%s",
-                    config_key or "value",
-                    int_value,
-                    min_val,
-                    max_val,
-                    default,
-                )
-                return default
-            return int_value
-        except (ValueError, TypeError, AttributeError) as e:
-            logger.debug("Failed to parse config %s: %s", config_key or "value", e)
-            return default
-        except Exception as e:
-            logger.warning(
-                "Unexpected error parsing config %s: %s", config_key or "value", e
-            )
-            return default
-
-    def _safe_int_attr(self, name: str, default: int = 0) -> int:
-        try:
-            value = getattr(self, name)
-            return int(value)
-        except (AttributeError, ValueError, TypeError):
-            return default
-        except Exception as e:
-            logger.debug("Unexpected error reading attribute '%s': %s", name, e)
-            return default
-
-    def _compute_effective_width(self, width: int) -> int:
-        try:
-            win_width = int(getattr(self.window, "width", lambda: width)())
-            return min(width, win_width) if win_width > 0 else width
-        except Exception:
-            return width
-
-    def _log_layout_snapshot(self, ctx: LayoutContext, counts: dict[str, int]) -> None:
-        if logger.isEnabledFor(logging.DEBUG):
-            try:
-                logger.debug(
-                    "TopBarLM: layout snapshot - width=%d effective=%d counts=%s",
-                    ctx.width,
-                    ctx.effective_width,
-                    counts,
-                )
-            except Exception:
-                logger.debug(
-                    "TopBarLM: failed to log snapshot",
-                    exc_info=True,
-                )
-
-    def _set_top_bar_margins(
-        self, top_bar: QLayout, left: int, top: int, right: int, bottom: int
-    ) -> None:
-        try:
-            m = top_bar.contentsMargins()
-            if (
-                m.left() == left
-                and m.top() == top
-                and m.right() == right
-                and m.bottom() == bottom
-            ):
-                return
-            top_bar.setContentsMargins(left, top, right, bottom)
-        except Exception:
-            logger.debug("TopBarLM: failed to update contentsMargins()", exc_info=True)
-
-    def _enforce_stretches(self, top_bar: QLayout, search: QLineEdit | None) -> None:
-        try:
-            count = top_bar.count()
-            search_index = -1
-            for i in range(count):
-                it = top_bar.itemAt(i)
-                w = it.widget()
-                if w is not None and isinstance(search, QLineEdit) and w is search:
-                    search_index = i
-                try:
-                    top_bar.setStretch(i, 0)
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: setStretch(0) failed at index %s", i, exc_info=True
-                    )
-            if search_index >= 0:
-                try:
-                    top_bar.setStretch(search_index, 1)
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: setStretch(1) for search failed at index %s",
-                        search_index,
-                        exc_info=True,
-                    )
-        except Exception:
-            logger.debug("TopBarLM: _enforce_stretches failed", exc_info=True)
