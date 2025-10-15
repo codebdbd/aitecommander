@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Mapping
+from collections.abc import Mapping
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QSizePolicy, QWidget
 
@@ -19,9 +19,17 @@ class SeparatorVisibilityService:
     - Handle separator bridging logic (show separator if next visible widget exists)
     """
 
-    def __init__(self) -> None:
-        self._separator_spacing_visible = C.SEPARATOR_SPACING_VISIBLE
-        self._separator_spacing_hidden = C.SEPARATOR_SPACING_HIDDEN
+    def __init__(self, config=None) -> None:
+        # Используем значения из конфигурации, если доступны
+        if config and hasattr(config, 'get_separator_search_spacing'):
+            self._separator_spacing_visible = config.get_separator_search_spacing()
+        else:
+            self._separator_spacing_visible = C.SEPARATOR_SPACING_VISIBLE
+            
+        if config and hasattr(config, 'get_separator_hidden_spacing'):
+            self._separator_spacing_hidden = config.get_separator_hidden_spacing()
+        else:
+            self._separator_spacing_hidden = C.SEPARATOR_SPACING_HIDDEN
 
     def update_separators(
         self,

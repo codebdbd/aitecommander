@@ -57,7 +57,9 @@ class HysteresisService:
             try:
                 spacing = int(ctx.top_bar.spacing() or 0)
             except Exception:
-                spacing = 6
+                # Получаем fallback значение из конфигурации
+                spacing = 6  # значение по умолчанию, если конфигурация недоступна
+                # TODO: Получить значение из конфигурации при интеграции с TopBarLayoutManager
 
             threshold = max(
                 C.HYSTERESIS_THRESHOLD_BASE,

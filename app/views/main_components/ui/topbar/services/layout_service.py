@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
-
-from PyQt6.QtWidgets import QLineEdit
 
 from ..models.layout_context import LayoutContext
 from ..models.panel_state import PanelState

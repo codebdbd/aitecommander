@@ -39,6 +39,12 @@ class TopBarConstants:
     HYSTERESIS_SPACING_MULTIPLIER: int = 2
     SEPARATOR_SPACING_VISIBLE: int = 4
     SEPARATOR_SPACING_HIDDEN: int = 0
+    
+    # Favorites panel thresholds
+    FAVORITES_MIN_VISIBLE_THRESHOLD: int = 5
+    
+    # Layout spacing fallbacks
+    LAYOUT_SPACING_FALLBACK: int = 6
 
     # Performance thresholds (milliseconds)
     SLOW_ADJUST_THRESHOLD_MS: int = 50
