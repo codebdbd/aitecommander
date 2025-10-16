@@ -8,13 +8,12 @@ import json
 import logging
 import uuid
 from collections.abc import Iterable
+from typing import Any, cast
 
 from PyQt6.QtWidgets import QApplication
 
-from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
-from typing import Any, cast
-
 from app.models.db import Database
+from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
 from app.services.links_service import LinksService
 from app.services.protocols import DatabaseProtocol
 from app.services.structure_service import StructureService

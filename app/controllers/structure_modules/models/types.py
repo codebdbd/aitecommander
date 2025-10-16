@@ -10,7 +10,7 @@ concrete typed structures for better type safety.
 """
 
 from enum import Enum
-from typing import Any, Optional, TypedDict, TypeAlias, Union
+from typing import Any, Optional, TypeAlias, TypedDict, Union
 
 # ===== ENUMS =====
 

@@ -11,8 +11,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-from app.views.widgets.protocols import IconProviderProtocol
-
 from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
@@ -22,6 +20,7 @@ from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
     resolve_icon_path,
 )
+from app.views.widgets.protocols import IconProviderProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class LinkButtonMixin:
     # Type hint for the host class
     if TYPE_CHECKING:
 
-        def __init__(self: "IconProviderProtocol") -> None: ...
+        def __init__(self: IconProviderProtocol) -> None: ...
 
     def _icon_provider(self) -> IconProviderProtocol:
         """Return host typed as ``IconProviderProtocol`` with validation."""

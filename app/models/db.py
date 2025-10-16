@@ -4,7 +4,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, ContextManager, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtBoundSignal, pyqtSignal
 

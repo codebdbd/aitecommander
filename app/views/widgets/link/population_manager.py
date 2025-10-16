@@ -4,7 +4,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from PyQt6.QtCore import Qt
 
@@ -34,7 +35,7 @@ class PopulationManagerMixin:
 
         return cast(LinkTableWidgetProtocol, self)
 
-    def _data_helpers(self) -> "DataManagementMixin":
+    def _data_helpers(self) -> DataManagementMixin:
         """Return self casted to data-management mixin for typing."""
 
         from app.views.widgets.link.data_management import DataManagementMixin

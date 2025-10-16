@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/resources">
+        <file>qss/dark.qss</file>
+        <file>qss/light.qss</file>
+        <file>qss/base.qss</file>
+        <file>logo/logo.svg</file>
+        <file>ui_icons/add.svg</file>
+        <file>ui_icons/edit.svg</file>
+        <file>ui_icons/delete.svg</file>
+        <!-- Добавьте остальные иконки по мере необходимости -->
+    </qresource>
+</RCC>

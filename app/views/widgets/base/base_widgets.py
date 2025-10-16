@@ -4,8 +4,15 @@ import logging
 from collections.abc import Iterable
 from typing import Any, Callable, Optional
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QModelIndex, Qt, pyqtSignal
-from PyQt6.QtCore import QTimer, QMimeData
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QMimeData,
+    QModelIndex,
+    Qt,
+    QTimer,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -206,7 +213,6 @@ class BaseLinksPanelWidget:
                 )
 
         # Schedule next batch
-        from PyQt6.QtCore import QTimer
 
         QTimer.singleShot(0, self._populate_batch)
 

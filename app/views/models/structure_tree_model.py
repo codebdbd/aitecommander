@@ -10,8 +10,8 @@ from PyQt6.QtCore import (
     QMetaObject,
     QModelIndex,
     QRunnable,
-    QThreadPool,
     Qt,
+    QThreadPool,
     pyqtSignal,
     pyqtSlot,
 )

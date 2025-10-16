@@ -81,12 +81,12 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 command = BatchDeleteLinksCmd(
                     links_to_delete=links, main_window=self.main
                 )
-                setattr(command, '_suppress_ui', True)  # type: ignore[attr-defined]
+                command._suppress_ui = True  # type: ignore[attr-defined]
                 self.main.undo_stack.push(command)
         else:
             for link in links:
                 cmd = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
-                setattr(cmd, '_suppress_ui', True)  # type: ignore[attr-defined]
+                cmd._suppress_ui = True  # type: ignore[attr-defined]
                 self.main.undo_stack.push(cmd)
 
         # Update display (command suppresses internal UI, here — one reload)

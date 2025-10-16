@@ -22,6 +22,15 @@ from app.startup.logging_setup import log_shutdown, log_system_info, setup_loggi
 from app.startup.signal_handling import SignalManager, should_install_signal_handlers
 from i18n.language_service import LanguageService
 
+# Initialize resources
+try:
+    from app.resources.resources_rc import qCleanupResources, qInitResources
+    _resources_initialized = False
+except ImportError:
+    qInitResources = lambda: None
+    qCleanupResources = lambda: None
+    _resources_initialized = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -231,6 +240,12 @@ def run(options: StartupOptions | None = None) -> int:
     about_to_quit_cleanup_registered = False
 
     try:
+        # Initialize resources
+        global _resources_initialized
+        if not _resources_initialized:
+            qInitResources()
+            _resources_initialized = True
+
         app = _create_qt_application(options.mode)
         if app is None:
             return ExitCode.INITIALIZATION_FAILURE
@@ -261,6 +276,10 @@ def run(options: StartupOptions | None = None) -> int:
         _cleanup_resources(
             initializer, signal_manager, app, about_to_quit_cleanup_registered
         )
+        # Cleanup resources
+        if _resources_initialized:
+            qCleanupResources()
+            _resources_initialized = False
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]

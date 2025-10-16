@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
-from PyQt6.QtCore import QEvent, QModelIndex, QObject, Qt, pyqtSignal, QPoint
+from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QAbstractItemView, QVBoxLayout, QWidget
 

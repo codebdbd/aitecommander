@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any, Optional, TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 if TYPE_CHECKING:  # pragma: no cover - typings only
     from app.models.base.db_base import DatabaseError as _DatabaseError
