@@ -273,7 +273,8 @@ class PanelVisibilityManager:
             # One-time diagnostics for favorites/quick panels to catch sizing root cause
             try:
                 name = getattr(panel, "objectName", lambda: "")() or ""
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError):
+                # Panel deleted or objectName() unavailable
                 name = ""
             low = name.lower()
             if ("fav" in low or "quick" in low) and not bool(
