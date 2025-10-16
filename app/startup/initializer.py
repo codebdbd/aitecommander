@@ -29,7 +29,7 @@ from app.controllers.system.bootstrap import create_main_window
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
-from app.views.main_components.resource_manager import ResourceManager
+from app.views.main_components.common.resource_manager import ResourceManager
 
 logger = logging.getLogger(__name__)
 

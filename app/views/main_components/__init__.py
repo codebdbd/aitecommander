@@ -53,11 +53,9 @@ from .common.protocols import (
     UIStateManagerProtocol,
 )
 from .common.resource_manager import ResourceManager, managed_resource
-from .initialization.window_initializer import WindowInitializer
 
 __all__ = [
     # Core components
-    "WindowInitializer",
     "ResourceManager",
     "managed_resource",
     # Decorators
