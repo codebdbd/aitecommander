@@ -1,0 +1,464 @@
+{
+  "app": {
+    "name": "Aite Commander",
+    "org_name": "Codebdbd",
+    "version": "1.0.0",
+    "about_title": "О программе",
+    "about_text": "Link Manager\nВерсия 1.0\n© MyCompany"
+  },
+  "ui": {
+    "icon_size": 24,
+    "row_height": 32,
+    "col_widths": [
+      40,
+      400,
+      130
+    ],
+    "fixed_button_width": 100,
+    "links_table_headers": [
+      "♥",
+      "Название",
+      "Открывалась",
+      "Заметки"
+    ],
+    "links_table_columns": {
+      "favorite": 0,
+      "name": 1,
+      "last_used": 2,
+      "notes": 3
+    },
+    "links_table_messages": {
+      "no_categories": "Нет доступных категорий. Создай категорию сначала.",
+      "select_category": "Выберите категорию для вставки ссылки",
+      "error_saving": "Ошибка сохранения заметки",
+      "database_error": "Ошибка базы данных",
+      "validation_error": "Ошибка валидации",
+      "warning_title": "Предупреждение",
+      "error_title": "Ошибка"
+    },
+    "max_favorites": 10,
+    "top_bar_height": 40,
+    "top_panel_container_height": 40,
+    "stack_index_tiles": 0,
+    "stack_index_table": 1,
+    "table_selection_restore_delay": 100,
+    "thread_pool_shutdown_timeout": 2000,
+    "delete_confirm_title": "Подтверждение удаления",
+    "delete_confirm_text": "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
+    "yes_text": "Да",
+    "no_text": "Нет",
+    "quick_add_button_size": 32,
+    "sphere_button_icon_size": 48,
+    "tile_icon_size": 64,
+    "tile_width": 128,
+    "tile_height": 110,
+    "tile_spacing": 6,
+    "tile_padding": 6,
+    "tile_icon_text_gap": 5,
+    
+    "debug_show_tile_font_sample": false,
+    "tile_text_max_lines": 4,
+    "tile_border_radius": 8,
+    "tile_border_width": 2,
+    "tile_border_margin": 2,
+    "spheres_bar_height":86,
+    "spheres_layout_margins": [8, 8, 8, 8],
+    "spheres_bar_margin_left": 8,
+    "spheres_bar_margin_right": 8,
+    "spheres_bar_spacing": 8,
+    
+    "search_placeholder": "Поиск… (Ctrl+F)",
+    "central_frame_shape": "StyledPanel",
+    "default_icon_size": 24,
+    "bottom_actions": [
+      [
+        "Добавить раздел (F3)",
+        "show_section_dialog"
+      ],
+      [
+        "Добавить категорию (F4)",
+        "add_new_category"
+      ],
+      [
+        "Добавить ссылку (F1)",
+        "show_link_dialog"
+      ],
+      [
+        "Редактировать (F2)",
+        "edit_current"
+      ],
+      [
+        "Удалить (Del)",
+        "delete_current"
+      ]
+    ],
+    "main_window_title": "Aite Commander",
+    "db_connected_text": "БД: Подключена",
+    "db_disconnected_text": "БД: Отключена",
+    "links_count_text": "Ссылок: 0",
+    "status_ready_text": "Готово",
+    "path_label_min_width": 350,
+    "link_dialog_width": 600,
+    "link_dialog_height": 520,
+    "link_dialog_margins": 20,
+    "link_dialog_spacing": 10,
+    "tree_icon_size": 24,
+    "dialog_icon_size": 24,
+    "dropdown_icon_size": 24,
+    "menu_shadow_mode": "off",
+    "top_panel_button_size": 36,
+    "top_panel_icon_size": 24,
+    "top_panel_search_width": 320,
+    "top_panel_search_min_width": 160,
+    "top_panel_search_height": 32,
+    "top_bar_margins": [
+      0,
+      4,
+      0,
+      4
+    ],
+    "splitter_handle_width": 1,
+    "splitter_stretch_factors": [
+      0,
+      1
+    ],
+    "splitter_sizes": [
+      288,
+      744
+    ],
+    "main_layout_margins": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "main_layout_spacing": 0,
+    "layout": {
+      "margins": {
+        "bottom": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "spacing": {
+        "top_bar": 8,
+        "top_bar_buttons": 4,
+        "top_bar_widgets_side": 4
+      }
+    },
+    "window": {
+      "width": 1024,
+      "height": 768,
+      "min_width": 299,
+      "min_height": 600
+    },
+    
+    "menubar_item_height": 24,
+    "menu_icon_size": 20,
+    "menu_indicator_size": 16,
+    "scrollbar_width": 12,
+    "scrollbar_height": 12,
+    "tree_item_height": 32,
+    "table_item_height": 28,
+    "separator_width": 1,
+    "separator_height": 28,
+    "fonts": {
+      "units": "pt",
+      "table_header_px": 10,
+      "table_row_px": 11,
+      "table_opened_col_px": 11,
+      "table_notes_col_px": 11,
+      "notes_editor_px": 13,
+      "button_text_px": 10,
+      "bottom_bar_button_px": 10,
+      "menubar_px": 11,
+      "menu_item_px": 11,
+      "context_menu_px": 11,
+      "tooltip_px": 11,
+      "tree_px": 11,
+      "tiles_px": 10,
+      "form_label_px": 10,
+      "form_field_px": 10,
+      "table_cols_px": [11, 11, 10, 10],
+      "link_type_button_px": 11
+    },
+    "colors": {
+      "light": {
+        "tree_hover_bg": "#E0E0E0",
+        "selected_bg": "#0078d7",
+        "selected_text": "#FFFFFF"
+      },
+      "dark": {
+        "tree_hover_bg": "#252D3A",
+        "selected_bg": "#6A2E44",
+        "selected_text": "#FFFFFF"
+      }
+    },
+    "topbar": {
+      "throttle_ms": 0,
+      "log_info": false,
+      "min_visible": {
+        "recent": 0,
+        "fav": 0,
+        "quick": 1
+      }
+    }
+  },
+  "paths": {
+    "link_icons_dir": "resources/link_icons",
+    "qss_dir": "views/resources/qss",
+    "chrome_profiles_dir": "resources/browser_profiles/chrome",
+    "firefox_profiles_dir": "resources/browser_profiles/firefox",
+    "edge_profiles_dir": "resources/browser_profiles/edge",
+    "brave_profiles_dir": "resources/browser_profiles/brave",
+    "vivaldi_profiles_dir": "resources/browser_profiles/vivaldi",
+    "opera_profiles_dir": "resources/browser_profiles/opera",
+    "yandex_profiles_dir": "resources/browser_profiles/yandex",
+    "ui_icons_dir": "views/resources/ui_icons",
+    "user_icons_dir": "icons",
+    "config_dir": "config",
+    "logs_dir": "logs"
+  },
+  "limits": {
+    "max_icon_size": 10485760,
+    "max_web_icon_size": 2097152,
+    "icon_cache_size": 100,
+    "icon_cache_ttl": 300,
+    "negative_cache_ttl": 30,
+    "abs_icon_cache_ttl": 30,
+    "max_backups": 10,
+    "slow_update_positions_threshold_sec": 1.0
+  },
+  "settings": {
+    "link_types": [
+      [
+        "web",
+        "Веб-ссылка"
+      ],
+      [
+        "script",
+        "Скрипт"
+      ],
+      [
+        "file",
+        "Файл"
+      ],
+      [
+        "program",
+        "Программа"
+      ],
+      [
+        "chromeapp",
+        "Chrome App"
+      ],
+      [
+        "folder",
+        "Папка"
+      ]
+    ],
+    "quick_types": [
+      [
+        "web",
+        "web_icon.png",
+        "Веб-ссылка"
+      ],
+      [
+        "file",
+        "documents_icon.png",
+        "Файл"
+      ],
+      [
+        "program",
+        "program_icon.png",
+        "Программа"
+      ],
+      [
+        "script",
+        "script_icon.png",
+        "Скрипт"
+      ],
+      [
+        "chromeapp",
+        "chrome_icon.png",
+        "Chrome App"
+      ],
+      [
+        "folder",
+        "folder_icon.png",
+        "Папка"
+      ]
+    ],
+    "quick_type_tooltips": {
+      "web": "Веб-ссылка",
+      "file": "Файл",
+      "program": "Программа",
+      "chromeapp": "Chrome App",
+      "folder": ""
+    },
+    "default_browse_paths": {
+      "file": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+      "folder": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+      "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
+      "script": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+      "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome"
+    },
+    "default_icons": {
+      "default": "default.ico",
+      "folder": "folder_icon.png",
+      "web": "web_icon.png",
+      "program": "program_icon.png",
+      "script": "script_icon.png",
+      "chrome": "chrome_icon.png",
+      "chromeapp": "chrome_icon.png",
+      "file": "documents_icon.png",
+      "category": "category.png",
+      "section": "section.png",
+      "ai": "ai_icon.png",
+      "work": "work_icon.png",
+      "study": "study_icon.png",
+      "personal": "personal_icon.png"
+    },
+    "browser_profile_settings": {
+      "supported_browsers": [
+        "chrome",
+        "firefox",
+        "edge",
+        "brave",
+        "vivaldi",
+        "opera",
+        "yandex"
+      ]
+    },
+    "browser_config": {
+      "windows": {
+        "chrome": {
+          "executable": "chrome.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "firefox": {
+          "executable": "firefox.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "edge": {
+          "executable": "msedge.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "brave": {
+          "executable": "brave.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "vivaldi": {
+          "executable": "vivaldi.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "opera": {
+          "executable": "opera.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "yandex": {
+          "executable": "browser.exe",
+          "command_template": [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "{executable}",
+            "{url}"
+          ]
+        }
+      },
+      "other": {
+        "chrome": {
+          "executable": "google-chrome",
+          "command_template": [
+            "{executable}",
+            "{url}"
+          ]
+        },
+        "firefox": {
+          "executable": "firefox",
+          "command_template": [
+            "{executable}",
+            "{url}"
+          ]
+        }
+      }
+    },
+    "supported_icon_formats": [
+      ".ico",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".bmp",
+      ".gif",
+      ".svg",
+      ".svgz",
+      ".webp"
+    ],
+    "valid_themes": [
+      "light",
+      "dark"
+    ],
+    "mime_types": {
+      "link": "application/x-link-id",
+      "category": "application/x-category-id"
+    },
+    "enable_cloudscraper_fallback": true,
+    "require_suspend_updates": false,
+    "favicon_lock_timeout": 5.0,
+    "favicon_lock_backend": "auto",
+    "http_retries": 3,
+    "http_retry_backoff": 0.5,
+    "http_retry_on_status": true,
+    "http_pool_connections": 10,
+    "http_pool_maxsize": 20,
+    "icon_max_workers": 6,
+    "favicon_cache_max_size": 5000,
+    "favicon_cache_cleanup_interval": 300.0,
+    "favicon_cache_persistent": false
+  }
+}

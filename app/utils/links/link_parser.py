@@ -48,23 +48,13 @@ def _get_icon_provider():
 
 
 def _validate_exe_path(exe_path: str) -> bool:
-    """Local EXE path validation: existence, file, extension, access and reasonable size."""
+    """Local EXE path validation: existence, file, extension."""
     if not exe_path or not isinstance(exe_path, str):
         return False
     exe_path_obj = Path(exe_path)
     if not exe_path_obj.is_file():
         return False
     if not exe_path.lower().endswith(".exe"):
-        return False
-    # Check read access (simplified - if file exists, assume readable)
-    if not exe_path_obj.exists():
-        return False
-    # Soft size limit (100 MB) as protection against accidentally huge files
-    try:
-        if exe_path_obj.stat().st_size > 100 * 1024 * 1024:
-            logger.warning("EXE file too large: %s", exe_path)
-            return False
-    except OSError:
         return False
     return True
 
@@ -262,28 +252,34 @@ def _handle_folder_icon(config) -> str:
 
 def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional[str]:
     """Handles Chrome app icon"""
+    logger.info("[ICON_PARSE] _handle_chromeapp_icon called, lnk_info=%s", lnk_info)
     args = lnk_info.get("args", "")
     if not args:
+        logger.info("[ICON_PARSE] Chrome app: no args found")
         return None
     app_id_match = re.search(r"--app-id=([a-z0-9]{32})", args)
     if not app_id_match:
+        logger.info("[ICON_PARSE] Chrome app: app_id not found in args: %s", args)
         return None
     app_id = app_id_match.group(1)
+    logger.info("[ICON_PARSE] Chrome app: app_id=%s", app_id)
     icons_dir_obj = Path(icons_dir)
     icon_dst = icons_dir_obj / f"chromeapp_{app_id}.png"
     if is_valid_icon_file(str(icon_dst)):
-        logger.debug("Using cached chromeapp icon: %s", icon_dst)
+        logger.info("[ICON_PARSE] Using cached chromeapp icon: %s", icon_dst)
         return str(icon_dst)
     icon_src = lnk_info.get("icon_path")
+    logger.info("[ICON_PARSE] Chrome app: icon_src=%s", icon_src)
     if icon_src and Path(icon_src).exists():
         try:
             icon_dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(icon_src, str(icon_dst))
             if is_valid_icon_file(str(icon_dst)):
-                logger.debug("Copied chromeapp icon: %s", icon_dst)
+                logger.info("[ICON_PARSE] Copied chromeapp icon: %s", icon_dst)
                 return str(icon_dst)
         except OSError as e:
-            logger.error("Failed to copy chromeapp icon: %s", e)
+            logger.error("[ICON_PARSE] Failed to copy chromeapp icon: %s", e)
+    logger.info("[ICON_PARSE] Chrome app: returning None")
     return None
 
 
@@ -291,9 +287,15 @@ def _handle_program_icon(
     path: str, lnk_info: dict[str, str], icons_dir: str
 ) -> Optional[str]:
     """Handles program icon"""
+    logger.info("[ICON_PARSE] _handle_program_icon called, path=%s, lnk_info=%s", path, lnk_info)
     target_path = lnk_info.get("path") if lnk_info else path
+    logger.info("[ICON_PARSE] Program: target_path=%s", target_path)
     if target_path and target_path.lower().endswith(".exe"):
-        return _extract_icon_from_exe(target_path, icons_dir)
+        logger.info("[ICON_PARSE] Extracting icon from exe: %s", target_path)
+        result = _extract_icon_from_exe(target_path, icons_dir)
+        logger.info("[ICON_PARSE] Extract result: %s", result)
+        return result
+    logger.info("[ICON_PARSE] Program: returning None (not an exe)")
     return None
 
 
@@ -326,28 +328,33 @@ def _get_icon_for_link_type(
     link_type: str, path: str, lnk_info: dict[str, str], config, icons_dir: str
 ) -> str:
     """Determines icon for link based on type"""
+    logger.info("[ICON_PARSE] _get_icon_for_link_type: link_type=%s, path=%s", link_type, path)
     icon: Optional[str] = None
     try:
         if link_type == "folder":
             icon = _handle_folder_icon(config)
         elif link_type == "chromeapp":
+            logger.info("[ICON_PARSE] Handling chromeapp icon")
             icon = _handle_chromeapp_icon(lnk_info, icons_dir)
         elif link_type == "program":
+            logger.info("[ICON_PARSE] Handling program icon")
             icon = _handle_program_icon(path, lnk_info, icons_dir)
         elif link_type == "file":
             icon = _handle_file_icon(path, icons_dir)
     except (OSError, RuntimeError, ValueError, KeyError, AttributeError) as e:
         logger.error(
-            "Error getting icon for link_type=%s path=%s lnk_info=%s: %s",
+            "[ICON_PARSE] Error getting icon for link_type=%s path=%s lnk_info=%s: %s",
             link_type,
             path,
             lnk_info,
             e,
         )
+    logger.info("[ICON_PARSE] Extracted icon: %s", icon)
     if icon and is_valid_icon_file(icon):
+        logger.info("[ICON_PARSE] Using extracted icon: %s", icon)
         return icon
     fallback = _get_default_icon(link_type, config)
-    logger.debug("Fallback to default icon: %s", fallback)
+    logger.info("[ICON_PARSE] Fallback to default icon: %s", fallback)
     return fallback or ""
 
 
