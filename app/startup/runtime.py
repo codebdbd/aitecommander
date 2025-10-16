@@ -22,14 +22,10 @@ from app.startup.logging_setup import log_shutdown, log_system_info, setup_loggi
 from app.startup.signal_handling import SignalManager, should_install_signal_handlers
 from i18n.language_service import LanguageService
 
-# Initialize resources
-try:
-    from app.resources.resources_rc import qCleanupResources, qInitResources
-    _resources_initialized = False
-except ImportError:
-    qInitResources = lambda: None
-    qCleanupResources = lambda: None
-    _resources_initialized = False
+# Resources not used - removed unused import
+qInitResources = lambda: None
+qCleanupResources = lambda: None
+_resources_initialized = False
 
 logger = logging.getLogger(__name__)
 
