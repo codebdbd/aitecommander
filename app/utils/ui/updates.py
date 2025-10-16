@@ -1,9 +1,9 @@
 # app/utils/ui/updates.py
 from __future__ import annotations
 
-import logging
-from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Iterator
+import logging
 
 from app.interfaces import SupportsUpdates
 

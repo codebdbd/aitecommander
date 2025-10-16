@@ -5,6 +5,7 @@ Centralized base for undo/redo commands.
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from PyQt6.QtGui import QUndoCommand
 
@@ -17,7 +18,7 @@ class BaseCommand(QUndoCommand):
     All subclasses must override redo() and undo().
     """
 
-    def __init__(self, text: str = "", main_window: object | None = None) -> None:
+    def __init__(self, text: str = "", main_window: Optional[object] = None) -> None:
         super().__init__(text)
         self.main = main_window
         if text:
@@ -34,7 +35,9 @@ class BaseCommand(QUndoCommand):
     def set_obsolete(self, value: bool = True) -> None:
         try:
             self.setObsolete(value)
-        except Exception:  # compatibility if subclasses override behavior
+        except (
+            Exception
+        ):  # compatibility if subclasses override behavior
             pass
 
 

@@ -6,17 +6,18 @@ Inherits from QObject for proper use of PyQt6 slots.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, pyqtSlot
 
+from .signals import StructureSignals
 from ..models.types import (
-    AnyItemData,
+    SphereData,
+    SectionData,
     CategoryData,
     LinkData,
     SearchResultItem,
-    SectionData,
-    SphereData,
+    AnyItemData,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,12 +29,7 @@ class AsyncSignalHandlers(QObject):
     Inherits from QObject for proper use of PyQt6 slots.
     """
 
-    def __init__(
-        self,
-        controller_instance,
-        top_panels_controller: Optional[Any] = None,
-        parent: Optional[QObject] = None,
-    ):
+    def __init__(self, controller_instance, top_panels_controller: Optional[Any] = None, parent: Optional[QObject] = None):
         super().__init__(parent)
         self.controller = controller_instance
         self.logger = controller_instance.logger
@@ -41,7 +37,7 @@ class AsyncSignalHandlers(QObject):
         self.top_panels: Optional[Any] = top_panels_controller
 
     @pyqtSlot(list)
-    def on_spheres_loaded(self, spheres: list[SphereData]) -> None:
+    def on_spheres_loaded(self, spheres: List[SphereData]) -> None:
         """Handler for sphere loading completion."""
         try:
             self.logger.info("Loaded spheres: %s", len(spheres))
@@ -54,7 +50,9 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_structure_loaded(self, structure: list[SectionData], sphere_id: int) -> None:
+    def on_structure_loaded(
+        self, structure: List[SectionData], sphere_id: int
+    ) -> None:
         """Handler for structure loading completion."""
         try:
             self.logger.debug(
@@ -76,7 +74,7 @@ class AsyncSignalHandlers(QObject):
                     )
                     # Reset marker to avoid interfering with subsequent measurements
                     try:
-                        self.controller._last_switch_started_ms = None
+                        setattr(self.controller, "_last_switch_started_ms", None)
                     except Exception:
                         pass
             except Exception:
@@ -85,7 +83,6 @@ class AsyncSignalHandlers(QObject):
             # Optionally drop stale snapshots if flag is enabled in config
             try:
                 from app.config_data import app_config
-
                 drop_stale = bool(app_config.ui.get_drop_stale_structure_snapshots())
             except Exception:
                 drop_stale = False
@@ -126,7 +123,9 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_sections_loaded(self, sections: list[SectionData], sphere_id: int) -> None:
+    def on_sections_loaded(
+        self, sections: List[SectionData], sphere_id: int
+    ) -> None:
         """Handler for section loading completion."""
         try:
             self.logger.info(
@@ -142,7 +141,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_categories_loaded(
-        self, categories: list[CategoryData], section_id: int
+        self, categories: List[CategoryData], section_id: int
     ) -> None:
         """Handler for category loading completion.
 
@@ -178,9 +177,7 @@ class AsyncSignalHandlers(QObject):
                 if isinstance(item_data, dict)
                 else "Unknown"
             )
-            self.logger.info(
-                "Created %s (parent_id=%s): %s", item_type, parent_id, name
-            )
+            self.logger.info("Created %s (parent_id=%s): %s", item_type, parent_id, name)
             # Controller (StructureBusinessLogic) uses item_added signal
             if hasattr(self.controller, "item_added"):
                 self.controller.item_added.emit(item_type, parent_id, item_data)
@@ -209,7 +206,9 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error("Error in on_item_created handler: %s", e, exc_info=True)
+            self.logger.error(
+                "Error in on_item_created handler: %s", e, exc_info=True
+            )
 
     @pyqtSlot(str, int, dict)
     def on_item_updated(
@@ -247,7 +246,9 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error("Error in on_item_updated handler: %s", e, exc_info=True)
+            self.logger.error(
+                "Error in on_item_updated handler: %s", e, exc_info=True
+            )
 
     @pyqtSlot(str, int, dict)
     def on_item_deleted(
@@ -293,7 +294,9 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error("Error in on_item_deleted handler: %s", e, exc_info=True)
+            self.logger.error(
+                "Error in on_item_deleted handler: %s", e, exc_info=True
+            )
 
     @pyqtSlot(str, str)
     def on_error(self, title: str, message: str) -> None:
@@ -414,7 +417,7 @@ class AsyncSignalHandlers(QObject):
 
     # ===== Search / Links / Count =====
     @pyqtSlot(list)
-    def on_search_results(self, results: list[SearchResultItem]) -> None:
+    def on_search_results(self, results: List[SearchResultItem]) -> None:
         try:
             self.logger.info("Search results: %s", len(results))
             if hasattr(self.controller, "search_results"):
@@ -427,7 +430,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int, int)
     def on_links_loaded(
-        self, links: list[LinkData], category_id: int, task_id: int
+        self, links: List[LinkData], category_id: int, task_id: int
     ) -> None:
         try:
             self.logger.info(
@@ -458,7 +461,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(int, list, object)
     def on_count_finished(
-        self, fav_count: int, links: list[LinkData], link: object
+        self, fav_count: int, links: List[LinkData], link: object
     ) -> None:
         try:
             self.logger.info("Favorite count completed: %s", fav_count)

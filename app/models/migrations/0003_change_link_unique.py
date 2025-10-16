@@ -34,9 +34,7 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
         logger.debug("Migration 0003: link recreation not required — skipping")
         return
 
-    logger.info(
-        "Migration 0003: recreating link with UNIQUE(category_id,name,url,args)"
-    )
+    logger.info("Migration 0003: recreating link with UNIQUE(category_id,name,url,args)")
     conn.execute("BEGIN TRANSACTION")
     try:
         conn.execute(

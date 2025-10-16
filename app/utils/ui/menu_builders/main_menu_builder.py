@@ -1,16 +1,16 @@
 """Builder for the application's main menu."""
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
+from PyQt6.QtWidgets import QMenuBar
 from PyQt6.QtCore import QCoreApplication
-from PyQt6.QtWidgets import QMenuBar, QWidget
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
 
 if TYPE_CHECKING:
-    from app.views.windows.main_window_protocol import MainWindowProtocol
+    from app.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +18,16 @@ logger = logging.getLogger(__name__)
 class MainMenuBuilder:
     """Builder for the application main menu."""
 
-    def __init__(self, main_window: "MainWindowProtocol"):
+    def __init__(self, main_window: "MainWindow"):
         self.main_window = main_window
-        parent_widget = cast(QWidget, main_window)
-        self.actions = ActionBuilder(parent_widget)
+        self.actions = ActionBuilder(main_window)
         self.theme = main_window.settings.get_theme()
 
     def build(self) -> QMenuBar:
         """Create and return the fully built main menu bar."""
         logger.debug("Creating main menu for theme: %s", self.theme)
 
-        menubar = QMenuBar(cast(QWidget, self.main_window))
+        menubar = QMenuBar(self.main_window)
 
         # First item — unified Actions menu
         self._create_actions_menu(menubar)
@@ -47,13 +46,7 @@ class MainMenuBuilder:
 
     def _create_actions_menu(self, menubar: QMenuBar):
         """Create the '&Actions' menu as the first item, unified with context menus."""
-        actions_menu = menubar.addMenu(
-            QCoreApplication.translate("MainMenu", "&Actions")
-        )
-
-        if actions_menu is None:
-            logger.warning("Main menu: failed to create Actions menu")
-            return
+        actions_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Actions"))
 
         # Add section
         actions_menu.addAction(
@@ -84,7 +77,9 @@ class MainMenuBuilder:
                 if hasattr(self.main_window, "show_link_dialog_for_category"):
                     self.main_window.show_link_dialog_for_category(cat_id)
             except Exception:
-                logger.exception("[MainMenu] Error adding link from Actions menu")
+                logger.exception(
+                    "[MainMenu] Error adding link from Actions menu"
+                )
 
         actions_menu.addAction(
             self.actions.create(
@@ -132,10 +127,6 @@ class MainMenuBuilder:
         """Create the '&File' menu."""
         file_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&File"))
 
-        if file_menu is None:
-            logger.warning("Main menu: failed to create File menu")
-            return
-
         # Settings
         file_menu.addAction(
             self.actions.create(
@@ -151,15 +142,9 @@ class MainMenuBuilder:
         """Create the '&Data' menu."""
         data_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Data"))
 
-        if data_menu is None:
-            logger.warning("Main menu: failed to create Data menu")
-            return
-
         data_menu.addAction(
             self.actions.create(
-                MenuTexts.SAVE_DATABASE,
-                self._save_database,
-                icon=self._get_icon("export"),
+                MenuTexts.SAVE_DATABASE, self._save_database, icon=self._get_icon("export")
             )
         )
         data_menu.addAction(
@@ -171,9 +156,7 @@ class MainMenuBuilder:
         )
         data_menu.addAction(
             self.actions.create(
-                MenuTexts.CONNECT_DATABASE,
-                self._connect_database,
-                icon=self._get_icon("import"),
+                MenuTexts.CONNECT_DATABASE, self._connect_database, icon=self._get_icon("import")
             )
         )
 
@@ -205,10 +188,6 @@ class MainMenuBuilder:
     def _create_search_menu(self, menubar: QMenuBar):
         """Create the '&Search' menu."""
         search_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Search"))
-
-        if search_menu is None:
-            logger.warning("Main menu: failed to create Search menu")
-            return
         search_menu.addAction(
             self.actions.create(
                 MenuTexts.SEARCH_FILES,
@@ -220,10 +199,6 @@ class MainMenuBuilder:
     def _create_themes_menu(self, menubar: QMenuBar):
         """Create the '&Themes' menu."""
         themes_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Themes"))
-
-        if themes_menu is None:
-            logger.warning("Main menu: failed to create Themes menu")
-            return
 
         theme_icons = {"dark": self._get_icon("dark"), "light": self._get_icon("light")}
 
@@ -244,10 +219,6 @@ class MainMenuBuilder:
     def _create_help_menu(self, menubar: QMenuBar):
         """Create the '&Help' menu."""
         help_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Help"))
-
-        if help_menu is None:
-            logger.warning("Main menu: failed to create Help menu")
-            return
         help_menu.addAction(
             self.actions.create(
                 MenuTexts.ABOUT,

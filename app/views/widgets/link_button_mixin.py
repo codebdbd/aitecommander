@@ -5,13 +5,12 @@ Usage:
   ``pathlib.Path`` to the default icon (with caching).
 - The mixin adds `_find_icon` and `_create_link_button` methods.
 """
-
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, Dict
 
-from PyQt6.QtCore import QCoreApplication, QSize
+from PyQt6.QtCore import QSize, QCoreApplication
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
@@ -20,7 +19,6 @@ from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
     resolve_icon_path,
 )
-from app.views.widgets.protocols import IconProviderProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -32,49 +30,21 @@ def _tr(text: str) -> str:
 
 
 class LinkButtonMixin:
-    """Mixin for creating link buttons with icon resolution.
-
-    This mixin expects to be used with a class that implements IconProviderProtocol.
-    """
-
-    # Type hint for the host class
-    if TYPE_CHECKING:
-
-        def __init__(self: IconProviderProtocol) -> None: ...
-
-    def _icon_provider(self) -> IconProviderProtocol:
-        """Return host typed as ``IconProviderProtocol`` with validation."""
-
-        provider = cast(IconProviderProtocol, self)
-        if not hasattr(provider, "_get_default_icon_path"):
-            raise NotImplementedError(
-                "Host widget must implement _get_default_icon_path()"
-            )
-        return provider
-
-    def _default_icon_path_str(self) -> str:
-        """Return ``str`` path to the default icon."""
-
-        provider = self._icon_provider()
-        return str(provider._get_default_icon_path())
-
     def _find_icon(self, icon_path: str) -> str:
         """Return icon path via the common resolver with a fallback."""
         if not icon_path:
-            return self._default_icon_path_str()
+            return str(self._get_default_icon_path())
         try:
             resolved = resolve_icon_path(icon_path)
-            return resolved or self._default_icon_path_str()
+            return resolved or str(self._get_default_icon_path())
         except (OSError, FileNotFoundError, PermissionError) as e:
             logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
-            return self._default_icon_path_str()
+            return str(self._get_default_icon_path())
         except Exception as e:
-            logger.exception(
-                "Unexpected error while resolving icon '%s': %s", icon_path, e
-            )
-            return self._default_icon_path_str()
+            logger.exception("Unexpected error while resolving icon '%s': %s", icon_path, e)
+            return str(self._get_default_icon_path())
 
-    def _create_link_button(self, link_data: dict[str, Any]) -> QToolButton:
+    def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
         """Create a link button with an icon, synchronized with the table."""
         button = QToolButton()
 
@@ -88,7 +58,7 @@ class LinkButtonMixin:
             icon = create_icon_from_path(resolved_path)
             # Fallback: if icon not created or is empty — use default
             if not icon or getattr(icon, "isNull", lambda: True)():
-                fallback_path = self._default_icon_path_str()
+                fallback_path = str(self._get_default_icon_path())
                 logger.warning(
                     "Icon not created/empty for link %r (path=%s). Using default: %s",
                     link_data.get("name"),
@@ -119,9 +89,7 @@ class LinkButtonMixin:
                     dpr,
                 )
             except Exception as diag_exc:
-                logging.debug(
-                    "[TopBarIconDiag] failed to log diagnostics: %s", diag_exc
-                )
+                logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
         except Exception as e:
             logger.warning(
                 "Failed to create icon for link '%s': %s",
@@ -130,7 +98,7 @@ class LinkButtonMixin:
             )
             # Ensure visual feedback — set default icon
             try:
-                fallback_path = self._default_icon_path_str()
+                fallback_path = str(self._get_default_icon_path())
                 button.setIcon(create_icon_from_path(fallback_path))
             except Exception:
                 pass

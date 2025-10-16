@@ -160,18 +160,6 @@ class LinkOperationsController(QObject):
 
     def _prepare_spheres_data(self):
         """Prepare sphere data for dialog."""
-        structure_business = getattr(self.main_window, "structure_business", None)
-        if structure_business is not None:
-            try:
-                spheres = structure_business.get_cached_spheres()
-                if spheres:
-                    return spheres
-            except Exception as exc:
-                logger.debug(
-                    "Failed to use cached spheres in LinkOperationsController: %s",
-                    exc,
-                    exc_info=True,
-                )
         return self.db.spheres.get_spheres()
 
     def _get_category_hierarchy(self, category_id):
@@ -180,61 +168,32 @@ class LinkOperationsController(QObject):
 
     def get_sections_for_sphere(self, sphere_id):
         """Get sections for sphere."""
-        structure_business = getattr(self.main_window, "structure_business", None)
-        if structure_business is not None:
-            try:
-                sections = structure_business.get_cached_sections(sphere_id)
-                if sections:
-                    return sections
-            except Exception as exc:
-                logger.debug(
-                    "Failed to use cached sections for sphere %s: %s",
-                    sphere_id,
-                    exc,
-                    exc_info=True,
-                )
         return self.db.sections.get_sections(sphere_id)
 
     def get_categories_for_section(self, section_id):
         """Get categories for section."""
-        structure_business = getattr(self.main_window, "structure_business", None)
-        if structure_business is not None:
-            try:
-                categories = structure_business.get_cached_categories(section_id)
-                if categories:
-                    return categories
-            except Exception as exc:
-                logger.debug(
-                    "Failed to use cached categories for section %s: %s",
-                    section_id,
-                    exc,
-                    exc_info=True,
-                )
         return self.db.categories.get_categories(section_id)
 
     def get_database(self):
         """Get database reference for validation."""
         return self.db
 
-    def _get_valid_category_id(self, category_id=None):
-        """Get valid category ID, falling back to current or first available."""
+    def show_link_dialog(self, link=None, category_id=None):
+        """Show link creation/editing dialog."""
+        # Guarantee that we always pass a valid category_id
         cat_id = category_id or self.main_window.get_current_category_id()
         if not cat_id:
+            # Try to get first available category from database
             first_cat_id = self.db.categories.get_first_category_id()
             if first_cat_id:
                 cat_id = first_cat_id
-        return cat_id
 
-    def _create_link_dialog(self, link, cat_id):
-        """Create and configure link dialog."""
+        # Create controller for dialog
         from .link_dialog_controller import LinkDialogController
 
-        structure_business = getattr(self.main_window, "structure_business", None)
-        link_controller = LinkDialogController(
-            self.db,
-            structure_business=structure_business,
-        )
+        link_controller = LinkDialogController(self.db)
 
+        # Get initialization data through controller
         init_data = link_controller.get_initialization_data(cat_id, link)
 
         dlg = LinkDialog(
@@ -246,153 +205,155 @@ class LinkOperationsController(QObject):
             link_controller=link_controller,
         )
 
-        return dlg, link_controller
-
-    def _handle_favorite_toggle(self, links_to_save):
-        """Handle favorite toggle notification."""
-        try:
-            if any(isinstance(p, dict) and ("is_favorite" in p) for p in links_to_save):
-                self.on_favorite_toggled(None)
-        except Exception:
-            logger.exception("show_link_dialog: on_favorite_toggled failed")
-
-    def _schedule_focus_on_link(self, link_id, context=""):
-        """Schedule focus on link after save."""
-        if not link_id:
-            logger.warning("No link ID available for focusing")
-            return
-
-        if not hasattr(self.main_window, "links_actions"):
-            return
-
-        if not hasattr(self.main_window.links_actions, "focus_on_link"):
-            return
-
-        try:
-            schedule_selection_restore(
-                lambda: self.main_window.links_actions.focus_on_link(link_id),
-                link_id,
-            )
-        except Exception:
-            logger.exception(f"show_link_dialog({context}): schedule focus failed")
-
-    def _emit_link_saved(self, data):
-        """Emit link_saved signal."""
-        try:
-            if isinstance(data, dict):
-                self.link_saved.emit(data)
-        except Exception:
-            logger.exception("show_link_dialog: emit link_saved failed")
-
-    def _save_multiple_links(self, links_to_save, link):
-        """Save multiple links using batch command."""
-        logger.debug(
-            f"show_link_dialog: using BatchSaveLinksCmd for {len(links_to_save)} links"
-        )
-
-        cmd = BatchSaveLinksCmd(
-            links_data=links_to_save,
-            _old_link_data=None,
-            main_window=self.main_window,
-        )
-        self.undo_stack.push(cmd)
-
-        # Handle favorite toggle
-        self._handle_favorite_toggle(links_to_save)
-
-        # Focus on first link
-        first_link_id = (
-            cmd.created_ids[0]
-            if hasattr(cmd, "created_ids") and cmd.created_ids
-            else None
-        )
-        if first_link_id:
-            self._schedule_focus_on_link(first_link_id, "batch")
-
-        # Emit events
-        for payload in links_to_save:
-            self._emit_link_saved(payload)
-
-    def _save_single_link(self, data, link):
-        """Save single link using regular command."""
-        logger.debug(
-            f"show_link_dialog: using SaveLinkCmd for single link: name={data.get('name')}, browser_key={data.get('browser_key')}"
-        )
-
-        if data.get("_action") == "delete":
-            cmd = DeleteLinkCmd(link_to_delete=data, main_window=self.main_window)
-            self.undo_stack.push(cmd)
-            return
-
-        # Determine if update or create
-        is_update_single = bool(data.get("id"))
-        cmd = SaveLinkCmd(
-            new_data=data,
-            old_data=(link if is_update_single else None),
-            main_window=self.main_window,
-        )
-        self.undo_stack.push(cmd)
-
-        # Handle favorite toggle
-        if isinstance(data, dict) and ("is_favorite" in data):
-            try:
-                self.on_favorite_toggled(None)
-            except Exception:
-                logger.exception("show_link_dialog(single): on_favorite_toggled failed")
-
-        # Schedule focus
-        logger.debug(
-            f"Focus check: is_update={is_update_single}, has_links_actions={hasattr(self.main_window, 'links_actions')}"
-        )
-        link_id = cmd.created_id or data.get("id")
-        if link_id:
-            logger.info(
-                f"Attempting to focus on link: cmd.created_id={cmd.created_id}, data.id={data.get('id')}, final_link_id={link_id}"
-            )
-            self._schedule_focus_on_link(link_id, "single")
-
-        # Emit event
-        self._emit_link_saved(data)
-
-    def show_link_dialog(self, link=None, category_id=None):
-        """Show link creation/editing dialog."""
-        # Get valid category ID
-        cat_id = self._get_valid_category_id(category_id)
-
-        # Create and show dialog
-        dlg, link_controller = self._create_link_dialog(link, cat_id)
         result = dlg.exec() == QDialog.DialogCode.Accepted
+        if result:
+            # Get data through controller
+            links_to_save = link_controller.get_result_data()
+            logger.debug(
+                f"show_link_dialog: got {len(links_to_save) if links_to_save else 0} links to save"
+            )
+            if links_to_save:
+                for i, link in enumerate(links_to_save):
+                    logger.debug(
+                        f"show_link_dialog: link {i}: name={link.get('name')}, browser_key={link.get('browser_key')}"
+                    )
 
-        if not result:
-            return False
+            if not links_to_save:
+                return False
+            # IMPORTANT: determine update/creation by results themselves, not by edit fact
+            # If result contains id, this is updating existing record; otherwise — creating new
 
-        # Get data from controller
-        links_to_save = link_controller.get_result_data()
-        logger.debug(
-            f"show_link_dialog: got {len(links_to_save) if links_to_save else 0} links to save"
-        )
-
-        if links_to_save:
-            for i, link_data in enumerate(links_to_save):
+            # Use batch command for multiple links
+            if len(links_to_save) > 1:
+                # For multiple links (profiles) always create new records
                 logger.debug(
-                    f"show_link_dialog: link {i}: name={link_data.get('name')}, browser_key={link_data.get('browser_key')}"
+                    f"show_link_dialog: using BatchSaveLinksCmd for {len(links_to_save)} links"
                 )
+                cmd = BatchSaveLinksCmd(
+                    links_data=links_to_save,
+                    old_link_data=None,  # Always None for multiple links
+                    main_window=self.main_window,
+                )
+                self.undo_stack.push(cmd)
 
-        if not links_to_save:
-            return False
+                # If any saved links have favorite flag change — notify UI centrally
+                # (e.g., if link was marked as favorite, notify UI to update favorite count)
+                try:
+                    if any(
+                        isinstance(p, dict) and ("is_favorite" in p)
+                        for p in links_to_save
+                    ):
+                        # Pass None to avoid duplicating final links_changed below
+                        self.on_favorite_toggled(None)
+                except Exception:
+                    logger.exception("show_link_dialog: on_favorite_toggled failed")
 
-        # Save links (batch or single)
-        if len(links_to_save) > 1:
-            self._save_multiple_links(links_to_save, link)
-        else:
-            self._save_single_link(links_to_save[0], link)
+                # Set focus on first added link through scheduler
+                if hasattr(self.main_window, "links_actions") and hasattr(
+                    self.main_window.links_actions, "focus_on_link"
+                ):
+                    first_link_id = (
+                        cmd.created_ids[0]
+                        if hasattr(cmd, "created_ids") and cmd.created_ids
+                        else None
+                    )
+                    if first_link_id:
+                        try:
+                            schedule_selection_restore(
+                                lambda: self.main_window.links_actions.focus_on_link(
+                                    first_link_id
+                                ),
+                                first_link_id,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "show_link_dialog(batch): schedule focus failed"
+                            )
+                # Emit events about saved links (batch)
+                try:
+                    for payload in links_to_save:
+                        if isinstance(payload, dict):
+                            self.link_saved.emit(payload)
+                except Exception:
+                    logger.exception("show_link_dialog: emit link_saved failed")
+            else:
+                # For single links use regular command
+                data = links_to_save[0]
+                logger.debug(
+                    f"show_link_dialog: using SaveLinkCmd for single link: name={data.get('name')}, browser_key={data.get('browser_key')}"
+                )
+                if data.get("_action") == "delete":
+                    # Use Undo command that delegates deletion to service layer
+                    cmd = DeleteLinkCmd(
+                        link_to_delete=data, main_window=self.main_window
+                    )
+                    self.undo_stack.push(cmd)
+                else:
+                    # Override update flag for single result:
+                    # if data has no id — this is creating new link, don't pass old_data
+                    is_update_single = bool(data.get("id"))
+                    cmd = SaveLinkCmd(
+                        new_data=data,
+                        old_data=(link if is_update_single else None),
+                        main_window=self.main_window,
+                    )
+                    self.undo_stack.push(cmd)
 
-        # Signal that category table needs reload
-        try:
-            if isinstance(cat_id, int) and cat_id > 0:
-                self.links_changed.emit(cat_id)
-        except Exception:
-            logger.exception("show_link_dialog: emit links_changed failed")
+                    # If record contains is_favorite field — notify centrally
+                    try:
+                        if isinstance(data, dict) and ("is_favorite" in data):
+                            # Pass None to avoid duplicating final links_changed below
+                            self.on_favorite_toggled(None)
+                    except Exception:
+                        logger.exception(
+                            "show_link_dialog(single): on_favorite_toggled failed"
+                        )
+
+                    # Schedule focus restoration on link (for new and updated)
+                    logger.debug(
+                        f"Focus check: is_update={is_update_single}, has_links_actions={hasattr(self.main_window, 'links_actions')}"
+                    )
+                    if hasattr(self.main_window, "links_actions"):
+                        logger.debug(
+                            f"LinksActions exists, has_focus_method={hasattr(self.main_window.links_actions, 'focus_on_link')}"
+                        )
+
+                    if hasattr(self.main_window, "links_actions") and hasattr(
+                        self.main_window.links_actions, "focus_on_link"
+                    ):
+                        link_id = cmd.created_id or data.get("id")
+                        logger.info(
+                            f"Attempting to focus on link: cmd.created_id={cmd.created_id}, data.id={data.get('id')}, final_link_id={link_id}"
+                        )
+                        if link_id:
+                            try:
+                                schedule_selection_restore(
+                                    lambda: self.main_window.links_actions.focus_on_link(
+                                        link_id
+                                    ),
+                                    link_id,
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "show_link_dialog(single): schedule focus failed"
+                                )
+                        else:
+                            logger.warning("No link ID available for focusing")
+                    # Emit event about single link save
+                    try:
+                        if isinstance(data, dict):
+                            self.link_saved.emit(data)
+                    except Exception:
+                        logger.exception(
+                            "show_link_dialog(single): emit link_saved failed"
+                        )
+
+            # Signal that current category table needs to be reloaded
+            try:
+                if isinstance(cat_id, int) and cat_id > 0:
+                    self.links_changed.emit(cat_id)
+            except Exception:
+                logger.exception("show_link_dialog: emit links_changed failed")
 
         return result
 

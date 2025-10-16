@@ -54,7 +54,9 @@ class BaseCache(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def invalidate(self, key: str | None = None) -> None:  # pragma: no cover - контракт
+    def invalidate(
+        self, key: str | None = None
+    ) -> None:  # pragma: no cover - контракт
         raise NotImplementedError
 
     def clear(self) -> None:

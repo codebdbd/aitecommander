@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from PyQt6.QtCore import QObject
 
@@ -36,9 +37,7 @@ class SelectionActions(QObject):
         try:
             self._tiles_controller.refresh(int(section_id))
         except Exception:  # pragma: no cover - UI protection
-            logger.exception(
-                "SelectionActions.refresh_tiles: controller refresh failed"
-            )
+            logger.exception("SelectionActions.refresh_tiles: controller refresh failed")
 
     def load_category_via_ui_state(self, category_id: int, *, source: str) -> None:
         ui_state = getattr(self._main, "ui_state", None)
@@ -100,10 +99,10 @@ class SelectionActions(QObject):
             logger.debug("SelectionActions.focus_tree: setFocus failed", exc_info=True)
 
     # --- Fallback utilities ---
-    def current_ui_state(self) -> UIStateManagerProtocol | None:
+    def current_ui_state(self) -> Optional[UIStateManagerProtocol]:
         ui_state = getattr(self._main, "ui_state", None)
         return ui_state if isinstance(ui_state, UIStateManagerProtocol) else None
 
-    def links_table_controller(self) -> LinksTableControllerProtocol | None:
+    def links_table_controller(self) -> Optional[LinksTableControllerProtocol]:
         ctrl = getattr(self._main, "links_table_controller", None)
         return ctrl if isinstance(ctrl, LinksTableControllerProtocol) else None

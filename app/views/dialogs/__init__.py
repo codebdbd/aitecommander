@@ -1,23 +1,8 @@
-"""Compatibility proxy for `app.views.windows.dialogs` package."""
+"""Compatibility package exposing legacy dialog imports.
 
-from importlib import import_module
-from typing import Any
+This module re-exports dialog components from the new
+`app.views.windows.dialogs` package to maintain backward compatibility
+with older code and tests that import from `app.views.dialogs`.
+"""
 
-_TARGET_MODULE = import_module("app.views.windows.dialogs")
-
-__all__ = list(getattr(_TARGET_MODULE, "__all__", [])) or [
-    name for name in vars(_TARGET_MODULE) if not name.startswith("_")
-]
-
-globals().update({name: getattr(_TARGET_MODULE, name) for name in __all__})
-
-
-def __getattr__(name: str) -> Any:
-    try:
-        return getattr(_TARGET_MODULE, name)
-    except AttributeError as exc:  # pragma: no cover
-        raise AttributeError(name) from exc
-
-
-def __dir__() -> list[str]:
-    return sorted(set(__all__))
+from app.views.windows.dialogs import *  # noqa: F401,F403

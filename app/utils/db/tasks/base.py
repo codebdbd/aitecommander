@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 
@@ -35,8 +35,8 @@ class DatabaseTask(QRunnable, Generic[T]):
         self,
         func: Callable[..., T],
         *,
-        description: str | None = None,
-        reporter: Callable[[int], None] | None = None,
+        description: Optional[str] = None,
+        reporter: Optional[Callable[[int], None]] = None,
     ) -> None:
         super().__init__()
         self.func = func
@@ -44,7 +44,7 @@ class DatabaseTask(QRunnable, Generic[T]):
         self._canceled = False
         self.description = description
         # External progress callback; may be ``None``
-        self._external_reporter: Callable[[int], None] | None = reporter
+        self._external_reporter: Optional[Callable[[int], None]] = reporter
 
     def report_progress(self, value: int) -> None:
         """Report task progress (0..100).

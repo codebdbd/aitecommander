@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
@@ -10,72 +10,23 @@ from app.utils.browser.browser_profiles import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from app.controllers.business.structure_business import StructureBusinessLogic
-
 
 class LinkDialogController:
     """Controller for managing link dialog business logic."""
 
-    def __init__(
-        self,
-        database: Database,
-        *,
-        structure_business: Optional["StructureBusinessLogic"] = None,
-    ):
+    def __init__(self, database: Database):
         self.database = database
-        self.structure_business = structure_business
         self.links_business = LinksBusinessLogic(database)
-        self.result_data: list[dict[str, Any]] = []
-        # Unified profile manager via factory - exclude repeated profile scans
+        self.result_data: List[Dict[str, Any]] = []
+        # Unified profile manager via factory — exclude repeated profile scans
         self.profile_manager = get_profile_manager()
 
-    def _get_spheres_cached(self) -> list[dict[str, Any]]:
-        if self.structure_business is not None:
-            try:
-                spheres = self.structure_business.get_cached_spheres()
-                if spheres:
-                    return spheres
-            except Exception as exc:
-                logger.debug("Failed to read cached spheres: %s", exc, exc_info=True)
-        return self.database.spheres.get_spheres() or []
-
-    def _get_sections_cached(self, sphere_id: int) -> list[dict[str, Any]]:
-        if self.structure_business is not None:
-            try:
-                sections = self.structure_business.get_cached_sections(sphere_id)
-                if sections:
-                    return sections
-            except Exception as exc:
-                logger.debug(
-                    "Failed to read cached sections for %s: %s",
-                    sphere_id,
-                    exc,
-                    exc_info=True,
-                )
-        return self.database.sections.get_sections(sphere_id) or []
-
-    def _get_categories_cached(self, section_id: int) -> list[dict[str, Any]]:
-        if self.structure_business is not None:
-            try:
-                categories = self.structure_business.get_cached_categories(section_id)
-                if categories:
-                    return categories
-            except Exception as exc:
-                logger.debug(
-                    "Failed to read cached categories for %s: %s",
-                    section_id,
-                    exc,
-                    exc_info=True,
-                )
-        return self.database.categories.get_categories(section_id) or []
-
     def get_initialization_data(
-        self, category_id: Optional[int] = None, link: Optional[dict] = None
-    ) -> dict[str, Any]:
+        self, category_id: Optional[int] = None, link: Optional[Dict] = None
+    ) -> Dict[str, Any]:
         """Gets data for dialog initialization."""
         # Get spheres
-        spheres = self._get_spheres_cached()
+        spheres = self.database.spheres.get_spheres()
 
         # Determine category hierarchy
         category_hierarchy = None
@@ -117,26 +68,26 @@ class LinkDialogController:
             "form_data": link,
         }
 
-    def _get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
+    def _get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
         """Gets hierarchy for category (sphere -> section -> category)."""
         return self.database.categories.get_category_hierarchy(category_id)
 
-    def _get_chrome_profiles(self) -> list[dict[str, Any]]:
+    def _get_chrome_profiles(self) -> List[Dict[str, Any]]:
         """Gets list of Chrome profiles."""
         try:
             return self.profile_manager.get_browser_profiles("chrome")
         except Exception:
             return []
 
-    def get_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]:
+    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Gets sections for sphere."""
-        return self._get_sections_cached(sphere_id)
+        return self.database.sections.get_sections(sphere_id)
 
-    def get_categories_for_section(self, section_id: int) -> list[dict[str, Any]]:
+    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
         """Gets categories for section."""
-        return self._get_categories_cached(section_id)
+        return self.database.categories.get_categories(section_id)
 
-    def validate_and_save(self, form_data: dict[str, Any]) -> dict[str, Any]:
+    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validates form data and prepares for saving."""
         # Basic validation
         validation_result = self._validate_form_data(form_data)
@@ -148,7 +99,7 @@ class LinkDialogController:
 
         return {"is_valid": True, "errors": []}
 
-    def _validate_form_data(self, form_data: dict[str, Any]) -> dict[str, Any]:
+    def _validate_form_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validates form data."""
         errors = []
 
@@ -174,7 +125,7 @@ class LinkDialogController:
 
         return {"is_valid": len(errors) == 0, "errors": errors}
 
-    def _prepare_links_data(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def _prepare_links_data(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Prepares link data for saving."""
         links_data = []
 
@@ -202,55 +153,64 @@ class LinkDialogController:
 
         return links_data
 
-    def _get_existing_link_data(self, form_data):
-        """Get existing link data if editing."""
+    def _prepare_profile_links(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Prepares links with profiles of any browsers."""
+        from app.utils.browser.browser_profiles import (
+            UniversalProfileProcessor,
+        )
+
+        processor = UniversalProfileProcessor(self.database)
         is_edit = form_data.get("link_id") is not None
-        if not is_edit:
-            return None
-        return {
-            "id": form_data["link_id"],
-            "args": form_data.get("args", ""),
-            "last_used": form_data.get("last_used"),
-            "position": form_data.get("position", 0),
-        }
+        existing_link = None
+        if is_edit:
+            # Pass all necessary fields for proper profile comparison
+            existing_link = {
+                "id": form_data["link_id"],
+                "args": form_data.get(
+                    "args", ""
+                ),  # Ключевое поле для сравнения профилей
+                "last_used": form_data.get("last_used"),
+                "position": form_data.get("position", 0),
+            }
 
-    def _detect_browser_key(self, profile, manager):
-        """Detect browser key for profile."""
-        browser_key = profile.get("browser_key")
-        if browser_key:
-            return browser_key
+        # Process selected profiles
+        selected_profiles = form_data["selected_profiles"]
+        if not selected_profiles:
+            return []
 
-        browser_key = manager.detect_browser_from_args(profile.get("args", ""))
-        if browser_key:
-            return browser_key
-
-        for key, finder in manager.finders.items():
-            try:
-                if hasattr(
-                    finder, "validate_profile_data"
-                ) and finder.validate_profile_data(profile):
-                    return key
-            except Exception:
-                continue
-        return None
-
-    def _group_profiles_by_browser(self, selected_profiles, manager):
-        """Group profiles by browser key."""
+        # Separate profiles by browsers (use unified manager per controller)
+        manager = self.profile_manager
         profiles_by_browser = {}
+
         for profile in selected_profiles:
-            browser_key = self._detect_browser_key(profile, manager)
+            # Determine browser_key for each profile
+            browser_key = profile.get("browser_key")
             if not browser_key:
-                logger.debug(
-                    f"_prepare_profile_links: пропущен профиль без определённого браузера: {profile}"
-                )
-                continue
+                # Fallback 1: attempt by args
+                browser_key = manager.detect_browser_from_args(profile.get("args", ""))
+                if not browser_key:
+                    # Fallback 2: iterate through finders and validate profile
+                    for key, finder in manager.finders.items():
+                        try:
+                            if hasattr(
+                                finder, "validate_profile_data"
+                            ) and finder.validate_profile_data(profile):
+                                browser_key = key
+                                break
+                        except Exception:
+                            continue
+                if not browser_key:
+                    logger.debug(
+                        f"_prepare_profile_links: пропущен профиль без определённого браузера: {profile}"
+                    )
+                    continue  # Пропускаем профиль, если не можем определить браузер
+
+            # Group profiles by browser_key
             if browser_key not in profiles_by_browser:
                 profiles_by_browser[browser_key] = []
             profiles_by_browser[browser_key].append(profile)
-        return profiles_by_browser
 
-    def _log_profile_groups(self, profiles_by_browser):
-        """Log profile grouping information."""
+        # Log profile information for debugging
         try:
             summary = {bk: len(ps) for bk, ps in profiles_by_browser.items()}
             logger.info(
@@ -270,32 +230,20 @@ class LinkDialogController:
                     profile.get("directory", "None"),
                 )
 
-    def _prepare_profile_links(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
-        """Prepares links with profiles of any browsers."""
-        from app.utils.browser.browser_profiles import UniversalProfileProcessor
-
-        processor = UniversalProfileProcessor(self.database)
-        existing_link = self._get_existing_link_data(form_data)
-        selected_profiles = form_data["selected_profiles"]
-        if not selected_profiles:
-            return []
-
-        manager = self.profile_manager
-        profiles_by_browser = self._group_profiles_by_browser(
-            selected_profiles, manager
-        )
-        self._log_profile_groups(profiles_by_browser)
-
         if not profiles_by_browser:
             return []
 
+        # Process profiles for each browser separately
         result_links = []
+
+        # For editing determine current browser_key from existing link
         current_browser_key = None
         if existing_link and existing_link.get("args"):
             current_browser_key = manager.detect_browser_from_args(
                 existing_link.get("args", "")
             )
 
+        # Determine if user manually changed arguments (for first browser)
         first_browser_key = next(iter(profiles_by_browser))
         first_profiles = profiles_by_browser[first_browser_key]
         user_args = self._get_user_args_if_modified(
@@ -342,9 +290,9 @@ class LinkDialogController:
 
     def _get_user_args_if_modified(
         self,
-        form_data: dict[str, Any],
-        existing_link: dict,
-        selected_profiles: list[dict],
+        form_data: Dict[str, Any],
+        existing_link: Dict,
+        selected_profiles: List[Dict],
         browser_key: str,
     ) -> Optional[str]:
         """
@@ -390,7 +338,7 @@ class LinkDialogController:
             # In case of error return user arguments if they exist
             return current_args if current_args else None
 
-    def _prepare_regular_link(self, form_data: dict[str, Any]) -> dict[str, Any]:
+    def _prepare_regular_link(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepares regular link."""
         from app.utils.links.link_factory import make_link_record
 
@@ -408,7 +356,7 @@ class LinkDialogController:
             link_id=form_data.get("link_id"),
         )
 
-    def get_result_data(self) -> list[dict[str, Any]]:
+    def get_result_data(self) -> List[Dict[str, Any]]:
         """Returns resulting data after saving."""
         logger.debug(
             "get_result_data: returning %s links",

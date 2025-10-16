@@ -3,7 +3,7 @@
 """Module for normalizing data from database."""
 
 import logging
-from typing import Any, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Dict, List, Protocol, Union, runtime_checkable
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -19,58 +19,10 @@ class RowLike(Protocol):
 
 
 # Data types that module can handle
-SupportedRowType = Union[dict[str, Any], RowLike, tuple, None]
+SupportedRowType = Union[Dict[str, Any], RowLike, tuple, None]
 
 
-def _try_namedtuple_conversion(row, logger):
-    """Try to convert namedtuple to dict."""
-    try:
-        return row._asdict()
-    except AttributeError as e:
-        logger.warning("Error calling _asdict() for namedtuple: %s", e)
-        try:
-            return dict(zip(row._fields, row))
-        except (AttributeError, TypeError) as fallback_e:
-            logger.error("Failed to process namedtuple: %s", fallback_e)
-            return None
-
-
-def _try_keys_conversion(row, logger):
-    """Try to convert object with keys() method to dict."""
-    try:
-        keys = row.keys()
-        if hasattr(keys, "__iter__"):
-            return dict(row)
-        else:
-            logger.warning(
-                "keys() method of object %s does not return iterable object",
-                type(row),
-            )
-            return None
-    except (TypeError, ValueError, AttributeError) as e:
-        logger.warning(
-            "Error accessing keys() of object %s: %s",
-            type(row),
-            e,
-        )
-        return None
-
-
-def _try_mapping_protocol(row, logger):
-    """Try to use mapping protocol to convert to dict."""
-    if hasattr(row, "__getitem__") and hasattr(row, "keys"):
-        try:
-            return {key: row[key] for key in row.keys()}
-        except (KeyError, TypeError, AttributeError) as e:
-            logger.warning(
-                "Error manually creating dictionary from object %s: %s",
-                type(row),
-                e,
-            )
-    return None
-
-
-def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> dict[str, Any]:
+def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
     """Safely normalize DB row to dictionary.
 
     Supports:
@@ -91,30 +43,62 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> dict[str
     if row is None:
         return {}
 
+    # Already a dictionary
     if isinstance(row, dict):
-        return row.copy()
+        return row.copy()  # Return copy for safety
 
+    # Check for namedtuple (more reliable way)
     if isinstance(row, tuple) and hasattr(row, "_fields"):
-        result = _try_namedtuple_conversion(row, active_logger)
-        if result is not None:
-            return result
-        return {}
+        try:
+            return row._asdict()
+        except AttributeError as e:
+            active_logger.warning("Error calling _asdict() for namedtuple: %s", e)
+            # Fallback to manual dictionary creation
+            try:
+                return dict(zip(row._fields, row))
+            except (AttributeError, TypeError) as fallback_e:
+                active_logger.error("Failed to process namedtuple: %s", fallback_e)
+                return {}
 
+    # sqlite3.Row or other objects with keys() and iteration support
     if hasattr(row, "keys"):
-        result = _try_keys_conversion(row, active_logger)
-        if result is not None:
-            return result
+        try:
+            # Check that keys() actually returns an iterable object
+            keys = row.keys()
+            if hasattr(keys, "__iter__"):
+                return dict(row)
+            else:
+                active_logger.warning(
+                    "keys() method of object %s does not return iterable object",
+                    type(row),
+                )
+                return {}
+        except (TypeError, ValueError, AttributeError) as e:
+            active_logger.warning(
+                "Error accessing keys() of object %s: %s",
+                type(row),
+                e,
+            )
 
+    # Check if object is iterable as key-value pairs
     try:
+        # Try to convert directly
         result = dict(row)
-        if result:
+        if result:  # Check that we got non-empty dictionary
             return result
     except (TypeError, ValueError, AttributeError):
-        pass
+        pass  # Продолжаем к следующей попытке
 
-    result = _try_mapping_protocol(row, active_logger)
-    if result is not None:
-        return result
+    # Last attempt - if object supports mapping protocol
+    if hasattr(row, "__getitem__") and hasattr(row, "keys"):
+        try:
+            return {key: row[key] for key in row.keys()}
+        except (KeyError, TypeError, AttributeError) as e:
+            active_logger.warning(
+                "Error manually creating dictionary from object %s: %s",
+                type(row),
+                e,
+            )
 
     # If nothing worked
     active_logger.error(
@@ -124,9 +108,7 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> dict[str
     return {}
 
 
-def normalize_rows(
-    rows: Any, logger: Optional[logging.Logger] = None
-) -> list[dict[str, Any]]:
+def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, Any]]:
     """Normalize list of DB rows to list of dictionaries.
 
     Args:
@@ -152,26 +134,27 @@ def normalize_rows(
             result.append(normalized)
         except Exception as e:
             active_logger.error("Error normalizing row #%s: %s", i, e)
+            result.append({})  # Add empty dictionary to preserve indices
 
     return result
 
 
-def validate_required_keys(
-    data: dict[str, Any], required_keys: Optional[list[str]] = None
+def validate_normalized_data(
+    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: List[str] = None
 ) -> bool:
     """Validate normalized data.
 
-        Args:
-            data: Normalized data (dictionary or list of dictionaries)
-    {{ ... }}
+    Args:
+        data: Normalized data (dictionary or list of dictionaries)
+        required_keys: List of required keys to check
 
-        Returns:
-            bool: True if data is valid, False otherwise
+    Returns:
+        bool: True if data is valid, False otherwise
     """
     if required_keys is None:
         required_keys = []
 
-    def _validate_dict(d: dict[str, Any]) -> bool:
+    def _validate_dict(d: Dict[str, Any]) -> bool:
         if not isinstance(d, dict):
             return False
         return all(key in d for key in required_keys)
@@ -188,7 +171,7 @@ def validate_required_keys(
 __all__ = [
     "normalize_row",
     "normalize_rows",
-    "validate_required_keys",
+    "validate_normalized_data",
     "SupportedRowType",
     "RowLike",
 ]

@@ -6,7 +6,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -16,7 +16,7 @@ class _Span:
     end: Optional(float) = None  # type: ignore[valid-type]
 
     @property
-    def duration(self) -> float | None:
+    def duration(self) -> Optional[float]:
         if self.end is None:
             return None
         return self.end - self.start
@@ -32,9 +32,9 @@ class StartupMetrics:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._open_spans: dict[str, _Span] = {}
-        self._completed: list[_Span] = []
-        self._marks: list[str] = []
+        self._open_spans: Dict[str, _Span] = {}
+        self._completed: List[_Span] = []
+        self._marks: List[str] = []
         self._t0 = time.perf_counter()
 
     def reset(self) -> None:
@@ -78,7 +78,7 @@ class StartupMetrics:
             self._marks.append(label)
 
     def flush_log(
-        self, logger: logging.Logger | None = None, *, level: int = logging.INFO
+        self, logger: Optional[logging.Logger] = None, *, level: int = logging.INFO
     ) -> None:
         """Output startup metrics summary to log.
 
@@ -115,7 +115,7 @@ class StartupMetrics:
 
 
 # Global singleton
-_metrics_singleton: StartupMetrics | None = None
+_metrics_singleton: Optional[StartupMetrics] = None
 _metrics_lock = threading.Lock()
 
 

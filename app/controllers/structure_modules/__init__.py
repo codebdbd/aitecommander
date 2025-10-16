@@ -3,18 +3,22 @@
 """Модульная архитектура для бизнес-логики структуры."""
 
 from .models.types import StructureItemType
+
 from .operations.async_operations import AsyncOperations
 from .operations.base import StructureOperationError
 from .operations.category_operations import CategoryOperations
 from .operations.positioning_operations import PositioningOperations
 from .operations.section_operations import SectionOperations
 from .operations.sphere_operations import SphereOperations
+
 from .signals.handlers import AsyncSignalHandlers
 from .signals.signals import StructureSignals
+
 from .support.cache_manager import CacheManager
 from .support.exceptions import handle_exceptions
 from .support.helpers import process_item
 from .support.normalization import normalize_rows
+
 from .validation.validation_result import ValidationResult
 from .validation.validators import ValidationError
 

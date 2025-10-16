@@ -5,12 +5,12 @@ from typing import Any, Optional
 
 from PyQt6.QtCore import QModelIndex, QObject, Qt, pyqtSlot
 
+from app.utils.ui.qt.roles import get_tree_tuple
+
 from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
     StructureTreeModelProtocol,
 )
-from app.utils.ui.qt.roles import get_tree_tuple
-
 from .tree_snapshot_service import TreeSnapshotService
 from .tree_state_service import TreeStateService
 from .tree_tiles_service import TreeTilesService
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class TreeManagement(QObject):
-    def __init__(self, controller, category_tiles_controller) -> None:
+    def __init__(self, controller, category_tiles_controller):
         parent = controller if isinstance(controller, QObject) else None
         super().__init__(parent=parent)
         self.controller = controller
@@ -35,13 +35,11 @@ class TreeManagement(QObject):
             raise TypeError(
                 "category_tiles_controller must implement CategoryTilesControllerProtocol"
             )
-        self.tiles_controller: CategoryTilesControllerProtocol = (
-            category_tiles_controller
-        )
+        self.tiles_controller: CategoryTilesControllerProtocol = category_tiles_controller
 
         # Explicit reference to tree model and contract check
         try:
-            model_getter = self.tree.model
+            model_getter = getattr(self.tree, "model")
             raw_model = model_getter() if callable(model_getter) else None
         except AttributeError:
             raw_model = None
@@ -78,63 +76,60 @@ class TreeManagement(QObject):
                 key=lambda s: str(s.get("name", "")).lower(),
             )
         except (TypeError, AttributeError, KeyError):
-            logger.exception("TreeManagement._on_structure_loaded: sections sort error")
+            logger.exception(
+                "TreeManagement._on_structure_loaded: sections sort error"
+            )
 
         # Update model with single snapshot
         if sections_data is None:
             sections_data = []
-
         def _on_snapshot_error() -> None:
             logger.exception(
                 "TreeManagement._on_structure_loaded: model failed to accept snapshot"
             )
 
-        def _on_snapshot_success() -> None:
-            try:
-                if not sections_data:
-                    self.clear_tiles()
-            except Exception:
-                logger.exception(
-                    "TreeManagement._on_structure_loaded: error clearing tiles on empty structure"
-                )
-
-            self._after_snapshot_applied(expanded_state, current_selection)
-
-            try:
-                sb = getattr(self.controller, "business", None) or getattr(
-                    self.controller, "structure_business", None
-                )
-                if sb and getattr(sb, "_suppress_category_restore_once", False):
-                    sb._suppress_category_restore_once = False
-            except Exception:
-                logger.debug(
-                    "TreeManagement._on_structure_loaded: failed to reset suppression flag",
-                    exc_info=True,
-                )
-
-            main = getattr(self.controller, "main", None)
-            if main is not None and getattr(main, "_first_structure_load", False):
-                main._first_structure_load = False
-                self.tree.updateGeometry()
-                self.tree.update()
-
         self._snapshot.schedule_snapshot(
             sections_data,
-            on_success=_on_snapshot_success,
+            on_success=lambda: self._after_snapshot_applied(
+                expanded_state, current_selection
+            ),
             on_error=_on_snapshot_error,
         )
+        return
 
-    def _after_snapshot_applied(
-        self, expanded_state: Any, current_selection: Any
-    ) -> None:
-        """Hook called after snapshot is applied to tree model."""
-        # Placeholder for future expansion state/selection restoration
-        pass
+        # If structure empty (no sections) — clear category tiles
+        try:
+            if not sections_data:
+                self.clear_tiles()
+        except Exception:
+            logger.exception(
+                "TreeManagement._on_structure_loaded: error clearing tiles on empty structure"
+            )
+        self._after_snapshot_applied(expanded_state, current_selection)
+
+        # Guaranteed reset of one-time category restore suppression flag,
+        # if it somehow remained set after processing above.
+        try:
+            sb = getattr(self.controller, "business", None) or getattr(
+                self.controller, "structure_business", None
+            )
+            if sb and getattr(sb, "_suppress_category_restore_once", False):
+                setattr(sb, "_suppress_category_restore_once", False)
+        except Exception:
+            pass
+
+        # Icons now updated by modelReset event in StructureUIController;
+        # no additional calls here to avoid duplicate work.
+
+        # After first structure load update main window display
+        main = getattr(self.controller, "main", None)
+        if main is not None and getattr(main, "_first_structure_load", False):
+            setattr(main, "_first_structure_load", False)
+            self.tree.updateGeometry()
+            self.tree.update()
 
     @pyqtSlot(str, int, dict)
-    def _on_item_added(
-        self, item_type: str, parent_id: int, data: dict[str, Any]
-    ) -> None:
+    def _on_item_added(self, item_type: str, parent_id: int, data: dict[str, Any]) -> None:
         # Incremental insert via model
         # Note: on insert error full structure reload required —
         # expected model errors (ValueError, RuntimeError) logged and re-raised,
@@ -144,9 +139,7 @@ class TreeManagement(QObject):
         self._updates.handle_item_added(item_type, parent_id, data)
 
     @pyqtSlot(str, int, dict)
-    def _on_item_updated(
-        self, item_type: str, item_id: int, data: dict[str, Any]
-    ) -> None:
+    def _on_item_updated(self, item_type: str, item_id: int, data: dict[str, Any]) -> None:
         self._updates.handle_item_updated(item_type, item_id, data)
 
     @pyqtSlot(str, int)
@@ -303,7 +296,7 @@ class TreeManagement(QObject):
                         sb = None
                     if sb and getattr(sb, "_suppress_category_restore_once", False):
                         try:
-                            sb._suppress_category_restore_once = False
+                            setattr(sb, "_suppress_category_restore_once", False)
                         except Exception:
                             pass
                         self._state.select_first_item()
@@ -322,14 +315,14 @@ class TreeManagement(QObject):
                 self.controller, "structure_business", None
             )
             if sb and getattr(sb, "_suppress_category_restore_once", False):
-                sb._suppress_category_restore_once = False
+                setattr(sb, "_suppress_category_restore_once", False)
         except Exception:
             pass
 
         # After first structure load update main window display
         main = getattr(self.controller, "main", None)
         if main is not None and getattr(main, "_first_structure_load", False):
-            main._first_structure_load = False
+            setattr(main, "_first_structure_load", False)
             self.tree.updateGeometry()
             self.tree.update()
 

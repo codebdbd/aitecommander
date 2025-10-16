@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
 
 from ..models.types import StructureItemType
 
@@ -22,9 +22,9 @@ class StructureController(Protocol):
         self,
         *,
         item_type: StructureItemType,
-        data: dict[str, Any],
+        data: Dict[str, Any],
         is_update: bool,
-        item_id: int | None,
+        item_id: Optional[int],
         emit_signal: Callable[..., None],
     ) -> Any:
         """Create/update element with signal emission."""
@@ -37,7 +37,7 @@ class StructureController(Protocol):
     def _execute_with_validation(
         self,
         operation: Callable[[], Any],
-        data: dict[str, Any],
+        data: Dict[str, Any],
         item_type: StructureItemType,
         operation_name: str,
         *,
@@ -49,9 +49,9 @@ class StructureController(Protocol):
 
 def process_item(
     controller: StructureController,
-    data: dict[str, Any],
+    data: Dict[str, Any],
     item_type: StructureItemType,
-    item_id: int | None = None,
+    item_id: Optional[int] = None,
     is_update: bool = False,
     *,
     require_parent: bool = True,

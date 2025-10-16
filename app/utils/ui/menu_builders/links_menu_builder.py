@@ -2,17 +2,18 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Dict
 
-from PyQt6.QtCore import QCoreApplication, QModelIndex
+from PyQt6.QtCore import QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
+from PyQt6.QtCore import QCoreApplication
 
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
 
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.views.windows.main_window_protocol import MainWindowProtocol
+    from app.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class LinksMenuBuilder:
     """Context menu builder for the links table."""
 
-    def __init__(self, table_widget: QWidget, main_window: "MainWindowProtocol"):
+    def __init__(self, table_widget: QWidget, main_window: "MainWindow"):
         self.table_widget = table_widget
         self.main_window = main_window
         self.actions = ActionBuilder(table_widget)
@@ -32,16 +33,14 @@ class LinksMenuBuilder:
 
         if idx.isValid():
             link = self.main_window.get_link_at_row(idx.row())
-            if link is not None:
-                self._add_link_item_actions(menu, link)  # type: ignore[arg-type]
+            self._add_link_item_actions(menu, link)
             self._add_common_link_actions(menu, paste_link_cb)
-            if link is not None:
-                self._add_additional_actions(menu, link)  # type: ignore[arg-type]
+            self._add_additional_actions(menu, link)
         else:
             self._add_empty_area_actions(menu, paste_link_cb)
         return menu
 
-    def _add_link_item_actions(self, menu: QMenu, link: dict) -> None:
+    def _add_link_item_actions(self, menu: QMenu, link: Dict) -> None:
         """Add actions for the selected link."""
         logger.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
         menu.addAction(
@@ -66,9 +65,7 @@ class LinksMenuBuilder:
 
         is_favorite = link and link.get("is_favorite")
         fav_text = (
-            MenuTexts.REMOVE_FROM_FAVORITES
-            if is_favorite
-            else MenuTexts.ADD_TO_FAVORITES
+            MenuTexts.REMOVE_FROM_FAVORITES if is_favorite else MenuTexts.ADD_TO_FAVORITES
         )
         fav_icon = (
             get_menu_icon("delete_favorites", self.theme)
@@ -145,15 +142,13 @@ class LinksMenuBuilder:
         if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
-    def _add_share_submenu(self, menu: QMenu, link: dict) -> None:
+    def _add_share_submenu(self, menu: QMenu, link: Dict) -> None:
         """Add "Share" submenu for a single link."""
         try:
             # Guard against non-web links
             if not self._is_web_link(link):
                 return
-            share_menu = QMenu(
-                QCoreApplication.translate("MenuActions", MenuTexts.SHARE), menu
-            )
+            share_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.SHARE), menu)
             share_menu.setIcon(get_menu_icon("share", self.theme))
 
             share_menu.addAction(
@@ -212,9 +207,7 @@ class LinksMenuBuilder:
                     get_menu_icon("pinterest", self.theme),
                 )
             )
-            email_menu = QMenu(
-                QCoreApplication.translate("MenuActions", MenuTexts.EMAIL), share_menu
-            )
+            email_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.EMAIL), share_menu)
             email_menu.setIcon(get_menu_icon("email", self.theme))
             email_menu.addAction(
                 self.actions.create(
@@ -247,7 +240,7 @@ class LinksMenuBuilder:
         except Exception as e:
             logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
 
-    def _is_web_link(self, link: dict) -> bool:
+    def _is_web_link(self, link: Dict) -> bool:
         """Check if link is a web link (http/https)."""
         if not isinstance(link, dict):
             return False
@@ -330,7 +323,7 @@ class LinksMenuBuilder:
             if app is None:
                 return False
 
-            clipboard = app.clipboard()  # type: ignore[attr-defined]
+            clipboard = app.clipboard()
             if clipboard is None:
                 return False
 

@@ -1,11 +1,10 @@
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 from PyQt6.QtCore import Qt
 
-from app.utils.common import safe_call
-
 from .base_component import BaseLinksUIComponent
+from app.utils.common import safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +52,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
         super().__init__(
             controller, link_operations, links_table_controller=links_table_controller
         )
-        self._signals_connected = False
-        self._table_signals_connected = False
-
-    def initialize(self) -> None:
-        """Public entry point to wire required signals."""
-        self._connect_signals()
-        self._connect_table_signals()
 
     def _connect_signals(self):
         """Connect signals from business logic."""
-        if self._signals_connected:
+        if getattr(self, "_signals_connected", False):
             return
         # Moved to centralized LinksTableController to avoid direct populate and possible cycles
         # Strictly require presence of critical business signals and their compatibility
@@ -110,17 +102,15 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "Failed to wire LinksUIHandlers business signals (setup error)"
             )
             raise
-        except Exception as e:
+        except Exception:
             # Any other errors considered setup error to not mask DI defects
             logger.exception("Unexpected error wiring LinksUIHandlers business signals")
-            raise SetupError(
-                "Failed to connect LinksUIHandlers to business signals"
-            ) from e
+            raise SetupError("Failed to connect LinksUIHandlers to business signals")
         self._signals_connected = True
 
     def _connect_table_signals(self):
         """Connect signals from table."""
-        if self._table_signals_connected:
+        if getattr(self, "_table_signals_connected", False):
             return
         # Required table signals/methods for context menu — strict interface check
         if not hasattr(self.table, "setContextMenuPolicy") or not callable(
@@ -206,7 +196,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Key handling now centralized in KeyboardManager
 
-    def _update_table(self, links: list[dict], category_id: int, task_id: int):
+    def _update_table(self, links: List[Dict], category_id: int, task_id: int):
         """Update links table with new data."""
         # Desync protection: accept only links for current category
         current_category_id = self._category_provider.get_current_category_id()
@@ -240,7 +230,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         # Don't emit links_changed here to avoid triggering repeated reloads
         # Load notifications handled in LinksTableController.on_links_loaded
 
-    def _update_search_results(self, search_results: list[dict]):
+    def _update_search_results(self, search_results: List[Dict]):
         """Update search results."""
         try:
             self.links_table_controller.on_search_results(search_results)
@@ -252,7 +242,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             raise
 
     def _complete_toggle_fav(
-        self, fav_count: int, links: list[dict], link: Optional[dict]
+        self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
         """Complete favorite toggle."""
         # Centralize signal emission in LinkOperationsController
@@ -274,7 +264,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         logger.error("LinksUIController error: %s", error_msg)
         self._show_error(f"An error occurred: {error_msg}")
 
-    def _on_link_updated(self, updated_link: dict):
+    def _on_link_updated(self, updated_link: Dict):
         """Handle link update."""
         # Diagnostic logging instead of unused local variables
         try:
@@ -332,9 +322,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 else None
             )
             if idx and safe_call(idx, "isValid", default=False):
-                val = safe_call(
-                    model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None
-                )
+                val = safe_call(model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None)
                 visible_name = str(val) if val is not None else "Unknown"
             else:
                 visible_name = "Unknown"
@@ -405,12 +393,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Exclusivity: when selecting in table, clear tree selection."""
         try:
             # Early exit: if selection actually empty, don't touch tree
-            if _selected is not None and bool(
-                safe_call(_selected, "isEmpty", default=False)
-            ):
-                logger.debug(
-                    "Table selection change: selected is empty; skip clearing tree"
-                )
+            if _selected is not None and bool(safe_call(_selected, "isEmpty", default=False)):
+                logger.debug("Table selection change: selected is empty; skip clearing tree")
                 return
 
             tree = self._structure_tree
@@ -419,9 +403,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 return
             if hasattr(tree, "clearSelection") and callable(tree.clearSelection):
                 safe_call(tree, "clearSelection")
-                logger.debug(
-                    "Cleared selection in structure_tree due to table selection change"
-                )
+                logger.debug("Cleared selection in structure_tree due to table selection change")
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:

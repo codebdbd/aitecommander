@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import html as _html
 import json
+from requests.exceptions import RequestException
 import re
-from typing import TypedDict
+from typing import Optional
 from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
-from bs4.element import Tag
-from requests.exceptions import RequestException
 
 from .constants import BS_PARSER, logger
 from .domain import base_domain
@@ -51,60 +50,42 @@ _GENERAL_SUFFIX_SEPARATORS = [
 _HTML_TITLE_SEPARATORS = [" | ", " - ", " :: ", " • ", " — ", " – ", " : "]
 
 
-class SoupIndex(TypedDict, total=False):
-    title_tag: Tag | None
-    h1_first: Tag | None
-    meta_by_name: dict[str, list[Tag]]
-    meta_by_prop: dict[str, list[Tag]]
-    scripts_jsonld: list[Tag]
-
-
-def _build_soup_index(soup: BeautifulSoup) -> SoupIndex:
+def _build_soup_index(soup: BeautifulSoup) -> dict:
     """Pre-index frequently used elements to avoid repeated find() calls.
     Returns dictionary with pre-selected tags/values.
     """
     try:
-        metas = list(soup.find_all("meta"))
+        metas = soup.find_all("meta")
     except Exception:
         metas = []
 
-    meta_by_name: dict[str, list[Tag]] = {}
-    meta_by_prop: dict[str, list[Tag]] = {}
+    meta_by_name = {}
+    meta_by_prop = {}
     for m in metas:
-        if not isinstance(m, Tag):
-            continue
         try:
-            name_val = m.get("name")
-            prop_val = m.get("property")
-            if isinstance(name_val, str):
-                n = name_val.strip().lower()
-                if n:
-                    meta_by_name.setdefault(n, []).append(m)
-            if isinstance(prop_val, str):
-                p = prop_val.strip().lower()
-                if p:
-                    meta_by_prop.setdefault(p, []).append(m)
+            n = (m.get("name") or "").strip().lower()
+            p = (m.get("property") or "").strip().lower()
+            if n:
+                meta_by_name.setdefault(n, []).append(m)
+            if p:
+                meta_by_prop.setdefault(p, []).append(m)
         except Exception:
             continue
 
     try:
-        scripts_jsonld = list(soup.find_all("script", type="application/ld+json"))
+        scripts_jsonld = soup.find_all("script", type="application/ld+json")
     except Exception:
         scripts_jsonld = []
 
-    title_candidate = getattr(soup, "title", None)
-    idx: SoupIndex = {
-        "title_tag": title_candidate if isinstance(title_candidate, Tag) else None,
+    idx = {
+        "title_tag": getattr(soup, "title", None),
         "h1_first": None,
         "meta_by_name": meta_by_name,
         "meta_by_prop": meta_by_prop,
-        "scripts_jsonld": [
-            script for script in scripts_jsonld if isinstance(script, Tag)
-        ],
+        "scripts_jsonld": scripts_jsonld,
     }
     try:
-        first_h1 = soup.find("h1")
-        idx["h1_first"] = first_h1 if isinstance(first_h1, Tag) else None
+        idx["h1_first"] = soup.find("h1")
     except Exception:
         idx["h1_first"] = None
     return idx
@@ -200,7 +181,7 @@ def _try_playwright_title(url: str, config) -> str:
         return ""
 
 
-def _fetch_youtube_title(url: str, config) -> str | None:
+def _fetch_youtube_title(url: str, config) -> Optional[str]:
     api_url = "https://www.youtube.com/oembed?" + urlencode(
         {"url": url, "format": "json"}
     )
@@ -214,9 +195,7 @@ def _fetch_youtube_title(url: str, config) -> str | None:
     return None
 
 
-def _extract_jsonld_title(
-    soup: BeautifulSoup, soup_index: SoupIndex | None = None
-) -> str:
+def _extract_jsonld_title(soup: BeautifulSoup, soup_index: dict | None = None) -> str:
     """Extract title from JSON-LD structured data"""
     scripts = (
         (soup_index or {}).get("scripts_jsonld") if soup_index is not None else None
@@ -224,8 +203,6 @@ def _extract_jsonld_title(
     if scripts is None:
         scripts = soup.find_all("script", type="application/ld+json")
     for script in scripts:
-        if not isinstance(script, Tag):
-            continue
         try:
             if not script.string:
                 continue
@@ -254,57 +231,70 @@ def _extract_jsonld_title(
     return ""
 
 
-def _try_selector(soup: BeautifulSoup, tag: str, **kwargs) -> str | None:
-    """Try to find element and extract text."""
-    elem = soup.find(tag, **kwargs)
-    if isinstance(elem, Tag):
-        text = elem.get_text(strip=True)
-        return text if text else None
-    return None
-
-
 def _extract_site_specific_title(
-    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
-) -> str | None:
+    soup: BeautifulSoup, domain: str, soup_index: dict | None = None
+) -> Optional[str]:
     """Special handling for popular sites"""
     domain_lower = domain.lower()
 
-    # Site-specific selectors mapping
+    # Site-specific selectors
     if "medium.com" in domain_lower:
-        return _try_selector(
-            soup, "h1", class_=re.compile(r"graf.*title|pw-post-title")
+        title_elem = soup.find("h1", class_=re.compile(r"graf.*title|pw-post-title"))
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
+
+    elif "dev.to" in domain_lower:
+        title_elem = soup.find(
+            "h1", class_=re.compile(r"crayons-article__title|article-title")
         )
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
 
-    if "dev.to" in domain_lower:
-        return _try_selector(
-            soup, "h1", class_=re.compile(r"crayons-article__title|article-title")
+    elif "hackernews" in domain_lower or "news.ycombinator.com" in domain_lower:
+        title_elem = soup.find("a", class_="storylink") or soup.find(
+            "span", class_="titleline"
         )
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
 
-    if "hackernews" in domain_lower or "news.ycombinator.com" in domain_lower:
-        return _try_selector(soup, "a", class_="storylink") or _try_selector(
-            soup, "span", class_="titleline"
+    elif "wikipedia.org" in domain_lower:
+        title_elem = soup.find("h1", id="firstHeading")
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
+
+    elif "amazon.com" in domain_lower or "amazon." in domain_lower:
+        title_elem = soup.find("span", id="productTitle")
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
+
+    elif "reddit.com" in domain_lower:
+        title_elem = soup.find(
+            "h1", attrs={"data-testid": "post-content"}
+        ) or soup.find("div", class_=re.compile(r".*title.*"))
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
+
+    elif "stackoverflow.com" in domain_lower:
+        title_elem = soup.find("h1", attrs={"itemprop": "name"}) or soup.find(
+            "a", class_="question-hyperlink"
         )
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
 
-    if "wikipedia.org" in domain_lower:
-        return _try_selector(soup, "h1", id="firstHeading")
-
-    if "amazon.com" in domain_lower or "amazon." in domain_lower:
-        return _try_selector(soup, "span", id="productTitle")
-
-    if "reddit.com" in domain_lower:
-        return _try_selector(
-            soup, "h1", attrs={"data-testid": "post-content"}
-        ) or _try_selector(soup, "div", class_=re.compile(r".*title.*"))
-
-    if "stackoverflow.com" in domain_lower:
-        return _try_selector(soup, "h1", attrs={"itemprop": "name"}) or _try_selector(
-            soup, "a", class_="question-hyperlink"
+    elif "github.com" in domain_lower:
+        title_elem = soup.find("h1", class_=re.compile(r".*header.*")) or soup.find(
+            "strong", attrs={"itemprop": "name"}
         )
-
-    if "github.com" in domain_lower:
-        return _try_selector(
-            soup, "h1", class_=re.compile(r".*header.*")
-        ) or _try_selector(soup, "strong", attrs={"itemprop": "name"})
+        if title_elem:
+            text = title_elem.get_text(strip=True)
+            return text if text else None
 
     return None
 
@@ -463,53 +453,40 @@ def _smart_postprocess_title(title: str, domain: str) -> str:
 
 
 def _meta_content(
-    soup: BeautifulSoup,
-    *selectors: tuple[str, str],
-    soup_index: SoupIndex | None = None,
+    soup: BeautifulSoup, *selectors: tuple[str, str], soup_index: dict | None = None
 ) -> str:
     """Extract content from meta tags with multiple selector fallbacks"""
     for attr, value in selectors:
         tag = None
         if soup_index is not None:
-            key = value.strip().lower()
+            key = (value or "").strip().lower()
             try:
                 if attr == "name":
-                    candidates = soup_index.get("meta_by_name", {}).get(key, [])
+                    candidates = (soup_index.get("meta_by_name", {}) or {}).get(key, [])
                 elif attr == "property":
-                    candidates = soup_index.get("meta_by_prop", {}).get(key, [])
+                    candidates = (soup_index.get("meta_by_prop", {}) or {}).get(key, [])
                 else:
                     candidates = []
                 tag = candidates[0] if candidates else None
             except Exception:
                 tag = None
         if tag is None:
-            found_tag = soup.find("meta", attrs={attr: value})
-            # Ensure we only assign Tag objects, not NavigableString or other types
-            tag = found_tag if isinstance(found_tag, Tag) else None
-        if isinstance(tag, Tag):
-            raw_content = tag.get("content")
-            if isinstance(raw_content, str):
-                content = raw_content.strip()
-            elif isinstance(raw_content, list):
-                content = " ".join(
-                    str(part).strip() for part in raw_content if part
-                ).strip()
-            else:
-                content = ""
+            tag = soup.find("meta", attrs={attr: value})
+        if tag and tag.get("content"):
+            content = (tag.get("content") or "").strip()
             if content:
                 return content
     return ""
 
 
 def _extract_html_title(
-    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
+    soup: BeautifulSoup, domain: str, soup_index: dict | None = None
 ) -> str:
     """Extract and clean HTML title tag"""
     title_tag = (soup_index or {}).get("title_tag") if soup_index is not None else None
     if title_tag is None:
-        title_candidate = soup.title
-        title_tag = title_candidate if isinstance(title_candidate, Tag) else None
-    if not isinstance(title_tag, Tag):
+        title_tag = soup.title
+    if not title_tag:
         return ""
 
     # Get text from all child elements
@@ -576,7 +553,7 @@ def _extract_title(soup: BeautifulSoup, url: str) -> str:
 
     # 6. First H1 tag
     h1 = soup_index.get("h1_first")
-    if isinstance(h1, Tag):
+    if h1:
         h1_text = h1.get_text(strip=True)
         if h1_text:
             candidates.append((h1_text, "h1"))
@@ -589,29 +566,35 @@ def _extract_title(soup: BeautifulSoup, url: str) -> str:
     return domain
 
 
-def _try_youtube_title(url: str, config, host: str) -> str | None:
-    """Try to fetch YouTube title if applicable."""
-    if host not in ("youtube.com", "youtu.be"):
-        return None
-    yt = _fetch_youtube_title(url, config)
-    if yt:
-        return _smart_postprocess_title(yt, host)
-    return None
+def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
+    """Main function to extract page title with enhanced parsing capabilities"""
+    host = base_domain(urlparse(url).netloc)
 
+    # Special handling for YouTube
+    if host in ("youtube.com", "youtu.be"):
+        yt = _fetch_youtube_title(url, config)
+        if yt:
+            return _smart_postprocess_title(yt, host)
 
-def _get_config_params(config) -> tuple[str | None, int | None, int]:
-    """Extract config parameters for HTTP requests."""
+    if soup is not None:
+        return _extract_title(soup, url)
+
+    # Fetch page content if soup not provided
     try:
         ua = getattr(config, "USER_AGENT", None)
     except Exception:
         ua = None
     timeout_override = getattr(config, "HTML_FETCH_TIMEOUT", None)
     retries_override = getattr(config, "HTML_FETCH_RETRIES", 2)
-    return ua, timeout_override, retries_override
+    logger.info(
+        "[title] start url=%s ua=%s timeout=%s retries=%s",
+        url,
+        ua,
+        timeout_override,
+        retries_override,
+    )
 
-
-def _try_head_request(url: str, config, timeout_override: int | None) -> None:
-    """Perform HEAD preflight to check content type."""
+    # HEAD preflight: determine content-type/length without wasting traffic (diagnostics and heuristics)
     try:
         head_resp = http_request(
             url,
@@ -630,186 +613,124 @@ def _try_head_request(url: str, config, timeout_override: int | None) -> None:
                     "[title][HEAD] non-html content-type url=%s type='%s'", url, ctype
                 )
     except RequestException as he:
-        logger.debug(
-            "[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True
-        )
+        logger.debug("[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True)
 
-
-def _fetch_and_parse_html(
-    url: str, config, timeout_override: int | None, retries_override: int
-) -> tuple[BeautifulSoup | None, str]:
-    """Fetch HTML and parse with BeautifulSoup."""
     resp = http_request(
         url, config, timeout_override=timeout_override, retries=retries_override
     )
-    if not resp:
-        return None, ""
+    if resp:
+        try:
+            txt = _decode_response_text(resp, config)
+            s = _make_soup(txt)
+            # Heuristic: page may require JS rendering
+            js_suspected = False
+            try:
+                js_suspected = _looks_js_heavy(s, txt)
+                if js_suspected:
+                    logger.warning("[title] js-heavy suspected url=%s", url)
+            except Exception:
+                js_suspected = False
+            title = _extract_title(s, url)
+            # Try lightweight JS render before Selenium if title is empty/bad or page is js-heavy
+            try:
+                use_playwright = _use_playwright_for_title(config)
+            except Exception:
+                use_playwright = True
+            if use_playwright:
+                need_render = js_suspected or not title or len(title) < 3
+                if need_render:
+                    try:
+                        logger.info("[title] try playwright render url=%s", url)
+                        title2 = _try_playwright_title(url, config)
+                        if (
+                            title2
+                            and title2.strip()
+                            and title2.strip().lower() != (title or "").strip().lower()
+                        ):
+                            title = title2
+                            logger.info(
+                                "[title] playwright extracted url=%s title='%s'",
+                                url,
+                                title2,
+                            )
+                    except Exception as re:
+                        logger.warning(
+                            "[title] playwright render failed url=%s err=%s",
+                            url,
+                            re,
+                            exc_info=True,
+                        )
+            logger.info("[title] done url=%s extracted='%s'", url, title)
+            return title
+        except Exception as e:
+            logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
 
-    try:
-        txt = _decode_response_text(resp, config)
-        s = _make_soup(txt)
-        return s, txt
-    except Exception as e:
-        logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
-        return None, ""
-
-
-def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> str:
-    """Try Playwright rendering if needed."""
-    try:
-        use_playwright = _use_playwright_for_title(config)
-    except Exception:
-        use_playwright = True
-
-    if not use_playwright:
-        return title
-
-    need_render = js_suspected or not title or len(title) < 3
-    if not need_render:
-        return title
-
-    try:
-        logger.info("[title] try playwright render url=%s", url)
-        title2 = _try_playwright_title(url, config)
-        if (
-            title2
-            and title2.strip()
-            and title2.strip().lower() != (title or "").strip().lower()
-        ):
-            logger.info(
-                "[title] playwright extracted url=%s title='%s'",
-                url,
-                title2,
-            )
-            return title2
-    except Exception as re:
-        logger.warning(
-            "[title] playwright render failed url=%s err=%s",
-            url,
-            re,
-            exc_info=True,
-        )
-
-    return title
-
-
-def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
-    """Try Selenium fallback for JS-heavy pages."""
+    # Optional Selenium fallback for JS-heavy pages (unchanged behavior)
     try:
         use_selenium = bool(getattr(config, "USE_SELENIUM_FOR_TITLE", False))
     except Exception:
         use_selenium = False
-
-    if not use_selenium:
-        return host
-
-    try:
-        logger.info("[title] selenium fallback enabled url=%s", url)
+    if use_selenium:
         try:
-            from selenium import webdriver  # type: ignore
-            from selenium.webdriver.chrome.options import Options  # type: ignore
-        except Exception as ie:
-            logger.warning("[title] selenium import failed: %s", ie, exc_info=True)
-            return host
-
-        options = Options()
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        if ua:
-            options.add_argument(f"--user-agent={ua}")
-        try:
-            options.page_load_strategy = "eager"
-        except Exception:
-            pass
-
-        driver = webdriver.Chrome(options=options)
-        try:
-            pl_to = int(getattr(config, "SELENIUM_PAGELOAD_TIMEOUT", 12))
-        except Exception:
-            pl_to = 12
-        try:
-            driver.set_page_load_timeout(pl_to)
-        except Exception:
-            logger.debug(
-                "[title] could not set selenium page load timeout", exc_info=True
-            )
-
-        try:
-            driver.get(url)
-            page = driver.page_source or ""
-        finally:
+            logger.info("[title] selenium fallback enabled url=%s", url)
             try:
-                driver.quit()
+                from selenium import webdriver  # type: ignore
+                from selenium.webdriver.chrome.options import Options  # type: ignore
+            except Exception as ie:
+                logger.warning("[title] selenium import failed: %s", ie, exc_info=True)
+                raise
+
+            options = Options()
+            options.add_argument("--headless=new")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--no-sandbox")
+            if ua:
+                options.add_argument(f"--user-agent={ua}")
+            # Faster load strategy
+            try:
+                options.page_load_strategy = "eager"
             except Exception:
                 pass
-
-        if page:
+            driver = webdriver.Chrome(options=options)
             try:
-                s2 = _make_soup(page)
-                title2 = _extract_title(s2, url)
-                logger.info("[title] selenium extracted url=%s title='%s'", url, title2)
-                return title2 or host
-            except Exception as pe:
-                logger.error(
-                    "[title] selenium parse error url=%s err=%s",
-                    url,
-                    pe,
-                    exc_info=True,
+                pl_to = int(getattr(config, "SELENIUM_PAGELOAD_TIMEOUT", 12))
+            except Exception:
+                pl_to = 12
+            try:
+                driver.set_page_load_timeout(pl_to)
+            except Exception:
+                logger.debug(
+                    "[title] could not set selenium page load timeout", exc_info=True
                 )
-    except Exception as se:
-        logger.warning(
-            "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
-        )
+            try:
+                driver.get(url)
+                page = driver.page_source or ""
+            finally:
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+            if page:
+                try:
+                    s2 = _make_soup(page)
+                    title2 = _extract_title(s2, url)
+                    logger.info(
+                        "[title] selenium extracted url=%s title='%s'", url, title2
+                    )
+                    return title2 or host
+                except Exception as pe:
+                    logger.error(
+                        "[title] selenium parse error url=%s err=%s",
+                        url,
+                        pe,
+                        exc_info=True,
+                    )
+        except Exception as se:
+            logger.warning(
+                "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
+            )
 
-    return host
-
-
-def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
-    """Main function to extract page title with enhanced parsing capabilities"""
-    host = base_domain(urlparse(url).netloc)
-
-    # Try YouTube special handling
-    yt_title = _try_youtube_title(url, config, host)
-    if yt_title:
-        return yt_title
-
-    # Use provided soup if available
-    if soup is not None:
-        return _extract_title(soup, url)
-
-    # Fetch and parse HTML
-    ua, timeout_override, retries_override = _get_config_params(config)
-    logger.info(
-        "[title] start url=%s ua=%s timeout=%s retries=%s",
-        url,
-        ua,
-        timeout_override,
-        retries_override,
-    )
-
-    _try_head_request(url, config, timeout_override)
-
-    soup_obj, txt = _fetch_and_parse_html(
-        url, config, timeout_override, retries_override
-    )
-    if soup_obj:
-        # Check if JS-heavy
-        js_suspected = False
-        try:
-            js_suspected = _looks_js_heavy(soup_obj, txt)
-            if js_suspected:
-                logger.warning("[title] js-heavy suspected url=%s", url)
-        except Exception:
-            js_suspected = False
-
-        title = _extract_title(soup_obj, url)
-        title = _try_playwright_render(url, config, title, js_suspected)
-        logger.info("[title] done url=%s extracted='%s'", url, title)
-        return title
-
-    # Selenium fallback
-    return _try_selenium_fallback(url, config, host, ua)
+    return base_domain(urlparse(url).netloc)
 
 
 __all__ = ["get_title"]

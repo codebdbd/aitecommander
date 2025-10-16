@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import platform
-from typing import Any
+from typing import Any, Dict
 
 from .base_config import BaseConfig
 
@@ -68,13 +68,6 @@ class SettingsConfig(BaseConfig):
     def is_backup_enabled(self) -> bool:
         """Return whether automatic backups are enabled."""
         return self.get("database.backup_enabled", True)
-
-    def get_backup_interval_minutes(self) -> int:
-        """Return the interval for automatic backups in minutes (default 30)."""
-        val = self.get("database.backup_interval_minutes")
-        if val is None:
-            val = self.get("database.backup_interval", 30)
-        return max(1, int(val))
 
     # === File formats and types ===
 
@@ -165,7 +158,7 @@ class SettingsConfig(BaseConfig):
             )
         return [list(item) for item in val]
 
-    def get_quick_type_tooltips(self) -> dict[str, str]:
+    def get_quick_type_tooltips(self) -> Dict[str, str]:
         """Return tooltips for quick link types keyed by type name."""
         val = self.get("settings.quick_type_tooltips")
         if val is None:
@@ -181,7 +174,7 @@ class SettingsConfig(BaseConfig):
             )
         return dict(val)
 
-    def get_default_browse_paths(self) -> dict[str, str]:
+    def get_default_browse_paths(self) -> Dict[str, str]:
         """Return default filesystem locations for browse dialogs."""
         val = self.get("settings.default_browse_paths")
         if val is None:
@@ -199,7 +192,7 @@ class SettingsConfig(BaseConfig):
 
     # === Browser support ===
 
-    def get_browser_profile_settings(self) -> dict[str, Any]:
+    def get_browser_profile_settings(self) -> Dict[str, Any]:
         """Return configuration for browser profiles (raw mapping)."""
         val = self.get("settings.browser_profile_settings")
         if val is None:
@@ -229,7 +222,7 @@ class SettingsConfig(BaseConfig):
             )
         return list(val)
 
-    def get_browser_config(self) -> dict[str, Any]:
+    def get_browser_config(self) -> Dict[str, Any]:
         """Return browser launch configuration for the current OS."""
         os_type = "windows" if platform.system() == "Windows" else "other"
         cfg = self.get(f"settings.browser_config.{os_type}")
@@ -239,7 +232,7 @@ class SettingsConfig(BaseConfig):
 
     # === MIME types ===
 
-    def get_mime_types(self) -> dict[str, Any]:
+    def get_mime_types(self) -> Dict[str, Any]:
         """Return the MIME type mapping configured for the app."""
         val = self.get("settings.mime_types")
         if val is None:

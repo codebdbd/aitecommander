@@ -3,7 +3,6 @@
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.models.db import Database
@@ -40,11 +39,7 @@ class DatabaseInitializer:
             on_error: Callback on initialization error
         """
         # Show status in status bar (if available)
-        self._update_status_message(
-            QCoreApplication.translate(
-                "DatabaseInitializer", "Database initialization…"
-            )
-        )
+        self._update_status_message("Database initialization…")
 
         # Temporarily block UI interaction during DB initialization
         self._set_ui_enabled(False)
@@ -65,9 +60,13 @@ class DatabaseInitializer:
         Returns:
             bool: True on success, False on error
         """
-        self.database.prepare_dirs()
-        self.database.initialize_or_migrate()
-        return True
+        try:
+            self.database.prepare_dirs()
+            self.database.initialize_or_migrate()
+            return True
+        except Exception:
+            # Don't raise exception so result is handled in on_finished(res)
+            return False
 
     def _on_db_init_finished(
         self, result: bool, on_success: Optional[Callable] = None
@@ -91,7 +90,7 @@ class DatabaseInitializer:
             self._quit_application()
             return
 
-        # On success - complete standard actions
+        # On success — complete standard actions
         try:
             # Create connection in main thread on demand
             _ = self.database.connection
@@ -99,9 +98,7 @@ class DatabaseInitializer:
             logger.warning("Failed to open connection in main thread: %s", e)
 
         # Update status bar and unlock UI
-        self._update_status_message(
-            QCoreApplication.translate("DatabaseInitializer", "Database ready")
-        )
+        self._update_status_message("Готово")
         self._update_statusbar()
         self._set_ui_enabled(True)
 
@@ -124,31 +121,11 @@ class DatabaseInitializer:
             error: Exception
             on_error: Error callback
         """
-        logger.error(
-            "Database initialization error in background: %s",
-            error,
-            exc_info=True,
-        )
+        logger.error("Database initialization error in background: %s", error, exc_info=True)
 
-        detailed_message = QCoreApplication.translate(
-            "DatabaseInitializer",
-            "Database initialization error",
-        )
-        self._update_status_message(detailed_message)
+        self._update_status_message("Database initialization error")
         self._update_statusbar()
         self._set_ui_enabled(True)
-
-        user_message = (
-            f"{detailed_message}\n\n{error}" if str(error).strip() else detailed_message
-        )
-        self._show_critical_error(
-            QCoreApplication.translate(
-                "DatabaseInitializer",
-                "Database initialization error",
-            ),
-            user_message,
-        )
-        self._quit_application()
 
         # Call error callback
         if on_error:

@@ -1,17 +1,17 @@
 # app/controllers/app_shutdown_controller.py
 
-import inspect
 import logging
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, List
 
 from PyQt6.QtCore import QThreadPool
-from PyQt6.QtGui import QCloseEvent
-from PyQt6.QtWidgets import QApplication, QMainWindow
+from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 
@@ -40,59 +40,22 @@ class ShutdownTimeoutError(Exception):
     pass
 
 
-@runtime_checkable
-class ShutdownCallable(Protocol):
-    """Callable executed during shutdown."""
-
-    def __call__(self, timeout_ms: int) -> bool: ...
-
-
-def _normalize_shutdown_callable(handler: Callable, name: str) -> ShutdownCallable:
-    """Wrap arbitrary callables into the shutdown protocol."""
-    if isinstance(handler, ShutdownCallable):
-        return handler
-
-    sig = inspect.signature(handler)
-    params = list(sig.parameters.values())
-    if len(params) == 0:
-
-        def wrapper(timeout_ms: int) -> bool:  # type: ignore[override]
-            result = handler()  # type: ignore[misc]
-            return bool(True if result is None else result)
-
-        return wrapper
-
-    if len(params) == 1:
-
-        def wrapper(timeout_ms: int) -> bool:
-            result = handler(timeout_ms)  # type: ignore[misc]
-            return bool(True if result is None else result)
-
-        return wrapper
-
-    raise TypeError(f"Shutdown handler '{name}' must accept 0 or 1 arguments")
-
-
 class ShutdownHandler:
     """Wrapper for shutdown operations with metadata."""
 
     def __init__(
         self,
         name: str,
-        callback: ShutdownCallable,
+        handler: Callable,
         priority: ShutdownPriority,
-        timeout: int | None = None,
+        timeout: int = None,
         critical: bool = False,
     ):
         self.name = name
-        self.callback = callback
+        self.handler = handler
         self.priority = priority
         self.timeout = timeout or app_config.get("shutdown.default_timeout", 2000)
         self.critical = critical  # If True, error will interrupt shutdown
-
-    def run(self, timeout_ms: int) -> bool:
-        result = self.callback(timeout_ms)
-        return bool(True if result is None else result)
 
 
 class AppShutdownController:
@@ -108,32 +71,28 @@ class AppShutdownController:
     - Safe shutdown in multithreaded environment
     """
 
-    def __init__(self, main_window: "QMainWindow"):
+    def __init__(self, main_window: 'QMainWindow'):
         self.window = main_window
-        self.shutdown_handlers: list[ShutdownHandler] = []
+        self.shutdown_handlers: List[ShutdownHandler] = []
         self.shutdown_in_progress = False
-        self._shutdown_lock: Optional[threading.RLock] = threading.RLock()
+        self._shutdown_lock = threading.RLock()
         self._shutdown_started_ts: float | None = None
         self._register_default_handlers()
 
         # Settings from configuration
         self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
         self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
-
+        
         # ✅ Flag for tracking cleanup
         self._cleaned_up = False
 
-    def perform_shutdown(self, event: "QCloseEvent") -> None:
+    def perform_shutdown(self, event: 'QCloseEvent') -> None:
         """Main method - fully compatible with original interface.
-
+        
         ✅ FIX: Added parameter typing.
-
+        
             event: Window close event
         """
-        if self._shutdown_lock is None:
-            logger.error("Shutdown lock is None, cannot proceed safely")
-            return
-
         with self._shutdown_lock:
             if self.shutdown_in_progress:
                 logger.warning(
@@ -160,11 +119,15 @@ class AppShutdownController:
     def _safe_close_event(self, event):
         """Safe call to parent closeEvent with fallback."""
         try:
-            # Use proper super() call to ensure correct event propagation
-            super(type(self.window), self.window).closeEvent(event)
-        except AttributeError:
-            # Parent class doesn't have closeEvent, accept the event
+            # Try to find parent class with closeEvent
+            for base_class in self.window.__class__.__mro__[1:]:
+                if hasattr(base_class, "closeEvent"):
+                    base_class.closeEvent(self.window, event)
+                    return
+
+            # If not found, just accept the event
             event.accept()
+
         except Exception as exc:
             logger.error("Error in base closeEvent: %s", exc, exc_info=True)
             # In any case accept the event so the application can close
@@ -204,11 +167,9 @@ class AppShutdownController:
                     and len(handlers) > 1
                     and priority != ShutdownPriority.CRITICAL
                 ):
-                    logger.warning(
-                        "Parallel shutdown execution is deprecated; running sequentially for priority %s",
-                        priority.name,
-                    )
-                self._execute_handlers_sequential(handlers, remaining_ms=remaining)
+                    self._execute_handlers_parallel(handlers, remaining_ms=remaining)
+                else:
+                    self._execute_handlers_sequential(handlers, remaining_ms=remaining)
             except Exception as exc:
                 logger.error(
                     "Error in priority %s: %s", priority.name, exc, exc_info=True
@@ -218,9 +179,9 @@ class AppShutdownController:
 
     def _group_handlers_by_priority(
         self,
-    ) -> dict[ShutdownPriority, list[ShutdownHandler]]:
+    ) -> Dict[ShutdownPriority, List[ShutdownHandler]]:
         """Group handlers by priorities."""
-        groups: dict[ShutdownPriority, list[ShutdownHandler]] = {}
+        groups = {}
         for handler in self.shutdown_handlers:
             if handler.priority not in groups:
                 groups[handler.priority] = []
@@ -228,7 +189,7 @@ class AppShutdownController:
         return groups
 
     def _execute_handlers_sequential(
-        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
     ):
         """Sequential execution of handlers with global deadline consideration."""
         for handler in handlers:
@@ -244,13 +205,55 @@ class AppShutdownController:
             self._execute_single_handler(handler, override_timeout_ms=eff_timeout)
 
     def _execute_handlers_parallel(
-        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
     ):
-        """Deprecated parallel execution shim - falls back to sequential."""
-        logger.warning(
-            "Parallel handler execution is no longer supported; running sequentially"
+        """Parallel execution of handlers (for non-critical operations) with global deadline consideration."""
+        max_workers = min(len(handlers), 4)
+        # Effective timeout — minimum of maximum handler timeout and remaining time
+        max_handler_timeout = max(h.timeout for h in handlers) if handlers else 0
+        eff_ms = (
+            min(max_handler_timeout + 1000, remaining_ms)
+            if remaining_ms is not None
+            else (max_handler_timeout + 1000)
         )
-        self._execute_handlers_sequential(handlers, remaining_ms=remaining_ms)
+        timeout_seconds = (eff_ms / 1000.0) if eff_ms is not None else None
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_handler = {
+                executor.submit(
+                    self._execute_single_handler,
+                    handler,
+                    min(handler.timeout, remaining_ms)
+                    if remaining_ms is not None
+                    else handler.timeout,
+                ): handler
+                for handler in handlers
+            }
+
+            try:
+                # Если timeout_seconds None, ждем без таймаута
+                iterator = (
+                    as_completed(future_to_handler, timeout=timeout_seconds)
+                    if timeout_seconds is not None
+                    else as_completed(future_to_handler)
+                )
+                for future in iterator:
+                    handler = future_to_handler[future]
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        error_msg = f"Parallel handler {handler.name} failed: {exc}"
+                        if handler.critical:
+                            logger.critical(error_msg, exc_info=True)
+                            raise
+                        else:
+                            logger.error(error_msg, exc_info=True)
+
+            except FutureTimeoutError:
+                logger.error("Timeout waiting for parallel handlers completion")
+                for future in future_to_handler:
+                    if not future.done():
+                        future.cancel()
 
     @contextmanager
     def _timeout_context(self, timeout_ms: int, handler_name: str):
@@ -282,15 +285,13 @@ class AppShutdownController:
     ):
         """Execute single handler with real timeout and extended logging.
 
-        Execute handler directly in the main Qt thread with timeout using QTimer.
-        This ensures Qt objects are accessed from the correct thread.
+        Execute handler in separate thread and wait for completion via Thread.join(timeout).
+        In case of timeout — log and continue (or interrupt for critical) without creating ThreadPoolExecutor.
         """
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout
         )
-        eff_timeout_sec = (
-            max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
-        )
+        eff_timeout_sec = max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
 
         logger.debug(
             "Executing shutdown handler: %s (timeout=%sms, critical=%s)",
@@ -299,47 +300,71 @@ class AppShutdownController:
             handler.critical,
         )
 
-        # Execute handler directly in the main thread to avoid Qt thread issues
         err_holder: list[BaseException] = []
-        result_holder: list[bool] = []
+
+        def _runner():
+            try:
+                handler.handler()
+            except BaseException as e:  # noqa: BLE001
+                err_holder.append(e)
+
+        t = threading.Thread(name=f"shutdown:{handler.name}", target=_runner, daemon=True)
 
         try:
-            result = handler.run(eff_timeout_ms or handler.timeout)
-            result_holder.append(result)
-        except BaseException as e:  # noqa: BLE001
-            err_holder.append(e)
+            t.start()
+            if eff_timeout_sec is None:
+                t.join()  # без таймаута
+            else:
+                t.join(timeout=eff_timeout_sec)
 
-        # Handle timeout using QTimer if needed
-        if eff_timeout_sec is not None:
-            # For timeout handling, we would need to implement a different approach
-            # since we can't easily interrupt execution in the main thread
-            # For now, we'll execute without timeout enforcement in the main thread
-            # which is safer than accessing Qt objects from background threads
-            pass
+            if t.is_alive():
+                msg = (
+                    f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
+                )
+                if handler.critical:
+                    logger.critical(msg)
+                    raise ShutdownTimeoutError(msg)
+                else:
+                    logger.error(msg)
+                    return
 
-        if err_holder:
-            exc = err_holder[0]
+            # Поток завершился — проверим, была ли ошибка
+            if err_holder:
+                exc = err_holder[0]
+                if handler.critical:
+                    logger.critical(
+                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                    )
+                    raise exc
+                else:
+                    logger.error(
+                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                    )
+                    return
+
+            logger.debug("Handler %s completed successfully", handler.name)
+            return
+        except ShutdownTimeoutError:
+            # Уже залогировано выше, пробрасываем дальше для критичных кейсов
+            raise
+        except Exception as exc:
+            # Непредвиденные ошибки инфраструктуры исполнения
             if handler.critical:
                 logger.critical(
-                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                    "Execution infrastructure failed for handler '%s': %s",
+                    handler.name,
+                    exc,
+                    exc_info=True,
                 )
-                raise exc
+                raise
             else:
                 logger.error(
-                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                    "Execution infrastructure failed for handler '%s': %s",
+                    handler.name,
+                    exc,
+                    exc_info=True,
                 )
                 return
-
-        if result_holder and not result_holder[0]:
-            msg = f"Handler '{handler.name}' reported failure"
-            if handler.critical:
-                logger.critical(msg)
-                raise RuntimeError(msg)
-            logger.error(msg)
-            return
-
-        logger.debug("Handler %s completed successfully", handler.name)
-        return
 
     def _register_default_handlers(self):
         """Register default handlers (compatibility with original code)."""
@@ -389,15 +414,14 @@ class AppShutdownController:
         name: str,
         handler: Callable,
         priority: ShutdownPriority = ShutdownPriority.NORMAL,
-        timeout: Optional[int] = None,
+        timeout: int = None,
         critical: bool = False,
     ):
         """Add custom shutdown handler."""
+        # Check if handler with this name already exists
         self.remove_shutdown_handler(name)
-        normalized = _normalize_shutdown_callable(handler, name)
-        shutdown_handler = ShutdownHandler(
-            name, normalized, priority, timeout, critical
-        )
+
+        shutdown_handler = ShutdownHandler(name, handler, priority, timeout, critical)
         self.shutdown_handlers.append(shutdown_handler)
         logger.debug(
             "Registered shutdown handler: %s (priority: %s)", name, priority.name
@@ -412,7 +436,7 @@ class AppShutdownController:
             logger.debug("Removed shutdown handler: %s", name)
         return removed
 
-    def get_shutdown_handlers(self) -> list[dict[str, Any]]:
+    def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
         """Get information about all registered handlers (for debugging)."""
         return [
             {
@@ -426,7 +450,7 @@ class AppShutdownController:
 
     # =================== ORIGINAL METHODS (refactoring) ===================
 
-    def _shutdown_controllers(self, timeout_ms: int) -> bool:
+    def _shutdown_controllers(self):
         """Stop background controllers - improved version of original."""
         controllers_to_shutdown = [
             ("links", "Links controller"),
@@ -460,9 +484,8 @@ class AppShutdownController:
                 logger.error(
                     "Error shutting down %s: %s", display_name, exc, exc_info=True
                 )
-        return True
 
-    def _wait_for_thread_pools(self, timeout_ms: int) -> bool:
+    def _wait_for_thread_pools(self):
         """Wait for thread completion - improved version of original."""
         timeout = app_config.ui.get_thread_pool_shutdown_timeout()
 
@@ -508,28 +531,27 @@ class AppShutdownController:
                             )
         except Exception as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
-        return True
 
-    def _backup_database(self, timeout_ms: int) -> bool:
+    def _backup_database(self):
         """Create database backup - improved version of original."""
         try:
             if not hasattr(self.window, "db"):
                 logger.debug("No 'db' attribute found on window, skipping backup")
-                return True
+                return
 
             db = self.window.db
             if db is None:
                 logger.debug("Database instance is None, skipping backup")
-                return True
+                return
 
             if not hasattr(db, "backup"):
                 logger.debug("Database has no backup method")
-                return True
+                return
 
             backup_method = db.backup
             if not callable(backup_method):
                 logger.debug("Database backup attribute is not callable")
-                return True
+                return
 
             logger.info("Creating database backup...")
             backup_method()
@@ -538,48 +560,49 @@ class AppShutdownController:
         except Exception as exc:
             # Backup error is not critical, but we log it
             logger.error("Database backup failed: %s", exc, exc_info=True)
-            return False
-        return True
 
     def cleanup(self) -> None:
         """Release controller resources.
-
-        Reset controller state to allow reuse while preserving the lock.
+        
+        ✅ FIX: Added cleanup method to prevent memory leaks.
+        
         Called automatically after shutdown sequence completion.
         Idempotent - can be called multiple times.
         """
         if self._cleaned_up:
             return
-
+        
         try:
-            # Reset state flags instead of nullifying the lock to allow reuse
-            self.shutdown_in_progress = False
-            self._shutdown_started_ts = None
+            # Release RLock
+            if hasattr(self, '_shutdown_lock') and self._shutdown_lock:
+                try:
+                    # RLock doesn't require explicit release, but we clear the reference
+                    self._shutdown_lock = None
+                except Exception as e:
+                    logger.debug("Error clearing shutdown lock: %s", e)
             
             # Clear handlers
-            if hasattr(self, "shutdown_handlers"):
+            if hasattr(self, 'shutdown_handlers'):
                 self.shutdown_handlers.clear()
-
+            
             self._cleaned_up = True
             logger.debug("AppShutdownController cleanup completed")
-
+            
         except Exception as exc:
-            logger.error(
-                "Error during AppShutdownController cleanup: %s", exc, exc_info=True
-            )
+            logger.error("Error during AppShutdownController cleanup: %s", exc, exc_info=True)
 
 
 # ===================== HELPER FUNCTIONS =====================
 
 
-def create_shutdown_controller(main_window: "QMainWindow") -> AppShutdownController:
+def create_shutdown_controller(main_window: 'QMainWindow') -> AppShutdownController:
     """Factory function to create controller with default settings.
-
+    
     ✅ FIX: Added parameter typing.
-
+    
     Args:
         main_window: Application main window
-
+        
     Returns:
         Configured AppShutdownController instance
     """

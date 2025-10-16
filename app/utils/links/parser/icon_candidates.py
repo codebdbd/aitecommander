@@ -321,126 +321,6 @@ def _collect_link_icons(
         return candidates, manifest_urls, False
 
 
-def _deduplicate_urls(urls: list[str]) -> list[str]:
-    """Deduplicate URLs while preserving order."""
-    try:
-        return list(dict.fromkeys(urls))
-    except Exception:
-        seen = set()
-        result = []
-        for u in urls:
-            if u not in seen:
-                seen.add(u)
-                result.append(u)
-        return result
-
-
-def _fetch_manifest_icons(m_url: str, config) -> list[str]:
-    """Fetch and parse icons from a single manifest URL."""
-    urls = []
-    try:
-        m_resp = http_request(m_url, config, allow_non_2xx=True)
-        if m_resp and getattr(m_resp, "ok", False):
-            try:
-                m_json = json.loads(m_resp.text)
-                icons = m_json.get("icons") or []
-                for icon in icons:
-                    src = icon.get("src")
-                    if not src:
-                        continue
-                    i_url = urljoin(m_url, src)
-                    urls.append(i_url)
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Failed to parse manifest JSON from %s",
-                    m_url,
-                    exc_info=True,
-                )
-    except Exception:
-        logger.warning("Failed to fetch manifest %s", m_url, exc_info=True)
-    return urls
-
-
-def _fetch_all_manifests_async(
-    manifest_urls: list[str], config, on_manifest_icons: Callable[[list[str]], None]
-) -> None:
-    """Fetch all manifests asynchronously and invoke callback."""
-    all_urls: list[str] = []
-
-    if not manifest_urls:
-        return
-
-    try:
-        executor = _get_manifest_executor()
-        futures = [
-            executor.submit(_fetch_manifest_icons, m_url, config)
-            for m_url in manifest_urls
-        ]
-        for fut in futures:
-            try:
-                urls = fut.result() or []
-                if urls:
-                    all_urls.extend(urls)
-            except Exception:
-                logger.warning("Manifest fetch task raised an exception", exc_info=True)
-    except Exception:
-        logger.warning("Manifest executor failure", exc_info=True)
-
-    if all_urls:
-        all_urls = _deduplicate_urls(all_urls)
-        try:
-            on_manifest_icons(all_urls)
-        except Exception:
-            logger.warning(
-                "on_manifest_icons callback raised an exception", exc_info=True
-            )
-
-
-def _create_icon_candidate(i_url: str, size_str: str | None, fmt: str) -> IconCandidate:
-    """Create IconCandidate from manifest icon data."""
-    return IconCandidate(
-        url=i_url,
-        size=parse_icon_size(size_str) if size_str else 0,
-        format=fmt,
-        format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
-        base_priority=1,
-        media_priority=0,
-        kind="manifest",
-    )
-
-
-def _process_manifest_sync(m_url: str, config, candidates: list[IconCandidate]) -> None:
-    """Process single manifest synchronously and add to candidates."""
-    try:
-        m_resp = http_request(m_url, config, allow_non_2xx=True)
-        if m_resp and getattr(m_resp, "ok", False):
-            try:
-                m_json = json.loads(m_resp.text)
-                icons = m_json.get("icons") or []
-                for icon in icons:
-                    src = icon.get("src")
-                    if not src:
-                        continue
-                    i_url = urljoin(m_url, src)
-                    sizes = str(icon.get("sizes") or "").split()
-                    type_attr = icon.get("type") or ""
-                    fmt = _detect_format(i_url, type_attr)
-
-                    if sizes:
-                        for sz in sizes:
-                            candidates.append(_create_icon_candidate(i_url, sz, fmt))
-                    else:
-                        candidates.append(_create_icon_candidate(i_url, None, fmt))
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Failed to parse manifest JSON from %s (sync)",
-                    m_url,
-                    exc_info=True,
-                )
-    except Exception:
-        logger.warning("Failed to fetch manifest %s (sync)", m_url, exc_info=True)
-
-
 def _handle_manifests(
     manifest_urls: list[str],
     base_url: str,
@@ -458,25 +338,152 @@ def _handle_manifests(
       otherwise, icons from manifests are added to candidates synchronously.
     - candidates: collection that can be extended.
     """
+    # Разрешаем обработку манифестов даже если config не передан: http_request
+    # корректно работает с None, подставляя значения по умолчанию из constants.
     if not manifest_urls:
         return
 
-    manifest_urls = _deduplicate_urls(manifest_urls)
+    # Deduplicate while preserving order to avoid duplicate network requests
+    try:
+        manifest_urls = list(dict.fromkeys(manifest_urls))
+    except Exception:
+        # Fallback in case of unexpected types; better to proceed than fail
+        manifest_urls = list(manifest_urls)
 
-    # Async path: fetch in background and invoke callback
     if on_manifest_icons is not None:
+
+        def _fetch_all_manifests_and_emit():
+            all_urls: list[str] = []
+
+            def _fetch_one(m_url: str) -> list[str]:
+                urls: list[str] = []
+                try:
+                    m_resp_local = http_request(m_url, config, allow_non_2xx=True)
+                    if m_resp_local and getattr(m_resp_local, "ok", False):
+                        try:
+                            m_json = json.loads(m_resp_local.text)
+                            icons = m_json.get("icons") or []
+                            for icon in icons:
+                                src = icon.get("src")
+                                if not src:
+                                    continue
+                                i_url = urljoin(m_url, src)
+                                urls.append(i_url)
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "Failed to parse manifest JSON from %s",
+                                m_url,
+                                exc_info=True,
+                            )
+                except Exception:
+                    logger.warning("Failed to fetch manifest %s", m_url, exc_info=True)
+                return urls
+
+            if not manifest_urls:
+                return
+
+            try:
+                # Reuse the global manifest executor for per-URL fetches.
+                executor = _get_manifest_executor()
+                futures = [
+                    executor.submit(_fetch_one, m_url) for m_url in manifest_urls
+                ]
+                # Collect results sequentially to support dummy futures used in tests
+                for fut in futures:
+                    try:
+                        urls = fut.result() or []
+                        if urls:
+                            all_urls.extend(urls)
+                    except Exception:
+                        logger.warning(
+                            "Manifest fetch task raised an exception", exc_info=True
+                        )
+            except Exception:
+                logger.warning("Manifest executor failure", exc_info=True)
+
+            if all_urls:
+                # Deduplicate while preserving order before invoking callback
+                try:
+                    all_urls = list(dict.fromkeys(all_urls))
+                except Exception:
+                    # If something unexpected happens, fall back to a best-effort unique list
+                    seen = set()
+                    tmp = []
+                    for u in all_urls:
+                        if u not in seen:
+                            seen.add(u)
+                            tmp.append(u)
+                    all_urls = tmp
+                try:
+                    on_manifest_icons(all_urls)
+                except Exception:
+                    logger.warning(
+                        "on_manifest_icons callback raised an exception", exc_info=True
+                    )
+
+        # Run the coordinator in a separate thread, not via the executor,
+        # so that only per-URL fetches are submitted to the global pool.
+        # In tests, threading.Thread can be monkeypatched to run synchronously.
         threading.Thread(
-            target=lambda: _fetch_all_manifests_async(
-                manifest_urls, config, on_manifest_icons
-            ),
+            target=_fetch_all_manifests_and_emit,
             name="manifest-coordinator",
             daemon=True,
         ).start()
         return
 
-    # Sync path: enrich candidates directly
+    # sync path: enrich candidates
     for m_url in manifest_urls:
-        _process_manifest_sync(m_url, config, candidates)
+        try:
+            m_resp = http_request(m_url, config, allow_non_2xx=True)
+            if m_resp and getattr(m_resp, "ok", False):
+                try:
+                    m_json = json.loads(m_resp.text)
+                    icons = m_json.get("icons") or []
+                    for icon in icons:
+                        src = icon.get("src")
+                        if not src:
+                            continue
+                        i_url = urljoin(m_url, src)
+                        sizes = str(icon.get("sizes") or "").split()
+                        type_attr = icon.get("type") or ""
+                        fmt = _detect_format(i_url, type_attr)
+                        if sizes:
+                            for sz in sizes:
+                                candidates.append(
+                                    IconCandidate(
+                                        url=i_url,
+                                        size=parse_icon_size(sz),
+                                        format=fmt,
+                                        format_rank=FORMAT_RANK.get(
+                                            fmt, FORMAT_RANK["unknown"]
+                                        ),
+                                        base_priority=1,
+                                        media_priority=0,
+                                        kind="manifest",
+                                    )
+                                )
+                        else:
+                            candidates.append(
+                                IconCandidate(
+                                    url=i_url,
+                                    size=0,
+                                    format=fmt,
+                                    format_rank=FORMAT_RANK.get(
+                                        fmt, FORMAT_RANK["unknown"]
+                                    ),
+                                    base_priority=1,
+                                    media_priority=0,
+                                    kind="manifest",
+                                )
+                            )
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Failed to parse manifest JSON from %s (sync)",
+                        m_url,
+                        exc_info=True,
+                    )
+        except Exception:
+            logger.warning("Failed to fetch manifest %s (sync)", m_url, exc_info=True)
 
 
 def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
@@ -582,16 +589,14 @@ def _append_og_image(
 
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
-            if meta and hasattr(meta, "get"):
-                content = meta.get("content")
-                if content and isinstance(content, str):
-                    og_content = content or ""
-                    og_url = urljoin(base_url, og_content)
-                    low = og_url.lower()
-                    if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
-                        # In strict mode, require keywords; in soft mode, absence of banned markers is sufficient.
-                        if (not strict) or any(k in low for k in ["icon", "favicon"]):
-                            og_urls.append(og_url)
+            if meta and meta.get("content"):
+                og_content = meta.get("content") or ""
+                og_url = urljoin(base_url, og_content)
+                low = og_url.lower()
+                if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
+                    # In strict mode, require keywords; in soft mode, absence of banned markers is sufficient.
+                    if (not strict) or any(k in low for k in ["icon", "favicon"]):
+                        og_urls.append(og_url)
 
         _maybe_add_og("og:image")
         _maybe_add_og("og:image:secure_url")
@@ -620,6 +625,7 @@ def find_favicon_candidates(
     on_manifest_icons: Callable[[list[str]], None] | None = None,
     use_external: bool = False,
 ) -> list[str]:
+   
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
     _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
 
@@ -652,12 +658,7 @@ def find_favicon_candidates(
     og_urls = _append_og_image(soup, base_url, candidates)
     ordered_urls = [c.url for c in candidates] + og_urls
     seen = set()
-    filtered_urls = []
-    for url in ordered_urls:
-        if url not in seen:
-            seen.add(url)
-            filtered_urls.append(url)
-    ordered_urls = filtered_urls
+    ordered_urls = [url for url in ordered_urls if not (url in seen or seen.add(url))]
     return ordered_urls
 
 

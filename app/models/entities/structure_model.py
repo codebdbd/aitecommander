@@ -3,10 +3,9 @@
 """Model for working with structure (spheres, sections, categories)."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-if TYPE_CHECKING:
-    from app.models.db import Database
+from app.models.db import Database
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 class StructureModel:
     """Model for working with structure."""
 
-    def __init__(self, db: "Database", logger: Optional[logging.Logger] = None):
+    def __init__(self, db: Database, logger: Optional[logging.Logger] = None):
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
 
@@ -32,21 +31,21 @@ class StructureModel:
         except Exception as e:
             self.logger.error("Error committing transaction: %s", e, exc_info=True)
 
-    def get_spheres(self) -> list[dict[str, Any]]:
+    def get_spheres(self) -> List[Dict[str, Any]]:
         """Returns list of all spheres."""
         return self.db.spheres.get_spheres() or []
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
         """Returns sphere by its ID."""
         return self.db.spheres.get_sphere_by_id(sphere_id)
 
-    def upsert_sphere(self, data: dict[str, Any]) -> int:
+    def upsert_sphere(self, data: Dict[str, Any]) -> int:
         """Inserts or updates sphere. Returns record ID."""
         sid = self.db.spheres.upsert_sphere(data)
         self._commit_if_in_tx()
         return sid
 
-    def create_sphere(self, data: dict[str, Any]) -> Optional[int]:
+    def create_sphere(self, data: Dict[str, Any]) -> Optional[int]:
         """Creates new sphere (wrapper for upsert_sphere)."""
         try:
             return self.upsert_sphere(data)
@@ -54,7 +53,7 @@ class StructureModel:
             self.logger.error("Error creating sphere: %s", e, exc_info=True)
             return None
 
-    def update_sphere(self, sphere_id: int, data: dict[str, Any]) -> bool:
+    def update_sphere(self, sphere_id: int, data: Dict[str, Any]) -> bool:
         """Updates sphere by ID (wrapper for upsert_sphere)."""
         try:
             payload = dict(data) if data else {}
@@ -67,23 +66,23 @@ class StructureModel:
             )
             return False
 
-    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
+    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Returns list of sections for specified sphere."""
         return self.db.sections.get_sections(sphere_id) or []
 
-    def get_section_by_id(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_by_id(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Returns section by its ID."""
         return self.db.sections.get_section_by_id(section_id)
 
-    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
+    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
         """Returns list of categories for specified section."""
         return self.db.categories.get_categories(section_id) or []
 
-    def get_category_by_id(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_by_id(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Returns category by its ID."""
         return self.db.categories.get_category_by_id(category_id)
 
-    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Returns category hierarchy (sphere_id, section_id)."""
         hierarchy_data = self.db.categories.get_category_hierarchy(category_id)
         if not hierarchy_data:
@@ -127,13 +126,13 @@ class StructureModel:
             )
             return None
 
-    def upsert_section(self, data: dict[str, Any]) -> int:
+    def upsert_section(self, data: Dict[str, Any]) -> int:
         """Inserts or updates section. Returns record ID."""
         sid = self.db.sections.upsert_section(data)
         self._commit_if_in_tx()
         return sid
 
-    def upsert_category(self, data: dict[str, Any]) -> int:
+    def upsert_category(self, data: Dict[str, Any]) -> int:
         """Inserts or updates category. Returns record ID."""
         cid = self.db.categories.upsert_category(data)
         self._commit_if_in_tx()
@@ -142,7 +141,7 @@ class StructureModel:
     # ---------------------------------------------------------------------
     # Wrappers for business logic compatibility (expected methods)
     # ---------------------------------------------------------------------
-    def create_section(self, data: dict[str, Any]) -> Optional[int]:
+    def create_section(self, data: Dict[str, Any]) -> Optional[int]:
         """Creates new section (wrapper for upsert_section)."""
         try:
             return self.upsert_section(data)
@@ -150,7 +149,7 @@ class StructureModel:
             self.logger.error("Error creating section: %s", e, exc_info=True)
             return None
 
-    def update_section(self, section_id: int, data: dict[str, Any]) -> bool:
+    def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
         """Updates section by ID (wrapper for upsert_section)."""
         try:
             payload = dict(data) if data else {}
@@ -163,7 +162,7 @@ class StructureModel:
             )
             return False
 
-    def update_category(self, category_id: int, data: dict[str, Any]) -> bool:
+    def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
         """Updates category by ID (wrapper for upsert_category)."""
         try:
             payload = dict(data) if data else {}
@@ -176,11 +175,11 @@ class StructureModel:
             )
             return False
 
-    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Returns section data (alias for get_section_by_id)."""
         return self.get_section_by_id(section_id)
 
-    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Returns category data (alias for get_category_by_id)."""
         return self.get_category_by_id(category_id)
 
@@ -217,7 +216,7 @@ class StructureModel:
             self.logger.error("Error getting first category: %s", e, exc_info=True)
             return None
 
-    def get_categories_batch(self, section_ids: list[int]) -> list[dict[str, Any]]:
+    def get_categories_batch(self, section_ids: List[int]) -> List[Dict[str, Any]]:
         """Gets categories for multiple sections with one optimized query."""
         if not section_ids:
             return []
@@ -235,7 +234,7 @@ class StructureModel:
             )
             return []
 
-    def count_nested_objects_for_section(self, section_id: int) -> tuple[int, int]:
+    def count_nested_objects_for_section(self, section_id: int) -> Tuple[int, int]:
         """Counts categories and links in section."""
         categories_data = self.db.categories.get_categories(section_id)
         cats_count = len(categories_data) if categories_data else 0
@@ -250,11 +249,11 @@ class StructureModel:
 
         return cats_count, links_count
 
-    def update_item_positions(self, table_name: str, ids_in_order: list[int]) -> None:
+    def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> None:
         """Updates item positions in specified table."""
         self.db.update_item_positions(table_name, ids_in_order)
 
-    def create_category(self, category_data: dict[str, Any]) -> Optional[int]:
+    def create_category(self, category_data: Dict[str, Any]) -> Optional[int]:
         """Creates new category."""
         try:
             cat_id = self.db.categories.insert_category(category_data)
@@ -266,8 +265,8 @@ class StructureModel:
             return None
 
     def create_categories_bulk(
-        self, items: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+        self, items: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Bulk category creation (atomically).
 
         Delegates to `CategoryModel.insert_categories_bulk` and returns list
@@ -277,10 +276,12 @@ class StructureModel:
         try:
             return self.db.categories.insert_categories_bulk(items or []) or []
         except Exception as e:
-            self.logger.error("Error bulk creating categories: %s", e, exc_info=True)
+            self.logger.error(
+                "Error bulk creating categories: %s", e, exc_info=True
+            )
             return []
 
-    def create_link(self, link_data: dict[str, Any]) -> Optional[int]:
+    def create_link(self, link_data: Dict[str, Any]) -> Optional[int]:
         """Creates or updates link (wrapper for upsert_link).
 
         Returns record ID. For new records link model performs
@@ -297,7 +298,7 @@ class StructureModel:
             self.logger.error("Error creating link: %s", e, exc_info=True)
             return None
 
-    def get_links(self, category_id: int) -> list[dict[str, Any]]:
+    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         """Gets list of links for specified category."""
         try:
             links_raw = self.db.links.get_links(category_id)
@@ -324,7 +325,7 @@ class StructureModel:
             )
             return 0
 
-    def count_links_by_categories(self, category_ids: list[int]) -> dict[int, int]:
+    def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
         """Batch link count for multiple categories in one query.
 
         Returns dictionary {category_id: count}. In case of error returns empty dictionary.

@@ -7,6 +7,7 @@ from app.config_data import app_config
 from i18n.language_service import LanguageService
 from i18n.locale_utils import format_number
 
+
 _TR_CONTEXT = "StatusBar"
 
 
@@ -91,136 +92,6 @@ def setup_status_bar(window) -> QStatusBar:
     return status
 
 
-def _set_text_if_changed(label, text: str) -> None:
-    """Safely update label text only if changed."""
-    try:
-        if label is None:
-            return
-        current = label.text() if hasattr(label, "text") else None
-        if current != text:
-            label.setText(text)
-    except Exception:
-        pass
-
-
-def _update_counter(window) -> None:
-    """Update links/categories counter in status bar."""
-    try:
-        stack = getattr(window, "stack", None)
-        tiles_active = False
-        if stack is not None:
-            tiles_index = app_config.ui.get_stack_index_tiles()
-            try:
-                current_index = stack.currentIndex()
-            except Exception:
-                current_index = None
-            tiles_active = current_index == tiles_index
-
-        if tiles_active and hasattr(window, "tiles") and window.tiles:
-            try:
-                cats = int(window.tiles.get_categories_count())
-            except Exception:
-                cats = 0
-            _set_text_if_changed(
-                window.links_count_label,
-                _arg(_tr("Categories: %1"), format_number(cats)),
-            )
-        else:
-            links = getattr(window, "links", None)
-            if links is not None:
-                _set_text_if_changed(
-                    window.links_count_label,
-                    _arg(_tr("Links: %1"), format_number(links.get_row_count())),
-                )
-            else:
-                _set_text_if_changed(
-                    window.links_count_label,
-                    _arg(_tr("Links: %1"), format_number(0)),
-                )
-    except Exception:
-        _set_text_if_changed(
-            window.links_count_label,
-            _arg(_tr("Links: %1"), format_number(0)),
-        )
-
-
-def _update_db_status(window) -> None:
-    """Update database connection status in status bar."""
-    dc = getattr(window, "database_controller", None)
-    db = getattr(dc, "db", None)
-    if db is not None and getattr(db, "is_connected", lambda: False)():
-        _set_text_if_changed(window.db_status_label, _tr("Database: connected"))
-    else:
-        _set_text_if_changed(window.db_status_label, _tr("Database: disconnected"))
-
-
-def _build_tree_path(window) -> list[str]:
-    """Build path from tree current index."""
-    parts: list[str] = []
-    tree = getattr(window, "tree", None)
-    try:
-        if tree is not None:
-            idx = tree.currentIndex()
-            if idx and idx.isValid():
-                cur = idx
-                while cur.isValid():
-                    text = cur.data()
-                    if isinstance(text, str) and text:
-                        parts.insert(0, text)
-                    cur = cur.parent()
-    except Exception:
-        parts = []
-    return parts
-
-
-def _add_sphere_prefix(window, parts: list[str]) -> None:
-    """Add active sphere name as prefix to path."""
-    try:
-        sb = getattr(window, "structure_business", None)
-        if sb is not None and getattr(sb, "current_sphere_id", None):
-            sphere_data = sb.get_sphere_by_id(sb.current_sphere_id)
-            if sphere_data and isinstance(sphere_data.get("name"), str):
-                parts.insert(0, sphere_data["name"])
-    except Exception:
-        pass
-
-
-def _add_selected_link(window, parts: list[str]) -> None:
-    """Append selected link name from table to path."""
-    try:
-        table = getattr(window, "table", None)
-        if table is not None:
-            selection_model = table.selectionModel()
-            idx = (
-                table.currentIndex()
-                if table.currentIndex().isValid()
-                else (selection_model.currentIndex() if selection_model else None)
-            )
-            if idx and idx.isValid():
-                name_idx = idx.sibling(idx.row(), 1)
-                name_data = name_idx.data() if name_idx.isValid() else None
-                if isinstance(name_data, str) and name_data.strip():
-                    parts.append(name_data.strip())
-    except Exception:
-        pass
-
-
-def _update_path(window) -> None:
-    """Update path label with current hierarchy."""
-    parts = _build_tree_path(window)
-    _add_sphere_prefix(window, parts)
-    _add_selected_link(window, parts)
-
-    if parts:
-        _set_text_if_changed(
-            window.path_label,
-            _tr("Path: ") + " > ".join(parts),
-        )
-    else:
-        if hasattr(window, "path_label") and window.path_label:
-            _set_text_if_changed(window.path_label, _tr("Path: "))
-
-
 def update_status_bar(window) -> None:
     """Update the status bar contents for the given window.
 
@@ -229,10 +100,121 @@ def update_status_bar(window) -> None:
     - Build the path of the current structure item and active sphere
     """
     try:
-        _update_counter(window)
-        _update_db_status(window)
-        _update_path(window)
+        def _set_text_if_changed(label, text: str) -> None:
+            try:
+                if label is None:
+                    return
+                current = label.text() if hasattr(label, "text") else None
+                if current != text:
+                    label.setText(text)
+            except Exception:
+                # Never crash the UI due to status bar issues
+                pass
+
+        # Counter: if category tiles mode is active — show number of categories,
+        # otherwise show number of links in the table
+        try:
+            stack = getattr(window, "stack", None)
+            tiles_active = False
+            if stack is not None:
+                tiles_index = app_config.ui.get_stack_index_tiles()
+                try:
+                    current_index = stack.currentIndex()
+                except Exception:
+                    current_index = None
+                tiles_active = current_index == tiles_index
+            if tiles_active and hasattr(window, "tiles") and window.tiles:
+                try:
+                    cats = int(window.tiles.get_categories_count())
+                except Exception:
+                    cats = 0
+                _set_text_if_changed(
+                    window.links_count_label,
+                    _arg(_tr("Categories: %1"), format_number(cats)),
+                )
+            else:
+                links = getattr(window, "links", None)
+                if links is not None:
+                    _set_text_if_changed(
+                        window.links_count_label,
+                        _arg(_tr("Links: %1"), format_number(links.get_row_count())),
+                    )
+                else:
+                    _set_text_if_changed(
+                        window.links_count_label,
+                        _arg(_tr("Links: %1"), format_number(0)),
+                    )
+        except Exception:
+            # On unexpected errors — do not crash UI and show 0
+            _set_text_if_changed(
+                window.links_count_label,
+                _arg(_tr("Links: %1"), format_number(0)),
+            )
+
+        # DB status (via DatabaseController)
+        dc = getattr(window, "database_controller", None)
+        db = getattr(dc, "db", None)
+        if db is not None and getattr(db, "is_connected", lambda: False)():
+            _set_text_if_changed(window.db_status_label, _tr("Database: connected"))
+        else:
+            _set_text_if_changed(window.db_status_label, _tr("Database: disconnected"))
+
+        # Path in tree + active sphere (QTreeView-only)
+        parts = []
+        tree = getattr(window, "tree", None)
+        try:
+            if tree is not None:
+                # Use currentIndex and walk through parents
+                idx = tree.currentIndex()
+                if idx and idx.isValid():
+                    cur = idx
+                    while cur.isValid():
+                        text = cur.data()
+                        if isinstance(text, str) and text:
+                            parts.insert(0, text)
+                        cur = cur.parent()
+        except Exception:
+            # Ignore failures while building path
+            parts = []
+
+        # Prefix: active sphere
+        try:
+            sb = getattr(window, "structure_business", None)
+            if sb is not None and getattr(sb, "current_sphere_id", None):
+                sphere_data = sb.get_sphere_by_id(sb.current_sphere_id)
+                if sphere_data and isinstance(sphere_data.get("name"), str):
+                    parts.insert(0, sphere_data["name"])
+        except Exception:
+            pass
+
+        # Append selected link name from the table (column 1 — name), if any selection
+        try:
+            table = getattr(window, "table", None)
+            if table is not None:
+                selection_model = table.selectionModel()
+                idx = (
+                    table.currentIndex()
+                    if table.currentIndex().isValid()
+                    else (selection_model.currentIndex() if selection_model else None)
+                )
+                if idx and idx.isValid():
+                    name_idx = idx.sibling(idx.row(), 1)
+                    name_data = name_idx.data() if name_idx.isValid() else None
+                    if isinstance(name_data, str) and name_data.strip():
+                        parts.append(name_data.strip())
+        except Exception:
+            pass
+
+        if parts:
+            _set_text_if_changed(
+                window.path_label,
+                _tr("Path: ") + " > ".join(parts),
+            )
+        else:
+            if hasattr(window, "path_label") and window.path_label:
+                _set_text_if_changed(window.path_label, _tr("Path: "))
     except Exception:
+        # In case of unexpected errors do not crash UI, just clear path
         if hasattr(window, "path_label") and window.path_label:
             try:
                 _set_text_if_changed(window.path_label, _tr("Path: "))

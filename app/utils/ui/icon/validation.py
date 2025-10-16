@@ -13,6 +13,7 @@ Complies with PEP 8.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from collections.abc import Iterable
 from enum import Enum
@@ -84,7 +85,6 @@ def _safe_decode_bytes_preview(data: bytes) -> str | None:
             return data.decode(enc, errors="strict")
         except UnicodeDecodeError:
             continue
-    return None
 
 
 def _is_valid_svg(path: Path) -> bool:
@@ -141,7 +141,6 @@ def _is_valid_svgz(path: Path) -> bool:
         logger.warning("Unexpected SVGZ error for %s: %s", path, exc)
         return False
 
-
 # === Public validators ===
 
 
@@ -151,7 +150,7 @@ def _validate_icon_name(icon_name: str) -> bool:
     Requirements:
     - String is not empty.
     - Allowed characters: Latin letters, digits, `_`, `-`, `.`.
-    - Paths/subfolders and traversal (`/`, `\\`, `..`) are forbidden to avoid accessing outside the expected folder.
+    - Paths/subfolders and traversal (`/`, `\`, `..`) are forbidden to avoid accessing outside the expected folder.
     """
     if not icon_name or not isinstance(icon_name, str):
         return False
@@ -308,7 +307,9 @@ def validate_ui_icon_environment() -> bool:
                 count = sum(1 for _ in theme_dir.iterdir())
                 logger.info("Theme '%s': %s (elements: %d)", t, theme_dir, count)
             except OSError as exc:  # noqa: BLE001
-                logger.debug("Failed to scan theme folder %s: %s", theme_dir, exc)
+                logger.debug(
+                    "Failed to scan theme folder %s: %s", theme_dir, exc
+                )
 
     return ok
 

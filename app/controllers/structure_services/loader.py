@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Dict, List
 
 # Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class LoaderService:
         structure_model,
         sphere_id: int,
         logger,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Load sections and categories for sphere.
 
         Does not know about caches and signals; only model reading and data collection.
@@ -36,7 +36,7 @@ class LoaderService:
             if logger:
                 logger.error("Data validation error while loading structure: %s", e)
             return []
-        except Exception:
+        except Exception as e:
             if logger:
                 logger.exception("Critical error loading structure from DB")
             raise  # Re-raise critical errors

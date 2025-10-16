@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
-
-if TYPE_CHECKING:
-    from PyQt6.QtWidgets import QMenuBar
+from typing import Any, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -39,12 +36,8 @@ class MainWindowLike(Protocol):
         ...
 
     # Used in WindowUISetup.setup_menu() / setup_central_widget()
-    def menuBar(self) -> QMenuBar:
-        """Returns the menu bar."""
-        from PyQt6.QtWidgets import QMenuBar
-
-        _menu_bar = QMenuBar()
-        return _menu_bar
+    def setMenuBar(self, menu_bar: Any) -> None:  # noqa: N802
+        ...
 
     def setCentralWidget(self, widget: Any) -> None:  # noqa: N802
         ...
@@ -62,7 +55,7 @@ class SupportsFontSizeApply(Protocol):
 class SettingsLike(Protocol):
     """Protocol for application settings with access to font size."""
 
-    def get_font_size(self) -> int | None: ...
+    def get_font_size(self) -> Optional[int]: ...
 
 
 @runtime_checkable
@@ -87,4 +80,4 @@ class FavoritesPanelWithClear(TopPanelDataLike, Protocol):
 class RecentsPanelWithLimit(TopPanelDataLike, Protocol):
     """Recents: can report a desired item limit (optional)."""
 
-    def get_limit(self) -> int | None: ...
+    def get_limit(self) -> Optional[int]: ...

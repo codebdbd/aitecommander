@@ -1,5 +1,4 @@
 """Module for detecting and resolving duplicates in database."""
-
 import logging
 
 from ..base.db_base import db_lock
@@ -26,7 +25,7 @@ class DuplicateResolver:
           - lname: name in lower case
           - ids: list of int IDs of conflicting records (in arbitrary order)
         """
-        result: dict[str, list] = {"sphere": [], "section": [], "category": []}
+        result = {"sphere": [], "section": [], "category": []}
         with db_lock:
             # Spheres: global scope
             rows = self.db.connection.execute(
@@ -97,11 +96,12 @@ class DuplicateResolver:
                     row = self.db.connection.execute(
                         f"SELECT name FROM {table} WHERE id=?", (rec_id,)
                     ).fetchone()
-                    return dict(row)["name"] if row else ""
+                    return (dict(row)["name"] if row else "")
 
                 # Group handler
                 def process_group(table: str, ids: list[int]):
                     ids_sorted = sorted(int(i) for i in ids)
+                    _keep = ids_sorted[0]
                     to_change = ids_sorted[1:]
                     affected = 0
                     if strategy == "rename":

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 from PyQt6.QtCore import QObject
 
@@ -72,7 +72,8 @@ class LinksUIController(QObject):
         self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)
 
         # Connect signals
-        self.handlers.initialize()
+        self.handlers._connect_signals()
+        self.handlers._connect_table_signals()
         # Row indexing after any bulk table update
         try:
             if hasattr(self.table, "table_populated"):
@@ -103,7 +104,7 @@ class LinksUIController(QObject):
         else:
             self.business.search_links(text)
 
-    def get_link_at(self, row: int) -> Optional[dict]:
+    def get_link_at(self, row: int) -> Optional[Dict]:
         """Get link by row number, delegating call to table.
 
         Bounds checks and error handling encapsulated in view method.
@@ -165,19 +166,19 @@ class LinksUIController(QObject):
         except (AttributeError, RuntimeError) as e:
             logger.error("Error scrolling to row: %s", e)
 
-    def get_selected_rows(self) -> list[int]:
+    def get_selected_rows(self) -> List[int]:
         """Get selected row numbers via common utility."""
         return get_selected_rows_util(self.table)
 
-    def quick_add_link(self, link_type: str, category_id: int | None = None):
+    def quick_add_link(self, link_type: str, category_id: int = None):
         """Quick add link."""
         self.link_ops.quick_add_link(link_type, category_id)
 
-    def show_note_dialog(self, link: dict) -> None:
+    def show_note_dialog(self, link: Dict) -> None:
         """Show note dialog for link."""
         self.link_ops.show_note_dialog(link)
 
-    def get_selected_links(self) -> list[dict]:
+    def get_selected_links(self) -> List[Dict]:
         """Get selected links (single source of truth).
 
         Collects selected rows via get_selected_rows() and extracts
@@ -189,12 +190,12 @@ class LinksUIController(QObject):
         links = [self.get_link_at(r) for r in rows]
         return [ln for ln in links if ln]
 
-    def open_link(self, link: dict) -> None:
+    def open_link(self, link: Dict) -> None:
         """Open link."""
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
-    def toggle_favorite(self, link: dict | None = None) -> None:
+    def toggle_favorite(self, link: Dict = None) -> None:
         """Toggle favorite status."""
         self.link_ops._toggle_fav(link)
 

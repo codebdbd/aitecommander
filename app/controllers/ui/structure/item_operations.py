@@ -6,8 +6,8 @@ from PyQt6.QtCore import QObject, pyqtSlot
 
 # Use string literals "section" and "category"
 from app.controllers.ui.dialogs.dialog_manager import DialogManager
-from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
 from app.controllers.ui.structure.item_dialogs_service import ItemDialogService
+from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,9 @@ class ItemOperations(QObject):
 
     def _is_delete_suppressed(self) -> bool:
         try:
-            if hasattr(self.main, "_suppress_deletes") and self.main._suppress_deletes:
+            if hasattr(self.main, "_suppress_deletes") and getattr(
+                self.main, "_suppress_deletes"
+            ):
                 logger.debug(
                     "[DeleteGuard] deletion suppressed by _suppress_deletes flag"
                 )

@@ -4,18 +4,18 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Dict, List, Optional
+
+from ..models.types import (
+    SectionData,
+    SectionCreateData,
+    SectionUpdateData,
+)
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
 
-from ..models.types import (
-    AnyItemPayload,
-    SectionCreateData,
-    SectionData,
-    SectionUpdateData,
-)
-from .base import BaseOperations, StructureItemType, StructureSignalEmitter
+from .base import BaseOperations, StructureItemType
 
 
 @dataclass
@@ -38,7 +38,7 @@ class DeletionInfo:
             "position": 0,
             "is_active": False,
             "created_at": None,
-            "updated_at": None,
+            "updated_at": None
         }
         return cls(False, empty_section, 0, 0)
 
@@ -64,17 +64,12 @@ class SectionOperations(BaseOperations):
             execute_with_validation: Validation function
             emit_signal_callback: Signal emission function
         """
-        super().__init__(
-            structure_model, logger, execute_with_error_handling, emit_signal_callback
-        )
-        self._execute_with_validation_fn: Callable[..., Optional[int]] = (
-            execute_with_validation
-        )
+        super().__init__(structure_model, logger, execute_with_error_handling)
+        self._execute_with_validation = execute_with_validation
+        self._emit_signal = emit_signal_callback
         # Service layer for transactional operations and reads
         try:
-            self._structure_service: Optional[StructureService] = StructureService(
-                structure_model.db
-            )
+            self._structure_service = StructureService(structure_model.db)
         except Exception:
             # Fallback to direct model (should not be used with normal configuration)
             self._structure_service = None
@@ -134,7 +129,7 @@ class SectionOperations(BaseOperations):
         self._log_operation_start(f"confirming deletion of section {section_id}")
         return self._execute_section_deletion(section_id)
 
-    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """
         Get section data with guaranteed normalization.
 
@@ -147,7 +142,7 @@ class SectionOperations(BaseOperations):
         self._log_operation_start(f"fetching data for section {section_id}")
         return self._fetch_section_data(section_id)
 
-    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
+    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
         """
         Get list of sections for specified sphere.
 
@@ -176,7 +171,7 @@ class SectionOperations(BaseOperations):
                 return DeletionInfo.create_empty()
 
             # Получаем нормализованные данные раздела
-            normalized_section_data = cast(SectionData, section_data)
+            normalized_section_data = section_data
 
             # Подсчитываем вложенные объекты
             if self._structure_service:
@@ -203,12 +198,10 @@ class SectionOperations(BaseOperations):
 
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Execute actual section deletion."""
-        structure_service = self._structure_service
-        if structure_service is None:
-
+        if not self._structure_service:
             def _raise_service_error():
                 raise RuntimeError("StructureService unavailable for section deletion")
-
+            
             return self._execute_with_error_handling(
                 _raise_service_error,
                 f"delete section {section_id}",
@@ -216,7 +209,7 @@ class SectionOperations(BaseOperations):
             )
 
         def _delete():
-            structure_service.delete_section(section_id)
+            self._structure_service.delete_section(section_id)
 
         result = self.delete_item(
             StructureItemType.SECTION,
@@ -228,7 +221,7 @@ class SectionOperations(BaseOperations):
             self._log_successful_deletion(section_id)
         return result
 
-    def _fetch_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
+    def _fetch_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Fetch section data."""
 
         def _fetch_operation():
@@ -250,7 +243,7 @@ class SectionOperations(BaseOperations):
             default_return=None,
         )
 
-    def _fetch_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]:
+    def _fetch_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Fetch sections for sphere."""
 
         def _fetch_operation():
@@ -271,70 +264,82 @@ class SectionOperations(BaseOperations):
 
     def _process_item(
         self,
+        data: Dict[str, Any],
         item_type: StructureItemType,
-        data: Any,
-        emit_signal: "StructureSignalEmitter",
-        is_update: bool = False,
         item_id: Optional[int] = None,
-    ) -> Optional[int]:
-        """Delegate section mutations to `StructureService` while preserving base signature."""
+        is_update: bool = False,
+        *,
+        require_parent: bool = True,
+    ) -> bool:
+        """Override processing for sections: use StructureService for mutations.
 
-        if item_type is not StructureItemType.SECTION or not getattr(
-            self, "_structure_service", None
-        ):
+        For other item types, delegate to base implementation.
+        """
+        # If not a section — use base implementation
+        if item_type is not StructureItemType.SECTION:
             return super()._process_item(
-                item_type,
-                data,
-                emit_signal,
-                is_update=is_update,
-                item_id=item_id,
+                data, item_type, item_id, is_update, require_parent=require_parent
             )
 
-        def _operation() -> Optional[int]:
-            assert self._structure_service is not None
+        # If service unavailable — fallback to base implementation (upsert in model)
+        if not getattr(self, "_structure_service", None):
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
+
+        def _operation():
             if is_update:
-                assert item_id is not None
-                self._structure_service.update_section(int(item_id), data)
+                # Обновление через сервис
+                self._structure_service.update_section(int(item_id), data)  # type: ignore[arg-type]
                 current = self._structure_service.get_section_by_id(int(item_id)) or {}
-                payload = cast(AnyItemPayload, current)
-                emit_signal.emit("item_updated", item_type.value, int(item_id), payload)
+                # Эмитим сигнал обновления (parent_or_id = id элемента)
+                self._emit_signal(
+                    "item_updated", item_type.value, int(item_id), current
+                )  # type: ignore[arg-type]
+                # Логирование
                 self.slogger.log_operation(
                     "updated",
                     item_type.value,
                     current.get("name", "unnamed"),
                     "section",
                 )
-                return int(item_id)
+                return True
+            else:
+                # Создание через сервис
+                new_id = self._structure_service.create_section(data)
+                if not new_id:
+                    return False
+                current = self._structure_service.get_section_by_id(int(new_id)) or {
+                    **data,
+                    "id": int(new_id),
+                }
+                parent_id = (
+                    (current.get("sphere_id") if isinstance(current, dict) else None)
+                    or data.get("sphere_id")
+                    or 0
+                )
+                # Эмитим сигнал добавления (parent_or_id = sphere_id)
+                self._emit_signal(
+                    "item_added", item_type.value, int(parent_id), current
+                )
+                # Логирование
+                self.slogger.log_operation(
+                    "created",
+                    item_type.value,
+                    current.get("name", "unnamed"),
+                    "section",
+                )
+                return True
 
-            new_id = self._structure_service.create_section(data)
-            if not new_id:
-                return None
-            current = self._structure_service.get_section_by_id(int(new_id)) or {
-                **data,
-                "id": int(new_id),
-            }
-            payload = cast(AnyItemPayload, current)
-            parent_id = (
-                (current.get("sphere_id") if isinstance(current, dict) else None)
-                or data.get("sphere_id")
-                or 0
-            )
-            emit_signal.emit("item_added", item_type.value, int(parent_id), payload)
-            self.slogger.log_operation(
-                "created",
-                item_type.value,
-                current.get("name", "unnamed"),
-                "section",
-            )
-            return int(new_id)
-
-        return self._execute_with_validation_fn(
+        operation_name = "update" if is_update else "create"
+        result = self._execute_with_validation(
             _operation,
             data,
             item_type,
-            "update" if is_update else "create",
-            require_parent=True,
+            operation_name,
+            require_parent=require_parent,
         )
+        return result if result is not None else False
 
     def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         """
@@ -364,12 +369,7 @@ class SectionOperations(BaseOperations):
 
     def _emit_section_deleted_signal(self, section_id: int) -> None:
         """Emit section deletion signal."""
-        self._emit_signal(
-            "item_deleted",
-            StructureItemType.SECTION.value,
-            section_id,
-            None,
-        )
+        self._emit_signal("item_deleted", StructureItemType.SECTION.value, section_id)
 
     # Методы логирования для централизации и улучшения читаемости
 

@@ -24,4 +24,4 @@ for mod in _MODULES:
     module = importlib.import_module(target)
     sys.modules.setdefault(f"{_LEGACY_PREFIX}.{mod}", module)
 
-__all__: list[str] = []
+__all__ = []

@@ -3,7 +3,7 @@ Coordinator for setting up controllers and components of the main window.
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict
 
 from .business import (
     _assign_controllers_to_window,
@@ -23,10 +23,10 @@ from .wiring import setup_signal_connections
 logger = logging.getLogger(__name__)
 
 
-def setup_controllers(window: Any, controllers: dict[str, Any], db: Any) -> None:
+def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
     """Create and set up main controllers."""
     _validate_qt_context()
-
+    
     _setup_business_logic(controllers, db)
     _setup_ui_state_and_tiles(window, controllers)
     _setup_structure_controllers(window, controllers)
@@ -46,7 +46,7 @@ class WindowControllersSetup:
 
     def setup_controllers(self) -> None:
         """Set up controllers and components."""
-        controllers: dict[str, Any] = {}
+        controllers: Dict[str, Any] = {}
 
         try:
             setup_controllers(self.window, controllers, self.db)
@@ -56,7 +56,7 @@ class WindowControllersSetup:
             raise SetupError(
                 "Critical component ControllersSetup failed to initialize"
             ) from e
-
+        
         # Initialize WindowFacade after creating controllers
         try:
             self._init_window_facade()
@@ -88,22 +88,19 @@ class WindowControllersSetup:
     def _init_window_facade(self) -> None:
         """Initialize WindowFacade to simplify delegation."""
         from app.controllers.ui.window_facade import WindowFacade
-
+        
         # Check for required controllers
         required_controllers = [
-            "structure",
-            "links_actions",
-            "ui_state",
-            "action_controller",
-            "theme_ctrl",
+            'structure', 'links_actions', 'ui_state', 
+            'action_controller', 'theme_ctrl'
         ]
-
+        
         for ctrl_name in required_controllers:
             if not hasattr(self.window, ctrl_name):
                 raise SetupError(
                     f"Cannot initialize WindowFacade: missing controller '{ctrl_name}'"
                 )
-
+        
         # Create facade
         self.window.facade = WindowFacade(
             structure=self.window.structure,
@@ -112,9 +109,9 @@ class WindowControllersSetup:
             action_controller=self.window.action_controller,
             theme_ctrl=self.window.theme_ctrl,
         )
-
+        
         logger.debug("WindowFacade created with all controllers")
-
+    
     def initialize_spheres(self):
         """Initialize spheres."""
         try:
@@ -123,7 +120,6 @@ class WindowControllersSetup:
                 from app.controllers.ui.structure.spheres_bar_controller import (
                     SpheresBarController,
                 )
-
                 sc = SpheresBarController(self.window)
                 self.window.spheres_controller = sc
             sc.init()

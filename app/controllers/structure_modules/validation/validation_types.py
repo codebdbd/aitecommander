@@ -2,9 +2,9 @@
 
 """Basic types and exceptions for validation system."""
 
+from typing import Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
 
 from .validation_result import ValidationResult
 
@@ -21,7 +21,6 @@ class ValidationError(Exception):
 
 class ValidationSeverity(Enum):
     """Validation error severity levels."""
-
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -30,7 +29,6 @@ class ValidationSeverity(Enum):
 @dataclass
 class ValidationIssue:
     """Individual validation issue."""
-
     field: str
     message: str
     severity: ValidationSeverity
@@ -41,30 +39,23 @@ class ValidationIssue:
 @dataclass
 class DetailedValidationResult:
     """Detailed validation result."""
-
     is_valid: bool
-    issues: list[ValidationIssue]
+    issues: List[ValidationIssue]
 
     @property
-    def errors(self) -> list[ValidationIssue]:
+    def errors(self) -> List[ValidationIssue]:
         """Errors only."""
-        return [
-            issue for issue in self.issues if issue.severity == ValidationSeverity.ERROR
-        ]
+        return [issue for issue in self.issues if issue.severity == ValidationSeverity.ERROR]
 
     @property
-    def warnings(self) -> list[ValidationIssue]:
+    def warnings(self) -> List[ValidationIssue]:
         """Warnings only."""
-        return [
-            issue
-            for issue in self.issues
-            if issue.severity == ValidationSeverity.WARNING
-        ]
+        return [issue for issue in self.issues if issue.severity == ValidationSeverity.WARNING]
 
     def to_simple_result(self) -> ValidationResult:
         """Converts to simple ValidationResult for backward compatibility."""
         return ValidationResult(
             is_valid=self.is_valid,
             errors=[issue.message for issue in self.errors],
-            warnings=[issue.message for issue in self.warnings],
+            warnings=[issue.message for issue in self.warnings]
         )

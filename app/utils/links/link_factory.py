@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 
 class LinkRecordFactory:
@@ -18,7 +18,7 @@ class LinkRecordFactory:
         is_favorite: int = 0,
         link_id: Optional[int] = None,
         browser_key: Optional[str] = None,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Creates link record with all required fields.
 
@@ -76,7 +76,7 @@ def make_link_record(
     args: str,
     is_favorite: int,
     link_id: Optional[int] = None,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Creates regular link record (backward compatibility function)."""
     return LinkRecordFactory.create_link_record(
         name=name,
@@ -105,7 +105,7 @@ def make_profile_link_record(
     position: int,
     link_id: Optional[int] = None,
     browser_key: Optional[str] = None,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Creates link record with browser profile (backward compatibility function)."""
     return LinkRecordFactory.create_link_record(
         name=link_name,

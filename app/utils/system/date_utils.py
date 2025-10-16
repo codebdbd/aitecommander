@@ -40,5 +40,7 @@ def format_last_used(last_used: str) -> str:
             return f"{weeks} {unit} ago"
         return last_time.strftime("%d.%m.%Y")
     except (ValueError, TypeError) as e:
-        logger.error(f"[format_last_used] Time formatting error: {e}", exc_info=True)
+        logger.error(
+            f"[format_last_used] Time formatting error: {e}", exc_info=True
+        )
         return "Unknown"

@@ -1,7 +1,7 @@
 """Mixin handling form validation and error reporting for `LinkDialog`."""
 
 import logging
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 from PyQt6.QtCore import QCoreApplication
 
@@ -23,7 +23,7 @@ ARGS_LABEL = _tr("Arguments")
 
 
 class ValidationMixin:
-    def _validate_and_save_data(self, form_data: dict[str, Any]) -> dict[str, Any]:
+    def _validate_and_save_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and persist form data."""
         if hasattr(self.dialog, "link_controller") and self.dialog.link_controller:
             return self.dialog.link_controller.validate_and_save(form_data)
@@ -31,7 +31,7 @@ class ValidationMixin:
             return self.dialog.dialog_controller.validate_and_save(form_data)
 
     def _handle_validation_errors(
-        self, form_data: dict[str, Any], result: dict[str, Any]
+        self, form_data: Dict[str, Any], result: Dict[str, Any]
     ) -> None:
         """Process validation errors and display appropriate messages."""
         # Soft handling for completely empty form (no URL or name)
@@ -55,7 +55,7 @@ class ValidationMixin:
             silent=True,
         )
 
-    def _extract_problematic_fields(self, errors: list[str]) -> set:
+    def _extract_problematic_fields(self, errors: List[str]) -> set:
         """Extract problematic fields from validation errors."""
         problems = set()
         lower_errors = [e.lower() for e in errors]
@@ -73,7 +73,7 @@ class ValidationMixin:
                 problems.add(label)
         return problems
 
-    def _generate_error_messages(self, problems: set) -> tuple[str, str]:
+    def _generate_error_messages(self, problems: set) -> Tuple[str, str]:
         """Build primary and informative messages based on problematic fields."""
         hint_map = {
             NAME_LABEL: _tr("Provide a clear name (for example, 'API documentation')."),
@@ -103,7 +103,7 @@ class ValidationMixin:
 
         return main_msg, info_msg
 
-    def _show_validation_error_message(self, errors: list[str], problems: set) -> None:
+    def _show_validation_error_message(self, errors: List[str], problems: set) -> None:
         """Show validation error message to the user."""
         error_text = "\n".join(errors)
         main_msg, info_msg = self._generate_error_messages(problems)

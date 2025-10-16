@@ -34,7 +34,7 @@ Examples::
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Protocol, TypeVar
+from typing import Callable, Optional, Protocol, TypeVar
 
 from PyQt6.QtCore import QThreadPool
 
@@ -62,14 +62,14 @@ class _TaskHandleImpl:
 
 
 def run_db(
-    func: Callable[..., T],
+    func: Callable[[], T],
     *,
     use_lock: bool = True,
-    description: str | None = None,
-    pool: QThreadPool | None = None,
-    on_finished: Callable[[T], None] | None = None,
-    on_error: Callable[[Exception], None] | None = None,
-    on_progress: Callable[[int], None] | None = None,
+    description: Optional[str] = None,
+    pool: Optional[QThreadPool] = None,
+    on_finished: Optional[Callable[[T], None]] = None,
+    on_error: Optional[Callable[[Exception], None]] = None,
+    on_progress: Optional[Callable[[int], None]] = None,
 ) -> TaskHandle:
     """Run a database callable inside the thread pool.
 
@@ -108,27 +108,29 @@ def run_db(
 
     expects_reporter = _expects_reporter(func)
 
-    def _call_with_reporter(report_progress: Callable[[int], None]) -> T:
-        if use_lock:
-            with db_lock:
-                return func(report_progress)
-        return func(report_progress)
-
-    def _call_without_reporter() -> T:
-        if use_lock:
-            with db_lock:
-                return func()
-        return func()
-
     if expects_reporter:
-        task_callable: Callable[..., T] = _call_with_reporter
+        if use_lock:
+
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                with db_lock:
+                    return func(report_progress)  # type: ignore[misc]
+        else:
+
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                return func(report_progress)  # type: ignore[misc]
     else:
-        task_callable = _call_without_reporter
+        if use_lock:
+
+            def _wrapped() -> T:
+                with db_lock:
+                    return func()
+        else:
+
+            def _wrapped() -> T:
+                return func()
 
     task = DatabaseTask[T](
-        task_callable,
-        description=description,
-        reporter=(on_progress or (lambda *_: None)),
+        _wrapped, description=description, reporter=(on_progress or (lambda *_: None))
     )
 
     if on_finished is not None:

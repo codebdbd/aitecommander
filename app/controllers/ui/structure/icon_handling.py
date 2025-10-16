@@ -28,8 +28,7 @@ class IconHandling:
                 return create_icon_from_path(resolved)
         except Exception:
             self._logger.debug(
-                "IconHandling._get_icon_for_item: failed to resolve icon for %s",
-                item_type,
+                "IconHandling._get_icon_for_item: failed to resolve icon for %s", item_type,
                 exc_info=True,
             )
         # Empty icon if nothing found
@@ -65,9 +64,7 @@ class IconHandling:
                     idx = raw_model.index(r, 0, parent)
                 except Exception:
                     self._logger.exception(
-                        "IconHandling.reload_icons: failed to get index (%s, %s)",
-                        parent,
-                        r,
+                        "IconHandling.reload_icons: failed to get index (%s, %s)", parent, r
                     )
                     continue
                 if idx.isValid():

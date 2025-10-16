@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 from app.controllers.structure_modules import ValidationResult
 
@@ -14,8 +14,8 @@ class ValidationService:
 
     def validate_section_data(
         self,
-        data: dict[str, Any],
-        section_id: int | None,
+        data: Dict[str, Any],
+        section_id: Optional[int],
         *,
         get_sections: Callable[[int], list],
     ) -> ValidationResult:
@@ -48,10 +48,10 @@ class ValidationService:
 
     def validate_category_data(
         self,
-        data: dict[str, Any],
-        category_id: int | None,
+        data: Dict[str, Any],
+        category_id: Optional[int],
         *,
-        has_duplicate_category: Callable[[int, str, int | None], bool],
+        has_duplicate_category: Callable[[int, str, Optional[int]], bool],
     ) -> ValidationResult:
         result = ValidationResult()
 

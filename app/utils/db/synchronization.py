@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from threading import Lock, RLock
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,9 @@ class EnhancedLock:
                 thread_id,
                 wait_time,
             )
-            raise LockTimeout(f"Failed to acquire lock {self.name} within {timeout}s")
+            raise LockTimeout(
+                f"Failed to acquire lock {self.name} within {timeout}s"
+            )
 
         # Update stats
         wait_time = time.time() - start_time
@@ -150,7 +152,9 @@ class EnhancedLock:
 
             # ✅ Log long holds (> 1 s)
             if hold_time > 1.0:
-                logger.warning("[LOCK] Long hold %s: %.3fs", self.name, hold_time)
+                logger.warning(
+                    "[LOCK] Long hold %s: %.3fs", self.name, hold_time
+                )
 
         self._acquisition_time = None
         self._holder_thread = None
@@ -166,11 +170,11 @@ class EnhancedLock:
 class LockManager:
     """Lock manager with deadlock prevention."""
 
-    def __init__(self) -> None:
-        """Initialize lock manager with thread-safe storage."""
+    def __init__(self):
+        # Acquisition order to prevent deadlocks
         self._lock_order = [LockType.DATABASE, LockType.TASKS, LockType.UI_STATE]
-        self._locks: dict[str, EnhancedLock] = {}
-        self._thread_locks: dict[int, set[EnhancedLock]] = {}
+        self._locks: Dict[str, EnhancedLock] = {}
+        self._thread_locks: Dict[int, Set[EnhancedLock]] = {}
         self._manager_lock = RLock()
 
     def create_lock(
@@ -256,7 +260,7 @@ class LockManager:
             # Skip check if type is not part of the predefined order
             pass
 
-    def get_all_lock_stats(self) -> dict[str, LockStats]:
+    def get_all_lock_stats(self) -> Dict[str, LockStats]:
         """Return stats for all locks."""
         return {name: lock.get_stats() for name, lock in self._locks.items()}
 
@@ -272,10 +276,10 @@ class SignalGuard:
     Tracks active slot invocations and prevents re-entrancy while executing.
     """
 
-    def __init__(self) -> None:
-        self._active_calls: dict[int, set[str]] = {}
+    def __init__(self):
+        self._active_calls: Dict[int, Set[str]] = {}
         self._lock = threading.RLock()
-        self._call_counts: dict[str, int] = {}
+        self._call_counts: Dict[str, int] = {}
         self._max_recursive_calls = 3  # Maximum recursive calls
 
     def is_active(self, slot_name: str) -> bool:
@@ -349,7 +353,7 @@ class SignalGuard:
                     "[SignalGuard] Exit slot: %s (thread: %s)", slot_name, thread_id
                 )
 
-    def get_active_slots(self) -> dict[int, set[str]]:
+    def get_active_slots(self) -> Dict[int, Set[str]]:
         """Return copy of active slots for diagnostics."""
         with self._lock:
             return {tid: slots.copy() for tid, slots in self._active_calls.items()}
@@ -450,7 +454,7 @@ def debug_lock(lock, operation_name: str):
 # ====================
 
 
-def signal_guard(slot_name: Optional[str] = None):
+def signal_guard(slot_name: str = None):
     """Decorator to protect slots from cyclic calls.
 
     Args:

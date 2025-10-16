@@ -4,14 +4,14 @@ Centralizes color and size definitions for themes,
 prevents duplication, and simplifies design changes.
 """
 
+from typing import Dict, Any
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass
 class ColorPalette:
     """Color palette for a theme."""
-
+    
     # Primary background colors
     bg_primary: str
     bg_secondary: str
@@ -19,30 +19,30 @@ class ColorPalette:
     bg_hover: str
     bg_selected: str
     bg_pressed: str
-
+    
     # Text colors
     text_primary: str
     text_secondary: str
     text_disabled: str
     text_on_selected: str
-
+    
     # Border colors
     border_light: str
     border_normal: str
     border_dark: str
     border_focus: str
-
+    
     # Accent colors
     accent_primary: str
     accent_hover: str
     accent_pressed: str
-
+    
     # Status colors
     success: str
     warning: str
     error: str
     info: str
-
+    
     # Special colors
     favorite_icon: str
     link_color: str
@@ -53,36 +53,36 @@ class ColorPalette:
 @dataclass
 class SizePalette:
     """UI element sizes."""
-
+    
     # Corner radii
     border_radius_sm: int = 4
     border_radius_md: int = 6
     border_radius_lg: int = 8
-
+    
     # Border widths
     border_width_thin: int = 1
     border_width_normal: int = 2
     border_width_thick: int = 3
-
+    
     # Icon sizes
     icon_size_sm: int = 16
     icon_size_md: int = 24
     icon_size_lg: int = 32
     icon_size_xl: int = 48
-
+    
     # Paddings
     padding_xs: int = 2
     padding_sm: int = 4
     padding_md: int = 8
     padding_lg: int = 12
     padding_xl: int = 16
-
+    
     # Font sizes (px)
     font_size_sm: int = 10
     font_size_md: int = 11
     font_size_lg: int = 13
     font_size_xl: int = 14
-
+    
     # Element heights
     button_height: int = 32
     input_height: int = 28
@@ -100,25 +100,30 @@ LIGHT_PALETTE = ColorPalette(
     bg_hover="#E0E0E0",
     bg_selected="#0078D7",
     bg_pressed="#005A9E",
+    
     # Text colors
     text_primary="#000000",
     text_secondary="#666666",
     text_disabled="#999999",
     text_on_selected="#FFFFFF",
+    
     # Border colors
     border_light="#E0E0E0",
     border_normal="#C0C0C0",
     border_dark="#A0A0A0",
     border_focus="#0078D7",
+    
     # Accent colors
     accent_primary="#0078D7",
     accent_hover="#005A9E",
     accent_pressed="#004578",
+    
     # Status colors
     success="#28A745",
     warning="#FFC107",
     error="#DC3545",
     info="#17A2B8",
+    
     # Special colors
     favorite_icon="#FFD700",
     link_color="#0078D7",
@@ -136,25 +141,30 @@ DARK_PALETTE = ColorPalette(
     bg_hover="#252D3A",
     bg_selected="#6A2E44",
     bg_pressed="#501F33",
+    
     # Text colors
     text_primary="#FFFFFF",
     text_secondary="#B0B0B0",
     text_disabled="#707070",
     text_on_selected="#FFFFFF",
+    
     # Border colors
     border_light="#404040",
     border_normal="#505050",
     border_dark="#606060",
     border_focus="#6A2E44",
+    
     # Accent colors
     accent_primary="#6A2E44",
     accent_hover="#8A4E64",
     accent_pressed="#4A1E34",
+    
     # Status colors
     success="#4CAF50",
     warning="#FF9800",
     error="#F44336",
     info="#2196F3",
+    
     # Special colors
     favorite_icon="#FFD700",
     link_color="#7AA3CC",
@@ -165,8 +175,8 @@ DARK_PALETTE = ColorPalette(
 
 class ThemeVariables:
     """Theme variables manager used to generate QSS."""
-
-    def __init__(self, theme: str = "dark", sizes: SizePalette | None = None):
+    
+    def __init__(self, theme: str = "dark", sizes: SizePalette = None):
         """Initialize theme variables.
 
         Args:
@@ -176,8 +186,8 @@ class ThemeVariables:
         self.theme = theme
         self.colors = DARK_PALETTE if theme == "dark" else LIGHT_PALETTE
         self.sizes = sizes or SizePalette()
-
-    def get_all_variables(self) -> dict[str, Any]:
+    
+    def get_all_variables(self) -> Dict[str, Any]:
         """Return all theme variables as a dictionary.
 
         Returns:
@@ -189,17 +199,17 @@ class ThemeVariables:
             >>> qss = qss_template.format(**vars)
         """
         variables = {}
-
+        
         # Add colors
         for key, value in self.colors.__dict__.items():
             variables[key] = value
-
+        
         # Add sizes
         for key, value in self.sizes.__dict__.items():
             variables[key] = f"{value}px" if isinstance(value, int) else value
-
+        
         return variables
-
+    
     def apply_to_template(self, qss_template: str) -> str:
         """Apply variables to a QSS template.
 
@@ -228,8 +238,8 @@ class ThemeVariables:
         try:
             return qss_template.format(**variables)
         except KeyError as e:
-            raise ValueError(f"Missing variable in QSS template: {e}") from e
-
+            raise ValueError(f"Missing variable in QSS template: {e}")
+    
     def switch_theme(self, theme: str) -> None:
         """Switch theme.
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import Callable, Optional
 
 from PyQt6.QtCore import QObject, QTimer
 
@@ -16,8 +16,8 @@ class TreeSnapshotService(QObject):
         super().__init__(parent=parent)
         self._model = model
         self._pending: list[dict] | None = None
-        self._on_success: Callable[[], None] | None = None
-        self._on_error: Callable[[], None] | None = None
+        self._on_success: Optional[Callable[[], None]] = None
+        self._on_error: Optional[Callable[[], None]] = None
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -27,8 +27,8 @@ class TreeSnapshotService(QObject):
         self,
         snapshot: list[dict],
         *,
-        on_success: Callable[[], None] | None = None,
-        on_error: Callable[[], None] | None = None,
+        on_success: Optional[Callable[[], None]] = None,
+        on_error: Optional[Callable[[], None]] = None,
     ) -> None:
         """Defer snapshot application until the next Qt event loop cycle."""
         # Create a copy so changes to the original list won't affect application
@@ -46,7 +46,6 @@ class TreeSnapshotService(QObject):
         self._pending = None
         self._on_success = None
         self._on_error = None
-
         try:
             self._model.set_snapshot(snapshot)
         except Exception:
@@ -70,4 +69,3 @@ class TreeSnapshotService(QObject):
                         "TreeSnapshotService: on_success callback failed",
                         exc_info=True,
                     )
-

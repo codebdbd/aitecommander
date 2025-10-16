@@ -18,6 +18,7 @@ Chrome profile usage examples:
 import logging
 import os
 import platform
+from pathlib import Path
 import re
 import shlex
 import subprocess
@@ -25,8 +26,7 @@ import webbrowser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class LinkInfo:
     browser_key: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, link_dict: dict[str, Any]) -> "LinkInfo":
+    def from_dict(cls, link_dict: Dict[str, Any]) -> "LinkInfo":
         """Creates LinkInfo object from dictionary"""
         logger.debug("Creating LinkInfo from dict")
 
@@ -185,7 +185,7 @@ class SecurityValidator:
         return bool(cls.PATH_PATTERN.match(path))
 
     @classmethod
-    def validate_chrome_args(cls, args: str) -> list[str]:
+    def validate_chrome_args(cls, args: str) -> List[str]:
         """Validates Chrome arguments"""
         if not args:
             return []
@@ -221,12 +221,14 @@ class SecurityValidator:
 
         # If --incognito but no --new-window, add --new-window for forced new window creation
         if has_incognito and not has_new_window:
-            validated.insert(0, "--new-window")  # Add to beginning for correct order
+            validated.insert(
+                0, "--new-window"
+            )  # Add to beginning for correct order
 
         return validated
 
     @classmethod
-    def validate_args(cls, args: str) -> list[str]:
+    def validate_args(cls, args: str) -> List[str]:
         """Universal argument validation (for backward compatibility)"""
         if not args:
             return []
@@ -248,8 +250,8 @@ class BrowserConfig:
         self._cache = {}
 
     def get_browser_command(
-        self, browser_key: str, url: str, args: list[str]
-    ) -> list[str]:
+        self, browser_key: str, url: str, args: List[str]
+    ) -> List[str]:
         """Gets browser launch command"""
         if browser_key not in self._config:
             browser_key = "chrome"  # Fallback
@@ -376,7 +378,7 @@ class FileLinkHandler(LinkHandler):
 class ScriptLinkHandler(LinkHandler):
     """Script handler"""
 
-    def __init__(self, logger: logging.Logger, powershell_path: Optional[str] = None):
+    def __init__(self, logger: logging.Logger, powershell_path: str = None):
         super().__init__(logger)
         self.powershell_path = powershell_path or self._get_powershell_path()
 
@@ -423,18 +425,18 @@ class ScriptLinkHandler(LinkHandler):
             else:
                 subprocess.Popen(["xdg-open", link_info.path])
 
-    def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
+    def _create_powershell_command(self, path: str, args: List[str]) -> List[str]:
         """Creates PowerShell script command"""
         cmd_args = ["-ExecutionPolicy", "Bypass", "-Command", f'& "{path}"']
         if args:
             cmd_args.extend(args)
         return [self.powershell_path] + cmd_args
 
-    def _create_python_command(self, path: str, args: list[str]) -> list[str]:
+    def _create_python_command(self, path: str, args: List[str]) -> List[str]:
         """Creates Python script command"""
         return ["python", path] + args
 
-    def _create_batch_command(self, path: str, args: list[str]) -> list[str]:
+    def _create_batch_command(self, path: str, args: List[str]) -> List[str]:
         """Creates batch file command"""
         return ["cmd.exe", "/c", "start", '""', path] + args
 
@@ -496,9 +498,7 @@ class LinkOpener:
     """Main class for opening various types of links"""
 
     def __init__(
-        self,
-        powershell_path: Optional[str] = None,
-        logger_obj: Optional[logging.Logger] = None,
+        self, powershell_path: str = None, logger_obj: Optional[logging.Logger] = None
     ):
         # Use module logger by default with DI support
         self.logger = (
@@ -507,7 +507,7 @@ class LinkOpener:
         self.browser_config = BrowserConfig()
 
         # Initialize handlers
-        self.handlers: list[LinkHandler] = [
+        self.handlers: List[LinkHandler] = [
             WebLinkHandler(self.logger, self.browser_config),
             FileLinkHandler(self.logger),
             ScriptLinkHandler(self.logger, powershell_path),
@@ -515,13 +515,13 @@ class LinkOpener:
             ChromeAppLinkHandler(self.logger),
         ]
 
-    def _build_chrome_command(self, url: str, args: list[str]) -> list[str]:
+    def _build_chrome_command(self, url: str, args: List[str]) -> List[str]:
         """Creates Chrome launch command (for backward compatibility)"""
         return self.browser_config.get_browser_command("chrome", url, args)
 
     def _build_browser_command(
-        self, browser_key: str, url: str, args: list[str]
-    ) -> list[str]:
+        self, browser_key: str, url: str, args: List[str]
+    ) -> List[str]:
         """Creates browser launch command (for backward compatibility)"""
         return self.browser_config.get_browser_command(browser_key, url, args)
 
@@ -589,14 +589,12 @@ class LinkOpener:
 
 
 # Утилитарные функции для удобства использования (обратная совместимость)
-def create_link_opener(powershell_path: Optional[str] = None) -> LinkOpener:
+def create_link_opener(powershell_path: str = None) -> LinkOpener:
     """Creates LinkOpener instance with default settings."""
     return LinkOpener(powershell_path)
 
 
-def open_link_from_dict(
-    link_dict: dict[str, Any], powershell_path: Optional[str] = None
-) -> None:
+def open_link_from_dict(link_dict: Dict[str, Any], powershell_path: str = None) -> None:
     """
     Opens link from dictionary data.
 
