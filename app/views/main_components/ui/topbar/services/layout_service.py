@@ -125,8 +125,10 @@ class TopBarLayoutService:
 
             try:
                 spacing = int(ctx.top_bar.spacing() or 0)
-            except Exception:  # pragma: no cover - defensive fallback
-                spacing = 6
+            except (RuntimeError, AttributeError, TypeError):  # pragma: no cover
+                # Layout deleted, spacing() unavailable, or conversion failed
+                from ..models.topbar_constants import TOPBAR_CONSTANTS as C
+                spacing = C.LAYOUT_SPACING_FALLBACK
 
             threshold = max(
                 self._hysteresis_threshold_base,
@@ -135,6 +137,10 @@ class TopBarLayoutService:
 
             if abs(slack_new) < threshold and abs(slack_prev) < threshold:
                 return prev_counts
-        except Exception:  # pragma: no cover - logging and fallback to new counts
-            logger.debug("TopBarLayoutService: hysteresis fallback engaged", exc_info=True)
+        except (RuntimeError, AttributeError, TypeError, ValueError):  # pragma: no cover
+            # Context invalid, calculations failed, or conversion error
+            logger.debug(
+                "TopBarLayoutService: hysteresis fallback engaged",
+                exc_info=True
+            )
         return dict(counts)
