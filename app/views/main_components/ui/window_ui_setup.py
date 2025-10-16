@@ -227,21 +227,30 @@ class WindowUISetup:
         self.fonts = app_config.ui.get('ui', {}).get('fonts', {})
         self.settings = window_initializer.settings
         self.theme_ctrl = window_initializer.theme_ctrl
-
         self.main_layout: QVBoxLayout | None = None
 
         # Subscribe to language changes
         self._language_service = LanguageService.instance()
         try:
             self._language_service.languageChanged.connect(self._on_language_changed)
-        except Exception:
-            logger.exception("WindowUISetup: failed to connect to languageChanged")
+        except (TypeError, RuntimeError) as e:
+            # TypeError: signal signature mismatch
+            # RuntimeError: object deleted
+            logger.error(
+                "WindowUISetup: failed to connect to languageChanged: %s",
+                e,
+                exc_info=True
+            )
         if hasattr(self.window, "destroyed"):
             try:
                 self.window.destroyed.connect(self._disconnect_language_service)
-            except Exception:
-                logger.debug(
-                    "WindowUISetup: failed to connect destroyed cleanup", exc_info=True
+            except (TypeError, RuntimeError) as e:
+                # TypeError: signal signature mismatch
+                # RuntimeError: object deleted
+                logger.warning(
+                    "WindowUISetup: failed to connect destroyed cleanup: %s",
+                    e,
+                    exc_info=True
                 )
 
     def setup_basic_attributes(self) -> None:
@@ -502,8 +511,14 @@ class WindowUISetup:
     def _disconnect_language_service(self) -> None:
         try:
             self._language_service.languageChanged.disconnect(self._on_language_changed)
-        except Exception:
-            pass
+        except (TypeError, RuntimeError) as e:
+            # TypeError: signal not connected
+            # RuntimeError: object deleted
+            logger.debug(
+                "WindowUISetup: failed to disconnect languageChanged "
+                "(already disconnected): %s",
+                e
+            )
 
     def _register_topbar_cleanup(self, manager: TopBarLayoutManager | None) -> None:
         """Connect window destruction to top bar cleanup for deterministic teardown.
@@ -756,7 +771,7 @@ class WindowUISetup:
             dur = (time.perf_counter() - t_start) * 1000.0
             logger.info("TopPanelMetrics: setup_search_widget: %.1f ms", dur)
         except Exception:
-            pass
+            pass  # Метрики некритичны
 
     def _normalize_top_bar_stretches(self, top_bar: QHBoxLayout) -> None:
         try:

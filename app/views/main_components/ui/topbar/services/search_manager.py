@@ -165,20 +165,24 @@ class SearchWidgetManager:
                     search_index = i
                 try:
                     top_bar.setStretch(i, 0)
-                except Exception:
+                except (RuntimeError, AttributeError) as e:
+                    # RuntimeError: layout deleted
+                    # AttributeError: setStretch unavailable
                     logger.debug(
-                        "SearchWidgetManager: setStretch(0) failed at index %s",
+                        "SearchWidgetManager: setStretch(0) failed at index %s: %s",
                         i,
-                        exc_info=True,
+                        e
                     )
             if search_index >= 0:
                 try:
                     top_bar.setStretch(search_index, 1)
-                except Exception:
+                except (RuntimeError, AttributeError) as e:
+                    # RuntimeError: layout deleted
+                    # AttributeError: setStretch unavailable
                     logger.debug(
-                        "SearchWidgetManager: setStretch(1) failed at index %s",
+                        "SearchWidgetManager: setStretch(1) failed at index %s: %s",
                         search_index,
-                        exc_info=True,
+                        e
                     )
         except Exception:
             logger.debug("SearchWidgetManager: enforce_stretches failed", exc_info=True)
@@ -211,7 +215,14 @@ class SearchWidgetManager:
             w_panel = int(
                 self._width_calculator.panel_width(state.widget, state.buttons, vis)
             )
-        except Exception:
+        except (RuntimeError, AttributeError, TypeError, ValueError) as e:
+            # RuntimeError: widget deleted
+            # AttributeError: method unavailable
+            # TypeError/ValueError: conversion failed
+            logger.debug(
+                "SearchWidgetManager: failed to calculate panel width, using 0: %s",
+                e
+            )
             w_panel = 0
         return max(self._min_panel_width, w_panel)
 
@@ -221,7 +232,14 @@ class SearchWidgetManager:
             return 0
         try:
             w_hint = int(widget.sizeHint().width())
-        except Exception:
+        except (RuntimeError, AttributeError, TypeError) as e:
+            # RuntimeError: widget deleted
+            # AttributeError: sizeHint() unavailable
+            # TypeError: width() returned non-int
+            logger.debug(
+                "SearchWidgetManager: failed to get widget width, using 0: %s",
+                e
+            )
             w_hint = 0
         return w_hint if w_hint > 0 else 0
 
@@ -282,8 +300,13 @@ class SearchWidgetManager:
         if search_index >= 0:
             try:
                 top_bar.setStretch(search_index, 1)
-            except Exception:
-                pass
+            except (RuntimeError, AttributeError) as e:
+                # RuntimeError: layout deleted
+                # AttributeError: setStretch unavailable
+                logger.debug(
+                    "SearchWidgetManager: failed to set stretch for search: %s",
+                    e
+                )
 
         if search.minimumWidth() != min_search:
             search.setMinimumWidth(min_search)
