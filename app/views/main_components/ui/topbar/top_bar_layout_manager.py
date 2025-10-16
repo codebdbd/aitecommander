@@ -97,6 +97,9 @@ class TopBarLayoutManager(QObject):
             window, self._widget_accessor, self._search_manager, self._min_search_width
         )
 
+        # Получить favorites threshold из конфигурации
+        favorites_threshold = self._config.get_favorites_min_visible_threshold()
+
         # Orchestrator
         self._orchestrator = LayoutOrchestrator(
             window=window,
@@ -114,6 +117,7 @@ class TopBarLayoutManager(QObject):
             log_info=self._log_info,
             slow_adjust_threshold_ms=self.SLOW_ADJUST_THRESHOLD_MS,
             side_spacing=self._config.get_side_spacing(),
+            favorites_min_visible_threshold=favorites_threshold,
             manager_ref=self,
         )
 

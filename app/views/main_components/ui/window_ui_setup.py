@@ -525,7 +525,8 @@ class WindowUISetup:
         if getattr(self.window, "_topbar_cleanup_connected", False):
             return
         try:
-            self.window.destroyed.connect(manager.cleanup)
+            # destroyed signal передаёт QObject, используем lambda для игнорирования
+            self.window.destroyed.connect(lambda: manager.cleanup())
             self.window._topbar_cleanup_connected = True
             logger.debug(
                 "WindowUISetup: TopBarLayoutManager cleanup connected to "

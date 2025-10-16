@@ -126,8 +126,9 @@ class TestTopBarLayoutManagerLifecycle:
         
         manager.cleanup = tracked_cleanup
         
-        # Подключить cleanup к destroyed (как в window_ui_setup.py:526)
-        mock_window.destroyed.connect(manager.cleanup)
+        # Подключить cleanup к destroyed (как в window_ui_setup.py:529)
+        # destroyed signal передаёт QObject, используем lambda
+        mock_window.destroyed.connect(lambda: manager.cleanup())
         
         # Act
         mock_window.deleteLater()
