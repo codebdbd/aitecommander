@@ -7,17 +7,20 @@ hiding the complexity of interactions between controllers.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict
-    
-    LinkDict = Dict[str, Any]
-    
+    from typing import Any
+
+    LinkDict = dict[str, Any]
+
     from app.controllers.ui.links.links_actions import LinksActions
-    from app.controllers.ui.menu_controller import ActionController
-    from app.controllers.ui.structure.structure_ui_controller import StructureUIController
+
+    # ActionController removed - not used
     from app.controllers.ui.state.ui_state_manager import UIStateManager
+    from app.controllers.ui.structure.structure_ui_controller import (
+        StructureUIController,
+    )
     from app.controllers.ui.theme_controller import ThemeController
 
 logger = logging.getLogger(__name__)
@@ -36,14 +39,14 @@ class WindowFacade:
         action_controller: Actions controller (edit, delete)
         theme_ctrl: Theme controller
     """
-    
+
     def __init__(
         self,
-        structure: "StructureUIController",
-        links_actions: "LinksActions",
-        ui_state: "UIStateManager",
-        action_controller: "ActionController",
-        theme_ctrl: "ThemeController",
+        structure: StructureUIController,
+        links_actions: LinksActions,
+        ui_state: UIStateManager,
+        action_controller: Any,  # ActionController removed
+        theme_ctrl: ThemeController,
     ):
         """Initialize facade with required controllers.
 
@@ -59,23 +62,23 @@ class WindowFacade:
         self.ui_state = ui_state
         self.action_controller = action_controller
         self.theme_ctrl = theme_ctrl
-        
+
         logger.debug("WindowFacade initialized")
-    
+
     # === Structure operations ===
-    
-    def get_current_category_id(self) -> Optional[int]:
+
+    def get_current_category_id(self) -> int | None:
         """Return ID of the currently selected category.
 
         Returns:
             Category ID or None if no category is selected
         """
         return self.structure.get_current_category_id()
-    
+
     def reload_structure(self) -> None:
         """Reload the entire structure (tree)."""
         self.structure.load()
-    
+
     def reload_current_category(self) -> None:
         """Reload the current category.
 
@@ -86,18 +89,22 @@ class WindowFacade:
             self.ui_state.load_category(category_id, source="reload_current_category")
         else:
             logger.debug("reload_current_category: no category selected")
-    
+
     def add_new_section(self) -> None:
         """Open dialog to create a new section."""
         self.structure.add_new_section()
-    
+
     def add_new_category(self) -> None:
         """Open dialog to create a new category."""
-        self.structure.add_new_category()
-    
+        try:
+            self.structure.add_new_category()
+        except Exception:
+            logger.exception("WindowFacade.add_new_category failed")
+            raise
+
     # === Link operations ===
-    
-    def get_link_at_row(self, row: int) -> "LinkDict | None":
+
+    def get_link_at_row(self, row: int) -> LinkDict | None:
         """Return link by table row number.
 
         Args:
@@ -107,15 +114,15 @@ class WindowFacade:
             Dict with link data or None
         """
         return self.links_actions.get_link_at(row)
-    
-    def get_selected_links(self) -> list["LinkDict"]:
+
+    def get_selected_links(self) -> list[LinkDict]:
         """Return list of selected links.
 
         Returns:
             List of dicts with link data
         """
         return self.links_actions.get_selected_links()
-    
+
     def get_selected_rows(self) -> list[int]:
         """Return indices of selected rows.
 
@@ -123,10 +130,10 @@ class WindowFacade:
             List of row indices
         """
         return self.links_actions.get_selected_rows()
-    
+
     def show_link_dialog(
         self,
-        link: "LinkDict | None" = None,
+        link: LinkDict | None = None,
         category_id: int | None = None,
     ) -> bool:
         """Show create/edit link dialog.
@@ -139,41 +146,45 @@ class WindowFacade:
             True if dialog accepted, False if cancelled
         """
         selected_link_id = link.get("id") if link else None
-        
+
         result = self.links_actions.show_link_dialog(link, category_id)
-        
+
         if result and selected_link_id:
             # Schedule selection restore
             self.links_actions.schedule_restore_selection(selected_link_id)
-        
+
         return bool(result)
-    
+
     def edit_selected_link(self) -> bool:
-        """Редактирует выбранную ссылку.
-        
+        """Edit the currently selected link via the standard dialog.
+
         Returns:
-            True если редактирование прошло успешно
+            True if the dialog completed successfully.
         """
         return bool(self.links_actions.edit_selected_link())
-    
+
     # === Universal actions ===
-    
+
     def edit_current(self) -> None:
         """Edit currently selected item (link or structure item).
 
         ActionController automatically determines what to edit.
         """
-        self.action_controller.edit_current()
-    
+        try:
+            self.action_controller.edit_current()
+        except Exception:
+            logger.exception("WindowFacade.edit_current failed")
+            raise
+
     def delete_current(self) -> None:
         """Delete currently selected item (link or structure item).
 
         ActionController automatically determines what to delete and asks for confirmation.
         """
         self.action_controller.delete_current()
-    
+
     # === Theme operations ===
-    
+
     def get_available_themes(self) -> list[tuple[str, str]]:
         """Return list of available themes.
 
@@ -181,7 +192,7 @@ class WindowFacade:
             List of tuples (theme_id, theme_display_name)
         """
         return self.theme_ctrl.available()
-    
+
     def apply_theme(self, theme_name: str) -> None:
         """Apply a theme.
 
@@ -189,13 +200,13 @@ class WindowFacade:
             theme_name: Theme identifier (e.g., 'light', 'dark')
         """
         self.theme_ctrl.apply(theme_name)
-    
+
     def update_theme(self) -> None:
         """Update current theme and refresh UI."""
         self.theme_ctrl.apply_and_refresh_ui()
-    
+
     # === Service methods ===
-    
+
     def on_structure_item_added(
         self, item_type: str, parent_id: int, data: dict
     ) -> None:
@@ -207,7 +218,7 @@ class WindowFacade:
             data: Item data
         """
         self.structure.on_structure_item_added(item_type, parent_id, data)
-    
+
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
     ) -> None:

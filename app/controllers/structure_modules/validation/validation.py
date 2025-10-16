@@ -5,17 +5,28 @@
 Return unified ValidationResult.
 """
 
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from app.controllers.structure_services.validation import ValidationService
+if TYPE_CHECKING:
+    from app.controllers.structure_services.validation import ValidationService
 
 from .validation_result import ValidationResult
 
-_service = ValidationService()
+_service: "ValidationService | None" = None
+
+
+def _get_service() -> "ValidationService":
+    """Lazy initialization to avoid circular import."""
+    global _service
+    if _service is None:
+        from app.controllers.structure_services.validation import ValidationService
+
+        _service = ValidationService()
+    return _service
 
 
 def validate_section_data(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     section_id: Optional[int] = None,
     get_sections: Callable[[int], list],
@@ -30,13 +41,13 @@ def validate_section_data(
     Returns:
         ValidationResult
     """
-    return _service.validate_section_data(
+    return _get_service().validate_section_data(
         data=data, section_id=section_id, get_sections=get_sections
     )
 
 
 def validate_category_data(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     category_id: Optional[int] = None,
     has_duplicate_category: Callable[[int, str, Optional[int]], bool],
@@ -51,7 +62,7 @@ def validate_category_data(
     Returns:
         ValidationResult
     """
-    return _service.validate_category_data(
+    return _get_service().validate_category_data(
         data=data,
         category_id=category_id,
         has_duplicate_category=has_duplicate_category,

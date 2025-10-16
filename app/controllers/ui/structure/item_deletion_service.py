@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from PyQt6.QtCore import QObject
 
@@ -82,7 +82,9 @@ class ItemDeletionService(QObject):
             return True
         return False
 
-    def _delete_categories_without_confirmation(self, category_ids: Iterable[int]) -> None:
+    def _delete_categories_without_confirmation(
+        self, category_ids: Iterable[int]
+    ) -> None:
         try:
             categories_payload = [
                 self._business.get_category_data(cid) for cid in category_ids
@@ -119,20 +121,26 @@ class ItemDeletionService(QObject):
     # ------------- Counters -------------
     def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         try:
-            return self._business.structure_model.count_nested_objects_for_section(section_id)
+            return self._business.structure_model.count_nested_objects_for_section(
+                section_id
+            )
         except Exception:  # pragma: no cover - stats not critical
             categories = self._business.get_categories(section_id) or []
             return len(categories), 0
 
     def _count_links_for_category(self, category_id: int) -> int:
         try:
-            return int(self._business.structure_model.count_links_by_category(category_id))
+            return int(
+                self._business.structure_model.count_links_by_category(category_id)
+            )
         except Exception:  # pragma: no cover - stats not critical
             return 0
 
     def _count_links_for_categories(self, category_ids: Iterable[int]) -> int:
         try:
-            counts_map = self._business.structure_model.count_links_by_categories(category_ids)
+            counts_map = self._business.structure_model.count_links_by_categories(
+                category_ids
+            )
         except Exception:  # pragma: no cover - stats not critical
             counts_map = {}
         return sum(int(value) for value in (counts_map or {}).values())
@@ -211,7 +219,11 @@ class ItemDeletionService(QObject):
 
     def _current_tree_index(self):
         try:
-            return self._tree.currentIndex() if hasattr(self._tree, "currentIndex") else None
+            return (
+                self._tree.currentIndex()
+                if hasattr(self._tree, "currentIndex")
+                else None
+            )
         except (AttributeError, RuntimeError) as exc:
             logger.debug(
                 "[ItemDeletionService._current_tree_index] currentIndex failed: %s",

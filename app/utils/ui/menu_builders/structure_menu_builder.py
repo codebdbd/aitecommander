@@ -10,16 +10,16 @@ from app.services.structure_context_service import StructureContextService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.menu_builders.menu_actions import (
     ActionBuilder,
+    MenuTexts,
     Shortcuts,
     StructureItemType,
-    MenuTexts,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class StructureMenuBuilder:
     """Context menu builder for the structure tree."""
 
-    def __init__(self, tree_widget, main_window: "MainWindow"):
+    def __init__(self, tree_widget, main_window: "MainWindowProtocol"):
         self.tree_widget = tree_widget
         self.main_window = main_window
         self.actions = ActionBuilder(tree_widget)
@@ -35,7 +35,7 @@ class StructureMenuBuilder:
         # Initialize business-logic service
         dc = getattr(self.main_window, "database_controller", None)
         db = getattr(dc, "db", None)
-        self._svc = StructureContextService(db)
+        self._svc = StructureContextService(db)  # type: ignore[arg-type]
 
     def build(
         self,
@@ -113,64 +113,6 @@ class StructureMenuBuilder:
             )
         )
 
-        # Paste (only if clipboard has text)
-        if self._svc.clipboard_has_text():
-            menu.addAction(
-                self.actions.create(
-                    MenuTexts.PASTE_LINK,
-                    self.main_window.add_new_category,
-                    Shortcuts.CTRL_V,
-                    get_menu_icon("paste", self.theme),
-                )
-            )
-
-        # Delete category / delete selected (if multi-select)
-        def _delete_action():
-            try:
-                selected = self._get_selected_category_nodes()
-            except Exception:
-                logger.exception(
-                    "[CtxMenu] Failed to get selected categories for deletion; using single-item delete"
-                )
-                selected = []
-            # If multiple items are selected — use batch delete
-            if len(selected) > 1:
-                logger.debug(
-                    "[CtxMenu] Batch delete for %s selected categories", len(selected)
-                )
-                try:
-                    # Controller available as main_window.structure
-                    if (
-                        hasattr(self.main_window, "structure")
-                        and self.main_window.structure
-                    ):
-                        self.main_window.structure.delete_selected_item()
-                        return
-                except Exception:
-                    logger.exception(
-                        "[CtxMenu] Batch delete failed for selected categories"
-                    )
-            # Otherwise — delete single item
-            delete_item_cb(item)
-
-        # Choose localized caption key based on selection count
-        try:
-            selected_count = len(self._get_selected_category_nodes())
-        except Exception:
-            logger.exception(
-                "[CtxMenu] Failed to compute selected categories count"
-            )
-            selected_count = 0
-        action_text_key = MenuTexts.DELETE_SELECTED if selected_count > 1 else MenuTexts.DELETE_CATEGORY
-        menu.addAction(
-            self.actions.create(
-                action_text_key,
-                _delete_action,
-                Shortcuts.DELETE,
-                get_menu_icon("delete", self.theme),
-            )
-        )
-
         menu.addSeparator()
 
         # Select all categories under section
@@ -186,6 +128,103 @@ class StructureMenuBuilder:
         menu.addSeparator()
 
         # Undo/Redo from main window if available
+        if hasattr(self.main_window, "undo_action") and self.main_window.undo_action:
+            menu.addAction(self.main_window.undo_action)
+        if hasattr(self.main_window, "redo_action") and self.main_window.redo_action:
+            menu.addAction(self.main_window.redo_action)
+
+    def _add_category_actions(
+        self, menu: QMenu, item: Any, category_id: Any, delete_item_cb: Callable
+    ):
+        """Actions for the selected category."""
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.EDIT_CATEGORY,
+                lambda: self.main_window.edit_structure_item(item),
+                Shortcuts.EDIT,
+                get_menu_icon("edit", self.theme),
+            )
+        )
+
+        def _add_link_to_category():
+            handler = getattr(self.main_window, "show_link_dialog_for_category", None)
+            if callable(handler):
+                try:
+                    handler(int(category_id) if category_id is not None else None)
+                except Exception:
+                    logger.exception(
+                        "[CtxMenu] Failed to open link dialog for category %s",
+                        category_id,
+                    )
+
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.ADD_LINK,
+                _add_link_to_category,
+                Shortcuts.ADD_LINK,
+                get_menu_icon("add_link", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.COPY_CATEGORY,
+                lambda: self._copy_category_tree_to_clipboard(item, category_id),
+                Shortcuts.CTRL_C,
+                get_menu_icon("copy", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
+        def _delete_action():
+            try:
+                selected = self._get_selected_category_nodes()
+            except Exception:
+                logger.exception(
+                    "[CtxMenu] Failed to get selected categories for deletion; using single-item delete"
+                )
+                selected = []
+            if len(selected) > 1:
+                logger.debug(
+                    "[CtxMenu] Batch delete for %s selected categories", len(selected)
+                )
+                try:
+                    if (
+                        hasattr(self.main_window, "structure")
+                        and self.main_window.structure
+                    ):
+                        self.main_window.structure.delete_selected_item()
+                        return
+                except Exception:
+                    logger.exception(
+                        "[CtxMenu] Batch delete failed for selected categories"
+                    )
+            delete_item_cb(item)
+
+        try:
+            selected_count = len(self._get_selected_category_nodes())
+        except Exception:
+            logger.exception("[CtxMenu] Failed to compute selected categories count")
+            selected_count = 0
+        action_text_key = (
+            MenuTexts.DELETE_SELECTED
+            if selected_count > 1
+            else MenuTexts.DELETE_CATEGORY
+        )
+        menu.addAction(
+            self.actions.create(
+                action_text_key,
+                _delete_action,
+                Shortcuts.DELETE,
+                get_menu_icon("delete", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
         if hasattr(self.main_window, "undo_action") and self.main_window.undo_action:
             menu.addAction(self.main_window.undo_action)
         if hasattr(self.main_window, "redo_action") and self.main_window.redo_action:
@@ -234,7 +273,6 @@ class StructureMenuBuilder:
                 "[Clipboard] Failed to copy category tree id=%r to clipboard", cat_id
             )
 
-
     def _copy_selected_categories_to_clipboard(self, items: list[Any]) -> None:
         """Copy several selected categories by their ids via service."""
         ids: list[int] = []
@@ -261,6 +299,71 @@ class StructureMenuBuilder:
                     ids,
                 )
 
+    def _suppress_ui_signals(self, selection, tree_widget):
+        """Suppress UI signals during batch operation."""
+        try:
+            try:
+                self.main_window._suppress_deletes = True
+                logger.debug("[PasteCategories] _suppress_deletes set=True")
+            except Exception:
+                logger.exception(
+                    "[PasteCategories] Failed to set _suppress_deletes=True"
+                )
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    logger.exception(
+                        "[PasteCategories] Failed to begin selection suppression"
+                    )
+            if tree_widget is not None:
+                tree_widget.blockSignals(True)
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to block signals/start UI suppression"
+            )
+
+    def _restore_ui_signals(self, selection, tree_widget):
+        """Restore UI signals after batch operation."""
+        try:
+            if tree_widget is not None:
+                tree_widget.blockSignals(False)
+        except Exception:
+            logger.exception("[PasteCategories] Failed to unblock tree signals")
+        try:
+            if selection is not None:
+                selection.end_suppress_selection()
+        except Exception:
+            logger.exception("[PasteCategories] Failed to end selection suppression")
+        try:
+            self.main_window._suppress_deletes = False
+            logger.debug("[PasteCategories] _suppress_deletes set=False")
+        except Exception:
+            logger.exception("[PasteCategories] Failed to set _suppress_deletes=False")
+
+    def _update_ui_after_paste(self, business, section_id):
+        """Update UI after pasting categories."""
+        if not business:
+            return
+        try:
+            clear_icon_cache()
+        except Exception:
+            logger.exception("[PasteCategories] Failed to clear icon cache")
+        try:
+            business._invalidate_categories_cache(int(section_id))
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to invalidate categories cache for section %r",
+                section_id,
+            )
+        try:
+            if getattr(business, "async_service", None):
+                business.async_service.schedule_structure_reload(0)
+            logger.debug("[PasteCategories] scheduled structure reload (debounced)")
+        except Exception:
+            logger.exception("[PasteCategories] Failed to schedule structure reload")
+        business.section_selected.emit(int(section_id))
+
     def _paste_category_from_clipboard_to_section(self, section_id: Any) -> None:
         """Paste one or more categories from clipboard into a section (delegates business logic to service)."""
         try:
@@ -269,29 +372,9 @@ class StructureMenuBuilder:
             business = getattr(self.main_window, "structure_business", None)
             struct = getattr(self.main_window, "structure", None)
             selection = getattr(struct, "selection_handler", None)
+            tree_widget = getattr(self, "tree_widget", None)
 
-            # Suppress selection/tree signals during batch operation
-            try:
-                try:
-                    setattr(self.main_window, "_suppress_deletes", True)
-                    logger.debug("[PasteCategories] _suppress_deletes set=True")
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to set _suppress_deletes=True"
-                    )
-                if selection is not None:
-                    try:
-                        selection.begin_suppress_selection()
-                    except Exception:
-                        logger.exception(
-                            "[PasteCategories] Failed to begin selection suppression"
-                        )
-                if tree_widget is not None:
-                    tree_widget.blockSignals(True)
-            except Exception:
-                logger.exception(
-                    "[PasteCategories] Failed to block signals/start UI suppression"
-                )
+            self._suppress_ui_signals(selection, tree_widget)
 
             created_categories: list[dict] = []
             try:
@@ -299,56 +382,11 @@ class StructureMenuBuilder:
                     int(section_id)
                 )
             finally:
-                # Restore signals
-                try:
-                    if tree_widget is not None:
-                        tree_widget.blockSignals(False)
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to unblock tree signals"
-                    )
-                try:
-                    if selection is not None:
-                        selection.end_suppress_selection()
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to end selection suppression"
-                    )
-                try:
-                    setattr(self.main_window, "_suppress_deletes", False)
-                    logger.debug("[PasteCategories] _suppress_deletes set=False")
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to set _suppress_deletes=False"
-                    )
+                self._restore_ui_signals(selection, tree_widget)
 
-            # Incremental UI update without full reload
             if created_categories:
                 try:
-                    if business:
-                        try:
-                            clear_icon_cache()
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to clear icon cache"
-                            )
-                        try:
-                            business._invalidate_categories_cache(int(section_id))
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to invalidate categories cache for section %r",
-                                section_id,
-                            )
-                        try:
-                            business._schedule_structure_reload(0)
-                            logger.debug(
-                                "[PasteCategories] scheduled structure reload (debounced)"
-                            )
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to schedule structure reload"
-                            )
-                        business.section_selected.emit(int(section_id))
+                    self._update_ui_after_paste(business, section_id)
                 except Exception:
                     logger.exception(
                         "[PasteCategories] Failed to update UI after pasting categories"
@@ -357,7 +395,6 @@ class StructureMenuBuilder:
                 "[PasteCategories] done, created=%s items", len(created_categories)
             )
         except Exception:
-            # Do not crash UI due to paste errors — log them
             logger.exception(
                 "[PasteCategories] Category paste failed for section %r", section_id
             )
@@ -418,7 +455,8 @@ class StructureMenuBuilder:
                     for idx in rows
                     if (
                         get_tree_tuple(idx, 0)
-                        and get_tree_tuple(idx, 0)[0] == StructureItemType.CATEGORY
+                        and get_tree_tuple(idx, 0) is not None
+                        and get_tree_tuple(idx, 0)[0] == StructureItemType.CATEGORY  # type: ignore[index]
                     )
                 ]
         except Exception:

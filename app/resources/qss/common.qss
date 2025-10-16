@@ -305,7 +305,7 @@ QComboBox::drop-down {
 
 QComboBox::down-arrow,
 QDialog QComboBox::down-arrow {
-    image: url(":/icons/chevron_down.svg"); /* нейтральный путь */
+    image: url("app/resources/ui_icons/dark/chevron_down.svg"); /* используем файловый путь */
     width: 12px;
     height: 12px;
     margin-right: 6px;

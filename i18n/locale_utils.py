@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
-from typing import Optional
 
-from PyQt6.QtCore import QLocale
+from PyQt6.QtCore import QDate, QDateTime, QLocale, QTime
 
 from .language_service import LanguageService
 
@@ -14,7 +13,7 @@ from .language_service import LanguageService
 def format_datetime(
     dt: datetime.datetime,
     format_str: str = "dd.MM.yyyy HH:mm",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format datetime using locale-specific formatting.
 
@@ -30,17 +29,16 @@ def format_datetime(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qdt = locale.toDateTime(
-        dt.date(),
-        dt.time()
-    )
+    qdate = QDate(dt.year, dt.month, dt.day)
+    qtime = QTime(dt.hour, dt.minute, dt.second, dt.microsecond // 1000)
+    qdt = QDateTime(qdate, qtime)
     return locale.toString(qdt, format_str)
 
 
 def format_date(
     date: datetime.date,
     format_str: str = "dd.MM.yyyy",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format date using locale-specific formatting.
 
@@ -56,14 +54,14 @@ def format_date(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qdate = locale.toDate(date.year, date.month, date.day)
+    qdate = QDate(date.year, date.month, date.day)
     return locale.toString(qdate, format_str)
 
 
 def format_time(
     time: datetime.time,
     format_str: str = "HH:mm",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format time using locale-specific formatting.
 
@@ -79,14 +77,14 @@ def format_time(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qtime = locale.toTime(time.hour, time.minute, time.second)
+    qtime = QTime(time.hour, time.minute, time.second, time.microsecond // 1000)
     return locale.toString(qtime, format_str)
 
 
 def format_decimal(
     value: float | Decimal | int,
     precision: int = 2,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format decimal number using locale-specific formatting.
 
@@ -108,7 +106,7 @@ def format_decimal(
 def format_currency(
     amount: float | Decimal | int,
     currency_code: str = "USD",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format currency amount using locale-specific formatting.
 
@@ -129,7 +127,7 @@ def format_currency(
 
 def format_number(
     value: int,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format integer using locale-specific formatting.
 
@@ -150,7 +148,7 @@ def format_number(
 def format_percent(
     value: float | Decimal | int,
     precision: int = 1,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format percentage using locale-specific formatting.
 
@@ -171,7 +169,7 @@ def format_percent(
 
 def format_filesize(
     bytes_count: int,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format file size in human-readable format.
 

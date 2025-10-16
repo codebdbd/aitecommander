@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .limits_config import LimitsConfig
 from .path_config import PathConfig
@@ -17,8 +17,9 @@ class AppConfig:
     def __init__(self, config_path: Optional[str] = None):
         """Initialize the loader and read the configuration payload."""
         if config_path is None:
-            config_path = Path(__file__).parent / "app_config.json"
-        self._config_path = Path(config_path)
+            self._config_path = Path(__file__).parent / "app_config.json"
+        else:
+            self._config_path = Path(config_path)
         self._config = self._load_config()
 
         # Initialize specialized configuration facades
@@ -48,18 +49,20 @@ class AppConfig:
             base.update(dir(sub))
         return sorted(base)
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load configuration from a JSON file."""
         if not self._config_path.exists():
-            raise FileNotFoundError(f"Файл конфигурации не найден: {self._config_path}")
-        with open(self._config_path, "r", encoding="utf-8") as f:
+            raise FileNotFoundError(
+                f"Configuration file not found: {self._config_path}"
+            )
+        with open(self._config_path, encoding="utf-8") as f:
             return json.load(f)
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """Return a value from the raw configuration via dotted key path."""
         return get_by_path(self._config, key_path, default)
 
-    def get_full_config(self) -> Dict[str, Any]:
+    def get_full_config(self) -> dict[str, Any]:
         """Return the complete configuration dictionary copy."""
         return self._config.copy()
 

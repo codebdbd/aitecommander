@@ -1,9 +1,10 @@
 """CLI for database diagnostics and maintenance."""
+
 import argparse
 import json
 import logging
 import sys
-from typing import List, Optional
+from typing import Optional
 
 from ..db import Database
 
@@ -23,7 +24,7 @@ def _log_duplicates_human(dups: dict) -> None:
             logger.info("  - scope=%s, lname='%s', ids=[%s]", scope, lname, ids)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     """Main CLI function for database operations."""
     parser = argparse.ArgumentParser(
         prog="python -m app.models.db",

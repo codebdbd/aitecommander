@@ -1,9 +1,11 @@
 """Compatibility layer for legacy `app.views.link` imports."""
 
-from app.views.widgets.link.links_model import LinksTableModel
 from app.views.widgets.link.data_management import DataManagementMixin
+from app.views.widgets.link.links_model import LinksTableModel
+from app.views.widgets.link.population_manager import (
+    PopulationManagerMixin as _PopulationManagerMixin,
+)
 from app.views.widgets.link.row_operations import RowOperationsMixin
-from app.views.widgets.link.population_manager import PopulationManagerMixin as _PopulationManagerMixin
 
 # Legacy alias: historical code expected a class named PopulationManager. In the
 # refactored code the functionality lives in PopulationManagerMixin. We expose

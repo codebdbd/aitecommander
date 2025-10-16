@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Dict
+from typing import Optional
 
-from PyQt6.QtCore import QPoint, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QAbstractItemView, QVBoxLayout, QWidget
 
 from app.config_data import app_config
 from app.views.models import CategoriesListModel
 
-from .list_view import CategoryListView
 from .delegate import CategoryTileDelegate
+from .list_view import CategoryListView
 
 logger = logging.getLogger("category_tiles")
 
@@ -25,6 +25,113 @@ class CategoryTiles(QWidget):
     addLinkRequested: pyqtSignal = pyqtSignal(int)
     contextMenuRequested: pyqtSignal = pyqtSignal(int, QPoint)
 
+    def _setup_viewport(self, vp):
+        """Setup viewport mouse tracking and event filter."""
+        try:
+            vp.setMouseTracking(True)
+            vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("Viewport hover setup skipped: %s", e)
+        try:
+            vp.installEventFilter(self)
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("Failed to install event filter on viewport: %s", e)
+        except Exception:
+            logger.exception("Unexpected error installing event filter on viewport")
+
+    def _load_config_sizes(self):
+        """Load tile and icon sizes from configuration."""
+        try:
+            tile_w, tile_h = app_config.ui.get_tile_size()
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning(
+                "Tile size config read failed; using defaults (120x100): %s", e
+            )
+            tile_w, tile_h = (120, 100)
+        try:
+            icon_w, icon_h = app_config.ui.get_tile_icon_size()
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning(
+                "Icon size config read failed; using defaults (48x48): %s", e
+            )
+            icon_w, icon_h = (48, 48)
+        try:
+            spacing = int(app_config.ui.get_tile_spacing())
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Tile spacing config read failed; using default 8: %s", e)
+            spacing = 8
+        try:
+            padding = int(app_config.ui.get_tile_padding())
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Tile padding config read failed; using default 8: %s", e)
+            padding = 8
+        return tile_w, tile_h, icon_w, icon_h, spacing, padding
+
+    def _apply_delegate_params(self, tile_w, tile_h, icon_w, icon_h, padding):
+        """Apply parameters to delegate."""
+        try:
+            self.delegate.icon_size = self.delegate.icon_size.__class__(
+                int(icon_w), int(icon_h)
+            )
+            self.delegate.tile_size = self.delegate.tile_size.__class__(
+                int(tile_w), int(tile_h)
+            )
+            self.delegate.padding = max(0, int(padding))
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to apply delegate parameters; using existing defaults: %s", e
+            )
+        except Exception:
+            logger.exception("Unexpected error applying delegate parameters")
+
+    def _configure_view_settings(self, spacing):
+        """Configure view settings."""
+        self.view.setUniformItemSizes(False)
+        try:
+            self.view.setWordWrap(True)
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("WordWrap not supported on list widget: %s", e)
+        self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        try:
+            self.view.setSpacing(int(spacing))
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Failed to set spacing from config; using 8: %s", e)
+            self.view.setSpacing(8)
+        except Exception:
+            logger.exception("Unexpected error setting spacing; forcing 8")
+            self.view.setSpacing(8)
+
+    def _setup_drag_drop(self):
+        """Setup drag and drop settings."""
+        self.view.setDragEnabled(True)
+        self.view.setAcceptDrops(False)
+        self.view.setDropIndicatorShown(False)
+        self.view.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+    def _setup_context_menu(self):
+        """Setup context menu for view and viewport."""
+        self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.view.customContextMenuRequested.connect(self._show_context_menu)
+        vp = self.view.viewport()
+        vp.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        vp.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _connect_activation_signals(self):
+        """Connect activation signals."""
+        try:
+            self.view.doubleClicked.connect(self._on_index_activated)
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Failed to connect doubleClicked: %s", e)
+        except Exception:
+            logger.exception("Unexpected error connecting doubleClicked")
+        try:
+            self.view.enterActivated.connect(self._on_index_activated)
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Failed to connect enterActivated: %s", e)
+        except Exception:
+            logger.exception("Unexpected error connecting enterActivated")
+
     def __init__(
         self,
         parent=None,
@@ -36,7 +143,6 @@ class CategoryTiles(QWidget):
         super().__init__(parent)
 
         self._current_item_id = None
-
         self.structure_controller = structure_controller
         self.ui_state_manager = ui_state_manager
         self.dialog_provider = dialog_provider
@@ -50,95 +156,19 @@ class CategoryTiles(QWidget):
         self.view.setResizeMode(self.view.ResizeMode.Adjust)
         self.view.setMovement(self.view.Movement.Static)
         self.view.setMouseTracking(True)
-        vp = self.view.viewport()
-        try:
-            vp.setMouseTracking(True)
-            vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("Viewport hover setup skipped: %s", e)
-        try:
-            vp.installEventFilter(self)
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("Failed to install event filter on viewport: %s", e)
-        except Exception:
-            logger.exception("Unexpected error installing event filter on viewport")
-        self.delegate = CategoryTileDelegate(parent=self)
-        # Apply tile and icon sizes from configuration
-        try:
-            tile_w, tile_h = app_config.ui.get_tile_size()
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Tile size config read failed; using defaults (120x100): %s", e)
-            tile_w, tile_h = (120, 100)
-        try:
-            icon_w, icon_h = app_config.ui.get_tile_icon_size()
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Icon size config read failed; using defaults (48x48): %s", e)
-            icon_w, icon_h = (48, 48)
-        try:
-            spacing = int(app_config.ui.get_tile_spacing())
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Tile spacing config read failed; using default 8: %s", e)
-            spacing = 8
-        try:
-            padding = int(app_config.ui.get_tile_padding())
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Tile padding config read failed; using default 8: %s", e)
-            padding = 8
 
-        # Pass parameters to the delegate and the view
-        try:
-            self.delegate.icon_size = self.delegate.icon_size.__class__(int(icon_w), int(icon_h))
-            self.delegate.tile_size = self.delegate.tile_size.__class__(int(tile_w), int(tile_h))
-            self.delegate.padding = max(0, int(padding))
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Failed to apply delegate parameters; using existing defaults: %s", e)
-        except Exception:
-            logger.exception("Unexpected error applying delegate parameters")
+        vp = self.view.viewport()
+        self._setup_viewport(vp)
+
+        self.delegate = CategoryTileDelegate(parent=self)
+        tile_w, tile_h, icon_w, icon_h, spacing, padding = self._load_config_sizes()
+        self._apply_delegate_params(tile_w, tile_h, icon_w, icon_h, padding)
         self.view.setItemDelegate(self.delegate)
 
-        self.view.setUniformItemSizes(False)
-        try:
-            self.view.setWordWrap(True)
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("WordWrap not supported on list widget: %s", e)
-        self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        # Spacing from configuration
-        try:
-            self.view.setSpacing(int(spacing))
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("Failed to set spacing from config; using 8: %s", e)
-            self.view.setSpacing(8)
-        except Exception:
-            logger.exception("Unexpected error setting spacing; forcing 8")
-            self.view.setSpacing(8)
-
-        self.view.setDragEnabled(True)
-        self.view.setAcceptDrops(False)
-        self.view.setDropIndicatorShown(False)
-        self.view.setDefaultDropAction(Qt.DropAction.MoveAction)
-
-        self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        # Context menu: handle signals from both the view and its viewport
-        # a) from the view — coordinates in the view's system
-        self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.view.customContextMenuRequested.connect(self._show_context_menu)
-        # b) from the viewport — coordinates in the viewport's system
-        vp = self.view.viewport()
-        vp.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        vp.customContextMenuRequested.connect(self._show_context_menu)
-        # Open category ONLY by double click or Enter
-        try:
-            self.view.doubleClicked.connect(self._on_index_activated)
-        except (RuntimeError, AttributeError) as e:
-            logger.warning("Failed to connect doubleClicked: %s", e)
-        except Exception:
-            logger.exception("Unexpected error connecting doubleClicked")
-        try:
-            self.view.enterActivated.connect(self._on_index_activated)
-        except (RuntimeError, AttributeError) as e:
-            logger.warning("Failed to connect enterActivated: %s", e)
-        except Exception:
-            logger.exception("Unexpected error connecting enterActivated")
+        self._configure_view_settings(spacing)
+        self._setup_drag_drop()
+        self._setup_context_menu()
+        self._connect_activation_signals()
 
         self.layout.addWidget(self.view, 1)
         # Explicitly enable DragOnly mode for stable DnD behavior
@@ -159,10 +189,12 @@ class CategoryTiles(QWidget):
             if val > 0:
                 self._font_point_size = val
             else:
-                self._font_point_size = None
+                self._font_point_size = 0
         except (AttributeError, ValueError, TypeError) as e:
-            logger.warning("update_font_size: invalid fs=%r, resetting to None: %s", fs, e)
-            self._font_point_size = None
+            logger.warning(
+                "update_font_size: invalid fs=%r, resetting to 0: %s", fs, e
+            )
+            self._font_point_size = 0
         # Repaint and refresh size calculations
         try:
             self.view.viewport().update()
@@ -172,7 +204,7 @@ class CategoryTiles(QWidget):
         except Exception:
             logger.exception("update_font_size: unexpected error during repaint/reset")
 
-    def set_categories(self, categories: List[Dict]) -> None:
+    def set_categories(self, categories: list[dict]) -> None:
         """Update categories list via the model."""
         logger.debug("Loading %d categories", len(categories))
         model = getattr(self, "_model", None)
@@ -212,11 +244,13 @@ class CategoryTiles(QWidget):
         if dialog_provider:
             self.dialog_provider = dialog_provider
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, obj: Optional[QObject], event: Optional[QEvent]) -> bool:
         # Guaranteed interception of QContextMenuEvent from viewport()
         try:
-            if obj is self.view.viewport() and event.type() == event.Type.ContextMenu:
-                pos = event.pos()
+            if obj is self.view.viewport() and event is not None and event.type() == QEvent.Type.ContextMenu:
+                pos = getattr(event, 'pos', lambda: None)()
+                if pos is None:
+                    return False
                 logger.debug("Viewport eventFilter: ContextMenu at %s", pos)
                 self._show_context_menu(pos)
                 event.accept()

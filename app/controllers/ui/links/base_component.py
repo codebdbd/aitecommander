@@ -1,11 +1,11 @@
 """Base component for links_ui module."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from app.config_data import app_config
 
-from .exceptions import CategoryNotFoundError, DatabaseError
+from .exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +35,16 @@ class BaseLinksUIComponent:
         self._messages = self._config.get_links_table_messages()
 
     @property
-    def COLUMNS(self) -> Dict[str, int]:
+    def COLUMNS(self) -> dict[str, int]:
         """Link table column indices."""
         return self._columns
 
     @property
-    def MESSAGES(self) -> Dict[str, str]:
+    def MESSAGES(self) -> dict[str, str]:
         """User messages."""
         return self._messages
 
-    def get_message(self, key: str, default: str = None) -> str:
+    def get_message(self, key: str, default: str | None = None) -> str:
         """Get message by key."""
         return self._messages.get(key, default or f"Message '{key}' not found")
 
@@ -64,13 +64,13 @@ class BaseLinksUIComponent:
                 return
 
             # 3) Final fallback: directly call business logic
-        # (without table UI controller; may give less consistent behavior)
+            # (without table UI controller; may give less consistent behavior)
             self.business.load_links(category_id)
         except Exception as e:
             logger.error("Error updating category %s: %s", category_id, e)
-            raise DatabaseError(f"Failed to update category: {str(e)}")
+            raise DatabaseError(f"Failed to update category: {str(e)}") from e
 
-    def _show_warning(self, message: str, title: str = None) -> None:
+    def _show_warning(self, message: str, title: str | None = None) -> None:
         """Show warning to user."""
         from app.controllers.ui.dialogs import DialogManager
 
@@ -82,7 +82,7 @@ class BaseLinksUIComponent:
             informative_text="Check data correctness and try again.",
         )
 
-    def _show_error(self, message: str, title: str = None) -> None:
+    def _show_error(self, message: str, title: str | None = None) -> None:
         """Show error to user."""
         from app.controllers.ui.dialogs import DialogManager
 

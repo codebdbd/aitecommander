@@ -70,50 +70,6 @@ class IconCache:
         await asyncio.get_event_loop().run_in_executor(None, self.clear_cache)
         logger.debug("Icon cache cleared asynchronously")
 
-    async def preload_icons_async(
-        self, icon_names: list[str], theme: str | None = None
-    ) -> dict[str, QIcon]:
-        """Preload multiple icons asynchronously."""
-        if theme is None:
-            theme = get_current_theme()
-        theme = validate_theme(theme)
-
-        # Import here to avoid circular imports
-        from .creators import themed_icon_async
-
-        # Limit concurrent loading to avoid overloading disk/CPU
-        # Make limit configurable via app_config, with safe default
-        try:
-            from app.config_data import (
-                app_config,  # local import to avoid cycles
-            )
-
-            concurrency = int(getattr(app_config, "icon_preload_concurrency", 6))
-        except Exception:  # noqa: BLE001
-            concurrency = 6  # fallback
-        sem = asyncio.Semaphore(concurrency)
-
-        async def _load(name: str):
-            icon_name = name if "." in name else f"{name}.svg"
-            async with sem:
-                try:
-                    return await themed_icon_async(icon_name, theme, "preload")
-                except Exception as e:  # noqa: BLE001
-                    return e
-
-        icons = await asyncio.gather(*tasks, return_exceptions=False)
-
-        result = {}
-        for name, icon in zip(icon_names, icons):
-            if isinstance(icon, Exception):
-                logger.warning("Failed to preload icon %s: %s", name, icon)
-                result[name] = QIcon()  # Empty icon on error
-            else:
-                result[name] = icon
-
-        logger.info("Preloaded %s icons for theme %s", len(result), theme)
-        return result
-
 
 # Single global instance
 icon_cache = IconCache()

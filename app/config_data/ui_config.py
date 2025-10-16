@@ -1,12 +1,11 @@
 """User interface configuration helpers."""
 
 import logging
-from typing import Dict
+
+from PyQt6.QtGui import QFont
 
 from .base_config import BaseConfig
 from .qt_adapters import to_qfont
-
-from PyQt6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 
@@ -452,18 +451,16 @@ class UIConfig(BaseConfig):
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return self.get(
-            "ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"]
-        )
+        return self.get("ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"])
 
-    def get_links_table_columns(self) -> Dict[str, int]:
+    def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
         return self.get(
             "ui.links_table_columns",
             {"favorite": 0, "name": 1, "last_used": 2, "notes": 3},
         )
 
-    def get_links_table_messages(self) -> Dict[str, str]:
+    def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""
         return self.get(
             "ui.links_table_messages",
@@ -778,3 +775,31 @@ class UIConfig(BaseConfig):
         Config key: ``ui.topbar.min_visible.quick``. Defaults to ``1``.
         """
         return int(self.get("ui.topbar.min_visible.quick", 1))
+
+    def get_topbar_favorites_min_visible_threshold(self) -> int:
+        """Return the minimum number of visible favorites buttons before hiding.
+
+        Config key: ``ui.topbar.favorites_min_visible_threshold``. Defaults to ``5``.
+        """
+        return int(self.get("ui.topbar.favorites_min_visible_threshold", 5))
+
+    def get_topbar_separator_search_spacing(self) -> int:
+        """Return the spacing around separators when search widget is present.
+
+        Config key: ``ui.topbar.separator_search_spacing``. Defaults to ``4``.
+        """
+        return int(self.get("ui.topbar.separator_search_spacing", 4))
+
+    def get_topbar_separator_hidden_spacing(self) -> int:
+        """Return the spacing around separators when hidden.
+
+        Config key: ``ui.topbar.separator_hidden_spacing``. Defaults to ``0``.
+        """
+        return int(self.get("ui.topbar.separator_hidden_spacing", 0))
+
+    def get_topbar_layout_spacing_fallback(self) -> int:
+        """Return the fallback spacing value when layout spacing is unavailable.
+
+        Config key: ``ui.topbar.layout_spacing_fallback``. Defaults to ``6``.
+        """
+        return int(self.get("ui.topbar.layout_spacing_fallback", 6))

@@ -1,25 +1,23 @@
 # app/controllers/structure_modules/base.py
-
 """Base classes, enums and constants for structure operations."""
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional, TypeVar, cast
 
 from ..models.types import (
-    StructureItemType as ImportedStructureItemType,
-    StructureItemType,
-    SignalType,
-    AnyItemData,
     AnyCreateData,
+    AnyItemPayload,
     AnyUpdateData,
     ItemTypeConfig,
+    SignalType,
+    StructureItemType,
 )
-from ..validation.validators import validate_and_raise, ValidationError
+from ..validation.validators import ValidationError, validate_and_raise
 
 logger = logging.getLogger(__name__)
 
 
-StructureItemType = ImportedStructureItemType
+TExecResult = TypeVar("TExecResult")
 
 
 class StructureOperationError(Exception):
@@ -55,20 +53,27 @@ class StructureSignalEmitter:
     def __init__(
         self,
         emit_signal_func: Optional[
-            Callable[[str, str, int, Dict[str, Any]], None]
+            Callable[[str, str, int, AnyItemPayload | None], None]
         ] = None,
     ):
         self._emit_signal = emit_signal_func
 
     def emit(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
+        self,
+        signal_type: str,
+        item_type: str,
+        parent_or_id: int,
+        data: AnyItemPayload | None = None,
     ) -> None:
         """Emit a signal."""
         if not self._emit_signal:
             return  # Если функция не установлена, просто ничего не делаем
 
         try:
-            self._emit_signal(signal_type, item_type, parent_or_id, data)
+            if data is None:
+                self._emit_signal(signal_type, item_type, parent_or_id, None)
+            else:
+                self._emit_signal(signal_type, item_type, parent_or_id, data)
         except (AttributeError, TypeError, ValueError) as e:
             # Expected errors — log as warning
             logger.warning("Signal emission error: %s", e)
@@ -124,7 +129,7 @@ class BaseOperations:
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         emit_signal_func: Optional[
-            Callable[[str, str, int, Dict[str, Any]], None]
+            Callable[[str, str, int, AnyItemPayload | None], None]
         ] = None,
     ):
         self.structure_model = structure_model
@@ -139,20 +144,16 @@ class BaseOperations:
 
     def _validate_data(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         item_type: StructureItemType,
         require_parent: bool = True,
     ) -> None:
         """Basic data validation."""
         if not isinstance(data, dict):
-            raise ValidationError(
-                "Data must be a dict", item_type=item_type.value
-            )
+            raise ValidationError(f"Data must be a dict for {item_type.value}")
 
         if not data.get("name", "").strip():
-            raise ValidationError(
-                "Field 'name' is required", field="name", item_type=item_type.value
-            )
+            raise ValidationError(f"Field 'name' is required for {item_type.value}")
 
         if require_parent:
             try:
@@ -160,12 +161,10 @@ class BaseOperations:
                 parent_field = config.parent_field
                 if parent_field not in data or data[parent_field] is None:
                     raise ValidationError(
-                        f"Field '{parent_field}' is required",
-                        field=parent_field,
-                        item_type=item_type.value,
+                        f"Field '{parent_field}' is required for {item_type.value}"
                     )
             except ValueError as e:
-                raise ValidationError(str(e), item_type=item_type.value) from e
+                raise ValidationError(f"{item_type.value}: {e}") from e
 
     def _exec_with_norm(
         self, operation_func: Callable, operation_name: str, default_return: Any
@@ -180,12 +179,12 @@ class BaseOperations:
 
     def _execute_with_validation(
         self,
-        operation_func: Callable,
-        data: Dict[str, Any],
+        operation_func: Callable[[], TExecResult],
+        data: Any,  # Accept both dict[str, Any] and TypedDict variants
         item_type: StructureItemType,
         operation_name: str,
         require_parent: bool = True,
-    ) -> Optional[bool]:
+    ) -> Optional[TExecResult]:
         """Perform validation and operation with error handling."""
         try:
             # Валидация
@@ -209,7 +208,11 @@ class BaseOperations:
             return None
 
     def _emit_signal(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: Dict[str, Any]
+        self,
+        signal_type: str,
+        item_type: str,
+        parent_or_id: int,
+        data: AnyItemPayload | None = None,
     ) -> None:
         """Emit a signal via the configured emitter."""
         self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)
@@ -217,10 +220,10 @@ class BaseOperations:
     def _upsert_and_emit(
         self,
         item_type: StructureItemType,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         is_update: bool,
         item_id: Optional[int],
-        emit_signal: Callable[[str, str, int, Dict[str, Any]], None],
+        emit_signal: Callable[[str, str, int, AnyItemPayload | None], None],
     ) -> Optional[int]:
         """Generic create/update method for structure items.
 
@@ -234,9 +237,9 @@ class BaseOperations:
             raise StructureOperationError(
                 f"Invalid data for {item_type.value}: {e.message}",
                 "validation",
-                item_type.value
+                item_type.value,
             ) from e
-        
+
         # Check item type support
         if not ItemTypeRegistry.is_supported(item_type):
             raise StructureOperationError(
@@ -284,7 +287,13 @@ class BaseOperations:
             signal_type = SignalType.ITEM_UPDATED
             signal_parent_or_id = item_id  # type: ignore[arg-type]
 
-        emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)
+        payload = cast(AnyItemPayload, data_copy)
+        emit_signal(
+            signal_type.value,
+            item_type.value,
+            signal_parent_or_id,
+            payload,
+        )
 
         # Log successful operation with validation confirmation
         operation_name = "updated" if is_update else "created"
@@ -292,7 +301,7 @@ class BaseOperations:
             "✅ %s %s '%s' (validation passed)",
             config.ru_name.capitalize(),
             operation_name,
-            data_copy.get("name", "unnamed")
+            data_copy.get("name", "unnamed"),
         )
 
         return result_id
@@ -300,7 +309,7 @@ class BaseOperations:
     def _process_item(
         self,
         item_type: StructureItemType,
-        data: AnyItemData,
+        data: Any,  # Accept AnyItemData, AnyCreateData, AnyUpdateData
         emit_signal: "StructureSignalEmitter",
         is_update: bool = False,
         item_id: Optional[int] = None,
@@ -324,7 +333,9 @@ class BaseOperations:
                 emit_signal=emit_signal.emit,
             )
 
-        operation_name = "update" if is_update else "create"  # For logging/error handling
+        operation_name = (
+            "update" if is_update else "create"
+        )  # For logging/error handling
         result = self._execute_with_validation(
             _process_operation,
             data,
@@ -389,7 +400,7 @@ class BaseOperations:
         item_id: int,
         delete_func: Callable[[], None],
         *,
-        emit_data: Optional[Dict[str, Any]] = None,
+        emit_data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Delete a structure item via provided function, emit signal and log.
 
@@ -407,12 +418,17 @@ class BaseOperations:
             # Execute deletion and emit signal
             delete_func()
             self._emit_signal(
-                SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {}
+                SignalType.ITEM_DELETED.value,
+                item_type.value,
+                item_id,
+                emit_data or {},
             )
 
             # Log deletion
             ru_name = ItemTypeRegistry.get_config(item_type).ru_name
-            self.slogger.log_operation("deleted", item_type.value, str(item_id), ru_name)
+            self.slogger.log_operation(
+                "deleted", item_type.value, str(item_id), ru_name
+            )
             return True
 
         return self._execute_with_error_handling(

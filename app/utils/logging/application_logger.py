@@ -48,9 +48,7 @@ class ApplicationLogger:
         # Priority 1: Environment variable (for advanced users)
         env_path = os.getenv("LOGGING_CONFIG_PATH")
         if env_path and Path(env_path).exists():
-            logging.info(
-                "Using configuration from environment variable: %s", env_path
-            )
+            logging.info("Using configuration from environment variable: %s", env_path)
             return Path(env_path)
 
         # Priority 2: Next to executable (portability)
@@ -68,9 +66,7 @@ class ApplicationLogger:
             return dev_path
 
         # If nothing found
-        logging.warning(
-            "Logging configuration file not found, using default settings"
-        )
+        logging.warning("Logging configuration file not found, using default settings")
         return None
 
     def _get_embedded_config(self):
@@ -119,7 +115,7 @@ class ApplicationLogger:
 
             if config_path:
                 # Load configuration from file
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     log_config = json.load(f)
 
                 # Update log file path in configuration

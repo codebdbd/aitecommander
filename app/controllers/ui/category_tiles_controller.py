@@ -1,13 +1,13 @@
 # app/controllers/ui/category_tiles_controller.py
 
 import logging
-from typing import Dict, List, Optional, Protocol
+from typing import Optional, Protocol
 
 logger = logging.getLogger(__name__)
 
 
 class CategoryTilesLike(Protocol):
-    def set_categories(self, categories: List[Dict]) -> None: ...
+    def set_categories(self, categories: list[dict]) -> None: ...
 
 
 class CategoryTilesController:
@@ -18,7 +18,7 @@ class CategoryTilesController:
     `attach_tiles_widget()`.
     """
 
-    def __init__(self, ui_state, structure_business, *, main_window=None):
+    def __init__(self, ui_state, structure_business, *, main_window=None) -> None:
         if ui_state is None or structure_business is None:
             raise ValueError(
                 "CategoryTilesController requires ui_state and structure_business"

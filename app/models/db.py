@@ -4,28 +4,29 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Optional
+
+from PyQt6.QtCore import QObject, QThreadPool, pyqtBoundSignal, pyqtSignal
 
 if TYPE_CHECKING:
-    from PyQt6.QtCore import QObject
-
-from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
+    pass  # QObject already imported above
 
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner
+
+from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
+from .entities.category_model import CategoryModel
+from .entities.link_model import LinkModel
+from .entities.section_model import SectionModel
+from .entities.sphere_model import SphereModel
 from .managers.backup_manager import BackupManager
-from .managers.import_export_manager import ImportExportManager
 from .managers.duplicate_resolver import DuplicateResolver
+from .managers.import_export_manager import ImportExportManager
 from .managers.structure_manager import StructureManager
 from .types.constants import (
     SQLITE_SAFE_BATCH_SIZE,
     SQLITE_SAFE_SELECT_CHUNK,
 )
-from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
-from .entities.sphere_model import SphereModel
-from .entities.section_model import SectionModel
-from .entities.category_model import CategoryModel
-from .entities.link_model import LinkModel
 
 logger = logging.getLogger(__name__)
 
@@ -41,70 +42,72 @@ BACKUP_DIR = PATHS.get_backups_dir()
 
 class Database(QObject):
     """Main class for working with database.
-    
+
     Inherits from QObject to support Qt signals and reactive UI updates.
     Uses composition to access basic DB operations.
     """
-    
+
     # Qt signals to notify UI about data changes
     data_changed = pyqtSignal(str, str, list)  # table_name, operation, affected_ids
     structure_loaded = pyqtSignal()  # Structure loaded/imported
     backup_created = pyqtSignal(str)  # backup_path
     error_occurred = pyqtSignal(str, str)  # title, message
-    
+
     # Progress signals for long operations
     operation_started = pyqtSignal(str, int)  # operation_name, total_items
-    operation_progress = pyqtSignal(str, int, int, str)  # operation_name, current, total, message
+    operation_progress = pyqtSignal(
+        str, int, int, str
+    )  # operation_name, current, total, message
     operation_finished = pyqtSignal(str, bool)  # operation_name, success
     warning_occurred = pyqtSignal(str, str)  # title, message
-    
+
     def __init__(self, parent: Optional[QObject] = None):
         """Initializes Database.
-        
-        ✅ FIX: Added parent parameter for proper memory management.
-        
+
         Args:
-            parent: Parent QObject (optional)
+            parent: Parent QObject (optional) for Qt ownership semantics.
         """
         # Initialize QObject with parent
         super().__init__(parent)
-        
+
         self.db_path = str(DB_PATH)
         self.thread_local = threading.local()
-        
+
         # Composition instead of inheritance from DatabaseBase
         self._base = DatabaseBase(self)
-        
+
         # Thread pool for async operations
-        self._thread_pool = QThreadPool.globalInstance()
+        pool = QThreadPool.globalInstance()
+        if pool is None:
+            raise RuntimeError("QThreadPool.globalInstance() returned None")
+        self._thread_pool: QThreadPool = pool
         max_threads = app_config.get("threading.max_db_threads", 4)
         self._thread_pool.setMaxThreadCount(max_threads)
 
         # Initialize models after full Database initialization
-        # ✅ FIX: Models are not QObject, parent not needed
         self.spheres = SphereModel(self)
         self.sections = SectionModel(self)
         self.categories = CategoryModel(self)
         self.links = LinkModel(self)
-        
+
         # Initialize managers
         self.backup_manager = BackupManager(self)
         self.import_export_manager = ImportExportManager(self)
         self.duplicate_resolver = DuplicateResolver(self)
         self.structure_manager = StructureManager(self)
-        
-        # ✅ Flag to track cleanup
+
+        # Track whether cleanup has already been performed.
         self._cleaned_up = False
-    
+
     # Delegate DatabaseBase methods through composition
     def commit(self) -> None:
         """Commits current transaction."""
         return self._base.commit()
-    
+
     def rollback(self) -> None:
         """Rolls back current transaction."""
         return self._base.rollback()
-    
+
     def transaction(self):
         """Transaction context manager with automatic commit/rollback."""
         return self._base.transaction()
@@ -121,14 +124,14 @@ class Database(QObject):
 
         .. deprecated::
             Use :meth:`initialize_or_migrate_async` to prevent UI blocking.
-        
+
         Heavy operation: run in background (QRunnable) using global
         `db_lock` inside methods where needed.
         """
         warnings.warn(
             "Method initialize_or_migrate() is deprecated. Use initialize_or_migrate_async().",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         operation = "initialize_or_migrate"
         try:
@@ -144,7 +147,9 @@ class Database(QObject):
             # Initialize default data for new database (after migrations)
             if is_new:
                 try:
-                    self.operation_progress.emit(operation, 1, 1, "Initializing default data...")
+                    self.operation_progress.emit(
+                        operation, 1, 1, "Initializing default data..."
+                    )
                     self.spheres.initialize_default_spheres()
                 except Exception as init_err:
                     logger.warning(
@@ -153,7 +158,7 @@ class Database(QObject):
                         exc_info=True,
                     )
             self.operation_finished.emit(operation, True)
-        except Exception as e:
+        except Exception:
             self.operation_finished.emit(operation, False)
             raise
         finally:
@@ -163,39 +168,41 @@ class Database(QObject):
                 self.close()
             except Exception:
                 pass
-    
+
     def initialize_or_migrate_async(
         self,
         on_finished: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
-        on_progress: Optional[Callable] = None
+        on_progress: Optional[Callable] = None,
     ):
-        """Initializes DB in background thread (RECOMMENDED).
-        
-        ✅ FIX: Added async method to prevent UI blocking.
-        
+        """Initializes DB in a background thread to keep the UI responsive.
+
         Args:
             on_finished: Callback on completion (stats: {is_new: bool, migrations_applied: int})
             on_error: Callback on error (exception, traceback)
             on_progress: Callback for progress (current, total, message)
-            
+
         Example:
             >>> def on_done(stats):
             ...     print(f"Migrations applied: {stats['migrations_applied']}")
             >>> db.initialize_or_migrate_async(on_finished=on_done)
         """
         from .workers import InitializationWorker
-        
+
         worker = InitializationWorker(self.db_path, MIGRATIONS_DIR)
-        
+
         # Подключаем внутренние сигналы Database
         worker.signals.finished.connect(
-            lambda stats: self._safe_emit(self.operation_finished, "initialize_or_migrate", True)
+            lambda stats: self._safe_emit(
+                self.operation_finished, "initialize_or_migrate", True
+            )
         )
         worker.signals.error.connect(
-            lambda e, tb: self._safe_emit(self.error_occurred, "Initialization error", str(e))
+            lambda e, tb: self._safe_emit(
+                self.error_occurred, "Initialization error", str(e)
+            )
         )
-        
+
         # Подключаем пользовательские callbacks
         if on_finished:
             worker.signals.finished.connect(on_finished)
@@ -203,49 +210,48 @@ class Database(QObject):
             worker.signals.error.connect(on_error)
         if on_progress:
             worker.signals.progress.connect(on_progress)
-        
+
         self._thread_pool.start(worker)
         logger.info("Started async DB initialization")
-    
-    def _safe_emit(self, signal: pyqtSignal, *args) -> None:
-        """Safe signal emit with QApplication check.
-        
-        ✅ FIX: Added QApplication.instance() check before emit.
-        
-        Prevents crash when used outside Qt application (tests, CLI).
-        
+
+    def _safe_emit(self, signal: pyqtBoundSignal, *args: Any) -> None:
+        """Emit a Qt signal only when a QApplication instance exists.
+
+        Prevents crashes when the database layer is exercised outside the GUI
+        (for example in tests or CLI tools).
+
         Args:
             signal: Signal to emit
             *args: Signal arguments
         """
         try:
             from PyQt6.QtWidgets import QApplication
-            
+
             # Check for QApplication instance
             if QApplication.instance() is None:
                 logger.debug(
                     "Skipping signal emit (no QApplication): %s",
-                    signal.__class__.__name__
+                    signal.__class__.__name__,
                 )
                 return
-            
+
             # Emit signal
             signal.emit(*args)
-            
+
         except Exception as e:
             # Don't interrupt main operation on signal error
             logger.debug(
                 "Error emitting signal %s: %s",
                 signal.__class__.__name__,
                 e,
-                exc_info=True
+                exc_info=True,
             )
 
     def __enter__(self):
         """Allows using Database as context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, _exc_val, _exc_tb):
         self.close()
 
     @property
@@ -287,10 +293,10 @@ class Database(QObject):
         """Returns sphere_id for given section."""
         return self.sections.get_sphere_id_by_section(section_id)
 
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]):
+    def update_item_positions(self, table_name: str, ids_in_order: list[int]):
         """Updates 'position' field for list of items in specified table."""
         from .types.constants import VALID_POSITION_TABLES
-        
+
         if table_name not in VALID_POSITION_TABLES:
             raise ValidationError(
                 f"Invalid table name for position update: {table_name}"
@@ -351,9 +357,9 @@ class Database(QObject):
                 len(ids),
                 table_name,
             )
-            
+
             # Notify UI about data change via Qt signal
-            # ✅ FIX: Use _safe_emit
+            # Use _safe_emit to guard against missing QApplication
             self._safe_emit(self.data_changed, table_name, "update_positions", ids)
         except ValidationError:
             # Pass input data validation errors as is
@@ -365,10 +371,10 @@ class Database(QObject):
                 e,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to update positions: {e}")
+            raise DatabaseError(f"Failed to update positions: {e}") from e
 
     # === Helpers for update_item_positions ===
-    def _validate_ids(self, ids_in_order: List[int]) -> List[int]:
+    def _validate_ids(self, ids_in_order: list[int]) -> list[int]:
         """Checks and normalizes input IDs: types, values, uniqueness.
 
         Returns list of int IDs. Throws ValidationError on mismatches.
@@ -386,7 +392,7 @@ class Database(QObject):
 
         return ids
 
-    def _ensure_ids_exist(self, table_name: str, ids: List[int]) -> None:
+    def _ensure_ids_exist(self, table_name: str, ids: list[int]) -> None:
         """Checks existence of all specified IDs in table. Throws ValidationError if missing."""
         with db_lock:
             existing_ids = set()
@@ -410,91 +416,93 @@ class Database(QObject):
             )
 
     # Import/export methods
-    def export_full_structure(self) -> Dict[str, List]:
+    def export_full_structure(self) -> dict[str, list]:
         """Exports entire data structure from DB as dictionary (synchronously).
-        
+
         .. deprecated::
             Use :meth:`export_full_structure_async` to prevent UI blocking.
         """
         warnings.warn(
             "Method export_full_structure() is deprecated. Use export_full_structure_async().",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.import_export_manager.export_full_structure()
-    
+
     def export_full_structure_async(
         self,
         on_finished: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
-        on_progress: Optional[Callable] = None
+        on_progress: Optional[Callable] = None,
     ):
         """Exports structure in background thread.
-        
+
         Args:
             on_finished: Callback on completion (result: Dict[str, List])
             on_error: Callback on error (exception, traceback)
             on_progress: Callback for progress (current, total, message)
         """
         from .workers import ExportStructureWorker
-        
+
         worker = ExportStructureWorker(self.db_path)
-        
+
         if on_finished:
             worker.signals.finished.connect(on_finished)
         if on_error:
             worker.signals.error.connect(on_error)
         if on_progress:
             worker.signals.progress.connect(on_progress)
-        
+
         self._thread_pool.start(worker)
         logger.info("Started async structure export")
 
-    def get_full_structure(self) -> List[Dict]:
+    def get_full_structure(self) -> list[dict]:
         """Returns full data structure as nested dictionaries."""
         return self.structure_manager.get_full_structure()
 
-    def import_full_structure(self, data: List[Dict]):
+    def import_full_structure(self, data: list[dict]):
         """Clears database and imports data from structure (synchronously).
-        
+
         .. deprecated::
             Use :meth:`import_full_structure_async` to prevent UI blocking.
         """
         warnings.warn(
             "Method import_full_structure() is deprecated. Use import_full_structure_async().",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.structure_manager.import_full_structure(data)
-    
+
     def import_full_structure_async(
         self,
-        data: List[Dict],
+        data: list[dict],
         on_finished: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
-        on_progress: Optional[Callable] = None
+        on_progress: Optional[Callable] = None,
     ):
         """Imports data in background thread (RECOMMENDED).
-        
+
         Args:
             data: Data to import
             on_finished: Callback on completion (stats: {spheres, sections, categories, links})
             on_error: Callback on error (exception, traceback)
             on_progress: Callback for progress (current, total, message)
-            
+
         Example:
             >>> def on_done(stats):
             ...     print(f"Imported {stats['spheres']} spheres")
             >>> db.import_full_structure_async(data, on_finished=on_done)
         """
         from .workers import ImportStructureWorker
-        
+
         worker = ImportStructureWorker(self.db_path, data)
-        
+
         # Подключаем внутренние сигналы Database
         worker.signals.finished.connect(lambda stats: self.structure_loaded.emit())
-        worker.signals.error.connect(lambda e, tb: self.error_occurred.emit("Import error", str(e)))
-        
+        worker.signals.error.connect(
+            lambda e, tb: self.error_occurred.emit("Import error", str(e))
+        )
+
         # Подключаем пользовательские callbacks
         if on_finished:
             worker.signals.finished.connect(on_finished)
@@ -502,37 +510,38 @@ class Database(QObject):
             worker.signals.error.connect(on_error)
         if on_progress:
             worker.signals.progress.connect(on_progress)
-        
+
         self._thread_pool.start(worker)
         logger.info("Started async structure import")
 
     def backup(self):
         """Creates database backup (synchronously)."""
         return self.backup_manager.backup(BACKUP_DIR)
-    
+
     def backup_async(
         self,
         on_finished: Optional[Callable] = None,
-        on_progress: Optional[Callable] = None
+        on_error: Optional[Callable] = None,
+        on_progress: Optional[Callable] = None,
     ):
         """Создаёт резервную копию в фоновом потоке.
-        
+
         Args:
             on_finished: Callback при успешном завершении (result)
             on_error: Callback при ошибке (exception, traceback)
             on_progress: Callback для прогресса (current, total, message)
         """
         from .workers import BackupWorker
-        
+
         worker = BackupWorker(self.db_path, BACKUP_DIR)
-        
+
         if on_finished:
             worker.signals.finished.connect(on_finished)
         if on_error:
             worker.signals.error.connect(on_error)
         if on_progress:
             worker.signals.progress.connect(on_progress)
-        
+
         # Start in thread pool
         self._thread_pool.start(worker)
         logger.info("Started async backup")
@@ -553,7 +562,7 @@ class Database(QObject):
         """Restores category and all links from backup structure."""
         return self.import_export_manager.import_category_tree(tree)
 
-    def import_category_trees_bulk(self, trees: List[dict]) -> None:
+    def import_category_trees_bulk(self, trees: list[dict]) -> None:
         """Imports multiple category subtrees in ONE transaction."""
         return self.import_export_manager.import_category_trees_bulk(trees)
 
@@ -600,27 +609,25 @@ class Database(QObject):
     def create_nocase_unique_indexes(self) -> None:
         """Re-creates case-insensitive unique indexes for sphere/section/category."""
         return self.duplicate_resolver.create_nocase_unique_indexes()
-    
+
     def cleanup(self) -> None:
         """Releases Database resources.
-        
-        ✅ FIX: Added cleanup method to prevent memory leaks.
-        
+
         Called when closing application for proper completion:
         - Waits for all workers in thread pool to finish
         - Closes DB connections
         - Releases model and manager resources
-        
+
         Idempotent - can be called multiple times.
         """
         if self._cleaned_up:
             return
-        
+
         try:
             logger.debug("Database cleanup started")
-            
+
             # 1. Wait for all workers to finish (max 5 seconds)
-            if hasattr(self, '_thread_pool') and self._thread_pool:
+            if hasattr(self, "_thread_pool") and self._thread_pool:
                 try:
                     logger.debug("Waiting for thread pool to finish...")
                     # waitForDone returns True if all finished, False if timeout
@@ -631,26 +638,33 @@ class Database(QObject):
                         )
                 except Exception as e:
                     logger.warning("Error waiting for thread pool: %s", e)
-            
+
             # 2. Close DB connection
             try:
                 self.close()
             except Exception as e:
                 logger.warning("Error closing database connection: %s", e)
-            
+
             # 3. Clear references to models and managers
             # (Python GC will free memory, but explicitly clear for clarity)
-            for attr in ['spheres', 'sections', 'categories', 'links',
-                        'backup_manager', 'import_export_manager', 
-                        'duplicate_resolver', 'structure_manager']:
+            for attr in [
+                "spheres",
+                "sections",
+                "categories",
+                "links",
+                "backup_manager",
+                "import_export_manager",
+                "duplicate_resolver",
+                "structure_manager",
+            ]:
                 if hasattr(self, attr):
                     try:
                         delattr(self, attr)
                     except Exception:
                         pass
-            
+
             self._cleaned_up = True
             logger.debug("Database cleanup completed")
-            
+
         except Exception as exc:
             logger.error("Error during Database cleanup: %s", exc, exc_info=True)

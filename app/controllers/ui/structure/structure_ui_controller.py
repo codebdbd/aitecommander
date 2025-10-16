@@ -96,34 +96,23 @@ class StructureUIController(QObject):
                         sel_model = None
                     if not sel_model:
                         return
-                    # Try to disconnect previous connection if present
                     try:
-                        sel_model.currentChanged.disconnect(
-                            self.selection_handler._on_current_changed
-                        )
-                    except Exception:
-                        # Not critical: previous connection might be absent
-                        import logging
-                        logging.getLogger(__name__).debug(
-                            "Selection reconnect: disconnect previous failed",
-                            exc_info=True,
-                        )
-                    try:
-                        sel_model.currentChanged.connect(
-                            self.selection_handler._on_current_changed
-                        )
+                        self.selection_handler.bind_to_selection_model(sel_model)
                     except Exception:
                         import logging
+
                         logging.getLogger(__name__).debug(
-                            "Selection reconnect: connect failed", exc_info=True
+                            "Selection reconnect: bind failed", exc_info=True
                         )
 
                 QTimer.singleShot(0, _reconnect)
             except Exception:
                 # Not critical, log in DEBUG only
                 import logging
+
                 logging.getLogger(__name__).debug(
-                    "Failed to schedule selection reconnect after modelReset", exc_info=True
+                    "Failed to schedule selection reconnect after modelReset",
+                    exc_info=True,
                 )
 
         # Subscribe ONLY to modelReset to perform a single pass
@@ -160,7 +149,7 @@ class StructureUIController(QObject):
         if callable(sel_model):
             sel_model = self.tree.selectionModel()
         if sel_model:
-            sel_model.currentChanged.connect(self.selection_handler._on_current_changed)
+            self.selection_handler.bind_to_selection_model(sel_model)
 
     def _connect_business_signals(self) -> None:
         self.business.structure_loaded.connect(self.tree_manager._on_structure_loaded)
@@ -261,7 +250,10 @@ class StructureUIController(QObject):
                 if isinstance(current_id, int):
                     return current_id
         except Exception:
-            logger.debug("StructureUIController.get_current_category_id: tiles lookup failed", exc_info=True)
+            logger.debug(
+                "StructureUIController.get_current_category_id: tiles lookup failed",
+                exc_info=True,
+            )
 
         # 2) Try to get category via TreeManagement (considering saved state)
         try:

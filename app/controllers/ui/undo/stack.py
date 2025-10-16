@@ -5,9 +5,10 @@ Wrapper over QUndoStack with convenient methods and a macro-command context mana
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator, Optional
 
+from PyQt6.QtCore import QObject
 from PyQt6.QtGui import QUndoStack
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class UndoManager:
     and a context manager macro(name).
     """
 
-    def __init__(self, parent: Optional[object] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         self.stack = QUndoStack(parent)
 
     def push(self, cmd) -> None:

@@ -1,9 +1,9 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 from PyQt6.QtCore import QModelIndex, Qt
 
 
-def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, int]]:
+def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[tuple[str, int]]:
     """Read ``(type, id)`` from UserRole for the given ``QModelIndex``.
 
     Uses the specified ``column`` (defaults to 0). Returns ``None`` if the data
@@ -39,7 +39,7 @@ def get_index_int(index) -> Optional[int]:
         return None
 
 
-def get_index_dict(index) -> Optional[Dict[str, Any]]:
+def get_index_dict(index) -> Optional[dict[str, Any]]:
     """Read a ``dict`` from UserRole by ``QModelIndex``. Returns ``None`` if not a dict."""
     try:
         if not index or not index.isValid():
@@ -67,7 +67,7 @@ def set_index_data(
         return False
 
 
-def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
+def set_tree_tuple(index: QModelIndex, value: tuple[str, int]) -> bool:
     """Set ``(type, id)`` into UserRole for ``QModelIndex`` via ``model.setData``.
     Requires the model to support ``setData`` for ``UserRole``.
     """
