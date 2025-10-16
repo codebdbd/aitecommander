@@ -280,7 +280,9 @@ class WindowUISetup:
         except (RuntimeError, AttributeError):
             left, r, b = 0, 0, 0
         try:
-            self.main_layout.setContentsMargins(int(left or 0), 0, int(r or 0), int(b or 0))
+            self.main_layout.setContentsMargins(
+                int(left or 0), 0, int(r or 0), int(b or 0)
+            )
         except (RuntimeError, AttributeError):
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",
@@ -504,7 +506,20 @@ class WindowUISetup:
             pass
 
     def _register_topbar_cleanup(self, manager: TopBarLayoutManager | None) -> None:
-        """Connect window destruction to top bar cleanup for deterministic teardown."""
+        """Connect window destruction to top bar cleanup for deterministic teardown.
+
+        CRITICAL: Явное подключение cleanup() к window.destroyed обеспечивает
+        детерминированную очистку QGraphicsOpacityEffect и других Qt-ресурсов
+        до уничтожения родительских объектов, избегая проблем с __del__.
+
+        Порядок выполнения:
+        1. window.destroyed signal испускается
+        2. manager.cleanup() вызывается (все виджеты ещё валидны)
+        3. Qt начинает уничтожение window и дочерних объектов
+
+        Args:
+            manager: TopBarLayoutManager для регистрации cleanup
+        """
         if manager is None or not hasattr(self.window, "destroyed"):
             return
         if getattr(self.window, "_topbar_cleanup_connected", False):
@@ -512,8 +527,12 @@ class WindowUISetup:
         try:
             self.window.destroyed.connect(manager.cleanup)
             self.window._topbar_cleanup_connected = True
-        except Exception:
             logger.debug(
+                "WindowUISetup: TopBarLayoutManager cleanup connected to "
+                "window.destroyed"
+            )
+        except Exception:
+            logger.warning(
                 "WindowUISetup: failed to connect top bar cleanup", exc_info=True
             )
 
@@ -726,9 +745,11 @@ class WindowUISetup:
                 )
         else:
             logger.warning(
-                "SearchWidget: window.on_search handler not found; textChanged not connected"
+                "SearchWidget: window.on_search handler not found; "
+                "textChanged not connected"
             )
-        # Add without stretch; `TopBarLayoutManager` applies stretch after the final adjust
+        # Add without stretch; `TopBarLayoutManager` applies stretch
+        # after the final adjust
         top_bar.addWidget(self.window.search)
         try:
             dur = (time.perf_counter() - t_start) * 1000.0
@@ -883,7 +904,8 @@ class WindowUISetup:
             )
 
         # Icon setup
-        # Application logo path differs between development and packaged (PyInstaller) builds
+        # Application logo path differs between development and packaged
+        # (PyInstaller) builds
         current_file = Path(__file__).resolve()
         base_dir = current_file.parent
         app_dir = (base_dir / ".." / ".." / "..").resolve()
