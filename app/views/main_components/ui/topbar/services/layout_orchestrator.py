@@ -55,6 +55,7 @@ class LayoutOrchestrator:
         log_info: bool,
         slow_adjust_threshold_ms: float,
         side_spacing: int,
+        favorites_min_visible_threshold: int | None = None,
         manager_ref: Any = None,
     ) -> None:
         self.window = window
@@ -73,6 +74,13 @@ class LayoutOrchestrator:
         self._log_info = log_info
         self._slow_adjust_threshold_ms = slow_adjust_threshold_ms
         self._side_spacing = side_spacing
+
+        # Использовать переданное значение или константу по умолчанию
+        if favorites_min_visible_threshold is not None:
+            self._favorites_min_visible_threshold = favorites_min_visible_threshold
+        else:
+            from ..models.topbar_constants import TOPBAR_CONSTANTS as C
+            self._favorites_min_visible_threshold = C.FAVORITES_MIN_VISIBLE_THRESHOLD
 
         # State
         self._init_state = InitializationState.NOT_STARTED
@@ -180,14 +188,8 @@ class LayoutOrchestrator:
             ctx, counts, self._last_applied, self._panel_labels
         )
 
-        # Получаем порог из конфигурации вместо жестко закодированного значения
-        favorites_threshold = getattr(self._manager_ref, '_config', None)
-        if favorites_threshold and hasattr(favorites_threshold, 'get_favorites_min_visible_threshold'):
-            threshold = favorites_threshold.get_favorites_min_visible_threshold()
-        else:
-            threshold = 5  # значение по умолчанию
-        
-        if "fav" in counts and 0 < counts["fav"] < threshold:
+        # Применить порог минимальной видимости для favorites
+        if "fav" in counts and 0 < counts["fav"] < self._favorites_min_visible_threshold:
             counts["fav"] = 0
 
         applied = self._apply_counts(ctx, ctx.panel_states, counts)
@@ -291,9 +293,10 @@ class LayoutOrchestrator:
             )
         return panel_states
 
-    def _counts_tuple(self, counts: dict[str, int]) -> tuple[int, ...]:
-        """Преобразовать counts в tuple."""
-        return tuple(counts.get(label, 0) for label in self._panel_labels)
+
+    def _counts_tuple(self, applied: dict[str, int]) -> tuple[int, ...]:
+        """Преобразовать applied counts в tuple для сравнения."""
+        return tuple(applied.get(label, 0) for label in self._panel_labels)
 
     def _compute_effective_width(self, width: int) -> int:
         """Вычислить эффективную ширину."""

@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 class SearchWidgetManager:
     """Manage search widget width constraints and stretch behavior.
-    
+
     Responsibilities:
     - Clamp search widget width based on available space
     - Freeze search width when container is hidden
+    - Unfreeze search width to restore normal constraints
     - Enforce stretch factors in layout
     """
 
@@ -27,6 +28,8 @@ class SearchWidgetManager:
         self._width_calculator = width_calculator
         self._max_widget_width = C.MAX_WIDGET_WIDTH
         self._min_panel_width = C.MIN_PANEL_WIDTH
+        # Хранение предыдущих ограничений для восстановления
+        self._saved_constraints: dict[int, tuple[int, int]] = {}
 
     def clamp_width(
         self,
@@ -35,12 +38,15 @@ class SearchWidgetManager:
         min_search_width: int,
     ) -> int | None:
         """Clamp search widget width based on occupied space.
-        
+
+        Автоматически размораживает виджет перед применением новых ограничений,
+        чтобы избежать "залипания" на замороженном значении.
+
         Args:
             ctx: Layout context with search widget and panel states
             applied_counts: Visible button counts per panel
             min_search_width: Minimum allowed search width
-            
+
         Returns:
             New minimum search width if changed, None otherwise
         """
@@ -49,16 +55,15 @@ class SearchWidgetManager:
             return None
 
         try:
+            # Разморозить перед новым расчётом, чтобы избежать "залипания"
+            self.unfreeze_width(search, default_min=min_search_width)
+
             state_map = self._build_state_map(ctx)
             occupied, search_index = self._calculate_occupied_space(
                 ctx, applied_counts, state_map, search
             )
 
             min_search = int(min_search_width)
-            cur_min = int(search.minimumWidth()) if search.minimumWidth() > 0 else 0
-            if cur_min > 0:
-                min_search = max(min_search, cur_min)
-
             self._apply_constraints(search, search_index, ctx.top_bar, min_search)
             return min_search
         except Exception:
@@ -67,7 +72,9 @@ class SearchWidgetManager:
 
     def freeze_width(self, search: QLineEdit | None, width: int) -> None:
         """Freeze search widget to a fixed width.
-        
+
+        Сохраняет текущие ограничения для последующего восстановления через unfreeze_width().
+
         Args:
             search: Search widget to freeze
             width: Fixed width to apply
@@ -75,10 +82,71 @@ class SearchWidgetManager:
         if not isinstance(search, QLineEdit):
             return
         try:
+            # Сохранить текущие ограничения перед заморозкой
+            search_id = id(search)
+            if search_id not in self._saved_constraints:
+                current_min = search.minimumWidth()
+                current_max = search.maximumWidth()
+                self._saved_constraints[search_id] = (current_min, current_max)
+                logger.debug(
+                    "SearchWidgetManager: saved constraints for freeze "
+                    "(min=%d, max=%d)",
+                    current_min,
+                    current_max,
+                )
+
             search.setMaximumWidth(width)
             search.setMinimumWidth(width)
-        except Exception:
-            pass
+            logger.debug("SearchWidgetManager: froze width to %d", width)
+        except Exception as e:
+            logger.debug(
+                "SearchWidgetManager: failed to freeze width: %s", e, exc_info=True
+            )
+
+    def unfreeze_width(
+        self, search: QLineEdit | None, default_min: int | None = None
+    ) -> None:
+        """Unfreeze search widget and restore previous constraints.
+
+        Восстанавливает сохранённые ограничения или использует значения по умолчанию.
+
+        Args:
+            search: Search widget to unfreeze
+            default_min: Default minimum width if no saved constraints
+                        (defaults to MIN_SEARCH_WIDTH_ABSOLUTE)
+        """
+        if not isinstance(search, QLineEdit):
+            return
+        try:
+            search_id = id(search)
+            if search_id in self._saved_constraints:
+                # Восстановить сохранённые ограничения
+                saved_min, saved_max = self._saved_constraints.pop(search_id)
+                search.setMinimumWidth(saved_min)
+                search.setMaximumWidth(saved_max)
+                logger.debug(
+                    "SearchWidgetManager: restored constraints (min=%d, max=%d)",
+                    saved_min,
+                    saved_max,
+                )
+            else:
+                # Использовать значения по умолчанию
+                min_width = (
+                    default_min
+                    if default_min is not None
+                    else C.MIN_SEARCH_WIDTH_ABSOLUTE
+                )
+                search.setMinimumWidth(min_width)
+                search.setMaximumWidth(self._max_widget_width)
+                logger.debug(
+                    "SearchWidgetManager: reset to defaults (min=%d, max=%d)",
+                    min_width,
+                    self._max_widget_width,
+                )
+        except Exception as e:
+            logger.debug(
+                "SearchWidgetManager: failed to unfreeze width: %s", e, exc_info=True
+            )
 
     def enforce_stretches(self, top_bar: QLayout, search: QLineEdit | None) -> None:
         """Enforce stretch factors: search=1, all others=0.
