@@ -56,10 +56,9 @@ class HysteresisService:
 
             try:
                 spacing = int(ctx.top_bar.spacing() or 0)
-            except Exception:
-                # Получаем fallback значение из конфигурации
-                spacing = 6  # значение по умолчанию, если конфигурация недоступна
-                # TODO: Получить значение из конфигурации при интеграции с TopBarLayoutManager
+            except (RuntimeError, AttributeError, TypeError):
+                # Layout deleted, spacing() unavailable, or conversion failed
+                spacing = C.LAYOUT_SPACING_FALLBACK
 
             threshold = max(
                 C.HYSTERESIS_THRESHOLD_BASE,
@@ -68,7 +67,10 @@ class HysteresisService:
 
             if abs(slack_new) < threshold and abs(slack_prev) < threshold:
                 return prev_counts
-        except Exception:
-            pass
+        except (RuntimeError, AttributeError, TypeError, ValueError):
+            # Context invalid, calculations failed, or conversion error
+            logger.debug(
+                "HysteresisService: hysteresis calculation failed, using new counts"
+            )
 
         return counts

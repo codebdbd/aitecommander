@@ -224,13 +224,9 @@ class AccessibilityManager(QObject):
         except Exception as exc:
             logger.warning("Error during AccessibilityManager cleanup: %s", exc)
 
-    def __del__(self) -> None:
-        """Destructor that performs best-effort cleanup."""
-
-        try:
-            self.cleanup()
-        except Exception:
-            pass
+    # REMOVED: __del__ вызов cleanup рискован, т.к. деструктор может сработать
+    # после уничтожения Qt-объектов. Явный вызов cleanup() должен выполняться
+    # через parent manager или destroyed signal.
 
     def _remove_button_shortcut(self, button: QToolButton) -> None:
         """Remove an existing shortcut for the given button, if any."""

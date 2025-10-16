@@ -228,7 +228,12 @@ class LayoutOrchestrator:
             try:
                 with suspend_updates(ctx.container):
                     _apply()
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError) as e:
+                # suspend_updates failed, apply without suspension
+                logger.debug(
+                    "LayoutOrchestrator: suspend_updates failed, applying directly: %s",
+                    e
+                )
                 _apply()
         else:
             _apply()
@@ -303,7 +308,8 @@ class LayoutOrchestrator:
         try:
             win_width = int(getattr(self.window, "width", lambda: width)())
             return min(width, win_width) if win_width > 0 else width
-        except Exception:
+        except (RuntimeError, AttributeError, TypeError):
+            # Window deleted, width() unavailable, or conversion failed
             return width
 
     def _log_layout_snapshot(
