@@ -140,12 +140,12 @@ class TopBarLayoutManager(QObject):
             widget = self._widget_accessor.safe_get(self.window, attr_name)
             if isinstance(widget, QWidget):
                 widgets_to_watch.append(widget)
-        
+
         if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
             widgets_to_watch.append(self.window)
-        
+
         self._lifecycle_manager.install_event_filters(widgets_to_watch)
-        
+
         if hasattr(self.window, "shown"):
             self._lifecycle_manager.connect_signal(self.window, "shown", self.adjust)
 
@@ -167,6 +167,7 @@ class TopBarLayoutManager(QObject):
             elif self._log_info:
                 logger.info(f"TopBarLM: {operation}: {duration:.1f}ms")
 
+    @require_main_thread
     def mark_data_ready(self) -> None:
         """Отметить что данные готовы."""
         state = self._orchestrator.get_init_state()
@@ -187,24 +188,64 @@ class TopBarLayoutManager(QObject):
         if self._opacity_effect is not None:
             try:
                 self._opacity_effect.setOpacity(1.0)
-                logger.debug("TopBarLM: container opacity set to 1")
+                logger.debug(
+                    "TopBarLM: container opacity set to 1 (state=%s)",
+                    self._orchestrator.get_init_state().name
+                )
+            except (RuntimeError, AttributeError) as e:
+                logger.warning(
+                    "TopBarLM: failed to set opacity (effect may be deleted): %s",
+                    e
+                )
             except Exception as e:
-                logger.debug("TopBarLM: failed to set opacity: %s", e)
+                logger.error(
+                    "TopBarLM: unexpected error setting opacity: %s",
+                    e,
+                    exc_info=True
+                )
 
         self.adjust()
 
+    @require_main_thread
     def prepare_initial_layout(self) -> None:
-        """Подготовить начальный layout."""
+        """Подготовить начальный layout.
+
+        Создаёт QGraphicsOpacityEffect(0.0) для скрытия контейнера до готовности данных.
+        Эффект автоматически очищается в cleanup().
+
+        Thread-safety: Должен вызываться из GUI-потока.
+        """
         container = self._widget_accessor.get_container_widget()
         if container:
             try:
+                # Проверить существующий эффект
+                existing_effect = container.graphicsEffect()
+                if existing_effect is not None:
+                    logger.warning(
+                        "TopBarLM: container already has graphics effect: %s, "
+                        "replacing",
+                        type(existing_effect).__name__
+                    )
+                    container.setGraphicsEffect(None)
+                    existing_effect.deleteLater()
+
                 effect = QGraphicsOpacityEffect(container)
                 effect.setOpacity(0.0)
                 container.setGraphicsEffect(effect)
                 self._opacity_effect = effect
                 logger.debug("TopBarLM: container opacity set to 0")
+            except (RuntimeError, AttributeError) as e:
+                logger.warning(
+                    "TopBarLM: failed to set opacity effect "
+                    "(expected during shutdown): %s",
+                    e
+                )
             except Exception as e:
-                logger.debug("TopBarLM: failed to set opacity effect: %s", e)
+                logger.error(
+                    "TopBarLM: unexpected error setting opacity effect: %s",
+                    e,
+                    exc_info=True
+                )
 
         state = self._orchestrator.get_init_state()
         if state == InitializationState.NOT_STARTED:
@@ -224,16 +265,16 @@ class TopBarLayoutManager(QObject):
             result = self._orchestrator.perform_adjust(self._measure_operation)
             if result is None:
                 return
-            
+
             applied_dict, is_narrow, new_search_width = result
-            
+
             # Emit signals
             self.layoutAdjusted.emit(applied_dict)
             self.narrowModeChanged.emit(is_narrow)
-            
+
             if new_search_width is not None:
                 self.searchWidthChanged.emit(new_search_width)
-                
+
         finally:
             self._orchestrator.release_adjust_lock()
 
@@ -283,10 +324,24 @@ class TopBarLayoutManager(QObject):
         """Получить статистику SIP."""
         return get_sip_statistics()
 
+    @require_main_thread
     def cleanup(self) -> None:
-        """Очистить все ресурсы."""
+        """Очистить все ресурсы TopBarLayoutManager.
+
+        Выполняет детерминированную очистку в следующем порядке:
+        1. Удаление QGraphicsOpacityEffect с контейнера
+        2. Очистка ResourceManager (таймеры, сервисы)
+        3. Очистка TopBarLifecycleManager (event filters, сигналы)
+        4. Очистка кэша WidgetAccessor
+
+        Thread-safety: Должен вызываться из GUI-потока.
+        Idempotent: Безопасен для множественных вызовов.
+
+        Raises:
+            Не выбрасывает исключения; все ошибки логируются.
+        """
         self._log_cleanup_start()
-        
+
         # Очистка opacity effect
         if self._opacity_effect is not None:
             try:
@@ -295,9 +350,14 @@ class TopBarLayoutManager(QObject):
                     container.setGraphicsEffect(None)
                 self._opacity_effect.deleteLater()
                 self._opacity_effect = None
+                logger.debug("TopBarLM: opacity effect cleaned up")
             except (RuntimeError, AttributeError) as e:
-                logger.debug("TopBarLM: failed to cleanup opacity effect: %s", e)
-        
+                logger.debug(
+                    "TopBarLM: opacity effect cleanup failed "
+                    "(expected during shutdown): %s",
+                    e
+                )
+
         self._resource_manager.cleanup_all()
         self._lifecycle_manager.cleanup()
         self._widget_accessor.clear_cache()
@@ -309,7 +369,8 @@ class TopBarLayoutManager(QObject):
             stats = get_sip_statistics()
             if stats:
                 logger.debug(
-                    "TopBarLM: cleanup start - alive=%s, deleted=%s, success_rate=%.1f%%",
+                    "TopBarLM: cleanup start - alive=%s, deleted=%s, "
+                    "success_rate=%.1f%%",
                     stats["alive"],
                     stats["deleted"],
                     stats["success_rate"],
@@ -326,21 +387,19 @@ class TopBarLayoutManager(QObject):
                     stats["deleted"],
                 )
 
-    def __del__(self):
-        """Деструктор."""
-        try:
-            self.cleanup()
-        except Exception:
-            pass
+    # REMOVED: __del__ вызов cleanup рискован, т.к. деструктор QObject может сработать
+    # поздно или после уничтожения дочерних Qt-объектов. Явный вызов cleanup() через
+    # window.destroyed.connect(manager.cleanup) в window_ui_setup.py:513 обеспечивает
+    # детерминированную очистку в правильном порядке жизненного цикла Qt.
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         """Фильтр событий."""
         container = self._widget_accessor.get_container_widget()
         if container is None:
             return super().eventFilter(obj, event)
-        
+
         watched_panels = self._lifecycle_manager.get_watched_panels()
-        
+
         if obj not in (container, self.window) and obj not in watched_panels:
             return super().eventFilter(obj, event)
 
