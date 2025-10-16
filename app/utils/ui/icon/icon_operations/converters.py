@@ -1,3 +1,4 @@
+
 # converters.py
 """Icon conversion and copying functions (simplified)."""
 

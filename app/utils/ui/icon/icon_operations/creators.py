@@ -190,7 +190,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
 
     # Parameter validation
     if not _validate_icon_name(icon_name):
-        logger.warning("Invalid icon name provided from %s", source)
+        logger.warning("Invalid icon name from %s: %r (len=%d)", source, icon_name, len(icon_name))
         return QIcon()
 
     theme = validate_theme(theme)
@@ -300,13 +300,11 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         leave_sync(key)
 
 
-async def themed_icon_async(
-    icon_name: str, theme: str = "light", source: str = "unknown"
-) -> QIcon:
+async def themed_icon_async(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
     """Asynchronously create QIcon with caching and SVG support."""
     # Parameter validation
     if not _validate_icon_name(icon_name):
-        logger.warning("Invalid icon name provided from %s", source)
+        logger.warning("Invalid icon name from %s: %r (len=%d)", source, icon_name, len(icon_name))
         return QIcon()
 
     theme = validate_theme(theme)

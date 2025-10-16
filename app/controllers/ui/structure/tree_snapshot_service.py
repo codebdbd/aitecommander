@@ -91,15 +91,11 @@ class TreeSnapshotService(QObject):
             # Преобразуем icon_path секции в QIcon
             section_copy = dict(section)
             icon_path = section.get("icon_path")
-            # Check if icon_path is valid non-empty string after stripping
-            if icon_path and isinstance(icon_path, str):
-                icon_path_clean = icon_path.strip()
-                if icon_path_clean:
-                    try:
-                        section_copy["icon"] = icon_cache.get_icon(icon_path_clean, source="tree_snapshot")
-                    except Exception:
-                        section_copy["icon"] = None
-                else:
+            # Skip if icon_path is None, empty string, or whitespace-only
+            if icon_path and isinstance(icon_path, str) and icon_path.strip():
+                try:
+                    section_copy["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_snapshot")
+                except Exception:
                     section_copy["icon"] = None
             else:
                 section_copy["icon"] = None
@@ -114,15 +110,11 @@ class TreeSnapshotService(QObject):
 
                     category_copy = dict(category)
                     icon_path = category.get("icon_path")
-                    # Check if icon_path is valid non-empty string after stripping
-                    if icon_path and isinstance(icon_path, str):
-                        icon_path_clean = icon_path.strip()
-                        if icon_path_clean:
-                            try:
-                                category_copy["icon"] = icon_cache.get_icon(icon_path_clean, source="tree_snapshot")
-                            except Exception:
-                                category_copy["icon"] = None
-                        else:
+                    # Skip if icon_path is None, empty string, or whitespace-only
+                    if icon_path and isinstance(icon_path, str) and icon_path.strip():
+                        try:
+                            category_copy["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_snapshot")
+                        except Exception:
                             category_copy["icon"] = None
                     else:
                         category_copy["icon"] = None

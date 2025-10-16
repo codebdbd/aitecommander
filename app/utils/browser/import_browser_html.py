@@ -165,7 +165,10 @@ class BrowserBookmarksImporter:
     def _get_default_icon(self):
         """Get default icon for categories."""
         try:
-            return resolve_icon_for_link({"type": "category", "icon_path": ""})
+            from pathlib import Path
+            full_path = resolve_icon_for_link({"type": "category", "icon_path": ""})
+            # Return only filename, not full path
+            return Path(full_path).name if full_path else ""
         except (RuntimeError, OSError, ValueError) as e:
             logger.warning(
                 "resolve_icon_for_link failed, using empty icon: %s", e, exc_info=True
