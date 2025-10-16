@@ -6,10 +6,12 @@ import logging
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 
+from app.utils.ui.icon.icon_operations.creators import themed_icon
+from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.category_menu_builder import CategoryMenuBuilder
 
 from .types import SetupError
@@ -19,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
     """Create UI elements: sphere switch action and button, insert into panel."""
-    # Create action for keyboard shortcut (F6)
     window.switch_sphere_action = QAction(
+        themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
         "Switch Sphere (F6)",
         window,
     )
@@ -29,13 +31,11 @@ def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
         window.structure.switch_to_next_sphere
     )
 
-    # Create button for bottom toolbar (NO ICON, following bottom panel pattern)
-    window.switch_sphere_button = QPushButton()
-    window.switch_sphere_button.setText("Sphere (F6)")
-    window.switch_sphere_button.setToolTip("Switch to next available sphere")
-    window.switch_sphere_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-    
-    # Match font with other bottom buttons
+    window.switch_sphere_button = QPushButton(
+        window.switch_sphere_action.icon(), "Sphere (F6)"
+    )
+    window.switch_sphere_button.setToolTip(window.switch_sphere_action.toolTip())
+
     font = QFont()
     try:
         font.setPointSize(window.font().pointSize())

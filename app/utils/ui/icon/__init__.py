@@ -37,6 +37,8 @@ from .metrics import CacheMetrics
 # Centralized icon path service
 from .path_service import (
     IconPathService,
+    get_current_theme,
+    get_icon_path,
     get_qss_dir,
     icon_path_service,
 )
@@ -85,6 +87,8 @@ __all__ = [
     "IconPathService",
     "icon_path_service",
     # Working with paths
+    "get_icon_path",
+    "get_current_theme",
     "get_qss_dir",
     "resolve_category_icon_path",
     # Cache management

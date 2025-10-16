@@ -14,6 +14,13 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
+from app.utils.ui.icon.inflight import (
+    enter_async,
+    enter_sync,
+    leave_async_error,
+    leave_async_success,
+    leave_sync,
+)
 from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 
 from ..cache_manager import (
@@ -23,6 +30,7 @@ from ..cache_manager import (
     set_icon,
 )
 from ..path_service import (
+    get_icon_path,
     metrics_record_disk_load,
     metrics_record_hit,
     metrics_record_miss,
@@ -226,9 +234,235 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
 
 
 # === MAIN ICON CREATION FUNCTIONS ===
-# NOTE: themed_icon() and themed_icon_async() have been removed.
-# For UI icons, use the new simplified system: app.utils.ui.icons.get_icon()
-# This file now contains only functions for user-provided icons (links, categories, etc.)
+
+
+def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
+    """Create QIcon with caching and SVG support."""
+    # Thread safety check: QIcon must be created only in the GUI thread
+    if not _ensure_gui_thread(f"creating themed_icon ({icon_name})"):
+        logger.warning(
+            "themed_icon called from non-GUI thread for %s, returning empty icon",
+            icon_name,
+        )
+        return QIcon()
+
+    # Parameter validation
+    if not _validate_icon_name(icon_name):
+        logger.warning("Invalid icon name provided from %s", source)
+        return QIcon()
+
+    theme = validate_theme(theme)
+
+    # Check cache
+    cached_icon = get_icon(icon_name, theme)
+    if cached_icon is not None:
+        try:
+            metrics_record_hit()
+        finally:
+            pass
+        return cached_icon
+
+    # Start measuring load time
+    start_time = time.time()
+
+    # In-flight deduplication (sync)
+    key = (icon_name, theme)
+    leader, ev = enter_sync(key)
+    if not leader:
+        ev.wait()
+        cached_after = get_icon(icon_name, theme)
+        return cached_after if cached_after is not None else QIcon()
+
+    try:
+        # Get icon path
+        path = get_icon_path(icon_name, theme)
+        if not path:
+            # File not found - record miss and cache negative entry
+            load_time = time.time() - start_time
+            record_actual_miss(load_time)
+            record_not_found()
+            logger.debug(
+                "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
+            )
+            # Cache empty icon as negative to make repeated requests
+            # quickly return result before short TTL expires
+            set_icon(icon_name, theme, None, negative=True)
+            return QIcon()
+
+        # Use optimized rendering for common sizes when available
+        base_size = app_config.get_default_icon_size()
+        icon = None  # Initialize icon variable
+
+        if base_size in (16, 24, 32, 48, 64, 128):
+            fast_start_time = time.time()
+            icon = _create_svg_icon_fast(path, base_size)
+            if not icon.isNull():
+                # Record metrics for fast path success
+                fast_load_time = time.time() - fast_start_time
+                metrics_record_disk_load(fast_load_time)
+                set_icon(icon_name, theme, icon)
+                logger.debug(
+                    "Fast loaded and cached icon '%s' for theme '%s' in %.2fms",
+                    icon_name,
+                    theme,
+                    fast_load_time * 1000,
+                )
+                return icon
+
+        # Fall back to original implementation if fast path failed or not applicable
+        if icon is None:
+            icon = _create_icon_from_file_path(path)
+
+        # Measure load time and record successful disk load
+        load_time = time.time() - start_time
+        metrics_record_disk_load(load_time)
+        # Cache the result
+        set_icon(icon_name, theme, icon)
+        if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
+            logger.info(
+                "Slow disk load: icon '%s' for theme '%s' took %.2fms",
+                icon_name,
+                theme,
+                load_time * 1000,
+            )
+        else:
+            logger.debug(
+                "Loaded and cached icon '%s' for theme '%s' in %.2fms",
+                icon_name,
+                theme,
+                load_time * 1000,
+            )
+        return icon
+
+    except InvalidIconError as exc:
+        # Measure failed load time
+        load_time = time.time() - start_time
+        metrics_record_not_found(load_time)
+
+        logger.error("Error creating icon '%s' from %s: %s", icon_name, source, exc)
+        # Cache empty icon with negative=True flag and separate TTL
+        set_icon(icon_name, theme, None, negative=True)
+        return QIcon()
+    except Exception as exc:
+        # Measure failed load time
+        load_time = time.time() - start_time
+        metrics_record_miss(load_time)
+
+        logger.error(
+            "Unexpected error creating icon '%s' from %s: %s", icon_name, source, exc
+        )
+        # Cache empty icon with negative=True flag and separate TTL
+        set_icon(icon_name, theme, None, negative=True)
+        return QIcon()
+    finally:
+        leave_sync(key)
+
+
+async def themed_icon_async(
+    icon_name: str, theme: str = "light", source: str = "unknown"
+) -> QIcon:
+    """Asynchronously create QIcon with caching and SVG support."""
+    # Parameter validation
+    if not _validate_icon_name(icon_name):
+        logger.warning("Invalid icon name provided from %s", source)
+        return QIcon()
+
+    theme = validate_theme(theme)
+
+    # Check cache (synchronously, as this is a fast operation)
+    cached_icon = get_icon(icon_name, theme)
+    if cached_icon is not None:
+        try:
+            metrics_record_hit()
+        finally:
+            pass
+        return cached_icon
+
+    # Start measuring load time
+    start_time = time.time()
+
+    # In-flight deduplication (async)
+    akey = (icon_name, theme)
+    leader, fut = enter_async(akey)
+    if not leader:
+        try:
+            icon_res = await fut
+        except Exception:
+            return QIcon()
+        cached_after = get_icon(icon_name, theme)
+        return (
+            cached_after
+            if cached_after is not None
+            else (icon_res if icon_res is not None else QIcon())
+        )
+
+    try:
+        # Asynchronously get icon path
+        loop = asyncio.get_event_loop()
+        path = await loop.run_in_executor(None, get_icon_path, icon_name, theme)
+        if not path:
+            load_time = time.time() - start_time
+            metrics_record_not_found(load_time)
+            logger.debug(
+                "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
+            )
+            leave_async_success(akey, None)
+            return QIcon()
+
+        # Use common asynchronous icon creation function
+        icon = await _create_icon_from_file_path_async(path)
+        # Measure load time and record successful disk load
+        load_time = time.time() - start_time
+        metrics_record_disk_load(load_time)
+
+        # Cache the result
+        set_icon(icon_name, theme, icon)
+        if load_time > 0.1:
+            logger.info(
+                "Slow async disk load: icon '%s' for theme '%s' took %.2fms",
+                icon_name,
+                theme,
+                load_time * 1000,
+            )
+        else:
+            logger.debug(
+                "Loaded and cached icon '%s' for theme '%s' async in %.2fms",
+                icon_name,
+                theme,
+                load_time * 1000,
+            )
+        leave_async_success(akey, icon)
+        return icon
+
+    except InvalidIconError as exc:
+        # Measure failed load time
+        load_time = time.time() - start_time
+        record_actual_miss(load_time)
+        record_not_found()
+
+        logger.error(
+            "Error creating async icon '%s' from %s: %s", icon_name, source, exc
+        )
+        # Cache empty icon with negative=True flag and separate TTL
+        set_icon(icon_name, theme, None, negative=True)
+        leave_async_error(akey, exc)
+        return QIcon()
+    except Exception as exc:
+        # Measure failed load time
+        load_time = time.time() - start_time
+        record_actual_miss(load_time)
+        record_not_found()
+
+        logger.error(
+            "Unexpected error creating async icon '%s' from %s: %s",
+            icon_name,
+            source,
+            exc,
+        )
+        # Cache empty icon with negative=True flag and separate TTL
+        set_icon(icon_name, theme, None, negative=True)
+        leave_async_error(akey, exc)
+        return QIcon()
 
 
 def _create_png_icon_fast(file_path: str, target_size: int = 24) -> QIcon:

@@ -11,7 +11,7 @@ from app.services.theme_stylesheet_service import (
     ThemeStylesheetService,
     configure_qicon_theme,
 )
-from app.utils.ui.icons import set_theme as set_icon_theme, clear_cache as clear_icon_cache
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
@@ -234,9 +234,6 @@ class ThemeController:
                     "Failed to apply Qt icon theme: %s", icon_exc, exc_info=True
                 )
 
-            # Update icon theme BEFORE updating UI
-            self._update_icon_theme(canonical_name)
-            
             # Update settings and window (restore original update_theme call)
             logger.info("Applied theme: %s", canonical_name)
             self.settings.set_theme(canonical_name)
@@ -257,14 +254,6 @@ class ThemeController:
             clear_icon_cache()
         except Exception as exc:
             logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
-    
-    def _update_icon_theme(self, theme_name: str) -> None:
-        """Update icon theme in new icon system."""
-        try:
-            set_icon_theme(theme_name)
-            logger.info(f"Icon theme updated to: {theme_name}")
-        except Exception as exc:
-            logger.warning("Failed to update icon theme: %s", exc, exc_info=True)
 
     def _get_suspend_updates_utility(self):
         """Get suspend_updates utility with lazy import."""

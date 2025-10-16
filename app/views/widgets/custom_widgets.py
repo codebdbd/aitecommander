@@ -12,7 +12,8 @@ from PyQt6.QtWidgets import (
 
 from app.config_data import app_config
 from app.utils.ui.dnd.tree import DragDropHandler
-from app.utils.ui.icons import get_icon
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.tree_components.move_operations_handler import (
     MoveOperationsHandler,
 )
@@ -279,8 +280,9 @@ class StructureTreeView(QTreeView):
         try:
 
             def _get_branch_icons():
-                closed_ic = get_icon("right.svg")
-                open_ic = get_icon("down.svg")
+                theme = get_current_theme()
+                closed_ic = icon_cache.get_icon("right", theme, source="tree_branch")
+                open_ic = icon_cache.get_icon("down", theme, source="tree_branch")
                 return closed_ic, open_ic
 
             class _BranchStyle(QProxyStyle):

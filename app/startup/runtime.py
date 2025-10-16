@@ -167,32 +167,25 @@ def _initialize_language_service(
 def _preload_ui_icons() -> None:
     """Preload menu and UI icons to cache for faster startup."""
     try:
-        from app.utils.ui.icons import set_theme, preload_icons, COMMON_ICONS
+        from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 
         # Get current theme from settings
-        theme = app_config.get("ui.theme", "light")
-        
-        # Normalize theme name
-        theme = "dark" if theme.lower() in ("dark", "темная", "темна") else "light"
-        
-        # Initialize theme in icon system
-        set_theme(theme)
-        
+        theme = app_config.get("ui.theme", "dark")
+
         # All icons used in menus and UI
-        ui_icons = COMMON_ICONS + [
-            # Additional main menu icons
-            "add_section.svg", "add_category.svg", "add_bd.svg", "exit.svg",
-            "export.svg", "dbrestore.svg", "import.svg", "zip_ico.svg",
-            "add_ico.svg", "dark.svg", "light.svg", "help.svg",
-            # Context menu icons
-            "select_all.svg",
-            # Tree view icons
-            "right.svg", "down.svg",
+        ui_icons = [
+            # Main menu icons
+            "add_section", "add_category", "add_link", "undo", "redo",
+            "delete", "exit", "settings", "export", "dbrestore", "import",
+            "zip_ico", "add_ico", "search", "dark", "light", "help",
         ]
 
-        # Preload icons (synchronous with new system)
-        loaded = preload_icons(ui_icons, theme)
-        logger.info("Preloaded %d/%d UI icons for theme '%s'", loaded, len(ui_icons), theme)
+        # Run async preload in event loop
+        async def _preload():
+            await icon_cache.preload_icons_async(ui_icons, theme)
+
+        asyncio.run(_preload())
+        logger.info("Preloaded %d UI icons for theme '%s'", len(ui_icons), theme)
     except Exception as exc:
         logger.warning("Failed to preload UI icons: %s", exc)
 

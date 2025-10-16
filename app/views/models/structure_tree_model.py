@@ -507,6 +507,13 @@ class StructureTreeModel(QAbstractItemModel):
             icon_path = s.get("icon")
             icon = QIcon()
 
+            logger.debug(
+                "StructureTreeModel.set_snapshot: section id=%s name=%s icon_path=%r",
+                s.get("id"),
+                s.get("name"),
+                icon_path,
+            )
+
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
@@ -524,6 +531,13 @@ class StructureTreeModel(QAbstractItemModel):
             for c in s.get("categories") or []:
                 cat_icon_path = c.get("icon")
                 icon = QIcon()
+
+                logger.debug(
+                    "StructureTreeModel.set_snapshot: category id=%s name=%s icon_path=%r",
+                    c.get("id"),
+                    c.get("name"),
+                    cat_icon_path,
+                )
 
                 cat_node = TreeNode(
                     type="category",
@@ -611,17 +625,30 @@ class StructureTreeModel(QAbstractItemModel):
             # Проверка shutdown внутри lock для предотвращения гонки
             if self._shutdown:
                 return
-                
+
             if id(node) in self._active_icon_tasks:
                 return
             self._active_icon_tasks.add(id(node))
-            
+
+            logger.debug(
+                "StructureTreeModel._start_icon_loading: node_type=%s node_id=%s icon_path=%r",
+                node.type,
+                node.id,
+                icon_path.strip(),
+            )
+
             # Создание и запуск loader внутри lock
             loader = IconLoader(node, icon_path, on_loaded=on_loaded, on_error=on_error)
             try:
                 self._thread_pool.start(loader)
             except Exception as exc:
-                self._active_icon_tasks.discard(id(node))
+                logger.debug(
+                    "StructureTreeModel._start_icon_loading: failed to start icon loader for node_type=%s node_id=%s icon_path=%r: %s",
+                    node.type,
+                    node.id,
+                    icon_path.strip(),
+                    exc,
+                )
                 logger.debug("Failed to start icon loader: %s", exc)
 
     def cleanup(self) -> None:

@@ -47,11 +47,8 @@ class TreeSnapshotService(QObject):
         self._on_success = None
         self._on_error = None
 
-        # Преобразуем icon_path в QIcon ДО передачи в модель
-        processed_snapshot = self._preprocess_snapshot(snapshot)
-
         try:
-            self._model.set_snapshot(processed_snapshot)
+            self._model.set_snapshot(snapshot)
         except Exception:
             logger.exception(
                 "TreeSnapshotService: model failed to accept snapshot",
@@ -74,52 +71,3 @@ class TreeSnapshotService(QObject):
                         exc_info=True,
                     )
 
-    def _preprocess_snapshot(self, snapshot: list[dict]) -> list[dict]:
-        """Преобразуем icon_path в QIcon для корректной работы модели."""
-        try:
-            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-        except ImportError:
-            logger.debug("Icon cache not available, skipping preprocessing")
-            return snapshot
-
-        processed = []
-        for section in snapshot:
-            if not isinstance(section, dict):
-                processed.append(section)
-                continue
-
-            # Преобразуем icon_path секции в QIcon
-            section_copy = dict(section)
-            icon_path = section.get("icon_path")
-            if isinstance(icon_path, str) and icon_path.strip():
-                try:
-                    section_copy["icon"] = icon_cache.get_icon(icon_path, source="tree_snapshot")
-                except Exception:
-                    section_copy["icon"] = None
-            else:
-                section_copy["icon"] = None
-
-            # Преобразуем icon_path категорий в QIcon
-            if "categories" in section:
-                processed_categories = []
-                for category in section["categories"]:
-                    if not isinstance(category, dict):
-                        processed_categories.append(category)
-                        continue
-
-                    category_copy = dict(category)
-                    icon_path = category.get("icon_path")
-                    if isinstance(icon_path, str) and icon_path.strip():
-                        try:
-                            category_copy["icon"] = icon_cache.get_icon(icon_path, source="tree_snapshot")
-                        except Exception:
-                            category_copy["icon"] = None
-                    else:
-                        category_copy["icon"] = None
-
-                    processed_categories.append(category_copy)
-                section_copy["categories"] = processed_categories
-
-            processed.append(section_copy)
-
-        return processed
