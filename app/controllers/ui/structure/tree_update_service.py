@@ -117,7 +117,7 @@ class TreeUpdateService(QObject):
         icon_path = data.get("icon_path")
         if isinstance(icon_path, str) and icon_path.strip():
             try:
-                processed["icon"] = icon_cache.get_icon(icon_path, source="tree_update")
+                processed["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_update")
             except Exception:
                 processed["icon"] = None
         else:
@@ -137,7 +137,7 @@ class TreeUpdateService(QObject):
         icon_path = data.get("icon_path")
         if isinstance(icon_path, str) and icon_path.strip():
             try:
-                processed["icon"] = icon_cache.get_icon(icon_path, source="tree_update")
+                processed["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_update")
             except Exception:
                 processed["icon"] = None
         else:
