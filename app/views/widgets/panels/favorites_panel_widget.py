@@ -1,5 +1,6 @@
 """Favorites panel widget for top bar."""
 
+import logging
 from typing import Any, Optional
 
 from PyQt6.QtWidgets import QToolButton
@@ -7,6 +8,8 @@ from PyQt6.QtWidgets import QToolButton
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
 from app.views.widgets.protocols import WidgetConfigProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class FavoritesPanelWidget(BaseTopPanelWidget):
@@ -31,44 +34,12 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         # Set object names for styling
         self.setObjectName("favoritesPanel")
         self.bg_frame.setObjectName("favoritesPanelBg")
-        
-        # FIX: Скрыть панель до загрузки данных — предотвращает рывки при старте
-        self.setVisible(False)
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"[FavoritesDiag] __init__ done, visible={self.isVisible()}")
-    
-    def setVisible(self, visible: bool) -> None:
-        """Override to track visibility changes."""
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
-        
-        # Логировать только изменения видимости
-        if self.isVisible() != visible:
-            stack = ''.join(traceback.format_stack()[-4:-1])  # последние 3 фрейма
-            logger.info(f"[FavoritesDiag] setVisible({visible}) called from:\n{stack}")
-        
-        super().setVisible(visible)
 
     def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets favorites data and populates the panel (unified contract)."""
-        import logging
-        import time
-        logger = logging.getLogger(__name__)
-        t_start = time.perf_counter()
-        
-        logger.info(f"[FavoritesDiag] set_data called: {len(items)} items, visible={self.isVisible()}")
         self._populate_panel(items, self._create_favorite_button)
-        
-        duration_ms = (time.perf_counter() - t_start) * 1000
-        logger.info(f"[FavoritesDiag] _populate_panel done: {duration_ms:.1f}ms")
-
         # Visibility is managed by TopBarLayoutManager; just sync layout
-        t_sync = time.perf_counter()
         self._sync_topbar_layout()
-        sync_ms = (time.perf_counter() - t_sync) * 1000
-        logger.info(f"[FavoritesDiag] _sync_topbar_layout done: {sync_ms:.1f}ms")
 
     def clear_favorites(self) -> None:
         """Clears favorites - required by FavoritesPanelWithClear interface."""

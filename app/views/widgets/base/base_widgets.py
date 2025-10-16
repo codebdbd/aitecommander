@@ -599,10 +599,16 @@ class BaseDragDropTableWidget(QTableView):
         # adjusts the insertion point accordingly.
         return True
 
-    def _get_drop_positions(self, event):
+    def _get_drop_positions(self, event: QDropEvent) -> tuple[list[int], int]:
         """Extract source rows and target row from drop event.
         
         This is a placeholder implementation that should be overridden by subclasses.
+        
+        Args:
+            event: Qt drop event
+        
+        Returns:
+            Tuple of (source_rows, target_row)
         """
         # This is a basic implementation - subclasses should provide proper implementation
         return [], -1

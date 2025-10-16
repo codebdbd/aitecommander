@@ -296,6 +296,7 @@ class WindowUISetup:
         TopBarBuilder(self).build()
 
     def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
+        """Build top bar widgets."""
         self.setup_top_bar_widgets(top_bar)
 
     def _create_top_bar_host(
@@ -414,9 +415,6 @@ class WindowUISetup:
             logger.warning(
                 "WindowUISetup: failed to connect top bar cleanup", exc_info=True
             )
-
-    def _log_setup_top_panel_total(self, t_total_start: float) -> None:
-        pass
 
     def _create_widget_by_mode(self, mode: PanelMode | str) -> QWidget:
         mode_enum = PanelMode(mode) if isinstance(mode, str) else mode

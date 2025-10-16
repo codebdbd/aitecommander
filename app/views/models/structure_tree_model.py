@@ -583,15 +583,6 @@ class StructureTreeModel(QAbstractItemModel):
         if not isinstance(icon_path, str) or not icon_path.strip():
             return
         
-        if self._shutdown:
-            return
-
-        # Атомарная проверка и добавление задачи
-        with self._active_icon_lock:
-            if id(node) in self._active_icon_tasks:
-                return
-            self._active_icon_tasks.add(id(node))
-        
         # Используем Qt-безопасный способ вызова слотов из фонового потока
         # Проверка _shutdown в слотах защищает от обращений к удалённому объекту
         def on_loaded(n: TreeNode, ic: QIcon) -> None:
@@ -613,14 +604,25 @@ class StructureTreeModel(QAbstractItemModel):
                 QGenericArgument("TreeNode", n),
                 QGenericArgument("QString", msg),
             )
-        
-        loader = IconLoader(node, icon_path, on_loaded=on_loaded, on_error=on_error)
-        try:
-            self._thread_pool.start(loader)
-        except Exception as exc:
-            logger.debug("Failed to start icon loader: %s", exc)
-            with self._active_icon_lock:
+
+        # CRITICAL: Атомарная проверка shutdown и добавление задачи внутри lock
+        # для предотвращения гонки между cleanup() и start()
+        with self._active_icon_lock:
+            # Проверка shutdown внутри lock для предотвращения гонки
+            if self._shutdown:
+                return
+                
+            if id(node) in self._active_icon_tasks:
+                return
+            self._active_icon_tasks.add(id(node))
+            
+            # Создание и запуск loader внутри lock
+            loader = IconLoader(node, icon_path, on_loaded=on_loaded, on_error=on_error)
+            try:
+                self._thread_pool.start(loader)
+            except Exception as exc:
                 self._active_icon_tasks.discard(id(node))
+                logger.debug("Failed to start icon loader: %s", exc)
 
     def cleanup(self) -> None:
         """Останавливает все активные задачи загрузки иконок.
