@@ -3,7 +3,7 @@ Central manager for working with profiles of all browsers.
 """
 
 import logging
-from typing import Optional, TypedDict
+from typing import Dict, List, Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
 from .chromium_base_finder import (
@@ -19,12 +19,6 @@ from .persistent_cache import PersistentProfileCache
 from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
-
-
-class BrowserAvailability(TypedDict):
-    key: str
-    name: str
-    profile_count: int
 
 
 class BrowserProfileManager:
@@ -67,7 +61,7 @@ class BrowserProfileManager:
 
     def __init__(self):
         """Initialization of manager with support for all browsers."""
-        self.finders: dict[str, BaseBrowserProfileFinder] = {
+        self.finders: Dict[str, BaseBrowserProfileFinder] = {
             "chrome": ChromeProfileFinder(),
             "firefox": FirefoxProfileFinder(),
             "edge": EdgeProfileFinder(),
@@ -80,7 +74,9 @@ class BrowserProfileManager:
         # Unified profile cache: persistent JSON + TTL
         self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
 
-        logger.info("Initialized profile manager for %s browsers", len(self.finders))
+        logger.info(
+            "Initialized profile manager for %s browsers", len(self.finders)
+        )
 
         # Persistent cache loads data from disk during initialization
 
@@ -94,12 +90,12 @@ class BrowserProfileManager:
         except ImportError:
             return 300  # 5 minutes by default
 
-    def get_all_profiles(self) -> dict[str, list[dict]]:
+    def get_all_profiles(self) -> Dict[str, List[Dict]]:
         """Gets profiles of all browsers."""
 
         all_profiles = {}
 
-        for browser_key, _finder in self.finders.items():
+        for browser_key, finder in self.finders.items():
             try:
                 profiles = self._get_cached_profiles(browser_key)
                 if profiles:
@@ -109,13 +105,13 @@ class BrowserProfileManager:
 
         return all_profiles
 
-    def get_browser_profiles(self, browser_key: str) -> list[dict]:
+    def get_browser_profiles(self, browser_key: str) -> List[Dict]:
         """Gets profiles of specific browser."""
         if browser_key not in self.finders:
             return []
         return self._get_cached_profiles(browser_key)
 
-    def _get_cached_profiles(self, browser_key: str) -> list[dict]:
+    def _get_cached_profiles(self, browser_key: str) -> List[Dict]:
         """Gets profiles with caching.
 
         First tries to return from cache (without freshness check), if absent —
@@ -140,13 +136,13 @@ class BrowserProfileManager:
 
         return []
 
-    def get_cached_profiles(self, browser_key: str) -> Optional[list[dict]]:
+    def get_cached_profiles(self, browser_key: str) -> Optional[List[dict]]:
         """Returns profiles from cache only if they are fresh (TTL); doesn't block loading."""
         return self.cache.get(browser_key)
 
-    def get_available_browsers(self) -> list[BrowserAvailability]:
+    def get_available_browsers(self) -> List[Dict[str, str]]:
         """Gets list of available browsers with profiles."""
-        available: list[BrowserAvailability] = []
+        available = []
 
         for browser_key, finder in self.finders.items():
             try:
@@ -203,7 +199,7 @@ class BrowserProfileManager:
         self.cache.clear()
         logger.info("Profile cache cleared")
 
-    def update_profiles_bulk(self, data: dict[str, list[dict]]) -> None:
+    def update_profiles_bulk(self, data: Dict[str, List[dict]]) -> None:
         """Bulk updates profile cache for multiple browsers.
 
         Argument `data` — dictionary of form {browser_key: [profiles...]}

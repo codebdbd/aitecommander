@@ -2,19 +2,12 @@
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
 
 if TYPE_CHECKING:
     pass
 
-from PyQt6.QtCore import (
-    QEvent,
-    QItemSelection,
-    QItemSelectionModel,
-    QObject,
-    Qt,
-    QTimer,
-)
+from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -41,31 +34,24 @@ WIDGET_OBJECT_NAMES = {"CATEGORY_TILES": "tiles"}
 
 class MainWindowProtocol(Protocol):
     """Protocol for main window with required attributes.
-
+    
     ✅ FIX: Added protocol for strict typing.
     """
-
     structure: Any  # StructureUIController
     table: Any  # LinksTableView
     links_actions: Any  # LinkOperationsController
     links: Any  # LinksUIController
 
-    def removeEventFilter(self, obj: QObject) -> None:
-        ...
-
-    def installEventFilter(self, obj: QObject) -> None:
-        ...
-
 
 class BaseKeyHandler:
     """Base class for key handlers.
-
+    
     ✅ FIX: Added typing via Protocol.
     """
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initializes key handler.
-
+        
         Args:
             main_window: Main application window
         """
@@ -77,8 +63,8 @@ class BaseKeyHandler:
         class_name_to_check = WIDGET_CLASSES[widget_type]
         object_name_to_check = WIDGET_OBJECT_NAMES.get(widget_type)
 
-        current: Optional[QWidget] = widget
-        while current is not None:
+        current = widget
+        while current:
             class_name = current.__class__.__name__
             if class_name_to_check in class_name:
                 return True
@@ -88,8 +74,7 @@ class BaseKeyHandler:
                 and object_name_to_check in current.objectName().lower()
             ):
                 return True
-            parent_obj = current.parent()
-            current = parent_obj if isinstance(parent_obj, QWidget) else None
+            current = current.parent()
         return False
 
     def _is_tree_focused(self, widget: Optional[QWidget]) -> bool:
@@ -101,17 +86,12 @@ class BaseKeyHandler:
     def _is_tiles_focused(self, widget: Optional[QWidget]) -> bool:
         return self._is_widget_of_type(widget, "CATEGORY_TILES")
 
-    def _safe_getattr(self, obj: Any, attr: str, default: Optional[T] = None) -> Any:
+    def _safe_getattr(self, obj: Any, attr: str, default: T = None) -> Any:
         # Delegate to shared common utils
         return _common_safe_getattr(obj, attr, default)
 
     def _safe_call(
-        self,
-        obj: Any,
-        method_name: str,
-        *args: Any,
-        default: Optional[T] = None,
-        **kwargs: Any,
+        self, obj: Any, method_name: str, *args: Any, default: T = None, **kwargs: Any
     ) -> Any:
         # Delegate to shared common utils
         return _common_safe_call(obj, method_name, *args, default=default, **kwargs)
@@ -122,9 +102,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_select_all(self) -> None:
         """Handles Ctrl+A depending on context.
-
+        
         ✅ FIX: Added documentation.
-
+        
         - Tree: selects all categories of current section
         - Table: selects all rows
         """
@@ -149,7 +129,6 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def _handle_tree_select_all(self) -> None:
         """Selects all categories of current section in structure tree."""
-        structure = self._safe_getattr(self.main_window, "structure")
         if not structure:
             return
         tree = self._safe_getattr(structure, "tree")
@@ -167,7 +146,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
             )
         # QTreeView: use model and selectionModel
         try:
-            if hasattr(tree, "currentIndex") and callable(tree.currentIndex):
+            if hasattr(tree, "currentIndex") and callable(
+                tree.currentIndex
+            ):
                 idx = tree.currentIndex()
                 if not (idx and idx.isValid()):
                     return
@@ -212,7 +193,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_copy(self) -> None:
         """Handles Ctrl+C - copying selected links.
-
+        
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -225,7 +206,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_cut(self) -> None:
         """Handles Ctrl+X - cutting selected links.
-
+        
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -238,7 +219,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def handle_paste(self) -> None:
         """Handles Ctrl+V - pasting links from clipboard.
-
+        
         ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -383,30 +364,24 @@ class GlobalKeyHandler(BaseKeyHandler):
     """Global hotkey handler."""
 
     def handle_f1(self) -> None:
-        logger.debug("KeyboardManager: F1 pressed")
         self._safe_call(self.main_window, "show_link_dialog")
 
     def handle_f2(self) -> None:
-        logger.debug("KeyboardManager: F2 pressed")
         self._safe_call(self.main_window, "edit_current")
 
     def handle_f3(self) -> None:
-        logger.debug("KeyboardManager: F3 pressed")
         self._safe_call(self.main_window, "show_section_dialog")
 
     def handle_f4(self) -> None:
         # Add category (previously method was called show_category_dialog)
-        logger.debug("KeyboardManager: F4 pressed")
         self._safe_call(self.main_window, "add_new_category")
 
     def handle_f6(self) -> None:
         action = self._safe_getattr(self.main_window, "switch_sphere_action")
         if action:
-            logger.debug("KeyboardManager: F6 pressed")
             self._safe_call(action, "trigger")
 
     def handle_delete(self) -> None:
-        logger.debug("KeyboardManager: Delete pressed")
         self._safe_call(self.main_window, "delete_current")
 
 
@@ -418,9 +393,7 @@ class SearchKeyHandler(BaseKeyHandler):
     def __init__(self, main_window: Any) -> None:
         super().__init__(main_window)
         self._search_text: str = ""
-        self._search_timer: QTimer = QTimer(
-            parent=main_window
-        )  # ✅ Fixed: parent=main_window
+        self._search_timer: QTimer = QTimer(parent=main_window)  # ✅ Fixed: parent=main_window
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._reset_search)
 
@@ -460,23 +433,22 @@ class KeyboardManager(QObject):
 
     ENTER_COOLDOWN = 150
 
-    def __init__(self, main_window: QWidget):
+    def __init__(self, main_window):
         super().__init__(parent=main_window)  # ✅ Fixed: added parent
-        self._parent_widget: QWidget = main_window
-        self.main_window: MainWindowProtocol = cast(MainWindowProtocol, main_window)
-        self.shortcuts: list = []
+        self.main_window = main_window
+        self.shortcuts = []
 
-        self.global_handler = GlobalKeyHandler(self.main_window)
-        self.editing_handler = EditingKeyHandler(self.main_window)
-        self.clipboard_handler = ClipboardKeyHandler(self.main_window)
-        self.search_handler = SearchKeyHandler(self.main_window)
+        self.global_handler = GlobalKeyHandler(main_window)
+        self.editing_handler = EditingKeyHandler(main_window)
+        self.clipboard_handler = ClipboardKeyHandler(main_window)
+        self.search_handler = SearchKeyHandler(main_window)
 
         self._last_enter_time = 0
 
-        self._parent_widget.installEventFilter(self)
+        self.main_window.installEventFilter(self)
         self._setup_shortcuts()
 
-    def _setup_shortcuts(self) -> None:
+    def _setup_shortcuts(self):
         """Setup QShortcut for key combinations."""
 
         global_shortcuts = [
@@ -489,22 +461,9 @@ class KeyboardManager(QObject):
         ]
 
         for key_seq, handler in global_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
-            try:
-                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            except Exception as e:
-                logger.debug(
-                    "KeyboardManager._setup_shortcuts: failed to set ApplicationShortcut context for %s",
-                    key_seq,
-                    exc_info=e,
-                )
+            shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
-            logger.debug(
-                "KeyboardManager: registered shortcut %s -> %s",
-                key_seq,
-                handler.__qualname__,
-            )
 
         table_shortcuts = [
             ("Ctrl+A", self.clipboard_handler.handle_select_all),
@@ -519,7 +478,7 @@ class KeyboardManager(QObject):
 
         # Register on main window so it works even if table is not yet created
         for key_seq, handler in table_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
+            shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
             # Scope: on widget and its children (table inside window)
             try:
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -532,10 +491,8 @@ class KeyboardManager(QObject):
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 
-    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
+    def eventFilter(self, obj, event):
         """Event filter for intercepting keys."""
-        if event is None or obj is None:
-            return False
         if event.type() == event.Type.KeyPress:
             if self._is_enter_duplicate(event):
                 return True

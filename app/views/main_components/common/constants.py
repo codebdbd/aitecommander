@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from enum import Enum
 
-# === Widget attribute names ===
 
+# === Widget attribute names ===
 
 class WidgetAttribute(str, Enum):
     """Attribute names stored on the main window widgets."""
@@ -21,7 +21,7 @@ class WidgetAttribute(str, Enum):
     FAV_WIDGET = "fav_widget"
     RECENT_LINKS_WIDGET = "recent_links_widget"
     SEARCH = "search"
-
+    
     # Main area
     LEFT_PANEL = "left_panel"
     TREE = "tree"
@@ -32,14 +32,14 @@ class WidgetAttribute(str, Enum):
     TILES_SCROLL = "tiles_scroll"
     TABLE = "table"
     TABLE_CONTAINER = "table_container"
-
+    
     # Bottom bar
     SPHERES_BAR = "spheres_bar"
     SPHERE_GROUP = "sphere_group"
     SPHERE_BUTTONS = "sphere_buttons"
     BOTTOM_BAR_CONTAINER = "bottom_bar_container"
     SWITCH_SPHERE_BUTTON = "switch_sphere_button"
-
+    
     # Controllers
     STRUCTURE_BUSINESS = "structure_business"
     TOP_PANELS_CONTROLLER = "top_panels_controller"
@@ -62,7 +62,6 @@ class ObjectName(str, Enum):
 
 # === Timeouts and intervals ===
 
-
 class Timeout(int, Enum):
     """Timeouts expressed in milliseconds.
 
@@ -83,7 +82,6 @@ class Timeout(int, Enum):
     # Animations
     ANIMATION_DURATION = 140  # Duration of show/hide animations
 
-
 # Handy aliases for frequent usage
 MS_100 = Timeout.DB_POLL_INTERVAL
 MS_50 = Timeout.THROTTLE_RESIZE
@@ -91,7 +89,6 @@ DEFER = Timeout.DEFER_OPERATION
 
 
 # === Sizes and padding ===
-
 
 class Size(int, Enum):
     """UI element sizes in pixels.
@@ -106,12 +103,12 @@ class Size(int, Enum):
     # Minimum sizes (algorithmic constraints, not changed at runtime)
     MIN_PANEL_WIDTH = 50
     MIN_SEARCH_WIDTH = 50
-
+    
     # Maximum sizes (Qt constraints)
     MAX_WIDGET_WIDTH = 16777215  # Qt QWIDGETSIZE_MAX
     MAX_SEARCH_WIDTH = 800
     MAX_VISIBLE_BUTTONS = 20
-
+    
     # Adaptive thresholds (not configurable via JSON)
     NARROW_MODE_THRESHOLD = 380  # Width threshold for narrow mode
     HYSTERESIS_THRESHOLD = 8  # Base hysteresis threshold
@@ -132,7 +129,6 @@ class Spacing(int, Enum):
 
 # === Performance limits ===
 
-
 class PerformanceLimit(int, Enum):
     """Performance-related thresholds."""
 
@@ -147,7 +143,6 @@ class PerformanceLimit(int, Enum):
 
 # === Status bar messages ===
 
-
 class StatusMessage(str, Enum):
     """Strings shown in the status bar."""
 
@@ -159,7 +154,6 @@ class StatusMessage(str, Enum):
 
 # === Configuration keys ===
 
-
 class ConfigKey(str, Enum):
     """Application configuration keys."""
 
@@ -167,18 +161,17 @@ class ConfigKey(str, Enum):
     UI_TOPBAR_THROTTLE_MS = "ui.topbar.throttle_ms"
     UI_TOPBAR_LOG_INFO = "ui.topbar.log_info"
     TOPBAR_MIN_VISIBLE = "topbar.min_visible"
-
+    
     # Diagnostics
     DIAG_RESIZE_LOG_MAX_RESIZES = "diag.resize_log.max_resizes"
     DIAG_RESIZE_LOG_MAX_MOVES = "diag.resize_log.max_moves"
-
+    
     # Auto-hide
     UI_AUTO_HIDE_MANAGE_TOPBAR = "ui.auto_hide_manage_topbar"
     UI_AUTO_HIDE_SWITCH_TO_TABLE = "ui.auto_hide_switch_to_table"
 
 
 # === Event sources ===
-
 
 class EventSource(str, Enum):
     """Event sources tracked by the application."""
@@ -192,7 +185,6 @@ class EventSource(str, Enum):
 
 # === CSS classes ===
 
-
 class CSSClass(str, Enum):
     """CSS class names used for styling."""
 
@@ -202,7 +194,6 @@ class CSSClass(str, Enum):
 
 
 # === Logging tags ===
-
 
 class LogTag(str, Enum):
     """Tags used for structured logging."""
@@ -221,7 +212,6 @@ class LogTag(str, Enum):
 
 # === Metrics ===
 
-
 class MetricName(str, Enum):
     """Metric identifiers for monitoring."""
 
@@ -232,14 +222,14 @@ class MetricName(str, Enum):
     LIGHT_INIT_CENTRAL_WIDGET = "light:_init_central_widget"
     LIGHT_CAPTURE_MAIN_LAYOUT = "light:_capture_main_layout"
     LIGHT_INIT_TOP_PANEL = "light:_init_top_panel"
-
+    
     # Asynchronous operations
     ASYNC_STRUCTURE_LOAD = "async:structure_load"
     ASYNC_LOAD_STRUCTURE_ASYNC_STARTED = "async:load_structure_async started"
-
+    
     # Final operations
     FINAL_WINDOW_SHOW = "final:window_show"
-
+    
     # Topbar operations
     TOPBAR_ADJUST = "adjust"
     TOPBAR_CLAMP_SEARCH_WIDTH = "clamp_search_width"
@@ -248,3 +238,5 @@ class MetricName(str, Enum):
     TOPBAR_CREATE_WIDGET_QUICK = "create_widget[QuickAdd]"
     TOPBAR_CREATE_WIDGET_FAVORITES = "create_widget[Favorites]"
     TOPBAR_CREATE_WIDGET_RECENT = "create_widget[Recent]"
+
+

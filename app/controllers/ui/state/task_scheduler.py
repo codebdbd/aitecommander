@@ -8,17 +8,9 @@ backward compatibility of internal application calls.
 
 import logging
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
-from PyQt6.QtCore import (
-    QCoreApplication,
-    QObject,
-    QRunnable,
-    QThread,
-    QThreadPool,
-    QTimer,
-    pyqtSignal,
-)
+from PyQt6.QtCore import QObject, QRunnable, QThread, QThreadPool, QTimer, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +29,8 @@ class TaskType(Enum):
 class LimitedThreadPool(QThreadPool):
     """Thread pool with maximum thread count limit."""
 
-    def __init__(self, max_threads=4, parent: Optional[QObject] = None):
-        super().__init__(parent)
+    def __init__(self, max_threads=4):
+        super().__init__()
         self.setMaxThreadCount(max_threads)
         self.max_threads = max_threads
 
@@ -49,16 +41,16 @@ class TaskScheduler(QObject):
     # Class signal for thread-safe scheduling (QueuedConnection between threads)
     _schedule_sig = pyqtSignal(object, object, object, object, bool)
 
-    def __init__(self, max_threads=4) -> None:
+    def __init__(self, max_threads=4):
         super().__init__()
         # Bind handler to signal (in main thread)
         self._schedule_sig.connect(self._handle_schedule_request)
         # Initialize thread pool
-        self.thread_pool = LimitedThreadPool(max_threads, self)
+        self.thread_pool = LimitedThreadPool(max_threads)
 
         # Initialize timers
-        self._active_timers: dict[str, QTimer] = {}
-        self._pending_operations: dict[TaskType, dict[str, Callable[..., Any]]] = {
+        self._active_timers: Dict[str, QTimer] = {}
+        self._pending_operations: Dict[TaskType, Dict[str, Callable]] = {
             task_type: {} for task_type in TaskType
         }
         self._default_delays = {
@@ -71,16 +63,15 @@ class TaskScheduler(QObject):
         }
 
         # Timers for batching operations
-        self._batch_timers: dict[TaskType, QTimer] = {}
+        self._batch_timers: Dict[TaskType, QTimer] = {}
         self._setup_batch_timers()
-        self._about_to_quit_connected = self._register_about_to_quit_hook()
 
     def _handle_schedule_request(
         self,
-        operation: Callable[..., Any],
+        operation: Callable,
         task_type: TaskType,
         delay: Optional[int],
-        operation_id: str,
+        operation_id: Optional[str],
         replace_existing: bool,
     ) -> None:
         """Signal handler: executes scheduling logic in object owner thread."""
@@ -93,7 +84,7 @@ class TaskScheduler(QObject):
     def _setup_batch_timers(self):
         """Configures timers for batching operations by types."""
         for task_type in TaskType:
-            timer = QTimer(self)
+            timer = QTimer()
             timer.setSingleShot(True)
             # Use lambda function with closure for proper task_type passing
             timer.timeout.connect(
@@ -101,24 +92,9 @@ class TaskScheduler(QObject):
             )
             self._batch_timers[task_type] = timer
 
-    def _register_about_to_quit_hook(self) -> bool:
-        """Ensure thread pool drains gracefully when the app shuts down."""
-        app = QCoreApplication.instance()
-        if app is None:
-            logger.debug(
-                "TaskScheduler: no QCoreApplication instance for shutdown hook"
-            )
-            return False
-        try:
-            app.aboutToQuit.connect(self._on_app_about_to_quit)
-            return True
-        except Exception as exc:
-            logger.warning("TaskScheduler: failed to connect aboutToQuit hook: %s", exc)
-            return False
-
     def schedule_operation(
         self,
-        operation: Callable[..., Any],
+        operation: Callable,
         task_type: TaskType = TaskType.GENERAL,
         delay: Optional[int] = None,
         operation_id: Optional[str] = None,
@@ -141,36 +117,34 @@ class TaskScheduler(QObject):
             delay = self._default_delays[task_type]
 
         if operation_id is None:
-            operation_key = f"{task_type.value}_{id(operation)}"
-        else:
-            operation_key = str(operation_id)
+            operation_id = f"{task_type.value}_{id(operation)}"
 
         # If called from another thread — send request via signal (queued connection)
         if QThread.currentThread() is not self.thread():
             try:
                 self._schedule_sig.emit(
-                    operation, task_type, delay, operation_key, replace_existing
+                    operation, task_type, delay, operation_id, replace_existing
                 )
             except Exception as e:
                 logger.error(
                     "Failed to schedule operation via signal %s: %s",
-                    operation_key,
+                    operation_id,
                     e,
                 )
-            return operation_key
+            return operation_id
 
         # Otherwise — same thread, can schedule directly
         self._schedule_operation_internal(
-            operation, task_type, delay, operation_key, replace_existing
+            operation, task_type, delay, operation_id, replace_existing
         )
-        return operation_key
+        return operation_id
 
     def _schedule_operation_internal(
         self,
-        operation: Callable[..., Any],
+        operation: Callable,
         task_type: TaskType,
         delay: Optional[int],
-        operation_id: str,
+        operation_id: Optional[str],
         replace_existing: bool,
     ) -> None:
         """Common logic for queuing operation and starting timer.
@@ -188,14 +162,11 @@ class TaskScheduler(QObject):
         self._pending_operations[task_type][operation_id] = operation
 
         # Start or restart batch timer for this type
-        batch_timer = self._batch_timers.get(task_type)
-        if batch_timer is None:
-            return
+        batch_timer = self._batch_timers[task_type]
         if batch_timer.isActive():
             batch_timer.stop()
 
-        if delay is not None:
-            batch_timer.start(delay)
+        batch_timer.start(delay)
 
         logger.debug(
             "Scheduled operation %s of type %s with delay %sms",
@@ -210,23 +181,20 @@ class TaskScheduler(QObject):
         if not operations:
             return
 
-        logger.debug(
-            "Executing %s operations of type %s", len(operations), task_type.value
-        )
+        logger.debug("Executing %s operations of type %s", len(operations), task_type.value)
 
         # Special handling for focus operations - execute only the last one
         if task_type == TaskType.FOCUS_MANAGEMENT:
             if operations:
                 # Take last operation (most recent)
                 last_operation_id = list(operations.keys())[-1]
-                last_operation = operations[last_operation_id]
                 try:
                     last_operation()
                     logger.debug("Executed focus operation: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
-                        "Error executing focus operation %s: %s", last_operation_id, e
-                    )
+                    "Error executing focus operation %s: %s", last_operation_id, e
+                )
         else:
             # For other types execute all operations
             for operation_id, operation in operations.items():
@@ -234,16 +202,12 @@ class TaskScheduler(QObject):
                     operation()
                     logger.debug("Executed operation: %s", operation_id)
                 except Exception as e:
-                    logger.error(
-                        "Error executing operation %s: %s", operation_id, str(e)
-                    )
+                    logger.error("Error executing operation %s: %s", operation_id, str(e))
 
         # Clear executed operations
         operations.clear()
 
-    def cancel_operation(
-        self, operation_id: str, task_type: Optional[TaskType] = None
-    ) -> bool:
+    def cancel_operation(self, operation_id: str, task_type: TaskType = None) -> bool:
         """
         Cancels scheduled operation.
 
@@ -262,9 +226,7 @@ class TaskScheduler(QObject):
         for tt in search_types:
             if operation_id in self._pending_operations[tt]:
                 del self._pending_operations[tt][operation_id]
-                logger.debug(
-                    "Cancelled operation %s of type %s", operation_id, tt.value
-                )
+                logger.debug("Cancelled operation %s of type %s", operation_id, tt.value)
                 return True
 
         logger.debug("Operation %s not found for cancellation", operation_id)
@@ -285,7 +247,7 @@ class TaskScheduler(QObject):
         return self.thread_pool
 
     def schedule_focus_operation(
-        self, widget_focus_func: Callable, widget_name: Optional[str] = None
+        self, widget_focus_func: Callable, widget_name: str = None
     ) -> str:
         """Convenient method for scheduling focus setting operations."""
         operation_id = f"focus_{widget_name or id(widget_focus_func)}"
@@ -297,7 +259,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_selection_restore(
-        self, restore_func: Callable, item_id: Optional[Any] = None
+        self, restore_func: Callable, item_id: Any = None
     ) -> str:
         """Convenient method for scheduling selection restoration."""
         operation_id = f"selection_{item_id or id(restore_func)}"
@@ -309,7 +271,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_layout_operation(
-        self, layout_func: Callable, layout_name: Optional[str] = None
+        self, layout_func: Callable, layout_name: str = None
     ) -> str:
         """Convenient method for scheduling layout operations."""
         operation_id = f"layout_{layout_name or id(layout_func)}"
@@ -320,7 +282,7 @@ class TaskScheduler(QObject):
             replace_existing=True,
         )
 
-    def get_pending_operations_count(self, task_type: Optional[TaskType] = None) -> int:
+    def get_pending_operations_count(self, task_type: TaskType = None) -> int:
         """Returns number of pending operations."""
         if task_type:
             return len(self._pending_operations[task_type])
@@ -338,15 +300,6 @@ class TaskScheduler(QObject):
 
         logger.info("All scheduled operations cleared")
 
-    def _on_app_about_to_quit(self) -> None:
-        """Flush timers and wait for background tasks before exit."""
-        try:
-            self.clear_all_operations()
-            if self.thread_pool:
-                self.thread_pool.waitForDone(3000)
-        except Exception as exc:
-            logger.warning("TaskScheduler: shutdown cleanup failed: %s", exc)
-
 
 # Global task scheduler instance (preserved for compatibility within project)
 _task_scheduler_instance: Optional[TaskScheduler] = None
@@ -363,21 +316,17 @@ def get_task_scheduler() -> TaskScheduler:
     return _task_scheduler_instance
 
 
-def schedule_focus(
-    widget_focus_func: Callable, widget_name: Optional[str] = None
-) -> str:
+def schedule_focus(widget_focus_func: Callable, widget_name: str = None) -> str:
     """Global function for scheduling focus setting."""
     return get_task_scheduler().schedule_focus_operation(widget_focus_func, widget_name)
 
 
-def schedule_selection_restore(
-    restore_func: Callable, item_id: Optional[Any] = None
-) -> str:
+def schedule_selection_restore(restore_func: Callable, item_id: Any = None) -> str:
     """Global function for scheduling selection restoration."""
     return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
 
 
-def schedule_layout(layout_func: Callable, layout_name: Optional[str] = None) -> str:
+def schedule_layout(layout_func: Callable, layout_name: str = None) -> str:
     """Global function for scheduling layout operations."""
     return get_task_scheduler().schedule_layout_operation(layout_func, layout_name)
 

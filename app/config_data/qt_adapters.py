@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable
+from collections.abc import Mapping, Sequence
+from typing import Any, Callable, Optional, Union
 
 from PyQt6.QtCore import (
     QCoreApplication,
     QLocale,
     QObject,
     QSize,
-    Qt,
     QTranslator,
+    Qt,
 )
 from PyQt6.QtGui import QColor, QFont, QIcon
 
@@ -32,7 +32,7 @@ __all__ = [
 ]
 
 
-def to_qsize(size_data: int | Sequence[int]) -> QSize:
+def to_qsize(size_data: Union[int, Sequence[int]]) -> QSize:
     """Convert a generic size value from config into a `QSize` instance."""
     if isinstance(size_data, Sequence) and len(size_data) >= 2:
         return QSize(int(size_data[0]), int(size_data[1]))
@@ -41,7 +41,7 @@ def to_qsize(size_data: int | Sequence[int]) -> QSize:
     return QSize(24, 24)
 
 
-def to_size_list(size_data: int | Sequence[int]) -> list[int]:
+def to_size_list(size_data: Union[int, Sequence[int]]) -> list[int]:
     """Convert a Qt size configuration into a simple `[width, height]` list."""
     if isinstance(size_data, Sequence) and len(size_data) >= 2:
         return [int(size_data[0]), int(size_data[1])]
@@ -50,7 +50,7 @@ def to_size_list(size_data: int | Sequence[int]) -> list[int]:
     return [24, 24]
 
 
-def to_qfont(font_data: str | Mapping[str, Any] | None) -> QFont:
+def to_qfont(font_data: Union[str, Mapping[str, Any], None]) -> QFont:
     """Create a `QFont` instance from configuration data."""
     font = QFont()
     if font_data is None:
@@ -88,7 +88,7 @@ def to_qfont(font_data: str | Mapping[str, Any] | None) -> QFont:
     return font
 
 
-def to_qcolor(color_data: str | Sequence[int] | Mapping[str, int] | None) -> QColor:
+def to_qcolor(color_data: Union[str, Sequence[int], Mapping[str, int], None]) -> QColor:
     """Create a `QColor` instance from configuration data."""
     if color_data is None:
         return QColor()
@@ -109,7 +109,7 @@ def to_qcolor(color_data: str | Sequence[int] | Mapping[str, int] | None) -> QCo
 
 
 @lru_cache(maxsize=128)
-def to_qicon(path: str | Path, *, base_path: Path | None = None) -> QIcon:
+def to_qicon(path: Union[str, Path], *, base_path: Optional[Path] = None) -> QIcon:
     """Return a cached `QIcon` resolved from a relative or absolute path."""
     icon_path = Path(path)
     if not icon_path.is_absolute() and base_path is not None:
@@ -121,19 +121,17 @@ def to_qicon(path: str | Path, *, base_path: Path | None = None) -> QIcon:
 
 def load_and_install_translator(
     base_name: str,
-    locale: str | QLocale,
-    translations_dir: str | Path,
+    locale: Union[str, QLocale],
+    translations_dir: Union[str, Path],
     *,
-    application: QCoreApplication | None = None,
-    fallback_locale: str | None = None,
-) -> QTranslator | None:
+    application: Optional[QCoreApplication] = None,
+    fallback_locale: Optional[str] = None,
+) -> Optional[QTranslator]:
     """Load a `.qm` translation file, install it into the Qt application, and return it."""
 
     app = application or QCoreApplication.instance()
     if app is None:
-        logger.warning(
-            "Cannot install translator without an active QCoreApplication instance."
-        )
+        logger.warning("Cannot install translator without an active QCoreApplication instance.")
         return None
 
     translations_path = Path(translations_dir)
@@ -168,7 +166,7 @@ def safe_connect(
     signal: Any,
     slot: Callable[..., Any],
     *,
-    logger: logging.Logger | None = None,
+    logger: Optional[logging.Logger] = None,
     connection_type: Qt.ConnectionType = Qt.ConnectionType.AutoConnection,
 ) -> bool:
     """Connect a Qt signal to a slot with validation and structured logging."""

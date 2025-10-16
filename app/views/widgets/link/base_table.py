@@ -3,12 +3,7 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal
-
-try:
-    from PyQt6.QtCore import pyqtProperty  # type: ignore[attr-defined]
-except ImportError:
-    pyqtProperty = property  # type: ignore[misc,assignment]
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -38,12 +33,10 @@ logger = logging.getLogger(__name__)
 
 class TableDelegate(QStyledItemDelegate):
     """Unified delegate: row hover highlight and character-based elision for the ``Name`` column."""
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.hovered_row = -1
         self.hover_color = QColor("#444444")  # Hover color for table rows
-
         # Font size settings pulled from the centralized ``ui.fonts.*`` registry
         def _get_px(key: str) -> int | None:
             try:
@@ -51,12 +44,9 @@ class TableDelegate(QStyledItemDelegate):
                 return int(v) if v is not None else None
             except Exception:
                 return None
-
         # Font units: ``px`` or ``pt``
         try:
-            self._font_units = (
-                str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
-            )
+            self._font_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
         except Exception:
             self._font_units = "px"
         if self._font_units not in ("px", "pt"):
@@ -64,14 +54,12 @@ class TableDelegate(QStyledItemDelegate):
 
         # Individual column sizes (backward compatibility)
         self.col_opened_px = _get_px("table_opened_col_px")  # "Opened" column (index=2)
-        self.col_notes_px = _get_px("table_notes_col_px")  # "Notes" column (index=3)
+        self.col_notes_px = _get_px("table_notes_col_px")    # "Notes" column (index=3)
 
         # Modern approach: array of sizes for all columns
         self.col_sizes: dict[int, int] = {}
         try:
-            arr = app_config.ui.get(
-                "ui.fonts.table_cols_px"
-            )  # expected to be a list of numbers or None
+            arr = app_config.ui.get("ui.fonts.table_cols_px")  # expected to be a list of numbers or None
         except Exception:
             arr = None
         if isinstance(arr, (list, tuple)):
@@ -85,8 +73,8 @@ class TableDelegate(QStyledItemDelegate):
                 except Exception:
                     continue
 
-    def _paint_hover_highlight(self, painter, option, index):
-        """Paint hover highlight for row."""
+    def paint(self, painter, option, index):
+        # Highlight entire row on hover (when not selected)
         is_hovered_row = self.hovered_row == index.row()
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if is_hovered_row and not is_selected:
@@ -94,9 +82,13 @@ class TableDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, self.hover_color)
             painter.restore()
 
-    def _apply_column_font_size(self, opt, col):
-        """Apply font size for specific column."""
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        # Apply shared font sizes for specific columns if configured
         try:
+            col = index.column()
+            # Priority: global ``table_cols_px`` array first, then legacy keys for columns 2 and 3
             val = self.col_sizes.get(col)
             if val is None:
                 if col == 2:
@@ -113,51 +105,49 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-    def _apply_column_color(self, opt, col, color_attr):
-        """Apply text color for specific column."""
+        # Text color for "Opened" column (index=2) comes from ``LinksTableView.openedColColor``
         try:
-            view = self.parent() if hasattr(self, "parent") else None
-            color = None
-            if view is not None and hasattr(view, color_attr):
-                color = getattr(view, color_attr)
-            if isinstance(color, QColor) and color.isValid():
-                pal = QPalette(opt.palette)
-                pal.setColor(QPalette.ColorRole.Text, color)
-                pal.setColor(QPalette.ColorRole.WindowText, color)
-                opt.palette = pal
+            if index.column() == 2:
+                view = self.parent() if hasattr(self, 'parent') else None
+                color = None
+                if view is not None and hasattr(view, 'openedColColor'):
+                    color = view.openedColColor
+                if isinstance(color, QColor) and color.isValid():
+                    pal = QPalette(opt.palette)
+                    pal.setColor(QPalette.ColorRole.Text, color)
+                    pal.setColor(QPalette.ColorRole.WindowText, color)
+                    opt.palette = pal
         except Exception:
             pass
 
-    def _apply_name_column_elision(self, opt):
-        """Apply text elision for name column."""
-        opt.textElideMode = Qt.TextElideMode.ElideRight
+        # Text color for "Notes" column (index=3) comes from ``LinksTableView.notesColColor``
         try:
-            available_w = max(0, opt.rect.width() - 4)
+            if index.column() == 3:
+                view = self.parent() if hasattr(self, 'parent') else None
+                color = None
+                if view is not None and hasattr(view, 'notesColColor'):
+                    color = view.notesColColor
+                if isinstance(color, QColor) and color.isValid():
+                    pal = QPalette(opt.palette)
+                    pal.setColor(QPalette.ColorRole.Text, color)
+                    pal.setColor(QPalette.ColorRole.WindowText, color)
+                    opt.palette = pal
         except Exception:
-            available_w = opt.rect.width()
-        opt.text = opt.fontMetrics.elidedText(
-            opt.text, Qt.TextElideMode.ElideRight, available_w
-        )
-        opt.displayAlignment = (
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-        )
+            pass
 
-    def paint(self, painter, option, index):
-        self._paint_hover_highlight(painter, option, index)
-
-        opt = QStyleOptionViewItem(option)
-        self.initStyleOption(opt, index)
-
-        col = index.column()
-        self._apply_column_font_size(opt, col)
-
-        if col == 2:
-            self._apply_column_color(opt, col, "openedColColor")
-        elif col == 3:
-            self._apply_column_color(opt, col, "notesColColor")
-
-        if col == 1:
-            self._apply_name_column_elision(opt)
+        # Column "Name" (index 1): enforce single-line elision by characters
+        if index.column() == 1:
+            opt.textElideMode = Qt.TextElideMode.ElideRight
+            try:
+                available_w = max(0, opt.rect.width() - 4)
+            except Exception:
+                available_w = opt.rect.width()
+            opt.text = opt.fontMetrics.elidedText(
+                opt.text, Qt.TextElideMode.ElideRight, available_w
+            )
+            opt.displayAlignment = (
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+            )
 
         super().paint(painter, opt, index)
 
@@ -172,7 +162,7 @@ class LinksTableView(
     RowOperationsMixin,
     PopulationManagerMixin,
     DragDropHandlerMixin,
-):
+    ):
     """Primary links table view with modular architecture."""
 
     # qproperty: color for the "Opened" column (QSS: ``qproperty-openedColColor``)
@@ -188,15 +178,11 @@ class LinksTableView(
                 self._opened_col_color = value
             else:
                 self._opened_col_color = QColor(str(value))
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            self.viewport().update()
         except Exception:
             pass
 
-    openedColColor = pyqtProperty(
-        QColor, fget=_get_opened_col_color, fset=_set_opened_col_color
-    )
+    openedColColor = pyqtProperty(QColor, fget=_get_opened_col_color, fset=_set_opened_col_color)
 
     # qproperty: color for the "Notes" column (QSS: ``qproperty-notesColColor``)
     def _get_notes_col_color(self) -> QColor:
@@ -211,15 +197,11 @@ class LinksTableView(
                 self._notes_col_color = value
             else:
                 self._notes_col_color = QColor(str(value))
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            self.viewport().update()
         except Exception:
             pass
 
-    notesColColor = pyqtProperty(
-        QColor, fget=_get_notes_col_color, fset=_set_notes_col_color
-    )
+    notesColColor = pyqtProperty(QColor, fget=_get_notes_col_color, fset=_set_notes_col_color)
 
     # Signal emitted after bulk population/update of the table
     table_populated: pyqtSignal = pyqtSignal()
@@ -227,7 +209,7 @@ class LinksTableView(
     def update_font_size(self, font_size: int):
         """Apply the local font size to every table cell."""
         # Check whether the font size actually changed
-        if hasattr(self, "_current_font_size") and getattr(self, "_current_font_size", None) == font_size:
+        if hasattr(self, "_current_font_size") and self._current_font_size == font_size:
             return
 
         self._current_font_size = font_size
@@ -239,9 +221,7 @@ class LinksTableView(
         self.setFont(font)
 
         # Refresh the viewport
-        viewport = self.viewport()
-        if viewport is not None:
-            viewport.update()
+        self.viewport().update()
 
     # Override base-class constants (align with centralized helpers)
     MIME_TYPE = get_link_mime()
@@ -349,9 +329,7 @@ class LinksTableView(
             )
         # Column 2 ("Opened") resize mode is driven by config
         try:
-            col2_mode = str(
-                app_config.ui.get("ui.links_table_col2_mode", "fixed")
-            ).lower()
+            col2_mode = str(app_config.ui.get("ui.links_table_col2_mode", "fixed")).lower()
         except Exception:
             col2_mode = "fixed"
         try:
@@ -426,23 +404,21 @@ class LinksTableView(
     def __del__(self):
         """Disconnect signals to prevent memory leaks."""
         try:
-            if hasattr(self, "entered"):
+            if hasattr(self, 'entered'):
                 self.entered.disconnect()
-            if hasattr(self, "horizontalHeader"):
+            if hasattr(self, 'horizontalHeader'):
                 header = self.horizontalHeader()
                 if header:
                     header.sectionClicked.disconnect()
-            if hasattr(self, "model"):
+            if hasattr(self, 'model'):
                 model = self.model()
-                if model and hasattr(model, "layoutChanged"):
+                if model and hasattr(model, 'layoutChanged'):
                     model.layoutChanged.disconnect()
-            if hasattr(self, "items_reordered"):
+            if hasattr(self, 'items_reordered'):
                 self.items_reordered.disconnect()
-            if hasattr(self, "_lang_service") and self._lang_service:
+            if hasattr(self, '_lang_service') and self._lang_service:
                 try:
-                    self._lang_service.languageChanged.disconnect(
-                        self._on_language_changed
-                    )
+                    self._lang_service.languageChanged.disconnect(self._on_language_changed)
                 except Exception:
                     pass
         except (RuntimeError, TypeError):
@@ -453,7 +429,7 @@ class LinksTableView(
         """Update localized headers on language change."""
         try:
             m = self.model()
-            if m is not None and hasattr(m, "retranslate"):
+            if m is not None and hasattr(m, 'retranslate'):
                 m.retranslate()
         except Exception:
             pass

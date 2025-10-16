@@ -28,7 +28,9 @@ class DatabaseController(QObject):
     icons_exported = pyqtSignal(str)  # str - path to exported archive
     icons_imported = pyqtSignal(int)  # int - number of imported icons
     operation_error = pyqtSignal(str, str)  # str, str - title, error message
-    operation_success = pyqtSignal(str, str)  # str, str - title, success message
+    operation_success = pyqtSignal(
+        str, str
+    )  # str, str - title, success message
 
     def __init__(self, db, parent=None):
         super().__init__(parent)

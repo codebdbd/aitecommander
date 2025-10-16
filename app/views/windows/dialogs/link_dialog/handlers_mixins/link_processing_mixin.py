@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
@@ -61,7 +61,7 @@ class LinkProcessingMixin:
         lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
 
-        def _emit_if_current(payload: dict[str, Any]) -> None:
+        def _emit_if_current(payload: Dict[str, Any]) -> None:
             # Emit results only if the task is still current
             if _task_id == self._worker_task_id:
                 self.signals.link_info_finished.emit(payload)
@@ -70,7 +70,7 @@ class LinkProcessingMixin:
             if _task_id == self._worker_task_id:
                 self.signals.simple_error.emit(message)
 
-        def _do_work() -> dict[str, Any]:
+        def _do_work() -> Dict[str, Any]:
             if lt == LinkType.WEB:
                 # Resolve icon asynchronously to avoid blocking the UI
                 info = fetch_web_link_info(
@@ -102,7 +102,7 @@ class LinkProcessingMixin:
         url = self.dialog._get_url_le().text().strip()
         self.trigger_link_processing(url)
 
-    def _on_link_info_fetched(self, info: dict) -> None:
+    def _on_link_info_fetched(self, info: Dict) -> None:
         """Handle fetched link information."""
         self._is_processing = False
         self._active_worker = None

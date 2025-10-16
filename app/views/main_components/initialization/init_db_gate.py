@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Callable
+from typing import Callable, List, Optional
 
 from PyQt6.QtCore import QTimer
 
@@ -33,23 +33,23 @@ class DbReadyGate:
         self,
         window: MainWindowProtocol,
         poll_interval_ms: int = Timeout.DB_POLL_INTERVAL,
-        _logger: logging.Logger | None = None,
+        _logger: Optional[logging.Logger] = None,
     ) -> None:
         self._window = window
         self._logger = _logger or logger
-        self._timer: QTimer | None = None
+        self._timer: Optional[QTimer] = None
         self._poll_interval_ms: int = poll_interval_ms
-        self._pending_callbacks: list[Callable[[], None]] = []
+        self._pending_callbacks: List[Callable[[], None]] = []
         self._attempts: int = 0
-        self._start_time: float | None = None
-        self._timeout_remaining: float | None = None  # in seconds
+        self._start_time: Optional[float] = None
+        self._timeout_remaining: Optional[float] = None  # in seconds
 
     def ensure_ready_or_wait(
         self,
         on_ready: Callable[[], None],
-        on_waiting: Callable[[], None] | None = None,
-        timeout_ms: int | None = None,
-        db_checker: Callable[[], bool] | None = None,
+        on_waiting: Optional[Callable[[], None]] = None,
+        timeout_ms: Optional[int] = None,
+        db_checker: Optional[Callable[[], bool]] = None,
     ) -> None:
         """Ensure readiness or keep waiting with optional timeout and DB checks."""
         # Initial readiness probe (optionally using direct DB checks)
@@ -90,9 +90,7 @@ class DbReadyGate:
 
         # Skip setup if a timer is already running
         if self._timer is not None:
-            self._logger.debug(
-                "DbReadyGate: polling already in progress; callback queued"
-            )
+            self._logger.debug("DbReadyGate: polling already in progress; callback queued")
             return
 
         # Start timer polling
@@ -101,7 +99,7 @@ class DbReadyGate:
         self._timer.timeout.connect(lambda: self._check_and_continue(db_checker))
         self._timer.start(self._poll_interval_ms)
 
-    def _is_ready(self, db_checker: Callable[[], bool] | None) -> bool:
+    def _is_ready(self, db_checker: Optional[Callable[[], bool]]) -> bool:
         """Check readiness using DB callback first, then window state."""
         if db_checker is not None:
             try:
@@ -119,7 +117,7 @@ class DbReadyGate:
             return bool(is_enabled_method())
         return False  # If not callable, assume not ready
 
-    def _check_and_continue(self, db_checker: Callable[[], bool] | None) -> None:
+    def _check_and_continue(self, db_checker: Optional[Callable[[], bool]]) -> None:
         self._attempts += 1
         current_time = time.time()
 
@@ -165,13 +163,9 @@ class DbReadyGate:
             self._logger.warning("DbReadyGate: proceeding as ready after check failure")
             self._execute_callbacks_and_metrics()
 
-    def _execute_callbacks_and_metrics(
-        self, single_callback: Callable[[], None] | None = None
-    ) -> None:
+    def _execute_callbacks_and_metrics(self, single_callback: Optional[Callable[[], None]] = None) -> None:
         """Execute callbacks (all or the provided one) and log wait metrics."""
-        callbacks_to_execute = (
-            [single_callback] if single_callback else self._pending_callbacks
-        )
+        callbacks_to_execute = [single_callback] if single_callback else self._pending_callbacks
         for callback in callbacks_to_execute:
             if callback:
                 try:
@@ -210,7 +204,7 @@ class DbReadyGate:
                 "DbReadyGate: timer disposal failed: %s", e, exc_info=True
             )
 
-    def cancel_wait(self, on_cancel: Callable[[], None] | None = None) -> None:
+    def cancel_wait(self, on_cancel: Optional[Callable[[], None]] = None) -> None:
         """Cancel waiting and run ``on_cancel`` if provided."""
         if self._timer is not None:
             self._dispose_timer()

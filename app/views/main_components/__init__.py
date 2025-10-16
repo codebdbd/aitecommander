@@ -12,12 +12,12 @@ modularity and code readability.
 """
 
 from .common.constants import (
-    DEFER,
-    MS_50,
-    MS_100,
     ConfigKey,
+    DEFER,
     EventSource,
     MetricName,
+    MS_50,
+    MS_100,
     PerformanceLimit,
     Size,
     Spacing,
@@ -26,20 +26,20 @@ from .common.constants import (
     WidgetAttribute,
 )
 from .common.decorators import (
-    log_if_enabled,
     require_main_thread,
-    retry_on_failure,
+    log_if_enabled,
     safe_qt_operation,
+    retry_on_failure,
 )
 from .common.exceptions import (
-    ConfigurationError,
-    DatabaseNotReadyError,
-    InitializationError,
-    LayoutCalculationError,
     MainComponentsError,
+    InitializationError,
+    DatabaseNotReadyError,
     ResourceCleanupError,
     ThreadSafetyError,
+    LayoutCalculationError,
     WidgetDeletedError,
+    ConfigurationError,
 )
 from .common.helpers import clamp, defer, safe_disconnect, safe_getattr
 from .common.protocols import (
@@ -53,16 +53,20 @@ from .common.protocols import (
     UIStateManagerProtocol,
 )
 from .common.resource_manager import ResourceManager, managed_resource
+from .initialization.window_initializer import WindowInitializer
 
 __all__ = [
     # Core components
+    "WindowInitializer",
     "ResourceManager",
     "managed_resource",
+    
     # Decorators
     "require_main_thread",
     "log_if_enabled",
     "safe_qt_operation",
     "retry_on_failure",
+    
     # Exceptions
     "MainComponentsError",
     "InitializationError",
@@ -72,6 +76,7 @@ __all__ = [
     "LayoutCalculationError",
     "WidgetDeletedError",
     "ConfigurationError",
+
     # Protocol-based typing helpers
     "MainWindowProtocol",
     "DatabaseProtocol",
@@ -81,6 +86,7 @@ __all__ = [
     "TopPanelsControllerProtocol",
     "UIStateManagerProtocol",
     "ResourceManagerProtocol",
+
     # Constants
     "WidgetAttribute",
     "Timeout",
@@ -91,10 +97,12 @@ __all__ = [
     "EventSource",
     "MetricName",
     "PerformanceLimit",
+
     # Convenience aliases
     "MS_50",
     "MS_100",
     "DEFER",
+
     # Helper utilities
     "defer",
     "safe_getattr",

@@ -4,7 +4,7 @@ Centralized TypedDict definitions to improve type safety across models, dialogs,
 and controllers.
 """
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Literal, TypedDict, NotRequired
 
 # ================================================================================
 # BASIC TYPES
@@ -18,13 +18,11 @@ LinkType = Literal["web", "file", "folder", "app"]
 # LINK TYPES
 # ================================================================================
 
-
 class LinkData(TypedDict):
     """Full link data structure.
 
     Used in models, dialogs, and controllers for type-safe link data passing.
     """
-
     id: NotRequired[int]
     name: str
     url: str
@@ -43,7 +41,6 @@ class LinkData(TypedDict):
 
 class MinimalLinkData(TypedDict):
     """Minimal link structure for display purposes."""
-
     id: int
     name: str
     url: str
@@ -54,10 +51,8 @@ class MinimalLinkData(TypedDict):
 # STRUCTURE TYPES (HIERARCHY)
 # ================================================================================
 
-
 class SphereData(TypedDict):
     """Sphere data."""
-
     id: int
     name: str
     icon_path: NotRequired[str]
@@ -66,7 +61,6 @@ class SphereData(TypedDict):
 
 class SectionData(TypedDict):
     """Section data."""
-
     id: int
     name: str
     sphere_id: int
@@ -76,7 +70,6 @@ class SectionData(TypedDict):
 
 class CategoryData(TypedDict):
     """Category data."""
-
     id: int
     name: str
     section_id: int
@@ -85,7 +78,6 @@ class CategoryData(TypedDict):
 
 class HierarchyData(TypedDict):
     """Hierarchical path to a category."""
-
     sphere_id: NotRequired[int]
     section_id: NotRequired[int]
     category_id: NotRequired[int]
@@ -95,17 +87,14 @@ class HierarchyData(TypedDict):
 # DIALOG TYPES
 # ================================================================================
 
-
 class LinkDialogInitData(TypedDict):
     """Initialization data for LinkDialog."""
-
     spheres: list[SphereData]
     category_hierarchy: NotRequired[HierarchyData]
 
 
 class BrowserProfileData(TypedDict):
     """Browser profile data."""
-
     id: NotRequired[int]
     name: str
     email: NotRequired[str]
@@ -117,10 +106,8 @@ class BrowserProfileData(TypedDict):
 # DRAG & DROP TYPES
 # ================================================================================
 
-
 class DragDropPayload(TypedDict):
     """Payload for drag & drop operations."""
-
     item_type: NodeType
     item_id: int
     source_parent_id: NotRequired[int]
@@ -130,10 +117,8 @@ class DragDropPayload(TypedDict):
 # CONFIGURATION TYPES
 # ================================================================================
 
-
 class UIConfig(TypedDict):
     """UI configuration (subset of app_config.ui)."""
-
     row_height: int
     icon_size: tuple[int, int]
     col_widths: list[int]

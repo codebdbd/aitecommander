@@ -11,7 +11,9 @@ def validate_required_fields(
     """
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
-        logger.error(f"Missing required fields for {entity_name}: {missing_fields}")
+        logger.error(
+            f"Missing required fields for {entity_name}: {missing_fields}"
+        )
         return False
     return True
 

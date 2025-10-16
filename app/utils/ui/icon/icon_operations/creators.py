@@ -26,6 +26,7 @@ from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 from ..cache_manager import (
     get_icon,
     record_actual_miss,
+    record_disk_load,
     record_not_found,
     set_icon,
 )
@@ -77,38 +78,7 @@ def _ensure_gui_thread(context: str = "") -> bool:
     return True
 
 
-def _create_svg_icon_fast(svg_path: str, size: int) -> QIcon:
-    """Fast SVG icon creation for standard sizes using QPixmap directly."""
-    try:
-        renderer = QSvgRenderer(svg_path)
-        if not renderer.isValid():
-            return QIcon()
-
-        # Use QPixmap directly for standard sizes - faster than QImage rendering
-        pixmap = QPixmap(size, size)
-        pixmap.fill(Qt.GlobalColor.transparent)
-
-        painter = QPainter()
-        if not painter.begin(pixmap):
-            return QIcon()
-
-        # Use faster render hints for standard sizes
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
-
-        try:
-            renderer.render(painter, QRectF(0, 0, size, size))
-            return QIcon(pixmap)
-        finally:
-            painter.end()
-
-    except Exception:
-        # Fall back to original implementation on any error
-        return QIcon()
-
-
 # === SVG ICON CREATION ===
-
 
 def _create_svg_icon(svg_path: str) -> QIcon:
     """Create QIcon from SVG file.
@@ -289,36 +259,17 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
             set_icon(icon_name, theme, None, negative=True)
             return QIcon()
 
-        # Use optimized rendering for common sizes when available
-        base_size = app_config.get_default_icon_size()
-        icon = None  # Initialize icon variable
-
-        if base_size in (16, 24, 32, 48, 64, 128):
-            fast_start_time = time.time()
-            icon = _create_svg_icon_fast(path, base_size)
-            if not icon.isNull():
-                # Record metrics for fast path success
-                fast_load_time = time.time() - fast_start_time
-                metrics_record_disk_load(fast_load_time)
-                set_icon(icon_name, theme, icon)
-                logger.debug(
-                    "Fast loaded and cached icon '%s' for theme '%s' in %.2fms",
-                    icon_name,
-                    theme,
-                    fast_load_time * 1000,
-                )
-                return icon
-
-        # Fall back to original implementation if fast path failed or not applicable
-        if icon is None:
-            icon = _create_icon_from_file_path(path)
+        # Use common icon creation function
+        icon = _create_icon_from_file_path(path)
 
         # Measure load time and record successful disk load
         load_time = time.time() - start_time
         metrics_record_disk_load(load_time)
         # Cache the result
         set_icon(icon_name, theme, icon)
-        if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
+        if (
+            load_time > 0.1
+        ):  # If load took more than 100 ms, log at INFO level
             logger.info(
                 "Slow disk load: icon '%s' for theme '%s' took %.2fms",
                 icon_name,
@@ -411,6 +362,7 @@ async def themed_icon_async(
 
         # Use common asynchronous icon creation function
         icon = await _create_icon_from_file_path_async(path)
+
         # Measure load time and record successful disk load
         load_time = time.time() - start_time
         metrics_record_disk_load(load_time)
@@ -465,31 +417,6 @@ async def themed_icon_async(
         return QIcon()
 
 
-def _create_png_icon_fast(file_path: str, target_size: int = 24) -> QIcon:
-    """Fast PNG icon creation with size optimization."""
-    try:
-        path_obj = Path(file_path)
-
-        # For common sizes, try to load and scale efficiently
-        if target_size in (16, 24, 32, 48, 64, 128) and path_obj.exists():
-            # Create icon with specific size for better performance
-            icon = QIcon(str(path_obj))
-
-            # Check if icon was created successfully and has valid sizes
-            if not icon.isNull() and len(icon.availableSizes()) > 0:
-                return icon
-
-        # Fall back to simple creation
-        return QIcon(str(path_obj)) if path_obj.exists() else QIcon()
-
-    except Exception:
-        # Fall back to simple creation on any error
-        try:
-            return QIcon(str(path_obj)) if path_obj.exists() else QIcon()
-        except Exception:
-            return QIcon()
-
-
 # === CREATING ICONS FROM ABSOLUTE PATHS ===
 
 
@@ -519,20 +446,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     # Create new icon with high quality
     exists = Path(icon_path).exists()
     if exists:
-        path_obj = Path(icon_path)
-
-        # Use fast loading for PNG files with common sizes
-        if path_obj.suffix.lower() in (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".bmp",
-            ".gif",
-        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
-            icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
-        else:
-            icon = _create_icon_from_file_path(icon_path)
-
+        icon = _create_icon_from_file_path(icon_path)
         logger.debug("Created high-quality icon from existing file: %s", icon_path)
     else:
         icon = QIcon()
@@ -540,7 +454,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
 
     # Measure load time and record successful disk load
     load_time = time.time() - start_time
-    metrics_record_disk_load(load_time)
+    record_disk_load()
 
     # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not exists)
@@ -581,21 +495,7 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
     def create_icon():
         if Path(icon_path).exists():
-            path_obj = Path(icon_path)
-
-            # Use fast loading for PNG files with common sizes
-            if path_obj.suffix.lower() in (
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".bmp",
-                ".gif",
-            ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
-                return _create_png_icon_fast(
-                    icon_path, app_config.get_default_icon_size()
-                )
-            else:
-                return QIcon(icon_path)
+            return QIcon(icon_path)
         else:
             logger.debug("Created empty icon for non-existent file: %s", icon_path)
             return QIcon()
@@ -604,7 +504,7 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
     # Measure load time and record successful disk load
     load_time = time.time() - start_time
-    metrics_record_disk_load(load_time)
+    record_disk_load()
 
     # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not Path(icon_path).exists())
@@ -643,26 +543,14 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     # Create new icon
     exists = Path(icon_path).exists()
     if exists:
-        path_obj = Path(icon_path)
-
-        # Use fast loading for PNG files with common sizes
-        if path_obj.suffix.lower() in (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".bmp",
-            ".gif",
-        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
-            icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
-        else:
-            icon = QIcon(icon_path)
+        icon = QIcon(icon_path)
     else:
         logger.warning("Icon file not found: %s", icon_path)
         icon = QIcon()  # Return empty icon if file not found
 
     # Measure load time and record successful disk load
     load_time = time.time() - start_time
-    metrics_record_disk_load(load_time)
+    record_disk_load()
 
     # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not exists)
@@ -681,3 +569,4 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
             load_time * 1000,
         )
     return icon
+

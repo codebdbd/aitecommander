@@ -2,15 +2,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import (
-    QCoreApplication,
-    QRunnable,
-    QSize,
-    Qt,
-    QThreadPool,
-    pyqtSignal,
-    pyqtSlot,
-)
+from PyQt6.QtCore import QCoreApplication, QRunnable, QSize, Qt, QThreadPool, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -33,6 +25,7 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import make_icon
+
 
 from .base_dialog import BaseDialog
 
@@ -81,6 +74,7 @@ class BaseEntityDialog(BaseDialog):
         self._retranslation_initialized = False
 
         super().__init__(parent)
+
 
     def _init_common_ui(self, form_layout: QFormLayout):
         """Initialize common UI elements: name input and icon button."""
@@ -173,7 +167,7 @@ class BaseEntityDialog(BaseDialog):
             if hasattr(self, "retranslateUi"):
                 self.retranslateUi()
             self._retranslation_initialized = True
-
+    
     # Language changes are handled via BaseDialog(ReTranslatable)
 
     def retranslateUi(self) -> None:
@@ -252,8 +246,6 @@ class BaseEntityDialog(BaseDialog):
 
     def _on_accept_base(self) -> Optional[dict]:
         """Perform base validation and collect name/icon data, returning ``None`` on error."""
-        if self.name_le is None:
-            return None
         name = self.name_le.text().strip()
         if not name:
             self.show_warning(
@@ -288,8 +280,7 @@ class SectionDialog(BaseEntityDialog):
         self._finalize_translations()
         # Focus the name field on open
         try:
-            if self.name_le is not None:
-                self.name_le.setFocus()
+            self.name_le.setFocus()
         except Exception:
             logger.debug("SectionDialog.__init__: setFocus failed", exc_info=True)
         if section_id:
@@ -334,8 +325,7 @@ class SectionDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Section not found."),
                 self.tr("Section unavailable"),
-                informative_text=self.tr("The section might have been deleted. ID: %1")
-                % self.entity_id,
+                informative_text=self.tr("The section might have been deleted. ID: %1") % self.entity_id,
             )
             return
 
@@ -357,9 +347,7 @@ class SectionDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Sphere not selected."),
                 self.tr("Sphere selection required"),
-                informative_text=self.tr(
-                    'Choose a sphere from the list and press "Save".'
-                ),
+                informative_text=self.tr("Choose a sphere from the list and press \"Save\"."),
             )
             return
 
@@ -389,8 +377,7 @@ class CategoryDialog(BaseEntityDialog):
         self._finalize_translations()
         # Focus the name field on open
         try:
-            if self.name_le is not None:
-                self.name_le.setFocus()
+            self.name_le.setFocus()
         except Exception:
             pass
         if category_id:
@@ -434,9 +421,7 @@ class CategoryDialog(BaseEntityDialog):
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
                 # Follow the same pattern as in `LinkDialog`: add icon when available
-                icon_path = (
-                    section.get("icon_path", "") if isinstance(section, dict) else ""
-                )
+                icon_path = section.get("icon_path", "") if isinstance(section, dict) else ""
                 icon = make_icon(icon_path)
                 if icon:
                     self.section_cb.addItem(icon, section["name"], section["id"])
@@ -458,8 +443,7 @@ class CategoryDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Category not found."),
                 self.tr("Category unavailable"),
-                informative_text=self.tr("The category might have been deleted. ID: %1")
-                % self.entity_id,
+                informative_text=self.tr("The category might have been deleted. ID: %1") % self.entity_id,
             )
             return
 
@@ -497,9 +481,7 @@ class CategoryDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Section not selected."),
                 self.tr("Section selection required"),
-                informative_text=self.tr(
-                    'Choose a section from the list and press "Save".'
-                ),
+                informative_text=self.tr("Choose a section from the list and press \"Save\"."),
             )
             return
 
@@ -668,19 +650,15 @@ class SettingsDialog(BaseDialog):
             # Language selector label
             if self.language_selector is not None:
                 lang_label = self._form_layout.labelForField(self.language_selector)
-                if lang_label is not None and hasattr(lang_label, 'setText'):
+                if lang_label is not None:
                     lang_label.setText(self.tr("Language:"))
             # Max backups label
-            if self.max_backups_combo is None:
-                return
             max_label = self._form_layout.labelForField(self.max_backups_combo)
-            if max_label is not None and hasattr(max_label, 'setText'):
+            if max_label is not None:
                 max_label.setText(self.tr("Max backups:"))
             # Font size label
-            if self.font_size_combo is None:
-                return
             font_label = self._form_layout.labelForField(self.font_size_combo)
-            if font_label is not None and hasattr(font_label, 'setText'):
+            if font_label is not None:
                 font_label.setText(self.tr("Font size:"))
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
@@ -759,13 +737,13 @@ class ChromeProfileDialog(BaseDialog):
         self.setModal(True)
         self._setup_size()
         self._setup_ui()
-
+        
         # Translate after widgets are created
         self.retranslateUi()
         self.threadpool = QThreadPool.globalInstance()
         self.profiles_loaded.connect(self._populate_profiles)
         self._start_profiles_loading()
-
+    
     # Language changes are handled via BaseDialog(ReTranslatable)
 
     def _setup_size(self):
@@ -823,12 +801,9 @@ class ChromeProfileDialog(BaseDialog):
         self.setWindowTitle(self.tr("Select Chrome profile"))
         if self._title_label is not None:
             self._title_label.setText(self.tr("Choose a Chrome profile:"))
-        if self.select_all_btn is not None:
-            self.select_all_btn.setText(self.tr("Select all"))
-        if self.deselect_all_btn is not None:
-            self.deselect_all_btn.setText(self.tr("Deselect all"))
-        if self.refresh_btn is not None:
-            self.refresh_btn.setText(self.tr("Refresh profiles"))
+        self.select_all_btn.setText(self.tr("Select all"))
+        self.deselect_all_btn.setText(self.tr("Deselect all"))
+        self.refresh_btn.setText(self.tr("Refresh profiles"))
         if self._button_box is not None:
             save_btn = self._button_box.button(QDialogButtonBox.StandardButton.Save)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
@@ -838,8 +813,6 @@ class ChromeProfileDialog(BaseDialog):
                 cancel_btn.setText(self.tr("Cancel"))
 
     def _set_loading_state(self, loading: bool) -> None:
-        if self.refresh_btn is None:
-            return
         self.refresh_btn.setEnabled(not loading)
         if loading:
             self.refresh_btn.setText(self.tr("Loading…"))
@@ -900,9 +873,9 @@ class ChromeProfileDialog(BaseDialog):
 
     def accept(self) -> None:
         """Persist selected profiles and close the dialog."""
-        self._selected_profiles = [cb.profile for cb in self.profile_checkboxes if cb.isChecked()]
+        self.result = [cb.profile for cb in self.profile_checkboxes if cb.isChecked()]
         super().accept()
 
     def get_selected_profiles(self):
         """Return the list of selected profiles."""
-        return getattr(self, '_selected_profiles', [])
+        return self.result

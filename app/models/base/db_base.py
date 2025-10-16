@@ -2,21 +2,12 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import Any, Literal, Optional, Union, overload
+from typing import Any, Dict, List, Union
 
 from app.utils.db.synchronization import db_lock
 
 # Logging setup
 logger = logging.getLogger(__name__)
-
-
-def row_to_dict(row: sqlite3.Row | None) -> dict[str, Any]:
-    """Safely convert sqlite3.Row to dict."""
-    if row is None:
-        return {}
-    if isinstance(row, sqlite3.Row):
-        return {key: row[key] for key in row.keys()}
-    return {}
 
 
 class DatabaseError(Exception):
@@ -52,7 +43,7 @@ class DatabaseBase:
                 self.connection.commit()
         except sqlite3.Error as e:
             logger.error("Commit error: %s", e)
-            raise DatabaseError(f"Commit error: {e}") from e
+            raise DatabaseError(f"Commit error: {e}")
 
     def rollback(self) -> None:
         """Rolls back current transaction."""
@@ -61,7 +52,7 @@ class DatabaseBase:
                 self.connection.rollback()
         except sqlite3.Error as e:
             logger.error("Rollback error: %s", e)
-            raise DatabaseError(f"Rollback error: {e}") from e
+            raise DatabaseError(f"Rollback error: {e}")
 
     @contextmanager
     def transaction(self):
@@ -108,7 +99,7 @@ class DatabaseBase:
                     raise
 
     def _validate_required_fields(
-        self, data: dict[str, Any], required_fields: list[str], entity_name: str = ""
+        self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""
     ):
         """Validates required fields"""
         # Deferred import to prevent circular imports
@@ -120,93 +111,47 @@ class DatabaseBase:
             )
 
     def _get_next_position(
-        self,
-        table_name: str,
-        parent_field: Optional[str] = None,
-        parent_id: Optional[int] = None,
+        self, table_name: str, parent_field: str = None, parent_id: int = None
     ) -> int:
         """Gets next position for element in table."""
         try:
             if parent_field and parent_id is not None:
                 row = self._execute_with_error_handling(
-                    f"SELECT COALESCE(MAX(position), 0) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
+                    f"SELECT MAX(position) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
                     (parent_id,),
                     fetch_method="one",
                 )
             else:
                 row = self._execute_with_error_handling(
-                    f"SELECT COALESCE(MAX(position), 0) AS max_pos FROM {table_name}",
+                    f"SELECT MAX(position) AS max_pos FROM {table_name}",
                     fetch_method="one",
                 )
 
-            # Type assertion for mypy - when fetch_method="one" is used, result is Row | None
-            assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
-            max_pos = row_to_dict(row).get("max_pos", 0)
-            return max_pos + 1
+            max_pos = None if row is None else dict(row).get("max_pos")
+            return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error("Error getting position for table %s: %s", table_name, e)
-            raise DatabaseError(
-                f"Failed to calculate position for {table_name}: {e}"
-            ) from e
-
-    @overload
-    def _execute_with_error_handling(
-        self,
-        query: str,
-        params: tuple[Any, ...] = ...,
-        *,
-        fetch_method: Literal["one"],
-    ) -> sqlite3.Row | None:
-        ...
-
-    @overload
-    def _execute_with_error_handling(
-        self,
-        query: str,
-        params: tuple[Any, ...] = ...,
-        *,
-        fetch_method: Literal["all"],
-    ) -> list[sqlite3.Row]:
-        ...
-
-    @overload
-    def _execute_with_error_handling(
-        self,
-        query: str,
-        params: tuple[Any, ...] = ...,
-        *,
-        fetch_method: None = ...,
-    ) -> sqlite3.Cursor:
-        ...
+            # Propagate as DatabaseError to not hide DB and element order issues
+            raise DatabaseError(f"Failed to calculate position for {table_name}: {e}")
 
     def _execute_with_error_handling(
-        self,
-        query: str,
-        params: tuple[Any, ...] = (),
-        *,
-        fetch_method: Optional[str] = None,
-    ) -> Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]:
+        self, query: str, params: tuple = (), fetch_method: str = None
+    ) -> Union[sqlite3.Cursor, sqlite3.Row, List[sqlite3.Row], None]:
         """Executes SQL query with error handling and locking."""
         try:
             with db_lock:
                 cursor = self.connection.execute(query, params)
         except sqlite3.Error as e:
             logger.error("Error executing SQL query: %s, error: %s", query, e)
-            raise DatabaseError(f"Database error: {e}") from e
+            raise DatabaseError(f"Database error: {e}")
 
         if fetch_method == "one":
-            result = cursor.fetchone()
-            # Type assertion for mypy - fetchone() returns Row when fetch_method is "one"
-            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
-            return result  # type: ignore[return-value]
+            return cursor.fetchone()
         elif fetch_method == "all":
-            result = cursor.fetchall()
-            return result  # type: ignore[return-value]
+            return cursor.fetchall()
         return cursor
 
-    def _execute_many_with_error_handling(
-        self, query: str, seq_of_params: list[tuple[Any, ...]]
-    ) -> sqlite3.Cursor:
+    def _execute_many_with_error_handling(self, query: str, seq_of_params: List[tuple]):
         """
         Executes SQL executemany query with error handling and locking.
 
@@ -225,14 +170,14 @@ class DatabaseBase:
                 len(seq_of_params),
                 e,
             )
-            raise DatabaseError(f"Database error (executemany): {e}") from e
+            raise DatabaseError(f"Database error (executemany): {e}")
 
     def _update_entity(
         self,
         table_name: str,
         entity_id: int,
-        data: dict[str, Any],
-        valid_keys: list[str],
+        data: Dict[str, Any],
+        valid_keys: List[str],
     ):
         """Universal entity update method."""
         fields = []
@@ -255,17 +200,4 @@ class DatabaseBase:
             logger.debug("Updated %s with ID %s", table_name, entity_id)
         except Exception as e:
             logger.error("Error updating %s: %s", table_name, e)
-            raise DatabaseError(f"Failed to update {table_name}: {e}") from e
-
-    @staticmethod
-    def _ensure_row_list(
-        rows: Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]
-    ) -> list[sqlite3.Row]:
-        """Normalize database fetch results to a list of rows."""
-        if rows is None:
-            return []
-        if isinstance(rows, sqlite3.Cursor):
-            return rows.fetchall()
-        if isinstance(rows, sqlite3.Row):
-            return [rows]
-        return list(rows)
+            raise DatabaseError(f"Failed to update {table_name}: {e}")

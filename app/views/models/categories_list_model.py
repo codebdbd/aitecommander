@@ -1,7 +1,7 @@
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
@@ -25,22 +25,16 @@ class CategoriesListModel(QAbstractListModel):
       - ToolTipRole: name (can be extended)
     """
 
-    def __init__(
-        self,
-        categories: Optional[list[dict[str, Any]]] = None,
-        parent: Optional[QWidget] = None,
-    ) -> None:
+    def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._items: list[dict[str, Any]] = []
+        self._items: List[Dict[str, Any]] = []
         # Row cache by id for O(1) lookup: id -> row
-        self._row_by_id: dict[int, int] = {}
+        self._row_by_id: Dict[int, int] = {}
         if categories:
             self.set_categories(categories)
 
     # --- data API ---
-    def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
-        if parent is None:
-            parent = QModelIndex()
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
         return len(self._items)
@@ -64,9 +58,9 @@ class CategoriesListModel(QAbstractListModel):
         return None
 
     # --- mutators ---
-    def set_categories(self, categories: list[dict[str, Any]]) -> None:
+    def set_categories(self, categories: List[Dict[str, Any]]) -> None:
         # Normalize input data and prepare icons
-        items: list[dict[str, Any]] = []
+        items: List[Dict[str, Any]] = []
         for cat in categories:
             name = cat.get("name", "")
             raw_id = cat.get("id")
@@ -85,19 +79,18 @@ class CategoriesListModel(QAbstractListModel):
                 )
                 continue
             icon_path = cat.get("icon_path", "") or ""
-            resolved_path = resolve_category_icon_path(icon_path)
-            icon = (
-                get_cached_category_icon(resolved_path)
-                if resolved_path
-                else DEFAULT_ICON
-            )
+            if icon_path:
+                resolved_path = resolve_category_icon_path(icon_path)
+                icon = get_cached_category_icon(resolved_path)
+            else:
+                icon = DEFAULT_ICON
             items.append({"id": cat_id, "name": name, "_icon": icon})
 
         self.beginResetModel()
         self._items = items
         # Rebuild row cache by id
         # Important: keep the index of the FIRST occurrence for compatibility with previous linear lookup
-        row_by_id: dict[int, int] = {}
+        row_by_id: Dict[int, int] = {}
         for idx, it in enumerate(self._items):
             cid = it["id"]
             if cid not in row_by_id:

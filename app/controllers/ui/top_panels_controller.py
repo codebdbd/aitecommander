@@ -7,11 +7,7 @@ import os
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
-from app.interfaces import (
-    FavoritesPanelWithClear,
-    RecentsPanelWithLimit,
-    TopPanelDataLike,
-)
+from app.interfaces import TopPanelDataLike, FavoritesPanelWithClear, RecentsPanelWithLimit
 
 from .types import (
     LinksBusinessProtocol,
@@ -32,7 +28,7 @@ class SetupError(Exception):
 
 class TopPanelsController(QObject):
     """Controller for top panels (Favorites/Recents)."""
-
+    
     # FIX: Signal to notify when data loading is complete
     data_loaded = pyqtSignal()
 
@@ -99,25 +95,10 @@ class TopPanelsController(QObject):
 
         FIX: Emits data_loaded after loading finishes.
         """
-        import time
-        t_start = time.perf_counter()
-        logger.info("[TopPanelsDiag] refresh_all START")
-        
-        t_fav = time.perf_counter()
         self.refresh_favorites()
-        fav_ms = (time.perf_counter() - t_fav) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_favorites done: {fav_ms:.1f}ms")
-        
-        t_rec = time.perf_counter()
         self.refresh_recent()
-        rec_ms = (time.perf_counter() - t_rec) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_recent done: {rec_ms:.1f}ms")
-        
         # Emit signal indicating data loading finished
         self.data_loaded.emit()
-        
-        total_ms = (time.perf_counter() - t_start) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_all DONE: {total_ms:.1f}ms")
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Request top panels refresh with debounce."""
@@ -248,8 +229,15 @@ class TopPanelsController(QObject):
             if self._strict:
                 raise
 
-    def _get_recent_limit(self, widget):
-        """Get recent links limit from widget."""
+    def refresh_recent(self) -> None:
+        """Refresh recent links.
+
+        Default — async load via LinksBusinessLogic.load_recent_links(limit).
+        If method/signal is unavailable (mocks in tests), use synchronous fallback
+        to get_recent_links(limit) with the previous error handling and widget update.
+        """
+        widget = self.recent_links_widget
+        # Determine limit
         limit = 10
         try:
             if isinstance(widget, (RecentsPanelWithLimit, SupportsGetLimit)):
@@ -258,16 +246,14 @@ class TopPanelsController(QObject):
                     limit = val
         except (TypeError, ValueError):
             pass
-        return limit
 
-    def _try_async_recent_load(self, limit):
-        """Try to load recent links asynchronously."""
+        # 1) Try async (only if it's a real LinksBusinessLogic with signals)
         try:
             if self._async_supported and callable(
                 getattr(self.links_business, "load_recent_links", None)
             ):
                 self.links_business.load_recent_links(limit)
-                return True
+                return
         except (TypeError, ValueError) as exc:
             logger.error(
                 "TopPanelsController.refresh_recent: invalid args for async call: %s",
@@ -275,33 +261,31 @@ class TopPanelsController(QObject):
                 exc_info=True,
             )
         except Exception:
+            # Log async call error and proceed to sync path
             logger.exception(
                 "TopPanelsController.refresh_recent: failed to call load_recent_links"
             )
             if self._strict:
                 raise
-        return False
 
-    def _load_recent_sync(self, limit):
-        """Load recent links synchronously."""
+        # 2) Synchronous fallback — previous logic
+        items: list = []
         try:
-            return self.links_business.get_recent_links(limit)
+            items = self.links_business.get_recent_links(limit)
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_recent: invalid args/data during recent load",
                 exc_info=True,
             )
-            return None
+            return
         except Exception:
             logger.exception(
                 "TopPanelsController.refresh_recent failed: business layer error"
             )
             if self._strict:
                 raise
-            return None
+            return
 
-    def _update_recent_widget(self, widget, items):
-        """Update recent widget with items."""
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
@@ -320,25 +304,6 @@ class TopPanelsController(QObject):
             )
             if self._strict:
                 raise
-
-    def refresh_recent(self) -> None:
-        """Refresh recent links.
-
-        Default — async load via LinksBusinessLogic.load_recent_links(limit).
-        If method/signal is unavailable (mocks in tests), use synchronous fallback
-        to get_recent_links(limit) with the previous error handling and widget update.
-        """
-        widget = self.recent_links_widget
-        limit = self._get_recent_limit(widget)
-
-        if self._try_async_recent_load(limit):
-            return
-
-        items = self._load_recent_sync(limit)
-        if items is None:
-            return
-
-        self._update_recent_widget(widget, items)
 
     def clear_favorites(self) -> None:
         """Clear favorites: business data and widget.
@@ -527,14 +492,14 @@ class TopPanelsController(QObject):
         favorite_signal = getattr(self.links_business, "favorite_links_loaded", None)
         recent_signal = getattr(self.links_business, "recent_links_loaded", None)
         connected_all = True
-        if favorite_signal is not None and hasattr(favorite_signal, "connect"):
+        if hasattr(favorite_signal, "connect"):
             favorite_signal.connect(self._on_favorite_links_loaded)
         else:
             connected_all = False
             logger.debug(
                 "TopPanelsController: business signal 'favorite_links_loaded' not present; falling back to sync mode"
             )
-        if recent_signal is not None and hasattr(recent_signal, "connect"):
+        if hasattr(recent_signal, "connect"):
             recent_signal.connect(self._on_recent_links_loaded)
         else:
             connected_all = False
@@ -542,7 +507,7 @@ class TopPanelsController(QObject):
                 "TopPanelsController: business signal 'recent_links_loaded' not present; falling back to sync mode"
             )
         return connected_all
-
+    
     def cleanup(self) -> None:
         """Stop timers and disconnect signals upon destruction.
 
@@ -556,26 +521,20 @@ class TopPanelsController(QObject):
             self._recent_refresh_timer,
             self._structure_refresh_timer,
         ]
-
+        
         for timer in timers:
             if timer and timer.isActive():
                 timer.stop()
-
+        
         logger.debug("TopPanelsController: all timers stopped")
-
+        
         # Disconnect business logic signals
         try:
             if hasattr(self.links_business, "favorite_links_loaded"):
-                self.links_business.favorite_links_loaded.disconnect(
-                    self._on_favorite_links_loaded
-                )
+                self.links_business.favorite_links_loaded.disconnect(self._on_favorite_links_loaded)
             if hasattr(self.links_business, "recent_links_loaded"):
-                self.links_business.recent_links_loaded.disconnect(
-                    self._on_recent_links_loaded
-                )
+                self.links_business.recent_links_loaded.disconnect(self._on_recent_links_loaded)
         except TypeError:  # Signals already disconnected
             pass
         except Exception as e:
-            logger.warning(
-                "TopPanelsController cleanup: failed to disconnect signals: %s", e
-            )
+            logger.warning("TopPanelsController cleanup: failed to disconnect signals: %s", e)

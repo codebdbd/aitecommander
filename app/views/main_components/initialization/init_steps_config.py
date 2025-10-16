@@ -1,13 +1,13 @@
 # app/views/main_components/init_steps_config.py
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional, Tuple
 
 # Step config structure: (label, method_name, optional_post_hook_name)
-StepConfig = tuple[str, str, Optional[str]]
+StepConfig = Tuple[str, str, Optional[str]]
 
 # Steps executed before the database is ready
-BEFORE_DB_STEP_CONFIG: list[StepConfig] = [
+BEFORE_DB_STEP_CONFIG: List[StepConfig] = [
     ("Loading primary content...", "_init_main_content", None),
     ("Initializing bottom panel...", "_init_bottom_panel", None),
     ("Creating status bar...", "_init_status_bar", "_post_status_bar_init"),
@@ -15,7 +15,7 @@ BEFORE_DB_STEP_CONFIG: list[StepConfig] = [
 ]
 
 # Steps executed after the database is ready
-AFTER_DB_STEP_CONFIG: list[StepConfig] = [
+AFTER_DB_STEP_CONFIG: List[StepConfig] = [
     ("Configuring controllers...", "_init_controllers", "_post_controllers_init"),
     ("Finalizing initialization...", "_initialize_spheres", None),
 ]

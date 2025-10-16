@@ -5,9 +5,8 @@ Base class for all Chromium-based browsers (Chrome, Edge, Brave, Vivaldi, etc.).
 import json
 import logging
 import os
-import platform
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
 
@@ -19,15 +18,13 @@ def detect_chrome_profiles_dir():
     candidates = []
     if os.name == "nt":
         candidates.append(os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"))
-    elif os.name == "posix":
-        system = platform.system()
-        if system == "Darwin":
-            candidates.append(
-                os.path.expanduser("~/Library/Application Support/Google/Chrome")
-            )
-        elif system == "Linux":
-            candidates.append(os.path.expanduser("~/.config/google-chrome"))
-            candidates.append(os.path.expanduser("~/.config/chromium"))
+    elif os.name == "posix" and os.uname().sysname == "Darwin":
+        candidates.append(
+            os.path.expanduser("~/Library/Application Support/Google/Chrome")
+        )
+    elif os.name == "posix" and os.uname().sysname == "Linux":
+        candidates.append(os.path.expanduser("~/.config/google-chrome"))
+        candidates.append(os.path.expanduser("~/.config/chromium"))
     for path in candidates:
         if Path(path).exists():
             return path
@@ -48,9 +45,9 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         self.profiles_dir = profiles_dir
         self.browser_name = browser_name
 
-    def find_profiles(self) -> list[dict[str, str]]:
+    def find_profiles(self) -> List[Dict[str, str]]:
         """Universal profile search logic for Chromium-based browsers."""
-        profiles: list[dict[str, str]] = []
+        profiles = []
 
         if not Path(self.profiles_dir).exists():
             logger.debug(
@@ -98,7 +95,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
             return None
 
         try:
-            with open(pref_path, encoding="utf-8") as f:
+            with open(pref_path, "r", encoding="utf-8") as f:
                 prefs = json.load(f)
 
             # Try different places where email might be
@@ -121,7 +118,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                 profile_info = prefs.get("profile", {}).get("info_cache", {})
                 if profile_info:
                     # info_cache may contain multiple profiles
-                    for _profile_id, profile_data in profile_info.items():
+                    for profile_id, profile_data in profile_info.items():
                         if isinstance(profile_data, dict) and profile_data.get(
                             "user_name"
                         ):
@@ -140,12 +137,12 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         """
         return self.browser_name
 
-    def get_profile_argument(self, profile_data: dict) -> str:
+    def get_profile_argument(self, profile_data: Dict) -> str:
         """Generates command line argument for profile."""
         directory = profile_data.get("directory", profile_data.get("name", "Default"))
         return f'--profile-directory="{directory}"'
 
-    def parse_profile_from_args(self, args: str) -> Optional[dict]:
+    def parse_profile_from_args(self, args: str) -> Optional[Dict]:
         """Parses profile from command line arguments."""
         logger.debug("parse_profile_from_args: args=%s", args)
 

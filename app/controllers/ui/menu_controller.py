@@ -1,7 +1,7 @@
 """Controller for managing all application menus and handling user actions."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
 from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
 from PyQt6.QtGui import QAction
@@ -13,6 +13,7 @@ from app.utils.ui.menu_builders import (
     MainMenuBuilder,
     StructureMenuBuilder,
 )
+
 from i18n.language_service import LanguageService
 
 if TYPE_CHECKING:
@@ -41,23 +42,19 @@ class MenuController(QObject):
     def create_main_menu(self) -> QMenuBar:
         """Create the main menu bar."""
         if not self._main_menu_builder:
-            self._main_menu_builder = MainMenuBuilder(self.main_window)  # type: ignore[arg-type]
+            self._main_menu_builder = MainMenuBuilder(self.main_window)
         return self._main_menu_builder.build()
 
     @pyqtSlot(str)
     def _on_language_changed(self, _lang_code: str) -> None:
         """Rebuild the main menu when language changes."""
-        logger.info(
-            "MenuController._on_language_changed called with lang_code=%s", _lang_code
-        )
+        logger.info("MenuController._on_language_changed called with lang_code=%s", _lang_code)
         try:
             logger.info("MenuController: rebuilding menu after language change")
             self.rebuild_after_language_change()
             logger.info("MenuController: menu rebuilt successfully")
         except Exception:
-            logger.exception(
-                "MenuController: failed to rebuild menu after language change"
-            )
+            logger.exception("MenuController: failed to rebuild menu after language change")
 
     def _cleanup(self) -> None:
         """Disconnect signals when window is destroyed."""
@@ -77,7 +74,7 @@ class MenuController(QObject):
         """Create context menu for the structure tree."""
         if not self._structure_menu_builder:
             self._structure_menu_builder = StructureMenuBuilder(
-                tree_widget, self.main_window  # type: ignore[arg-type]
+                tree_widget, self.main_window
             )
         return self._structure_menu_builder.build(
             item, delete_item_cb, add_new_section_cb, sort_tree_cb
@@ -88,7 +85,7 @@ class MenuController(QObject):
     ) -> QMenu:
         """Create context menu for the links table."""
         if not self._links_menu_builder:
-            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)  # type: ignore[arg-type]
+            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)
         return self._links_menu_builder.build(idx, paste_link_cb)
 
     def create_category_tile_context_menu(
@@ -98,11 +95,11 @@ class MenuController(QObject):
         edit_cb: Callable,
         delete_cb: Callable,
         add_cb: Callable,
-    ) -> tuple[QMenu, QAction, QAction, QAction]:
+    ) -> Tuple[QMenu, QAction, QAction, QAction]:
         """Create context menu for a category tile."""
         if not self._category_menu_builder:
             self._category_menu_builder = CategoryMenuBuilder(
-                list_widget, self.main_window  # type: ignore[arg-type]
+                list_widget, self.main_window
             )
         return self._category_menu_builder.build(item_id, edit_cb, delete_cb, add_cb)
 

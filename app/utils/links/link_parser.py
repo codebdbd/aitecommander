@@ -1,10 +1,11 @@
 import logging
+import os
 import re
 import shutil
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional, TypedDict
+from typing import Dict, Optional
 
 import pythoncom
 import win32api
@@ -85,16 +86,10 @@ def com_context():
             pass
 
 
-class _GDIResources(TypedDict, total=False):
-    hdc_compat: Any
-    hdc: Any
-    icons: list[int]
-
-
 @contextmanager
 def gdi_context():
     """Context manager for GDI resources"""
-    resources: _GDIResources = {}
+    resources = {}
     try:
         yield resources
     finally:
@@ -170,7 +165,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
             )
             img.save(save_path, format="ICO")
             logger.debug("Extracted EXE icon saved: %s", save_path)
-            return str(save_path)
+            return save_path
     except win32ui.error as e:
         logger.error("Win32 error extracting icon from %s: %s", exe_path, e)
     except OSError as e:
@@ -180,7 +175,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     return None
 
 
-def _parse_lnk(lnk_path: str) -> dict[str, str]:
+def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     """Parses .lnk file with improved error handling"""
     if not lnk_path or not isinstance(lnk_path, str):
         return {}
@@ -189,13 +184,13 @@ def _parse_lnk(lnk_path: str) -> dict[str, str]:
         return {}
     try:
         with com_context():
-            shortcut: Any = pythoncom.CoCreateInstance(
+            shortcut = pythoncom.CoCreateInstance(
                 shell.CLSID_ShellLink,
                 None,
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLink,
             )
-            persist_file: Any = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
+            persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
             persist_file.Load(lnk_path)
             path, _ = shortcut.GetPath(shell.SLGP_UNCPRIORITY)
             args = shortcut.GetArguments()
@@ -217,7 +212,7 @@ def _parse_lnk(lnk_path: str) -> dict[str, str]:
     return {}
 
 
-def parse_lnk(lnk_path: str) -> dict[str, str]:
+def parse_lnk(lnk_path: str) -> Dict[str, str]:
     """Public wrapper for parsing .lnk files.
 
     Stable API for external modules. Delegates to private implementation
@@ -226,7 +221,7 @@ def parse_lnk(lnk_path: str) -> dict[str, str]:
     return _parse_lnk(lnk_path)
 
 
-def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str]) -> str:
+def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str]) -> str:
     """Determines name for link based on type"""
     if not path:
         return "Unknown"
@@ -243,9 +238,7 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str])
         else:
             return Path(path).stem
     except (OSError, ValueError, RuntimeError, AttributeError, TypeError) as e:
-        logger.error(
-            "Error getting name for link_type=%s path=%s: %s", link_type, path, e
-        )
+        logger.error("Error getting name for link_type=%s path=%s: %s", link_type, path, e)
         return "Unknown"
 
 
@@ -260,7 +253,7 @@ def _handle_folder_icon(config) -> str:
     return _get_default_icon("folder", config)
 
 
-def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional[str]:
+def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional[str]:
     """Handles Chrome app icon"""
     args = lnk_info.get("args", "")
     if not args:
@@ -288,7 +281,7 @@ def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional
 
 
 def _handle_program_icon(
-    path: str, lnk_info: dict[str, str], icons_dir: str
+    path: str, lnk_info: Dict[str, str], icons_dir: str
 ) -> Optional[str]:
     """Handles program icon"""
     target_path = lnk_info.get("path") if lnk_info else path
@@ -323,10 +316,10 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
 
 
 def _get_icon_for_link_type(
-    link_type: str, path: str, lnk_info: dict[str, str], config, icons_dir: str
+    link_type: str, path: str, lnk_info: Dict[str, str], config, icons_dir: str
 ) -> str:
     """Determines icon for link based on type"""
-    icon: Optional[str] = None
+    icon = None
     try:
         if link_type == "folder":
             icon = _handle_folder_icon(config)
@@ -344,16 +337,15 @@ def _get_icon_for_link_type(
             lnk_info,
             e,
         )
-    if icon and is_valid_icon_file(icon):
-        return icon
-    fallback = _get_default_icon(link_type, config)
-    logger.debug("Fallback to default icon: %s", fallback)
-    return fallback or ""
+    if not is_valid_icon_file(icon):
+        icon = _get_default_icon(link_type, config)
+        logger.debug("Fallback to default icon: %s", icon)
+    return icon or ""
 
 
 def parse_local_link(
-    link_type: str, path: str, config, args: Optional[str] = None
-) -> dict[str, str]:
+    link_type: str, path: str, config, args: str = None
+) -> Dict[str, str]:
     """Parses local link and returns information about it, including name and icon."""
     if not validate_link_type(link_type):
         logger.error("Invalid link_type: %r", link_type)
@@ -363,7 +355,7 @@ def parse_local_link(
         return {"name": "Error", "icon": ""}
     if not validate_config_for_icons(config):
         logger.error("Config.LINK_ICONS_DIR not found")
-        return {"name": "Error", "icon": ""}
+        return None
     icons_dir = str(icon_path_service.get_user_icons_dir())
     lnk_info = {}
     if path.lower().endswith(".lnk"):

@@ -1,10 +1,10 @@
 import logging
 import sqlite3
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
-from ..base.db_base import DatabaseBase, DatabaseError, row_to_dict
+from ..base.db_base import DatabaseBase, DatabaseError
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -15,27 +15,24 @@ logger = logging.getLogger(__name__)
 class SphereModel(DatabaseBase):
     """Model for working with spheres"""
 
-    def get_spheres(self) -> list[dict[str, Any]]:
+    def get_spheres(self) -> List[Dict[str, Any]]:
         """Returns list of all spheres in dict format."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
             fetch_method="all",
         )
-        if rows is None:
-            return []
-        return [row_to_dict(row) for row in rows if row is not None]
+        return [dict(row) for row in rows] if rows else []
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
         """Returns sphere by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere WHERE id = ?",
             (sphere_id,),
             fetch_method="one",
         )
-        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
-        return row_to_dict(row) if row else None
+        return dict(row) if row else None
 
-    def insert_sphere(self, data: dict[str, Any]) -> int:
+    def insert_sphere(self, data: Dict[str, Any]) -> int:
         """Inserts new sphere and returns its ID."""
         self._validate_required_fields(data, ["name"], "sphere")
 
@@ -45,16 +42,14 @@ class SphereModel(DatabaseBase):
             (data["name"], data.get("icon_path", ""), position),
         )
         logger.info("Added new sphere: %s", data["name"])
-        if isinstance(cursor, sqlite3.Cursor):
-            return cursor.lastrowid or 0
-        return 0
+        return cursor.lastrowid
 
-    def update_sphere(self, sphere_id: int, data: dict[str, Any]):
+    def update_sphere(self, sphere_id: int, data: Dict[str, Any]):
         """Updates existing sphere."""
         valid_keys = ["name", "icon_path", "position"]
         self._update_entity("sphere", sphere_id, data, valid_keys)
 
-    def upsert_sphere(self, sphere_data: dict[str, Any]) -> int:
+    def upsert_sphere(self, sphere_data: Dict[str, Any]) -> int:
         """Inserts or updates sphere."""
         if "id" in sphere_data and sphere_data["id"]:
             self.update_sphere(sphere_data["id"], sphere_data)
@@ -65,13 +60,11 @@ class SphereModel(DatabaseBase):
     def get_sphere_name(self, sphere_id: int) -> str:
         """Returns sphere name by its ID."""
         row = self._execute_with_error_handling(
-            "SELECT name FROM sphere WHERE id=?", (sphere_id,), fetch_method="one"
+            "SELECT name FROM sphere WHERE id=?",
+            (sphere_id,),
+            fetch_method="one"
         )
-        if row is None:
-            return ""
-        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
-        name = row_to_dict(row).get("name", "")
-        return name if name is not None else ""
+        return dict(row)["name"] if row else ""
 
     def initialize_default_spheres(self):
         """Initializes initial data for sphere table if it's empty.
@@ -122,4 +115,6 @@ class SphereModel(DatabaseBase):
                 logger.info("Initial sphere data already exists")
         except Exception as e:
             logger.error("Error initializing initial sphere data: %s", e)
-            raise DatabaseError(f"Failed to initialize initial sphere data: {e}") from e
+            raise DatabaseError(
+                f"Failed to initialize initial sphere data: {e}"
+            )

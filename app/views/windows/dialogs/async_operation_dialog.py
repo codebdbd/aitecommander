@@ -1,5 +1,4 @@
 """Dialog showing progress for asynchronous database operations."""
-
 import logging
 from typing import Optional
 
@@ -13,8 +12,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.views.common.retranslatable import ReTranslatable
-
 _TR_CONTEXT = "AsyncOperationDialog"
 
 
@@ -25,6 +22,9 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
 _DEFAULT_TITLE = None
 _DEFAULT_MESSAGE = None
 logger = logging.getLogger(__name__)
+
+
+from app.views.common.retranslatable import ReTranslatable
 
 
 class AsyncOperationDialog(QDialog, ReTranslatable):
@@ -42,7 +42,7 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
         title: str | None = _DEFAULT_TITLE,
         message: str | None = _DEFAULT_MESSAGE,
         cancelable: bool = False,
-        parent: Optional[QWidget] = None,
+        parent: Optional[QWidget] = None
     ):
         """
         Args:
@@ -69,12 +69,11 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
 
         self._cancelled = False
         self._auto_close = True
-        self.cancel_button: Optional[QPushButton] = None
-
+        
         # Layout
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
-
+        
         # Main status message
         self.message_label = QLabel(effective_message)
         self.message_label.setWordWrap(True)
@@ -87,7 +86,7 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
         self.progress_bar.setTextVisible(True)
         self._last_progress: tuple[int, int] | None = None  # (current, total)
         layout.addWidget(self.progress_bar)
-
+        
         # Details of the current stage
         self.detail_label = QLabel("")
         self.detail_label.setWordWrap(True)

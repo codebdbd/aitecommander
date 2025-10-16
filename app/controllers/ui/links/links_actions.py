@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Dict, List, Optional, Callable
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.services import share_service
@@ -32,23 +32,23 @@ class LinksActions:
 
     # --- Link dialog ---
     def show_link_dialog(
-        self, link: dict | None = None, category_id: int | None = None
+        self, link: Optional[Dict] = None, category_id: Optional[int] = None
     ) -> bool:
         if not self.link_ops:
             return False
         return bool(self.link_ops.show_link_dialog(link=link, category_id=category_id))
 
-    def delete_links_with_confirmation(self, links: list[dict]):
+    def delete_links_with_confirmation(self, links: List[Dict]):
         if not self.link_ops:
             return
         return self.link_ops.delete_links_with_confirmation(links)
 
     # --- Link actions ---
-    def open_link(self, link: dict):
+    def open_link(self, link: Dict):
         if self.links:
             self.links.open_link(link)
 
-    def toggle_link_favorite(self, link: dict | None = None):
+    def toggle_link_favorite(self, link: Optional[Dict] = None):
         if self.links:
             self.links.toggle_favorite(link)
 
@@ -68,40 +68,34 @@ class LinksActions:
         if self.links:
             self.links.delete_selected_links()
 
-    def show_note_dialog(self, link: dict):
+    def show_note_dialog(self, link: Dict):
         if self.links:
             self.links.show_note_dialog(link)
 
     # --- Share link ---
-    def share_via_telegram(self, link: dict) -> bool:
+    def share_via_telegram(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_telegram)
 
-    def share_via_whatsapp(self, link: dict) -> bool:
+    def share_via_whatsapp(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_whatsapp)
 
-    def share_via_viber(self, link: dict) -> bool:
+    def share_via_viber(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_viber)
 
-    def share_via_email(self, link: dict) -> bool:
+    def share_via_email(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_email)
 
-    def share_via_email_client(self, link: dict) -> bool:
+    def share_via_email_client(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_email_client)
 
-    def share_via_email_gmail(self, link: dict) -> bool:
+    def share_via_email_gmail(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_email_gmail)
 
-    def copy_email_template(self, link: dict) -> bool:
+    def copy_email_template(self, link: Dict) -> bool:
         return self._share(link, share_service.copy_email_template)
 
     # --- Internal helpers ---
-    class _ShareHandler(Protocol):
-        def __call__(self, name: Optional[str], url: str) -> Union[
-            bool, tuple[bool, Optional[str]]
-        ]:
-            ...
-
-    def _share(self, link: dict, handler: _ShareHandler) -> bool:
+    def _share(self, link: Dict, handler: Callable[[str, str], bool]) -> bool:
         """Extract name/url and call the provided share handler.
 
         Returns False when link is missing or url is empty.
@@ -112,23 +106,19 @@ class LinksActions:
         url = link.get("url") or link.get("href")
         if not url:
             return False
-        result = handler(name, url)
-        if isinstance(result, tuple):
-            success, _message = result
-            return bool(success)
-        return bool(result)
+        return bool(handler(name, url))
 
     # --- Social networks: X(Twitter), Facebook, LinkedIn ---
-    def share_via_x(self, link: dict) -> bool:
+    def share_via_x(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_x)
 
-    def share_via_facebook(self, link: dict) -> bool:
+    def share_via_facebook(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_facebook)
 
-    def share_via_linkedin(self, link: dict) -> bool:
+    def share_via_linkedin(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_linkedin)
 
-    def share_via_pinterest(self, link: dict) -> bool:
+    def share_via_pinterest(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_pinterest)
 
     # --- Search and restore selection ---
@@ -165,7 +155,7 @@ class LinksActions:
             return []
         return self.links.get_selected_rows()
 
-    def current_row(self) -> int | None:
+    def current_row(self) -> Optional[int]:
         if not self.links or not hasattr(self.links, "current_row"):
             return None
         return self.links.current_row()
@@ -194,7 +184,7 @@ class LinksActions:
         return False
 
     # --- Unified action handler for new panel widgets ---
-    def on_action_requested(self, action_data: dict[str, Any] | None) -> None:
+    def on_action_requested(self, action_data: Dict[str, Any] | None) -> None:
         """Handler for unified actions from top panels.
 
         action_data contract (dict):

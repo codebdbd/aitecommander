@@ -8,9 +8,9 @@ Controller interfaces (for type checking):
 
 import logging
 from pathlib import Path
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer
+from PyQt6.QtCore import QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -25,13 +25,13 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.models.types.link_type import LinkType
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
 from app.views.common.effects.neon_effect import NeonEventFilter
-
+from app.models.types.link_type import LinkType
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
@@ -42,9 +42,7 @@ _TR_CONTEXT = "LinkDialog"
 
 
 def _tr(text: str, disambiguation: str | None = None, n: int | None = None) -> str:
-    return QCoreApplication.translate(
-        _TR_CONTEXT, text, disambiguation, n if n is not None else -1
-    )
+    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation, n if n is not None else -1)
 
 
 @runtime_checkable
@@ -55,7 +53,7 @@ class LinkDataControllerProtocol(Protocol):
     the key `is_valid` and an optional list `errors`.
     """
 
-    def validate_and_save(self, form_data: dict[str, Any]) -> dict[str, Any]: ...
+    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]: ...
 
 
 @runtime_checkable
@@ -66,9 +64,9 @@ class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
     Items must be dictionaries with at least `id` and `name`, optionally `icon_path`.
     """
 
-    def get_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]: ...
+    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]: ...
 
-    def get_categories_for_section(self, section_id: int) -> list[dict[str, Any]]: ...
+    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]: ...
 
 
 class LinkDialog(BaseDialog):
@@ -139,9 +137,9 @@ class LinkDialog(BaseDialog):
 
     def __init__(
         self,
-        initialization_data: dict,
+        initialization_data: Dict,
         dialog_controller: DialogControllerProtocol,
-        link: Optional[dict] = None,
+        link: Optional[Dict] = None,
         category_id: Optional[int] = None,
         parent: Optional[QWidget] = None,
         link_controller: Optional[LinkDataControllerProtocol] = None,
@@ -177,9 +175,9 @@ class LinkDialog(BaseDialog):
 
     def _init_core_properties(
         self,
-        initialization_data: dict,
+        initialization_data: Dict,
         dialog_controller,
-        link: Optional[dict],
+        link: Optional[Dict],
         category_id: Optional[int],
     ) -> None:
         """Initialise the dialog core properties."""
@@ -189,7 +187,7 @@ class LinkDialog(BaseDialog):
         self.initial_category = category_id
         self.link_type = self.link.get("type", "web")
         self.icon_name = self.link.get("icon_path", "")
-        self.selected_profiles: list[dict] = []
+        self.selected_profiles: List[Dict] = []
 
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
@@ -217,9 +215,7 @@ class LinkDialog(BaseDialog):
         except (AttributeError, RuntimeError) as e:
             # Do not block the dialog if neon effect fails
             logger.warning(
-                "Failed to install neon effect on link type buttons: %s",
-                e,
-                exc_info=True,
+                "Failed to install neon effect on link type buttons: %s", e, exc_info=True
             )
 
         # Event handlers
@@ -244,18 +240,14 @@ class LinkDialog(BaseDialog):
         for 300 ms and then cleared.
         """
         try:
-            for cb in (
-                self._get_sphere_cb(),
-                self._get_section_cb(),
-                self._get_category_cb(),
-            ):
+            for cb in (self._get_sphere_cb(), self._get_section_cb(), self._get_category_cb()):
                 if cb and not getattr(cb, "_focus_guard_installed", False):
                     cb.installEventFilter(self)
-                    cb._focus_guard_installed = True
+                    setattr(cb, "_focus_guard_installed", True)
         except Exception:
             pass
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
+    def eventFilter(self, obj, event):
         try:
             # If a preferred focus widget is set and current object tries to grab focus, restore it
             if event and event.type() == event.Type.FocusIn:
@@ -285,9 +277,7 @@ class LinkDialog(BaseDialog):
                 informative_text=self.tr(
                     "Icons directory is not set. Specify the path in the application settings or config."
                 ),
-                details=self.tr(
-                    "Configuration parameter for icons is missing or empty."
-                ),
+                details=self.tr("Configuration parameter for icons is missing or empty."),
             )
             self.close()
             return False
@@ -353,20 +343,14 @@ class LinkDialog(BaseDialog):
         #  - others: focus "Browse" button
         try:
             lt = LinkType.from_value(self.link_type)
-
             def _apply_initial_focus():
                 try:
                     if lt == LinkType.WEB:
-                        self._get_url_le().setFocus(
-                            Qt.FocusReason.ActiveWindowFocusReason
-                        )
+                        self._get_url_le().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
                     else:
-                        self._get_browse_btn().setFocus(
-                            Qt.FocusReason.ActiveWindowFocusReason
-                        )
+                        self._get_browse_btn().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
                 except Exception:
                     pass
-
             QTimer.singleShot(0, _apply_initial_focus)
         except Exception:
             pass
@@ -389,7 +373,7 @@ class LinkDialog(BaseDialog):
 
     def _resolve_and_apply_icon(
         self, link_type: str, icon_name: str
-    ) -> tuple[Optional[str], bool]:
+    ) -> Tuple[Optional[str], bool]:
         """Resolve and apply an icon to the button if the file exists.
 
         Returns `(resolved_path, exists)` where `resolved_path` is a string path or
@@ -509,7 +493,7 @@ class LinkDialog(BaseDialog):
         """Return the user icons directory."""
         return icon_path_service.get_user_icons_dir()
 
-    def _format_profile_text(self, profiles: list[dict]) -> str:
+    def _format_profile_text(self, profiles: List[Dict]) -> str:
         """Format display text for selected profiles."""
         emails = [p.get("email") or p.get("name") for p in profiles]
         if not emails:
@@ -537,7 +521,7 @@ class LinkDialog(BaseDialog):
 
         # Clean event filters to prevent leaks
         try:
-            if hasattr(self, "_neon_link_filter") and self._neon_link_filter:
+            if hasattr(self, '_neon_link_filter') and self._neon_link_filter:
                 self._neon_link_filter.cleanup()
                 self._neon_link_filter = None
         except Exception:
@@ -557,7 +541,9 @@ class LinkDialog(BaseDialog):
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
         # Window title
-        self.setWindowTitle(self.tr("Edit link") if self.link else self.tr("Add link"))
+        self.setWindowTitle(
+            self.tr("Edit link") if self.link else self.tr("Add link")
+        )
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()

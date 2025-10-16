@@ -2,26 +2,11 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
-from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QSize, Qt
-from PyQt6.QtGui import (
-    QBrush,
-    QFont,
-    QFontMetrics,
-    QHelpEvent,
-    QIcon,
-    QPainter,
-    QPen,
-    QTextLayout,
-    QTextOption,
-)
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionViewItem,
-    QWidget,
-)
+from PyQt6.QtCore import QEvent, QModelIndex, QPoint, QPointF, QRect, QSize, Qt
+from PyQt6.QtGui import QBrush, QFont, QFontMetrics, QHelpEvent, QIcon, QPainter, QPen, QTextLayout, QTextOption
+from PyQt6.QtWidgets import QAbstractItemView, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QWidget
 
 from app.config_data import app_config
 
@@ -31,12 +16,7 @@ logger = logging.getLogger("category_tiles")
 class CategoryTileDelegate(QStyledItemDelegate):
     """Simple delegate for rendering category tiles."""
 
-    def __init__(
-        self,
-        icon_size: QSize | None = None,
-        tile_size: QSize | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, icon_size: Optional[QSize] = None, tile_size: Optional[QSize] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.icon_size = icon_size or QSize(48, 48)
         self.tile_size = tile_size or QSize(120, 100)
@@ -44,9 +24,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         self.border_radius = 4
         self._font_diag_logged = False
 
-    def paint(  # type: ignore[override]
-        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
-    ) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         """Render a tile: icon on top, text below."""
         painter.save()
         rect = option.rect
@@ -205,13 +183,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         height = self.padding + self.icon_size.height() + 5 + text_h + self.padding
         return QSize(self.tile_size.width(), height)
 
-    def helpEvent(  # type: ignore[override]
-        self,
-        event: QHelpEvent,
-        view: QAbstractItemView,
-        option: QStyleOptionViewItem,
-        index: QModelIndex,
-    ) -> bool:
+    def helpEvent(self, event: QHelpEvent, view: QAbstractItemView, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
         """Show tooltip with full title if text is truncated, or for UX consistency."""
         try:
             if not index.isValid() or event is None:

@@ -106,15 +106,11 @@ class SystemDialogController:
                 db = getattr(self.database_controller, "db", None)
                 if db is None:
                     raise SetupError("database_controller.db is required for backup")
-
+                
                 # Используем async backup чтобы не блокировать UI
                 db.backup_async(
-                    on_finished=lambda result: logger.info(
-                        f"Backup created: {result.get('backup_filename')}"
-                    ),
-                    on_error=lambda e, tb: logger.warning(
-                        f"Failed to create backup: {e}"
-                    ),
+                    on_finished=lambda result: logger.info(f"Backup created: {result.get('backup_filename')}"),
+                    on_error=lambda e, tb: logger.warning(f"Failed to create backup: {e}")
                 )
             except SetupError:
                 logger.exception(
@@ -122,7 +118,9 @@ class SystemDialogController:
                 )
                 raise
             except Exception as backup_err:
-                logger.warning(f"Failed to start backup: {backup_err}")
+                logger.warning(
+                    f"Failed to start backup: {backup_err}"
+                )
             # Update category tree and links table
             if hasattr(self.main_window, "structure_business"):
                 self.main_window.structure_business.load_structure()
@@ -167,17 +165,11 @@ class SystemDialogController:
             text = app_config.get_about_text()
 
             self._about_dialog = QMessageBox(self.main_window)
-            self._about_dialog.setIcon(
-                QMessageBox.Icon.NoIcon
-            )  # Без иконки = без звука
+            self._about_dialog.setIcon(QMessageBox.Icon.NoIcon)  # Без иконки = без звука
             self._about_dialog.setWindowTitle(title)
             self._about_dialog.setText(text)
-            self._about_dialog.setTextFormat(
-                Qt.TextFormat.PlainText
-            )  # Важно: правильно обрабатывает \n
-            self._about_dialog.setInformativeText(
-                "Thank you for using our application!"
-            )
+            self._about_dialog.setTextFormat(Qt.TextFormat.PlainText)  # Важно: правильно обрабатывает \n
+            self._about_dialog.setInformativeText("Thank you for using our application!")
             self._about_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
 
         self._about_dialog.exec()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Dict, Optional, Tuple
 
 from PyQt6.QtCore import QModelIndex, QObject
 
@@ -20,8 +21,8 @@ class TreeStateService(QObject):
         self._model = model
 
     # --- Save/restore expansion ---
-    def capture_expanded_state(self) -> dict[tuple[str, int], bool]:
-        state: dict[tuple[str, int], bool] = {}
+    def capture_expanded_state(self) -> Dict[Tuple[str, int], bool]:
+        state: Dict[Tuple[str, int], bool] = {}
         try:
             for index in self._iter_indexes():
                 if self._model.rowCount(index) > 0:
@@ -34,9 +35,7 @@ class TreeStateService(QObject):
             )
         return state
 
-    def restore_expanded_state(
-        self, expanded_state: dict[tuple[str, int], bool]
-    ) -> None:
+    def restore_expanded_state(self, expanded_state: Dict[Tuple[str, int], bool]) -> None:
         if not expanded_state:
             return
         try:
@@ -50,7 +49,7 @@ class TreeStateService(QObject):
             )
 
     # --- Selection ---
-    def capture_current_selection(self) -> tuple[str, int] | None:
+    def capture_current_selection(self) -> Optional[Tuple[str, int]]:
         try:
             current = self._tree.currentIndex()
         except Exception:
@@ -63,7 +62,7 @@ class TreeStateService(QObject):
             return get_tree_tuple(current, 0)
         return None
 
-    def restore_selection(self, selection: tuple[str, int]) -> None:
+    def restore_selection(self, selection: Tuple[str, int]) -> None:
         if not selection:
             return
         item_type, item_id = selection
@@ -90,9 +89,7 @@ class TreeStateService(QObject):
             )
 
     # --- Helper methods ---
-    def _iter_indexes(self, parent: QModelIndex | None = None):
-        if parent is None:
-            parent = QModelIndex()
+    def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
         rows = self._model.rowCount(parent)
         for row in range(rows):
             index = self._model.index(row, 0, parent)

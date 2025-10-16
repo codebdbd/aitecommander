@@ -10,7 +10,6 @@ class AppArguments(NamedTuple):
 
     debug: bool
     log_level: str | None
-    no_gui: bool
 
 
 def parse_arguments() -> AppArguments:
@@ -41,11 +40,7 @@ def parse_arguments() -> AppArguments:
     )
     args = parser.parse_args()
 
-    return AppArguments(
-        debug=args.debug,
-        log_level=args.log_level,
-        no_gui=args.no_gui,
-    )
+    return AppArguments(debug=args.debug, log_level=args.log_level)
 
 
 def determine_log_level(args: AppArguments) -> int:

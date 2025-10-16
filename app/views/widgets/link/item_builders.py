@@ -1,5 +1,7 @@
 """Utilities for generating display text and tooltips for model roles (``QAbstractTableModel``)."""
 
+from typing import Dict, Tuple
+
 # Constants for magic numbers
 MAX_NOTES_LENGTH = 462
 # Favorite marker: heart symbol instead of the default star
@@ -20,7 +22,7 @@ class ItemBuildersMixin:
         """Return text for the favorites column (★ or blank)."""
         return STAR_SYMBOL if is_favorite else ""
 
-    def _name_display_text(self, link: dict, mode: str) -> str:
+    def _name_display_text(self, link: Dict, mode: str) -> str:
         """Return the name text; append category trail in search mode."""
         name_text = link.get("name", "")
         if mode == "search":
@@ -29,7 +31,7 @@ class ItemBuildersMixin:
                 name_text = f"{name_text} ({trail})"
         return name_text
 
-    def _build_category_trail(self, link: dict) -> str:
+    def _build_category_trail(self, link: Dict) -> str:
         """Construct the category trail for search mode."""
         parts = [
             link.get("sphere_name", ""),
@@ -49,7 +51,7 @@ class ItemBuildersMixin:
 
     def _notes_display_and_tooltip(
         self, notes: str, truncate: bool = False
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         """Return the ``(display, tooltip)`` pair for notes."""
         text = str(notes or "")
         # Visual indicator in front of notes text (emoji icon)
@@ -59,12 +61,12 @@ class ItemBuildersMixin:
             return prefix + text[:MAX_NOTES_LENGTH] + "...", text
         return prefix + text, (text or "")
 
-    def _path_display_and_tooltip(self, link: dict) -> tuple[str, str]:
+    def _path_display_and_tooltip(self, link: Dict) -> Tuple[str, str]:
         """Return the ``(display, tooltip)`` pair for path/URL."""
         url_or_path = link.get("url", "") or link.get("path", "")
         return url_or_path, (url_or_path or "")
 
-    def _name_tooltip(self, link: dict) -> str:
+    def _name_tooltip(self, link: Dict) -> str:
         """Return tooltip for the name column (URL/Path)."""
         url_or_path = link.get("url", "") or link.get("path", "")
         return f"<b>URL/Path:</b> {url_or_path}" if url_or_path else ""

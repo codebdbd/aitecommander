@@ -1,11 +1,11 @@
 """Module for importing/exporting database structure."""
-
 import logging
 import time
+from typing import Dict, List
 
 from ..base.db_base import DatabaseError, db_lock
-from ..types.constants import PERFORMANCE_WARNING_THRESHOLD_MS
 from ..types.link_type import LinkType
+from ..types.constants import PERFORMANCE_WARNING_THRESHOLD_MS
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ImportExportManager:
         """
         self.db = db
 
-    def export_full_structure(self) -> dict[str, list]:
+    def export_full_structure(self) -> Dict[str, List]:
         """Exports entire data structure from DB as dictionary."""
         operation = "export_full_structure"
         try:
@@ -36,9 +36,7 @@ class ImportExportManager:
                 sections = self.db.connection.execute(
                     "SELECT * FROM section ORDER BY position"
                 ).fetchall()
-                self.db.operation_progress.emit(
-                    operation, 2, 4, "Loading categories..."
-                )
+                self.db.operation_progress.emit(operation, 2, 4, "Loading categories...")
                 categories = self.db.connection.execute(
                     "SELECT * FROM category ORDER BY position"
                 ).fetchall()
@@ -53,8 +51,8 @@ class ImportExportManager:
             sections_by_id = {}
             categories_by_id = {}
 
-            sections_by_sphere: dict[int, list[dict]] = {}
-            categories_by_section: dict[int, list[dict]] = {}
+            sections_by_sphere = {}
+            categories_by_section = {}
 
             # Convert rows to dict and initialize containers
             for s in spheres:
@@ -83,7 +81,7 @@ class ImportExportManager:
                     cat_obj["links"].append(ld)
 
             # Assemble hierarchy
-            spheres_data: list[dict] = []
+            spheres_data: List[Dict] = []
             for s in spheres:
                 s_obj = spheres_by_id[s["id"]]
                 for sc in sections_by_sphere.get(s_obj["id"], []):
@@ -111,10 +109,8 @@ class ImportExportManager:
                     total_ms,
                     PERFORMANCE_WARNING_THRESHOLD_MS,
                 )
-
-            self.db.operation_progress.emit(
-                operation, 4, 4, "Hierarchy assembly completed"
-            )
+            
+            self.db.operation_progress.emit(operation, 4, 4, "Hierarchy assembly completed")
             self.db.operation_finished.emit(operation, True)
             return {"spheres": spheres_data}
         except Exception as e:
@@ -124,7 +120,7 @@ class ImportExportManager:
                 self.db.error_occurred.emit("Export error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Failed to export structure: {e}") from e
+            raise DatabaseError(f"Failed to export structure: {e}")
 
     def export_section_tree(self, section_id: int) -> dict:
         """Exports section along with all categories and links."""
@@ -243,11 +239,20 @@ class ImportExportManager:
                 )
         except Exception as e:
             logger.error("Error bulk importing category trees: %s", e)
-            raise DatabaseError(f"Failed to import category trees: {e}") from e
+            raise DatabaseError(f"Failed to import category trees: {e}")
 
 
-def _upsert_category(cat, connection):
-    """Upsert category and return its ID."""
+def _upsert_category_tree(tree: dict, connection) -> None:
+    """Performs upsert of category and its links."""
+    if not tree:
+        return
+
+    cat = (tree or {}).get("category") or {}
+    links = (tree or {}).get("links") or []
+    if not isinstance(cat, dict) or not cat:
+        return
+
+    # Upsert category
     cat_id = cat.get("id")
     name = cat.get("name")
     section_id = cat.get("section_id")
@@ -273,98 +278,35 @@ def _upsert_category(cat, connection):
             cat_id = int(getattr(cur, "lastrowid", 0) or 0)
         except Exception:
             cat_id = None
-    return cat_id
 
-
-def _prepare_link_record(link, cat_id):
-    """Prepare link record for upsert."""
-    rec = dict(link)
-    rec["category_id"] = cat_id
-    rec["name"] = rec.get("name", "") or ""
-    rec["url"] = rec.get("url", "") or ""
-    rec["args"] = rec.get("args", "") or ""
-    try:
-        rec["type"] = LinkType.from_value(rec.get("type", "web")).value
-    except Exception:
-        rec["type"] = LinkType.WEB.value
-    rec["notes"] = rec.get("notes", "") or ""
-    rec["is_favorite"] = int(rec.get("is_favorite", 0) or 0)
-    rec["icon_path"] = rec.get("icon_path", "default.ico") or "default.ico"
-    return rec
-
-
-def _upsert_link_with_id(rec, all_fields, connection):
-    """Upsert link with existing ID."""
-    iid = rec.get("id")
-    if rec.get("position") is None:
-        rec["position"] = 0
-    update_fields = [f for f in all_fields if f != "id"]
-    update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
-    update_values = [rec.get(f) for f in update_fields]
-    cur = connection.execute(
-        f"UPDATE link SET {update_placeholders} WHERE id=?",
-        tuple(update_values + [iid]),
-    )
-    if getattr(cur, "rowcount", 0) == 0:
-        insert_fields = all_fields
-        placeholders = ", ".join(["?"] * len(insert_fields))
-        insert_values = [rec.get(f) for f in insert_fields]
-        connection.execute(
-            f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
-            tuple(insert_values),
-        )
-
-
-def _insert_new_link(rec, all_fields, connection):
-    """Insert new link without ID."""
-    columns = [f for f in all_fields if f != "id"]
-    placeholders = ", ".join(["?"] * len(columns))
-    values = [rec.get(c) for c in columns]
-    try:
-        connection.execute(
-            f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
-            tuple(values),
-        )
-    except Exception:
-        pass
-
-
-def _upsert_category_tree(tree: dict, connection) -> None:
-    """Performs upsert of category and its links."""
-    if not tree:
-        return
-
-    cat = (tree or {}).get("category") or {}
-    links = (tree or {}).get("links") or []
-    if not isinstance(cat, dict) or not cat:
-        return
-
-    cat_id = _upsert_category(cat, connection)
     if not cat_id:
         return
 
+    # Upsert ссылок
     prepared_links = []
     for link in links or []:
         if not isinstance(link, dict):
             continue
-        prepared_links.append(_prepare_link_record(link, cat_id))
+        rec = dict(link)
+        rec["category_id"] = cat_id
+        rec["name"] = rec.get("name", "") or ""
+        rec["url"] = rec.get("url", "") or ""
+        rec["args"] = rec.get("args", "") or ""
+        try:
+            rec["type"] = LinkType.from_value(rec.get("type", "web")).value
+        except Exception:
+            rec["type"] = LinkType.WEB.value
+        rec["notes"] = rec.get("notes", "") or ""
+        rec["is_favorite"] = int(rec.get("is_favorite", 0) or 0)
+        rec["icon_path"] = rec.get("icon_path", "default.ico") or "default.ico"
+        prepared_links.append(rec)
 
     if not prepared_links:
         return
 
     all_fields = [
-        "id",
-        "category_id",
-        "name",
-        "url",
-        "type",
-        "notes",
-        "is_favorite",
-        "last_used",
-        "icon_path",
-        "args",
-        "browser_key",
-        "position",
+        "id", "category_id", "name", "url", "type", "notes",
+        "is_favorite", "last_used", "icon_path", "args", "browser_key", "position",
     ]
 
     next_pos = None
@@ -386,8 +328,35 @@ def _upsert_category_tree(tree: dict, connection) -> None:
         next_pos += 1 if next_pos is not None else 1
 
     for rec in prepared_links:
-        if rec.get("id"):
-            _upsert_link_with_id(rec, all_fields, connection)
-        else:
-            ensure_position(rec)
-            _insert_new_link(rec, all_fields, connection)
+        iid = rec.get("id")
+        if iid:
+            if rec.get("position") is None:
+                rec["position"] = 0
+            update_fields = [f for f in all_fields if f != "id"]
+            update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
+            update_values = [rec.get(f) for f in update_fields]
+            cur = connection.execute(
+                f"UPDATE link SET {update_placeholders} WHERE id=?",
+                tuple(update_values + [iid]),
+            )
+            if getattr(cur, "rowcount", 0) == 0:
+                insert_fields = all_fields
+                placeholders = ", ".join(["?"] * len(insert_fields))
+                insert_values = [rec.get(f) for f in insert_fields]
+                connection.execute(
+                    f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
+                    tuple(insert_values),
+                )
+            continue
+
+        ensure_position(rec)
+        columns = [f for f in all_fields if f != "id"]
+        placeholders = ", ".join(["?"] * len(columns))
+        values = [rec.get(c) for c in columns]
+        try:
+            connection.execute(
+                f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
+                tuple(values),
+            )
+        except Exception:
+            pass

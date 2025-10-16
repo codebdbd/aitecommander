@@ -3,7 +3,7 @@ Universal processor for handling profiles of any browsers.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Dict, List, Optional
 
 from app.utils.links.link_factory import make_profile_link_record
 from app.utils.validators import (
@@ -40,11 +40,11 @@ class UniversalProfileProcessor:
         notes: str,
         category_id: int,
         browser_key: str,
-        selected_profiles: list[dict],
-        existing_link: Optional[dict[Any, Any]] = None,
-        user_args: Optional[str] = None,
-        existing_links_in_category: Optional[list[dict[Any, Any]]] = None,
-    ) -> list[dict]:
+        selected_profiles: List[Dict],
+        existing_link: Dict = None,
+        user_args: str = None,
+        existing_links_in_category: List[Dict] = None,
+    ) -> List[Dict]:
         """
         Processes browser profiles and creates corresponding links.
 
@@ -138,20 +138,8 @@ class UniversalProfileProcessor:
         except Exception:
             existing_keys = set()
 
-        result_links: list[dict] = []
+        result_links = []
         is_edit = existing_link is not None
-
-        existing_link_data = existing_link if existing_link is not None else None
-        existing_last_used = (
-            existing_link_data.get("last_used") if existing_link_data is not None else None
-        )
-        existing_position = 0
-        if existing_link_data is not None:
-            position_value = existing_link_data.get("position", 0)
-            try:
-                existing_position = int(position_value)  # type: ignore[arg-type]
-            except (TypeError, ValueError):
-                existing_position = 0
 
         for profile in selected_profiles:
             try:
@@ -181,14 +169,8 @@ class UniversalProfileProcessor:
                     continue
 
                 # Determine if this is the current edited profile
-                existing_args = (
-                    existing_link_data.get("args", "")
-                    if existing_link_data is not None
-                    else ""
-                )
-                existing_id = (
-                    existing_link_data.get("id") if existing_link_data is not None else None
-                )
+                existing_args = existing_link.get("args", "") if existing_link else ""
+                existing_id = existing_link.get("id") if existing_link else None
                 is_current = is_edit and prof_args == existing_args
 
                 # For profiles of another browser when editing, check by ID
@@ -249,7 +231,9 @@ class UniversalProfileProcessor:
                         link_type,
                         prof_args,
                     ) in existing_keys
-                logger.debug("Duplicate check result: %s", duplicate_check_result)
+                logger.debug(
+                    "Duplicate check result: %s", duplicate_check_result
+                )
 
                 if not skip_duplicate_check and duplicate_check_result:
                     logger.info(
@@ -269,14 +253,16 @@ class UniversalProfileProcessor:
                     prof_args=prof_args,
                     notes=notes,
                     category_id=category_id,
-                    last_used=existing_last_used,
-                    position=existing_position if existing_link_data is not None else 0,
-                    link_id=existing_id if is_current else None,
-                    browser_key=browser_key,  # Add browser_key for proper launch
+                    last_used=existing_link.get("last_used") if existing_link else None,
+                    position=existing_link.get("position", 0) if existing_link else 0,
+                    link_id=existing_link.get("id") if is_current else None,
+                    browser_key=browser_key,                    # Add browser_key for proper launch
                 )
 
                 result_links.append(link_record)
-                logger.debug("Created link: %s with arguments %s", link_name, prof_args)
+                logger.debug(
+                    "Created link: %s with arguments %s", link_name, prof_args
+                )
 
             except Exception as e:
                 logger.error(
@@ -291,7 +277,7 @@ class UniversalProfileProcessor:
         )
         return result_links
 
-    def _format_profile_name(self, finder, profile: dict) -> str:
+    def _format_profile_name(self, finder, profile: Dict) -> str:
         """Formats profile name for display."""
         if hasattr(finder, "format_profile_display_name"):
             return finder.format_profile_display_name(profile)
@@ -345,7 +331,7 @@ class UniversalProfileProcessor:
         )
         return generated_name
 
-    def parse_existing_profile(self, link: dict) -> tuple[Optional[str], list[dict]]:
+    def parse_existing_profile(self, link: Dict) -> tuple[Optional[str], List[Dict]]:
         """
         Parses existing profile from link and determines browser.
 
@@ -386,7 +372,7 @@ class UniversalProfileProcessor:
         return None, []
 
     def validate_profiles(
-        self, browser_key: str, selected_profiles: list[dict]
+        self, browser_key: str, selected_profiles: List[Dict]
     ) -> bool:
         """Validates selected profiles."""
         if not selected_profiles:

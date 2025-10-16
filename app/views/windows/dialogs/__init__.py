@@ -7,8 +7,27 @@ Collects dialog classes grouped by module:
 - ``system_dialogs.py`` — system dialogs
 """
 
-from importlib import import_module
-from typing import Any
+# Base dialogs
+from .base_dialog import BaseDialog
+from .browser_profile_dialog import BrowserProfileDialog
+
+# Entity dialogs
+from .entity_dialogs import (
+    BaseEntityDialog,
+    CategoryDialog,
+    ChromeProfileDialog,
+    NoteDialog,
+    SectionDialog,
+    SettingsDialog,
+)
+from .file_search_dialog.file_search_dialog import FileSearchDialog
+
+# System dialogs
+from .import_browser_dialog import ImportBrowserDialog
+
+# Link dialog (modular)
+from .link_dialog.link_dialog import LinkDialog
+from .restore_db_dialog import RestoreDbDialog
 
 __all__ = [
     "BaseDialog",
@@ -24,33 +43,3 @@ __all__ = [
     "RestoreDbDialog",
     "FileSearchDialog",
 ]
-
-
-def __getattr__(name: str) -> Any:
-    module_map = {
-        "BaseDialog": ".base_dialog",
-        "BrowserProfileDialog": ".browser_profile_dialog",
-        "LinkDialog": ".link_dialog.link_dialog",
-        "ImportBrowserDialog": ".import_browser_dialog",
-        "RestoreDbDialog": ".restore_db_dialog",
-        "FileSearchDialog": ".file_search_dialog.file_search_dialog",
-        "BaseEntityDialog": ".entity_dialogs",
-        "SectionDialog": ".entity_dialogs",
-        "CategoryDialog": ".entity_dialogs",
-        "NoteDialog": ".entity_dialogs",
-        "SettingsDialog": ".entity_dialogs",
-        "ChromeProfileDialog": ".entity_dialogs",
-    }
-
-    target = module_map.get(name)
-    if not target:
-        raise AttributeError(name)
-
-    module = import_module(f"{__name__}{target}")
-    value = getattr(module, name)
-    globals()[name] = value
-    return value
-
-
-def __dir__() -> list[str]:
-    return sorted(set(globals()) | set(__all__))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Callable
+from typing import Any, Callable, List, Optional, Tuple
 
 from app.views.main_components.common.resource_manager import logger
 
@@ -13,16 +13,14 @@ class ResourceManager:
 
     def __init__(self, name: str = "ResourceManager") -> None:
         self._name = name
-        self._resources: list[
-            tuple[str, Any, str | None, Callable[[], None] | None]
-        ] = []
+        self._resources: List[Tuple[str, Any, Optional[str], Optional[Callable[[], None]]]] = []
         self._cleaned_up = False
-        self._cleanup_errors: list[tuple[str, Exception]] = []
+        self._cleanup_errors: List[Tuple[str, Exception]] = []
 
     def register_resource(
         self,
         resource: Any,
-        cleanup_func: Callable[[], None] | None = None,
+        cleanup_func: Optional[Callable[[], None]] = None,
         name: str = "",
         use_finalize: bool = False,
     ) -> None:
@@ -35,7 +33,7 @@ class ResourceManager:
             return
 
         resource_name = name or f"{type(resource).__name__}@{id(resource)}"
-
+        
         if cleanup_func is not None:
             # Explicit cleanup function
             self._resources.append((resource_name, None, None, cleanup_func))
@@ -51,7 +49,7 @@ class ResourceManager:
                 return
             self._resources.append((resource_name, resource, method_name, None))
 
-    def _detect_cleanup_method_name(self, resource: Any) -> str | None:
+    def _detect_cleanup_method_name(self, resource: Any) -> Optional[str]:
         """Determine the cleanup method name for the given resource."""
         for method_name in ("stop", "deleteLater", "close"):
             try:
@@ -69,15 +67,11 @@ class ResourceManager:
             logger.debug("%s: cleanup_all called multiple times, ignoring", self._name)
             return
 
-        logger.debug(
-            "%s: starting cleanup of %d resources", self._name, len(self._resources)
-        )
+        logger.debug("%s: starting cleanup of %d resources", self._name, len(self._resources))
         self._cleaned_up = True
         self._cleanup_errors.clear()
 
-        for resource_name, resource_obj, method_name, cleanup_func in reversed(
-            self._resources
-        ):
+        for resource_name, resource_obj, method_name, cleanup_func in reversed(self._resources):
             try:
                 if cleanup_func is not None:
                     # Explicit cleanup function
@@ -112,13 +106,13 @@ class ResourceManager:
     def is_cleaned_up(self) -> bool:
         return self._cleaned_up
 
-    def get_cleanup_errors(self) -> list[tuple[str, Exception]]:
+    def get_cleanup_errors(self) -> List[Tuple[str, Exception]]:
         return self._cleanup_errors.copy()
 
-    def __enter__(self) -> ResourceManager:
+    def __enter__(self) -> "ResourceManager":
         return self
 
-    def __exit__(self, exc_type, _exc_val, _exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.cleanup_all()
 
     def __del__(self) -> None:  # pragma: no cover - best-effort cleanup

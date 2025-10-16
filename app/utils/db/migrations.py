@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from app.utils.db.synchronization import db_lock
 
@@ -45,10 +45,10 @@ class MigrationRunner:
     def set_version(self, version: int) -> None:
         self.connection.execute(f"PRAGMA user_version = {version}")
 
-    def discover(self) -> list[Migration]:
+    def discover(self) -> List[Migration]:
         if not self.migrations_dir.exists():
             return []
-        migrations: list[Migration] = []
+        migrations: List[Migration] = []
         for entry in sorted(self.migrations_dir.iterdir()):
             if not entry.is_file():
                 continue
@@ -65,10 +65,8 @@ class MigrationRunner:
                 kind = "py"
             else:
                 continue
-            migrations.append(
-                Migration(version=version, name=name, path=entry, kind=kind)
-            )
-
+            migrations.append(Migration(version=version, name=name, path=entry, kind=kind))
+     
         migrations.sort(key=lambda m: (m.version, m.name))
         return migrations
 

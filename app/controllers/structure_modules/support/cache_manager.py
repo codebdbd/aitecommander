@@ -84,7 +84,9 @@ class CacheManager:
     def invalidate_first_category_cache_for_sphere(self, sphere_id: int) -> None:
         key = self._first_category_key_for_sphere(sphere_id)
         self._cache.invalidate(key)
-        self.logger.debug("Invalidated first category cache for sphere %s", sphere_id)
+        self.logger.debug(
+            "Invalidated first category cache for sphere %s", sphere_id
+        )
 
     # =============================
     # Universal caching operations

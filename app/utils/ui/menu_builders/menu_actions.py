@@ -3,7 +3,7 @@
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QWidget
 
@@ -12,7 +12,6 @@ _TR_CONTEXT = "MenuActions"
 
 def _tr(text: str) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text)
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,6 @@ class ActionBuilder:
         if icon:
             action.setIcon(icon)
         if shortcut:
-            # Display shortcut hint, but leave global handling to KeyboardManager
             action.setShortcut(QKeySequence(shortcut))
             action.setShortcutVisibleInContextMenu(True)
             action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)

@@ -1,8 +1,8 @@
 # app/config_data/utils.py
-from typing import Any
+from typing import Any, Dict
 
 
-def get_by_path(config: dict[str, Any], key_path: str, default: Any = None) -> Any:
+def get_by_path(config: Dict[str, Any], key_path: str, default: Any = None) -> Any:
     """Return a nested dictionary value resolved via dotted key path.
 
     Example: ``key_path="ui.window.width"``. Returns ``default`` when the key is

@@ -1,17 +1,17 @@
 """Context menu builder for category tiles."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QListWidget, QMenu
 
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
 
 if TYPE_CHECKING:
-    from app.views.windows.main_window_protocol import MainWindowProtocol
+    from app.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CategoryMenuBuilder:
     """Context menu builder for category tiles."""
 
-    def __init__(self, list_widget: QListWidget, main_window: "MainWindowProtocol"):
+    def __init__(self, list_widget: QListWidget, main_window: "MainWindow"):
         self.list_widget = list_widget
         self.main_window = main_window
         self.actions = ActionBuilder(list_widget)
@@ -30,7 +30,7 @@ class CategoryMenuBuilder:
         edit_cb: Callable,
         delete_cb: Callable,
         add_link_cb: Callable,
-    ) -> tuple[QMenu, QAction, QAction, QAction]:
+    ) -> Tuple[QMenu, QAction, QAction, QAction]:
         """Build context menu for a category tile.
 
         Return values follow visual order:

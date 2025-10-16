@@ -3,60 +3,20 @@
 """Module providing category operations."""
 
 import logging
-from importlib import import_module
-from types import ModuleType
-from typing import Any, Callable, Optional, Protocol, cast
+from typing import Any, Callable, Dict, List, Optional
+
+from ..models.types import (
+    CategoryData,
+    CategoryCreateData,
+    CategoryUpdateData,
+    StructureItemType,
+)
+from ..models.category_types import SignalTypes, CategoryDeletionInfo
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
 
-from ..models.category_types import CategoryDeletionInfo, SignalTypes
-from ..models.types import (
-    CategoryCreateData,
-    CategoryData,
-    CategoryUpdateData,
-    StructureItemType,
-)
-from .base import BaseOperations, StructureSignalEmitter
-
-
-class _NormalizationValidator(Protocol):
-    def __call__(
-        self,
-        items: list[dict[str, Any]],
-        *,
-        required_keys: list[str] | None = None,
-    ) -> bool: ...
-
-
-_normalization_module: ModuleType | None = None
-try:  # pragma: no cover - optional import for runtime
-    _normalization_module = import_module(
-        "app.controllers.structure_modules.operations.normalization"
-    )
-except ModuleNotFoundError:
-    _normalization_module = None
-
-_normalize_fn: _NormalizationValidator | None = None
-if _normalization_module is not None:
-    _candidate = getattr(_normalization_module, "validate_normalized_data", None)
-    if callable(_candidate):
-        _normalize_fn = cast(_NormalizationValidator, _candidate)
-
-
-def validate_normalized_data(
-    items: list[dict[str, Any]], *, required_keys: list[str] | None = None
-) -> bool:
-    if _normalize_fn is not None:
-        return _normalize_fn(items, required_keys=required_keys)
-
-    required_keys = required_keys or []
-    for item in items:
-        if not isinstance(item, dict):
-            return False
-        if any(key not in item for key in required_keys):
-            return False
-    return True
+from .base import BaseOperations, StructureItemType
 
 
 class CategoryOperations(BaseOperations):
@@ -71,18 +31,13 @@ class CategoryOperations(BaseOperations):
         emit_signal_callback: Callable,
         cache_manager,
     ):
-        super().__init__(
-            structure_model, logger, execute_with_error_handling, emit_signal_callback
-        )
-        self._execute_with_validation_fn: Callable[
-            [Callable[[], Optional[int]], Any, StructureItemType, str], Optional[int]
-        ] = execute_with_validation
+        super().__init__(structure_model, logger, execute_with_error_handling)
+        self._execute_with_validation = execute_with_validation
+        self._emit_signal = emit_signal_callback
         self._cache_manager = cache_manager
         # Service layer: transactions and reads without duplicating SQL
         try:
-            self._structure_service: Optional[StructureService] = StructureService(
-                structure_model.db
-            )
+            self._structure_service = StructureService(structure_model.db)
         except Exception:
             self._structure_service = None
 
@@ -112,7 +67,7 @@ class CategoryOperations(BaseOperations):
                 error_msg = f"Category with ID {category_id} was not found"
                 self.logger.error(error_msg)
                 return CategoryDeletionInfo.create_empty()
-
+            
             # ✅ Convert to strongly typed data
             typed_category_data: CategoryData = category_data  # type: ignore
 
@@ -135,14 +90,10 @@ class CategoryOperations(BaseOperations):
 
     def confirm_delete_category(self, category_id: int) -> bool:
         """Confirm and perform category deletion."""
-        structure_service = self._structure_service
-        if structure_service is None:
-
+        if not self._structure_service:
             def _raise_service_error():
-                raise RuntimeError(
-                    "StructureService is unavailable for category deletion"
-                )
-
+                raise RuntimeError("StructureService is unavailable for category deletion")
+            
             return self._execute_with_error_handling(
                 _raise_service_error,
                 f"delete category {category_id}",
@@ -150,7 +101,7 @@ class CategoryOperations(BaseOperations):
             )
 
         def _delete():
-            structure_service.delete_category(category_id)
+            self._structure_service.delete_category(category_id)
 
         result = self.delete_item(
             StructureItemType.CATEGORY,
@@ -162,7 +113,7 @@ class CategoryOperations(BaseOperations):
             self._cache_manager.invalidate_first_category_cache()
         return result
 
-    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Fetch category data with guaranteed normalization."""
 
         def _get_category_operation():
@@ -179,7 +130,7 @@ class CategoryOperations(BaseOperations):
             default_return=None,
         )
 
-    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
+    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
         """Retrieve categories for the specified section."""
 
         def _get_categories_operation():
@@ -202,7 +153,7 @@ class CategoryOperations(BaseOperations):
             default_return=[],
         )
 
-    def get_categories_batch(self, section_ids: list[int]) -> list[dict[str, Any]]:
+    def get_categories_batch(self, section_ids: List[int]) -> List[Dict[str, Any]]:
         """Fetch categories for multiple sections with guaranteed normalization."""
         if not section_ids:
             return []
@@ -224,80 +175,86 @@ class CategoryOperations(BaseOperations):
 
     def _process_item(
         self,
+        data: Dict[str, Any],
         item_type: StructureItemType,
-        data: Any,
-        emit_signal: "StructureSignalEmitter",
-        is_update: bool = False,
         item_id: Optional[int] = None,
-    ) -> Optional[int]:
-        """Handle category mutations via `StructureService`, preserving base signature."""
+        is_update: bool = False,
+        *,
+        require_parent: bool = True,
+    ) -> bool:
+        """Override processing for categories by using `StructureService` mutations.
 
-        if item_type is not StructureItemType.CATEGORY or not getattr(
-            self, "_structure_service", None
-        ):
+        Fall back to the base implementation for other item types.
+        """
+        # If this is not a category, delegate to the base implementation
+        if item_type is not StructureItemType.CATEGORY:
             return super()._process_item(
-                item_type,
-                data,
-                emit_signal,
-                is_update=is_update,
-                item_id=item_id,
+                data, item_type, item_id, is_update, require_parent=require_parent
             )
 
-        def _operation() -> Optional[int]:
-            assert self._structure_service is not None
+        # Without a service layer we safely delegate to the base implementation
+        if not getattr(self, "_structure_service", None):
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
+
+        def _operation():
             if is_update:
-                assert item_id is not None
-                self._structure_service.update_category(int(item_id), data)
+                # Update via the service layer
+                self._structure_service.update_category(int(item_id), data)  # type: ignore[arg-type]
                 current = self._structure_service.get_category_by_id(int(item_id)) or {}
-                emit_signal.emit(
-                    SignalTypes.ITEM_UPDATED,
-                    item_type.value,
-                    int(item_id),
-                    current,
+                # parent_or_id = element ID for updated items
+                self._emit_item_signal(
+                    SignalTypes.ITEM_UPDATED, item_type, int(item_id), current
+                )  # type: ignore[arg-type]
+                # Invalidate the lightweight first-category cache
+                try:
+                    self._cache_manager.invalidate_first_category_cache()
+                except Exception:
+                    pass
+                return True
+            else:
+                # Create via the service layer
+                new_id = self._structure_service.create_category(data)
+                if not new_id:
+                    return False
+                current = self._structure_service.get_category_by_id(int(new_id)) or {
+                    **data,
+                    "id": int(new_id),
+                }
+                parent_id = (
+                    (current.get("section_id") if isinstance(current, dict) else None)
+                    or data.get("section_id")
+                    or 0
+                )
+                # parent_or_id = section_id for added items
+                self._emit_item_signal(
+                    SignalTypes.ITEM_ADDED, item_type, int(parent_id), current
                 )
                 try:
                     self._cache_manager.invalidate_first_category_cache()
                 except Exception:
                     pass
-                return int(item_id)
+                return True
 
-            new_id = self._structure_service.create_category(data)
-            if not new_id:
-                return None
-            current = self._structure_service.get_category_by_id(int(new_id)) or {
-                **data,
-                "id": int(new_id),
-            }
-            parent_id = (
-                (current.get("section_id") if isinstance(current, dict) else None)
-                or data.get("section_id")
-                or 0
-            )
-            emit_signal.emit(
-                SignalTypes.ITEM_ADDED,
-                item_type.value,
-                int(parent_id),
-                current,
-            )
-            try:
-                self._cache_manager.invalidate_first_category_cache()
-            except Exception:
-                pass
-            return int(new_id)
-
-        return self._execute_with_validation_fn(
+        operation_name = "update" if is_update else "create"
+        result = self._execute_with_validation(
             _operation,
             data,
             item_type,
-            "update" if is_update else "create",
+            operation_name,
+            require_parent=require_parent,
         )
+        return result if result is not None else False
 
     def get_first_category_id(self) -> Optional[int]:
         """Return the first category ID with caching for optimization."""
         # Check cache
         cached_id = self._cache_manager.get_first_category_id()
         if cached_id is not None:
-            self.logger.debug("Using cached first category: %s", cached_id)
+            self.logger.debug(
+                "Using cached first category: %s", cached_id
+            )
             return cached_id
 
         def _get_first_category_operation():
@@ -357,9 +314,7 @@ class CategoryOperations(BaseOperations):
                         continue
                     cats = get_categories(int(sid)) or []
                     if cats:
-                        first_id = (
-                            cats[0].get("id") if isinstance(cats[0], dict) else None
-                        )
+                        first_id = cats[0].get("id") if isinstance(cats[0], dict) else None
                         return int(first_id) if first_id is not None else None
                 return None
             except Exception as e:
@@ -375,7 +330,7 @@ class CategoryOperations(BaseOperations):
             pass
         return result
 
-    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Fetch hierarchy (sphere_id, section_id) for a category with normalization."""
 
         def _get_hierarchy_operation():
@@ -414,7 +369,7 @@ class CategoryOperations(BaseOperations):
         return bool(result) if result is not None else False
 
     def create_category_for_import(
-        self, category_data: dict[str, Any]
+        self, category_data: Dict[str, Any]
     ) -> Optional[int]:
         """Create a new category for import."""
         if self._structure_service:
@@ -424,7 +379,7 @@ class CategoryOperations(BaseOperations):
 
     # Private helper methods
 
-    def _get_category_data_internal(self, category_id: int) -> Optional[dict[str, Any]]:
+    def _get_category_data_internal(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Internal helper to load category data."""
         if self._structure_service:
             return self._structure_service.get_category_by_id(category_id)
@@ -447,7 +402,7 @@ class CategoryOperations(BaseOperations):
         signal_type: str,
         item_type: StructureItemType,
         item_id: int,
-        data: Optional[dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
     ):
         """Emit structure signals centrally for items."""
         try:
@@ -465,11 +420,13 @@ class CategoryOperations(BaseOperations):
             )
 
     def _validate_batch_categories(
-        self, categories: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+        self, categories: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Validate category data after batch loading."""
         if not categories:
             return []
+
+        from .normalization import validate_normalized_data
 
         # Require `section_id` key for grouping in coordination.py
         if not validate_normalized_data(categories, required_keys=["section_id"]):
@@ -487,7 +444,7 @@ class CategoryOperations(BaseOperations):
         return categories
 
     def _create_item_for_import(
-        self, item_type: str, item_data: dict[str, Any], create_func: Callable
+        self, item_type: str, item_data: Dict[str, Any], create_func: Callable
     ) -> Optional[int]:
         """Generic helper for creating items during import."""
 
@@ -504,21 +461,10 @@ class CategoryOperations(BaseOperations):
             # Determine parent_id depending on the item type
             parent_id = self._get_parent_id_for_item_type(item_type, signal_data)
 
-            if parent_id is None:
-                self.logger.warning(
-                    "Cannot emit %s signal for %s: missing parent id",
-                    SignalTypes.ITEM_ADDED,
-                    item_type,
-                )
-                return result_id
-
             # Map string item type to enum and emit the signal centrally
             enum_type = self._to_item_enum(item_type)
             self._emit_item_signal(
-                SignalTypes.ITEM_ADDED,
-                enum_type,
-                parent_id,
-                signal_data,
+                SignalTypes.ITEM_ADDED, enum_type, parent_id, signal_data
             )
 
             self.logger.info(
@@ -543,11 +489,11 @@ class CategoryOperations(BaseOperations):
         }
         try:
             return mapping[item_type]
-        except KeyError as e:
-            raise ValueError(f"Unsupported item type: {item_type}") from e
+        except KeyError:
+            raise ValueError(f"Unsupported item type: {item_type}")
 
     def _get_parent_id_for_item_type(
-        self, item_type: str, item_data: dict[str, Any]
+        self, item_type: str, item_data: Dict[str, Any]
     ) -> Optional[int]:
         """Determine parent_id for an item depending on its type."""
         # Use section_id as parent_id for categories

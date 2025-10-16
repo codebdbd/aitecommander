@@ -2,20 +2,15 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
+from app.views.widgets.base.base_widgets import BasePanelWidget
 from app.views.widgets.link_button_mixin import LinkButtonMixin
 from app.views.widgets.protocols import AppConfigWidgetAdapter, WidgetConfigProtocol
-
-if TYPE_CHECKING:
-    from app.views.widgets.base.base_widgets import BasePanelWidget
-else:
-    # Runtime import to avoid circular dependency
-    from app.views.widgets.base.base_widgets import BasePanelWidget
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +24,13 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     clearRequested: pyqtSignal = pyqtSignal()
 
     def __init__(
-        self,
-        main_window=None,
+        self, 
+        main_window=None, 
         config: Optional[WidgetConfigProtocol] = None,
-        batch_size: int = 0,
+        batch_size: int = 0
     ):
         """Initialize base top panel widget.
-
+        
         Args:
             main_window: Reference to main window
             config: Configuration provider (if None, uses app_config adapter)
@@ -44,86 +39,56 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         super().__init__()
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
-
+        
         # IMPROVEMENT: Configuration dependency injection
         if config is None:
             try:
                 from app.config_data import app_config
-
                 config = AppConfigWidgetAdapter(app_config)
             except (ImportError, AttributeError) as e:
                 logger.warning("Failed to load app_config, using None: %s", e)
         self._config = config
-
+        
         # FIX: Batched loading with QTimer leak protection
         self._batch_size = max(0, batch_size)
         self._populate_timer: Optional[QTimer] = None
-        self._pending_items: list[dict[str, Any]] = []
-        self._create_button_func: Optional[
-            Callable[[dict[str, Any]], Optional[QToolButton]]
-        ] = None
-
-        # FIX: Batched adjust() to avoid multiple layout recalculations during startup
-        self._adjust_timer: Optional[QTimer] = None
-        self._adjust_pending = False
+        self._pending_items: List[Dict[str, Any]] = []
+        self._create_button_func: Optional[Callable[[Dict[str, Any]], Optional[QToolButton]]] = None
 
         # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
-    def set_data(self, items: list[dict[str, Any]]) -> None:
+    def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
 
-    def update(self, *args, **kwargs) -> None:
+    def update(self) -> None:
         """Requests data update from external sources."""
         # Base implementation does nothing to avoid circular refresh paths
-        super().update(*args, **kwargs)
+        return
 
     def clear(self) -> None:
         """Initiates clearing - to be implemented by subclasses if needed."""
         pass
 
     def _sync_topbar_layout(self) -> None:
-        """Synchronously recalculates top bar to avoid search size switching.
-        
-        FIX: Использует батчинг через QTimer для предотвращения множественных
-        вызовов adjust() во время загрузки данных панелей.
-        """
+        """Synchronously recalculates top bar to avoid search size switching."""
         try:
-            # FIX: Отложить adjust() через таймер для батчинга
-            if self._adjust_pending:
-                return  # Уже запланирован
-            
-            self._adjust_pending = True
-            
-            if self._adjust_timer is None:
-                self._adjust_timer = QTimer(self)
-                self._adjust_timer.setSingleShot(True)
-                self._adjust_timer.timeout.connect(self._execute_adjust)
-            
-            # Отложить на 10ms — достаточно для батчинга всех set_data()
-            self._adjust_timer.start(10)
-        except Exception:
-            logger.debug("BaseTopPanelWidget: failed to schedule adjust", exc_info=True)
-            self._adjust_pending = False
-    
-    def _execute_adjust(self) -> None:
-        """Выполнить отложенный adjust()."""
-        try:
-            self._adjust_pending = False
             mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
                 mgr.adjust()
         except Exception:
-            logger.debug("BaseTopPanelWidget: topbar adjust failed", exc_info=True)
+            logger.debug(
+                "BaseTopPanelWidget: topbar adjust failed", exc_info=True
+            )
 
-    def _emit_action_safely(self, action_data: dict[str, Any]) -> None:
+    def _emit_action_safely(self, action_data: Dict[str, Any]) -> None:
         """Safely emits actionRequested signal with error handling."""
         try:
             self.actionRequested.emit(action_data)
         except Exception as exc:
             logger.error("BaseTopPanelWidget: failed to emit actionRequested: %s", exc)
 
-    def _emit_refresh_safely(self, refresh_data: dict[str, Any]) -> None:
+    def _emit_refresh_safely(self, refresh_data: Dict[str, Any]) -> None:
         """Safely emits refreshRequested signal with error handling."""
         try:
             self.refreshRequested.emit(refresh_data)
@@ -143,21 +108,17 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """
         while self.panel_layout.count():
             item = self.panel_layout.takeAt(0)
-            if item is None:
-                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-                continue
-            spacer = item.spacerItem()
-            if spacer is not None:
+            elif item.spacerItem():
                 # Explicitly delete spacer to prevent memory leaks
-                del spacer
+                del item
 
     def _populate_panel(
         self,
-        items: list[dict[str, Any]],
-        create_button_func: Callable[[dict[str, Any]], Optional[QToolButton]],
+        items: List[Dict[str, Any]],
+        create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Clear the panel and populate it with link buttons.
 
@@ -173,13 +134,10 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _populate_sync(
         self,
-        items: list[dict[str, Any]],
-        create_func: Callable[[dict[str, Any]], Optional[QToolButton]],
+        items: List[Dict[str, Any]],
+        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Populate synchronously for small datasets.
-        
-        Uses setUpdatesEnabled(False) to prevent visual glitches during population.
-        """
+        """Populate synchronously for small datasets."""
         self.setUpdatesEnabled(False)
         try:
             for i, link in enumerate(items):
@@ -212,8 +170,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _populate_batched(
         self,
-        items: list[dict[str, Any]],
-        create_func: Callable[[dict[str, Any]], Optional[QToolButton]],
+        items: List[Dict[str, Any]],
+        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Populate using batches to prevent UI freezes.
 
@@ -243,25 +201,26 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             self._finish_populate()
             return
 
-        batch = self._pending_items[: self._batch_size]
-        self._pending_items = self._pending_items[self._batch_size :]
-
+        batch = self._pending_items[:self._batch_size]
+        self._pending_items = self._pending_items[self._batch_size:]
+        
         for i, link in enumerate(batch):
             try:
-                if self._create_button_func is None:
-                    break
-                button = self._create_button_func(link)  # type: ignore[misc]
-                if button is not None:
+                button = self._create_button_func(link)
+                if button:
                     self.panel_layout.addWidget(button)
-                else:
-                    logger.debug(
-                        "create_button_func returned None for element %d: %s",
-                        i,
-                        link.get("name", "Unknown"),
-                    )
             except Exception:
                 logger.exception("Failed to create button for %s", link.get("name"))
                 continue
+
+            if button is not None:
+                self.panel_layout.addWidget(button)
+            else:
+                logger.debug(
+                    "create_button_func returned None for element %d: %s",
+                    i,
+                    link.get("name", "Unknown"),
+                )
 
         # Schedule next batch
         if self._pending_items and self._populate_timer:
@@ -276,18 +235,18 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to add stretch to layout: %s", e)
-
+        
         self.setUpdatesEnabled(True)
-
+        
         try:
             self.updateGeometry()
         except (RuntimeError, AttributeError) as e:
             logger.debug("updateGeometry failed: %s", e)
-
+        
         # Cleanup
         self._pending_items = []
         self._create_button_func = None
-
+    
     def closeEvent(self, event) -> None:
         """Cancel pending batches on close.
 

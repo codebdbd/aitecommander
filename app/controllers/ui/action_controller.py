@@ -8,7 +8,7 @@ from PyQt6.QtCore import QObject, pyqtSlot
 from app.config_data import app_config
 
 if TYPE_CHECKING:
-    from app.views.windows.main_window_protocol import MainWindowProtocol
+    from app.views.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ActionController(QObject):
     """Controller for handling user actions."""
 
-    def __init__(self, main_window: "MainWindowProtocol"):
+    def __init__(self, main_window: "MainWindow"):
         parent = main_window if isinstance(main_window, QObject) else None
         super().__init__(parent=parent)
         self.main_window = main_window
@@ -33,10 +33,7 @@ class ActionController(QObject):
         try:
             tree = self.main_window.tree
             fw = self.main_window.focusWidget()
-            return bool(
-                tree.hasFocus()
-                or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw))
-            )
+            return bool(tree.hasFocus() or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw)))
         except Exception:
             return False
 
@@ -50,10 +47,7 @@ class ActionController(QObject):
         try:
             table = self.main_window.table
             fw = self.main_window.focusWidget()
-            return bool(
-                table.hasFocus()
-                or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw))
-            )
+            return bool(table.hasFocus() or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw)))
         except Exception:
             return False
 
@@ -175,8 +169,5 @@ class ActionController(QObject):
         try:
             return self.main_window.links_actions.get_selected_links()
         except Exception:
-            logger.debug(
-                "ActionController: failed to get selected links via facade",
-                exc_info=True,
-            )
+            logger.debug("ActionController: failed to get selected links via facade", exc_info=True)
             return []

@@ -1,30 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from functools import lru_cache
-from typing import Any
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
-from PyQt6.QtCore import QAbstractTableModel, QCoreApplication, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant, QCoreApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link.item_builders import ItemBuildersMixin
-
-
-# Global icon cache to avoid memory leaks with lru_cache on methods
-@lru_cache(maxsize=100)
-def _get_icon_cached(icon_path: str) -> QIcon | None:
-    """Global icon cache function to avoid memory leaks."""
-    if not icon_path:
-        return None
-    try:
-        icon = create_icon_from_path(icon_path)
-        return icon if isinstance(icon, QIcon) and not icon.isNull() else None
-    except Exception:
-        return None
+from app.views.common.retranslatable import ReTranslatable
 
 
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
@@ -38,15 +24,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]  # source strings
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
-    def __init__(
-        self,
-        links: Sequence[dict[str, Any]] | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         QAbstractTableModel.__init__(self, parent)
         ReTranslatable.__init__(self)
-        self._headers: list[str] = []
-        self._links: list[dict[str, Any]] = []
+        self._headers: List[str] = []
+        self._links: List[Dict[str, Any]] = []
         # Initialize while cleaning potential icon cache entries
         self.retranslateUi()
         if links:
@@ -67,103 +49,76 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         ]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
-            self.headerDataChanged.emit(
-                Qt.Orientation.Horizontal, 0, len(self._headers) - 1
-            )
+            self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
 
     # --- Required methods ---
-    def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
-        if parent is None:
-            parent = QModelIndex()
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
         return len(self._links)
 
-    def columnCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
-        if parent is None:
-            parent = QModelIndex()
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
         return len(self._headers)
 
-    def _get_display_data(self, col, link):
-        """Get display data for column."""
-        if col == 0:
-            return self._star_display_text(bool(link.get("is_favorite")))
-        if col == 1:
-            return self._name_display_text(link, mode="normal")
-        if col == 2:
-            return self._last_used_display_text(link.get("last_used"))
-        if col == 3:
-            display, _ = self._notes_display_and_tooltip(
-                link.get("notes", ""), truncate=False
-            )
-            return display
-        return None
-
-    def _get_decoration_data(self, col, link):
-        """Get decoration data for column."""
-        if col == 1:
-            try:
-                resolved_path = resolve_icon_for_link(link)
-                if resolved_path:
-                    return self._get_cached_icon(resolved_path)
-            except Exception:
-                pass
-        return None
-
-    def _get_tooltip_data(self, col, link):
-        """Get tooltip data for column."""
-        if col == 1:
-            tip = self._name_tooltip(link)
-            if tip:
-                return tip
-        if col == 3:
-            _, tip = self._notes_display_and_tooltip(
-                link.get("notes", ""), truncate=False
-            )
-            if tip:
-                return tip
-        return None
-
-    def _get_alignment_data(self, col):
-        """Get alignment data for column."""
-        if col in (0, 2):
-            return int(Qt.AlignmentFlag.AlignCenter)
-        return None
-
-    def data(
-        self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
-    ) -> object:  # type: ignore[override]
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Union[str, int, QIcon, Dict, None]:  # type: ignore[override]
         if not index.isValid():
-            return None
+            return QVariant()
         row = index.row()
         col = index.column()
         if not (0 <= row < len(self._links)):
-            return None
+            return QVariant()
 
         link = self._links[row]
 
+        # UserRole: return the original link dict
         if role == Qt.ItemDataRole.UserRole:
             return link
 
+        # Display/Decoration/ToolTip per column
+        # 0: ★, 1: Name, 2: Last opened, 3: Notes
         if role == Qt.ItemDataRole.DisplayRole:
-            result = self._get_display_data(col, link)
-            return result if result is not None else None
+            if col == 0:
+                return self._star_display_text(bool(link.get("is_favorite")))
+            if col == 1:
+                # Always "normal" mode here; search uses a separate model/view
+                return self._name_display_text(link, mode="normal")
+            if col == 2:
+                return self._last_used_display_text(link.get("last_used"))
+            if col == 3:
+                display, _ = self._notes_display_and_tooltip(
+                    link.get("notes", ""), truncate=False
+                )
+                return display
 
         if role == Qt.ItemDataRole.DecorationRole:
-            result = self._get_decoration_data(col, link)
-            return result if result is not None else None
+            if col == 1:
+                # Link icon: use LRU cache to avoid memory leaks
+                try:
+                    resolved_path = resolve_icon_for_link(link)
+                    if resolved_path:
+                        return self._get_cached_icon(resolved_path)
+                except Exception:
+                    pass
 
         if role == Qt.ItemDataRole.ToolTipRole:
-            result = self._get_tooltip_data(col, link)
-            return result if result is not None else None
+            if col == 1:
+                tip = self._name_tooltip(link)
+                if tip:
+                    return tip
+            if col == 3:
+                _, tip = self._notes_display_and_tooltip(
+                    link.get("notes", ""), truncate=False
+                )
+                if tip:
+                    return tip
 
         if role == Qt.ItemDataRole.TextAlignmentRole:
-            result = self._get_alignment_data(col)
-            return result if result is not None else None
+            if col in (0, 2):
+                return int(Qt.AlignmentFlag.AlignCenter)
 
-        return None
+        return QVariant()
 
     def headerData(
         self,
@@ -179,7 +134,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # type: ignore[override]
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # By default the table is not editable via delegates
@@ -248,11 +203,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         return False
 
-    def supportedDropActions(self) -> Qt.DropAction:  # type: ignore[override]
+    def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
         # Support moving rows only
         return Qt.DropAction.MoveAction
 
-    def supportedDragActions(self) -> Qt.DropAction:  # type: ignore[override]
+    def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
     # --- Data mutations ---
@@ -267,20 +222,20 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             Qt.Orientation.Horizontal, 0, len(self._headers) - 1
         )
 
-    def set_links(self, links: Sequence[dict[str, Any]]) -> None:
+    def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
         self.beginResetModel()
         # Clone data (icons now live in the LRU cache, not inside dicts)
         self._links = [dict(link_item) for link_item in links]
         self.endResetModel()
 
-    def insert_link(self, pos: int, link: dict[str, Any]) -> bool:
+    def insert_link(self, pos: int, link: Dict[str, Any]) -> bool:
         pos = max(0, min(pos, len(self._links)))
         self.beginInsertRows(QModelIndex(), pos, pos)
         self._links.insert(pos, dict(link))
         self.endInsertRows()
         return True
 
-    def append_link(self, link: dict[str, Any]) -> bool:
+    def append_link(self, link: Dict[str, Any]) -> bool:
         return self.insert_link(len(self._links), link)
 
     def remove_row(self, row: int) -> bool:
@@ -291,7 +246,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         self.endRemoveRows()
         return True
 
-    def update_link(self, row: int, new_data: dict[str, Any]) -> bool:
+    def update_link(self, row: int, new_data: Dict[str, Any]) -> bool:
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(new_data)
@@ -302,7 +257,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         return True
 
     # --- Helper methods ---
-    def get_link(self, row: int) -> dict[str, Any] | None:
+    def get_link(self, row: int) -> Optional[Dict[str, Any]]:
         if 0 <= row < len(self._links):
             return self._links[row]
         return None
@@ -314,7 +269,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         return -1
 
     # --- Row reordering ---
-    def move_rows(self, source_rows: list[int], target_row: int) -> None:
+    def move_rows(self, source_rows: List[int], target_row: int) -> None:
         """Move a set of rows while preserving relative order.
 
         For a single continuous range use ``beginMoveRows``/``endMoveRows``.
@@ -330,7 +285,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         target_row = max(0, min(target_row, n))
 
         # When the rows form one contiguous range — use an atomic move
-        def is_contiguous(rows: list[int]) -> bool:
+        def is_contiguous(rows: List[int]) -> bool:
             """Check whether rows form a contiguous range."""
             return all(b - a == 1 for a, b in zip(rows, rows[1:]))
 
@@ -367,14 +322,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         # at ``target_row`` among remaining elements WITHOUT subtracting removals before target.
         # Matches user expectation of "insert before the item that was at target_row prior to move".
         src_set = set(src)
-        remaining: list[dict[str, Any]] = [
+        remaining: List[Dict[str, Any]] = [
             item for i, item in enumerate(self._links) if i not in src_set
         ]
-        segment_items: list[dict[str, Any]] = [self._links[i] for i in src]
+        segment: List[Dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
-            self._links = remaining[:insert_at] + segment_items + remaining[insert_at:]
+            self._links = remaining[:insert_at] + segment + remaining[insert_at:]
         finally:
             self.layoutChanged.emit()
 
@@ -419,7 +374,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             except Exception:
                 return -inf
 
-        def key_for(link: dict[str, Any]) -> Any:
+        def key_for(link: Dict[str, Any]) -> Any:
             if column == 0:
                 # Cast to int for comparison to avoid mixing types
                 return 1 if bool(link.get("is_favorite", False)) else 0
@@ -431,19 +386,18 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return str(link.get("notes", "")).casefold()
             # Unknown column — sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
-            if isinstance(lid, (int, str)):
-                try:
-                    return int(lid)
-                except ValueError:
-                    pass
-            return self._links.index(link)
+            try:
+                return int(lid)
+            except Exception:
+                return self._links.index(link)
 
         reverse = order == Qt.SortOrder.DescendingOrder
         self.layoutAboutToBeChanged.emit()
         self._links.sort(key=key_for, reverse=reverse)
         self.layoutChanged.emit()
 
-    def _get_cached_icon(self, icon_path: str) -> QIcon | None:
+    @lru_cache(maxsize=MAX_ICON_CACHE)
+    def _get_cached_icon(self, icon_path: str) -> Optional[QIcon]:
         """Return an icon with LRU caching to avoid memory leaks.
 
         Args:
@@ -452,4 +406,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         Returns:
             ``QIcon`` instance or ``None`` if loading fails.
         """
-        return _get_icon_cached(icon_path)
+        if not icon_path:
+            return None
+        try:
+            icon = create_icon_from_path(icon_path)
+            return icon if isinstance(icon, QIcon) and not icon.isNull() else None
+        except Exception:
+            return None

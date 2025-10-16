@@ -6,15 +6,15 @@ Data-compatible with the legacy version (keys = URL, values = dict with icon/tit
 
 from __future__ import annotations
 
-import atexit
 import os
+import atexit
 import shelve
 import threading
 import time
-from collections import OrderedDict
 from contextlib import closing, contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+from collections import OrderedDict
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -44,7 +44,7 @@ def _get_lock_backend() -> str:
 
 
 @contextmanager
-def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 0.05):
+def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0.05):
     """Cross-platform file lock without busy waiting.
 
     Backend order:
@@ -80,7 +80,6 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                 # portalocker raises LockException on timeout; log as warning
                 try:
                     from portalocker import exceptions as _pl_exc  # type: ignore
-
                     if isinstance(e, getattr(_pl_exc, "LockException", tuple())):
                         logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
                         yield
@@ -103,8 +102,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
     # 2) filelock (if available/allowed; also for auto when portalocker is missing)
     if backend in ("auto", "filelock"):
         try:
-            from filelock import FileLock  # type: ignore
-            from filelock import Timeout as FileLockTimeout
+            from filelock import FileLock, Timeout as FileLockTimeout  # type: ignore
 
             lock = FileLock(lock_path)
             try:
@@ -135,10 +133,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                 return
 
     # No available backends — continue without interprocess locking
-    logger.warning(
-        "favicon lock backend unavailable; proceeding without interprocess lock: %s",
-        lock_path,
-    )
+    logger.warning("favicon lock backend unavailable; proceeding without interprocess lock: %s", lock_path)
     yield
 
 
@@ -147,16 +142,16 @@ def _db_path() -> str:
 
 
 class FaviconCache(BaseCache):
-    def __init__(self, *, default_ttl: float | None = CACHE_TTL) -> None:
+    def __init__(self, *, default_ttl: Optional[float] = CACHE_TTL) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
         # Cache default icon lookup to avoid repeated resolver calls
-        self._default_icon_cached: str | None = None
+        self._default_icon_cached: Optional[str] = None
         # Cleanup parameters (interval fixed, max_size read dynamically from config)
         self._cleanup_interval_sec = self._get_cleanup_interval()
         # Persistent shelve connection (enabled via configuration)
-        self._db_path_str: str | None = None
-        self._db: shelve.Shelf | None = None
+        self._db_path_str: Optional[str] = None
+        self._db: Optional[shelve.Shelf] = None
         try:
             self._persistent_enabled: bool = bool(
                 getattr(app_config, "FAVICON_CACHE_PERSISTENT", False)
@@ -199,9 +194,7 @@ class FaviconCache(BaseCache):
             try:
                 db.close()
             except Exception as exc:  # noqa: BLE001
-                logger.debug(
-                    "favicon_cache: failed to close db: %s", exc, exc_info=True
-                )
+                logger.debug("favicon_cache: failed to close db: %s", exc, exc_info=True)
 
     def _safe_shutdown(self) -> None:  # pragma: no cover - atexit path
         try:
@@ -265,8 +258,11 @@ class FaviconCache(BaseCache):
     def _now() -> float:
         return float(time.time())
 
-    def _should_cleanup(self, db, now):
-        """Check if cleanup is needed."""
+    def _maybe_cleanup(self, db: shelve.Shelf, *, now: Optional[float] = None) -> None:
+        """Periodic cleanup: purge expired entries and, if needed, oldest records.
+
+        To avoid frequent full scans, store timestamp of last cleanup in ``__last_cleanup_ts__``.
+        """
         try:
             last_ts = float(db.get("__last_cleanup_ts__", 0.0))
         except Exception as exc:
@@ -274,381 +270,458 @@ class FaviconCache(BaseCache):
             logger.debug(
                 "favicon_cache: failed to read last cleanup ts: %s", exc, exc_info=True
             )
-        return (now - last_ts) >= self._cleanup_interval_sec
-
-    def _remove_entry(self, db, index, k):
-        """Remove entry from cache and index."""
-        index.pop(k, None)
-        try:
-            if k in db:
-                del db[k]
-                return 1
-        except Exception:
-            pass
-        return 0
-
-    def _cleanup_expired_entries(self, db, index, now):
-        """Remove expired or inconsistent entries."""
-        removed = 0
-        for k, ts in list(index.items()):
-            try:
-                item = db.get(k)
-                if not isinstance(item, dict):
-                    removed += self._remove_entry(db, index, k)
-                    continue
-                ttl = self._compute_effective_ttl(item)
-                if ttl <= 0 or (now - ts) >= ttl:
-                    removed += self._remove_entry(db, index, k)
-            except Exception as exc:
-                removed += self._remove_entry(db, index, k)
-                logger.debug(
-                    "favicon_cache: failed to inspect entry '%s' during cleanup: %s",
-                    k,
-                    exc,
-                    exc_info=True,
-                )
-        return removed
-
-    def _enforce_max_size(self, db, index):
-        """Enforce max size by removing oldest entries."""
-        removed = 0
-        max_size = self._get_max_size()
-        while len(index) > max_size:
-            try:
-                oldest_key = min(index.items(), key=lambda kv: kv[1])[0]
-            except ValueError:
-                break
-            removed += self._remove_entry(db, index, oldest_key)
-        return removed
-
-    def _finalize_cleanup(self, db, index, now, removed):
-        """Save cleanup state to database."""
-        try:
-            db["__last_cleanup_ts__"] = now
-            db["__ts_index__"] = index
-            try:
-                sync = getattr(db, "sync", None)
-                if callable(sync):
-                    sync()
-            except Exception:
-                pass
-            if removed:
-                logger.debug("[cache] CLEANUP removed=%s", removed)
-        except Exception as exc:
-            logger.debug(
-                "favicon_cache: failed to write last cleanup ts or log removed count: %s",
-                exc,
-                exc_info=True,
-            )
-
-    def _maybe_cleanup(self, db: shelve.Shelf, *, now: float | None = None) -> None:
-        """Periodic cleanup: purge expired entries and, if needed, oldest records.
-
-        To avoid frequent full scans, store timestamp of last cleanup in ``__last_cleanup_ts__``.
-        """
         now = self._now() if now is None else float(now)
-        if not self._should_cleanup(db, now):
+        if (now - last_ts) < self._cleanup_interval_sec:
             return
 
         removed = 0
         try:
-            index: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
-            removed += self._cleanup_expired_entries(db, index, now)
-            removed += self._enforce_max_size(db, index)
-        finally:
-            self._finalize_cleanup(db, index, now, removed)
-
-    # BaseCache implementation
-    def _is_item_expired(self, item):
-        """Check if cache item is expired."""
-        if not item:
-            return True
-        ts = float(item.get("timestamp", 0.0))
-        ttl = self._compute_effective_ttl(item)
-        return ttl <= 0 or (self._now() - ts) >= ttl
-
-    def _delete_expired_item(self, db, key):
-        """Delete expired item from database."""
-        try:
-            del db[key]
-            self._remove_key_from_index(db, key)
-            self._sync_db(db)
-        except Exception as exc:
-            logger.debug(
-                "favicon_cache: failed to delete expired key '%s' in get(): %s",
-                key,
-                exc,
-                exc_info=True,
-            )
-
-    def _get_from_persistent(self, key):
-        """Get item from persistent cache."""
-        if self._db is None:
-            self._open_db()
-        db = self._db
-        if db is None:
-            return None
-
-        item = db.get(key)
-        if self._is_item_expired(item):
-            self._delete_expired_item(db, key)
-            return None
-        return item
-
-    def _get_from_non_persistent(self, key, current_path):
-        """Get item from non-persistent cache."""
-        try:
-            icon_path_service.ensure_user_icons_dir()
-        except Exception:
-            pass
-
-        with closing(shelve.open(current_path)) as db2:
-            item = db2.get(key)
-            if self._is_item_expired(item):
-                self._delete_expired_item(db2, key)
-                return None
-            return item
-
-    def get(self, key: str) -> Any | None:
-        with self._lock:
-            current_path = self._get_db_path()
-            lock_path = f"{current_path}.lock"
-            with _file_lock(lock_path):
-                if self._persistent_enabled:
-                    return self._get_from_persistent(key)
-                else:
-                    return self._get_from_non_persistent(key, current_path)
-
-    def _prepare_cache_entry(
-        self, value: Any, ttl: float | None, ts_now: float
-    ) -> dict:
-        """Prepare cache entry with timestamp and TTL."""
-        if isinstance(value, dict):
-            to_store = dict(value)
-        else:
-            to_store = {"value": value}
-        to_store.setdefault("timestamp", ts_now)
-        if ttl is not None:
-            to_store["ttl"] = float(ttl)
-        return to_store
-
-    def _update_timestamp_index(self, db, key: str, timestamp: float) -> None:
-        """Update timestamp index with new entry."""
-        try:
-            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
-            if key in idx:
-                idx.pop(key, None)
-            idx[key] = float(timestamp)
-            db["__ts_index__"] = idx
-        except Exception:
-            pass
-
-    def _sync_db(self, db) -> None:
-        """Sync database to disk."""
-        try:
-            sync = getattr(db, "sync", None)
-            if callable(sync):
-                sync()
-        except Exception:
-            pass
-
-    def _clean_phantom_keys(self, db, idx: OrderedDict) -> None:
-        """Remove phantom keys from index that don't exist in DB."""
-        for idx_key in list(idx.keys()):
-            if idx_key not in db or idx_key.startswith("__"):
-                idx.pop(idx_key, None)
-
-    def _evict_by_index(self, db, idx: OrderedDict, max_size: int) -> None:
-        """Evict oldest entries using index."""
-        while len(idx) > max_size:
-            try:
-                oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
-            except ValueError:
-                break
-            idx.pop(oldest_key, None)
-            try:
-                if oldest_key in db:
-                    del db[oldest_key]
-            except Exception:
-                pass
-
-    def _fallback_evict_by_scan(self, db, idx: OrderedDict, max_size: int) -> None:
-        """Fallback eviction by scanning DB if index is incomplete."""
-        try:
-            non_service = [k for k in db.keys() if not k.startswith("__")]
-            if len(non_service) <= max_size:
-                return
-
-            items: list[tuple[str, float]] = []
-            for candidate_key in non_service:
+            # Load/create ordered timestamp index: key -> ts (ascending insertion order)
+            index: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+            # 1) Remove expired or inconsistent entries by iterating over the index
+            for k, ts in list(index.items()):
                 try:
-                    entry = db.get(candidate_key)
-                    ts_val = (
-                        float(entry.get("timestamp", 0.0))
-                        if isinstance(entry, dict)
-                        else 0.0
+                    item = db.get(k)
+                    if not isinstance(item, dict):
+                        # Missing or invalid — delete
+                        index.pop(k, None)
+                        try:
+                            if k in db:
+                                del db[k]
+                                removed += 1
+                        except Exception:
+                            pass
+                        continue
+                    ttl = self._compute_effective_ttl(item)
+                    if ttl <= 0 or (now - ts) >= ttl:
+                        index.pop(k, None)
+                        try:
+                            del db[k]
+                            removed += 1
+                        except Exception:
+                            pass
+                except Exception as exc:
+                    index.pop(k, None)
+                    try:
+                        if k in db:
+                            del db[k]
+                            removed += 1
+                    except Exception:
+                        pass
+                    logger.debug(
+                        "favicon_cache: failed to inspect entry '%s' during cleanup: %s",
+                        k,
+                        exc,
+                        exc_info=True,
                     )
-                except Exception:
-                    ts_val = 0.0
-                items.append((candidate_key, ts_val))
 
-            items.sort(key=lambda kv: kv[1])
-            for victim_key, _ in items[max_size:]:
+            # 2) Enforce max size by removing entries with smallest timestamp
+            max_size = self._get_max_size()
+            while len(index) > max_size:
                 try:
-                    if victim_key in db:
-                        del db[victim_key]
-                    if victim_key in idx:
-                        idx.pop(victim_key, None)
+                    oldest_key = min(index.items(), key=lambda kv: kv[1])[0]
+                except ValueError:
+                    break
+                index.pop(oldest_key, None)
+                try:
+                    if oldest_key in db:
+                        del db[oldest_key]
+                        removed += 1
+                except Exception as exc:
+                    logger.debug(
+                        "favicon_cache: failed to evict key '%s': %s",
+                        oldest_key,
+                        exc,
+                        exc_info=True,
+                    )
+        finally:
+            try:
+                db["__last_cleanup_ts__"] = now
+                db["__ts_index__"] = index
+                try:
+                    sync = getattr(db, "sync", None)
+                    if callable(sync):
+                        sync()
                 except Exception:
                     pass
-            db["__ts_index__"] = idx
-        except Exception:
-            pass
+                if removed:
+                    logger.debug("[cache] CLEANUP removed=%s", removed)
+            except Exception as exc:
+                logger.debug(
+                    "favicon_cache: failed to write last cleanup ts or log removed count: %s",
+                    exc,
+                    exc_info=True,
+                )
 
-    def _enforce_size_limit(self, db) -> None:
-        """Enforce cache size limit using index-based eviction."""
-        try:
-            max_size = self._get_max_size()
-            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
-
-            # Clean phantom keys
-            self._clean_phantom_keys(db, idx)
-
-            # Evict by index
-            self._evict_by_index(db, idx, max_size)
-            db["__ts_index__"] = idx
-
-            # Fallback eviction if needed
-            self._fallback_evict_by_scan(db, idx, max_size)
-
-            # Sync changes
-            self._sync_db(db)
-        except Exception:
-            pass
-
-    def _store_entry_in_db(self, db, key: str, value: Any, ttl: float | None) -> None:
-        """Store entry in database with size enforcement."""
-        ts_now = self._now()
-        to_store = self._prepare_cache_entry(value, ttl, ts_now)
-
-        db[key] = to_store
-        self._update_timestamp_index(db, key, to_store.get("timestamp", ts_now))
-        logger.debug("[cache] SAVE %s", key)
-        self._sync_db(db)
-        self._enforce_size_limit(db)
-
-    def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
-        """Set cache entry with optional TTL."""
+    # BaseCache implementation
+    def get(self, key: str) -> Optional[Any]:
         with self._lock:
+            # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
                 if self._persistent_enabled:
-                    # Persistent mode: use already-open DB
+                    # Ensure db is open
+                    if self._db is None:
+                        self._open_db()
+                    db = self._db
+                    if db is None:
+                        return None
+                    item = db.get(key)
+                    if not item:
+                        return None
+                    ts = float(item.get("timestamp", 0.0))
+                    ttl = self._compute_effective_ttl(item)
+                    if ttl <= 0 or (self._now() - ts) >= ttl:
+                        # Remove expired entry to prevent database growth
+                        try:
+                            del db[key]
+                            # Remove from index
+                            try:
+                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                if key in idx:
+                                    idx.pop(key, None)
+                                    db["__ts_index__"] = idx
+                                    try:
+                                        sync = getattr(db, "sync", None)
+                                        if callable(sync):
+                                            sync()
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        except Exception as exc:
+                            logger.debug(
+                                "favicon_cache: failed to delete expired key '%s' in get(): %s",
+                                key,
+                                exc,
+                                exc_info=True,
+                            )
+                        return None
+                    return item
+                else:
+                    # Non-persistent mode: open/close on every operation (legacy behaviour)
+                    try:
+                        icon_path_service.ensure_user_icons_dir()
+                    except Exception:
+                        pass
+                    with closing(shelve.open(current_path)) as db2:
+                        item = db2.get(key)
+                        if not item:
+                            return None
+                        ts = float(item.get("timestamp", 0.0))
+                        ttl = self._compute_effective_ttl(item)
+                        if ttl <= 0 or (self._now() - ts) >= ttl:
+                            try:
+                                del db2[key]
+                                # Remove from index
+                                try:
+                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    if key in idx:
+                                        idx.pop(key, None)
+                                        db2["__ts_index__"] = idx
+                                        try:
+                                            sync = getattr(db2, "sync", None)
+                                            if callable(sync):
+                                                sync()
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                            except Exception as exc:
+                                logger.debug(
+                                    "favicon_cache: failed to delete expired key '%s' in get(): %s",
+                                    key,
+                                    exc,
+                                    exc_info=True,
+                                )
+                            return None
+                        return item
+
+    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+        with self._lock:
+            # Use file lock for interprocess safety during operation
+            current_path = self._get_db_path()
+            lock_path = f"{current_path}.lock"
+            with _file_lock(lock_path):
+                if self._persistent_enabled:
+                    # Ensure db is open
                     if self._db is None:
                         self._open_db()
                     db = self._db
                     if db is None:
                         return
-                    self._store_entry_in_db(db, key, value, ttl)
+                    # Do not pre-clean before write; enforce size limit via index below
+                    if isinstance(value, dict):
+                        to_store = dict(value)
+                    else:
+                        to_store = {"value": value}
+                    ts_now = self._now()
+                    to_store.setdefault("timestamp", ts_now)
+                    if ttl is not None:
+                        to_store["ttl"] = float(ttl)
+                    db[key] = to_store
+                    # Update timestamp index: move key to end as newest
+                    try:
+                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        if key in idx:
+                            idx.pop(key, None)
+                        idx[key] = float(to_store.get("timestamp", ts_now))
+                        db["__ts_index__"] = idx
+                    except Exception:
+                        pass
+                    logger.debug("[cache] SAVE %s", key)
+                    try:
+                        sync = getattr(db, "sync", None)
+                        if callable(sync):
+                            sync()
+                    except Exception:
+                        pass
+                    # Enforce size limit immediately using index (avoid full sort)
+                    try:
+                        max_size = self._get_max_size()
+                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        # Remove phantom keys not present in DB
+                        for idx_key in list(idx.keys()):
+                            if idx_key not in db or idx_key.startswith("__"):
+                                idx.pop(idx_key, None)
+                        # Evict based on index ordering
+                        while len(idx) > max_size:
+                            try:
+                                oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+                            except ValueError:
+                                break
+                            idx.pop(oldest_key, None)
+                            try:
+                                if oldest_key in db:
+                                    del db[oldest_key]
+                            except Exception:
+                                pass
+                        db["__ts_index__"] = idx
+                        # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
+                        try:
+                            non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
+                            if len(non_service) > max_size:
+                                items: list[tuple[str, float]] = []
+                                for candidate_key in non_service:
+                                    try:
+                                        entry = db.get(candidate_key)
+                                        ts_val = (
+                                            float(entry.get("timestamp", 0.0))
+                                            if isinstance(entry, dict)
+                                            else 0.0
+                                        )
+                                    except Exception:
+                                        ts_val = 0.0
+                                    items.append((candidate_key, ts_val))
+                                items.sort(key=lambda kv: kv[1])
+                                for victim_key, _ in items[max_size:]:
+                                    try:
+                                        if victim_key in db:
+                                            del db[victim_key]
+                                        if victim_key in idx:
+                                            idx.pop(victim_key, None)
+                                    except Exception:
+                                        pass
+                                db["__ts_index__"] = idx
+                        except Exception:
+                            pass
+                        try:
+                            sync = getattr(db, "sync", None)
+                            if callable(sync):
+                                sync()
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
                 else:
-                    # Non-persistent mode: open/close on every operation
+                    # Non-persistent mode: open/close on every operation (legacy behaviour)
                     try:
                         icon_path_service.ensure_user_icons_dir()
                     except Exception:
                         pass
                     with closing(shelve.open(current_path)) as db:
-                        self._store_entry_in_db(db, key, value, ttl)
-                        # Set last cleanup marker
+                        # Do not pre-clean before write; enforce size limit via index below
+                        if isinstance(value, dict):
+                            to_store = dict(value)
+                        else:
+                            to_store = {"value": value}
+                        ts_now = self._now()
+                        to_store.setdefault("timestamp", ts_now)
+                        if ttl is not None:
+                            to_store["ttl"] = float(ttl)
+                        db[key] = to_store
+                        # Update timestamp index: move key to end as newest
                         try:
-                            db["__last_cleanup_ts__"] = self._now()
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            if key in idx:
+                                idx.pop(key, None)
+                            idx[key] = float(to_store.get("timestamp", ts_now))
+                            db["__ts_index__"] = idx
+                        except Exception:
+                            pass
+                        logger.debug("[cache] SAVE %s", key)
+                        # Enforce size limit immediately via index (no full sort)
+                        try:
+                            max_size = self._get_max_size()
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            # Remove phantom keys absent in DB
+                            for idx_key in list(idx.keys()):
+                                if idx_key not in db or idx_key.startswith("__"):
+                                    idx.pop(idx_key, None)
+                            # Evict using index
+                            while len(idx) > max_size:
+                                try:
+                                    oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+                                except ValueError:
+                                    break
+                                idx.pop(oldest_key, None)
+                                try:
+                                    if oldest_key in db:
+                                        del db[oldest_key]
+                                except Exception:
+                                    pass
+                            db["__ts_index__"] = idx
+                            # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
+                            try:
+                                non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
+                                if len(non_service) > max_size:
+                                    items: list[tuple[str, float]] = []
+                                    for candidate_key in non_service:
+                                        try:
+                                            entry = db.get(candidate_key)
+                                            ts_val = (
+                                                float(entry.get("timestamp", 0.0))
+                                                if isinstance(entry, dict)
+                                                else 0.0
+                                            )
+                                        except Exception:
+                                            ts_val = 0.0
+                                        items.append((candidate_key, ts_val))
+                                    items.sort(key=lambda kv: kv[1])
+                                    for victim_key, _ in items[max_size:]:
+                                        try:
+                                            if victim_key in db:
+                                                del db[victim_key]
+                                            if victim_key in idx:
+                                                idx.pop(victim_key, None)
+                                        except Exception:
+                                            pass
+                                    db["__ts_index__"] = idx
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                        # Set last cleanup marker (for tests/deferred cleanup)
+                        try:
+                            db["__last_cleanup_ts__"] = ts_now
                         except Exception:
                             pass
 
-    def _clear_all_cache(self):
-        """Clear all cache files."""
-        try:
-            self._close_db()
-            base = self._get_db_path()
-            for suffix in ("", ".bak", ".dat", ".dir"):
-                p = f"{base}{suffix}"
-                if Path(p).exists():
-                    os.remove(p)
-            logger.debug("[cache] CLEAR ALL")
-        except Exception as exc:  # noqa: BLE001
-            logger.debug(
-                "favicon_cache: failed to clear db files: %s",
-                exc,
-                exc_info=True,
-            )
-        finally:
-            if self._persistent_enabled:
-                self._open_db()
-
-    def _remove_key_from_index(self, db, key):
-        """Remove key from timestamp index."""
-        try:
-            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
-            if key in idx:
-                idx.pop(key, None)
-                db["__ts_index__"] = idx
-        except Exception:
-            pass
-
-    def _invalidate_persistent_key(self, key):
-        """Invalidate key in persistent mode."""
-        if self._db is None:
-            self._open_db()
-        db = self._db
-        if db is None:
-            return
-        if key in db:
+    def _get_max_size(self) -> int:
+        """Return allowed cache size.
+        Supports both the new ``get_*`` API and legacy `favicon_cache_max_size` attribute (test compatibility).
+        """
+        values: list[int] = []
+        # Attribute
+        if hasattr(app_config, "favicon_cache_max_size"):
             try:
-                del db[key]
-                logger.debug("[cache] INVALIDATE %s", key)
-                self._remove_key_from_index(db, key)
-                self._sync_db(db)
-            except Exception as exc:
-                logger.debug(
-                    "favicon_cache: failed to invalidate key '%s': %s",
-                    key,
-                    exc,
-                    exc_info=True,
-                )
+                values.append(int(getattr(app_config, "favicon_cache_max_size")))
+            except Exception:
+                pass
+        # Method
+        if hasattr(app_config, "get_favicon_cache_max_size"):
+            try:
+                values.append(int(getattr(app_config, "get_favicon_cache_max_size")()))  # type: ignore[misc]
+            except Exception:
+                pass
+        # Pick the strictest (smallest) valid limit
+        values = [v for v in values if v is not None]
+        if values:
+            return max(1, min(values))
+        return 5000
 
-    def _invalidate_non_persistent_key(self, key, current_path):
-        """Invalidate key in non-persistent mode."""
-        try:
-            icon_path_service.ensure_user_icons_dir()
-        except Exception:
-            pass
-        with closing(shelve.open(current_path)) as db2:
-            if key in db2:
-                try:
-                    del db2[key]
-                    logger.debug("[cache] INVALIDATE %s", key)
-                    self._remove_key_from_index(db2, key)
-                except Exception as exc:
-                    logger.debug(
-                        "favicon_cache: failed to invalidate key '%s': %s",
-                        key,
-                        exc,
-                        exc_info=True,
-                    )
-
-    def invalidate(self, key: str | None = None) -> None:
+    def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
                 if key is None:
-                    self._clear_all_cache()
+                    # Full purge: close shelve, delete files, reopen
+                    try:
+                        self._close_db()
+                        base = self._get_db_path()
+                        for suffix in ("", ".bak", ".dat", ".dir"):
+                            p = f"{base}{suffix}"
+                            if Path(p).exists():
+                                os.remove(p)
+                        logger.debug("[cache] CLEAR ALL")
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug(
+                            "favicon_cache: failed to clear db files: %s",
+                            exc,
+                            exc_info=True,
+                        )
+                    finally:
+                        if self._persistent_enabled:
+                            self._open_db()
                     return
-
+                # invalidate single key
                 if self._persistent_enabled:
-                    self._invalidate_persistent_key(key)
+                    if self._db is None:
+                        self._open_db()
+                    db = self._db
+                    if db is None:
+                        return
+                    if key in db:
+                        try:
+                            del db[key]
+                            logger.debug("[cache] INVALIDATE %s", key)
+                            # Remove from index
+                            try:
+                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                if key in idx:
+                                    idx.pop(key, None)
+                                    db["__ts_index__"] = idx
+                            except Exception:
+                                pass
+                            try:
+                                sync = getattr(db, "sync", None)
+                                if callable(sync):
+                                    sync()
+                            except Exception:
+                                pass
+                        except Exception as exc:
+                            logger.debug(
+                                "favicon_cache: failed to invalidate key '%s': %s",
+                                key,
+                                exc,
+                                exc_info=True,
+                            )
                 else:
-                    self._invalidate_non_persistent_key(key, current_path)
+                    try:
+                        icon_path_service.ensure_user_icons_dir()
+                    except Exception:
+                        pass
+                    with closing(shelve.open(current_path)) as db2:
+                        if key in db2:
+                            try:
+                                del db2[key]
+                                logger.debug("[cache] INVALIDATE %s", key)
+                                try:
+                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    if key in idx:
+                                        idx.pop(key, None)
+                                        db2["__ts_index__"] = idx
+                                except Exception:
+                                    pass
+                            except Exception as exc:
+                                logger.debug(
+                                    "favicon_cache: failed to invalidate key '%s': %s",
+                                    key,
+                                    exc,
+                                    exc_info=True,
+                                )
 
 
 # Глобальный экземпляр

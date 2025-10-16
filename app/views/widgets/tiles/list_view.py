@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
 
-from PyQt6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, pyqtSignal
-from PyQt6.QtGui import QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
-from PyQt6.QtWidgets import QApplication, QListView, QWidget
+from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QDrag, QKeyEvent, QMouseEvent, QPixmap
+from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
@@ -20,11 +19,7 @@ class CategoryListView(QListView):
     # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._press_pos: QPoint | None = None
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         # Ensure currentIndex is set at click position (for DnD and context menu)
         try:
             p = event.position().toPoint()
@@ -32,18 +27,16 @@ class CategoryListView(QListView):
             idx = self.indexAt(p)
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                selection_model = self.selectionModel()
-                if selection_model is not None:
-                    selection_model.setCurrentIndex(
-                        idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
-                    )
+                self.selectionModel().setCurrentIndex(
+                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mousePressEvent: %s", e)
         except Exception:
             logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
 
-    def startDrag(self, supportedActions: Qt.DropAction) -> None:  # type: ignore[override]
+    def startDrag(self, supportedActions: Qt.DropAction) -> None:
         index = self.currentIndex()
         if not index or not index.isValid():
             logger.debug("CategoryListView.startDrag: no current index")
@@ -71,7 +64,7 @@ class CategoryListView(QListView):
         result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
         logger.debug("CategoryListView.startDrag: drag result = %s", result)
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         # Explicitly start DnD when cursor moved enough
         try:
             if event.buttons() & Qt.MouseButton.LeftButton:
@@ -79,7 +72,7 @@ class CategoryListView(QListView):
                 if idx.isValid():
                     # Threshold from system settings
                     threshold = QApplication.startDragDistance()
-                    start = self._press_pos or event.position().toPoint()
+                    start = getattr(self, "_press_pos", event.position().toPoint())
                     if (
                         event.position().toPoint() - start
                     ).manhattanLength() >= threshold:
@@ -93,7 +86,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.mouseMoveEvent: unexpected error")
         super().mouseMoveEvent(event)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # type: ignore[override]
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         # Activate tile on Enter/Return
         try:
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -118,17 +111,15 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # type: ignore[override]
+    def contextMenuEvent(self, event: QEvent) -> None:
         # Always set current index on right-click and emit signal
         try:
             idx = self.indexAt(event.pos())
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                selection_model = self.selectionModel()
-                if selection_model is not None:
-                    selection_model.setCurrentIndex(
-                        idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
-                    )
+                self.selectionModel().setCurrentIndex(
+                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.contextMenuEvent: %s", e)
         except Exception:
@@ -150,12 +141,11 @@ class CategoryListView(QListView):
             )
         super().contextMenuEvent(event)
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         # Guaranteed interception of QContextMenuEvent from viewport()
         try:
             if obj is self.viewport() and event.type() == QEvent.Type.ContextMenu:
-                ctx_event = cast(QContextMenuEvent, event)
-                pos = ctx_event.pos()
+                pos = event.pos()
                 logger.debug("Viewport eventFilter: ContextMenu at %s", pos)
                 self.customContextMenuRequested.emit(pos)
                 event.accept()

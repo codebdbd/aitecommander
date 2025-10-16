@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, QTimer
 
@@ -18,19 +18,13 @@ if TYPE_CHECKING:  # pragma: no cover - only for type checking
 class StructureAsyncService(QObject):
     """Encapsulates asynchronous operations and reload scheduling."""
 
-    def __init__(
-        self, owner: StructureBusinessLogic, db: Database, logger: logging.Logger
-    ) -> None:
+    def __init__(self, owner: StructureBusinessLogic, db: Database, logger: logging.Logger) -> None:
         super().__init__(owner)
         self._owner = owner
         self._logger = logger
-        self.async_operations = AsyncOperations(
-            db, logger, parent=self
-        )  # ✅ Добавлен parent
+        self.async_operations = AsyncOperations(db, logger, parent=self)  # ✅ Добавлен parent
         self._handlers = AsyncSignalHandlers(owner, parent=self)  # ✅ Добавлен parent
-        # Type-safe connection
-        if hasattr(self.async_operations, 'connect_signal_handlers'):
-            self.async_operations.connect_signal_handlers(self._handlers)  # type: ignore[arg-type]
+        self.async_operations.connect_signal_handlers(self._handlers)
 
         self._structure_reload_timer = QTimer(self)
         self._structure_reload_timer.setSingleShot(True)
@@ -41,35 +35,29 @@ class StructureAsyncService(QObject):
     # ------------------------------------------------------------------
     def shutdown(self, timeout: int) -> None:
         """Stop pending timers and shutdown async operations.
-
+        
         ✅ ИСПРАВЛЕНИЕ: Добавлено отключение сигнала для предотвращения утечек памяти.
         """
         if self._structure_reload_timer.isActive():
             try:
                 self._structure_reload_timer.stop()
             except Exception as exc:  # pragma: no cover - defensive
-                self._logger.debug(
-                    "Failed to stop structure reload timer: %s", exc, exc_info=True
-                )
-
+                self._logger.debug("Failed to stop structure reload timer: %s", exc, exc_info=True)
+        
         # ✅ Отключаем сигнал для предотвращения утечек памяти
         try:
-            self._structure_reload_timer.timeout.disconnect(
-                self._perform_structure_reload
-            )
+            self._structure_reload_timer.timeout.disconnect(self._perform_structure_reload)
         except (TypeError, RuntimeError):
             pass  # Сигнал уже отключен
 
         try:
-            getattr(self.async_operations, 'shutdown', lambda **kw: None)(timeout=timeout)
+            self.async_operations.shutdown(timeout=timeout)
         except AttributeError:
             pass
         except Exception as exc:  # pragma: no cover - defensive
-            self._logger.debug(
-                "AsyncOperations.shutdown raised: %s", exc, exc_info=True
-            )
+            self._logger.debug("AsyncOperations.shutdown raised: %s", exc, exc_info=True)
 
-    def set_top_panels_controller(self, controller: TopPanelsController) -> None:
+    def set_top_panels_controller(self, controller: 'TopPanelsController') -> None:
         """Inject top panels controller into async components."""
         try:
             self.async_operations.top_panels = controller
@@ -98,7 +86,7 @@ class StructureAsyncService(QObject):
     def load_spheres_async(self) -> None:
         self.async_operations.load_spheres_async()
 
-    def schedule_structure_reload(self, delay_ms: int | None = None) -> None:
+    def schedule_structure_reload(self, delay_ms: Optional[int] = None) -> None:
         """Schedule structure reload with debounce."""
         try:
             from app.config_data import app_config

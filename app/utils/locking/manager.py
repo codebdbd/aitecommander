@@ -11,8 +11,8 @@ existing LockManager while adding thin convenience wrappers.
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Dict, Generator, List, Tuple
 
 from app.utils.db.synchronization import (
     EnhancedLock,
@@ -21,7 +21,7 @@ from app.utils.db.synchronization import (
 )
 
 # Global names for icon-subsystem locks (kept stable for imports)
-ICON_LOCK_NAMES: dict[str, str] = {
+ICON_LOCK_NAMES: Dict[str, str] = {
     "GLOBAL": "icon.global",
     "CACHE": "icon.cache",
     "METRICS": "icon.metrics",
@@ -29,7 +29,7 @@ ICON_LOCK_NAMES: dict[str, str] = {
 }
 
 # Explicit acquisition order for icon locks (to avoid deadlocks inside icon domain)
-_ICON_ORDER: list[str] = [
+_ICON_ORDER: List[str] = [
     ICON_LOCK_NAMES["GLOBAL"],
     ICON_LOCK_NAMES["CACHE"],
     ICON_LOCK_NAMES["METRICS"],
@@ -79,7 +79,7 @@ def acquire_multiple_locks(
     ensure_default_locks_registered()
     lm = get_lock_manager()
 
-    lock_list: list[str]
+    lock_list: List[str]
     if all(n in _ICON_ORDER for n in names):
         order_index = {n: i for i, n in enumerate(_ICON_ORDER)}
         # Remove duplicates, keep the highest priority order
@@ -89,7 +89,7 @@ def acquire_multiple_locks(
         # Fallback: do not reorder names outside icon domain
         lock_list = list(dict.fromkeys(names))  # deduplicate, keep first occurrence
 
-    acquired: list[tuple[str, EnhancedLock]] = []
+    acquired: List[Tuple[str, EnhancedLock]] = []
     try:
         for n in lock_list:
             lock = lm.get_lock(n)

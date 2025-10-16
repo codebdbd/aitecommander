@@ -5,16 +5,14 @@ Improvement note: pragmatic helpers without unnecessary complexity.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 
 from PyQt6.QtCore import QTimer
 
 from .constants import Timeout
 
 
-def defer(
-    callback: Callable[[], None], delay_ms: int = Timeout.DEFER_OPERATION
-) -> None:
+def defer(callback: callable, delay_ms: int = Timeout.DEFER_OPERATION) -> None:
     """Defer ``callback`` execution until a future event-loop tick.
 
     Improvement note: wraps the common ``QTimer.singleShot(0, callback)`` pattern.
@@ -50,15 +48,14 @@ def safe_getattr(obj: Any, name: str, default: Any = None) -> Any:
     """
     if obj is None:
         return default
-
+    
     try:
         from sip import isdeleted
-
         if isdeleted(obj):
             return default
     except ImportError:
         pass
-
+    
     try:
         return getattr(obj, name, default)
     except (RuntimeError, AttributeError):

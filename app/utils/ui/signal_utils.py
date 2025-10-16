@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable, Optional
+
 import weakref
-from typing import Any, Callable
 
 from app.utils.db.synchronization import (  # noqa: F401
     signal_guard as _decorator_signal_guard,
@@ -16,7 +17,7 @@ class _SignalBlocker:
     def __init__(self, target: Any):
         self._target = target
         self._supports_blocking = hasattr(target, "blockSignals")
-        self._previous_state: bool | None = None
+        self._previous_state: Optional[bool] = None
 
     def __enter__(self):
         if self._supports_blocking:
@@ -30,16 +31,14 @@ class _SignalBlocker:
     def __exit__(self, exc_type, exc, tb):
         if self._supports_blocking:
             try:
-                restore_state = (
-                    self._previous_state if self._previous_state is not None else False
-                )
+                restore_state = self._previous_state if self._previous_state is not None else False
                 self._target.blockSignals(restore_state)
             except Exception:
                 pass
         return False
 
 
-def signal_guard(obj_or_func: Any = None, *, slot_name: str | None = None):
+def signal_guard(obj_or_func: Any = None, *, slot_name: Optional[str] = None):
     """Supports two usage patterns:
 
     1. As a context manager: ``with signal_guard(widget): ...``
@@ -75,9 +74,7 @@ class _LegacyWeakMethod:
     def __init__(self, method: Callable):
         try:
             self._func = method.__func__  # type: ignore[attr-defined]
-            self._self_ref: weakref.ReferenceType[Any] | None = weakref.ref(
-                method.__self__  # type: ignore[attr-defined]
-            )  # type: ignore[attr-defined]
+            self._self_ref = weakref.ref(method.__self__)  # type: ignore[attr-defined]
         except AttributeError:
             # Plain function (not a bound method)
             self._func = method
@@ -108,7 +105,7 @@ class _LegacyWeakMethod:
 
 # Override WeakMethod only if it hasn't been replaced yet
 if getattr(weakref.WeakMethod, "__module__", "") != __name__:
-    weakref.WeakMethod = _LegacyWeakMethod  # type: ignore[assignment, misc]
+    weakref.WeakMethod = _LegacyWeakMethod  # type: ignore[assignment]
 
 
 __all__ = ["signal_guard"]

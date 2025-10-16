@@ -1,6 +1,8 @@
 # app/controllers/structure_modules/validation_result.py
 from __future__ import annotations
 
+from typing import List, Optional
+
 
 class ValidationResult:
     """Data validation result.
@@ -10,8 +12,8 @@ class ValidationResult:
     def __init__(
         self,
         is_valid: bool = True,
-        errors: list[str] | None = None,
-        warnings: list[str] | None = None,
+        errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
     ) -> None:
         self.is_valid = is_valid
         self.errors = errors or []

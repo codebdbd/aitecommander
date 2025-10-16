@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import Callable, TypeAlias
+from typing import Callable, Dict, List, Tuple, TypeAlias
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -19,6 +19,11 @@ from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
 from ..common.constants import StatusMessage
+from .init_db_gate import DbReadyGate
+from .init_diagnostics import DiagnosticsInstaller
+from .init_scheduler import AsyncStepRunner
+from .init_status import StatusUpdater
+from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
 from ..common.protocols import (
     DatabaseProtocol,
     MainWindowProtocol,
@@ -27,11 +32,6 @@ from ..common.protocols import (
 )
 from ..common.resource_manager import ResourceManager
 from ..ui.window_ui_setup import WindowUISetup
-from .init_db_gate import DbReadyGate
-from .init_diagnostics import DiagnosticsInstaller
-from .init_scheduler import AsyncStepRunner
-from .init_status import StatusUpdater
-from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -157,19 +157,20 @@ class WindowInitializer:
         # Early window show removed because it caused a white flash.
         # The window displays only after full UI initialization and theme application.
 
+
     def _schedule_heavy_steps(self) -> None:
         """Split heavy steps into async phases and schedule them around DB readiness."""
         self._current_init_step = 0
-        self._init_steps_before_db: list[tuple[str, Callable[[], None]]] = []
-        special_hooks_before: dict[Callable[[], None], Callable[[], None]] = {}
+        self._init_steps_before_db: List[Tuple[str, Callable[[], None]]] = []
+        special_hooks_before: Dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in BEFORE_DB_STEP_CONFIG:
             step_func = getattr(self, method_name)
             self._init_steps_before_db.append((label, step_func))
             if hook_name:
                 special_hooks_before[step_func] = getattr(self, hook_name)
 
-        self._init_steps_after_db: list[tuple[str, Callable[[], None]]] = []
-        self._special_hooks_after: dict[Callable[[], None], Callable[[], None]] = {}
+        self._init_steps_after_db: List[Tuple[str, Callable[[], None]]] = []
+        self._special_hooks_after: Dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in AFTER_DB_STEP_CONFIG:
             step_func = getattr(self, method_name)
             self._init_steps_after_db.append((label, step_func))
@@ -213,73 +214,83 @@ class WindowInitializer:
         """
         try:
             # Ensure the database exposes Qt signals (QObject-based)
-            if not hasattr(self.db, "data_changed"):
-                logger.debug(
-                    "Database doesn't have Qt signals, skipping signal connection"
-                )
+            if not hasattr(self.db, 'data_changed'):
+                logger.debug("Database doesn't have Qt signals, skipping signal connection")
                 return
-
+            
             # Connect the data-change signal
             self.db.data_changed.connect(self._on_db_data_changed)
-
+            
             # Connect the structure-loaded signal
-            if hasattr(self.db, "structure_loaded"):
+            if hasattr(self.db, 'structure_loaded'):
                 self.db.structure_loaded.connect(self._on_db_structure_loaded)
-
+            
             # Connect the backup-created signal
-            if hasattr(self.db, "backup_created"):
+            if hasattr(self.db, 'backup_created'):
                 self.db.backup_created.connect(self._on_db_backup_created)
-
+            
             # Connect the error signal
-            if hasattr(self.db, "error_occurred"):
+            if hasattr(self.db, 'error_occurred'):
                 self.db.error_occurred.connect(self._on_db_error)
-
+            
             logger.debug("Database signals connected successfully")
         except Exception as e:
-            logger.warning("Failed to connect database signals: %s", e, exc_info=True)
-
-    def _on_db_data_changed(
-        self, table_name: str, operation: str, affected_ids: list
-    ) -> None:
+            logger.warning(
+                "Failed to connect database signals: %s",
+                e,
+                exc_info=True
+            )
+    
+    def _on_db_data_changed(self, table_name: str, operation: str, affected_ids: list) -> None:
         """Handle database data changes."""
         try:
-            logger.debug(
-                f"Database data changed: {table_name}, {operation}, ids={affected_ids}"
-            )
-
+            logger.debug(f"Database data changed: {table_name}, {operation}, ids={affected_ids}")
+            
             # Refresh the UI when specific tables change
             if table_name == "link":
                 # The links table refresh occurs through structure_business
-                if hasattr(self.window, "reload_current_category"):
+                if hasattr(self.window, 'reload_current_category'):
                     self.window.reload_current_category()
 
             elif table_name in ("sphere", "section", "category"):
-                if hasattr(self.window, "reload_structure"):
+                if hasattr(self.window, 'reload_structure'):
                     self.window.reload_structure()
         except Exception as e:
-            logger.warning("Error handling DB data change: %s", e, exc_info=True)
-
+            logger.warning(
+                "Error handling DB data change: %s",
+                e,
+                exc_info=True
+            )
+    
     def _on_db_structure_loaded(self) -> None:
         """Handle completion of structure loading."""
         try:
             logger.info("Database structure loaded - reloading UI")
-            if hasattr(self.window, "reload_structure"):
+            if hasattr(self.window, 'reload_structure'):
                 self.window.reload_structure()
         except Exception as e:
-            logger.warning("Error handling structure loaded: %s", e, exc_info=True)
-
+            logger.warning(
+                "Error handling structure loaded: %s",
+                e,
+                exc_info=True
+            )
+    
     def _on_db_backup_created(self, backup_path: str) -> None:
         """Handle creation of a database backup."""
         try:
             logger.info(f"Backup created: {backup_path}")
             # Show a notification in the status bar
-            if hasattr(self.window, "statusBar"):
+            if hasattr(self.window, 'statusBar'):
                 status_bar = self.window.statusBar()
                 if status_bar:
                     status_bar.showMessage(f"Backup created: {backup_path}", 5000)
         except Exception as e:
-            logger.warning("Error handling backup created: %s", e, exc_info=True)
-
+            logger.warning(
+                "Error handling backup created: %s",
+                e,
+                exc_info=True
+            )
+    
     def _on_db_error(self, title: str, message: str) -> None:
         """Handle database error notifications."""
         try:
@@ -287,7 +298,11 @@ class WindowInitializer:
             # Show an error dialog
             QMessageBox.critical(self.window, title, message)
         except Exception as e:
-            logger.warning("Error handling DB error signal: %s", e, exc_info=True)
+            logger.warning(
+                "Error handling DB error signal: %s",
+                e,
+                exc_info=True
+            )
 
     def _init_main_content(self) -> None:
         self.ui_setup.setup_main_content()
@@ -394,10 +409,7 @@ class WindowInitializer:
         try:
             self._metrics.flush_log(logger)
         except Exception:
-            logger.debug(
-                "WindowInitializer: failed to flush startup metrics at finalize",
-                exc_info=True,
-            )
+            logger.debug("WindowInitializer: failed to flush startup metrics at finalize", exc_info=True)
 
         # Update status to "Ready" (status bar exists by this point)
         self._status.set_message(StatusMessage.READY)
@@ -410,18 +422,14 @@ class WindowInitializer:
         try:
             self._dump_top_levels("before final window.show")
         except Exception:
-            logger.debug(
-                "DiagTopLevels: failed to dump before final show", exc_info=False
-            )
+            logger.debug("DiagTopLevels: failed to dump before final show", exc_info=False)
 
         # Show the window only if it has not been shown earlier
         try:
             if hasattr(self.window, "show"):
                 need_show = True
                 try:
-                    need_show = not bool(
-                        getattr(self.window, "isVisible", lambda: False)()
-                    )
+                    need_show = not bool(getattr(self.window, "isVisible", lambda: False)())
                 except Exception:
                     need_show = True
                 if need_show:
@@ -438,32 +446,19 @@ class WindowInitializer:
         # Post-show diagnostics
         try:
             self._dump_top_levels("after final window.show")
-            QTimer.singleShot(
-                10, lambda: self._dump_top_levels("+10ms after final show")
-            )
-            QTimer.singleShot(
-                100, lambda: self._dump_top_levels("+100ms after final show")
-            )
+            QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after final show"))
+            QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after final show"))
             # Diagnose table header font after the UI is fully assembled
             try:
                 tc = getattr(self, "theme_ctrl", None)
                 if tc and hasattr(tc, "_log_tables_header_font"):
                     # Invoke immediately and again after 50 ms in case the table is created lazily
-                    QTimer.singleShot(
-                        0, lambda: tc._log_tables_header_font(self.window)
-                    )
-                    QTimer.singleShot(
-                        50, lambda: tc._log_tables_header_font(self.window)
-                    )
+                    QTimer.singleShot(0, lambda: tc._log_tables_header_font(self.window))
+                    QTimer.singleShot(50, lambda: tc._log_tables_header_font(self.window))
             except Exception:
-                logger.debug(
-                    "WindowInitializer: header font diagnostics scheduling failed",
-                    exc_info=True,
-                )
+                logger.debug("WindowInitializer: header font diagnostics scheduling failed", exc_info=True)
         except Exception:
-            logger.debug(
-                "DiagTopLevels: failed post-show dumps (final)", exc_info=False
-            )
+            logger.debug("DiagTopLevels: failed post-show dumps (final)", exc_info=False)
 
     def _on_init_error(self, exc: Exception) -> None:
         """Unified error handler for initialization stages.
@@ -500,7 +495,7 @@ class WindowInitializer:
     def _on_waiting_for_db(self) -> None:
         """Handle the waiting-for-database state by updating status and flags."""
         try:
-            self._waiting_for_db = True
+            setattr(self, "_waiting_for_db", True)
             self._status.set_message(StatusMessage.WAITING_FOR_DB)
         except Exception:
             logger.exception(
@@ -548,7 +543,7 @@ class WindowInitializer:
             except Exception:
                 flags_s = "?"
             info_list.append(f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}")
-        logger.debug(
+        logger.info(
             "DiagTopLevels[%s]: %d widgets: %s",
             tag,
             len(info_list),
@@ -580,7 +575,7 @@ class WindowInitializer:
             except Exception:
                 continue
         if win_list:
-            logger.debug(
+            logger.info(
                 "DiagTopLevels[%s]: QWindows(%d): %s",
                 tag,
                 len(win_list),
@@ -616,17 +611,15 @@ class WindowInitializer:
                 "WindowInitializer: failed to show initialization error dialog"
             )
         finally:
-            # Centralize shutdown: close the main window to trigger AppShutdownController
-            if hasattr(self, "window") and hasattr(self.window, "close"):
-                try:
+            try:
+                # Centralize shutdown: close the main window to trigger AppShutdownController
+                if hasattr(self, "window") and hasattr(self.window, "close"):
                     self.window.close()
-                except Exception:
-                    logger.debug(
-                        "WindowInitializer: window.close() failed, falling back to app.quit()",
-                        exc_info=True,
-                    )
-            else:
-                # Fallback: if the window is unavailable, quit the app directly
-                app = QApplication.instance()
-                if app is not None:
-                    app.quit()
+                    return
+            except Exception:
+                logger.debug("WindowInitializer: window.close() failed, falling back to app.quit()", exc_info=True)
+
+            # Fallback: if the window is unavailable, quit the app directly
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()

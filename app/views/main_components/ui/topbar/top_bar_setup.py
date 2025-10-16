@@ -13,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TopBarBuilder:
-    """Assemble the top bar using ``WindowUISetup`` helpers.
-
-    Does not alter existing behavior.
-    """
+    """Assemble the top bar using ``WindowUISetup`` helpers without altering behavior."""
 
     def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
@@ -30,15 +27,11 @@ class TopBarBuilder:
         Responsibilities:
         - Insert the top separator into the main layout.
         - Create and configure the top-bar layout (margins, spacing, alignment).
-        - Populate the top bar via existing helpers
-          (Quick/Favorites/Recent/Search).
-        - Create the host widget, add it to ``self.main_layout``,
-          set ``window.top_bar_host``.
-        - Initialize ``TopBarLayoutManager`` and schedule post-shown
-          adjustments.
+        - Populate the top bar via existing helpers (Quick/Favorites/Recent/Search).
+        - Create the host widget, add it to ``self.main_layout``, set ``window.top_bar_host``.
+        - Initialize ``TopBarLayoutManager`` and schedule post-shown adjustments.
 
-        Note: the method preserves existing behavior
-        (metrics, timing, visibility rules).
+        Note: the method preserves existing behavior (metrics, timing, visibility rules).
         """
         t_total_start = __import__("time").perf_counter()
         # Determine parent for helper widgets
@@ -47,8 +40,7 @@ class TopBarBuilder:
             or self.window.centralWidget()
         )
 
-        # Remove the previous top separator;
-        # QMenuBar border-bottom draws the visual line
+        # Remove the previous top separator; QMenuBar border-bottom draws the visual line
 
         # Create top_bar layout
         top_bar = QHBoxLayout()
@@ -72,3 +64,6 @@ class TopBarBuilder:
 
         # Init and schedule layout manager post-shown tasks
         self.ui._init_and_schedule_topbar_manager()
+
+        # Final metric
+        self.ui._log_setup_top_panel_total(t_total_start)

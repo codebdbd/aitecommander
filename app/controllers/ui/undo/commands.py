@@ -4,7 +4,7 @@ Common helper undo/redo commands for centralized usage.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 from .base import BaseCommand, log_command
 
@@ -32,7 +32,7 @@ class MacroCommand(BaseCommand):
         text: str,
         redo_fn: Callable[[], None],
         undo_fn: Callable[[], None],
-        main_window: object | None = None,
+        main_window: Optional[object] = None,
     ) -> None:
         super().__init__(text, main_window)
         self._redo_fn = redo_fn

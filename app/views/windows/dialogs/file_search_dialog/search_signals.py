@@ -2,7 +2,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 """Signals emitted by the file search worker."""
 
-
 class SearchSignals(QObject):
     """Qt signals used by `FileSearchWorker`."""
 

@@ -6,6 +6,7 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 """
 
 import logging
+from typing import List
 
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtGui import QDropEvent
@@ -34,7 +35,9 @@ class DragDropHandler(TreeHandlerBase):
         mime = event.mimeData()
         if self.accepts_mime_type(mime):
             event.acceptProposedAction()
-        # Note: No parent class delegation since TreeHandlerBase doesn't inherit from Qt classes
+        else:
+            # Delegate to parent class for internal operations
+            super(type(self.tree_widget), self.tree_widget).dragEnterEvent(event)
 
     def handle_drag_move_event(self, event) -> None:
         """Visual feedback during dragging."""
@@ -230,87 +233,6 @@ class DragDropHandler(TreeHandlerBase):
 
         return int(new_section_id), int(base_row)
 
-    def _try_atomic_move(self, category_ids, section_id, base_row):
-        """Try atomic command for multiple moves."""
-        if len(category_ids) > 1 and hasattr(
-            self.tree_widget, "move_operations_handler"
-        ):
-            try:
-                self.tree_widget.move_operations_handler.execute_move_categories_command(
-                    [int(i) for i in category_ids], int(section_id), int(base_row)
-                )
-                return len(category_ids)
-            except Exception:
-                pass
-        return None
-
-    def _begin_batch_operation(self, structure_business):
-        """Begin batch operation if supported."""
-        if structure_business and hasattr(structure_business, "begin_batch"):
-            try:
-                structure_business.begin_batch()
-                return True
-            except Exception:
-                pass
-        return False
-
-    def _move_single_category(
-        self, cid, section_id, target_row, structure_business, model
-    ):
-        """Move single category using business logic or model."""
-        if structure_business:
-            try:
-                result = structure_business.move_categories_batch(
-                    [int(cid)], int(section_id), target_row
-                )
-                if isinstance(result, list):
-                    return bool(result)
-                elif isinstance(result, tuple) and result:
-                    return True
-            except Exception:
-                pass
-
-        try:
-            return hasattr(model, "move_category") and model.move_category(
-                int(cid), int(section_id), target_row
-            )
-        except Exception:
-            return False
-
-    def _emit_items_moved(self, cid, section_id, target_row):
-        """Emit itemsMoved signal."""
-        try:
-            self.tree_widget.itemsMoved.emit(
-                {
-                    "type": "internal_move",
-                    "source_type": "category",
-                    "category_id": int(cid),
-                    "section_id": int(section_id),
-                    "new_row": target_row,
-                }
-            )
-        except Exception:
-            pass
-
-    def _finalize_batch(self, batch_started, structure_business, touched_sections):
-        """Finalize batch operation."""
-        if batch_started:
-            try:
-                if touched_sections:
-                    structure_business.event_service.replace_touched_sections(
-                        touched_sections
-                    )
-                structure_business.end_batch()
-            except Exception:
-                pass
-        elif structure_business and touched_sections:
-            try:
-                structure_business.event_service.replace_touched_sections(
-                    touched_sections
-                )
-            except Exception:
-                pass
-
     def move_categories(
         self, category_ids: list[int], section_id: int, base_row: int
     ) -> int:
@@ -323,34 +245,50 @@ class DragDropHandler(TreeHandlerBase):
         if not category_ids:
             return 0
 
-        atomic_result = self._try_atomic_move(category_ids, section_id, base_row)
-        if atomic_result is not None:
-            return atomic_result
-
         model = self.tree_widget.model()
-        main_win = self.tree_widget.window()
-        structure_business = getattr(main_win, "structure_business", None)
 
-        batch_started = self._begin_batch_operation(structure_business)
+        # Atomic command for multiple moves
+        if len(category_ids) > 1 and hasattr(
+            self.tree_widget, "move_operations_handler"
+        ):
+            try:
+                self.tree_widget.move_operations_handler.execute_move_categories_command(
+                    [int(i) for i in category_ids], int(section_id), int(base_row)
+                )
+                # Поведение сохраняем: при командном переносе отдельных itemsMoved не шлём
+                return len(category_ids)
+            except Exception:
+                # Fallback — individual moves below
+                pass
+
         moved_count = 0
         insert_offset = 0
-        touched_sections: set[int] = set()
-
         for cid in category_ids:
             if not isinstance(cid, int):
                 continue
             target_row = int(base_row + insert_offset)
-
-            moved = self._move_single_category(
-                cid, section_id, target_row, structure_business, model
-            )
-            if moved:
+            try:
+                ok = hasattr(model, "move_category") and model.move_category(
+                    int(cid), int(section_id), target_row
+                )
+            except Exception:
+                ok = False
+            if ok:
                 moved_count += 1
                 insert_offset += 1
-                touched_sections.add(int(section_id))
-                self._emit_items_moved(cid, section_id, target_row)
-
-        self._finalize_batch(batch_started, structure_business, touched_sections)
+                # Signal for successful item move
+                try:
+                    self.tree_widget.itemsMoved.emit(
+                        {
+                            "type": "internal_move",
+                            "source_type": "category",
+                            "category_id": int(cid),
+                            "section_id": int(section_id),
+                            "new_row": target_row,
+                        }
+                    )
+                except Exception:
+                    pass
 
         return moved_count
 
@@ -411,23 +349,28 @@ class DragDropHandler(TreeHandlerBase):
         if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
             return
         section_id = int(ttuple[1])
-        model = getattr(self.tree_widget, "model", lambda: None)()
-        base_row = (
-            model.rowCount(target_index)
-            if model and target_index and target_index.isValid()
-            else 0
-        )
-        try:
-            moved_count = self.move_categories(
-                [int(cid) for cid in ids if isinstance(cid, int)],
-                section_id,
-                int(base_row),
-            )
-        except Exception as exc:
-            logger.warning(
-                "Failed to move categories %s to section %s: %s", ids, section_id, exc
-            )
-            moved_count = 0
+        moved_count = 0
+        for category_id in ids:
+            if not isinstance(category_id, int):
+                continue
+            # Выполняем перенос через обработчик операций (бизнес-логика)
+            try:
+                self.tree_widget.move_operations_handler.execute_move_category_command(
+                    category_id, section_id
+                )
+                moved_count += 1
+            except Exception:
+                continue
+            try:
+                self.tree_widget.itemsMoved.emit(
+                    {
+                        "type": "category_to_section",
+                        "category_id": category_id,
+                        "section_id": section_id,
+                    }
+                )
+            except Exception:
+                pass
         if moved_count > 1:
             logger.info("Moved categories: %s to section %s", moved_count, section_id)
 
@@ -459,7 +402,7 @@ class DragDropHandler(TreeHandlerBase):
         except Exception:
             pass
 
-    def _extract_link_ids_from_mime(self, mime) -> list[int]:
+    def _extract_link_ids_from_mime(self, mime) -> List[int]:
         """Extracts link IDs from MIME data."""
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_link_mime_type())
         if not ids:

@@ -1,17 +1,16 @@
 # Re-export typed models for convenience
 from .types import (
-    AnyCreateData,
-    AnyItemData,
-    AnyItemPayload,
-    AnyUpdateData,
-    CategoryData,
-    ItemTypeConfig,
-    LinkData,
-    SearchResultItem,
-    SectionData,
+    StructureItemType,
     SignalType,
     SphereData,
-    StructureItemType,
+    SectionData,
+    CategoryData,
+    LinkData,
+    SearchResultItem,
+    AnyItemData,
+    AnyCreateData,
+    AnyUpdateData,
+    ItemTypeConfig,
 )
 
 __all__ = [
@@ -25,6 +24,5 @@ __all__ = [
     "AnyItemData",
     "AnyCreateData",
     "AnyUpdateData",
-    "AnyItemPayload",
     "ItemTypeConfig",
 ]

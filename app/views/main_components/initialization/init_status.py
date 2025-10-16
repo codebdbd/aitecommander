@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from app.interfaces import MainWindowLike
 
@@ -17,7 +18,7 @@ class StatusUpdater:
     """
 
     def __init__(
-        self, window: MainWindowLike, _logger: logging.Logger | None = None
+        self, window: MainWindowLike, _logger: Optional[logging.Logger] = None
     ) -> None:
         self._window = window
         self._logger = _logger or logger
