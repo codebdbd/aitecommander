@@ -1,0 +1,815 @@
+from __future__ import annotations
+
+import html as _html
+import json
+import re
+from typing import TypedDict
+from urllib.parse import urlencode, urlparse
+
+from bs4 import BeautifulSoup
+from bs4.element import Tag
+from requests.exceptions import RequestException
+
+from .constants import BS_PARSER, logger
+from .domain import base_domain
+from .http_client import http_request
+from .js_renderer import render_html
+
+# ------------------------------
+# Module-level constants
+# ------------------------------
+_SITE_SPECIFIC_SUFFIXES = {
+    "youtube.com": [
+        " - YouTube",
+        " | YouTube",
+        " - YouTube Music",
+        " - YouTube Gaming",
+        " - YouTube TV",
+    ],
+    "youtu.be": [" - YouTube", " | YouTube"],
+    "twitter.com": [" / Twitter", " on Twitter", " | Twitter"],
+    "x.com": [" / X", " on X", " | X"],
+    "reddit.com": [" : ", " • r/", " - Reddit"],
+    "stackoverflow.com": [" - Stack Overflow"],
+    "github.com": [" · GitHub", " - GitHub"],
+    "medium.com": [" - Medium", " | Medium"],
+    "dev.to": [" - DEV Community"],
+    "hackernews": [" | Hacker News"],
+    "wikipedia.org": [" - Wikipedia"],
+    "amazon.com": [" - Amazon.com", " : Amazon.com"],
+}
+
+_GENERAL_SUFFIX_SEPARATORS = [
+    " - ",
+    " | ",
+    " :: ",
+    " • ",
+    " — ",
+    " – ",
+]
+
+_HTML_TITLE_SEPARATORS = [" | ", " - ", " :: ", " • ", " — ", " – ", " : "]
+
+
+class SoupIndex(TypedDict, total=False):
+    title_tag: Tag | None
+    h1_first: Tag | None
+    meta_by_name: dict[str, list[Tag]]
+    meta_by_prop: dict[str, list[Tag]]
+    scripts_jsonld: list[Tag]
+
+
+def _build_soup_index(soup: BeautifulSoup) -> SoupIndex:
+    """Pre-index frequently used elements to avoid repeated find() calls.
+    Returns dictionary with pre-selected tags/values.
+    """
+    try:
+        metas = list(soup.find_all("meta"))
+    except Exception:
+        metas = []
+
+    meta_by_name: dict[str, list[Tag]] = {}
+    meta_by_prop: dict[str, list[Tag]] = {}
+    for m in metas:
+        if not isinstance(m, Tag):
+            continue
+        try:
+            name_val = m.get("name")
+            prop_val = m.get("property")
+            if isinstance(name_val, str):
+                n = name_val.strip().lower()
+                if n:
+                    meta_by_name.setdefault(n, []).append(m)
+            if isinstance(prop_val, str):
+                p = prop_val.strip().lower()
+                if p:
+                    meta_by_prop.setdefault(p, []).append(m)
+        except Exception:
+            continue
+
+    try:
+        scripts_jsonld = list(soup.find_all("script", type="application/ld+json"))
+    except Exception:
+        scripts_jsonld = []
+
+    title_candidate = getattr(soup, "title", None)
+    idx: SoupIndex = {
+        "title_tag": title_candidate if isinstance(title_candidate, Tag) else None,
+        "h1_first": None,
+        "meta_by_name": meta_by_name,
+        "meta_by_prop": meta_by_prop,
+        "scripts_jsonld": [
+            script for script in scripts_jsonld if isinstance(script, Tag)
+        ],
+    }
+    try:
+        first_h1 = soup.find("h1")
+        idx["h1_first"] = first_h1 if isinstance(first_h1, Tag) else None
+    except Exception:
+        idx["h1_first"] = None
+    return idx
+
+
+def _looks_js_heavy(soup: BeautifulSoup, html_text: str) -> bool:
+    """Simple heuristic to identify JS/SPA-dependent pages."""
+    try:
+        text_len = len(html_text or "")
+        scripts_count = len(soup.find_all("script")) if soup else 0
+        markers = [
+            'id="__next"',
+            "data-reactroot",
+            "ng-version",
+            "vite",
+            "webpackJsonp",
+            "data-hydrate",
+        ]
+        marker_hit = any(m in (html_text or "") for m in markers)
+        title_ok = bool(
+            getattr(soup, "title", None)
+            and soup.title
+            and soup.title.get_text(strip=True)
+        )
+        # Little text, many scripts, no proper <title> or SPA markers present
+        if (text_len < 15000 and scripts_count > 20 and not title_ok) or marker_hit:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+# ------------------------------
+# Small helpers (no behavior change)
+# ------------------------------
+def _decode_response_text(resp, config) -> str:
+    """Decode HTTP response to text with charset-normalizer fallback.
+    Mirrors existing inline logic in get_title() without behavior change.
+    """
+    try:
+        enc = getattr(resp, "encoding", None)
+        if not enc or str(enc).lower() == "iso-8859-1":
+            try:
+                # Attempt to detect encoding via charset-normalizer
+                try:
+                    from charset_normalizer import from_bytes  # type: ignore
+
+                    best = from_bytes(resp.content).best()
+                    if best is not None:
+                        return str(best)
+                    return resp.content.decode(
+                        getattr(resp, "apparent_encoding", None) or "utf-8",
+                        errors="replace",
+                    )
+                except Exception:
+                    return resp.content.decode(
+                        getattr(resp, "apparent_encoding", None) or "utf-8",
+                        errors="replace",
+                    )
+            except Exception:
+                return resp.text
+        else:
+            return resp.text
+    except Exception:
+        return getattr(resp, "text", "") or ""
+
+
+def _make_soup(html_text: str) -> BeautifulSoup:
+    """Create BeautifulSoup with BS_PARSER and safe fallback; no behavior change."""
+    try:
+        return BeautifulSoup(html_text, BS_PARSER)
+    except Exception:
+        return BeautifulSoup(html_text, "html.parser")
+
+
+def _use_playwright_for_title(config) -> bool:
+    """Read config flag for Playwright usage; preserves existing default True-on-except."""
+    try:
+        return bool(getattr(config, "USE_PLAYWRIGHT_FOR_TITLE", False))
+    except Exception:
+        return True
+
+
+def _try_playwright_title(url: str, config) -> str:
+    """Render via Playwright and extract title. Returns empty string on failure."""
+    try:
+        rendered_html = render_html(url, config)
+        if not rendered_html:
+            return ""
+        s2 = _make_soup(rendered_html)
+        return _extract_title(s2, url)
+    except Exception:
+        return ""
+
+
+def _fetch_youtube_title(url: str, config) -> str | None:
+    api_url = "https://www.youtube.com/oembed?" + urlencode(
+        {"url": url, "format": "json"}
+    )
+    resp = http_request(api_url, config)
+    if resp and getattr(resp, "ok", False):
+        try:
+            data = json.loads(resp.text)
+            return data.get("title")
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return None
+    return None
+
+
+def _extract_jsonld_title(
+    soup: BeautifulSoup, soup_index: SoupIndex | None = None
+) -> str:
+    """Extract title from JSON-LD structured data"""
+    scripts = (
+        (soup_index or {}).get("scripts_jsonld") if soup_index is not None else None
+    )
+    if scripts is None:
+        scripts = soup.find_all("script", type="application/ld+json")
+    for script in scripts:
+        if not isinstance(script, Tag):
+            continue
+        try:
+            if not script.string:
+                continue
+            data = json.loads(script.string)
+
+            # Handle None or empty data
+            if data is None:
+                continue
+
+            if isinstance(data, list):
+                data = data[0] if data else {}
+
+            # Ensure data is a dictionary
+            if not isinstance(data, dict):
+                continue
+
+            # Search for title in different Schema.org types
+            title_fields = ["headline", "name", "title"]
+            for field in title_fields:
+                if field in data and data[field]:
+                    title = str(data[field]).strip()
+                    if title:
+                        return title
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            continue
+    return ""
+
+
+def _try_selector(soup: BeautifulSoup, tag: str, **kwargs) -> str | None:
+    """Try to find element and extract text."""
+    elem = soup.find(tag, **kwargs)
+    if isinstance(elem, Tag):
+        text = elem.get_text(strip=True)
+        return text if text else None
+    return None
+
+
+def _extract_site_specific_title(
+    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
+) -> str | None:
+    """Special handling for popular sites"""
+    domain_lower = domain.lower()
+
+    # Site-specific selectors mapping
+    if "medium.com" in domain_lower:
+        return _try_selector(
+            soup, "h1", class_=re.compile(r"graf.*title|pw-post-title")
+        )
+
+    if "dev.to" in domain_lower:
+        return _try_selector(
+            soup, "h1", class_=re.compile(r"crayons-article__title|article-title")
+        )
+
+    if "hackernews" in domain_lower or "news.ycombinator.com" in domain_lower:
+        return _try_selector(soup, "a", class_="storylink") or _try_selector(
+            soup, "span", class_="titleline"
+        )
+
+    if "wikipedia.org" in domain_lower:
+        return _try_selector(soup, "h1", id="firstHeading")
+
+    if "amazon.com" in domain_lower or "amazon." in domain_lower:
+        return _try_selector(soup, "span", id="productTitle")
+
+    if "reddit.com" in domain_lower:
+        return _try_selector(
+            soup, "h1", attrs={"data-testid": "post-content"}
+        ) or _try_selector(soup, "div", class_=re.compile(r".*title.*"))
+
+    if "stackoverflow.com" in domain_lower:
+        return _try_selector(soup, "h1", attrs={"itemprop": "name"}) or _try_selector(
+            soup, "a", class_="question-hyperlink"
+        )
+
+    if "github.com" in domain_lower:
+        return _try_selector(
+            soup, "h1", class_=re.compile(r".*header.*")
+        ) or _try_selector(soup, "strong", attrs={"itemprop": "name"})
+
+    return None
+
+
+def _score_title_quality(title: str) -> int:
+    """Score title quality from 0 to 100"""
+    if not title:
+        return 0
+
+    score = 50  # base score
+    title_lower = title.lower()
+
+    # Length scoring (optimal 30-60 characters)
+    if 30 <= len(title) <= 60:
+        score += 20
+    elif 15 <= len(title) <= 80:
+        score += 10
+    elif len(title) < 10:
+        score -= 20
+    elif len(title) > 100:
+        score -= 10
+
+    # Avoid technical/error titles
+    bad_patterns = [
+        "404",
+        "error",
+        "not found",
+        "untitled",
+        "document",
+        "page not found",
+        "access denied",
+    ]
+    if any(pattern in title_lower for pattern in bad_patterns):
+        score -= 30
+
+    # Prefer descriptive titles with separators
+    if any(sep in title for sep in ":-|•—–"):
+        score += 10
+
+    # Avoid titles with only symbols/numbers
+    if not re.search(r"[a-zA-Zа-яА-Я\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]", title):
+        score -= 40
+
+    # Prefer titles with mixed case (not all caps or all lowercase)
+    if title.isupper() or title.islower():
+        score -= 5
+
+    # Bonus for titles that seem like real content
+    content_indicators = [
+        "how to",
+        "what is",
+        "guide",
+        "tutorial",
+        "review",
+        "analysis",
+    ]
+    if any(indicator in title_lower for indicator in content_indicators):
+        score += 5
+
+    return max(0, min(100, score))
+
+
+def _get_best_title(candidates: list[tuple[str, str]]) -> str:
+    """Select best title from candidates based on quality scoring"""
+    if not candidates:
+        return ""
+
+    scored = []
+    for title, source in candidates:
+        if title and title.strip():
+            quality_score = _score_title_quality(title)
+            # Add source priority bonus
+            source_bonus = {
+                "site_specific": 15,
+                "jsonld": 10,
+                "og_twitter": 8,
+                "html_title": 5,
+                "meta_title": 3,
+                "h1": 2,
+            }.get(source, 0)
+
+            total_score = quality_score + source_bonus
+            scored.append((title.strip(), total_score, source))
+            logger.debug(
+                "[title] candidate source=%s score=%s raw='%s'",
+                source,
+                total_score,
+                title[:120],
+            )
+
+    if not scored:
+        return ""
+
+    # Return best scored title
+    best = max(scored, key=lambda x: x[1])
+    logger.debug(
+        "[title] best source=%s score=%s title='%s'", best[2], best[1], best[0]
+    )
+    return best[0]
+
+
+def _smart_postprocess_title(title: str, domain: str) -> str:
+    """Enhanced title postprocessing with site-specific rules"""
+    if not title:
+        return domain
+
+    title = title.strip()
+
+    # Remove HTML tags if any remain
+    title = BeautifulSoup(title, "html.parser").get_text()
+    title = _html.unescape(title).strip()
+
+    # Site-specific cleaning patterns
+    domain_lower = domain.lower()
+    for site, patterns in _SITE_SPECIFIC_SUFFIXES.items():
+        if site in domain_lower:
+            for pattern in patterns:
+                if title.endswith(pattern):
+                    title = title[: -len(pattern)].strip()
+                    break
+
+    # General cleaning patterns (case insensitive)
+    general_patterns = [f"{sep}{domain}" for sep in _GENERAL_SUFFIX_SEPARATORS]
+
+    title_lower = title.lower()
+    for pattern in general_patterns:
+        pattern_lower = pattern.lower()
+        if title_lower.endswith(pattern_lower):
+            title = title[: -len(pattern)].strip()
+            break
+
+    # Remove common prefixes/suffixes
+    prefixes_suffixes = [
+        ("Home - ", ""),
+        ("Home | ", ""),
+        ("Welcome to ", ""),
+        ("", " - Home"),
+        ("", " | Home"),
+        ("", " - Official Site"),
+        ("", " - Official Website"),
+        ("", " | Official Site"),
+    ]
+
+    for prefix, suffix in prefixes_suffixes:
+        if prefix and title.startswith(prefix):
+            title = title[len(prefix) :].strip()
+        elif suffix and title.endswith(suffix):
+            title = title[: -len(suffix)].strip()
+
+    # Clean up separators and whitespace
+    title = re.sub(r"\s*[-|•—–:]\s*$", "", title)  # Remove trailing separators
+    title = re.sub(r"^\s*[-|•—–:]\s*", "", title)  # Remove leading separators
+    title = re.sub(r"\s+", " ", title)  # Normalize whitespace
+
+    return title if title else domain
+
+
+def _meta_content(
+    soup: BeautifulSoup,
+    *selectors: tuple[str, str],
+    soup_index: SoupIndex | None = None,
+) -> str:
+    """Extract content from meta tags with multiple selector fallbacks"""
+    for attr, value in selectors:
+        tag = None
+        if soup_index is not None:
+            key = value.strip().lower()
+            try:
+                if attr == "name":
+                    candidates = soup_index.get("meta_by_name", {}).get(key, [])
+                elif attr == "property":
+                    candidates = soup_index.get("meta_by_prop", {}).get(key, [])
+                else:
+                    candidates = []
+                tag = candidates[0] if candidates else None
+            except Exception:
+                tag = None
+        if tag is None:
+            found_tag = soup.find("meta", attrs={attr: value})
+            # Ensure we only assign Tag objects, not NavigableString or other types
+            tag = found_tag if isinstance(found_tag, Tag) else None
+        if isinstance(tag, Tag):
+            raw_content = tag.get("content")
+            if isinstance(raw_content, str):
+                content = raw_content.strip()
+            elif isinstance(raw_content, list):
+                content = " ".join(
+                    str(part).strip() for part in raw_content if part
+                ).strip()
+            else:
+                content = ""
+            if content:
+                return content
+    return ""
+
+
+def _extract_html_title(
+    soup: BeautifulSoup, domain: str, soup_index: SoupIndex | None = None
+) -> str:
+    """Extract and clean HTML title tag"""
+    title_tag = (soup_index or {}).get("title_tag") if soup_index is not None else None
+    if title_tag is None:
+        title_candidate = soup.title
+        title_tag = title_candidate if isinstance(title_candidate, Tag) else None
+    if not isinstance(title_tag, Tag):
+        return ""
+
+    # Get text from all child elements
+    title_text = title_tag.get_text(separator=" ", strip=True)
+    if not title_text:
+        return ""
+
+    # Handle common title separators intelligently
+    for sep in _HTML_TITLE_SEPARATORS:
+        if sep in title_text:
+            parts = [p.strip() for p in title_text.split(sep)]
+            # Remove parts that are just the domain
+            clean_parts = [p for p in parts if p and domain.lower() not in p.lower()]
+            if clean_parts:
+                # Return the first meaningful part
+                return clean_parts[0]
+
+    return title_text
+
+
+def _extract_title(soup: BeautifulSoup, url: str) -> str:
+    """Enhanced title extraction with multiple sources and quality scoring"""
+    domain = base_domain(urlparse(url).netloc)
+    candidates = []
+    soup_index = _build_soup_index(soup)
+
+    # 1. Site-specific extraction (highest priority)
+    site_specific = _extract_site_specific_title(soup, domain, soup_index)
+    if site_specific:
+        candidates.append((site_specific, "site_specific"))
+
+    # 2. JSON-LD structured data
+    jsonld_title = _extract_jsonld_title(soup, soup_index)
+    if jsonld_title:
+        candidates.append((jsonld_title, "jsonld"))
+
+    # 3. Open Graph and Twitter meta tags
+    og_twitter = _meta_content(
+        soup,
+        ("property", "og:title"),
+        ("name", "og:title"),
+        ("name", "twitter:title"),
+        ("property", "twitter:title"),
+        ("property", "article:title"),
+        ("name", "sailthru.title"),
+        ("name", "DC.title"),  # Dublin Core
+        ("itemprop", "name"),  # Schema.org microdata
+        soup_index=soup_index,
+    )
+    if og_twitter:
+        candidates.append((og_twitter, "og_twitter"))
+
+    # 4. HTML title tag (with intelligent parsing)
+    html_title = _extract_html_title(soup, domain, soup_index)
+    if html_title:
+        candidates.append((html_title, "html_title"))
+
+    # 5. Named title meta tag
+    named = _meta_content(
+        soup, ("name", "title"), ("property", "title"), soup_index=soup_index
+    )
+    if named:
+        candidates.append((named, "meta_title"))
+
+    # 6. First H1 tag
+    h1 = soup_index.get("h1_first")
+    if isinstance(h1, Tag):
+        h1_text = h1.get_text(strip=True)
+        if h1_text:
+            candidates.append((h1_text, "h1"))
+
+    # Select best title based on quality scoring
+    best_title = _get_best_title(candidates)
+    if best_title:
+        return _smart_postprocess_title(best_title, domain)
+
+    return domain
+
+
+def _try_youtube_title(url: str, config, host: str) -> str | None:
+    """Try to fetch YouTube title if applicable."""
+    if host not in ("youtube.com", "youtu.be"):
+        return None
+    yt = _fetch_youtube_title(url, config)
+    if yt:
+        return _smart_postprocess_title(yt, host)
+    return None
+
+
+def _get_config_params(config) -> tuple[str | None, int | None, int]:
+    """Extract config parameters for HTTP requests."""
+    try:
+        ua = getattr(config, "USER_AGENT", None)
+    except Exception:
+        ua = None
+    timeout_override = getattr(config, "HTML_FETCH_TIMEOUT", None)
+    retries_override = getattr(config, "HTML_FETCH_RETRIES", 2)
+    return ua, timeout_override, retries_override
+
+
+def _try_head_request(url: str, config, timeout_override: int | None) -> None:
+    """Perform HEAD preflight to check content type."""
+    try:
+        head_resp = http_request(
+            url,
+            config,
+            allow_non_2xx=True,
+            timeout_override=timeout_override,
+            retries=1,
+            method="HEAD",
+        )
+        if head_resp is not None:
+            ctype = head_resp.headers.get("Content-Type", "")
+            clen = head_resp.headers.get("Content-Length", "")
+            logger.debug("[title][HEAD] url=%s type='%s' len=%s", url, ctype, clen)
+            if ctype and "text/html" not in ctype.lower():
+                logger.warning(
+                    "[title][HEAD] non-html content-type url=%s type='%s'", url, ctype
+                )
+    except RequestException as he:
+        logger.debug(
+            "[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True
+        )
+
+
+def _fetch_and_parse_html(
+    url: str, config, timeout_override: int | None, retries_override: int
+) -> tuple[BeautifulSoup | None, str]:
+    """Fetch HTML and parse with BeautifulSoup."""
+    resp = http_request(
+        url, config, timeout_override=timeout_override, retries=retries_override
+    )
+    if not resp:
+        return None, ""
+
+    try:
+        txt = _decode_response_text(resp, config)
+        s = _make_soup(txt)
+        return s, txt
+    except Exception as e:
+        logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
+        return None, ""
+
+
+def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> str:
+    """Try Playwright rendering if needed."""
+    try:
+        use_playwright = _use_playwright_for_title(config)
+    except Exception:
+        use_playwright = True
+
+    if not use_playwright:
+        return title
+
+    need_render = js_suspected or not title or len(title) < 3
+    if not need_render:
+        return title
+
+    try:
+        logger.info("[title] try playwright render url=%s", url)
+        title2 = _try_playwright_title(url, config)
+        if (
+            title2
+            and title2.strip()
+            and title2.strip().lower() != (title or "").strip().lower()
+        ):
+            logger.info(
+                "[title] playwright extracted url=%s title='%s'",
+                url,
+                title2,
+            )
+            return title2
+    except Exception as re:
+        logger.warning(
+            "[title] playwright render failed url=%s err=%s",
+            url,
+            re,
+            exc_info=True,
+        )
+
+    return title
+
+
+def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
+    """Try Selenium fallback for JS-heavy pages."""
+    try:
+        use_selenium = bool(getattr(config, "USE_SELENIUM_FOR_TITLE", False))
+    except Exception:
+        use_selenium = False
+
+    if not use_selenium:
+        return host
+
+    try:
+        logger.info("[title] selenium fallback enabled url=%s", url)
+        try:
+            from selenium import webdriver  # type: ignore
+            from selenium.webdriver.chrome.options import Options  # type: ignore
+        except Exception as ie:
+            logger.warning("[title] selenium import failed: %s", ie, exc_info=True)
+            return host
+
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        if ua:
+            options.add_argument(f"--user-agent={ua}")
+        try:
+            options.page_load_strategy = "eager"
+        except Exception:
+            pass
+
+        driver = webdriver.Chrome(options=options)
+        try:
+            pl_to = int(getattr(config, "SELENIUM_PAGELOAD_TIMEOUT", 12))
+        except Exception:
+            pl_to = 12
+        try:
+            driver.set_page_load_timeout(pl_to)
+        except Exception:
+            logger.debug(
+                "[title] could not set selenium page load timeout", exc_info=True
+            )
+
+        try:
+            driver.get(url)
+            page = driver.page_source or ""
+        finally:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+        if page:
+            try:
+                s2 = _make_soup(page)
+                title2 = _extract_title(s2, url)
+                logger.info("[title] selenium extracted url=%s title='%s'", url, title2)
+                return title2 or host
+            except Exception as pe:
+                logger.error(
+                    "[title] selenium parse error url=%s err=%s",
+                    url,
+                    pe,
+                    exc_info=True,
+                )
+    except Exception as se:
+        logger.warning(
+            "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
+        )
+
+    return host
+
+
+def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
+    """Main function to extract page title with enhanced parsing capabilities"""
+    host = base_domain(urlparse(url).netloc)
+
+    # Try YouTube special handling
+    yt_title = _try_youtube_title(url, config, host)
+    if yt_title:
+        return yt_title
+
+    # Use provided soup if available
+    if soup is not None:
+        return _extract_title(soup, url)
+
+    # Fetch and parse HTML
+    ua, timeout_override, retries_override = _get_config_params(config)
+    logger.info(
+        "[title] start url=%s ua=%s timeout=%s retries=%s",
+        url,
+        ua,
+        timeout_override,
+        retries_override,
+    )
+
+    _try_head_request(url, config, timeout_override)
+
+    soup_obj, txt = _fetch_and_parse_html(
+        url, config, timeout_override, retries_override
+    )
+    if soup_obj:
+        # Check if JS-heavy
+        js_suspected = False
+        try:
+            js_suspected = _looks_js_heavy(soup_obj, txt)
+            if js_suspected:
+                logger.warning("[title] js-heavy suspected url=%s", url)
+        except Exception:
+            js_suspected = False
+
+        title = _extract_title(soup_obj, url)
+        title = _try_playwright_render(url, config, title, js_suspected)
+        logger.info("[title] done url=%s extracted='%s'", url, title)
+        return title
+
+    # Selenium fallback
+    return _try_selenium_fallback(url, config, host, ua)
+
+
+__all__ = ["get_title"]
