@@ -229,35 +229,16 @@ class BaseEntityDialog(BaseDialog):
 
     def _choose_icon(self):
         """Pick an icon with smart copy semantics that avoid duplicates."""
-        logger.info("[ICON_SELECT] _choose_icon() called")
         try:
             from app.utils.ui.icon.selection import choose_icon_and_copy
 
             user_icons_dir = icon_path_service.get_user_icons_dir()
-            logger.info("[ICON_SELECT] Opening file dialog, user_icons_dir=%s", user_icons_dir)
             fname, icon = choose_icon_and_copy(self, user_icons_dir)
-            logger.info("[ICON_SELECT] choose_icon_and_copy returned: fname=%s, icon=%s, icon.isNull=%s", 
-                       fname, icon, icon.isNull() if icon else "N/A")
             if not fname or not icon:
-                logger.debug("Icon selection cancelled or returned empty")
                 return
 
-            # Check if icon is valid (not null/empty)
-            if icon.isNull():
-                logger.warning("Selected icon is null/empty: %s", fname)
-                self.show_warning(
-                    self.tr("Selected icon is invalid or empty."),
-                    self.tr("Icon selection error"),
-                )
-                return
-
-            logger.info("Setting new icon: %s", fname)
             self.icon_btn.setIcon(icon)
             self._icon_filename = fname
-            
-            # Force visual update of the button
-            self.icon_btn.update()
-            logger.debug("Icon button updated with: %s", fname)
 
         except Exception as e:
             self.show_error(
@@ -364,12 +345,6 @@ class SectionDialog(BaseEntityDialog):
         icon = section_data["icon_path"] or f"{self.entity_name}.ico"
         self._icon_filename = icon
         icon_path = self._get_icon_path(icon)
-        
-        # Clear cache for this icon to ensure fresh load (in case it was updated)
-        from app.utils.ui.icon.cache_manager import invalidate
-        cache_key = f"abspath::{str(icon_path)}"
-        invalidate(cache_key)
-        
         self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
 
     def _on_accept(self):
@@ -510,12 +485,6 @@ class CategoryDialog(BaseEntityDialog):
         icon = category_data["icon_path"] or f"{self.entity_name}.ico"
         self._icon_filename = icon
         icon_path = self._get_icon_path(icon)
-        
-        # Clear cache for this icon to ensure fresh load (in case it was updated)
-        from app.utils.ui.icon.cache_manager import invalidate
-        cache_key = f"abspath::{str(icon_path)}"
-        invalidate(cache_key)
-        
         self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
 
     def _on_accept(self):

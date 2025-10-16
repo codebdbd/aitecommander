@@ -33,11 +33,13 @@ from .converters import (  # Synchronous copy functions; Synchronous conversion 
 )
 
 # Import from creators
-from .creators import (  # Creating icons from absolute paths; Internal functions (for compatibility)
+from .creators import (  # Main icon creation functions; Creating icons from absolute paths; Internal functions (for compatibility)
     _create_svg_icon,
     _ensure_gui_thread,
     create_icon_from_path,
     create_icon_from_path_async,
+    themed_icon,
+    themed_icon_async,
 )
 
 # Export all public functions and classes
@@ -62,6 +64,9 @@ __all__ = [
     "convert_raster_icon_to_png_async",
     # Batch conversion
     "batch_convert_icons_async",
+    # Main icon creation functions
+    "themed_icon",
+    "themed_icon_async",
     # Creating icons from absolute paths
     "create_icon_from_path",
     "create_icon_from_path_async",

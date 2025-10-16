@@ -172,14 +172,7 @@ def copy_icon_smart(  # noqa: C901
     # Create directory if it doesn't exist
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    src_path_obj = Path(src_path).resolve()
-    dest_dir_resolved = dest_dir.resolve()
-    
-    # CRITICAL: If source already in destination directory, return filename immediately
-    if src_path_obj.parent == dest_dir_resolved:
-        logger.info("Source file already in destination directory: %s", src_path_obj.name)
-        return src_path_obj.name
-    
+    src_path_obj = Path(src_path)
     src_hash = _calculate_file_hash(src_path_obj)
 
     # Check for content-based duplication

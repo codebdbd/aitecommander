@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Callable
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QListWidget, QMenu
 
-from app.utils.ui.icons import get_icon
+from app.utils.ui.icon.icon_operations.creators import themed_icon
+from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ class CategoryMenuBuilder:
 
     def _get_icon(self, name: str):
         """Get themed icon for current theme."""
+        theme = get_current_theme()
         # Icon name to file mapping (unified with structure tree)
         icon_files = {
             "edit": "edit.svg",
@@ -75,4 +77,4 @@ class CategoryMenuBuilder:
             "delete": "delete.svg",
         }
         icon_file = icon_files.get(name, f"{name}.svg")
-        return get_icon(icon_file)
+        return themed_icon(icon_file, theme, "context_menu")

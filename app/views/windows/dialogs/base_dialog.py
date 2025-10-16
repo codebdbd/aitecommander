@@ -16,7 +16,8 @@ from PyQt6.QtWidgets import (
     QToolButton,
 )
 
-from app.utils.ui.icons import get_icon
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 from app.views.common.retranslatable import ReTranslatable
 
@@ -54,16 +55,18 @@ def _tr(text: str) -> str:
 def create_context_menu(widget):
     menu = QMenu(widget)
 
+    theme = get_current_theme()
+
     undo_action = cast(
         QAction,
-        menu.addAction(get_icon("undo.svg"), _tr("Undo")),
+        menu.addAction(icon_cache.get_icon("undo", theme, "context_menu"), _tr("Undo")),
     )
     undo_action.triggered.connect(widget.undo)
     undo_action.setShortcut("Ctrl+Z")
 
     redo_action = cast(
         QAction,
-        menu.addAction(get_icon("redo.svg"), _tr("Redo")),
+        menu.addAction(icon_cache.get_icon("redo", theme, "context_menu"), _tr("Redo")),
     )
     redo_action.triggered.connect(widget.redo)
     redo_action.setShortcut("Ctrl+Y")
@@ -72,14 +75,14 @@ def create_context_menu(widget):
 
     cut_action = cast(
         QAction,
-        menu.addAction(get_icon("cut.svg"), _tr("Cut")),
+        menu.addAction(icon_cache.get_icon("cut", theme, "context_menu"), _tr("Cut")),
     )
     cut_action.triggered.connect(widget.cut)
     cut_action.setShortcut("Ctrl+X")
 
     copy_action = cast(
         QAction,
-        menu.addAction(get_icon("copy.svg"), _tr("Copy")),
+        menu.addAction(icon_cache.get_icon("copy", theme, "context_menu"), _tr("Copy")),
     )
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut("Ctrl+C")
@@ -94,7 +97,7 @@ def create_context_menu(widget):
             paste_action = cast(
                 QAction,
                 menu.addAction(
-                    get_icon("paste.svg"),
+                    icon_cache.get_icon("paste", theme, "context_menu"),
                     _tr("Paste"),
                 ),
             )
@@ -105,7 +108,7 @@ def create_context_menu(widget):
 
     delete_action = cast(
         QAction,
-        menu.addAction(get_icon("delete.svg"), _tr("Delete")),
+        menu.addAction(icon_cache.get_icon("delete", theme, "context_menu"), _tr("Delete")),
     )
     delete_action.triggered.connect(widget.clear)
     delete_action.setShortcut("Del")
@@ -115,7 +118,7 @@ def create_context_menu(widget):
     select_all_action = cast(
         QAction,
         menu.addAction(
-            get_icon("select_all.svg"), _tr("Select All")
+            icon_cache.get_icon("select_all", theme, "context_menu"), _tr("Select All")
         ),
     )
     select_all_action.triggered.connect(widget.selectAll)
