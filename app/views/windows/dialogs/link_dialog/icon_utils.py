@@ -6,8 +6,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon.path_service import icon_path_service
 
@@ -177,9 +177,7 @@ def make_icon(icon_path_str: str) -> Optional[QIcon]:
             "OS error while accessing icon '%s': %s", icon_path_str, result.message
         )
     elif result.error_kind == IconErrorKind.INVALID_PATH:
-        logger.warning(
-            "Invalid icon path '%s': %s", icon_path_str, result.message
-        )
+        logger.warning("Invalid icon path '%s': %s", icon_path_str, result.message)
     elif result.error_kind == IconErrorKind.UNEXPECTED_ERROR:
         logger.exception(
             "Unexpected error while creating icon '%s': %s",

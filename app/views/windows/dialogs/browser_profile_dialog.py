@@ -1,10 +1,9 @@
 import logging
-from typing import Dict, List
+from typing import Optional
 
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
@@ -34,6 +33,10 @@ class BrowserProfileDialog(BaseDialog):
         self.manager = get_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
+        self.async_manager = _apm.get_async_profile_manager()
+        self.async_manager.browser_profiles_ready.connect(self._on_async_profiles_ready)
+        self.async_manager.loading_error.connect(self._on_async_profiles_error)
+        self._pending_browser_key: Optional[str] = None
         self._setup_ui()
         self._populate_browsers()
         # Do not load every profile immediately; populate on demand for the chosen browser.
@@ -148,60 +151,79 @@ class BrowserProfileDialog(BaseDialog):
         if self.browser_combo.count() > 0:
             self.browser_combo.setCurrentIndex(0)
 
-    def _populate_profiles(self):
-        # Remove previous widgets from the layout
+    def _clear_profiles_layout(self) -> None:
         for cb in self.profile_checkboxes:
             cb.deleteLater()
         self.profile_checkboxes.clear()
 
-        # Clear all widgets from the layout
         while self.profile_layout.count():
             child = self.profile_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
 
-        browser_key = self.browser_combo.currentData()
-        profiles = []
+    def _populate_profiles(self):
+        self._clear_profiles_layout()
 
-        # Load profiles for the selected browser from manager cache (no disk scan)
-        profiles = self.manager.get_profiles_by_browser(browser_key)
-        # Filter by search query
+        browser_key = self.browser_combo.currentData()
+        if not isinstance(browser_key, str):
+            self.profile_layout.addWidget(QLabel(self.tr("No profiles found")))
+            return
+
+        cached_profiles = self.async_manager.get_cached_profiles(browser_key)
+        if cached_profiles is None:
+            self._pending_browser_key = browser_key
+            self._set_controls_enabled(False)
+            self.status_label.setText(self.tr("Loading profiles…"))
+            if not self.async_manager.load_browser_profiles_async(
+                browser_key, use_cache=True
+            ):
+                self._pending_browser_key = None
+                self._set_controls_enabled(True)
+                self.status_label.setText(self.tr("Failed to start loading"))
+            return
+
+        self._pending_browser_key = None
+        self._set_controls_enabled(True)
+        self.status_label.setText("")
+        self._render_profiles(browser_key, cached_profiles)
+
+    def _render_profiles(self, browser_key: str, profiles: list[dict]) -> None:
+        self._clear_profiles_layout()
+
+        working_profiles = [dict(profile) for profile in profiles or []]
         query = (self.search_line.text() or "").strip().lower()
         if query:
 
-            def _match(p: Dict) -> bool:
+            def _match(p: dict) -> bool:
                 name = str(p.get("email") or p.get("name") or "").lower()
                 path = str(p.get("path") or "").lower()
                 return query in name or query in path
 
-            profiles = [p for p in profiles if _match(p)]
+            working_profiles = [p for p in working_profiles if _match(p)]
+
         finder = self.manager.finders.get(browser_key)
         if finder:
-            for profile in profiles:
+            for profile in working_profiles:
                 profile["browser_key"] = browser_key
                 profile["browser_name"] = get_browser_display_name(finder, browser_key)
 
-        logger.debug("_populate_profiles: browser_key=%s", browser_key)
+        logger.debug("_render_profiles: browser_key=%s", browser_key)
 
-        if not profiles:
+        if not working_profiles:
             self.profile_layout.addWidget(QLabel(self.tr("No profiles found")))
+            self._update_save_enabled()
             return
 
-        # Create checkboxes for every profile
-        for profile in profiles:
-            # Add browser name for clarity
+        for profile in working_profiles:
             browser_name = profile.get("browser_name", "")
             profile_name = (
-                profile.get("email")
-                or profile.get("name")
-                or self.tr("Unnamed")
+                profile.get("email") or profile.get("name") or self.tr("Unnamed")
             )
             text = self.tr("{profile} ({browser})").format(
                 profile=profile_name, browser=browser_name
             )
             cb = QCheckBox(text)
             cb.profile_data = profile
-            # Track changes for Save button availability
             try:
                 cb.stateChanged.connect(self._update_save_enabled)
             except Exception:
@@ -211,10 +233,44 @@ class BrowserProfileDialog(BaseDialog):
                 )
             self.profile_layout.addWidget(cb)
             self.profile_checkboxes.append(cb)
-        # Add stretch to prevent vertical stretching
+
         self.profile_layout.addStretch()
-        # Refresh Save button state after rebuilding the list
         self._update_save_enabled()
+
+    def _on_async_profiles_ready(self, browser_key: str, profiles: list[dict]) -> None:
+        current_key = self.browser_combo.currentData()
+        if current_key != browser_key:
+            return
+        self._pending_browser_key = None
+        self._set_controls_enabled(True)
+        self.status_label.setText("")
+        self._render_profiles(browser_key, profiles)
+
+    def _on_async_profiles_error(self, operation: str, message: str) -> None:
+        if not isinstance(operation, str) or not operation.startswith("browser_"):
+            return
+        browser_key = operation.removeprefix("browser_")
+        current_key = self.browser_combo.currentData()
+        if current_key != browser_key:
+            return
+        self._pending_browser_key = None
+        self._set_controls_enabled(True)
+        self.status_label.setText(self.tr("Failed to load profiles"))
+        logger.warning(
+            "BrowserProfileDialog: async load error for %s: %s",
+            browser_key,
+            message,
+        )
+
+    def closeEvent(self, event):
+        try:
+            self.async_manager.browser_profiles_ready.disconnect(
+                self._on_async_profiles_ready
+            )
+            self.async_manager.loading_error.disconnect(self._on_async_profiles_error)
+        except (TypeError, RuntimeError):
+            pass
+        super().closeEvent(event)
 
     def refresh_profiles(self):
         """Manually refresh profiles asynchronously while updating caches and UI."""
@@ -223,7 +279,7 @@ class BrowserProfileDialog(BaseDialog):
         try:
             async_mgr = _apm.get_async_profile_manager()
 
-            def _on_ready(all_profiles: Dict[str, List[Dict]]):
+            def _on_ready(all_profiles: dict[str, list[dict]]):
                 try:
                     # Persist profiles in cache
                     cache = _pc.PersistentProfileCache(default_ttl=3600)
@@ -300,7 +356,7 @@ class BrowserProfileDialog(BaseDialog):
         ]
         super().accept()
 
-    def get_selected_profiles(self) -> List[Dict]:
+    def get_selected_profiles(self) -> list[dict]:
         """Return the list of chosen profiles."""
         selected = self.selected_profiles
 

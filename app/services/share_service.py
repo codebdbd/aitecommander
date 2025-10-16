@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional, cast
 from urllib.parse import quote_plus
 
 from PyQt6.QtCore import QUrl
@@ -21,10 +21,13 @@ def _open_url(url: str) -> bool:
 
 def _clipboard_copy(text: str) -> None:
     try:
-        app = QApplication.instance()
-        if app is None:
-            logger.warning("ShareService: QApplication.instance() is None; cannot copy to clipboard")
+        app_instance = QApplication.instance()
+        if app_instance is None:
+            logger.warning(
+                "ShareService: QApplication.instance() is None; cannot copy to clipboard"
+            )
             return
+        app = cast(QApplication, app_instance)
         cb = app.clipboard()
         if cb is None:
             logger.warning("ShareService: clipboard is None; cannot copy to clipboard")
@@ -89,11 +92,11 @@ def share_via_pinterest(name: Optional[str], url: str) -> bool:
     return _open_url(pin)
 
 
-def open_default_apps_settings() -> Tuple[bool, Optional[str]]:
+def open_default_apps_settings() -> tuple[bool, Optional[str]]:
     """Open Windows settings for default apps (mailto association).
-    
+
     ✅ FIX: Returns status and message instead of showing QMessageBox.
-    
+
     Returns:
         Tuple[bool, Optional[str]]: (success, user_message)
     """
@@ -104,7 +107,7 @@ def open_default_apps_settings() -> Tuple[bool, Optional[str]]:
             ok = QDesktopServices.openUrl(QUrl("ms-settings:"))
         if not ok:
             raise RuntimeError("Failed to open ms-settings")
-        
+
         message = (
             "Open the Default Apps section and associate the mailto protocol "
             "with your email application."
@@ -113,7 +116,6 @@ def open_default_apps_settings() -> Tuple[bool, Optional[str]]:
     except Exception as e:
         logger.exception("ShareService: failed to open Windows default apps settings")
         return False, f"Failed to open settings: {e}"
-    
 
 
 def share_via_whatsapp(name: Optional[str], url: str) -> bool:
@@ -130,11 +132,11 @@ def share_via_whatsapp(name: Optional[str], url: str) -> bool:
     return _open_url(deep)
 
 
-def share_via_viber(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+def share_via_viber(name: Optional[str], url: str) -> tuple[bool, Optional[str]]:
     """Share via Viber.
-    
+
     ✅ FIX: Returns status and message instead of showing QMessageBox.
-    
+
     Returns:
         Tuple[bool, Optional[str]]: (success, user_message)
     """
@@ -142,11 +144,11 @@ def share_via_viber(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]
     primary = f"viber://forward?text={quote_plus(text)}"
     if _open_url(primary):
         return True, None
-    
+
     # Fallback for Viber: copy to clipboard
     _clipboard_copy(text)
     logger.warning("ShareService: Viber fallback — copied to clipboard")
-    
+
     message = (
         "Message text copied to clipboard.\n"
         "Open Viber and paste (Ctrl+V) into chat manually."
@@ -185,11 +187,11 @@ def share_via_email_gmail(name: Optional[str], url: str) -> bool:
     return _open_url(gmail)
 
 
-def copy_email_template(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+def copy_email_template(name: Optional[str], url: str) -> tuple[bool, Optional[str]]:
     """Copy email template to clipboard (Subject + Body).
-    
+
     ✅ FIX: Returns status and message instead of showing QMessageBox.
-    
+
     Returns:
         Tuple[bool, Optional[str]]: (success, user_message)
     """
@@ -197,6 +199,6 @@ def copy_email_template(name: Optional[str], url: str) -> Tuple[bool, Optional[s
     body = build_share_text(name, url)
     template = f"Subject: {subject}\n\n{body}"
     _clipboard_copy(template)
-    
+
     message = "Email template copied to clipboard. Open any email and paste (Ctrl+V)."
     return True, message

@@ -17,19 +17,13 @@ from ..validation import is_valid_icon_file
 from .cache_proxy import IconCache, icon_cache
 
 # Import from converters
-from .converters import (  # Synchronous copy functions; Synchronous conversion functions; Asynchronous copy functions; Asynchronous conversion functions; Batch conversion
-    batch_convert_icons_async,
+from .converters import (
     convert_icon_to_png_32,
-    convert_icon_to_png_32_async,
     convert_icon_to_png_128,
-    convert_icon_to_png_128_async,
     convert_raster_icon_to_png,
-    convert_raster_icon_to_png_async,
     copy_icon,
-    copy_icon_async,
     copy_icon_smart,
     copy_icon_to_path,
-    copy_icon_to_path_async,
 )
 
 # Import from creators
@@ -47,27 +41,17 @@ __all__ = [
     # Icon cache
     "IconCache",
     "icon_cache",
-    # Synchronous copy functions
+    # Copy functions
     "copy_icon",
     "copy_icon_smart",
     "copy_icon_to_path",
-    # Synchronous conversion functions
+    # Conversion functions
     "convert_icon_to_png_128",
     "convert_icon_to_png_32",
     "convert_raster_icon_to_png",
-    # Asynchronous copy functions
-    "copy_icon_async",
-    "copy_icon_to_path_async",
-    # Asynchronous conversion functions
-    "convert_icon_to_png_128_async",
-    "convert_icon_to_png_32_async",
-    "convert_raster_icon_to_png_async",
-    # Batch conversion
-    "batch_convert_icons_async",
-    # Main icon creation functions
+    # Icon creation functions
     "themed_icon",
     "themed_icon_async",
-    # Creating icons from absolute paths
     "create_icon_from_path",
     "create_icon_from_path_async",
     # Internal functions (for compatibility)

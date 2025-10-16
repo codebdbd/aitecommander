@@ -1,9 +1,8 @@
 # converters.py
-"""Icon conversion functions with async support for I/O operations."""
+"""Icon conversion and copying functions (simplified)."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import shutil
 from pathlib import Path
@@ -26,87 +25,31 @@ def _resize_image(img: Image.Image, size: int) -> Image.Image:
     return img.resize((size, size), Resampling.LANCZOS)
 
 
-# === SYNCHRONOUS COPY FUNCTIONS ===
+# === COPY FUNCTIONS ===
 
 
-def _calculate_file_hash(file_path: Path) -> str:
-    """Calculates SHA-256 file hash for duplicate checking."""
-    import hashlib
-
-    hash_sha256 = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()[
-            :16
-        ]  # Use first 16 characters for brevity
-    except OSError as exc:
-        logger.warning("Failed to calculate hash for %s: %s", file_path, exc)
-        return ""
-
-
-def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None:
-    """Finds existing icon with same content in target directory."""
-    if not dest_dir.exists():
-        return None
-
-    src_hash = _calculate_file_hash(src_path)
-    if not src_hash:
-        return None
-
-    # Check all files in user icons directory
-    for existing_file in dest_dir.iterdir():
-        if existing_file.is_file() and existing_file.suffix.lower() in {
-            ".png",
-            ".ico",
-            ".svg",
-            ".jpg",
-            ".jpeg",
-        }:
-            if _calculate_file_hash(existing_file) == src_hash:
-                logger.debug(
-                    "Found existing icon with same content: %s", existing_file.name
-                )
-                return existing_file.name
-
-    return None
-
-
-def copy_icon_smart(  # noqa: C901
-    src_path: str, dest_dir: Path, avoid_duplicates: bool = True
+def copy_icon_smart(
+    src_path: str, dest_dir: Path, avoid_duplicates: bool = False
 ) -> str:
-    """Smart icon copying with content-based duplicate checking.
-
+    """Simple icon copying without auto-conversion.
+    
     Args:
         src_path: Source icon path
-        dest_dir: Destination directory
-        avoid_duplicates: If True, checks existing files by content
-
+        dest_dir: Destination directory  
+        avoid_duplicates: Ignored (kept for compatibility)
+    
     Returns:
         str: File name in destination directory
     """
     if not is_valid_icon_file(src_path):
-        raise InvalidIconError(
-            f"Cannot copy invalid icon file: {src_path}"
-        )
+        raise InvalidIconError(f"Cannot copy invalid icon file: {src_path}")
 
-    # Create directory if it doesn't exist
     dest_dir.mkdir(parents=True, exist_ok=True)
-
     src_path_obj = Path(src_path)
-
-    # Check for content-based duplication
-    if avoid_duplicates:
-        existing_icon = _find_existing_icon_by_content(src_path_obj, dest_dir)
-        if existing_icon:
-            logger.debug("Reusing existing icon: %s", existing_icon)
-            return existing_icon
-
-    # If file with this name exists, generate unique name
+    
+    # Generate unique name if file exists
     dst = dest_dir / src_path_obj.name
     if dst.exists():
-        # Generate unique name with suffix
         base_name = src_path_obj.stem
         extension = src_path_obj.suffix
         counter = 1
@@ -120,53 +63,15 @@ def copy_icon_smart(  # noqa: C901
     except OSError as exc:
         raise InvalidIconError(f"Error copying file: {exc}") from exc
 
-    # Automatic SVG to PNG conversion when copying
-    if src_path_obj.suffix.lower() == ".svg":
-        png_dst = dest_dir / (dst.stem + ".png")
-        if not png_dst.exists():
-            # Convert SVG to PNG 128x128
-            if not convert_icon_to_png_128(str(dst), str(png_dst)):
-                logger.warning("Failed to convert SVG to PNG: %s -> %s", dst, png_dst)
-                # If conversion failed, return original SVG file
-                return dst.name
-        # Return PNG file name for SVG
-        return png_dst.name
-
-    # Auto-convert common rasters to PNG (for unification and plugin independence)
-    ext = src_path_obj.suffix.lower()
-    if ext in {".jpg", ".jpeg", ".webp", ".bmp", ".gif"}:
-        png_dst = dest_dir / (dst.stem + ".png")
-        if png_dst.exists():
-            # If PNG already exists (e.g., previously converted) — use it
-            try:
-                # Remove just copied source to avoid duplicate storage
-                dst.unlink(missing_ok=True)
-            except Exception:
-                logger.debug("Failed to remove temp copied raster: %s", dst, exc_info=True)
-            return png_dst.name
-
-        # Convert raster icon to PNG
-        if convert_raster_icon_to_png(str(dst), str(png_dst), size=128):
-            try:
-                # Remove source after successful conversion
-                dst.unlink(missing_ok=True)
-            except Exception:
-                logger.debug("Failed to remove source raster after conversion: %s", dst, exc_info=True)
-            return png_dst.name
-        else:
-            logger.warning("Failed to convert raster icon to PNG: %s -> %s", dst, png_dst)
-            # Return original name if conversion failed
-            return dst.name
-
     return dst.name
 
 
 def copy_icon(src_path: str, dest_dir: Path) -> str:
     """Copy icon to directory (backward compatibility).
 
-    Uses smart copying with duplicate checking.
+    Simple copying without duplicate checking.
     """
-    return copy_icon_smart(src_path, dest_dir, avoid_duplicates=True)
+    return copy_icon_smart(src_path, dest_dir, avoid_duplicates=False)
 
 
 def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
@@ -197,19 +102,6 @@ def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
         return False
 
 
-# === ASYNCHRONOUS COPY FUNCTIONS ===
-
-
-async def copy_icon_async(src_path: str, dest_dir: Path) -> str:
-    """Asynchronously copy icon to directory."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, copy_icon, src_path, dest_dir)
-
-
-async def copy_icon_to_path_async(src_path: str, dst_path: str) -> bool:
-    """Asynchronously copy icon from one path to another."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, copy_icon_to_path, src_path, dst_path)
 
 
 # === SYNCHRONOUS CONVERSION FUNCTIONS ===
@@ -278,7 +170,7 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
             # Write data to file
             logger.debug("Writing image data to %s", dst_path)
             with open(dst_path, "wb") as out:
-                out.write(bytes(buffer.data()))
+                out.write(buffer.data().data())
             logger.debug("Successfully converted SVG to PNG: %s", dst_path)
             return True
 
@@ -351,98 +243,3 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
         return False
 
 
-# === ASYNCHRONOUS CONVERSION FUNCTIONS ===
-
-
-async def convert_icon_to_png_128_async(
-    src_path: str, dst_path: str, size: int = 128
-) -> bool:
-    """Asynchronously convert icon to PNG of specified size."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None, convert_icon_to_png_128, src_path, dst_path, size
-    )
-
-
-async def convert_icon_to_png_32_async(
-    src_path: str, dst_path: str, size: int = 32
-) -> bool:
-    """Asynchronously convert icon to PNG 32x32."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None, convert_icon_to_png_32, src_path, dst_path, size
-    )
-
-
-async def convert_raster_icon_to_png_async(
-    src_path: str, dst_path: str, size: int = 32
-) -> bool:
-    """Asynchronously convert raster icon to PNG."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None, convert_raster_icon_to_png, src_path, dst_path, size
-    )
-
-
-# === BATCH CONVERSION ===
-
-
-async def batch_convert_icons_async(
-    conversions: list[tuple[str, str, int]], max_concurrent: int = 5
-) -> dict[str, bool]:
-    """Batch asynchronous icon conversion.
-
-    Args:
-        conversions: List of tuples (src_path, dst_path, size)
-        max_concurrent: Maximum number of simultaneous conversions
-
-    Returns:
-        dict: Dictionary {src_path: success_status}
-    """
-    # Task queue to avoid creating all coroutines at once
-    queue: asyncio.Queue[tuple[str, str, int]] = asyncio.Queue()
-    result_dict: dict[str, bool] = {}
-
-    # Pre-fill queue with input tasks
-    for item in conversions:
-        try:
-            src_path, dst_path, size = item
-        except Exception:  # protect against invalid input
-            logger.error("Invalid conversion tuple: %s", item)
-            continue
-        queue.put_nowait((src_path, dst_path, size))
-
-    async def worker(worker_id: int) -> None:
-        while True:
-            try:
-                src_path, dst_path, size = await queue.get()
-            except asyncio.CancelledError:
-                break
-            try:
-                success = await convert_icon_to_png_128_async(src_path, dst_path, size)
-                result_dict[src_path] = success
-            except Exception as e:
-                logger.error("Batch conversion error for %s: %s", src_path, e)
-                result_dict[src_path] = False
-            finally:
-                queue.task_done()
-
-    # Start limited number of workers
-    workers = [
-        asyncio.create_task(worker(i)) for i in range(max(1, int(max_concurrent)))
-    ]
-
-    # Wait for all tasks in queue to complete
-    await queue.join()
-
-    # Stop workers
-    for w in workers:
-        w.cancel()
-    await asyncio.gather(*workers, return_exceptions=True)
-
-    successful = sum(1 for success in result_dict.values() if success)
-    logger.info(
-        f"Batch conversion completed: {successful}/{len(conversions)} successful"
-    )
-
-    return result_dict

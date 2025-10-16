@@ -1,9 +1,10 @@
 # app/views/tiles/__init__.py
 
-from .list_view import CategoryListView
-from .delegate import CategoryTileDelegate
-from .widget import CategoryTiles
 from app.config_data import app_config
+
+from .delegate import CategoryTileDelegate
+from .list_view import CategoryListView
+from .widget import CategoryTiles
 
 __all__ = [
     "CategoryListView",

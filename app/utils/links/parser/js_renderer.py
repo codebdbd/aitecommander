@@ -7,7 +7,7 @@ Provide render_html(url, config) -> Optional[str] that returns fully rendered HT
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any
 
 from .constants import logger
 
@@ -18,12 +18,12 @@ except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore
 
 # Lazy-initialized global browser/context
-_browser = None
-_context = None
-_pl = None
+_browser: Any = None
+_context: Any = None
+_pl: Any = None
 
 
-def _init_browser(config) -> bool:
+def _init_browser(config: Any) -> bool:
     global _browser, _context, _pl
     if sync_playwright is None:
         logger.warning("Playwright is not installed. Skipping JS rendering.")
@@ -35,9 +35,9 @@ def _init_browser(config) -> bool:
         headless = bool(getattr(config, "PLAYWRIGHT_HEADLESS", True))
         # By default use built-in Chromium without specifying channel.
         # If PLAYWRIGHT_CHANNEL is explicitly set in config, use it.
-        launch_kwargs = {"headless": headless}
+        launch_kwargs: dict[str, bool | str | float] = {"headless": headless}
         cfg_channel = getattr(config, "PLAYWRIGHT_CHANNEL", None)
-        if cfg_channel:
+        if cfg_channel and isinstance(cfg_channel, str):
             launch_kwargs["channel"] = cfg_channel
         _browser = _pl.chromium.launch(**launch_kwargs)
         _context = _browser.new_context(
@@ -80,15 +80,17 @@ def _init_browser(config) -> bool:
                 if _pl:
                     _pl.stop()
             except Exception:
-                logger.debug("Playwright stop failed during init cleanup", exc_info=True)
+                logger.debug(
+                    "Playwright stop failed during init cleanup", exc_info=True
+                )
             _pl = None
             _browser = None
             _context = None
-        
+
     return False
 
 
-def render_html(url: str, config) -> Optional[str]:
+def render_html(url: str, config) -> str | None:
     """Render page with Playwright and return page.content() or None.
 
     Efficiency:
@@ -98,6 +100,7 @@ def render_html(url: str, config) -> Optional[str]:
     """
     if not _init_browser(config):
         return None
+    assert _context is not None  # mypy: ensured by _init_browser success
     nav_timeout_ms = int(getattr(config, "PLAYWRIGHT_NAV_TIMEOUT_MS", 9000))
     max_wait_ms = int(getattr(config, "JS_RENDER_MAX_WAIT_MS", 1200))
     page = None
@@ -115,7 +118,9 @@ def render_html(url: str, config) -> Optional[str]:
         logger.warning("[render] Playwright render failed url=%s: %s", url, e)
         return None
     except Exception:
-        logger.exception("[render] Playwright render failed with unexpected error url=%s", url)
+        logger.exception(
+            "[render] Playwright render failed with unexpected error url=%s", url
+        )
         return None
     finally:
         if page is not None:

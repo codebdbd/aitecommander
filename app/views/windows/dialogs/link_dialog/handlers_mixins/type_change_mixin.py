@@ -57,7 +57,11 @@ class TypeChangeMixin:
         # Sync neon effect for type tiles: remove residual glow
         try:
             filt = getattr(self.dialog, "_neon_link_filter", None)
-            type_group = self.dialog.ui.widgets.get("type_group") if hasattr(self.dialog, "ui") else None
+            type_group = (
+                self.dialog.ui.widgets.get("type_group")
+                if hasattr(self.dialog, "ui")
+                else None
+            )
             if filt and type_group:
                 for btn in type_group.buttons():
                     if getattr(btn, "isChecked", lambda: False)():
@@ -113,11 +117,15 @@ class TypeChangeMixin:
                 # Hold preferred focus briefly so hierarchy updates do not steal it
                 try:
                     self.dialog._preferred_focus_widget = target
-                    QTimer.singleShot(300, lambda: setattr(self.dialog, "_preferred_focus_widget", None))
+                    QTimer.singleShot(
+                        300,
+                        lambda: setattr(self.dialog, "_preferred_focus_widget", None),
+                    )
                 except Exception:
                     pass
             except Exception:
                 pass
+
         try:
             QTimer.singleShot(10, _apply_focus)
         except Exception:

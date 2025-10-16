@@ -1,5 +1,7 @@
 # app/controllers/structure_modules/types.py
 
+from __future__ import annotations
+
 """Strict types for structure_modules - PyQt6 Best Practices.
 
 This module contains TypedDict definitions for all data structures
@@ -7,14 +9,15 @@ used in structure operations. Replaces Dict[str, Any] with
 concrete typed structures for better type safety.
 """
 
-from typing import TypedDict, Optional, List, Any
 from enum import Enum
-
+from typing import Any, Optional, TypeAlias, TypedDict, Union
 
 # ===== ENUMS =====
 
+
 class StructureItemType(Enum):
     """Structure item types."""
+
     SPHERE = "sphere"
     SECTION = "section"
     CATEGORY = "category"
@@ -23,6 +26,7 @@ class StructureItemType(Enum):
 
 class SignalType(Enum):
     """Signal types for structure operations."""
+
     ITEM_ADDED = "item_added"
     ITEM_UPDATED = "item_updated"
     ITEM_DELETED = "item_deleted"
@@ -43,8 +47,10 @@ class SignalType(Enum):
 
 # ===== BASE TYPED DICTS =====
 
+
 class BaseItemData(TypedDict):
     """Base fields for all structure items."""
+
     id: int
     name: str
     created_at: Optional[str]
@@ -52,6 +58,7 @@ class BaseItemData(TypedDict):
 
 
 # ===== SPHERE TYPES =====
+
 
 class SphereData(BaseItemData):
     """Sphere data.
@@ -69,14 +76,18 @@ class SphereData(BaseItemData):
         created_at: Creation time
         updated_at: Last update time
     """
+
     description: Optional[str]
     color: Optional[str]
     icon: Optional[str]
-    is_active: bool
+
+
+# ===== SPHERE TYPES =====
 
 
 class SphereCreateData(TypedDict):
     """Data for creating a sphere."""
+
     name: str
     description: Optional[str]
     color: Optional[str]
@@ -86,6 +97,7 @@ class SphereCreateData(TypedDict):
 
 class SphereUpdateData(TypedDict, total=False):
     """Data for updating a sphere (all fields optional)."""
+
     name: str
     description: Optional[str]
     color: Optional[str]
@@ -94,6 +106,7 @@ class SphereUpdateData(TypedDict, total=False):
 
 
 # ===== SECTION TYPES =====
+
 
 class SectionData(BaseItemData):
     """Section data.
@@ -111,6 +124,7 @@ class SectionData(BaseItemData):
         created_at: Creation time
         updated_at: Last update time
     """
+
     sphere_id: int
     description: Optional[str]
     position: int
@@ -119,6 +133,7 @@ class SectionData(BaseItemData):
 
 class SectionCreateData(TypedDict):
     """Data for creating a section."""
+
     name: str
     sphere_id: int
     description: Optional[str]
@@ -128,6 +143,7 @@ class SectionCreateData(TypedDict):
 
 class SectionUpdateData(TypedDict, total=False):
     """Data for updating a section (all fields optional)."""
+
     name: str
     sphere_id: int
     description: Optional[str]
@@ -136,6 +152,7 @@ class SectionUpdateData(TypedDict, total=False):
 
 
 # ===== CATEGORY TYPES =====
+
 
 class CategoryData(BaseItemData):
     """Category data.
@@ -155,6 +172,7 @@ class CategoryData(BaseItemData):
         created_at: Creation time
         updated_at: Last update time
     """
+
     section_id: int
     description: Optional[str]
     position: int
@@ -165,6 +183,7 @@ class CategoryData(BaseItemData):
 
 class CategoryCreateData(TypedDict):
     """Data for creating a category."""
+
     name: str
     section_id: int
     description: Optional[str]
@@ -176,6 +195,7 @@ class CategoryCreateData(TypedDict):
 
 class CategoryUpdateData(TypedDict, total=False):
     """Data for updating a category (all fields optional)."""
+
     name: str
     section_id: int
     description: Optional[str]
@@ -185,10 +205,21 @@ class CategoryUpdateData(TypedDict, total=False):
     icon: Optional[str]
 
 
+# ===== GENERIC ITEM TYPES =====
+
+
+AnyItemData: TypeAlias = Union[SphereData, SectionData, CategoryData]
+AnyCreateData: TypeAlias = Union[SphereCreateData, SectionCreateData, CategoryCreateData]
+AnyUpdateData: TypeAlias = Union[SphereUpdateData, SectionUpdateData, CategoryUpdateData]
+AnyItemPayload: TypeAlias = Union[AnyItemData, BaseItemData, dict[str, Any]]
+
+
 # ===== LINK TYPES =====
+
 
 class LinkData(TypedDict):
     """Link data."""
+
     id: int
     category_id: int
     url: str
@@ -204,8 +235,10 @@ class LinkData(TypedDict):
 
 # ===== SEARCH TYPES =====
 
+
 class SearchResultItem(TypedDict):
     """Search result item."""
+
     id: int
     type: str  # "sphere", "section", "category", "link"
     title: str
@@ -218,8 +251,10 @@ class SearchResultItem(TypedDict):
 
 # ===== OPERATION RESULT TYPES =====
 
+
 class OperationResult(TypedDict):
     """Operation result."""
+
     success: bool
     message: Optional[str]
     error: Optional[str]
@@ -228,33 +263,40 @@ class OperationResult(TypedDict):
 
 class ValidationResult(TypedDict):
     """Validation result."""
+
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
 
 # ===== COUNT TYPES =====
 
+
 class NestedObjectsCount(TypedDict):
     """Count of nested objects."""
+
     categories_count: int
     links_count: int
 
 
 class SectionNestedCount(NestedObjectsCount):
     """Count of objects in a section."""
+
     pass
 
 
 class CategoryNestedCount(TypedDict):
     """Count of objects in a category."""
+
     links_count: int
 
 
 # ===== SIGNAL PAYLOAD TYPES =====
 
+
 class ItemCreatedPayload(TypedDict):
     """Payload for item created signal."""
+
     item_type: str
     parent_id: int
     item_data: BaseItemData
@@ -262,6 +304,7 @@ class ItemCreatedPayload(TypedDict):
 
 class ItemUpdatedPayload(TypedDict):
     """Payload for item updated signal."""
+
     item_type: str
     item_id: int
     item_data: BaseItemData
@@ -269,6 +312,7 @@ class ItemUpdatedPayload(TypedDict):
 
 class ItemDeletedPayload(TypedDict):
     """Payload for item deleted signal."""
+
     item_type: str
     item_id: int
     old_data: Optional[BaseItemData]
@@ -276,6 +320,7 @@ class ItemDeletedPayload(TypedDict):
 
 class ErrorPayload(TypedDict):
     """Payload for error signal."""
+
     title: str
     message: str
     error_code: Optional[str]
@@ -283,14 +328,17 @@ class ErrorPayload(TypedDict):
 
 # ===== CACHE TYPES =====
 
+
 class CacheKey(TypedDict):
     """Cache key."""
+
     key: str
     ttl: Optional[int]
 
 
 class CacheEntry(TypedDict):
     """Cache entry."""
+
     key: str
     value: Any
     created_at: float
@@ -299,8 +347,10 @@ class CacheEntry(TypedDict):
 
 # ===== METRICS TYPES =====
 
+
 class MetricSpan(TypedDict):
     """Metric span."""
+
     name: str
     start_time: float
     end_time: Optional[float]
@@ -310,8 +360,10 @@ class MetricSpan(TypedDict):
 
 # ===== TASK TYPES =====
 
+
 class TaskInfo(TypedDict):
     """Task information."""
+
     task_id: str
     description: str
     status: str  # "pending", "running", "completed", "failed"
@@ -324,6 +376,7 @@ class TaskInfo(TypedDict):
 
 
 # ===== CONFIGURATION TYPES =====
+
 
 class ItemTypeConfig:
     """Configuration for a structure item type."""
@@ -339,19 +392,3 @@ class ItemTypeConfig:
         self.parent_field = parent_field
         self.ru_name = ru_name
         self.upsert_method_name = upsert_method_name
-
-
-# ===== UNION TYPES =====
-
-# Union of all item data types
-AnyItemData = SphereData | SectionData | CategoryData
-AnyCreateData = SphereCreateData | SectionCreateData | CategoryCreateData  
-AnyUpdateData = SphereUpdateData | SectionUpdateData | CategoryUpdateData
-
-# Union of all payload types
-AnySignalPayload = (
-    ItemCreatedPayload | 
-    ItemUpdatedPayload | 
-    ItemDeletedPayload | 
-    ErrorPayload
-)

@@ -11,9 +11,13 @@ dependencies on QTableWidget/QTableWidgetItem have been removed.
 """
 
 import logging
-from typing import List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import Qt
+
+if TYPE_CHECKING:
+
+    from app.views.widgets.protocols import LinkTableProtocol
 
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 
@@ -22,9 +26,34 @@ logger = logging.getLogger(__name__)
 
 
 class DragDropHandlerMixin:
-    """Mixin for handling Drag & Drop in link table (QTableView)."""
+    """Mixin for handling Drag & Drop in link table (QTableView).
 
-    def _extract_item_ids_from_items(self, items) -> List[int]:
+    This mixin expects to be used with a class that implements LinkTableProtocol.
+    """
+
+    # Type hint for the host class
+    if TYPE_CHECKING:
+
+        def __init__(self: "LinkTableProtocol") -> None: ...
+        from app.views.widgets.link.data_management import DataManagementMixin as _DM
+
+        _current_links: dict[int, dict[str, Any]]
+
+    def get_link_at(self, row: int) -> Optional[dict[str, Any]]:  # type: ignore[misc]
+        """Get link data at row. To be implemented by host class."""
+        raise NotImplementedError("Host class must implement get_link_at")
+
+    def _extract_source_rows_from_mime(self, event) -> list[int]:  # type: ignore[misc]
+        """Extract source rows from MIME data. To be implemented by host class."""
+        raise NotImplementedError(
+            "Host class must implement _extract_source_rows_from_mime"
+        )
+
+    def _get_selected_rows(self) -> list[int]:  # type: ignore[misc]
+        """Get selected rows. To be implemented by host class."""
+        raise NotImplementedError("Host class must implement _get_selected_rows")
+
+    def _extract_item_ids_from_items(self, items) -> list[int]:
         """Extracts link IDs from selected indexes (QModelIndex).
 
         Expects ``items`` to be a sequence of ``QModelIndex``
@@ -103,7 +132,7 @@ class DragDropHandlerMixin:
             # Cache is rebuilt in any case to reflect actual model state
             self._rebuild_current_links()
 
-    def _get_current_order(self) -> List[int]:
+    def _get_current_order(self) -> list[int]:
         """Gets current order of link IDs by actual model row order."""
         try:
             model = getattr(self, "model", lambda: None)()
@@ -118,16 +147,78 @@ class DragDropHandlerMixin:
             logger.error("[DRAG] Error getting current links order: %s", e)
             return []
 
+    def _get_drop_positions(self, event) -> tuple[list[int], int]:
+        """Return source rows and insertion row for an internal drop."""
+
+        try:
+            source_rows = self._extract_source_rows_from_mime(event)
+        except Exception as exc:
+            logger.debug("[DROP] Failed to read rows from MIME: %s", exc, exc_info=True)
+            source_rows = []
+
+        if not source_rows:
+            source_rows = self._get_selected_rows()
+
+        source_rows = sorted({row for row in source_rows if isinstance(row, int)})
+
+        target_row = -1
+        row_count = 0
+        try:
+            pos = None
+            if hasattr(event, "position"):
+                pos_value = event.position()
+                if hasattr(pos_value, "toPoint"):
+                    pos = pos_value.toPoint()
+                else:
+                    pos = pos_value
+            elif hasattr(event, "pos"):
+                pos = event.pos()
+
+            model = getattr(self, "model", lambda: None)()
+            row_count = model.rowCount() if model is not None else 0
+
+            if pos is not None and hasattr(self, "indexAt"):
+                index = self.indexAt(pos)
+            else:
+                index = None
+
+            if index is not None and index.isValid():
+                target_row = index.row()
+                if pos is not None and hasattr(self, "visualRect"):
+                    rect = self.visualRect(index)
+                    try:
+                        mid_y = rect.center().y()
+                    except Exception:
+                        mid_y = rect.top() + rect.height() // 2
+                    if pos.y() >= mid_y:
+                        target_row = min(index.row() + 1, row_count)
+            else:
+                target_row = row_count
+        except Exception as exc:
+            logger.debug(
+                "[DROP] Failed to compute drop target row: %s", exc, exc_info=True
+            )
+            model = getattr(self, "model", lambda: None)()
+            row_count = model.rowCount() if model is not None else 0
+            target_row = row_count
+
+        if target_row < 0:
+            target_row = 0
+        elif row_count and target_row > row_count:
+            target_row = row_count
+
+        return source_rows, target_row
+
 
 # --- Reusable table helpers ---
 
 
-def get_selected_rows(view) -> List[int]:
+def get_selected_rows(view) -> list[int]:
     """Gets sorted list of unique selected rows via common utility."""
     return get_selected_rows_util(view)
 
 
-def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
+def extract_source_rows_from_mime(table, event, mime_type: str) -> list[int]:
     """Restores source row numbers from MIME data with IDs.
 
     Identifiers are extracted via ``MimeDataParser`` and matched with
@@ -141,9 +232,11 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
         if not item_ids:
             return []
 
-        source_rows: List[int] = []
+        source_rows: list[int] = []
         model = getattr(table, "model", lambda: None)()
-        total = model.rowCount() if model is not None else 0
+        if model is None:
+            return []
+        total = model.rowCount()
         for row in range(total):
             idx = model.index(row, 0)
             data = model.data(idx, Qt.ItemDataRole.UserRole)
@@ -184,7 +277,7 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
         # If table has cache rebuilding method, use it.
         # This is main scenario when using DragDropHandlerMixin.
         if hasattr(table, "_rebuild_current_links") and callable(
-            getattr(table, "_rebuild_current_links")
+            table._rebuild_current_links
         ):
             table._rebuild_current_links()
         else:
@@ -194,7 +287,7 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
             )
 
 
-def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
+def move_rows_visually(table, source_rows: list[int], target_row: int) -> None:
     """Moves set of rows via model, preserving relative order."""
     if not source_rows:
         return
@@ -204,12 +297,14 @@ def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
     model.move_rows(list(source_rows), target_row)
 
 
-def get_current_order(table) -> List[int]:
+def get_current_order(table) -> list[int]:
     """Returns IDs of all elements in current table row order."""
     try:
-        ids: List[int] = []
+        ids: list[int] = []
         model = getattr(table, "model", lambda: None)()
-        total = model.rowCount() if model is not None else 0
+        if model is None:
+            return []
+        total = model.rowCount()
         for row in range(total):
             try:
                 link_data = table.get_link_at(row)

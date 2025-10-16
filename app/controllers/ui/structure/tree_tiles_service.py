@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 class TreeTilesService:
     """Grouped operations for updating category tiles."""
 
-    def __init__(self, manager: "TreeManagement") -> None:
+    def __init__(self, manager: TreeManagement) -> None:
         self._manager = manager
 
     # --- Public API -----------------------------------------------------
@@ -60,9 +59,7 @@ class TreeTilesService:
                 else:
                     parent = cur
                 section_meta = (
-                    get_tree_tuple(parent, 0)
-                    if parent and parent.isValid()
-                    else None
+                    get_tree_tuple(parent, 0) if parent and parent.isValid() else None
                 )
                 if section_meta and section_meta[0] == "section":
                     self.refresh_section_tiles(section_meta[1])
@@ -82,4 +79,3 @@ class TreeTilesService:
             logger.exception(
                 "TreeTilesService.refresh_after_section_edit: refresh failed"
             )
-

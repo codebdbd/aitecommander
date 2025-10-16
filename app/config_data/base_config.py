@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from .utils import get_by_path
 
@@ -10,7 +10,7 @@ from .utils import get_by_path
 class BaseConfig:
     """Common helper used by every configuration namespace."""
 
-    def __init__(self, config_data: Dict[str, Any]):
+    def __init__(self, config_data: dict[str, Any]):
         """Store the raw configuration payload."""
         self._config = config_data
 

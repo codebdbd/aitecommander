@@ -6,7 +6,7 @@ static analysis, resulting in safer and more maintainable code.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
@@ -79,42 +79,42 @@ class MainWindowProtocol(Protocol):
     theme_ctrl: ThemeControllerProtocol
 
     # UI components — top bar
-    top_bar_host: Optional[QWidget]
-    content_container: Optional[QWidget]
-    quick_add_widget: Optional[QWidget]
-    fav_widget: Optional[QWidget]
-    recent_links_widget: Optional[QWidget]
-    search: Optional[QLineEdit]
+    top_bar_host: QWidget | None
+    content_container: QWidget | None
+    quick_add_widget: QWidget | None
+    fav_widget: QWidget | None
+    recent_links_widget: QWidget | None
+    search: QLineEdit | None
 
     # UI components — main area
-    left_panel: Optional[QWidget]
-    tree: Optional[QWidget]
-    tree_model: Optional[QObject]
-    splitter: Optional[QWidget]
-    stack: Optional[QStackedLayout]
-    tiles: Optional[QWidget]
-    tiles_scroll: Optional[QWidget]
-    table: Optional[QWidget]
-    table_container: Optional[QWidget]
+    left_panel: QWidget | None
+    tree: QWidget | None
+    tree_model: QObject | None
+    splitter: QWidget | None
+    stack: QStackedLayout | None
+    tiles: QWidget | None
+    tiles_scroll: QWidget | None
+    table: QWidget | None
+    table_container: QWidget | None
 
     # UI components — bottom bar
-    spheres_bar: Optional[QWidget]
-    sphere_group: Optional[QButtonGroup]
+    spheres_bar: QWidget | None
+    sphere_group: QButtonGroup | None
     sphere_buttons: dict[int, QWidget]
-    bottom_bar_container: Optional[QWidget]
-    switch_sphere_button: Optional[QWidget]
+    bottom_bar_container: QWidget | None
+    switch_sphere_button: QWidget | None
 
     # State
-    current_category_id: Optional[int]
-    current_sphere_id: Optional[int]
-    thread_pool: Optional[QThreadPool]  # Improvement: explicit type instead of Any
-    undo_stack: Optional[Any]  # UndoManager reference; avoid cyclic import
+    current_category_id: int | None
+    current_sphere_id: int | None
+    thread_pool: QThreadPool | None  # Improvement: explicit type instead of Any
+    undo_stack: Any | None  # UndoManager reference; avoid cyclic import
 
     # Internal flags
     _first_structure_load: bool
-    _topbar_manager: Optional[Any]  # TopBarLayoutManager reference; avoid cyclic import
+    _topbar_manager: Any | None  # TopBarLayoutManager reference; avoid cyclic import
     _topbar_initialized: bool
-    _auto_hide_tree_filter: Optional[Any]  # `_AutoHideTreeFilter` (private helper)
+    _auto_hide_tree_filter: Any | None  # `_AutoHideTreeFilter` (private helper)
 
     # QMainWindow methods
     def show(self) -> None:
@@ -141,11 +141,11 @@ class MainWindowProtocol(Protocol):
         """Return the window height."""
         ...
 
-    def setUpdatesEnabled(self, enable: bool) -> None:
+    def setUpdatesEnabled(self, _enable: bool) -> None:
         """Enable or disable widget updates."""
         ...
 
-    def centralWidget(self) -> Optional[QWidget]:
+    def centralWidget(self) -> QWidget | None:
         """Return the central widget."""
         ...
 
@@ -153,7 +153,7 @@ class MainWindowProtocol(Protocol):
         """Assign the central widget."""
         ...
 
-    def setMenuBar(self, menubar: QWidget) -> None:
+    def setMenuBar(self, _menubar: QWidget) -> None:
         """Install the menu bar."""
         ...
 
@@ -183,7 +183,7 @@ class UIStateManagerProtocol(Protocol):
         """Load a category."""
         ...
 
-    def get_current_category(self) -> Optional[int]:
+    def get_current_category(self) -> int | None:
         """Return the current category ID."""
         ...
 
@@ -192,9 +192,9 @@ class UIStateManagerProtocol(Protocol):
 class StructureBusinessProtocol(Protocol):
     """Protocol describing the structure business logic layer."""
 
-    current_sphere_id: Optional[int]
+    current_sphere_id: int | None
     structure_loaded: pyqtSignal
-    async_operations: Optional[Any]
+    async_operations: Any | None
 
     def load_structure_async(self, sphere_id: int) -> None:
         """Load the structure for a sphere asynchronously."""
@@ -218,7 +218,9 @@ class ResourceManagerProtocol(Protocol):
     Improvement note: adds a dedicated Protocol for resource lifecycle control.
     """
 
-    def register_resource(self, resource: Any, cleanup_func: Callable[[], None]) -> None:
+    def register_resource(
+        self, resource: Any, cleanup_func: Callable[[], None]
+    ) -> None:
         """Register a resource for automatic cleanup."""
         ...
 

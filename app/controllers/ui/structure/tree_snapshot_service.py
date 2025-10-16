@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
 from PyQt6.QtCore import QObject, QTimer
 
@@ -16,8 +16,8 @@ class TreeSnapshotService(QObject):
         super().__init__(parent=parent)
         self._model = model
         self._pending: list[dict] | None = None
-        self._on_success: Optional[Callable[[], None]] = None
-        self._on_error: Optional[Callable[[], None]] = None
+        self._on_success: Callable[[], None] | None = None
+        self._on_error: Callable[[], None] | None = None
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -27,8 +27,8 @@ class TreeSnapshotService(QObject):
         self,
         snapshot: list[dict],
         *,
-        on_success: Optional[Callable[[], None]] = None,
-        on_error: Optional[Callable[[], None]] = None,
+        on_success: Callable[[], None] | None = None,
+        on_error: Callable[[], None] | None = None,
     ) -> None:
         """Defer snapshot application until the next Qt event loop cycle."""
         # Create a copy so changes to the original list won't affect application
@@ -46,8 +46,12 @@ class TreeSnapshotService(QObject):
         self._pending = None
         self._on_success = None
         self._on_error = None
+
+        # Преобразуем icon_path в QIcon ДО передачи в модель
+        processed_snapshot = self._preprocess_snapshot(snapshot)
+
         try:
-            self._model.set_snapshot(snapshot)
+            self._model.set_snapshot(processed_snapshot)
         except Exception:
             logger.exception(
                 "TreeSnapshotService: model failed to accept snapshot",
@@ -69,3 +73,63 @@ class TreeSnapshotService(QObject):
                         "TreeSnapshotService: on_success callback failed",
                         exc_info=True,
                     )
+
+    def _preprocess_snapshot(self, snapshot: list[dict]) -> list[dict]:
+        """Преобразуем icon_path в QIcon для корректной работы модели."""
+        try:
+            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+        except ImportError:
+            logger.debug("Icon cache not available, skipping preprocessing")
+            return snapshot
+
+        processed = []
+        for section in snapshot:
+            if not isinstance(section, dict):
+                processed.append(section)
+                continue
+
+            # Преобразуем icon_path секции в QIcon
+            section_copy = dict(section)
+            icon_path = section.get("icon_path")
+            # Check if icon_path is valid non-empty string after stripping
+            if icon_path and isinstance(icon_path, str):
+                icon_path_clean = icon_path.strip()
+                if icon_path_clean:
+                    try:
+                        section_copy["icon"] = icon_cache.get_icon(icon_path_clean, source="tree_snapshot")
+                    except Exception:
+                        section_copy["icon"] = None
+                else:
+                    section_copy["icon"] = None
+            else:
+                section_copy["icon"] = None
+
+            # Преобразуем icon_path категорий в QIcon
+            if "categories" in section:
+                processed_categories = []
+                for category in section["categories"]:
+                    if not isinstance(category, dict):
+                        processed_categories.append(category)
+                        continue
+
+                    category_copy = dict(category)
+                    icon_path = category.get("icon_path")
+                    # Check if icon_path is valid non-empty string after stripping
+                    if icon_path and isinstance(icon_path, str):
+                        icon_path_clean = icon_path.strip()
+                        if icon_path_clean:
+                            try:
+                                category_copy["icon"] = icon_cache.get_icon(icon_path_clean, source="tree_snapshot")
+                            except Exception:
+                                category_copy["icon"] = None
+                        else:
+                            category_copy["icon"] = None
+                    else:
+                        category_copy["icon"] = None
+
+                    processed_categories.append(category_copy)
+                section_copy["categories"] = processed_categories
+
+            processed.append(section_copy)
+
+        return processed

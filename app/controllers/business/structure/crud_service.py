@@ -1,17 +1,19 @@
 """CRUD helpers for structure business logic."""
-
 from __future__ import annotations
 
-from typing import Any, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 try:
     from app.utils.metrics import measure_time
 except ImportError:
     # Fallback если метрики недоступны
-    def measure_time(name: str, **kwargs):
+    def measure_time(operation_name: str, log_threshold_ms: float = 0.0):  # type: ignore[misc]
         def decorator(func):
             return func
+
         return decorator
+
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from logging import Logger
@@ -23,6 +25,12 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
     from .async_service import StructureAsyncService
     from .cache_service import StructureCacheService
+
+
+@dataclass(slots=True)
+class MoveCategoriesBatchResult:
+    moved_ids: list[int]
+    touched_sections: set[int]
 
 
 class StructureCrudService:
@@ -50,9 +58,9 @@ class StructureCrudService:
     # Section operations
     # ------------------------------------------------------------------
     @measure_time("create_section", log_threshold_ms=200)
-    def create_section(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def create_section(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт раздел и эмитит сигнал.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием sphere_id.
         ✅ Метрика производительности: измеряется время выполнения.
         """
@@ -79,9 +87,9 @@ class StructureCrudService:
     @measure_time("update_section", log_threshold_ms=200)
     def update_section(
         self, section_id: int, data: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Обновляет раздел и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         ok = self._structure_service.update_section(section_id, data)
@@ -101,11 +109,9 @@ class StructureCrudService:
         return section_data or None
 
     @measure_time("delete_section", log_threshold_ms=300)
-    def delete_section(
-        self, section_id: int
-    ) -> tuple[bool, dict[str, Any], int, int]:
+    def delete_section(self, section_id: int) -> tuple[bool, dict[str, Any], int, int]:
         """Удаляет раздел и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         section_before = self._structure_service.get_section_by_id(section_id) or {}
@@ -137,9 +143,9 @@ class StructureCrudService:
     # Category operations
     # ------------------------------------------------------------------
     @measure_time("create_category", log_threshold_ms=200)
-    def create_category(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def create_category(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт категорию и эмитит сигнал.
-        
+
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием section_id.
         ✅ Метрика производительности: измеряется время выполнения.
         """
@@ -164,9 +170,9 @@ class StructureCrudService:
     @measure_time("update_category", log_threshold_ms=200)
     def update_category(
         self, category_id: int, data: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Обновляет категорию и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         ok = self._structure_service.update_category(category_id, data)
@@ -186,7 +192,7 @@ class StructureCrudService:
     @measure_time("delete_category", log_threshold_ms=300)
     def delete_category(self, category_id: int) -> tuple[bool, dict[str, Any], int]:
         """Удаляет категорию и эмитит сигнал.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         category_before = self._structure_service.get_category_by_id(category_id) or {}
@@ -206,12 +212,60 @@ class StructureCrudService:
                 self._cache_service.invalidate_categories_cache(section_id)
         return success, category_before, 0
 
+    def _collect_source_sections(self, category_ids, target_section_id):
+        """Collect source sections from category IDs."""
+        source_sections: set[int] = set()
+        try:
+            for cid in category_ids:
+                try:
+                    cdata = self._structure_service.get_category_by_id(int(cid))
+                except (ValueError, TypeError) as e:
+                    self._logger.debug("Invalid category_id %s: %s", cid, e)
+                    cdata = None
+                except Exception as e:
+                    self._logger.exception(
+                        "Unexpected error getting category %s: %s", cid, e
+                    )
+                    cdata = None
+                if isinstance(cdata, dict):
+                    sid = cdata.get("section_id")
+                    if isinstance(sid, int) and sid > 0 and sid != target_section_id:
+                        source_sections.add(int(sid))
+        except (ValueError, TypeError) as e:
+            self._logger.warning("Error collecting source sections: %s", e)
+            source_sections = set()
+        except Exception as e:
+            self._logger.exception("Critical error in move_categories_batch: %s", e)
+            raise
+        return source_sections
+
+    def _invalidate_caches_and_reload(self, touched_sections):
+        """Invalidate caches and schedule structure reload."""
+        for sid in touched_sections:
+            try:
+                self._cache_service.invalidate_categories_cache(sid)
+            except Exception:  # pragma: no cover - defensive
+                pass
+
+        try:
+            self._cache_service.invalidate_structure_cache()
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        try:
+            from app.config_data import app_config
+
+            delay = int(app_config.ui.get_structure_reload_immediate_delay_ms())
+            self._async_service.schedule_structure_reload(delay)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
     @measure_time("move_categories_batch", log_threshold_ms=500)
     def move_categories_batch(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
     ) -> list[int]:
         """Перемещает категории batch операцией.
-        
+
         ✅ Метрика производительности: измеряется время выполнения.
         """
         if (
@@ -219,50 +273,24 @@ class StructureCrudService:
             or not isinstance(target_section_id, int)
             or target_section_id <= 0
         ):
-            return []
+            return []  # type: ignore[return-value]
 
-        source_sections: set[int] = set()
-        try:
-            for cid in category_ids:
-                try:
-                    cdata = self._structure_service.get_category_by_id(int(cid))
-                except (ValueError, TypeError) as e:
-                    # ✅ Ожидаемые ошибки валидации
-                    self._logger.debug("Invalid category_id %s: %s", cid, e)
-                    cdata = None
-                except Exception as e:
-                    # ✅ Неожиданные ошибки
-                    self._logger.exception("Unexpected error getting category %s: %s", cid, e)
-                    cdata = None
-                if isinstance(cdata, dict):
-                    sid = cdata.get("section_id")
-                    if isinstance(sid, int) and sid > 0 and sid != target_section_id:
-                        source_sections.add(int(sid))
-        except (ValueError, TypeError) as e:
-            # ✅ Ожидаемые ошибки
-            self._logger.warning("Error collecting source sections: %s", e)
-            source_sections = set()
-        except Exception as e:
-            # ✅ Неожиданные ошибки
-            self._logger.exception("Critical error in move_categories_batch: %s", e)
-            raise
+        source_sections = self._collect_source_sections(category_ids, target_section_id)
 
-        self._owner.begin_batch()
-        try:
-            moved_ids = self._structure_service.move_categories_to_section_bulk(
+        moved_ids = (
+            self._structure_service.move_categories_to_section_bulk(
                 category_ids, target_section_id, base_row
             )
+            or []
+        )
 
-            try:
-                for sid in source_sections:
-                    self._cache_service.invalidate_categories_cache(sid)
-            except Exception:  # pragma: no cover - defensive
-                pass
-            self._cache_service.invalidate_categories_cache(target_section_id)
+        touched_sections: set[int] = set(source_sections)
+        if isinstance(target_section_id, int) and target_section_id > 0:
+            touched_sections.add(target_section_id)
 
-            return moved_ids or []
-        finally:
-            self._owner.end_batch()
+        self._invalidate_caches_and_reload(touched_sections)
+
+        return moved_ids  # type: ignore[return-value]
 
     def create_categories_bulk(
         self, items: list[dict[str, Any]]
@@ -288,9 +316,7 @@ class StructureCrudService:
             pass
         return created_or_existing or []
 
-    def create_category_for_import(
-        self, category_data: dict[str, Any]
-    ) -> Optional[int]:
+    def create_category_for_import(self, category_data: dict[str, Any]) -> int | None:
         """Create a category during import workflow and refresh caches."""
 
         category_id = self._import_service.create_category_for_import(

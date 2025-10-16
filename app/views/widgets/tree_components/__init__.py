@@ -3,4 +3,4 @@
 NavigationHandler removed - functionality moved to centralized KeyboardManager.
 """
 
-__all__ = []
+__all__: list[str] = []

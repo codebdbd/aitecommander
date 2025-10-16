@@ -3,6 +3,7 @@
 
 # GUI Framework
 PyQt6>=6.4.0
+PyQt6-sip>=13.5.0
 
 # HTTP клиент для загрузки фавиконок и веб-контента
 requests>=2.28.0

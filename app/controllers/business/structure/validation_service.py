@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.controllers.structure_modules import ValidationResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from logging import Logger
 
+    from app.controllers.business.structure.cache_service import StructureCacheService
     from app.controllers.business.structure_business import StructureBusinessLogic
     from app.controllers.structure_services.utilities import UtilityService
     from app.controllers.structure_services.validation import ValidationService
-    from app.controllers.business.structure.cache_service import StructureCacheService
-    from app.services.structure_service import StructureService
     from app.models import StructureModel
+    from app.services.structure_service import StructureService
 
 
 class StructureValidationService:
@@ -46,15 +46,17 @@ class StructureValidationService:
             self._logger,
         )
 
-    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> dict[str, Any] | None:
         """Return raw section payload."""
         return self._structure_service.get_section_by_id(section_id)
 
-    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> dict[str, Any] | None:
         """Return raw category payload."""
         return self._structure_service.get_category_by_id(category_id)
 
-    def get_item_for_editing(self, item_id: int, item_type: Any) -> Optional[dict[str, Any]]:
+    def get_item_for_editing(
+        self, item_id: int, item_type: Any
+    ) -> dict[str, Any] | None:
         """Return payload for editing dialogs."""
         return self._utility_service.get_item_for_editing(
             item_id=item_id,
@@ -64,16 +66,16 @@ class StructureValidationService:
             logger=self._logger,
         )
 
-    def get_section_for_editing(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_for_editing(self, section_id: int) -> dict[str, Any] | None:
         """Return section payload for editing dialogs."""
         return self._structure_model.get_section_data(section_id)
 
-    def get_category_for_editing(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_for_editing(self, category_id: int) -> dict[str, Any] | None:
         """Return category payload for editing dialogs."""
         return self._structure_model.get_category_data(category_id)
 
     def validate_section_data(
-        self, data: dict[str, Any], section_id: Optional[int] = None
+        self, data: dict[str, Any], section_id: int | None = None
     ) -> ValidationResult:
         """Validate section payload using ``ValidationService``."""
         return self._validation_service.validate_section_data(
@@ -83,7 +85,7 @@ class StructureValidationService:
         )
 
     def validate_category_data(
-        self, data: dict[str, Any], category_id: Optional[int] = None
+        self, data: dict[str, Any], category_id: int | None = None
     ) -> ValidationResult:
         """Validate category payload using ``ValidationService``."""
         return self._validation_service.validate_category_data(
@@ -93,7 +95,7 @@ class StructureValidationService:
         )
 
     def has_duplicate_category(
-        self, section_id: int, category_name: str, exclude_id: Optional[int] = None
+        self, section_id: int, category_name: str, exclude_id: int | None = None
     ) -> bool:
         """Check whether a duplicate category exists within the section."""
         if not category_name:
@@ -108,12 +110,14 @@ class StructureValidationService:
                 return True
         return False
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> dict[str, Any] | None:
         """Return sphere data by identifier."""
         spheres = self._owner.get_spheres()
-        return next((sphere for sphere in spheres if sphere.get("id") == sphere_id), None)
+        return next(
+            (sphere for sphere in spheres if sphere.get("id") == sphere_id), None
+        )
 
-    def get_next_sphere_id(self) -> Optional[int]:
+    def get_next_sphere_id(self) -> int | None:
         """Return the next sphere identifier cycling through the cache."""
         spheres = self._owner.get_spheres()
         if not spheres:

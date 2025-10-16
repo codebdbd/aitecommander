@@ -1,5 +1,4 @@
 import logging
-import os
 import platform
 import re
 import subprocess
@@ -7,8 +6,8 @@ import time
 from pathlib import Path
 
 from PyQt6.QtCore import (
-    QCoreApplication,
     QAbstractTableModel,
+    QCoreApplication,
     QDate,
     QModelIndex,
     Qt,
@@ -50,6 +49,7 @@ def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
 
 class _SearchResultsModel(QAbstractTableModel):
     """Table model holding file search results for the dialog."""
+
     HEADERS = [
         _tr_model("Name"),
         _tr_model("Path"),
@@ -62,10 +62,14 @@ class _SearchResultsModel(QAbstractTableModel):
         super().__init__(parent)
         self._rows = []  # list of tuples: (name, path, size_kb, mtime_str, has_content)
 
-    def rowCount(self, parent=QModelIndex()):  # noqa: N802 Qt signature
+    def rowCount(self, parent=None):  # noqa: N802 Qt signature
+        if parent is None:
+            parent = QModelIndex()
         return 0 if parent.isValid() else len(self._rows)
 
-    def columnCount(self, parent=QModelIndex()):  # noqa: N802
+    def columnCount(self, parent=None):  # noqa: N802
+        if parent is None:
+            parent = QModelIndex()
         return 0 if parent.isValid() else len(self.HEADERS)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
@@ -328,9 +332,7 @@ class FileSearchDialog(BaseDialog):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Name
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Path
-        header.setSectionResizeMode(
-            2, QHeaderView.ResizeMode.ResizeToContents
-        )  # Size
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Size
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Date
         header.setSectionResizeMode(
             4, QHeaderView.ResizeMode.ResizeToContents
@@ -376,9 +378,8 @@ class FileSearchDialog(BaseDialog):
         except Exception:
             pass
 
-    def retranslateUi(self) -> None:  # type: ignore[override]
-        """Update all texts on language change."""
-        self.setWindowTitle(self.tr("Advanced file search"))
+    def _translate_labels(self):
+        """Translate label texts."""
         if self.lbl_search_location is not None:
             self.lbl_search_location.setText(self.tr("Search location:"))
         if self.lbl_name_regex is not None:
@@ -392,7 +393,8 @@ class FileSearchDialog(BaseDialog):
         if self.lbl_modified is not None:
             self.lbl_modified.setText(self.tr("Modified:"))
 
-        # Buttons and tooltips
+    def _translate_buttons(self):
+        """Translate button texts and tooltips."""
         if hasattr(self, "pattern_combo") and self.pattern_combo is not None:
             self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
         if hasattr(self, "content_regex_cb") and self.content_regex_cb is not None:
@@ -407,14 +409,30 @@ class FileSearchDialog(BaseDialog):
             self.add_link_btn.setText(self.tr("Add as link"))
         if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:
             self.open_folder_btn.setText(self.tr("Open in file explorer"))
-        if hasattr(self, "status_label") and self.status_label is not None and not self.is_searching:
+
+    def _translate_status(self):
+        """Translate status label."""
+        if (
+            hasattr(self, "status_label")
+            and self.status_label is not None
+            and not self.is_searching
+        ):
             self.status_label.setText(self.tr("Ready to search"))
 
-        # Placeholders
+    def _translate_placeholders(self):
+        """Translate placeholder texts."""
         if hasattr(self, "size_min_le") and self.size_min_le is not None:
             self.size_min_le.setPlaceholderText(self.tr("from"))
         if hasattr(self, "size_max_le") and self.size_max_le is not None:
             self.size_max_le.setPlaceholderText(self.tr("to"))
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update all texts on language change."""
+        self.setWindowTitle(self.tr("Advanced file search"))
+        self._translate_labels()
+        self._translate_buttons()
+        self._translate_status()
+        self._translate_placeholders()
 
     def _update_buttons(self):
         """Enable/disable buttons based on current selection."""
@@ -493,17 +511,23 @@ class FileSearchDialog(BaseDialog):
 
             if system == "Windows":
                 # Windows: explorer with /select flag
-                subprocess.run(["explorer", "/select,", str(file_path_obj)], shell=False)
+                subprocess.run(
+                    ["explorer", "/select,", str(file_path_obj)], shell=False
+                )
             elif system == "Darwin":  # macOS
                 # macOS: use `open -R`
                 subprocess.run(["open", "-R", str(file_path_obj)], check=True)
             elif system == "Linux":
                 # Linux: attempt several file managers sequentially
                 try:
-                    subprocess.run(["nautilus", "--select", str(file_path_obj)], check=True)
+                    subprocess.run(
+                        ["nautilus", "--select", str(file_path_obj)], check=True
+                    )
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     try:
-                        subprocess.run(["dolphin", "--select", str(file_path_obj)], check=True)
+                        subprocess.run(
+                            ["dolphin", "--select", str(file_path_obj)], check=True
+                        )
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         try:
                             subprocess.run(
@@ -516,7 +540,9 @@ class FileSearchDialog(BaseDialog):
                                 )
                             except (subprocess.CalledProcessError, FileNotFoundError):
                                 folder_path = file_path_obj.parent
-                                subprocess.run(["xdg-open", str(folder_path)], check=True)
+                                subprocess.run(
+                                    ["xdg-open", str(folder_path)], check=True
+                                )
             else:
                 folder_path = file_path_obj.parent
                 subprocess.run(["xdg-open", str(folder_path)], check=True)
@@ -526,9 +552,7 @@ class FileSearchDialog(BaseDialog):
                 self.tr("Failed to open file in explorer: {error}").format(error=str(e))
             )
         except Exception as e:
-            self.show_warning(
-                self.tr("Unexpected error: {error}").format(error=str(e))
-            )
+            self.show_warning(self.tr("Unexpected error: {error}").format(error=str(e)))
 
     def _setup_defaults(self):
         """Reset default values."""
@@ -590,9 +614,9 @@ class FileSearchDialog(BaseDialog):
                 re.compile(content_pattern, flags)
             except re.error as e:
                 self.show_warning(
-                    self.tr(
-                        "Invalid regular expression for content: {error}"
-                    ).format(error=e)
+                    self.tr("Invalid regular expression for content: {error}").format(
+                        error=e
+                    )
                 )
                 return False
 

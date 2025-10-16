@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import weakref
 from contextlib import contextmanager
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +43,16 @@ class ResourceManager:
             name: Manager identifier used for logging.
         """
         self._name = name
-        self._resources: List[Tuple[str, Callable[[], None], Optional[weakref.finalize]]] = []
+        self._resources: list[
+            tuple[str, Callable[[], None], weakref.finalize | None]
+        ] = []
         self._cleaned_up = False
-        self._cleanup_errors: List[Tuple[str, Exception]] = []
+        self._cleanup_errors: list[tuple[str, Exception]] = []
 
     def register_resource(
         self,
         resource: Any,
-        cleanup_func: Optional[Callable[[], None]] = None,
+        cleanup_func: Callable[[], None] | None = None,
         name: str = "",
         use_finalize: bool = True,
     ) -> None:
@@ -84,18 +86,24 @@ class ResourceManager:
                 logger.warning(
                     "%s: cannot auto-detect cleanup for %s, skipping",
                     self._name,
-                    type(resource).__name__
+                    type(resource).__name__,
                 )
                 return
 
         resource_name = name or f"{type(resource).__name__}@{id(resource)}"
-        
+
         finalizer = None
         if use_finalize:
             try:
                 # weakref.finalize invokes cleanup_func once the resource is deleted
-                finalizer = weakref.finalize(resource, self._safe_cleanup, cleanup_func, resource_name)
-                logger.debug("%s: registered resource '%s' with finalize", self._name, resource_name)
+                finalizer = weakref.finalize(
+                    resource, self._safe_cleanup, cleanup_func, resource_name
+                )
+                logger.debug(
+                    "%s: registered resource '%s' with finalize",
+                    self._name,
+                    resource_name,
+                )
             except TypeError as e:
                 logger.debug(
                     "%s: cannot create finalize for '%s': %s (will use manual cleanup)",
@@ -105,28 +113,30 @@ class ResourceManager:
                 )
 
         self._resources.append((resource_name, cleanup_func, finalizer))
-    
-    def _auto_detect_cleanup(self, resource: Any) -> Optional[Callable[[], None]]:
+
+    def _auto_detect_cleanup(self, resource: Any) -> Callable[[], None] | None:
         """Automatically detect a cleanup method for the resource.
 
         Improvement note: makes the API simpler—no need to supply ``cleanup_func``
         for typical Qt objects.
         """
         # QTimer -> stop()
-        if hasattr(resource, 'stop') and callable(getattr(resource, 'stop')):
+        if hasattr(resource, "stop") and callable(resource.stop):
             return resource.stop
-        
+
         # QWidget, QObject -> deleteLater()
-        if hasattr(resource, 'deleteLater') and callable(getattr(resource, 'deleteLater')):
+        if hasattr(resource, "deleteLater") and callable(resource.deleteLater):
             return resource.deleteLater
-        
+
         # File-like -> close()
-        if hasattr(resource, 'close') and callable(getattr(resource, 'close')):
+        if hasattr(resource, "close") and callable(resource.close):
             return resource.close
-        
+
         return None
 
-    def _safe_cleanup(self, cleanup_func: Callable[[], None], resource_name: str) -> None:
+    def _safe_cleanup(
+        self, cleanup_func: Callable[[], None], resource_name: str
+    ) -> None:
         """Invoke the cleanup function with error handling.
 
         Args:
@@ -156,7 +166,9 @@ class ResourceManager:
             logger.debug("%s: cleanup_all called multiple times, ignoring", self._name)
             return
 
-        logger.debug("%s: starting cleanup of %d resources", self._name, len(self._resources))
+        logger.debug(
+            "%s: starting cleanup of %d resources", self._name, len(self._resources)
+        )
         self._cleaned_up = True
         self._cleanup_errors.clear()
 
@@ -190,7 +202,7 @@ class ResourceManager:
         """
         return self._cleaned_up
 
-    def get_cleanup_errors(self) -> List[Tuple[str, Exception]]:
+    def get_cleanup_errors(self) -> list[tuple[str, Exception]]:
         """Return the list of cleanup errors encountered.
 
         Returns:
@@ -202,14 +214,17 @@ class ResourceManager:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, _exc_val, _exc_tb) -> None:
         """Context manager exit that performs automatic cleanup."""
         self.cleanup_all()
 
     def __del__(self) -> None:
         """Destructor that performs cleanup when it was not invoked explicitly."""
         if not self._cleaned_up:
-            logger.debug("%s: cleanup_all not called explicitly, cleaning up in __del__", self._name)
+            logger.debug(
+                "%s: cleanup_all not called explicitly, cleaning up in __del__",
+                self._name,
+            )
             try:
                 self.cleanup_all()
             except Exception:

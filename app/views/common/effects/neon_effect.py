@@ -1,9 +1,7 @@
 # app/views/effects/neon_effect.py
 from __future__ import annotations
 
-from typing import Optional
-
-from PyQt6.QtCore import QEvent, QObject
+from PyQt6.QtCore import QChildEvent, QEvent, QObject
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -40,7 +38,7 @@ class NeonEventFilter(QObject):
 
     def __init__(
         self,
-        parent: Optional[QObject] = None,
+        parent: QObject | None = None,
         *,
         color: QColor | None = None,
         blur_radius: int = 18,
@@ -56,7 +54,7 @@ class NeonEventFilter(QObject):
         self._outline_only = outline_only
         self._tracked_widgets: list[QWidget] = []  # Track widgets for cleanup
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
         et = event.type()
 
         # Handle buttons, input fields, and list/table views
@@ -101,9 +99,10 @@ class NeonEventFilter(QObject):
         # eligible child widgets
         if et == QEvent.Type.ChildAdded:
             try:
-                child = event.child()
-                if isinstance(child, QWidget):
-                    self._attach_to_tree(child)
+                if isinstance(event, QChildEvent):
+                    child = event.child()
+                    if isinstance(child, QWidget):
+                        self._attach_to_tree(child)
             except Exception:
                 pass
 
@@ -142,12 +141,12 @@ class NeonEventFilter(QObject):
 
     def _maybe_connect_toggled(self, w: QWidget) -> None:
         try:
-            if hasattr(w, "toggled") and callable(getattr(w, "toggled")):
-                if not getattr(w, "_neon_toggled_connected", False):
+            if hasattr(w, "toggled") and callable(w.toggled):
+                if not bool(getattr(w, "_neon_toggled_connected", False)):
                     w.toggled.connect(
                         lambda checked, ww=w: self._on_toggled(ww, checked)
                     )
-                    setattr(w, "_neon_toggled_connected", True)
+                    w._neon_toggled_connected = True
         except Exception:
             pass
 
@@ -166,7 +165,7 @@ class NeonEventFilter(QObject):
             eff.setBlurRadius(self._blur)
             eff.setColor(self._color)
             eff.setOffset(self._x, self._y)
-            setattr(w, "_neon_effect", eff)
+            w._neon_effect = eff
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:
@@ -221,7 +220,9 @@ class NeonEventFilter(QObject):
             try:
                 widget.removeEventFilter(self)
                 # Disconnect from toggled if connected
-                if hasattr(widget, "toggled") and getattr(widget, "_neon_toggled_connected", False):
+                if hasattr(widget, "toggled") and getattr(
+                    widget, "_neon_toggled_connected", False
+                ):
                     widget.toggled.disconnect()
             except (RuntimeError, TypeError):
                 # Widget already deleted

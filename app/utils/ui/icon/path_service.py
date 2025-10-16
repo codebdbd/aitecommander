@@ -82,13 +82,9 @@ def _maybe_log_metrics() -> None:
             stats.get("uptime"),
         )
     except (AttributeError, TypeError, ValueError):
-        logger.exception(
-            "_maybe_log_metrics: incorrect metrics statistics format"
-        )
+        logger.exception("_maybe_log_metrics: incorrect metrics statistics format")
     except Exception:
-        logger.exception(
-            "_maybe_log_metrics: unexpected error when logging metrics"
-        )
+        logger.exception("_maybe_log_metrics: unexpected error when logging metrics")
 
 
 def _build_theme_index(theme: str) -> None:
@@ -156,7 +152,11 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
         current_mtime = 0.0
 
     # Decision to rebuild index is made based on snapshot, reading was under lock
-    if ((time.time() - ts) > index_ttl) or (not has_index) or (current_mtime != stored_mtime):
+    if (
+        ((time.time() - ts) > index_ttl)
+        or (not has_index)
+        or (current_mtime != stored_mtime)
+    ):
         _build_theme_index(theme)
     with _INDEX_LOCK:
         mapping = _THEME_ICON_INDEX.get(theme, {})
@@ -279,9 +279,7 @@ class IconPathResolver:
         self.service = service
 
     # --- Cache and statistics management ---
-    def resolve_from_cache(
-        self, icon_name: str, theme: str
-    ) -> tuple[str | None, bool]:
+    def resolve_from_cache(self, icon_name: str, theme: str) -> tuple[str | None, bool]:
         if not _validate_icon_name(icon_name):
             logger.warning("Invalid icon name provided: %r", icon_name)
             set_path(icon_name, theme, None)  # negative caching
@@ -325,7 +323,7 @@ class IconPathResolver:
             path_str = str(idx_hit)
             set_path(icon_name, norm_theme, path_str)
             try:
-                _ICON_METRICS.record_disk_load()
+                metrics_record_disk_load()
             finally:
                 _maybe_log_metrics()
             return path_str
@@ -336,7 +334,7 @@ class IconPathResolver:
                 path_str = str(light_idx)
                 set_path(icon_name, norm_theme, path_str)
                 try:
-                    _ICON_METRICS.record_disk_load()
+                    metrics_record_disk_load()
                 finally:
                     _maybe_log_metrics()
                 return path_str
@@ -362,7 +360,7 @@ class IconPathResolver:
                         set_path(icon_name, norm_theme, path_str)
                         logger.debug("Using up-to-date PNG: %s", themed_png)
                         try:
-                            _ICON_METRICS.record_disk_load()
+                            metrics_record_disk_load()
                         finally:
                             _maybe_log_metrics()
                         return path_str
@@ -418,7 +416,7 @@ class IconPathResolver:
                                 "Using up-to-date PNG (from light SVG): %s", themed_png
                             )
                             try:
-                                _ICON_METRICS.record_disk_load()
+                                metrics_record_disk_load()
                             finally:
                                 _maybe_log_metrics()
                             return path_str
@@ -524,10 +522,13 @@ def get_current_theme() -> str:
 
     # Slow path: try to get from GUI without holding lock
     try:
+        from typing import cast
+
         from PyQt6.QtWidgets import QApplication  # local import
 
-        app = QApplication.instance()
-        if app:
+        app_instance = QApplication.instance()
+        if app_instance:
+            app = cast(QApplication, app_instance)
             for widget in app.topLevelWidgets():
                 # expect settings.get_theme() to be available
                 settings = getattr(widget, "settings", None)

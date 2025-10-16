@@ -50,7 +50,7 @@ def convert_svg(svg_data: bytes, target_size: int | None = None) -> bytes | None
     try:
         buffer.open(QIODevice.OpenModeFlag.WriteOnly)
         if image.save(buffer, "PNG"):
-            return bytes(buffer.data())
+            return buffer.data().data()
     finally:
         buffer.close()
     return None

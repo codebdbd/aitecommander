@@ -1,12 +1,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union, cast
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
-LinkData = Union[Dict[str, Any], List[Dict[str, Any]]]
+LinkData = Union[dict[str, Any], list[dict[str, Any]]]
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def _to_jsonable(value: Any) -> Any:
     if isinstance(value, QIcon):
         return None  # do not serialize UI icon; it is restored via icon_path
     if isinstance(value, dict):
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k, v in value.items():
             # skip internal keys like _icon, _cache, etc.
             if isinstance(k, str) and k.startswith("_"):
@@ -58,14 +58,18 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
     Returns True on success, False on error. Before copying, removes non-serializable
     fields (QIcon, private keys with underscores, etc.).
     """
-    app = QApplication.instance()
-    if app is None:
+    app_instance = QApplication.instance()
+    if app_instance is None:
         logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return False
 
+    app = cast(QApplication, app_instance)
     clipboard = app.clipboard()
+    if clipboard is None:
+        logger.error("Clipboard is not available")
+        return False
     try:
         sanitized = _sanitize_for_clipboard(link_or_links)
         clipboard.setText(json.dumps(sanitized, ensure_ascii=False))
@@ -87,14 +91,18 @@ def get_link_from_clipboard() -> Optional[LinkData]:
       - dict or list[dict] on successful read
       - None on error, empty clipboard, missing QApplication, or invalid format
     """
-    app = QApplication.instance()
-    if app is None:
+    app_instance = QApplication.instance()
+    if app_instance is None:
         logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return None
 
+    app = cast(QApplication, app_instance)
     clipboard = app.clipboard()
+    if clipboard is None:
+        logger.error("Clipboard is not available")
+        return None
     try:
         text = clipboard.text()
         if not text:

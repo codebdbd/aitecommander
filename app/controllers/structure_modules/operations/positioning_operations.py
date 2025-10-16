@@ -4,14 +4,14 @@
 
 import logging
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.services.structure_service import StructureService
 
 from .base import BaseOperations
 
 # Type alias for batch updates: (table_name, list_of_ids)
-UpdateSpec = Tuple[str, List[int]]
+UpdateSpec = tuple[str, list[int]]
 
 # Lazy access to app configuration (without direct dependency on config_loader)
 try:
@@ -48,7 +48,7 @@ class PositioningOperations(BaseOperations):
             # In case of service initialization issues — maintain compatibility
             self._structure_service = None
 
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> bool:
+    def update_item_positions(self, table_name: str, ids_in_order: list[int]) -> bool:
         """Update element positions in the specified table.
 
         Args:
@@ -151,7 +151,7 @@ class PositioningOperations(BaseOperations):
         return result if result is not None else False
 
     def _validate_positioning_params(
-        self, table_name: str, ids_in_order: List[int]
+        self, table_name: str, ids_in_order: list[int]
     ) -> Optional[str]:
         """Validate parameters for positioning operations.
 
@@ -177,15 +177,21 @@ class PositioningOperations(BaseOperations):
             return "ID list cannot be empty or None"
 
         if not isinstance(ids_in_order, list):
-            return f"ids_in_order must be a list, received: {type(ids_in_order).__name__}"
+            return (
+                f"ids_in_order must be a list, received: {type(ids_in_order).__name__}"
+            )
 
         # Проверка типов элементов списка
         for i, id_val in enumerate(ids_in_order):
             if not isinstance(id_val, int):
-                return f"Element {i} must be an integer, received: {type(id_val).__name__}"
+                return (
+                    f"Element {i} must be an integer, received: {type(id_val).__name__}"
+                )
 
             if id_val <= 0:
-                return f"IDs must be positive numbers, received: {id_val} at position {i}"
+                return (
+                    f"IDs must be positive numbers, received: {id_val} at position {i}"
+                )
 
         # Проверка на дубликаты
         if len(set(ids_in_order)) != len(ids_in_order):
@@ -200,7 +206,7 @@ class PositioningOperations(BaseOperations):
 
         return None  # Валидация прошла успешно
 
-    def batch_update_positions(self, updates: List[UpdateSpec]) -> bool:
+    def batch_update_positions(self, updates: list[UpdateSpec]) -> bool:
         """Batch update positions for multiple tables.
 
         Args:

@@ -1,17 +1,18 @@
-from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
+import logging
+from typing import TYPE_CHECKING, Any, Optional
+
+from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QCloseEvent, QKeySequence, QShowEvent, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
-import logging
-from typing import TYPE_CHECKING, Optional
-
-from app.views.widgets.protocols import SystemDialogsProtocol
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link import LinksTableView
+from app.views.widgets.protocols import SystemDialogsProtocol
 
 if TYPE_CHECKING:
     # Narrowly scoped types for static analysis only
-    from typing import Any, Dict, Protocol
+    from typing import Any, Protocol
+
     class StructureItem(Protocol):
         """Structure (tree) item protocol used solely for static checks.
 
@@ -21,9 +22,9 @@ if TYPE_CHECKING:
 
         ...
 
-    LinkDict = Dict[str, Any]
+    LinkDict = dict[str, Any]
     from app.controllers.ui.links.links_actions import LinksActions
-    from app.controllers.ui.menu_controller import ActionController, MenuController
+    from app.controllers.ui.menu_controller import MenuController
     from app.controllers.ui.state.ui_state_manager import UIStateManager
     from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
     from app.controllers.ui.structure.structure_ui_controller import (
@@ -36,8 +37,8 @@ from app.controllers.ui.window_facade import WindowFacade
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
-from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
+from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
 
@@ -48,29 +49,30 @@ class MainWindow(QMainWindow, ReTranslatable):
     Coordinates multiple controllers via ``WindowFacade``.
     Responsibilities focus on UI layout and handling Qt events.
     """
-    
+
     shown: pyqtSignal = pyqtSignal()
 
-    structure: "StructureUIController"
-    menu_controller: "MenuController"
-    action_controller: "ActionController"
-    links_actions: "LinksActions"
-    spheres_controller: "SpheresBarController"
-    top_panels_controller: "TopPanelsController"
-    ui_state: "UIStateManager"
-    system_dialogs: SystemDialogsProtocol
+    structure: Optional["StructureUIController"]
+    menu_controller: Optional["MenuController"]
+    action_controller: Optional[Any]  # ActionController removed
+    links_actions: Optional["LinksActions"]
+    spheres_controller: Optional["SpheresBarController"]
+    top_panels_controller: Optional["TopPanelsController"]
+    ui_state: Optional["UIStateManager"]
+    system_dialogs: Optional[SystemDialogsProtocol]
     theme_ctrl: "ThemeController"
-    table: LinksTableView
-    left_panel: QWidget
+    table: Optional[LinksTableView]
+    left_panel: Optional[QWidget]
     undo_stack: Optional[QUndoStack]
     undo_action: Optional[QAction]
     redo_action: Optional[QAction]
     facade: Optional[WindowFacade]
-    
+
     _SEARCH_DEBOUNCE_MS = 300
 
     def handle_import_browser_bookmarks(self) -> None:
-        self.system_dialogs.handle_import_browser_bookmarks()
+        if self.system_dialogs:
+            self.system_dialogs.handle_import_browser_bookmarks()
 
     def get_current_category_id(self) -> Optional[int]:
         """Return the ID of the currently selected category."""
@@ -78,7 +80,8 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def edit_structure_item(self, item: "StructureItem") -> None:
         """Edit a structure item."""
-        self.structure.edit_item(item)
+        if self.structure:
+            self.structure.edit_item(item)
 
     def add_new_category(self) -> None:
         """Create a new category."""
@@ -101,7 +104,8 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def select_all_links(self) -> None:
         """Select all link rows."""
-        self.table.selectAll()
+        if self.table is not None:
+            self.table.selectAll()
 
     def get_selected_rows(self) -> list[int]:
         """Return indices of selected rows."""
@@ -126,7 +130,7 @@ class MainWindow(QMainWindow, ReTranslatable):
             return None, None
 
         from app.utils.ui.menu_builders.menu_actions import MenuTexts
-        
+
         undo_action = us.createUndoAction(self)
         undo_action.setText(self.tr(MenuTexts.UNDO))
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -135,8 +139,12 @@ class MainWindow(QMainWindow, ReTranslatable):
         redo_action.setText(self.tr(MenuTexts.REDO))
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
-        us.undoTextChanged.connect(lambda *_: undo_action.setText(self.tr(MenuTexts.UNDO)))
-        us.redoTextChanged.connect(lambda *_: redo_action.setText(self.tr(MenuTexts.REDO)))
+        us.undoTextChanged.connect(
+            lambda *_: undo_action.setText(self.tr(MenuTexts.UNDO))
+        )
+        us.redoTextChanged.connect(
+            lambda *_: redo_action.setText(self.tr(MenuTexts.REDO))
+        )
 
         self.undo_action = undo_action
         self.redo_action = redo_action
@@ -147,9 +155,24 @@ class MainWindow(QMainWindow, ReTranslatable):
         super().__init__()
         self.settings = settings
         self.theme_ctrl = theme_ctrl
-        self.facade = None
+        # Dependencies are injected after construction; initialize placeholders to avoid attribute errors.
+        self.facade: Optional[WindowFacade] = None
+        self.structure = None
+        self.menu_controller = None
+        self.action_controller = None
+        self.links_actions = None
+        self.spheres_controller = None
+        self.top_panels_controller = None
+        self.ui_state = None
+        self.system_dialogs = None
+        self.table: Optional[LinksTableView] = None
+        self.left_panel = None
+        self.undo_stack = None
+        self.undo_action = None
+        self.redo_action = None
+        self.app_shutdown = None
 
-        self._search_timer = QTimer()
+        self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(self._SEARCH_DEBOUNCE_MS)
         self._search_timer.timeout.connect(self._execute_search)
@@ -166,9 +189,11 @@ class MainWindow(QMainWindow, ReTranslatable):
         if redo_action is not None:
             redo_action.setText(self.tr("&Redo"))
         retranslate_bottom_panel(self)
+
     def _init_spheres_ui(self) -> None:
         """Initialize the spheres UI asynchronously."""
-        self.spheres_controller.init()
+        if self.spheres_controller is not None:
+            self.spheres_controller.init()
 
     def show_link_dialog(
         self,
@@ -183,6 +208,11 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.update_statusbar()
         return result
 
+    def show_link_dialog_for_category(
+        self, category_id: int | None = None, link: "LinkDict | None" = None
+    ) -> bool:
+        """Legacy convenience wrapper used by menu/tiles actions."""
+        return self.show_link_dialog(link=link, category_id=category_id)
 
     def _get_selected_links(self) -> list["LinkDict"]:
         """Return the list of selected links."""
@@ -226,13 +256,16 @@ class MainWindow(QMainWindow, ReTranslatable):
             self.facade.on_structure_item_changed(item_type, item_id, data)
 
     def show_about_dialog(self) -> None:
-        self.system_dialogs.show_about_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_about_dialog()
 
     def show_settings_dialog(self) -> None:
-        self.system_dialogs.show_settings_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_settings_dialog()
 
     def show_file_search_dialog(self) -> None:
-        self.system_dialogs.show_file_search_dialog()
+        if self.system_dialogs is not None:
+            self.system_dialogs.show_file_search_dialog()
 
     def update_theme(self) -> None:
         """Apply the current theme and refresh the UI."""
@@ -268,10 +301,13 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
 
         self._current_sphere_id = sphere_id
-        with suspend_updates(self.left_panel):
-            self.left_panel.setProperty("sphere", str(sphere_id))
-            self.left_panel.style().unpolish(self.left_panel)
-            self.left_panel.style().polish(self.left_panel)
+        if self.left_panel is not None:
+            with suspend_updates(self.left_panel):  # type: ignore[arg-type]
+                self.left_panel.setProperty("sphere", str(sphere_id))
+                style = self.left_panel.style()
+                if style is not None:
+                    style.unpolish(self.left_panel)
+                    style.polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
         """Schedule search execution after debounce."""
@@ -286,82 +322,85 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
         la.on_search(self._pending_search)
 
-    def showEvent(self, event: QEvent) -> None:
+    def showEvent(self, event: QShowEvent | None) -> None:
         """Emit ``shown`` signal the first time the window appears."""
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
             QTimer.singleShot(0, self.shown.emit)
 
-    def closeEvent(self, event: QEvent) -> None:
+    def closeEvent(self, event: QCloseEvent | None) -> None:
         """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
-        
+
         self._cleanup_resources()
-        
+
         if hasattr(self, "app_shutdown") and self.app_shutdown:
             try:
-                logger.info("MainWindow.closeEvent: delegating to AppShutdownController")
-                self.app_shutdown.perform_shutdown(event)
+                logger.info(
+                    "MainWindow.closeEvent: delegating to AppShutdownController"
+                )
+                self.app_shutdown.perform_shutdown(event)  # type: ignore[arg-type]
                 return
             except Exception:
-                logger.exception("MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent")
+                logger.exception(
+                    "MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent"
+                )
         super().closeEvent(event)
-    
+
     def _cleanup_resources(self) -> None:
         """Centralized resource cleanup to prevent memory leaks."""
         logger.debug("MainWindow: starting cleanup")
-        
+
         cleanup_tasks = [
             ("search_timer", lambda: self._cleanup_timer()),
             ("undo_stack", lambda: self._cleanup_undo_stack()),
             ("facade", lambda: self._cleanup_facade()),
             ("table", lambda: self._cleanup_table()),
         ]
-        
+
         for task_name, cleanup_func in cleanup_tasks:
             try:
                 cleanup_func()
             except Exception as e:
                 logger.debug("MainWindow: cleanup %s failed: %s", task_name, e)
-        
+
         logger.debug("MainWindow: cleanup completed")
-    
+
     def _cleanup_timer(self) -> None:
         """Stop and disconnect search timer."""
-        if hasattr(self, '_search_timer'):
+        if hasattr(self, "_search_timer"):
             self._search_timer.stop()
             try:
                 self._search_timer.timeout.disconnect()
             except TypeError:
                 pass
-            self._search_timer.deleteLater()
-    
+
     def _cleanup_undo_stack(self) -> None:
         """Disconnect undo/redo actions and stack signals."""
-        for action_name in ('undo_action', 'redo_action'):
+        for action_name in ("undo_action", "redo_action"):
             action = getattr(self, action_name, None)
             if action:
                 try:
                     action.triggered.disconnect()
                 except TypeError:
                     pass
-        
-        us = getattr(self, 'undo_stack', None)
+
+        us = getattr(self, "undo_stack", None)
         if us:
             for signal in (us.undoTextChanged, us.redoTextChanged):
                 try:
                     signal.disconnect()
                 except TypeError:
                     pass
-    
+
     def _cleanup_facade(self) -> None:
         """Cleanup facade if cleanup method exists."""
-        if self.facade and hasattr(self.facade, 'cleanup'):
+        if self.facade and hasattr(self.facade, "cleanup"):
             self.facade.cleanup()
-    
+
     def _cleanup_table(self) -> None:
         """Clear table model to prevent access to deleted data."""
-        table = getattr(self, 'table', None)
+        table = getattr(self, "table", None)
         if table:
             table.setModel(None)

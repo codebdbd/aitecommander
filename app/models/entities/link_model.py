@@ -1,9 +1,9 @@
 import datetime
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
-from ..base.db_base import DatabaseBase, DatabaseError
+from ..base.db_base import DatabaseBase, DatabaseError, ValidationError, row_to_dict
 from ..types.link_type import LinkType
 
 logger = logging.getLogger(__name__)
@@ -41,9 +41,9 @@ class LinkModel(DatabaseBase):
         self,
         category_id: int,
         *,
-        fields: Optional[List[str]] = None,
+        fields: Optional[list[str]] = None,
         all_fields: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Returns list of links for specified category.
 
         Parameters:
@@ -104,7 +104,7 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error(
                 "Error getting links for category %s: %s",
@@ -114,6 +114,50 @@ class LinkModel(DatabaseBase):
             )
             raise
 
+    def get_links_for_categories(
+        self, category_ids: list[int]
+    ) -> dict[int, list[dict[str, Any]]]:
+        """Fetch links for multiple categories in a single set of batched queries."""
+        if not category_ids:
+            return {}
+        try:
+            ids = [
+                int(cid)
+                for cid in category_ids
+                if isinstance(cid, int) and not isinstance(cid, bool) and cid > 0
+            ]
+        except Exception:
+            ids = []
+        if not ids:
+            return {}
+
+        CHUNK = 900
+        result: dict[int, list[dict[str, Any]]] = {cid: [] for cid in ids}
+        select_clause = (
+            "SELECT id, category_id, name, url, type, notes, "
+            "is_favorite, last_used, icon_path, args, browser_key, position "
+            "FROM link WHERE category_id IN ({placeholders}) "
+            "ORDER BY category_id, position"
+        )
+
+        for i in range(0, len(ids), CHUNK):
+            chunk = ids[i : i + CHUNK]
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = self._execute_with_error_handling(
+                select_clause.format(placeholders=placeholders),
+                tuple(chunk),
+                fetch_method="all",
+            )
+            for row in rows or []:
+                try:
+                    row_dict = row_to_dict(row)
+                    cid = int(row_dict["category_id"])
+                except Exception:
+                    continue
+                result.setdefault(cid, []).append(row_dict)
+
+        return {cid: rows for cid, rows in result.items() if rows}
+
     def count_links_by_category(self, category_id: int) -> int:
         """Returns number of links for specified category (efficient count)."""
         try:
@@ -122,7 +166,11 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
-            return int(result["cnt"]) if result else 0
+            if result is None:
+                return 0
+            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
+            cnt_data = row_to_dict(result)
+            return int(cnt_data.get("cnt", 0)) if cnt_data.get("cnt") is not None else 0
         except Exception as e:
             logger.error(
                 "Error counting links for category %s: %s",
@@ -132,7 +180,7 @@ class LinkModel(DatabaseBase):
             )
             return 0
 
-    def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
+    def count_links_by_categories(self, category_ids: list[int]) -> dict[int, int]:
         """Returns dictionary {category_id: count} for set of categories in one query.
 
         Safely handles empty list, returning empty dictionary. In case of error
@@ -148,7 +196,7 @@ class LinkModel(DatabaseBase):
 
             # Chunking for SQLite parameter limit (~999)
             CHUNK = 900
-            result: Dict[int, int] = {}
+            result: dict[int, int] = {}
             for i in range(0, len(ids), CHUNK):
                 chunk = ids[i : i + CHUNK]
                 placeholders = ",".join(["?"] * len(chunk))
@@ -159,8 +207,11 @@ class LinkModel(DatabaseBase):
                 )
                 for r in rows or []:
                     try:
-                        cat_id = int(r["category_id"])  # sqlite3.Row supports key access
-                        cnt = int(r["cnt"])             # aggregated alias
+                        r_dict = row_to_dict(r)
+                        cat_id = int(
+                            r_dict["category_id"]
+                        )  # sqlite3.Row converted to dict
+                        cnt = int(r_dict["cnt"])  # aggregated alias
                         result[cat_id] = result.get(cat_id, 0) + cnt
                     except Exception:
                         continue
@@ -174,7 +225,7 @@ class LinkModel(DatabaseBase):
             )
             return {}
 
-    def upsert_link(self, link: Dict[str, Any]) -> int:
+    def upsert_link(self, link: dict[str, Any]) -> int:
         """Inserts or updates link record. Returns record ID.
 
         Transactions are not completed inside method. Commit/rollback performed
@@ -234,7 +285,7 @@ class LinkModel(DatabaseBase):
                 )
 
                 # If record was not updated, insert new with specified ID
-                if cursor.rowcount == 0:
+                if isinstance(cursor, sqlite3.Cursor) and cursor.rowcount == 0:
                     insert_fields = all_possible_fields
                     insert_placeholders = ", ".join(["?"] * len(insert_fields))
                     insert_values = [data[f] for f in insert_fields]
@@ -259,14 +310,14 @@ class LinkModel(DatabaseBase):
                 # Silent duplicate handling on demand:
                 # Duplicate = matching Name (name), Path (url) and Argument (args) within category
                 existing = self.get_link_by_name_url_args(
-                    data["category_id"],
-                    data.get("name", ""),
-                    data.get("url", ""),
-                    data.get("args", ""),
+                    int(data["category_id"] or 0),
+                    str(data.get("name", "")),
+                    str(data.get("url", "")),
+                    str(data.get("args", "")),
                 )
                 if existing:
                     # Silently return existing ID without errors/warnings
-                    return existing.get("id")
+                    return int(existing.get("id", 0))
 
                 columns = [f for f in all_possible_fields if f != "id"]
                 placeholders = ", ".join(["?"] * len(columns))
@@ -277,7 +328,9 @@ class LinkModel(DatabaseBase):
                     tuple(values),
                 )
 
-                new_id = cursor.lastrowid
+                new_id = 0
+                if isinstance(cursor, sqlite3.Cursor):
+                    new_id = cursor.lastrowid or 0
                 logger.info(
                     "Added new link: %s, browser_key=%s",
                     data.get("name", "Untitled"),
@@ -304,13 +357,12 @@ class LinkModel(DatabaseBase):
                 )
                 if row:
                     try:
-                        rec_id = int(dict(row).get("id", 0))
+                        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+                        rec_id = int(row_to_dict(row).get("id", 0))
                         if rec_id:
                             return rec_id
                     except (KeyError, TypeError, ValueError) as conv_err:
-                        logger.debug(
-                            "upsert_link: ID conversion error: %s", conv_err
-                        )
+                        logger.debug("upsert_link: ID conversion error: %s", conv_err)
             except Exception as ee:
                 logger.debug(
                     "upsert_link: failed to recover existing row after IntegrityError: %s",
@@ -318,7 +370,7 @@ class LinkModel(DatabaseBase):
                     exc_info=True,
                 )
             # If not found — propagate as DatabaseError, but without extra noise
-            raise DatabaseError(f"UNIQUE constraint failed: {e}")
+            raise DatabaseError(f"UNIQUE constraint failed: {e}") from e
 
     def get_link_by_unique_fields(
         self,
@@ -339,17 +391,16 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
-                return dict(row)
+                assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+                return row_to_dict(row)
             return None
         except Exception as e:
-            logger.error(
-                "Error finding link by unique fields: %s", e, exc_info=True
-            )
+            logger.error("Error finding link by unique fields: %s", e, exc_info=True)
             return None
 
     def get_link_by_name_url_args(
         self, category_id: int, name: str, url: str, args: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Find link by triple (Name, Path, Argument) within category.
 
         User requirement: duplicate is matching name, url, args within category_id,
@@ -362,27 +413,13 @@ class LinkModel(DatabaseBase):
                 fetch_method="one",
             )
             if row:
-                return dict(row)
+                assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+                return row_to_dict(row)
             return None
         except Exception as e:
-            logger.error(
-                "Error finding link by (name,url,args): %s", e, exc_info=True
-            )
+            logger.error("Error finding link by (name,url,args): %s", e, exc_info=True)
             return None
 
-    def get_all_links(self) -> List[Dict[str, Any]]:
-        """Returns all links from database as list of dictionaries."""
-        try:
-            rows = self._execute_with_error_handling(
-                "SELECT id, category_id, name, url, type, notes, "
-                "is_favorite, last_used, icon_path, args, browser_key, position "
-                "FROM link ORDER BY position ASC",
-                fetch_method="all",
-            )
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error("Error getting all links: %s", e, exc_info=True)
-            raise
 
     def delete_link(self, link_id: int):
         """Deletes link by its ID."""
@@ -394,7 +431,7 @@ class LinkModel(DatabaseBase):
             logger.info("Deleted link with ID %s", link_id)
         except Exception as e:
             logger.error("Error deleting link: %s", e, exc_info=True)
-            raise DatabaseError(f"Failed to delete link: {e}")
+            raise DatabaseError(f"Failed to delete link: {e}") from e
 
     def update_link_last_used(self, link_id: int):
         """Updates last used time for link."""
@@ -409,7 +446,8 @@ class LinkModel(DatabaseBase):
             "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
             fetch_method="one",
         )
-        return int(row["cnt"]) if row else 0
+        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+        return int(row_to_dict(row)["cnt"]) if row else 0
 
     def clear_favorites(self):
         """Resets favorite flag for all links."""
@@ -421,7 +459,7 @@ class LinkModel(DatabaseBase):
             logger.info("Cleared all favorite links")
         except Exception as e:
             logger.error("Error clearing favorites: %s", e)
-            raise DatabaseError(f"Failed to clear favorites: {e}")
+            raise DatabaseError(f"Failed to clear favorites: {e}") from e
 
     def search_links(self, query: str):
         """Searches links throughout tree where name, URL or notes contain query substring."""
@@ -444,12 +482,12 @@ class LinkModel(DatabaseBase):
                 (search_term, search_term, search_term, search_term),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error searching links: %s", e)
             raise
 
-    def get_links_by_args_pattern(self, pattern: str) -> List[Dict[str, Any]]:
+    def get_links_by_args_pattern(self, pattern: str) -> list[dict[str, Any]]:
         """Returns 'web' type links where args LIKE pattern.
 
         Example pattern: '--profile-directory=%'
@@ -460,7 +498,7 @@ class LinkModel(DatabaseBase):
                 (pattern,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows] if rows else []
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error selecting links by args pattern: %s", e)
             raise
@@ -477,21 +515,21 @@ class LinkModel(DatabaseBase):
             logger.error("Error updating notes for link %s: %s", link_id, e)
             raise
 
-    def get_links_args_nonempty(self) -> List[Dict[str, Any]]:
+    def get_links_args_nonempty(self) -> list[dict[str, Any]]:
         """Returns rows with non-empty args (args column only)."""
         try:
             rows = self._execute_with_error_handling(
                 "SELECT args FROM link WHERE args IS NOT NULL AND TRIM(args) != ''",
                 fetch_method="all",
             )
-            return [dict(row) for row in rows] if rows else []
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting non-empty args: %s", e)
             raise
 
     # === High-level methods for convenience ===
 
-    def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_links(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent links."""
         try:
             rows = self._execute_with_error_handling(
@@ -502,12 +540,12 @@ class LinkModel(DatabaseBase):
                 (limit,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting recent links: %s", e, exc_info=True)
             raise
 
-    def get_favorite_links(self) -> List[Dict[str, Any]]:
+    def get_favorite_links(self) -> list[dict[str, Any]]:
         """Get favorite links."""
         try:
             rows = self._execute_with_error_handling(
@@ -515,23 +553,24 @@ class LinkModel(DatabaseBase):
                 (1,),
                 fetch_method="all",
             )
-            return [dict(row) for row in rows]
+            return [row_to_dict(row) for row in rows] if rows else []
         except Exception as e:
             logger.error("Error getting favorite links: %s", e, exc_info=True)
             raise
 
-    def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
+    def get_link_by_id(self, link_id: int) -> Optional[dict[str, Any]]:
         """Get link by ID."""
         try:
             row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE id = ?", (link_id,), fetch_method="one"
             )
-            return dict(row) if row else None
+            assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+            return row_to_dict(row) if row else None
         except Exception as e:
             logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
             raise
 
-    def update_link_order(self, link_ids: List[int]) -> bool:
+    def update_link_order(self, link_ids: list[int]) -> bool:
         """Update link order."""
         try:
             with self.transaction():
@@ -544,13 +583,13 @@ class LinkModel(DatabaseBase):
             logger.error("Error updating link order: %s", e, exc_info=True)
             return False
 
-    def batch_update_links(self, links_data: List[Dict[str, Any]]) -> bool:
+    def batch_update_links(self, links_data: list[dict[str, Any]]) -> bool:
         """Batch update links in transaction."""
         if not links_data:
             return True
 
         # Prepare parameters for executemany: only valid records with id
-        params: List[tuple] = []
+        params: list[tuple] = []
         for link_data in links_data:
             link_id = link_data.get("id")
             if not isinstance(link_id, int) or link_id <= 0:
@@ -596,7 +635,8 @@ class LinkModel(DatabaseBase):
                 (category_id,),
                 fetch_method="one",
             )
-            return int(result["next_pos"]) if result else 1
+            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
+            return int(row_to_dict(result)["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
                 "Error getting next position for category %s: %s",
@@ -608,7 +648,7 @@ class LinkModel(DatabaseBase):
 
     # get_links_for_category was merged with get_links (all_fields=True parameter)
 
-    def batch_upsert_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
+    def batch_upsert_links(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Batch create/update links in one transaction.
 
         - Does not commit after each record — transaction will complete with single commit.
@@ -618,7 +658,7 @@ class LinkModel(DatabaseBase):
         if not links_data:
             return []
 
-        created_ids: List[int] = []
+        created_ids: list[int] = []
         try:
             with self.transaction():
                 created_ids.extend(self._upsert_links_no_tx(links_data))
@@ -627,7 +667,7 @@ class LinkModel(DatabaseBase):
             # If something went wrong with uniqueness — propagate as DatabaseError
             raise DatabaseError(
                 f"UNIQUE constraint failed during batch_upsert_links: {e}"
-            )
+            ) from e
         except Exception as e:
             logger.error("Error batch saving links: %s", e)
             raise
@@ -635,8 +675,8 @@ class LinkModel(DatabaseBase):
     # === Dedicated steps for batch upsert (without transaction) ===
 
     def _normalize_and_group_links(
-        self, links_data: List[Dict[str, Any]], all_fields: List[str]
-    ) -> Dict[int, List[Dict[str, Any]]]:
+        self, links_data: list[dict[str, Any]], all_fields: list[str]
+    ) -> dict[int, list[dict[str, Any]]]:
         """Normalizes input and groups records by `category_id`.
 
         - Validates required fields.
@@ -644,7 +684,7 @@ class LinkModel(DatabaseBase):
         - Updates input elements in-place.
         - Returns dictionary {category_id: [items...]}
         """
-        by_cat: Dict[int, List[Dict[str, Any]]] = {}
+        by_cat: dict[int, list[dict[str, Any]]] = {}
         for raw in links_data:
             self._validate_required_fields(raw, ["category_id"], "link")
             data = {field: raw.get(field) for field in all_fields}
@@ -664,14 +704,22 @@ class LinkModel(DatabaseBase):
             raw.clear()
             raw.update(data)
 
-            by_cat.setdefault(int(data["category_id"]), []).append(raw)
+            category_raw = data.get("category_id")
+            if category_raw is None:
+                raise ValidationError("Missing category_id for link batch item")
+            try:
+                category_id = int(category_raw)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("Invalid category_id for link batch item") from exc
+
+            by_cat.setdefault(category_id, []).append(raw)
         return by_cat
 
     def _fetch_existing_maps(
         self, category_id: int
-    ) -> Tuple[
-        Dict[Tuple[str, str, str], Dict[str, Any]],
-        Dict[int, Dict[str, Any]],
+    ) -> tuple[
+        dict[tuple[str, str, str], dict[str, Any]],
+        dict[int, dict[str, Any]],
         int,
     ]:
         """Gets existing links and max(position) for category.
@@ -679,16 +727,21 @@ class LinkModel(DatabaseBase):
         Returns tuple (existing_by_key, existing_by_id, max_pos).
         key = (name, url, args)
         """
-        rows = self._execute_with_error_handling(
+        rows_result = self._execute_with_error_handling(
             "SELECT id, name, url, args, position FROM link WHERE category_id=?",
             (category_id,),
             fetch_method="all",
         )
-
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
-        existing_by_id: Dict[int, Dict[str, Any]] = {}
+        rows = self._ensure_row_list(rows_result)
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+        existing_by_id: dict[int, dict[str, Any]] = {}
         max_pos = -1
-        for rid, rname, rurl, rargs, rpos in rows:
+        for row in rows:
+            rid = row["id"]
+            rname = row["name"]
+            rurl = row["url"]
+            rargs = row["args"]
+            rpos = row["position"]
             existing_by_id[int(rid)] = {
                 "id": int(rid),
                 "name": rname or "",
@@ -708,7 +761,7 @@ class LinkModel(DatabaseBase):
         return existing_by_key, existing_by_id, max_pos
 
     def _assign_positions_for_items(
-        self, items: List[Dict[str, Any]], start_pos: int
+        self, items: list[dict[str, Any]], start_pos: int
     ) -> None:
         """Assigns position to items that don't have it set."""
         next_pos = start_pos
@@ -719,12 +772,12 @@ class LinkModel(DatabaseBase):
 
     def _build_update_params(
         self,
-        items: List[Dict[str, Any]],
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
-    ) -> Tuple[List[Tuple[Any, ...]], List[Dict[str, Any]]]:
+        items: list[dict[str, Any]],
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]],
+    ) -> tuple[list[tuple[Any, ...]], list[dict[str, Any]]]:
         """Forms parameters for UPDATE and list of inserts without id."""
-        updates: List[Tuple[Any, ...]] = []
-        inserts_no_id: List[Dict[str, Any]] = []
+        updates: list[tuple[Any, ...]] = []
+        inserts_no_id: list[dict[str, Any]] = []
         for item in items:
             key = (item.get("name", ""), item.get("url", ""), item.get("args", ""))
             iid = item.get("id")
@@ -774,13 +827,13 @@ class LinkModel(DatabaseBase):
         return updates, inserts_no_id
 
     def _execute_updates_collect_missing(
-        self, updates: List[Tuple[Any, ...]]
-    ) -> List[Dict[str, Any]]:
+        self, updates: list[tuple[Any, ...]]
+    ) -> list[dict[str, Any]]:
         """Выполняет пакетные UPDATE и собирает записи для последующей вставки с фиксированным id.
 
         Возвращает список словарей для вставки с заданным `id` (inserts_with_id).
         """
-        inserts_with_id: List[Dict[str, Any]] = []
+        inserts_with_id: list[dict[str, Any]] = []
         if not updates:
             return inserts_with_id
 
@@ -791,7 +844,9 @@ class LinkModel(DatabaseBase):
         try:
             self.connection.executemany(update_sql, updates)
         except sqlite3.IntegrityError as e:
-            raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
+            raise DatabaseError(
+                f"UNIQUE constraint failed during batch update: {e}"
+            ) from e
 
         update_ids = [int(p[-1]) for p in updates]
         if update_ids:
@@ -833,9 +888,9 @@ class LinkModel(DatabaseBase):
 
     def _insert_records_with_id(
         self,
-        inserts_with_id: List[Dict[str, Any]],
-        all_fields: List[str],
-        created_ids: List[int],
+        inserts_with_id: list[dict[str, Any]],
+        all_fields: list[str],
+        created_ids: list[int],
     ) -> None:
         """Вставляет записи с фиксированным id (executemany) и добавляет их в created_ids."""
         if not inserts_with_id:
@@ -852,7 +907,7 @@ class LinkModel(DatabaseBase):
                 params_with_id,
             )
         except sqlite3.IntegrityError as e:
-            raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
+            raise DatabaseError(f"Integrity error on inserts_with_id: {e}") from e
         for rec in inserts_with_id:
             try:
                 iid = int(rec.get("id") or 0)
@@ -863,10 +918,10 @@ class LinkModel(DatabaseBase):
 
     def _insert_records_no_id(
         self,
-        inserts_no_id: List[Dict[str, Any]],
-        all_fields: List[str],
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
-        created_ids: List[int],
+        inserts_no_id: list[dict[str, Any]],
+        all_fields: list[str],
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]],
+        created_ids: list[int],
     ) -> None:
         """Поштучно вставляет записи без id, обновляет входные элементы и created_ids.
 
@@ -910,9 +965,12 @@ class LinkModel(DatabaseBase):
                     fetch_method="one",
                 )
                 if row:
-                    rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
+                    assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+                    rec["id"] = (
+                        row[0] if isinstance(row, tuple) else row_to_dict(row)["id"]
+                    )
 
-    def _upsert_links_no_tx(self, links_data: List[Dict[str, Any]]) -> List[int]:
+    def _upsert_links_no_tx(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().
 
         - Идентичная логика batch_upsert_links, но предполагает внешнюю транзакцию.
@@ -922,7 +980,7 @@ class LinkModel(DatabaseBase):
         if not links_data:
             return []
 
-        created_ids: List[int] = []
+        created_ids: list[int] = []
 
         # Поля должны оставаться синхронными с upsert_link
         all_fields = [
@@ -968,7 +1026,7 @@ class LinkModel(DatabaseBase):
 
         return created_ids
 
-    def batch_delete_links(self, link_ids: List[int]) -> int:
+    def batch_delete_links(self, link_ids: list[int]) -> int:
         """Пакетное удаление ссылок по списку ID в одной транзакции.
 
         Возвращает количество фактически удалённых записей.
@@ -996,4 +1054,4 @@ class LinkModel(DatabaseBase):
             return deleted
         except Exception as e:
             logger.error("Error batch deleting links: %s", e)
-            raise DatabaseError(f"Failed to perform batch deletion: {e}")
+            raise DatabaseError(f"Failed to perform batch deletion: {e}") from e

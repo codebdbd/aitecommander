@@ -4,10 +4,9 @@ Firefox Profile Finder - search for Mozilla Firefox profiles.
 
 import configparser
 import logging
-import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
 
@@ -24,9 +23,9 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
         self.profiles_dir = str(dir_path) if dir_path else ""
         self.browser_name = "Mozilla Firefox"
 
-    def find_profiles(self) -> List[Dict[str, str]]:
+    def find_profiles(self) -> list[dict[str, str]]:
         """Finds Firefox profiles from profiles.ini."""
-        profiles = []
+        profiles: list[dict[str, str]] = []
         profiles_ini = Path(self.profiles_dir) / "profiles.ini"
 
         if not profiles_ini.exists():
@@ -57,7 +56,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                             {
                                 "name": name,
                                 "email": email or name,
-                                "path": full_path,
+                                "path": str(full_path),
                                 "directory": path,
                                 "args": f'-P "{name}"',
                             }
@@ -80,7 +79,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
             return None
 
         try:
-            with open(prefs_file, "r", encoding="utf-8") as f:
+            with open(prefs_file, encoding="utf-8") as f:
                 content = f.read()
 
                 # Search for mail or sync settings
@@ -109,12 +108,12 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
         """
         return self.browser_name
 
-    def get_profile_argument(self, profile_data: Dict) -> str:
+    def get_profile_argument(self, profile_data: dict) -> str:
         """Generates command line argument for profile."""
         profile_name = profile_data.get("name", "default")
         return f'-P "{profile_name}"'
 
-    def parse_profile_from_args(self, args: str) -> Optional[Dict]:
+    def parse_profile_from_args(self, args: str) -> Optional[dict]:
         """Parses Firefox profile from command line arguments."""
         logger.debug("parse_profile_from_args: args=%s", args)
 

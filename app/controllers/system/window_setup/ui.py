@@ -4,7 +4,7 @@ UI elements and dependency injection.
 
 import logging
 from functools import partial
-from typing import Any, Dict
+from typing import Any
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
@@ -19,7 +19,7 @@ from .types import SetupError
 logger = logging.getLogger(__name__)
 
 
-def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
+def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
     """Create UI elements: sphere switch action and button, insert into panel."""
     window.switch_sphere_action = QAction(
         themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
@@ -49,15 +49,16 @@ def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
         bottom_container.layout().insertWidget(0, window.switch_sphere_button)
 
 
-def setup_dependency_injection(window: Any, controllers: Dict[str, Any]) -> None:
+def setup_dependency_injection(window: Any, controllers: dict[str, Any]) -> None:
     """Schedule deferred dependency injection into widgets."""
     QTimer.singleShot(0, partial(_deferred_setup, window, controllers))
 
 
-def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
+def _deferred_setup(window: Any, controllers: dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
         from .wiring import _connect_top_panels_signals_explicit
+
         _connect_top_panels_signals_explicit(
             top_panels_controller=window.top_panels_controller,
             links_actions=window.links_actions,
@@ -80,7 +81,7 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
         raise
 
 
-def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
+def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
     """Perform dependency injection for CategoryTiles."""
     if not (hasattr(window, "tiles") and window.tiles):
         return
@@ -120,8 +121,8 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
     structure_ctrl = controllers["structure"]
 
     def on_tiles_context_menu(category_id: int, global_pos):
-            # Context menu errors are not related to wiring and should not be hidden.
-            # Log unexpected errors, but don't use general catch in wiring blocks.
+        # Context menu errors are not related to wiring and should not be hidden.
+        # Log unexpected errors, but don't use general catch in wiring blocks.
         try:
             builder = CategoryMenuBuilder(tiles.view, window)
             menu, edit_action, add_link_action, delete_action = builder.build(

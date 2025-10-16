@@ -11,6 +11,7 @@ import json
 import os
 import threading
 import time
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ def get_cache_path() -> Path:
     return app_config.paths.get_config_dir() / "browser_profiles.json"
 
 
-class PersistentProfileCache(BaseCache):
+class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfileCache"]):
     def __init__(self, *, default_ttl: float | None = None) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
@@ -166,7 +167,7 @@ class PersistentProfileCache(BaseCache):
     def keys(self) -> list[str]:
         """Return list of all valid keys in cache."""
         with self._lock:
-            now = time.time()
+            time.time()
             valid_keys = []
             for key, rec in self._store.items():
                 if rec is not None and rec.is_valid():
@@ -184,19 +185,25 @@ class PersistentProfileCache(BaseCache):
             self._maybe_flush_locked(force=True)
 
     def periodic_flush(self) -> None:
-        """External periodic point: flush if time has come.
-
-        """
+        """External periodic point: flush if time has come."""
         with self._lock:
             self._maybe_flush_locked(force=False)
 
     # Context manager for guaranteed flush
-    def __iter__(self):
-        return iter(self.keys())
+    def __enter__(self) -> PersistentProfileCache:
+        self._lock.acquire()
+        return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D401
-        # Always try to flush to disk on exit
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb,
+    ) -> bool | None:  # noqa: D401
         try:
-            self.flush()
+            self._maybe_flush_locked(force=True)
         except Exception:
             pass
+        finally:
+            self._lock.release()
+        return None

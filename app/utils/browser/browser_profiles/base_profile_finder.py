@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ class BaseBrowserProfileFinder(ABC):
     """Base class for browser profile finding."""
 
     @abstractmethod
-    def find_profiles(self) -> List[Dict[str, str]]:
+    def find_profiles(self) -> list[dict[str, str]]:
         """Finds browser profiles."""
         pass
 
@@ -21,21 +21,21 @@ class BaseBrowserProfileFinder(ABC):
         pass
 
     @abstractmethod
-    def get_profile_argument(self, profile_data: Dict) -> str:
+    def get_profile_argument(self, profile_data: dict) -> str:
         """Generates command line argument for profile."""
         pass
 
     @abstractmethod
-    def parse_profile_from_args(self, args: str) -> Optional[Dict]:
+    def parse_profile_from_args(self, args: str) -> Optional[dict]:
         """Parses profile from command line arguments."""
         pass
 
-    def validate_profile_data(self, profile_data: Dict) -> bool:
+    def validate_profile_data(self, profile_data: dict) -> bool:
         """Validates profile data."""
         required_keys = ["args"]
         return all(key in profile_data for key in required_keys)
 
-    def format_profile_display_name(self, profile_data: Dict) -> str:
+    def format_profile_display_name(self, profile_data: dict) -> str:
         """Formats profile name for display in UI."""
         return profile_data.get("email") or profile_data.get("name") or "Profile"
 

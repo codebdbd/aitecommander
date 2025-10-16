@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 # Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
@@ -16,18 +16,18 @@ class ExportService:
 
     def export_structure_data(
         self,
-        current_sphere_id: Optional[int],
-        get_spheres: Callable[[], List[Dict[str, Any]]],
-        get_sections: Callable[[int], List[Dict[str, Any]]],
-        get_categories: Callable[[int], List[Dict[str, Any]]],
+        current_sphere_id: int | None,
+        get_spheres: Callable[[], list[dict[str, Any]]],
+        get_sections: Callable[[int], list[dict[str, Any]]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
         logger,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Export structure data for backup.
 
         Parameters repeat current facade dependencies to avoid pulling Qt/models into the service.
         """
         try:
-            export_data: Dict[str, Any] = {
+            export_data: dict[str, Any] = {
                 "spheres": [],
                 "sections": [],
                 "categories": [],
@@ -75,7 +75,7 @@ class ExportService:
                 "current_sphere_id": None,
                 "error": str(e),
             }
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception("Critical error exporting structure data")
             raise  # Re-raise critical errors

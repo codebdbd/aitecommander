@@ -11,7 +11,6 @@ No CSV or legacy fallbacks are supported here.
 
 import json
 import logging
-from typing import List
 
 from PyQt6.QtCore import QByteArray, QMimeData
 
@@ -24,7 +23,7 @@ class MimeDataParser:
     """Utilities for creating and parsing drag-and-drop MIME data."""
 
     @staticmethod
-    def extract_item_ids(mime_data: QMimeData, mime_type: str) -> List[int]:
+    def extract_item_ids(mime_data: QMimeData, mime_type: str) -> list[int]:
         """Extracts list of IDs from JSON-only MIME payload.
 
         Returns empty list on any error or if format is missing/invalid.
@@ -32,7 +31,7 @@ class MimeDataParser:
         try:
             if not mime_data or not mime_data.hasFormat(mime_type):
                 return []
-            raw = bytes(mime_data.data(mime_type)).decode("utf-8")
+            raw = mime_data.data(mime_type).data().decode("utf-8")
             data = json.loads(raw)
             if isinstance(data, dict):
                 ids = data.get("ids", [])
@@ -44,7 +43,7 @@ class MimeDataParser:
             return []
 
     @staticmethod
-    def create_mime_data(item_ids: List[int], mime_type: str) -> QMimeData:
+    def create_mime_data(item_ids: list[int], mime_type: str) -> QMimeData:
         """Creates JSON-only MIME payload with {"ids": [...]}.
         Returns empty QMimeData on error.
         """

@@ -1,10 +1,9 @@
 # app/views/main_components/init_scheduler.py
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication
 
 
 class AsyncStepRunner:
@@ -24,12 +23,12 @@ class AsyncStepRunner:
 
     def run(
         self,
-        steps: List[Tuple[str, Callable[[], None]]],
+        steps: list[tuple[str, Callable[[], None]]],
         index_getter: Callable[[], int],
         index_setter: Callable[[int], None],
         on_completed: Callable[[], None],
-        on_error: Optional[Callable[[Exception], None]] = None,
-        special_hooks: Optional[Dict[Callable[[], None], Callable[[], None]]] = None,
+        on_error: Callable[[Exception], None] | None = None,
+        special_hooks: dict[Callable[[], None], Callable[[], None]] | None = None,
     ) -> None:
         """Run the provided steps sequentially.
 
@@ -50,12 +49,12 @@ class AsyncStepRunner:
     # Internal recursive helper
     def _execute_next(
         self,
-        steps: List[Tuple[str, Callable[[], None]]],
+        steps: list[tuple[str, Callable[[], None]]],
         index_getter: Callable[[], int],
         index_setter: Callable[[int], None],
         on_completed: Callable[[], None],
-        on_error: Optional[Callable[[Exception], None]],
-        special_hooks: Optional[Dict[Callable[[], None], Callable[[], None]]],
+        on_error: Callable[[Exception], None] | None,
+        special_hooks: dict[Callable[[], None], Callable[[], None]] | None,
     ) -> None:
         idx = int(index_getter())
         if idx >= len(steps):
@@ -82,10 +81,8 @@ class AsyncStepRunner:
                 step_func()
         except Exception as e:
             if on_error:
-                try:
-                    on_error(e)
-                finally:
-                    return
+                on_error(e)
+                return
             else:
                 raise
 
@@ -95,10 +92,8 @@ class AsyncStepRunner:
                 special_hooks[step_func]()
             except Exception as e:
                 if on_error:
-                    try:
-                        on_error(e)
-                    finally:
-                        return
+                    on_error(e)
+                    return
                 # Swallow the exception to keep the pipeline running, but log it
                 import logging as _logging
 
@@ -110,9 +105,6 @@ class AsyncStepRunner:
 
         # Increment the index and continue
         index_setter(idx + 1)
-
-        # Let the UI thread process pending events
-        QApplication.processEvents()
 
         # Schedule the next step
         QTimer.singleShot(

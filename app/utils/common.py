@@ -32,7 +32,9 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
     except (AttributeError, TypeError, KeyError):
         return default
     except Exception as unexpected_error:  # pragma: no cover - diagnostic scenario
-        logger.warning("get_value: unexpected error for key %s: %s", key, unexpected_error)
+        logger.warning(
+            "get_value: unexpected error for key %s: %s", key, unexpected_error
+        )
         return default
 
 
@@ -47,7 +49,9 @@ def safe_getattr(obj: Any, attr: str, default: T | None = None) -> T | None:
     except (AttributeError, TypeError):
         return default
     except Exception as unexpected_error:  # pragma: no cover - diagnostic scenario
-        logger.warning("safe_getattr: unexpected error for attr %s: %s", attr, unexpected_error)
+        logger.warning(
+            "safe_getattr: unexpected error for attr %s: %s", attr, unexpected_error
+        )
         return default
 
 
