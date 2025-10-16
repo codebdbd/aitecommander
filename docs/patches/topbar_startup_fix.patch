@@ -1,0 +1,74 @@
+--- a/app/views/main_components/ui/window_ui_setup.py
++++ b/app/views/main_components/ui/window_ui_setup.py
+@@ -631,11 +631,29 @@ class WindowUISetup:
+                 exc_info=True,
+             )
+ 
+     def _create_top_panel_widget(
+         self,
+         top_bar: QHBoxLayout,
+         mode: str,
+         attr_name: str,
+         object_name: str | None,
+         log_label: str,
++        initial_visible: bool = True,
+     ) -> None:
++        """Create and configure a top panel widget.
++        
++        Args:
++            top_bar: Layout to add the widget to
++            mode: Panel mode ("quick", "favorites", "recent")
++            attr_name: Attribute name to set on window
++            object_name: Qt objectName for the widget
++            log_label: Label for logging
++            initial_visible: Whether panel should be visible before data loads.
++                           Data-dependent panels (favorites, recent) should be False.
++        """
+         t_start = time.perf_counter()
+         try:
+             widget = self._create_widget_by_mode(mode)
+             self._configure_panel_widget(widget, object_name, log_label)
++            
++            # FIX: Hide data-dependent panels until data is loaded to prevent
++            # layout "jump" when search widget shrinks after panel appearance
++            if not initial_visible:
++                try:
++                    widget.setVisible(False)
++                    logger.debug(
++                        "TopPanel: %s initially hidden (data-dependent)", log_label
++                    )
++                except (RuntimeError, AttributeError):
++                    logger.debug(
++                        "TopPanel: failed to hide %s widget", log_label, exc_info=True
++                    )
++            
+             setattr(self.window, attr_name, widget)
+             top_bar.addWidget(widget)
+             self._adjust_panel_spacing(widget, log_label)
+@@ -663,13 +681,19 @@ class WindowUISetup:
+             setattr(self.window, attr_name, None)
+             logger.exception("TopPanel: failed to create %s widget", log_label)
+ 
+     def setup_top_bar_widgets(self, top_bar: QHBoxLayout) -> None:
++        """Create top bar panel widgets.
++        
++        FIX: Data-dependent panels (favorites, recent) are initially hidden
++        to prevent search widget from being stretched at startup. They will
++        be shown by TopBarLayoutManager.adjust() after data loads.
++        """
+         widgets_params = [
+-            ("quick", "quick_add_widget", None, "QuickAdd"),
+-            ("favorites", "fav_widget", "favoritesWidget", "Favorites"),
+-            ("recent", "recent_links_widget", "recentLinksWidget", "Recent"),
++            # (mode, attr_name, object_name, log_label, initial_visible)
++            ("quick", "quick_add_widget", None, "QuickAdd", True),  # always visible
++            ("favorites", "fav_widget", "favoritesWidget", "Favorites", False),  # data-dependent
++            ("recent", "recent_links_widget", "recentLinksWidget", "Recent", False),  # data-dependent
+         ]
+-        for idx, (mode, attr_name, obj_name, label) in enumerate(widgets_params):
+-            self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
++        for idx, (mode, attr_name, obj_name, label, visible) in enumerate(widgets_params):
++            self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label, visible)
+             if idx < len(widgets_params) - 1:
+                 try:
+                     top_bar.addSpacing(4)

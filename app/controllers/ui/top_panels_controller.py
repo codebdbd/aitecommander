@@ -99,10 +99,25 @@ class TopPanelsController(QObject):
 
         FIX: Emits data_loaded after loading finishes.
         """
+        import time
+        t_start = time.perf_counter()
+        logger.info("[TopPanelsDiag] refresh_all START")
+        
+        t_fav = time.perf_counter()
         self.refresh_favorites()
+        fav_ms = (time.perf_counter() - t_fav) * 1000
+        logger.info(f"[TopPanelsDiag] refresh_favorites done: {fav_ms:.1f}ms")
+        
+        t_rec = time.perf_counter()
         self.refresh_recent()
+        rec_ms = (time.perf_counter() - t_rec) * 1000
+        logger.info(f"[TopPanelsDiag] refresh_recent done: {rec_ms:.1f}ms")
+        
         # Emit signal indicating data loading finished
         self.data_loaded.emit()
+        
+        total_ms = (time.perf_counter() - t_start) * 1000
+        logger.info(f"[TopPanelsDiag] refresh_all DONE: {total_ms:.1f}ms")
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Request top panels refresh with debounce."""

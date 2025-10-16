@@ -321,12 +321,31 @@ class PanelVisibilityManager:
     def _ensure_panel_visible(self, panel_widget: QWidget | None) -> None:
         """Ensure that the panel itself stays visible.
 
-        Fix: guard the call with ``@safe_widget_operation`` to handle deleted widgets.
+        FIX: НЕ показывать панель, если в ней нет кнопок (пустой layout).
+        Это предотвращает показ пустых панелей до загрузки данных.
         """
+        # FIX: Проверить, есть ли кнопки в панели
         try:
-            panel_widget.setVisible(True)
+            layout = getattr(panel_widget, 'panel_layout', None)
+            if layout is None:
+                layout = panel_widget.layout()
+            
+            # Если layout пустой или только spacer — не показывать
+            if layout and layout.count() > 0:
+                # Проверить, есть ли хотя бы один виджет (не spacer)
+                has_widgets = False
+                for i in range(layout.count()):
+                    item = layout.itemAt(i)
+                    if item and item.widget() is not None:
+                        has_widgets = True
+                        break
+                
+                if has_widgets:
+                    panel_widget.setVisible(True)
+                # Если нет виджетов — оставить как есть (скрытой)
         except (RuntimeError, AttributeError):
             pass
+        
         try:
             panel_widget.updateGeometry()
         except (RuntimeError, AttributeError):
