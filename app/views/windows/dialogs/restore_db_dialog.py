@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QListWidget,

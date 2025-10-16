@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-
 from typing import Any, Optional
 
 from app.controllers.ui.undo.base import BaseCommand, log_command

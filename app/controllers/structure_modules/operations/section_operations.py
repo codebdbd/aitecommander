@@ -9,7 +9,12 @@ from typing import Any, Callable, Optional, cast
 from app.models import StructureModel
 from app.services.structure_service import StructureService
 
-from ..models.types import AnyItemPayload, SectionCreateData, SectionData, SectionUpdateData
+from ..models.types import (
+    AnyItemPayload,
+    SectionCreateData,
+    SectionData,
+    SectionUpdateData,
+)
 from .base import BaseOperations, StructureItemType, StructureSignalEmitter
 
 

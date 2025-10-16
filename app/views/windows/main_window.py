@@ -1,8 +1,8 @@
 import logging
 from typing import TYPE_CHECKING, Any, Optional
 
-from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence, QUndoStack, QShowEvent, QCloseEvent
+from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QCloseEvent, QKeySequence, QShowEvent, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from app.views.common.retranslatable import ReTranslatable

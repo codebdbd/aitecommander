@@ -19,6 +19,7 @@ from ..models.types import (
 )
 from .base import BaseOperations, StructureSignalEmitter
 
+
 class _NormalizationValidator(Protocol):
     def __call__(
         self,

@@ -8,7 +8,7 @@ configuration object is created only when code first accesses attributes on
 """
 
 # Публичные символы модуля
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 __all__ = ["app_config", "get_app_config", "AppConfig"]
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover - только для подсказок �
     from .config_loader import AppConfig as AppConfig
 
 
-def get_app_config() -> "AppConfig":
+def get_app_config() -> AppConfig:
     """Получить лениво инициализированный экземпляр `AppConfig`."""
     instance = app_config._get_instance()
     if instance is None:
@@ -29,13 +29,13 @@ class _LazyAppConfig:
 
     __slots__ = ("_instance",)
 
-    _instance: "AppConfig | None"
+    _instance: AppConfig | None
 
     def __init__(self) -> None:
         # use ``object.__setattr__`` to avoid triggering the overridden ``__setattr__``
         object.__setattr__(self, "_instance", None)
 
-    def _get_instance(self) -> "AppConfig":
+    def _get_instance(self) -> AppConfig:
         if self._instance is None:
             # Local import; the loader itself performs no I/O at import time
             from .config_loader import AppConfig as _AppConfig

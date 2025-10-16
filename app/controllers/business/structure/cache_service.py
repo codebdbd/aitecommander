@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 try:
-    from app.utils.metrics import get_metrics
-    from app.utils.metrics import PerformanceMetrics
+    from app.utils.metrics import PerformanceMetrics, get_metrics
 
     _metrics: PerformanceMetrics | None = get_metrics()
 except ImportError:

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     LinkDict = dict[str, Any]
 
     from app.controllers.ui.links.links_actions import LinksActions
+
     # ActionController removed - not used
     from app.controllers.ui.state.ui_state_manager import UIStateManager
     from app.controllers.ui.structure.structure_ui_controller import (

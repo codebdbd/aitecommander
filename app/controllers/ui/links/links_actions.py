@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Protocol, Union
+from typing import Any, Optional, Protocol, Union
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.services import share_service

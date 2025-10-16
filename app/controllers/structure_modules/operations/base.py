@@ -6,7 +6,6 @@ from typing import Any, Callable, Optional, TypeVar, cast
 
 from ..models.types import (
     AnyCreateData,
-    AnyItemData,
     AnyItemPayload,
     AnyUpdateData,
     ItemTypeConfig,

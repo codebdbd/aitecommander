@@ -190,7 +190,7 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
             self._maybe_flush_locked(force=False)
 
     # Context manager for guaranteed flush
-    def __enter__(self) -> "PersistentProfileCache":
+    def __enter__(self) -> PersistentProfileCache:
         self._lock.acquire()
         return self
 

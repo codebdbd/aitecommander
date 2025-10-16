@@ -1,9 +1,9 @@
 import logging
-from typing import TYPE_CHECKING, Any, Collection, Mapping, cast
+from collections.abc import Collection, Mapping
+from typing import TYPE_CHECKING, Any, cast
 
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
-
 from app.views.widgets.protocols import LinkTableWidgetProtocol
 
 logger = logging.getLogger(__name__)

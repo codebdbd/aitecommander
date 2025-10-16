@@ -172,7 +172,7 @@ class BottomPanelBuilder:
 
         # Switch-sphere button (created after controllers init)
         # Add a placeholder for future insertion (e.g., at the start of the layout)
-        setattr(self.window, "switch_sphere_button", None)  # type: ignore[attr-defined]
+        self.window.switch_sphere_button = None  # type: ignore[attr-defined]
         placeholder = QWidget()  # Temporary spacer for the future button
         placeholder.setFixedWidth(0)  # Takes no space initially
         placeholder.setSizePolicy(
@@ -187,7 +187,7 @@ class BottomPanelBuilder:
             for index, spec in enumerate(bottom_actions)
         ]
         parsed_actions = [action for action in parsed_actions if action is not None]
-        setattr(self.window, "_bottom_bar_bindings", [])  # type: ignore[attr-defined]
+        self.window._bottom_bar_bindings = []  # type: ignore[attr-defined]
         bottom_btns: list[QPushButton] = []
         for action in parsed_actions:
             if action is None:  # Type guard

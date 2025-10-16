@@ -10,9 +10,9 @@ Migrated to the new `run_db` facade instead of the legacy workers from
 import logging
 import time
 from threading import Lock
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Optional, Protocol
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtSlot
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
@@ -28,6 +28,7 @@ from ..models.types import (
     SphereData,
 )
 from ..signals.signals import StructureSignals
+
 
 class _MetricsProtocol(Protocol):
     def start(self, name: str) -> None: ...
