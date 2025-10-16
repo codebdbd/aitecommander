@@ -286,12 +286,14 @@ class PanelVisibilityManager:
                         try:
                             if b.isVisible():
                                 visible_btns.append(int(b.sizeHint().width()))
-                        except Exception:
+                        except (RuntimeError, AttributeError, TypeError):
+                            # Кнопка удалена, sizeHint() недоступен, или конверсия не удалась
                             pass
                     panel_hint = 0
                     try:
                         panel_hint = int(panel.sizeHint().width())
-                    except Exception:
+                    except (RuntimeError, AttributeError, TypeError):
+                        # Панель удалена, sizeHint() недоступен, или конверсия не удалась
                         pass
                     logger.info(
                         "[TopbarDiag:%s] visible=%s widths=%s "
@@ -303,11 +305,13 @@ class PanelVisibilityManager:
                         panel_hint,
                         getattr(panel, "contentsMargins", lambda: None)(),
                     )
-                except Exception:
+                except (RuntimeError, AttributeError, TypeError):
+                    # Диагностика некритична
                     pass
                 try:
                     panel._dbg_logged_once = True
-                except Exception:
+                except (RuntimeError, AttributeError):
+                    # Установка атрибута некритична
                     pass
         except (RuntimeError, AttributeError):
             pass

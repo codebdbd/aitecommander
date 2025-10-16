@@ -317,11 +317,15 @@ class TopBarLayoutManager(QObject):
                     try:
                         if b.isVisible():
                             visible += 1
-                    except Exception:
+                    except (RuntimeError, AttributeError):
+                        # Кнопка удалена во время итерации или b is None
                         pass
                 counts[state.definition.label] = visible
-        except Exception:
-            pass
+        except (RuntimeError, AttributeError) as e:
+            logger.debug(
+                "TopBarLM: failed to get visible counts from state: %s",
+                e
+            )
         return counts
 
     def get_sip_statistics(self) -> dict:

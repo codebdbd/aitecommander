@@ -184,7 +184,8 @@ class WidthCalculator(QObject):
         try:
             lm = layout.contentsMargins()
             total += lm.left() + lm.right()
-        except Exception:
+        except (RuntimeError, AttributeError):
+            # Layout deleted or contentsMargins() unavailable
             pass
         try:
             import PyQt6.QtWidgets as _qtw
@@ -192,15 +193,18 @@ class WidthCalculator(QObject):
             if isinstance(bg, _qtw.QFrame):
                 try:
                     fw = int(bg.frameWidth())
-                except Exception:
+                except (RuntimeError, AttributeError, TypeError):
+                    # Frame deleted, frameWidth() unavailable, or conversion failed
                     fw = 0
                 total += max(0, fw * 2)
-        except Exception:
+        except (ImportError, RuntimeError, AttributeError):
+            # Import failed, bg deleted, or isinstance check failed
             pass
         try:
             pm = panel.contentsMargins()
             total += pm.left() + pm.right()
-        except Exception:
+        except (RuntimeError, AttributeError):
+            # Panel deleted or contentsMargins() unavailable
             pass
         return total
 

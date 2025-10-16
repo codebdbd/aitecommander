@@ -94,8 +94,13 @@ class NarrowModeService:
             # Скрыть все остальные виджеты
             try:
                 widget.setVisible(False)
-            except Exception:
-                pass
+            except (RuntimeError, AttributeError) as e:
+                # RuntimeError: widget deleted
+                # AttributeError: widget is None
+                logger.debug(
+                    "NarrowMode: failed to hide widget (may be deleted): %s",
+                    e
+                )
 
     def freeze_search_width(self) -> None:
         """Заморозить ширину search widget."""
