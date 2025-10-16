@@ -45,6 +45,11 @@ class BasePanelWidget(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
+        
+        # FIX: Установить прозрачный фон для предотвращения белой вспышки
+        # при изменении размера окна
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        
         self.bg_frame = QFrame(self)
         self.panel_layout = QHBoxLayout(self.bg_frame)
         self.panel_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)

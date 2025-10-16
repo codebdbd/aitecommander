@@ -63,6 +63,10 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             Callable[[dict[str, Any]], Optional[QToolButton]]
         ] = None
 
+        # FIX: Batched adjust() to avoid multiple layout recalculations during startup
+        self._adjust_timer: Optional[QTimer] = None
+        self._adjust_pending = False
+
         # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
     def set_data(self, items: list[dict[str, Any]]) -> None:
@@ -79,8 +83,33 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         pass
 
     def _sync_topbar_layout(self) -> None:
-        """Synchronously recalculates top bar to avoid search size switching."""
+        """Synchronously recalculates top bar to avoid search size switching.
+        
+        FIX: Использует батчинг через QTimer для предотвращения множественных
+        вызовов adjust() во время загрузки данных панелей.
+        """
         try:
+            # FIX: Отложить adjust() через таймер для батчинга
+            if self._adjust_pending:
+                return  # Уже запланирован
+            
+            self._adjust_pending = True
+            
+            if self._adjust_timer is None:
+                self._adjust_timer = QTimer(self)
+                self._adjust_timer.setSingleShot(True)
+                self._adjust_timer.timeout.connect(self._execute_adjust)
+            
+            # Отложить на 10ms — достаточно для батчинга всех set_data()
+            self._adjust_timer.start(10)
+        except Exception:
+            logger.debug("BaseTopPanelWidget: failed to schedule adjust", exc_info=True)
+            self._adjust_pending = False
+    
+    def _execute_adjust(self) -> None:
+        """Выполнить отложенный adjust()."""
+        try:
+            self._adjust_pending = False
             mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
                 mgr.adjust()
@@ -147,7 +176,18 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         items: list[dict[str, Any]],
         create_func: Callable[[dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Populate synchronously for small datasets."""
+        """Populate synchronously for small datasets.
+        
+        FIX: Скрывает панель во время заполнения для устранения визуальных рывков.
+        """
+        import time
+        t_start = time.perf_counter()
+        
+        # ДИАГНОСТИКА
+        panel_name = self.objectName() or self.__class__.__name__
+        was_visible = self.isVisible()
+        logger.info(f"[PopulateDiag:{panel_name}] START populate_sync: {len(items)} items, visible={was_visible}")
+        
         self.setUpdatesEnabled(False)
         try:
             for i, link in enumerate(items):
@@ -177,6 +217,13 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                     )
         finally:
             self._finish_populate()
+            # FIX: Показать панель после заполнения (если есть кнопки)
+            if self.panel_layout.count() > 0:
+                self.setVisible(True)
+                logger.info(f"[PopulateDiag:{panel_name}] Shown panel after populate (was_visible={was_visible})")
+            
+            duration_ms = (time.perf_counter() - t_start) * 1000
+            logger.info(f"[PopulateDiag:{panel_name}] DONE populate_sync: {duration_ms:.1f}ms, buttons_added={self.panel_layout.count()}")
 
     def _populate_batched(
         self,
@@ -219,20 +266,17 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 if self._create_button_func is None:
                     break
                 button = self._create_button_func(link)  # type: ignore[misc]
-                if button:
+                if button is not None:
                     self.panel_layout.addWidget(button)
+                else:
+                    logger.debug(
+                        "create_button_func returned None for element %d: %s",
+                        i,
+                        link.get("name", "Unknown"),
+                    )
             except Exception:
                 logger.exception("Failed to create button for %s", link.get("name"))
                 continue
-
-            if button is not None:
-                self.panel_layout.addWidget(button)
-            else:
-                logger.debug(
-                    "create_button_func returned None for element %d: %s",
-                    i,
-                    link.get("name", "Unknown"),
-                )
 
         # Schedule next batch
         if self._pending_items and self._populate_timer:

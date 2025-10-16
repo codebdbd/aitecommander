@@ -173,7 +173,11 @@ class TopBarLayoutManager(QObject):
 
     @require_main_thread
     def mark_data_ready(self) -> None:
-        """Отметить что данные готовы."""
+        """Отметить что данные готовы.
+        
+        FIX: Убрана логика opacity effect — теперь просто переключаем состояние
+        и запускаем adjust().
+        """
         state = self._orchestrator.get_init_state()
         if state == InitializationState.DATA_READY:
             logger.debug(
@@ -188,69 +192,21 @@ class TopBarLayoutManager(QObject):
         self._orchestrator.set_init_state(InitializationState.DATA_READY)
         logger.debug("TopBarLM: state transition -> DATA_READY")
 
-        # Reveal the panel
-        if self._opacity_effect is not None:
-            try:
-                self._opacity_effect.setOpacity(1.0)
-                logger.debug(
-                    "TopBarLM: container opacity set to 1 (state=%s)",
-                    self._orchestrator.get_init_state().name
-                )
-            except (RuntimeError, AttributeError) as e:
-                logger.warning(
-                    "TopBarLM: failed to set opacity (effect may be deleted): %s",
-                    e
-                )
-            except Exception as e:
-                logger.error(
-                    "TopBarLM: unexpected error setting opacity: %s",
-                    e,
-                    exc_info=True
-                )
-
+        # FIX: Убрана установка opacity — топпанель уже видима
         self.adjust()
 
     @require_main_thread
     def prepare_initial_layout(self) -> None:
         """Подготовить начальный layout.
 
-        Создаёт QGraphicsOpacityEffect(0.0) для скрытия контейнера до готовности данных.
-        Эффект автоматически очищается в cleanup().
+        FIX: Убран QGraphicsOpacityEffect для устранения визуальных задержек.
+        Топпанель теперь показывается сразу без fade-in эффекта.
 
         Thread-safety: Должен вызываться из GUI-потока.
         """
-        container = self._widget_accessor.get_container_widget()
-        if container:
-            try:
-                # Проверить существующий эффект
-                existing_effect = container.graphicsEffect()
-                if existing_effect is not None:
-                    logger.warning(
-                        "TopBarLM: container already has graphics effect: %s, "
-                        "replacing",
-                        type(existing_effect).__name__
-                    )
-                    container.setGraphicsEffect(None)
-                    existing_effect.deleteLater()
-
-                effect = QGraphicsOpacityEffect(container)
-                effect.setOpacity(0.0)
-                container.setGraphicsEffect(effect)
-                self._opacity_effect = effect
-                logger.debug("TopBarLM: container opacity set to 0")
-            except (RuntimeError, AttributeError) as e:
-                logger.warning(
-                    "TopBarLM: failed to set opacity effect "
-                    "(expected during shutdown): %s",
-                    e
-                )
-            except Exception as e:
-                logger.error(
-                    "TopBarLM: unexpected error setting opacity effect: %s",
-                    e,
-                    exc_info=True
-                )
-
+        # FIX: Убрана установка opacity effect — она вызывала визуальные рывки
+        # и задержки при загрузке. Топпанель теперь показывается сразу.
+        
         state = self._orchestrator.get_init_state()
         if state == InitializationState.NOT_STARTED:
             self._orchestrator.set_init_state(InitializationState.WAITING_FOR_DATA)

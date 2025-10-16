@@ -33,12 +33,28 @@ class RecentPanelWidget(BaseTopPanelWidget):
         # Set object names for styling
         self.setObjectName("recentPanel")
         self.bg_frame.setObjectName("recentPanelBg")
+        
+        # FIX: Скрыть панель до загрузки данных — предотвращает рывки при старте
+        self.setVisible(False)
 
     def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets recent links data and populates the panel (unified contract)."""
+        import logging
+        import time
+        logger = logging.getLogger(__name__)
+        t_start = time.perf_counter()
+        
+        logger.info(f"[RecentDiag] set_data called: {len(items)} items")
         self._populate_panel(items, self._create_recent_button)
+        
+        duration_ms = (time.perf_counter() - t_start) * 1000
+        logger.info(f"[RecentDiag] _populate_panel done: {duration_ms:.1f}ms")
+        
         # Visibility is managed by TopBarLayoutManager; just sync layout
+        t_sync = time.perf_counter()
         self._sync_topbar_layout()
+        sync_ms = (time.perf_counter() - t_sync) * 1000
+        logger.info(f"[RecentDiag] _sync_topbar_layout done: {sync_ms:.1f}ms")
 
     def get_limit(self) -> int:
         """Optional contract (RecentsPanelWithLimit): desired number of items."""

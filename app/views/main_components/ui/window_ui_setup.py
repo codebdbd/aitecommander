@@ -338,12 +338,8 @@ class WindowUISetup:
             logger.warning(
                 "TopPanel: failed to set top bar host size policy/height", exc_info=True
             )
-        try:
-            top_bar_host.setVisible(False)
-        except (RuntimeError, AttributeError):
-            logger.debug(
-                "TopPanel: failed to initially hide top_bar_host", exc_info=True
-            )
+        # FIX: Убрано setVisible(False) — топпанель теперь видима сразу
+        # Это устраняет визуальные рывки при загрузке
         return top_bar_host
 
     def _init_and_schedule_topbar_manager(self) -> None:
@@ -373,41 +369,16 @@ class WindowUISetup:
         if getattr(self.window, "_topbar_initialized", False):
             return
         self.window._topbar_initialized = True
-        try:
-            from app.utils.ui.updates import suspend_updates
-        except (ImportError, ModuleNotFoundError):
-            suspend_updates = None  # type: ignore[assignment]
-
-        def _activate() -> None:
-            host = getattr(self.window, "top_bar_host", None)
-            if host and hasattr(host, "setVisible"):
-                try:
-                    if not host.isVisible():
-                        host.setVisible(True)
-                except (RuntimeError, AttributeError):
-                    logger.debug(
-                        "TopPanel: failed to show top_bar_host early", exc_info=True
-                    )
-            QTimer.singleShot(0, partial(self._finalize_topbar_startup, mgr))
-
-        if suspend_updates is not None and isinstance(self.window, QWidget):
-            try:
-                with suspend_updates(self.window):
-                    _activate()
-            except (RuntimeError, AttributeError, TypeError):
-                logger.debug(
-                    "TopPanel: suspend_updates failed during initialization",
-                    exc_info=True,
-                )
-                _activate()
-        else:
-            _activate()
+        
+        # FIX: Упрощена инициализация — топпанель уже видима,
+        # не нужно suspend_updates и дополнительные таймеры
+        QTimer.singleShot(0, partial(self._finalize_topbar_startup, mgr))
 
     def _finalize_topbar_startup(self, mgr: TopBarLayoutManager) -> None:
         """Finalize topbar initialization after the window becomes visible.
 
-        FIX: rely on the ``data_loaded`` signal to synchronize with data loading,
-        avoiding race conditions during startup. Adds a fallback timeout.
+        FIX: Упрощена инициализация — убраны избыточные таймеры и fallback-логика.
+        Топпанель теперь показывается сразу, без задержек.
         """
         try:
             mgr.prepare_initial_layout()
@@ -416,63 +387,42 @@ class WindowUISetup:
 
         controller = getattr(self.window, "top_panels_controller", None)
 
-        # FIX: schedule fallback timeout in case data never loads
-        try:
-            if hasattr(mgr, "_schedule_data_ready_fallback"):
-                mgr._schedule_data_ready_fallback()
-        except Exception as e:
-            logger.debug(f"TopPanel: failed to schedule data_ready fallback: {e}")
-
-        # FIX: streamline initialization by removing redundant adjustments
-        # Check whether the new ``data_loaded`` signal exists
+        # FIX: Упрощенная инициализация — подключаем сигнал или используем один fallback
         if controller and hasattr(controller, "data_loaded"):
             try:
-                # Connect to the data loading signal (single-shot)
                 from PyQt6.QtCore import Qt
-
                 controller.data_loaded.connect(
                     mgr.mark_data_ready, Qt.ConnectionType.SingleShotConnection
                 )
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
                 logger.warning(f"TopPanel: failed to connect data_loaded signal: {e}")
-                # FIX: fallback path issues a single call instead of two
-                QTimer.singleShot(100, mgr.mark_data_ready)
+                QTimer.singleShot(50, mgr.mark_data_ready)
         else:
-            # FIX: fallback for older versions — trigger once instead of twice
-            logger.debug(
-                "TopPanel: data_loaded signal not available, using timer fallback"
+            # Fallback: один таймер вместо нескольких
+            QTimer.singleShot(50, mgr.mark_data_ready)
+
+        # FIX: Запуск refresh_all() через QTimer для предотвращения блокировки GUI
+        # Отложить на 0ms — это позволит GUI-потоку завершить инициализацию
+        if controller and hasattr(controller, "refresh_all"):
+            QTimer.singleShot(0, lambda: self._safe_refresh_all(controller))
+
+    def _safe_refresh_all(self, controller) -> None:
+        """Безопасный вызов refresh_all() с обработкой ошибок."""
+        try:
+            controller.refresh_all()
+        except (RuntimeError, AttributeError):
+            logger.warning(
+                "TopPanel: top_panels_controller.refresh_all() failed",
+                exc_info=True,
             )
-            QTimer.singleShot(100, mgr.mark_data_ready)
-
-        # Trigger data refresh
-        def _refresh():
-            if controller and hasattr(controller, "refresh_all"):
-                try:
-                    controller.refresh_all()
-                except (RuntimeError, AttributeError):
-                    logger.warning(
-                        "TopPanel: top_panels_controller.refresh_all() failed",
-                        exc_info=True,
-                    )
-
-        QTimer.singleShot(0, _refresh)
-
+    
     def _schedule_top_panels_refresh(self) -> None:
         controller = getattr(self.window, "top_panels_controller", None)
         if not controller or not hasattr(controller, "refresh_all"):
             return
 
-        def _refresh() -> None:
-            try:
-                controller.refresh_all()
-            except (RuntimeError, AttributeError):
-                logger.warning(
-                    "TopPanel: top_panels_controller.refresh_all() failed",
-                    exc_info=True,
-                )
-
-        QTimer.singleShot(0, _refresh)
+        QTimer.singleShot(0, lambda: self._safe_refresh_all(controller))
 
     def _on_language_changed(self, _lang_code: str) -> None:
         """Update UI texts when language changes."""
@@ -670,6 +620,8 @@ class WindowUISetup:
         ]
         for idx, (mode, attr_name, obj_name, label) in enumerate(widgets_params):
             self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
+            
+            # Add separators between panels
             if idx < len(widgets_params) - 1:
                 try:
                     top_bar.addSpacing(4)
@@ -764,8 +716,6 @@ class WindowUISetup:
                 "SearchWidget: window.on_search handler not found; "
                 "textChanged not connected"
             )
-        # Add without stretch; `TopBarLayoutManager` applies stretch
-        # after the final adjust
         top_bar.addWidget(self.window.search)
         try:
             dur = (time.perf_counter() - t_start) * 1000.0
