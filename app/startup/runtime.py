@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import sys
@@ -22,9 +23,16 @@ from app.startup.logging_setup import log_shutdown, log_system_info, setup_loggi
 from app.startup.signal_handling import SignalManager, should_install_signal_handlers
 from i18n.language_service import LanguageService
 
+
 # Resources not used - removed unused import
-qInitResources = lambda: None
-qCleanupResources = lambda: None
+def qInitResources() -> None:
+    pass
+
+
+def qCleanupResources() -> None:
+    pass
+
+
 _resources_initialized = False
 
 logger = logging.getLogger(__name__)
@@ -156,6 +164,32 @@ def _initialize_language_service(
     return language_service
 
 
+def _preload_ui_icons() -> None:
+    """Preload menu and UI icons to cache for faster startup."""
+    try:
+        from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+
+        # Get current theme from settings
+        theme = app_config.get("ui.theme", "dark")
+
+        # All icons used in menus and UI
+        ui_icons = [
+            # Main menu icons
+            "add_section", "add_category", "add_link", "undo", "redo",
+            "delete", "exit", "settings", "export", "dbrestore", "import",
+            "zip_ico", "add_ico", "search", "dark", "light", "help",
+        ]
+
+        # Run async preload in event loop
+        async def _preload():
+            await icon_cache.preload_icons_async(ui_icons, theme)
+
+        asyncio.run(_preload())
+        logger.info("Preloaded %d UI icons for theme '%s'", len(ui_icons), theme)
+    except Exception as exc:
+        logger.warning("Failed to preload UI icons: %s", exc)
+
+
 def _initialize_database_and_profiles(
     initializer: ApplicationInitializer,
 ) -> None:
@@ -250,6 +284,10 @@ def run(options: StartupOptions | None = None) -> int:
         about_to_quit_cleanup_registered = _register_cleanup_handler(app, initializer)
         signal_manager = _setup_signal_handlers(app, initializer)
         _initialize_language_service(app, options.mode)
+
+        # Preload UI icons before window creation
+        if options.mode == StartupMode.GUI:
+            _preload_ui_icons()
 
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
