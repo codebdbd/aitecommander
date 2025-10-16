@@ -72,6 +72,3 @@ class TopBarBuilder:
 
         # Init and schedule layout manager post-shown tasks
         self.ui._init_and_schedule_topbar_manager()
-
-        # Final metric
-        self.ui._log_setup_top_panel_total(t_total_start)

@@ -178,16 +178,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     ) -> None:
         """Populate synchronously for small datasets.
         
-        FIX: Скрывает панель во время заполнения для устранения визуальных рывков.
+        Uses setUpdatesEnabled(False) to prevent visual glitches during population.
         """
-        import time
-        t_start = time.perf_counter()
-        
-        # ДИАГНОСТИКА
-        panel_name = self.objectName() or self.__class__.__name__
-        was_visible = self.isVisible()
-        logger.info(f"[PopulateDiag:{panel_name}] START populate_sync: {len(items)} items, visible={was_visible}")
-        
         self.setUpdatesEnabled(False)
         try:
             for i, link in enumerate(items):
@@ -217,13 +209,6 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                     )
         finally:
             self._finish_populate()
-            # FIX: Показать панель после заполнения (если есть кнопки)
-            if self.panel_layout.count() > 0:
-                self.setVisible(True)
-                logger.info(f"[PopulateDiag:{panel_name}] Shown panel after populate (was_visible={was_visible})")
-            
-            duration_ms = (time.perf_counter() - t_start) * 1000
-            logger.info(f"[PopulateDiag:{panel_name}] DONE populate_sync: {duration_ms:.1f}ms, buttons_added={self.panel_layout.count()}")
 
     def _populate_batched(
         self,
