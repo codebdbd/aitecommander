@@ -1109,7 +1109,8 @@
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="34" />
-<translation type="finished">Профили браузера</translation>
+      <source>Browser profiles</source>
+      <translation type="finished">Профили браузера</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="35" />
