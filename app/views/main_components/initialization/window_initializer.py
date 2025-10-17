@@ -192,6 +192,8 @@ class WindowInitializer:
         self.ui_setup.setup_window_properties()
 
     def _init_basic_attributes(self) -> None:
+        # Assign database instance to window for shutdown controller access
+        self.window.db = self.db  # type: ignore[attr-defined]
         self.ui_setup.setup_basic_attributes()
 
     def _init_menu(self) -> None:

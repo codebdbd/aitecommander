@@ -52,6 +52,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     shown: pyqtSignal = pyqtSignal()
 
+    db: Optional[Any]  # Database instance for shutdown controller
     structure: Optional["StructureUIController"]
     menu_controller: Optional["MenuController"]
     action_controller: Optional[Any]  # ActionController removed

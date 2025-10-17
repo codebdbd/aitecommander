@@ -99,6 +99,20 @@ class TreeManagement(QObject):
                 )
 
             self._after_snapshot_applied(expanded_state, current_selection)
+            
+            # Set focus to first section after sphere switch
+            try:
+                sb = getattr(self.controller, "business", None) or getattr(
+                    self.controller, "structure_business", None
+                )
+                # Only select first item if sphere was switched (suppression flag is set)
+                if sb and getattr(sb, "_suppress_category_restore_once", False):
+                    self._state.select_first_item()
+            except Exception:
+                logger.debug(
+                    "TreeManagement._on_structure_loaded: failed to select first item",
+                    exc_info=True,
+                )
 
             try:
                 sb = getattr(self.controller, "business", None) or getattr(

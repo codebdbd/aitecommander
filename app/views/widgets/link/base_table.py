@@ -85,6 +85,25 @@ class TableDelegate(QStyledItemDelegate):
                 except Exception:
                     continue
 
+    def update_column_sizes(self, font_size: int):
+        """Update column font sizes based on new base font size.
+        
+        Scales all column sizes proportionally to the new font size.
+        """
+        try:
+            # Update individual column sizes
+            if self.col_opened_px:
+                self.col_opened_px = font_size
+            if self.col_notes_px:
+                self.col_notes_px = font_size
+            
+            # Update column sizes dict
+            for col in self.col_sizes:
+                self.col_sizes[col] = font_size
+                
+        except Exception as e:
+            logger.debug("TableDelegate.update_column_sizes failed: %s", e)
+
     def _paint_hover_highlight(self, painter, option, index):
         """Paint hover highlight for row."""
         is_hovered_row = self.hovered_row == index.row()
@@ -237,6 +256,14 @@ class LinksTableView(
 
         font = QFont(self.font().family(), font_size)
         self.setFont(font)
+        
+        # Update delegate column sizes to match new font size
+        delegate = self.itemDelegate()
+        if delegate and hasattr(delegate, 'update_column_sizes'):
+            try:
+                delegate.update_column_sizes(font_size)
+            except Exception as e:
+                logger.debug("Failed to update delegate column sizes: %s", e)
 
         # Refresh the viewport
         viewport = self.viewport()

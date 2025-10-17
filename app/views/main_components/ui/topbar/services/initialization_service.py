@@ -85,29 +85,31 @@ class TopBarInitializationService:
             f"topbar.min_visible.{panel}",
         )
 
-    def create_panel_definitions(self) -> tuple[PanelDefinition, ...]:
-        """Создать определения панелей."""
+    def create_panel_definitions(
+        self, bounds: dict[str, int]
+    ) -> tuple[PanelDefinition, ...]:
+        """Create panel definitions with resolved visibility bounds."""
         return (
             PanelDefinition(
                 label=PanelLabel.RECENT.value,
                 attr_name="recent_links_widget",
                 button_object_name=ButtonObjectName.RECENT.value,
-                min_attr="_min_recent",
-                max_attr="_max_recent",
+                min_visible=bounds["min_recent"],
+                max_visible=bounds["max_recent"],
             ),
             PanelDefinition(
                 label=PanelLabel.FAVORITES.value,
                 attr_name="fav_widget",
                 button_object_name=ButtonObjectName.FAVORITE.value,
-                min_attr="_min_fav",
-                max_attr="_max_fav",
+                min_visible=bounds["min_fav"],
+                max_visible=bounds["max_fav"],
             ),
             PanelDefinition(
                 label=PanelLabel.QUICK.value,
                 attr_name="quick_add_widget",
                 button_object_name=ButtonObjectName.QUICK.value,
-                min_attr="_min_quick",
-                max_attr="_max_quick",
+                min_visible=bounds["min_quick"],
+                max_visible=bounds["max_quick"],
             ),
         )
 

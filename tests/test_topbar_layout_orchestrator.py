@@ -1,73 +1,78 @@
-"""Tests for LayoutOrchestrator with new configuration features."""
+"""Tests for LayoutOrchestrator favorites threshold behaviour (lightweight)."""
 
-import pytest
-from unittest.mock import Mock, patch
-from app.views.main_components.ui.topbar.services.layout_orchestrator import LayoutOrchestrator
-from app.views.main_components.ui.topbar.models.config_protocol import MockTopBarConfig
+from unittest.mock import Mock
+
+from app.views.main_components.ui.topbar.models.topbar_constants import (
+    TOPBAR_CONSTANTS as C,
+)
+from app.views.main_components.ui.topbar.services.layout_orchestrator import (
+    LayoutOrchestrator,
+)
 
 
-class MockManagerRef:
-    def __init__(self, config=None):
-        self._config = config
+def _build_orchestrator(favorites_threshold: int | None = None):
+    widget_accessor = Mock()
+    visibility_manager = Mock()
+    visibility_manager.apply_counts.side_effect = lambda states, counts: counts
+    visibility_solver = Mock()
+    search_manager = Mock()
+    search_manager.enforce_stretches.return_value = None
+    search_manager.clamp_width.return_value = None
+    separator_service = Mock()
+    separator_service.build_panel_widgets_map.return_value = {}
+    separator_service.update_separators.return_value = None
+    hysteresis_service = Mock()
+    hysteresis_service.apply_hysteresis.side_effect = lambda ctx, counts, *_: counts
+    narrow_mode_service = Mock()
+    narrow_mode_service.apply_narrow_mode.return_value = None
+    narrow_mode_service.set_top_bar_margins.return_value = None
+
+    orchestrator = LayoutOrchestrator(
+        window=Mock(),
+        widget_accessor=widget_accessor,
+        visibility_manager=visibility_manager,
+        visibility_solver=visibility_solver,
+        search_manager=search_manager,
+        separator_service=separator_service,
+        hysteresis_service=hysteresis_service,
+        narrow_mode_service=narrow_mode_service,
+        panel_definitions=(),
+        panel_labels=("fav",),
+        min_search_width=148,
+        narrow_threshold=600,
+        log_info=False,
+        slow_adjust_threshold_ms=50.0,
+        side_spacing=8,
+        favorites_min_visible_threshold=favorites_threshold,
+    )
+    return orchestrator, visibility_solver
 
 
-class MockContext:
-    def __init__(self):
-        self.width = 800
+class DummyContext:
+    def __init__(self) -> None:
         self.panel_states = []
+        self.top_bar = Mock()
+        self.search = Mock()
 
 
 def test_handle_normal_mode_with_custom_favorites_threshold():
-    """Test that _handle_normal_mode respects custom favorites threshold."""
-    # Create mock config with custom threshold
-    config = MockTopBarConfig()
-    config.set("favorites_min_visible_threshold", 3)
-    
-    # Create orchestrator with mock manager ref
-    manager_ref = MockManagerRef(config)
-    
-    # Create orchestrator (we'll test the specific method)
-    orchestrator = Mock()
-    orchestrator._manager_ref = manager_ref
-    
-    # Test the logic directly
-    counts = {"fav": 2}  # Less than threshold of 3
-    
-    # Apply the same logic as in the method
-    favorites_threshold = getattr(orchestrator._manager_ref, '_config', None)
-    if favorites_threshold and hasattr(favorites_threshold, 'get_favorites_min_visible_threshold'):
-        threshold = favorites_threshold.get_favorites_min_visible_threshold()
-    else:
-        threshold = 5  # default
-    
-    if "fav" in counts and 0 < counts["fav"] < threshold:
-        counts["fav"] = 0
-    
-    # Should be hidden (set to 0) because 2 < 3
-    assert counts["fav"] == 0
+    orchestrator, visibility_solver = _build_orchestrator(favorites_threshold=3)
+    visibility_solver.compute_visible_counts.return_value = {"fav": 2}
+    ctx = DummyContext()
+
+    result = orchestrator._handle_normal_mode(ctx)
+
+    assert result["fav"] == 0
 
 
 def test_handle_normal_mode_with_default_favorites_threshold():
-    """Test that _handle_normal_mode uses default favorites threshold when no config."""
-    # Create orchestrator without config
-    manager_ref = MockManagerRef(None)
-    
-    # Create orchestrator (we'll test the specific method)
-    orchestrator = Mock()
-    orchestrator._manager_ref = manager_ref
-    
-    # Test the logic directly
-    counts = {"fav": 3}  # Equal to default threshold of 5
-    
-    # Apply the same logic as in the method
-    favorites_threshold = getattr(orchestrator._manager_ref, '_config', None)
-    if favorites_threshold and hasattr(favorites_threshold, 'get_favorites_min_visible_threshold'):
-        threshold = favorites_threshold.get_favorites_min_visible_threshold()
-    else:
-        threshold = 5  # default
-    
-    if "fav" in counts and 0 < counts["fav"] < threshold:
-        counts["fav"] = 0
-    
-    # Should NOT be hidden because 3 >= 5 is False
-    assert counts["fav"] == 3
+    orchestrator, visibility_solver = _build_orchestrator()
+    visibility_solver.compute_visible_counts.return_value = {
+        "fav": C.FAVORITES_MIN_VISIBLE_THRESHOLD
+    }
+    ctx = DummyContext()
+
+    result = orchestrator._handle_normal_mode(ctx)
+
+    assert result["fav"] == C.FAVORITES_MIN_VISIBLE_THRESHOLD
+

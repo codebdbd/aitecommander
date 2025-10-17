@@ -67,6 +67,10 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._adjust_timer: Optional[QTimer] = None
         self._adjust_pending = False
 
+        self._placeholder_enforced = False
+        self._content_expected = False
+        self._content_added = False
+
         # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
     def set_data(self, items: list[dict[str, Any]]) -> None:
@@ -153,6 +157,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             if spacer is not None:
                 # Explicitly delete spacer to prevent memory leaks
                 del spacer
+        # Ensure placeholder width remains in effect while layout is empty
+        self._ensure_placeholder_width(True)
 
     def _populate_panel(
         self,
@@ -164,6 +170,11 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         IMPROVEMENT: Supports batched mode to prevent UI freezes. When
         ``batch_size`` > 0 the method uses asynchronous loading via ``QTimer``.
         """
+        self._content_expected = bool(items)
+        self._content_added = False
+
+        # Keep placeholder width enforced while new data is being loaded
+        self._ensure_placeholder_width(True)
         self._clear_layout()
 
         if self._batch_size > 0:
@@ -201,6 +212,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
                 if button is not None:
                     self.panel_layout.addWidget(button)
+                    self._content_added = True
                 else:
                     logger.debug(
                         "create_button_func returned None for element %d: %s",
@@ -253,6 +265,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 button = self._create_button_func(link)  # type: ignore[misc]
                 if button is not None:
                     self.panel_layout.addWidget(button)
+                    self._content_added = True
                 else:
                     logger.debug(
                         "create_button_func returned None for element %d: %s",
@@ -278,6 +291,41 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             logger.warning("Failed to add stretch to layout: %s", e)
 
         self.setUpdatesEnabled(True)
+
+        # Release placeholder width once content is available
+        has_content = self._content_added or self._has_content_widgets()
+        self._ensure_placeholder_width(not has_content)
+        self._content_expected = False
+        self._content_added = False
+
+    def _has_content_widgets(self) -> bool:
+        """Check whether the panel currently holds visible widgets."""
+        for i in range(self.panel_layout.count()):
+            item = self.panel_layout.itemAt(i)
+            if item is None:
+                continue
+            if item.widget() is not None:
+                return True
+        return False
+
+    def _ensure_placeholder_width(self, enforce: bool) -> None:
+        """Enforce or release placeholder minimum width."""
+        width = getattr(self, "_placeholder_min_width", 0)
+        if not width:
+            return
+        if enforce and self._placeholder_enforced:
+            return
+        if not enforce and not self._placeholder_enforced:
+            return
+        try:
+            self.setMinimumWidth(width if enforce else 0)
+            self._placeholder_enforced = enforce
+            self.updateGeometry()
+        except Exception:
+            logger.debug(
+                "BaseTopPanelWidget: failed to adjust placeholder width",
+                exc_info=True,
+            )
 
         try:
             self.updateGeometry()

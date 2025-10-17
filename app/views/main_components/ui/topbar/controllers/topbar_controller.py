@@ -250,9 +250,8 @@ class TopBarController(QObject):
             buttons = self._visibility_manager.iter_buttons(
                 widget_qt, definition.button_object_name
             )
-            max_visible = self._safe_int_attr(definition.max_attr, default=0)
-            min_visible = self._safe_int_attr(definition.min_attr, default=0)
-            min_visible = max(0, min(min_visible, max_visible))
+            max_visible = max(0, int(definition.max_visible))
+            min_visible = max(0, min(int(definition.min_visible), max_visible))
 
             if definition.label == PanelLabel.QUICK.value:
                 fixed = len(buttons)
@@ -335,14 +334,6 @@ class TopBarController(QObject):
             return getattr(obj, name, None)
         except RuntimeError:
             return None
-
-    def _safe_int_attr(self, name: str, default: int = 0) -> int:
-        """Safely get integer attribute."""
-        try:
-            value = getattr(self, name)
-            return int(value)
-        except (AttributeError, ValueError, TypeError):
-            return default
 
     def _compute_effective_width(self, width: int) -> int:
         """Compute effective width considering window constraints."""

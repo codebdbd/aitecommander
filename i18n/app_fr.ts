@@ -1432,6 +1432,7 @@ Il est recommandé de créer une sauvegarde avant l'importation.</translation>
   </context>
   <context>
     <name>WindowUISetup</name>
+    <message>
       <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="593" />
       <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="428" />
       <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="39" />

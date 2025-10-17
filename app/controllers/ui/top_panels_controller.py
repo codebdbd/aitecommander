@@ -94,30 +94,38 @@ class TopPanelsController(QObject):
             "on",
         }
 
-    def refresh_all(self) -> None:
-        """Refresh both panels: favorites and recents.
+        # Tracking for refresh_all lifecycle
+        self._refresh_sequence = 0
+        self._data_loaded_token: int | None = None
+        self._pending_sections: dict[str, bool] = {
+            "favorites": False,
+            "recents": False,
+        }
+        self._favorites_pending_tokens: list[int] = []
+        self._recents_pending_tokens: list[int] = []
 
-        FIX: Emits data_loaded after loading finishes.
-        """
+    def refresh_all(self) -> None:
+        """Refresh both panels: favorites and recents."""
         import time
+
+        token = self._begin_refresh_cycle()
         t_start = time.perf_counter()
         logger.info("[TopPanelsDiag] refresh_all START")
-        
+
         t_fav = time.perf_counter()
-        self.refresh_favorites()
+        self.refresh_favorites(_refresh_token=token)
         fav_ms = (time.perf_counter() - t_fav) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_favorites done: {fav_ms:.1f}ms")
-        
+        logger.info(f"[TopPanelsDiag] refresh_favorites scheduled: {fav_ms:.1f}ms")
+
         t_rec = time.perf_counter()
-        self.refresh_recent()
+        self.refresh_recent(_refresh_token=token)
         rec_ms = (time.perf_counter() - t_rec) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_recent done: {rec_ms:.1f}ms")
-        
-        # Emit signal indicating data loading finished
-        self.data_loaded.emit()
-        
+        logger.info(f"[TopPanelsDiag] refresh_recent scheduled: {rec_ms:.1f}ms")
+
+        self._maybe_emit_data_loaded()
+
         total_ms = (time.perf_counter() - t_start) * 1000
-        logger.info(f"[TopPanelsDiag] refresh_all DONE: {total_ms:.1f}ms")
+        logger.info(f"[TopPanelsDiag] refresh_all DONE (initial phase): {total_ms:.1f}ms")
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Request top panels refresh with debounce."""
@@ -179,20 +187,24 @@ class TopPanelsController(QObject):
             self._pending_recent_refresh = False
             raise
 
-    def refresh_favorites(self) -> None:
+    def refresh_favorites(self, *, _refresh_token: int | None = None) -> None:
         """Refresh favorites.
 
-        Default — async load via LinksBusinessLogic.load_favorite_links().
+        Default - async load via LinksBusinessLogic.load_favorite_links().
         If method/signal is unavailable (mocks in tests), use synchronous fallback
         to get_favorite_links() with the previous error handling and widget update.
         """
-        # 1) Try async (only if it's a real LinksBusinessLogic with signals)
+        tracking_enabled = (
+            _refresh_token is not None and _refresh_token == self._data_loaded_token
+        )
+
+        async_started = False
         if self._async_supported and callable(
             getattr(self.links_business, "load_favorite_links", None)
         ):
             try:
                 self.links_business.load_favorite_links()
-                return
+                async_started = True
             except (TypeError, ValueError) as exc:
                 logger.error(
                     "TopPanelsController.refresh_favorites: invalid args for async call: %s",
@@ -210,7 +222,12 @@ class TopPanelsController(QObject):
             if self._strict:
                 raise
 
-        # 2) Synchronous fallback — previous behavior (for tests and simple envs)
+        if async_started:
+            if tracking_enabled and _refresh_token is not None:
+                self._favorites_pending_tokens.append(_refresh_token)
+            return
+
+        # 2) Synchronous fallback - previous behavior (for tests and simple envs)
         widget = self.fav_widget
         items: list = []
         try:
@@ -248,6 +265,9 @@ class TopPanelsController(QObject):
             if self._strict:
                 raise
 
+        if tracking_enabled:
+            self._mark_section_ready("favorites", _refresh_token)
+
     def _get_recent_limit(self, widget):
         """Get recent links limit from widget."""
         limit = 10
@@ -260,13 +280,20 @@ class TopPanelsController(QObject):
             pass
         return limit
 
-    def _try_async_recent_load(self, limit):
+    def _try_async_recent_load(
+        self, limit, refresh_token: int | None = None
+    ):
         """Try to load recent links asynchronously."""
         try:
             if self._async_supported and callable(
                 getattr(self.links_business, "load_recent_links", None)
             ):
                 self.links_business.load_recent_links(limit)
+                if (
+                    refresh_token is not None
+                    and refresh_token == self._data_loaded_token
+                ):
+                    self._recents_pending_tokens.append(refresh_token)
                 return True
         except (TypeError, ValueError) as exc:
             logger.error(
@@ -321,17 +348,56 @@ class TopPanelsController(QObject):
             if self._strict:
                 raise
 
-    def refresh_recent(self) -> None:
+    def _begin_refresh_cycle(self) -> int:
+        """Prepare tracking state for refresh_all cycle."""
+        self._refresh_sequence += 1
+        token = self._refresh_sequence
+        self._data_loaded_token = token
+        self._pending_sections["favorites"] = True
+        self._pending_sections["recents"] = True
+        self._favorites_pending_tokens.clear()
+        self._recents_pending_tokens.clear()
+        return token
+
+    def _mark_section_ready(self, section: str, token: int | None) -> None:
+        if token is None:
+            return
+        if self._data_loaded_token is None or token != self._data_loaded_token:
+            return
+        self._pending_sections[section] = False
+        self._maybe_emit_data_loaded()
+
+    def _complete_async_section(self, section: str) -> None:
+        if section == "favorites":
+            pending = self._favorites_pending_tokens
+        else:
+            pending = self._recents_pending_tokens
+        token = pending.pop(0) if pending else None
+        self._mark_section_ready(section, token)
+
+    def _maybe_emit_data_loaded(self) -> None:
+        if self._data_loaded_token is None:
+            return
+        if any(self._pending_sections.values()):
+            return
+        self.data_loaded.emit()
+        self._data_loaded_token = None
+
+    def refresh_recent(self, *, _refresh_token: int | None = None) -> None:
         """Refresh recent links.
 
-        Default — async load via LinksBusinessLogic.load_recent_links(limit).
+        Default - async load via LinksBusinessLogic.load_recent_links(limit).
         If method/signal is unavailable (mocks in tests), use synchronous fallback
         to get_recent_links(limit) with the previous error handling and widget update.
         """
         widget = self.recent_links_widget
         limit = self._get_recent_limit(widget)
 
-        if self._try_async_recent_load(limit):
+        tracking_enabled = (
+            _refresh_token is not None and _refresh_token == self._data_loaded_token
+        )
+
+        if self._try_async_recent_load(limit, _refresh_token):
             return
 
         items = self._load_recent_sync(limit)
@@ -339,6 +405,9 @@ class TopPanelsController(QObject):
             return
 
         self._update_recent_widget(widget, items)
+
+        if tracking_enabled:
+            self._mark_section_ready("recents", _refresh_token)
 
     def clear_favorites(self) -> None:
         """Clear favorites: business data and widget.
@@ -473,6 +542,7 @@ class TopPanelsController(QObject):
             )
             if self._strict:
                 raise
+        self._complete_async_section("favorites")
 
     def _on_recent_links_loaded(self, items: list[dict[str, object]] | list) -> None:
         widget = self.recent_links_widget
@@ -495,6 +565,7 @@ class TopPanelsController(QObject):
             )
             if self._strict:
                 raise
+        self._complete_async_section("recents")
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Safely cast delay to int; ignores irrelevant signal payloads."""
