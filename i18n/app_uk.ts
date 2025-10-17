@@ -28,6 +28,7 @@
       <translation type="finished"> (Alt+{n})</translation>
     </message>
   </context>
+  <context>
     <name>Application</name>
     <message>
       <source>Aite Commander</source>

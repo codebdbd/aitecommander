@@ -1107,7 +1107,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <source>Add link</source>
       <translation type="finished">Agregar enlace</translation>
     </message>
-    </message>
   </context>
   <context>
     <name>LinkProcessingMixin</name>

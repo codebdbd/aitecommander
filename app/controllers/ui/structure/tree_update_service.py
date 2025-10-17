@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QModelIndex, QObject
+from PyQt6.QtGui import QIcon
 
 from app.controllers.ui.state.task_scheduler import (
     schedule_focus,
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 class TreeUpdateService(QObject):
     """Encapsulates insert/update/delete operations for tree items."""
 
-    def __init__(self, manager: TreeManagement, tree, model) -> None:
+    def __init__(self, manager: TreeManagement, tree: Any, model: Any) -> None:
         parent = manager if isinstance(manager, QObject) else None
         super().__init__(parent=parent)
         self._manager = manager
@@ -51,6 +52,7 @@ class TreeUpdateService(QObject):
                 item_id,
             )
             raise
+
         controller = getattr(self._manager, "controller", None)
         selection_handler = getattr(controller, "selection_handler", None)
         if item_type == "category" and isinstance(item_id, int) and selection_handler:
@@ -77,13 +79,46 @@ class TreeUpdateService(QObject):
             self._schedule_focus()
 
     # --- Helpers --------------------------------------------------------
+    @staticmethod
+    def _row_to_index(raw_row: Any) -> int:
+        try:
+            return int(raw_row)
+        except (TypeError, ValueError):
+            return -1
+
+    @staticmethod
+    def _normalize_icon_path(payload: dict[str, Any]) -> str | None:
+        icon_path = payload.get("icon_path")
+        if isinstance(icon_path, str):
+            trimmed = icon_path.strip()
+            if trimmed:
+                return trimmed
+        icon_hint = payload.get("icon")
+        if isinstance(icon_hint, str):
+            trimmed = icon_hint.strip()
+            if trimmed:
+                return trimmed
+        return None
+
+    @classmethod
+    def _build_payload(cls, data: dict[str, Any]) -> dict[str, Any]:
+        payload = dict(data)
+        icon = payload.get("icon")
+        if not isinstance(icon, QIcon) or icon.isNull():
+            icon = None
+
+        icon_path = cls._normalize_icon_path(payload)
+        payload["icon_path"] = icon_path
+
+        if icon is not None:
+            payload["icon"] = icon
+        else:
+            payload["icon"] = None
+        return payload
+
     def _insert_section(self, data: dict[str, Any]) -> None:
-        row = data.get("row")
-        row_index = int(row) if isinstance(row, int) else -1
-
-        # Преобразуем icon_path в QIcon перед передачей в модель
-        processed_data = self._preprocess_section_data(data)
-
+        row_index = self._row_to_index(data.get("row"))
+        processed_data = self._build_payload(data)
         try:
             self._model.insert_sections(row_index, [processed_data])
         except (ValueError, RuntimeError):
@@ -91,67 +126,15 @@ class TreeUpdateService(QObject):
             raise
 
     def _insert_category(self, parent_id: int, data: dict[str, Any]) -> None:
-        row = data.get("row")
-        row_index = int(row) if isinstance(row, int) else -1
-
-        # Преобразуем icon_path в QIcon перед передачей в модель
-        processed_data = self._preprocess_category_data(data)
-
+        row_index = self._row_to_index(data.get("row"))
+        processed_data = self._build_payload(data)
         try:
             self._model.insert_categories(parent_id, row_index, [processed_data])
         except (ValueError, RuntimeError):
             logger.exception("TreeUpdateService._insert_category: model insert failed")
             raise
-        if not bool(data.get("__from_undo__")):
+        if not data.get("__from_undo__"):
             self._manager.refresh_section_tiles(parent_id)
-
-    def _preprocess_section_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Преобразуем icon_path в QIcon для секции."""
-        try:
-            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-        except ImportError:
-            logger.debug("Icon cache not available, returning original data")
-            return data
-
-        processed = dict(data)
-        icon_path = data.get("icon_path")
-        if isinstance(icon_path, str):
-            trimmed = icon_path.strip()
-            if trimmed:
-                processed["icon_path"] = trimmed
-                try:
-                    processed["icon"] = icon_cache.get_icon(trimmed, source="tree_update")
-                except Exception as exc:
-                    logger.debug("Icon prefetch failed for %s: %s", trimmed, exc, exc_info=True)
-                    processed["icon"] = trimmed
-                    return processed
-                return processed
-        processed["icon"] = None
-        return processed
-
-    def _preprocess_category_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Преобразуем icon_path в QIcon для категории."""
-        try:
-            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-        except ImportError:
-            logger.debug("Icon cache not available, returning original data")
-            return data
-
-        processed = dict(data)
-        icon_path = data.get("icon_path")
-        if isinstance(icon_path, str):
-            trimmed = icon_path.strip()
-            if trimmed:
-                processed["icon_path"] = trimmed
-                try:
-                    processed["icon"] = icon_cache.get_icon(trimmed, source="tree_update")
-                except Exception as exc:
-                    logger.debug("Icon prefetch failed for %s: %s", trimmed, exc, exc_info=True)
-                    processed["icon"] = trimmed
-                    return processed
-                return processed
-        processed["icon"] = None
-        return processed
 
     def _focus_on_new_item(self, item_type: str, item_id: Any) -> None:
         if not isinstance(item_id, int):

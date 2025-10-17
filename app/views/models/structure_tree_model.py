@@ -87,23 +87,29 @@ class IconLoader(QRunnable):
         self.icon_loaded = None
         self.icon_error = None
 
-    def run(self) -> None:  # pragma: no cover - выполняется в фоне
+    def run(self) -> None:  # pragma: no cover - executed in worker thread
+        from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
+
         try:
             if not self.icon_path:
                 raise ValueError("Icon path is empty")
-            try:
-                from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 
-                icon = icon_cache.get_icon(self.icon_path, source="tree_model_async")
-            except Exception:
-                icon = QIcon()
-            
+            def _fetch_icon() -> QIcon:
+                try:
+                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+
+                    return icon_cache.get_icon(self.icon_path, source="tree_model_async")
+                except Exception:
+                    return QIcon()
+
+            icon = run_in_gui_thread_sync(_fetch_icon)
+
             if self._on_loaded:
-                self._on_loaded(self.node, icon)
-        except Exception as exc:  # pragma: no cover - защитный код
+                run_in_gui_thread_sync(lambda: self._on_loaded(self.node, icon))
+        except Exception as exc:
             logger.debug("Icon loading failed for %s: %s", self.icon_path, exc)
             if self._on_error:
-                self._on_error(self.node, str(exc))
+                run_in_gui_thread_sync(lambda: self._on_error(self.node, str(exc)))
 
 
 class _IconPreloadRunnable(QRunnable):
@@ -114,19 +120,24 @@ class _IconPreloadRunnable(QRunnable):
         self._icon_paths = icon_paths
         self.setAutoDelete(True)
 
-    def run(self) -> None:  # pragma: no cover - выполняется в фоне
+    def run(self) -> None:  # pragma: no cover - executed in worker thread
         try:
             from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+            from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
         except Exception:
             return
 
         for path in self._icon_paths:
             if not path:
                 continue
-            try:
-                icon_cache.get_icon(path, source="tree_preload")
-            except Exception as exc:
-                logger.debug("Icon preload failed for %s: %s", path, exc)
+
+            def _warmup() -> None:
+                try:
+                    icon_cache.get_icon(path, source="tree_preload")
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Icon preload failed for %s: %s", path, exc)
+
+            run_in_gui_thread_sync(_warmup)
 
 
 class StructureTreeModel(QAbstractItemModel):
@@ -243,9 +254,13 @@ class StructureTreeModel(QAbstractItemModel):
         """Асинхронная предзагрузка иконок для новых категорий."""
         icon_paths: set[str] = set()
         for category in categories:
-            icon_path = category.get("icon_path") or category.get("icon")
-            if isinstance(icon_path, str) and icon_path.strip():
-                icon_paths.add(icon_path.strip())
+            icon_path = category.get("icon_path")
+            if not icon_path and isinstance(category.get("icon"), str):
+                icon_path = category["icon"]
+            if isinstance(icon_path, str):
+                trimmed = icon_path.strip()
+                if trimmed and not any(sep in trimmed for sep in (":", "/", "\\")):
+                    icon_paths.add(trimmed)
 
         if not icon_paths:
             return
@@ -318,8 +333,16 @@ class StructureTreeModel(QAbstractItemModel):
             return
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i, s in enumerate(sections):
-            icon_path = s.get("icon")
-            icon = QIcon()
+            icon_data = s.get("icon")
+            icon_path = s.get("icon_path")
+            if not icon_path and isinstance(icon_data, str):
+                icon_path = icon_data
+            icon_path = icon_path.strip() if isinstance(icon_path, str) else None
+
+            icon = icon_data if isinstance(icon_data, QIcon) else QIcon()
+
+            if icon_path is not None:
+                s["icon_path"] = icon_path
 
             sec_node = TreeNode(
                 type="section",
@@ -332,7 +355,7 @@ class StructureTreeModel(QAbstractItemModel):
             self._root.children.insert(row + i, sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if isinstance(icon_path, str) and icon_path.strip():
+                if icon_path and (not isinstance(icon, QIcon) or icon.isNull()):
                     self._start_icon_loading(sec_node, icon_path)
         self.endInsertRows()
 
@@ -361,8 +384,16 @@ class StructureTreeModel(QAbstractItemModel):
 
         self.beginInsertRows(parent_index, row, row + count - 1)
         for i, c in enumerate(categories):
-            icon_path = c.get("icon")
-            icon = QIcon()
+            icon_data = c.get("icon")
+            icon_path = c.get("icon_path")
+            if not icon_path and isinstance(icon_data, str):
+                icon_path = icon_data
+            icon_path = icon_path.strip() if isinstance(icon_path, str) else None
+
+            icon = icon_data if isinstance(icon_data, QIcon) else QIcon()
+
+            if icon_path is not None:
+                c["icon_path"] = icon_path
 
             cat_node = TreeNode(
                 type="category",
@@ -375,7 +406,7 @@ class StructureTreeModel(QAbstractItemModel):
             sec_node.children.insert(row + i, cat_node)
             if isinstance(cat_node.id, int):
                 self._category_by_id[cat_node.id] = cat_node
-                if isinstance(icon_path, str) and icon_path.strip():
+                if icon_path and (not isinstance(icon, QIcon) or icon.isNull()):
                     self._start_icon_loading(cat_node, icon_path)
         self.endInsertRows()
         # endInsertRows() автоматически уведомляет view, дополнительный dataChanged не нужен
@@ -586,24 +617,10 @@ class StructureTreeModel(QAbstractItemModel):
         # Используем Qt-безопасный способ вызова слотов из фонового потока
         # Проверка _shutdown в слотах защищает от обращений к удалённому объекту
         def on_loaded(n: TreeNode, ic: QIcon) -> None:
-            from PyQt6.QtCore import QGenericArgument
-            QMetaObject.invokeMethod(
-                self,
-                "_on_icon_loaded",
-                Qt.ConnectionType.QueuedConnection,
-                QGenericArgument("TreeNode", n),
-                QGenericArgument("QIcon", ic),
-            )
-        
+            self._on_icon_loaded(n, ic)
+
         def on_error(n: TreeNode, msg: str) -> None:
-            from PyQt6.QtCore import QGenericArgument
-            QMetaObject.invokeMethod(
-                self,
-                "_on_icon_failed",
-                Qt.ConnectionType.QueuedConnection,
-                QGenericArgument("TreeNode", n),
-                QGenericArgument("QString", msg),
-            )
+            self._on_icon_failed(n, msg)
 
         # CRITICAL: Атомарная проверка shutdown и добавление задачи внутри lock
         # для предотвращения гонки между cleanup() и start()
