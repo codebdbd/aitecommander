@@ -126,3 +126,35 @@ def acquire_icon_metrics() -> Generator[None, None, None]:
 def acquire_icon_lru() -> Generator[None, None, None]:
     with acquire_lock(ICON_LOCK_NAMES["LRU"]):
         yield
+
+
+# === Утилиты для отладки (для тестов) ===
+
+def get_lock_info() -> dict[str, dict[str, bool | int | None]]:
+    """Получить информацию о всех блокировках (для отладки).
+    
+    Returns:
+        Словарь с информацией о каждой блокировке
+    """
+    ensure_default_locks_registered()
+    lm = get_lock_manager()
+    
+    info = {}
+    for name in _ICON_ORDER:
+        lock = lm.get_lock(name)
+        if lock:
+            info[name] = {
+                "locked": lock._lock._is_owned() if hasattr(lock._lock, '_is_owned') else False,
+                "owner": None,  # EnhancedLock не хранит owner
+            }
+    return info
+
+
+def reset_all_locks() -> None:
+    """Сбросить все блокировки (только для тестов!).
+    
+    Warning:
+        Использовать ТОЛЬКО в тестах.
+    """
+    # Для существующего LockManager просто пересоздаём блокировки
+    ensure_default_locks_registered()

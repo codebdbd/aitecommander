@@ -140,8 +140,12 @@ class NegativeCache(BaseCache):
             # Expired — soft decrement of strike and cleanup of mark
             # Invalidate all scheduled events through bump generation
             self._gen[key] = self._gen.get(key, 0) + 1
-            if strikes > 0:
+            if strikes > 1:
+                # Decrement strikes but keep the key
                 self._strikes[key] = strikes - 1
+            else:
+                # Remove key completely when strikes reach 0
+                self._strikes.pop(key, None)
             self._ts.pop(key, None)
             return None
 
@@ -161,8 +165,11 @@ class NegativeCache(BaseCache):
                 # Expired: remove mark and softly decrease strikes
                 self._ts.pop(k, None)
                 s = self._strikes.get(k, 0)
-                if s > 0:
+                if s > 1:
                     self._strikes[k] = s - 1
+                else:
+                    # Remove key completely when strikes reach 0
+                    self._strikes.pop(k, None)
 
             # Update current key
             new_gen = self._gen.get(key, 0) + 1
@@ -185,9 +192,8 @@ class NegativeCache(BaseCache):
                 # First bump generation to invalidate pending events
                 self._gen[k_old] = self._gen.get(k_old, 0) + 1
                 self._ts.pop(k_old, None)
-                s = self._strikes.get(k_old, 0)
-                if s > 0:
-                    self._strikes[k_old] = s - 1
+                # Completely remove strikes for evicted keys
+                self._strikes.pop(k_old, None)
 
     def invalidate(self, key: str | None = None) -> None:
         with self._lock:

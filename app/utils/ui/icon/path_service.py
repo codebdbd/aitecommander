@@ -6,13 +6,28 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from pathlib import Path
-from typing import Any
+import tempfile
+import uuid
+from pathlib import Path, PurePosixPath
+from typing import Any, Dict, Union
 
 from app.config_data import app_config
 
+# Import QRC resources if available (for packaged apps)
+try:
+    import app.resources.icons_rc  # noqa: F401
+    _QRC_AVAILABLE = True
+except ImportError:
+    _QRC_AVAILABLE = False
+
+try:
+    from PyQt6.QtCore import QFile, QFileInfo
+except ImportError:  # pragma: no cover - optional at runtime
+    QFile = None
+    QFileInfo = None
+
 from .cache_manager import get_path, set_path
-from .metrics import CacheMetrics
+from .metrics_recorder import IconMetricsRecorder
 from .negative_cache import negative_cache
 from .validation import (
     _validate_icon_name,
@@ -23,164 +38,108 @@ from .validation import (
 logger = logging.getLogger(__name__)
 
 
+Pathish = Union[Path, PurePosixPath]
+
+
+def _is_qrc_path(path: Pathish | str) -> bool:
+    return str(path).startswith(":/")
+
+
+def _path_exists(path: Pathish) -> bool:
+    if _is_qrc_path(path):
+        if not _QRC_AVAILABLE or QFile is None:
+            return False
+        return QFile.exists(str(path))
+    return Path(str(path)).exists()
+
+
+def _path_is_file(path: Pathish) -> bool:
+    if _is_qrc_path(path):
+        if not _QRC_AVAILABLE or QFileInfo is None:
+            return False
+        return QFileInfo(str(path)).isFile()
+    return Path(str(path)).is_file()
+
+
+def _safe_mtime(path: Pathish) -> float | None:
+    if _is_qrc_path(path):
+        return None
+    try:
+        return Path(str(path)).stat().st_mtime
+    except OSError:
+        return None
+
+
+def _read_qrc_bytes(path: Pathish) -> bytes | None:
+    """Read Qt resource into memory."""
+    if not _is_qrc_path(path) or not _QRC_AVAILABLE or QFile is None:
+        return None
+    file = QFile(str(path))
+    if not file.exists() or not file.open(QFile.OpenModeFlag.ReadOnly):
+        return None
+    try:
+        data = bytes(file.readAll())
+    finally:
+        file.close()
+    return data
+
+
 # Negative cache moved to unified negative_cache module
 
-# Icon index by themes: theme -> {lower_name: Path}
-_THEME_ICON_INDEX: dict[str, dict[str, Path]] = {}
-_INDEX_LOCK = threading.RLock()
-_INDEX_TTL: float = 60.0
-_THEME_INDEX_TS: dict[str, float] = {}
-_THEME_DIR_MTIME: dict[str, float] = {}
-
-# --- Metrics ---
-_ICON_METRICS = CacheMetrics()
-_METRICS_LAST_LOG: float = 0.0
-_metrics_lock = threading.Lock()
+# Note: Icon index and metrics are now encapsulated in IconPathService class
+# Global variables removed for better encapsulation and testability
 
 
-def _maybe_log_metrics() -> None:
-    global _METRICS_LAST_LOG
-    # Get metrics logging interval with narrow error handling
-    try:
-        raw_interval = getattr(app_config, "icon_metrics_report_interval_s", 60.0)
-    except AttributeError:
-        raw_interval = 60.0
-    except Exception:
-        logger.exception(
-            "_maybe_log_metrics: unexpected error accessing app_config.icon_metrics_report_interval_s"
-        )
-        raw_interval = 60.0
-    try:
-        interval = float(raw_interval)
-    except (TypeError, ValueError):
-        interval = 60.0
-    except Exception:
-        logger.exception(
-            "_maybe_log_metrics: unexpected error converting interval to float"
-        )
-        interval = 60.0
-    now = time.time()
-    # Critical section: window check and timestamp update
-    with _metrics_lock:
-        if now - _METRICS_LAST_LOG < interval:
-            return
-        _METRICS_LAST_LOG = now
-
-    # Logging is performed outside the lock to avoid blocking other threads
-    try:
-        stats = _ICON_METRICS.get_stats()
-        # Use safe key access to avoid KeyError
-        logger.info(
-            "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
-            stats.get("hits"),
-            stats.get("misses"),
-            stats.get("hit_rate"),
-            stats.get("disk_loads"),
-            stats.get("not_found"),
-            stats.get("avg_load_time"),
-            stats.get("load_count"),
-            stats.get("uptime"),
-        )
-    except (AttributeError, TypeError, ValueError):
-        logger.exception("_maybe_log_metrics: incorrect metrics statistics format")
-    except Exception:
-        logger.exception("_maybe_log_metrics: unexpected error when logging metrics")
-
-
-def _build_theme_index(theme: str) -> None:
-    """Build icon index for theme.
-    Stores only valid files. No side effects.
-    """
-    ui_dir = _icon_path_service.get_ui_icons_dir()
-    theme_dir = ui_dir / theme
-    mapping: dict[str, Path] = {}
-    try:
-        if theme_dir.is_dir():
-            for p in theme_dir.iterdir():
-                if p.is_file() and is_valid_icon_file(p):
-                    mapping[p.name.lower()] = p
-    except (OSError, PermissionError) as exc:
-        logger.debug(
-            "Index build failed for theme %s due to filesystem error: %s", theme, exc
-        )
-        mapping = {}
-    except Exception:
-        logger.exception(
-            "_build_theme_index: unexpected error when traversing theme directory '%s'",
-            theme,
-        )
-        mapping = {}
-    # Get theme directory mtime (if available)
-    try:
-        dir_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
-    except (OSError, PermissionError):
-        dir_mtime = 0.0
-    except Exception:
-        logger.exception(
-            "_build_theme_index: unexpected error getting mtime for theme '%s'",
-            theme,
-        )
-        dir_mtime = 0.0
-    with _INDEX_LOCK:
-        _THEME_ICON_INDEX[theme] = mapping
-        _THEME_INDEX_TS[theme] = time.time()
-        _THEME_DIR_MTIME[theme] = dir_mtime
-
-
-def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
-    """Return Path from index or None. Creates/updates index by TTL."""
-    name_key = icon_name.lower()
-    # Read index state under common lock
-    with _INDEX_LOCK:
-        ts = _THEME_INDEX_TS.get(theme, 0.0)
-        stored_mtime = _THEME_DIR_MTIME.get(theme, -1.0)
-        has_index = theme in _THEME_ICON_INDEX
-        index_ttl = getattr(app_config, "icon_index_ttl", _INDEX_TTL)
-
-    # Check theme directory content change by mtime (outside lock)
-    ui_dir = _icon_path_service.get_ui_icons_dir()
-    theme_dir = ui_dir / theme
-    try:
-        current_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
-    except (OSError, PermissionError) as exc:
-        logger.warning(
-            "_get_indexed_icon: failed to stat theme dir for mtime (theme=%s, dir=%s): %s",
-            theme,
-            theme_dir,
-            exc,
-        )
-        current_mtime = 0.0
-
-    # Decision to rebuild index is made based on snapshot, reading was under lock
-    if (
-        ((time.time() - ts) > index_ttl)
-        or (not has_index)
-        or (current_mtime != stored_mtime)
-    ):
-        _build_theme_index(theme)
-    with _INDEX_LOCK:
-        mapping = _THEME_ICON_INDEX.get(theme, {})
-        return mapping.get(name_key)
+# Helper functions moved to IconPathService class methods
 
 
 class IconPathService:
-    """Singleton service for managing icon and resource paths."""
+    """Service for managing icon and resource paths.
+    
+    Supports both singleton pattern (for backward compatibility) and dependency injection.
+    
+    Args:
+        user_icons_dir: Optional user icons directory. If None, uses app_config.
+        ui_icons_dir: Optional UI icons directory. If None, uses app_config.
+        config: Optional config object. If None, uses global app_config.
+    """
 
     _instance: IconPathService | None = None
 
-    def __new__(cls) -> IconPathService:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __new__(cls, *args, **kwargs) -> IconPathService:
+        # If called without arguments, return singleton
+        if not args and not kwargs:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+            return cls._instance
+        # If called with arguments, create new instance (DI mode)
+        return super().__new__(cls)
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        user_icons_dir: Path | None = None,
+        ui_icons_dir: Path | None = None,
+        config: Any | None = None,
+    ) -> None:
+        # Skip re-initialization for singleton
         if getattr(self, "_initialized", False):
             return
         self._initialized = True
 
-        self._user_icons_dir: Path | None = None
-        self._ui_icons_dir: Path | None = None
+        self._user_icons_dir = user_icons_dir
+        self._ui_icons_dir = ui_icons_dir
+        self._config = config if config is not None else app_config
+        
+        # Icon index by themes: theme -> {lower_name: Path}
+        self._theme_index: dict[str, dict[str, Path]] = {}
+        self._index_lock = threading.RLock()
+        self._index_ttl: float = 60.0
+        self._theme_index_ts: dict[str, float] = {}
+        self._theme_dir_mtime: dict[str, float] = {}
         self._user_data_dir: Path | None = None
+        
+        # Metrics recorder
+        self._metrics = IconMetricsRecorder(use_qtimer=True)
 
     # --- User and UI folders ---
 
@@ -188,12 +147,12 @@ class IconPathService:
         """Path to user icons folder (delegates to PathConfig)."""
         if self._user_icons_dir is None:
             # Single source of truth — PathConfig
-            self._user_icons_dir = app_config.paths.get_link_icons_dir()
+            self._user_icons_dir = self._config.paths.get_link_icons_dir()
         return self._user_icons_dir
 
     def ensure_user_icons_dir(self) -> Path:
         """Create user icons folder (delegates to PathConfig)."""
-        app_config.paths.ensure_user_data_dirs()
+        self._config.paths.ensure_user_data_dirs()
         return self.get_user_icons_dir()
 
     def get_user_icon_path(self, filename: str) -> Path:
@@ -203,24 +162,33 @@ class IconPathService:
     def get_ui_icons_dir(self) -> Path:
         """Path to UI icons directory (delegates to PathConfig)."""
         if self._ui_icons_dir is None:
-            self._ui_icons_dir = app_config.paths.get_ui_icons_dir()
+            self._ui_icons_dir = self._config.paths.get_ui_icons_dir()
         return self._ui_icons_dir
 
     # --- Helper addresses ---
 
     def get_themed_icon_path(self, icon_name: str, theme: str = "light") -> Path:
-        """Path to icon in specified theme (without existence check)."""
-        return self.get_ui_icons_dir() / theme / icon_name
+        """Path to icon in specified theme.
+        
+        Returns QRC path (:/icons/...) if resources are compiled,
+        otherwise filesystem path.
+        """
+        if _QRC_AVAILABLE:
+            # Use Qt Resource System (packaged app)
+            return PurePosixPath(f":/icons/{theme}/{icon_name}")
+        else:
+            # Use filesystem (development)
+            return self.get_ui_icons_dir() / theme / icon_name
 
     def get_ui_icon_path(self, icon_name: str, theme: str = "light") -> Path | None:
         """Path to existing UI icon with fallback to light."""
         themed_path = self.get_themed_icon_path(icon_name, theme)
-        if themed_path.exists():
+        if _path_exists(themed_path):
             return themed_path
 
         if theme != "light":
             light_path = self.get_themed_icon_path(icon_name, "light")
-            if light_path.exists():
+            if _path_exists(light_path):
                 return light_path
 
         return None
@@ -237,7 +205,7 @@ class IconPathService:
     def get_folder_icon_path(self) -> Path:
         """Path to folder icon (warns if file doesn't exist)."""
         folder_icon = self.get_ui_icons_dir() / "folder_icon.png"
-        if not folder_icon.exists():
+        if not _path_exists(folder_icon):
             logger.warning("Folder icon file does not exist: %s", folder_icon)
         return folder_icon
 
@@ -254,7 +222,183 @@ class IconPathService:
         self._user_icons_dir = None
         self._ui_icons_dir = None
         self._user_data_dir = None
+        with self._index_lock:
+            self._theme_index.clear()
+            self._theme_index_ts.clear()
+            self._theme_dir_mtime.clear()
+            self._qrc_index.clear()
         logger.debug("Icon path service caches cleared")
+
+    # --- Metrics helpers (internal) ---
+
+    def _maybe_log_metrics(self) -> None:
+        """Safely attempt to log metrics while swallowing errors."""
+        try:
+            self._metrics.maybe_log_metrics(self._config)
+        except Exception:
+            logger.debug("Icon metrics logging failed", exc_info=True)
+
+    # --- Index helpers ---
+
+    def _get_theme_dir(self, theme: str) -> Pathish | None:
+        if _QRC_AVAILABLE:
+            return PurePosixPath(f":/icons/{theme}")
+        try:
+            return self.get_ui_icons_dir() / theme
+        except Exception:
+            return None
+
+    def _get_cache_root(self) -> Path:
+        cache_root = self._get_user_data_dir() / "icon_cache"
+        cache_root.mkdir(parents=True, exist_ok=True)
+        return cache_root
+
+    def _get_qrc_index(self, theme: str) -> set[str]:
+        if not _QRC_AVAILABLE or QDirIterator is None:
+            return set()
+        cached = self._qrc_index.get(theme)
+        if cached is not None:
+            return cached
+        entries: set[str] = set()
+        if QDir is not None:
+            base = QDir(f":/icons/{theme}")
+            if base.exists():
+                iterator = QDirIterator(base, QDirIterator.IteratorFlag.Subdirectories)
+                while iterator.hasNext():
+                    entry_path = iterator.next()
+                    if not entry_path:
+                        continue
+                    name = Path(entry_path).name.lower()
+                    if name:
+                        entries.add(name)
+        self._qrc_index[theme] = entries
+        return entries
+
+    def _prune_cache(self, theme: str) -> None:
+        cache_root = self._get_cache_root()
+        theme_dir = cache_root / theme
+        if not theme_dir.exists():
+            return
+        ttl_seconds = float(getattr(app_config, "icon_cache_ttl_seconds", 3600.0) or 0)
+        max_files = int(getattr(app_config, "icon_cache_max_files", 500) or 0)
+        max_total_mb = float(getattr(app_config, "icon_cache_max_total_mb", 50.0) or 0)
+        now = time.time()
+        entries: list[tuple[float, Path, int]] = []
+        for candidate in theme_dir.glob('*.png'):
+            try:
+                stat = candidate.stat()
+            except OSError:
+                continue
+            if ttl_seconds > 0 and now - stat.st_mtime > ttl_seconds:
+                try:
+                    candidate.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                continue
+            entries.append((stat.st_mtime, candidate, stat.st_size))
+        if not entries:
+            try:
+                theme_dir.rmdir()
+            except OSError:
+                pass
+            return
+        if max_files > 0 and len(entries) > max_files:
+            entries.sort(key=lambda item: item[0])
+            for _, candidate, _ in entries[: len(entries) - max_files]:
+                try:
+                    candidate.unlink(missing_ok=True)
+                except OSError:
+                    pass
+        if max_total_mb > 0:
+            limit_bytes = max_total_mb * 1024 * 1024
+            entries.sort(key=lambda item: item[0], reverse=True)
+            current_size = 0
+            kept: list[tuple[float, Path, int]] = []
+            for entry in entries:
+                if current_size + entry[2] <= limit_bytes:
+                    kept.append(entry)
+                    current_size += entry[2]
+            if len(kept) != len(entries):
+                protected = {entry[1] for entry in kept}
+                for _, candidate, _ in entries:
+                    if candidate not in protected:
+                        try:
+                            candidate.unlink(missing_ok=True)
+                        except OSError:
+                            pass
+            if current_size <= limit_bytes:
+                return
+        try:
+            if not any(theme_dir.iterdir()):
+                theme_dir.rmdir()
+        except OSError:
+            pass
+
+    def _get_cached_png_path(self, icon_name: str, theme: str) -> Path:
+        cache_dir = self._get_cache_root() / theme
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        name = Path(icon_name).name
+        if Path(name).suffix.lower() != ".png":
+            name = f"{Path(name).stem}.png"
+        return cache_dir / name
+
+    def _should_refresh_index(self, theme: str, now: float) -> bool:
+        if _QRC_AVAILABLE:
+            # Resources are immutable at runtime; rebuild only if absent
+            return theme not in self._theme_index
+
+        if theme not in self._theme_index:
+            return True
+
+        last_ts = self._theme_index_ts.get(theme, 0.0)
+        if now - last_ts >= self._index_ttl:
+            return True
+
+        dir_path = self._get_theme_dir(theme)
+        if dir_path is None:
+            return True
+
+        previous_mtime = self._theme_dir_mtime.get(theme)
+        current_mtime = _safe_mtime(dir_path)
+        return current_mtime != previous_mtime
+
+    def _build_theme_index(self, theme: str) -> Dict[str, Path]:
+        if _QRC_AVAILABLE:
+            # Listing Qt resources requires QDir; rely on runtime lookups instead.
+            return {}
+
+        index: Dict[str, Path] = {}
+        dir_path = self._get_theme_dir(theme)
+        if dir_path is None:
+            return index
+
+        dir_path = Path(str(dir_path))
+        if not dir_path.is_dir():
+            return index
+
+        try:
+            for entry in dir_path.iterdir():
+                if not entry.is_file():
+                    continue
+                index[entry.name.lower()] = entry
+        except OSError as exc:
+            logger.debug("Failed to build icon index for theme %s: %s", theme, exc)
+        return index
+
+    def get_indexed_icon(self, theme: str, icon_name: str) -> Path | None:
+        norm_theme = validate_theme(theme)
+        now = time.time()
+        with self._index_lock:
+            if self._should_refresh_index(norm_theme, now):
+                index = self._build_theme_index(norm_theme)
+                self._theme_index[norm_theme] = index
+                self._theme_index_ts[norm_theme] = now
+                dir_path = self._get_theme_dir(norm_theme)
+                self._theme_dir_mtime[norm_theme] = (
+                    _safe_mtime(dir_path) if dir_path is not None else None
+                )
+            index = self._theme_index.get(norm_theme, {})
+            return index.get(icon_name.lower())
 
 
 # --- Global instance and convenient proxy functions ---
@@ -318,25 +462,48 @@ class IconPathResolver:
     # --- Path search by index/themes ---
     def find_source(self, icon_name: str, theme: str) -> str | None:
         norm_theme = validate_theme(theme)
-        idx_hit = _get_indexed_icon(norm_theme, icon_name)
-        if idx_hit is not None:
+
+        if _QRC_AVAILABLE:
+            theme_entries = self.service._get_qrc_index(norm_theme)
+            candidates = [icon_name.lower()]
+            if "." not in icon_name:
+                candidates.append(f"{icon_name.lower()}.svg")
+                candidates.append(f"{icon_name.lower()}.png")
+            themed_path = self.service.get_themed_icon_path(icon_name, norm_theme)
+            if any(candidate in theme_entries for candidate in candidates) and _path_exists(themed_path):
+                path_str = str(themed_path)
+                set_path(icon_name, norm_theme, path_str)
+                metrics_record_hit()
+                self.service._maybe_log_metrics()
+                return path_str
+
+            if norm_theme != "light":
+                light_entries = self.service._get_qrc_index("light")
+                light_path = self.service.get_themed_icon_path(icon_name, "light")
+                if any(candidate in light_entries for candidate in candidates) and _path_exists(light_path):
+                    path_str = str(light_path)
+                    set_path(icon_name, norm_theme, path_str)
+                    metrics_record_hit()
+                    self.service._maybe_log_metrics()
+                    return path_str
+            return None
+
+        idx_hit = self.service.get_indexed_icon(norm_theme, icon_name)
+        if idx_hit is not None and _path_exists(idx_hit):
             path_str = str(idx_hit)
             set_path(icon_name, norm_theme, path_str)
-            try:
-                metrics_record_disk_load()
-            finally:
-                _maybe_log_metrics()
+            metrics_record_disk_load()
+            self.service._maybe_log_metrics()
             return path_str
 
         if norm_theme != "light":
-            light_idx = _get_indexed_icon("light", icon_name)
-            if light_idx is not None:
+            light_idx = self.service.get_indexed_icon("light", icon_name)
+            if light_idx is not None and _path_exists(light_idx):
                 path_str = str(light_idx)
                 set_path(icon_name, norm_theme, path_str)
-                try:
-                    metrics_record_disk_load()
-                finally:
-                    _maybe_log_metrics()
+                metrics_record_disk_load()
+                self.service._maybe_log_metrics()
+                self.service._prune_cache(norm_theme)
                 return path_str
         return None
 
@@ -345,15 +512,85 @@ class IconPathResolver:
         # Local import to avoid circular dependencies
         from .icon_operations.converters import convert_icon_to_png_128
 
+        if _QRC_AVAILABLE:
+            svg_resource = self.service.get_themed_icon_path(icon_name, norm_theme)
+            if svg_resource.suffix.lower() != ".svg":
+                svg_resource = svg_resource.with_suffix(".svg")
+
+            fallback_resource: Pathish | None = None
+            if not _path_is_file(svg_resource) and norm_theme != "light":
+                fallback_resource = self.service.get_themed_icon_path(icon_name, "light")
+                if fallback_resource.suffix.lower() != ".svg":
+                    fallback_resource = fallback_resource.with_suffix(".svg")
+            resource_to_use = (
+                svg_resource
+                if _path_is_file(svg_resource)
+                else fallback_resource
+                if fallback_resource and _path_is_file(fallback_resource)
+                else None
+            )
+
+            if resource_to_use is None:
+                return None
+
+            cached_png = self.service._get_cached_png_path(icon_name, norm_theme)
+            if cached_png.exists():
+                path_str = str(cached_png)
+                set_path(icon_name, norm_theme, path_str)
+                metrics_record_disk_load()
+                self.service._maybe_log_metrics()
+                return path_str
+
+            data = _read_qrc_bytes(resource_to_use)
+            if not data:
+                return None
+
+            def _convert_resource() -> bool:
+                tmp_svg = Path(tempfile.gettempdir()) / f"icon_{uuid.uuid4().hex}.svg"
+                try:
+                    tmp_svg.write_bytes(data)
+                except OSError as exc:
+                    logger.warning("Failed to materialize QRC SVG for %s: %s", icon_name, exc)
+                    return False
+
+                try:
+                    start = time.perf_counter()
+                    success_local = convert_icon_to_png_128(str(tmp_svg), str(cached_png))
+                    duration_local = time.perf_counter() - start
+                finally:
+                    try:
+                        tmp_svg.unlink()
+                    except FileNotFoundError:
+                        pass
+                    except OSError as exc:
+                        logger.debug("Could not remove temp SVG %s: %s", tmp_svg, exc)
+
+                if success_local and cached_png.exists():
+                    path_str_local = str(cached_png)
+                    set_path(icon_name, norm_theme, path_str_local)
+                    metrics_record_disk_load(duration_local)
+                    self.service._maybe_log_metrics()
+                    self.service._prune_cache(norm_theme)
+                    return True
+
+                logger.warning("Failed to convert QRC SVG %s to PNG", resource_to_use)
+                return False
+
+            from app.utils.ui.qt.gui_exec import run_in_gui_thread
+
+            if run_in_gui_thread(_convert_resource):
+                return path_str
+            return None
+
         norm_theme = validate_theme(theme)
         ui_dir = self.service.get_ui_icons_dir()
         themed_path = ui_dir / norm_theme / icon_name
 
         # themed.svg → themed.png
         themed_svg = themed_path.with_suffix(".svg")
-        if themed_svg.is_file() and is_valid_icon_file(themed_svg):
+        if _path_is_file(themed_svg) and is_valid_icon_file(themed_svg):
             themed_png = themed_path.with_suffix(".png")
-            if themed_png.is_file():
+            if _path_is_file(themed_png):
                 try:
                     if themed_png.stat().st_mtime >= themed_svg.stat().st_mtime:
                         path_str = str(themed_png)
@@ -405,9 +642,9 @@ class IconPathResolver:
         # light.svg → themed.png
         if norm_theme != "light":
             light_svg = (ui_dir / "light" / icon_name).with_suffix(".svg")
-            if light_svg.is_file() and is_valid_icon_file(light_svg):
+            if _path_is_file(light_svg) and is_valid_icon_file(light_svg):
                 themed_png = themed_path.with_suffix(".png")
-                if themed_png.is_file():
+                if _path_is_file(themed_png):
                     try:
                         if themed_png.stat().st_mtime >= light_svg.stat().st_mtime:
                             path_str = str(themed_png)
@@ -552,6 +789,17 @@ def get_current_theme() -> str:
 icon_path_service = _icon_path_service
 
 
+# --- Legacy global variables for backward compatibility ---
+
+# Legacy global metrics instance (proxies to icon_path_service._metrics)
+_ICON_METRICS = _icon_path_service._metrics
+
+# Legacy global metrics logging function (proxies to icon_path_service._maybe_log_metrics)
+def _maybe_log_metrics() -> None:
+    """Log metrics if interval has passed (proxies to icon_path_service)."""
+    _icon_path_service._maybe_log_metrics()
+
+
 # --- Public metrics helpers ---
 def get_icon_metrics_stats() -> dict[str, Any]:
     """Return current icon subsystem metrics summary."""
@@ -593,3 +841,14 @@ def metrics_record_miss(duration_s: float = 0.0) -> None:
         _ICON_METRICS.record_actual_miss(duration_s if duration_s > 0 else 0.0)
     finally:
         _maybe_log_metrics()
+
+
+
+
+
+
+
+
+
+
+

@@ -6,6 +6,8 @@ from .manager import (
     acquire_icon_metrics,
     acquire_lock,
     acquire_multiple_locks,
+    get_lock_info,
+    reset_all_locks,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "acquire_icon_metrics",
     "acquire_icon_lru",
     "ICON_LOCK_NAMES",
+    "get_lock_info",
+    "reset_all_locks",
 ]

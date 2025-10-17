@@ -10,7 +10,7 @@ from .lock_manager import acquire_metrics_lock
 class CacheMetrics:
     """Icon cache metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.hits = 0
         self.misses = 0
         self.disk_loads = 0  # Counter of successful disk loads
