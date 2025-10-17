@@ -1,27 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1" language="ru_RU">
+<TS version="2.1" language="es_ES">
   <context>
     <name>AccessibilityManager</name>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="50" />
-<translation type="finished">{panel} панель с {count} видимыми элементами</translation>
+      <source>{panel} panel with {count} visible items</source>
+      <translation type="finished">Panel {panel} con {count} elementos visibles</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="59" />
-<translation type="finished">{panel} элемент {n}</translation>
+      <source>{panel} item {n}</source>
+      <translation type="finished">Elemento {n} de {panel}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="64" />
-<translation type="finished">Кнопка {idx} из {total} в {panel}. Нажмите Enter для активации, стрелки для навигации.</translation>
+      <source>Button {idx} of {total} in {panel}. Press Enter to activate, Arrow keys to navigate.</source>
+      <translation type="finished">Botón {idx} de {total} en {panel}. Presiona Enter para activar, flechas para navegar.</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="79" />
-<translation type="finished">Скрытая кнопка {n} в {panel}</translation>
+      <source>Hidden button {n} in {panel}</source>
+      <translation type="finished">Botón oculto {n} en {panel}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="109" />
-<translation type="finished"> (Alt+{n})</translation>
+      <source> (Alt+{n})</source>
+      <translation type="finished"> (Alt+{n})</translation>
     </message>
   </context>
   <context>
@@ -32,35 +37,35 @@
     </message>
     <message>
       <source>Change application language</source>
-      <translation type="vanished">Изменить язык приложения</translation>
+      <translation type="vanished">Cambiar idioma de la aplicación</translation>
     </message>
     <message>
       <source>Language Selector</source>
-      <translation type="vanished">Выбор языка</translation>
+      <translation type="vanished">Selector de idioma</translation>
     </message>
     <message>
       <source>English</source>
-      <translation type="vanished">Английский</translation>
+      <translation type="vanished">Inglés</translation>
     </message>
     <message>
       <source>Ukrainian</source>
-      <translation type="vanished">Украинский</translation>
+      <translation type="vanished">Ucraniano</translation>
     </message>
     <message>
       <source>Russian</source>
-      <translation type="vanished">Русский</translation>
+      <translation type="vanished">Ruso</translation>
     </message>
     <message>
       <source>French</source>
-      <translation type="vanished">Французский</translation>
+      <translation type="vanished">Francés</translation>
     </message>
     <message>
       <source>Spanish</source>
-      <translation type="vanished">Испанский</translation>
+      <translation type="vanished">Español</translation>
     </message>
     <message>
       <source>German</source>
-      <translation type="vanished">Немецкий</translation>
+      <translation type="vanished">Alemán</translation>
     </message>
   </context>
   <context>
@@ -69,46 +74,46 @@
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="123" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="98" />
       <source>Cancel</source>
-      <translation>Отмена</translation>
-    </message>
-    <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
+      <translation type="finished">Cancelar</translation>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="132" />
       <source>{percentage}% ({current}/{total})</source>
-      <translation>{percentage}% ({current}/{total})</translation>
+      <translation type="finished">{percentage}% ({current}/{total})</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="174" />
-<translation type="finished">✅ Операция завершена успешно</translation>
+      <source>✅ Operation completed successfully</source>
+      <translation type="finished">✅ Operación completada exitosamente</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="207" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="186" />
       <source>Close</source>
-      <translation>Закрыть</translation>
-    </message>
-    <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="201" />
-<translation type="finished">❌ Ошибка: {error}</translation>
+      <translation type="finished">Cerrar</translation>
+      <source>❌ Error: {error}</source>
+      <translation type="finished">❌ Error: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="216" />
-<translation type="finished">⚠️ Операция отменена</translation>
+      <source>⚠️ Operation cancelled</source>
+      <translation type="finished">⚠️ Operación cancelada</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="224" />
-<translation type="finished">Отмена операции…</translation>
+      <source>Cancelling operation…</source>
+      <translation type="finished">Cancelando operación…</translation>
     </message>
   </context>
   <context>
     <name>AsyncOperations</name>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="327" />
-<translation type="finished">Загрузка сфер…</translation>
+      <source>Loading spheres…</source>
+      <translation type="finished">Cargando esferas…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="337" />
-<translation type="finished">Сферы загружены</translation>
+      <source>Spheres loaded</source>
+      <translation type="finished">Esferas cargadas</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="436" />
@@ -116,203 +121,247 @@
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="386" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="340" />
       <source>Load error</source>
-      <translation>Ошибка загрузки</translation>
+      <translation type="finished">Error de carga</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="341" />
-<translation type="finished">Не удалось загрузить сферы: {error}</translation>
+      <source>Failed to load spheres: {error}</source>
+      <translation type="finished">Error al cargar esferas: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="351" />
-<translation type="finished">Загрузка структуры для сферы {sphere_id}…</translation>
+      <source>Loading structure for sphere {sphere_id}…</source>
+      <translation type="finished">Cargando estructura para esfera {sphere_id}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="379" />
-<translation type="finished">Структура загружена</translation>
+      <source>Structure loaded</source>
+      <translation type="finished">Estructura cargada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="387" />
-<translation type="finished">Не удалось загрузить структуру: {error}</translation>
+      <source>Failed to load structure: {error}</source>
+      <translation type="finished">Error al cargar estructura: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="398" />
-<translation type="finished">Загрузка секций для сферы {sphere_id}…</translation>
+      <source>Loading sections for sphere {sphere_id}…</source>
+      <translation type="finished">Cargando secciones para esfera {sphere_id}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="408" />
-<translation type="finished">Секции загружены</translation>
+      <source>Sections loaded</source>
+      <translation type="finished">Secciones cargadas</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="412" />
-<translation type="finished">Не удалось загрузить секции: {error}</translation>
+      <source>Failed to load sections: {error}</source>
+      <translation type="finished">Error al cargar secciones: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="423" />
-<translation type="finished">Загрузка категорий для секции {section_id}…</translation>
+      <source>Loading categories for section {section_id}…</source>
+      <translation type="finished">Cargando categorías para sección {section_id}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="433" />
-<translation type="finished">Категории загружены</translation>
+      <source>Categories loaded</source>
+      <translation type="finished">Categorías cargadas</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="437" />
-<translation type="finished">Не удалось загрузить категории: {error}</translation>
+      <source>Failed to load categories: {error}</source>
+      <translation type="finished">Error al cargar categorías: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="462" />
-<translation type="finished">Секция с именем "{name}" уже существует в выбранной сфере</translation>
+      <source>Section named "{name}" already exists in the selected sphere</source>
+      <translation type="finished">La sección nombrada "{name}" ya existe en la esfera seleccionada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="484" />
-<translation type="finished">Создание секции: {name}…</translation>
+      <source>Creating section: {name}…</source>
+      <translation type="finished">Creando sección: {name}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="528" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="485" />
-<translation type="finished">Без названия</translation>
+      <source>Untitled</source>
+      <translation type="finished">Sin título</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="494" />
-<translation type="finished">Секция создана</translation>
+      <source>Section created</source>
+      <translation type="finished">Sección creada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="540" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="497" />
-<translation type="finished">Ошибка создания</translation>
+      <source>Create error</source>
+      <translation type="finished">Error de creación</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="498" />
-<translation type="finished">Не удалось создать секцию: {error}</translation>
+      <source>Failed to create section: {error}</source>
+      <translation type="finished">Error al crear sección: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="527" />
-<translation type="finished">Создание категории: {name}…</translation>
+      <source>Creating category: {name}…</source>
+      <translation type="finished">Creando categoría: {name}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="537" />
-<translation type="finished">Категория создана</translation>
+      <source>Category created</source>
+      <translation type="finished">Categoría creada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="541" />
-<translation type="finished">Не удалось создать категорию: {error}</translation>
+      <source>Failed to create category: {error}</source>
+      <translation type="finished">Error al crear categoría: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="558" />
-<translation type="finished">Обновление секции: {name}…</translation>
+      <source>Updating section: {name}…</source>
+      <translation type="finished">Actualizando sección: {name}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="594" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="559" />
-<translation type="finished">ID {id}</translation>
+      <source>ID {id}</source>
+      <translation type="finished">ID {id}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="572" />
-<translation type="finished">Секция обновлена</translation>
+      <source>Section updated</source>
+      <translation type="finished">Sección actualizada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="610" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="575" />
-<translation type="finished">Ошибка обновления</translation>
+      <source>Update error</source>
+      <translation type="finished">Error de actualización</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="576" />
-<translation type="finished">Не удалось обновить секцию: {error}</translation>
+      <source>Failed to update section: {error}</source>
+      <translation type="finished">Error al actualizar sección: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="593" />
-<translation type="finished">Обновление категории: {name}…</translation>
+      <source>Updating category: {name}…</source>
+      <translation type="finished">Actualizando categoría: {name}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="607" />
-<translation type="finished">Категория обновлена</translation>
+      <source>Category updated</source>
+      <translation type="finished">Categoría actualizada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="611" />
-<translation type="finished">Не удалось обновить категорию: {error}</translation>
+      <source>Failed to update category: {error}</source>
+      <translation type="finished">Error al actualizar categoría: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="621" />
-<translation type="finished">Удаление секции ID {section_id}…</translation>
+      <source>Deleting section ID {section_id}…</source>
+      <translation type="finished">Eliminando sección ID {section_id}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="640" />
-<translation type="finished">Секция удалена</translation>
+      <source>Section deleted</source>
+      <translation type="finished">Sección eliminada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="706" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="694" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="663" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="643" />
-<translation type="finished">Ошибка удаления</translation>
+      <source>Delete error</source>
+      <translation type="finished">Error de eliminación</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="644" />
-<translation type="finished">Не удалось удалить секцию: {error}</translation>
+      <source>Failed to delete section: {error}</source>
+      <translation type="finished">Error al eliminar sección: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="659" />
-<translation type="finished">Недействительный ID категории: {category_id}</translation>
+      <source>Invalid category ID: {category_id}</source>
+      <translation type="finished">ID de categoría inválido: {category_id}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="668" />
-<translation type="finished">Удаление категории…</translation>
+      <source>Deleting category…</source>
+      <translation type="finished">Eliminando categoría…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="691" />
-<translation type="finished">Категория удалена</translation>
+      <source>Category deleted</source>
+      <translation type="finished">Categoría eliminada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="695" />
-<translation type="finished">Не удалось удалить категорию: {error}</translation>
+      <source>Failed to delete category: {error}</source>
+      <translation type="finished">Error al eliminar categoría: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="702" />
-<translation type="finished">Не удалось запустить задачу удаления: {error}</translation>
+      <source>Failed to start deletion task: {error}</source>
+      <translation type="finished">Error al iniciar tarea de eliminación: {error}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="716" />
-<translation type="finished">Подсчет объектов для секции {section_id}…</translation>
+      <source>Counting objects for section {section_id}…</source>
+      <translation type="finished">Contando objetos para sección {section_id}…</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="743" />
-<translation type="finished">Подсчет завершен</translation>
+      <source>Count completed</source>
+      <translation type="finished">Conteo completado</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="746" />
-<translation type="finished">Ошибка подсчета</translation>
+      <source>Count error</source>
+      <translation type="finished">Error de conteo</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="747" />
-<translation type="finished">Не удалось подсчитать элементы: {error}</translation>
+      <source>Failed to count items: {error}</source>
+      <translation type="finished">Error al contar elementos: {error}</translation>
     </message>
   </context>
   <context>
     <name>BaseDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="233" />
-<translation type="finished">Информация</translation>
+      <source>Information</source>
+      <translation type="finished">Información</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="256" />
-<translation type="finished">Предупреждение</translation>
+      <source>Warning</source>
+      <translation type="finished">Advertencia</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="279" />
-<translation type="finished">Ошибка</translation>
+      <source>Error</source>
+      <translation type="finished">Error</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="301" />
-<translation type="finished">Подтверждение</translation>
+      <source>Confirmation</source>
+      <translation type="finished">Confirmación</translation>
     </message>
   </context>
   <context>
     <name>BaseDragDropTable</name>
     <message numerus="yes">
       <location filename="..\app\views\widgets\base\base_widgets.py" line="584" />
+      <source>%n item selected</source>
       <translation type="finished">
-        <numerusform>Выбран %n элемент</numerusform>
-        <numerusform>Выбрано %n элемента</numerusform>
-        <numerusform>Выбрано %n элементов</numerusform>
+        <numerusform>%n elemento seleccionado</numerusform>
+        <numerusform>%n elementos seleccionados</numerusform>
       </translation>
     </message>
   </context>
@@ -321,77 +370,77 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="174" />
       <source>Edit</source>
-      <translation type="finished">Редактировать</translation>
+      <translation type="finished">Editar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="174" />
       <source>Add</source>
-      <translation type="finished">Добавить</translation>
+      <translation type="finished">Agregar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="176" />
       <source>section</source>
-      <translation type="finished">секция</translation>
+      <translation type="finished">sección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="177" />
       <source>category</source>
-      <translation type="finished">категория</translation>
+      <translation type="finished">categoría</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="179" />
       <source>entity</source>
-      <translation type="finished">сущность</translation>
+      <translation type="finished">entidad</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="183" />
       <source>Name:</source>
-      <translation type="finished">Имя:</translation>
+      <translation type="finished">Nombre:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="185" />
       <source>Icon</source>
-      <translation type="finished">Иконка</translation>
+      <translation type="finished">Icono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="191" />
       <source>Save</source>
-      <translation type="finished">Сохранить</translation>
+      <translation type="finished">Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="193" />
       <source>Cancel</source>
-      <translation type="finished">Отмена</translation>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="239" />
       <source>Unable to set selected icon.</source>
-      <translation type="finished">Не удалось установить выбранную иконку.</translation>
+      <translation type="finished">No se puede establecer el icono seleccionado.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="240" />
       <source>Icon selection error</source>
-      <translation type="finished">Ошибка выбора иконки</translation>
+      <translation type="finished">Error de selección de icono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="241" />
       <source>Choose another image file (.png, .ico, .jpg, .svg) and try again.</source>
-      <translation type="finished">Выберите другой файл изображения (.png, .ico, .jpg, .svg) и попробуйте снова.</translation>
+      <translation type="finished">Elija otro archivo de imagen (.png, .ico, .jpg, .svg) e inténtelo de nuevo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="252" />
       <source>Name cannot be empty.</source>
-      <translation type="finished">Имя не может быть пустым.</translation>
+      <translation type="finished">El nombre no puede estar vacío.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="253" />
       <source>Invalid input</source>
-      <translation type="finished">Неверный ввод</translation>
+      <translation type="finished">Entrada inválida</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="254" />
       <source>Please provide a name for the entity.</source>
-      <translation type="finished">Пожалуйста, укажите имя для сущности.</translation>
+      <translation type="finished">Por favor proporcione un nombre para la entidad.</translation>
     </message>
   </context>
   <context>
@@ -400,59 +449,59 @@
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="110" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="32" />
       <source>Select browser profile</source>
-      <translation type="finished">Выбрать профиль браузера</translation>
+      <translation type="finished">Seleccionar perfil de navegador</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="112" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="48" />
       <source>Browsers:</source>
-      <translation type="finished">Браузеры:</translation>
+      <translation type="finished">Navegadores:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="114" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="53" />
       <source>Refresh</source>
-      <translation type="finished">Обновить</translation>
+      <translation type="finished">Actualizar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="116" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="61" />
       <source>Search by name/email…</source>
-      <translation type="finished">Поиск по имени/email…</translation>
+      <translation type="finished">Buscar por nombre/correo…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="118" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="79" />
       <source>Add all</source>
-      <translation type="finished">Добавить все</translation>
+      <translation type="finished">Agregar todos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="120" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="82" />
       <source>Clear selection</source>
-      <translation type="finished">Очистить выбор</translation>
+      <translation type="finished">Limpiar selección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="125" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="98" />
       <source>Save</source>
-      <translation type="finished">Сохранить</translation>
+      <translation type="finished">Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="127" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="102" />
       <source>Cancel</source>
-      <translation type="finished">Отмена</translation>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="187" />
       <source>No profiles found</source>
-      <translation type="finished">Профили не найдены</translation>
+      <translation type="finished">No se encontraron perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="197" />
       <source>Unnamed</source>
-      <translation type="finished">Без названия</translation>
+      <translation type="finished">Sin nombre</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="199" />
@@ -462,7 +511,7 @@
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="222" />
       <source>Loading profiles…</source>
-      <translation type="finished">Загрузка профилей…</translation>
+      <translation type="finished">Cargando perfiles…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="274" />
@@ -472,158 +521,193 @@
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="286" />
       <source>Failed to load profiles</source>
-      <translation type="finished">Не удалось загрузить профили</translation>
+      <translation type="finished">Error al cargar perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="294" />
       <source>Failed to start loading</source>
-      <translation type="finished">Не удалось начать загрузку</translation>
+      <translation type="finished">Error al iniciar carga</translation>
     </message>
   </context>
-
   <context>
     <name>CategoryDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="497" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="404" />
       <source>Sphere:</source>
-      <translation>Сфера:</translation>
+      <translation type="finished">Esfera:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="500" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="407" />
       <source>Section:</source>
-      <translation>Раздел:</translation>
+      <translation type="finished">Sección:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
       <source>Failed to load sections.</source>
-      <translation>Не удалось загрузить разделы.</translation>
+      <translation type="finished">Error al cargar secciones.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
-<translation type="finished">Ошибка загрузки разделов</translation>
+      <source>Error loading sections</source>
+      <translation type="finished">Error al cargar secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="434" />
-<translation type="finished">Проверьте подключение к базе данных и попробуйте снова.</translation>
+      <source>Check database connection and try again.</source>
+      <translation type="finished">Verifique la conexión de la base de datos e inténtelo de nuevo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="444" />
-<translation type="finished">Категория не найдена.</translation>
+      <source>Category not found.</source>
+      <translation type="finished">Categoría no encontrada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="445" />
-<translation type="finished">Категория недоступна</translation>
+      <source>Category unavailable</source>
+      <translation type="finished">Categoría no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="446" />
-<translation type="finished">Категория может быть удалена. ID: %1</translation>
+      <source>The category might have been deleted. ID: %1</source>
+      <translation type="finished">La categoría podría haber sido eliminada. ID: %1</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="482" />
-<translation type="finished">Раздел не выбран.</translation>
+      <source>Section not selected.</source>
+      <translation type="finished">Sección no seleccionada.</translation>
     </message>
     <message>
-<translation type="finished">Необходимо выбрать раздел</translation>
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="483" />
+      <source>Section selection required</source>
+      <translation type="finished">Selección de sección requerida</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="484" />
-<translation type="finished">Выберите раздел из списка и нажмите "Сохранить".</translation>
+      <source>Choose a section from the list and press "Save".</source>
+      <translation type="finished">Elija una sección de la lista y presione "Guardar".</translation>
     </message>
   </context>
   <context>
     <name>ChromeProfileDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="801" />
-<translation type="finished">Выбрать профиль Chrome</translation>
+      <source>Select Chrome profile</source>
+      <translation type="finished">Seleccionar perfil de Chrome</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="803" />
-<translation type="finished">Выберите профиль Chrome:</translation>
+      <source>Choose a Chrome profile:</source>
+      <translation type="finished">Elegir perfil de Chrome:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="804" />
-<translation type="finished">Выделить все</translation>
+      <source>Select all</source>
+      <translation type="finished">Seleccionar todo</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="805" />
-<translation type="finished">Снять выделение</translation>
+      <source>Deselect all</source>
+      <translation type="finished">Deseleccionar todo</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="820" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="806" />
-<translation type="finished">Обновить профили</translation>
+      <source>Refresh profiles</source>
+      <translation type="finished">Actualizar perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="811" />
       <source>Save</source>
-      <translation>Сохранить</translation>
+      <translation type="finished">Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="813" />
       <source>Cancel</source>
-      <translation>Отмена</translation>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="818" />
-<translation type="finished">Загрузка…</translation>
+      <source>Loading…</source>
+      <translation type="finished">Cargando…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="842" />
-<translation type="finished">Профили Chrome не найдены</translation>
+      <source>Chrome profiles not found</source>
+      <translation type="finished">No se encontraron perfiles de Chrome</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="849" />
-<translation type="finished">(без email)</translation>
+      <source>(no email)</source>
+      <translation type="finished">(sin correo)</translation>
     </message>
   </context>
   <context>
     <name>DataImportExportController</name>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="83" />
-<translation type="finished">Экспорт завершен</translation>
+      <source>Export completed</source>
+      <translation type="finished">Exportación completada</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="90" />
-<translation type="finished">Ошибка сохранения</translation>
+      <source>Save error</source>
+      <translation type="finished">Error de guardado</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="91" />
-<translation type="finished">Не удалось сохранить файл:
+      <source>Failed to save file:
+{0}</source>
+      <translation type="finished">Error al guardar archivo:
 {0}</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="131" />
-<translation type="finished">Подтверждение импорта</translation>
+      <source>Import confirmation</source>
+      <translation type="finished">Confirmación de importación</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="132" />
-<translation type="finished">Импорт структуры из файла:
+      <source>Import structure from file:
 {0}
 
-⚠️ ПРЕДУПРЕЖДЕНИЕ: Текущая структура будет полностью заменена!
+⚠️ WARNING: Current structure will be completely replaced!
 
-Рекомендуется создать резервную копию перед импортом.</translation>
+It is recommended to create a backup before importing.</source>
+      <translation type="finished">Importar estructura desde archivo:
+{0}
+
+⚠️ ADVERTENCIA: ¡La estructura actual será completamente reemplazada!
+
+Se recomienda crear una copia de seguridad antes de importar.</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="166" />
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="161" />
-<translation type="finished">Ошибка формата</translation>
+      <source>Format error</source>
+      <translation type="finished">Error de formato</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="167" />
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="162" />
-<translation type="finished">Файл содержит недействительный JSON:
+      <source>File contains invalid JSON:
+{0}</source>
+      <translation type="finished">El archivo contiene JSON inválido:
 {0}</translation>
     </message>
     <message>
-<translation type="finished">Ошибка загрузки</translation>
+      <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="178" />
+      <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="173" />
+      <source>Load error</source>
+      <translation type="finished">Error de carga</translation>
     </message>
     <message>
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="179" />
       <location filename="..\app\controllers\ui\dialogs\data_import_export_controller.py" line="174" />
-<translation type="finished">Не удалось загрузить файл:
+      <source>Failed to load file:
+{0}</source>
+      <translation type="finished">Error al cargar archivo:
 {0}</translation>
     </message>
   </context>
@@ -632,150 +716,184 @@
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="381" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="133" />
-<translation type="finished">Расширенный поиск файлов</translation>
+      <source>Advanced file search</source>
+      <translation type="finished">Búsqueda avanzada de archivos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="383" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="153" />
-<translation type="finished">Местоположение поиска:</translation>
+      <source>Search location:</source>
+      <translation type="finished">Ubicación de búsqueda:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="157" />
-<translation type="finished">Обзор</translation>
+      <source>Browse</source>
+      <translation type="finished">Examinar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="385" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="164" />
-<translation type="finished">Имя (регулярное выражение):</translation>
+      <source>Name (regex):</source>
+      <translation type="finished">Nombre (regex):</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="387" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="174" />
-<translation type="finished">Шаблон:</translation>
+      <source>Pattern:</source>
+      <translation type="finished">Patrón:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="397" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="234" />
-<translation type="finished">Быстро применить маску расширения</translation>
+      <source>Quickly apply an extension mask</source>
+      <translation type="finished">Aplicar rápidamente una máscara de extensión</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="389" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="245" />
-<translation type="finished">Содержание:</translation>
+      <source>Content:</source>
+      <translation type="finished">Contenido:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="399" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
-<translation type="finished">Регулярное выражение</translation>
+      <source>Regex</source>
+      <translation type="finished">Regex</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="401" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="250" />
-<translation type="finished">Учитывать регистр</translation>
+      <source>Case sensitive</source>
+      <translation type="finished">Sensible a mayúsculas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="403" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="252" />
-<translation type="finished">Поиск</translation>
+      <source>Search</source>
+      <translation type="finished">Buscar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="405" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="254" />
-<translation type="finished">Остановить</translation>
+      <source>Stop</source>
+      <translation type="finished">Detener</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="391" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="271" />
-<translation type="finished">Размер (КБ):</translation>
+      <source>Size (KB):</source>
+      <translation type="finished">Tamaño (KB):</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="415" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="277" />
-<translation type="finished">от</translation>
+      <source>from</source>
+      <translation type="finished">desde</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="417" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="283" />
-<translation type="finished">до</translation>
+      <source>to</source>
+      <translation type="finished">hasta</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="393" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="289" />
-<translation type="finished">Изменен:</translation>
+      <source>Modified:</source>
+      <translation type="finished">Modificado:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
-<translation type="finished">Скрытые файлы</translation>
+      <source>Hidden files</source>
+      <translation type="finished">Archivos ocultos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="306" />
-<translation type="finished">Только для чтения</translation>
+      <source>Read-only</source>
+      <translation type="finished">Solo lectura</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="411" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="343" />
-<translation type="finished">Готов к поиску</translation>
+      <source>Ready to search</source>
+      <translation type="finished">Listo para buscar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="407" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="348" />
-<translation type="finished">Добавить как ссылку</translation>
+      <source>Add as link</source>
+      <translation type="finished">Agregar como enlace</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="409" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="352" />
-<translation type="finished">Открыть в проводнике</translation>
+      <source>Open in file explorer</source>
+      <translation type="finished">Abrir en explorador de archivos</translation>
     </message>
     <message>
-<translation type="finished">Закрыть</translation>
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
+      <source>Close</source>
+      <translation type="finished">Cerrar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="488" />
-<translation type="finished">Файл не найден: {path}</translation>
+      <source>File not found: {path}</source>
+      <translation type="finished">Archivo no encontrado: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="526" />
-<translation type="finished">Не удалось открыть файл в проводнике: {error}</translation>
+      <source>Failed to open file in explorer: {error}</source>
+      <translation type="finished">Error al abrir archivo en explorador: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="530" />
-<translation type="finished">Неожиданная ошибка: {error}</translation>
+      <source>Unexpected error: {error}</source>
+      <translation type="finished">Error inesperado: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="545" />
-<translation type="finished">Выбрать папку для поиска</translation>
+      <source>Select folder for search</source>
+      <translation type="finished">Seleccionar carpeta para búsqueda</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="554" />
-<translation type="finished">Укажите папку для поиска.</translation>
+      <source>Specify a folder to search.</source>
+      <translation type="finished">Especifique una carpeta para buscar.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="560" />
-<translation type="finished">Папка не существует: {path}</translation>
+      <source>The folder does not exist: {path}</source>
+      <translation type="finished">La carpeta no existe: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="566" />
-<translation type="finished">Указанный путь не является папкой: {path}</translation>
+      <source>The specified path is not a folder: {path}</source>
+      <translation type="finished">La ruta especificada no es una carpeta: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="579" />
-<translation type="finished">Недействительное регулярное выражение для имени: {error}</translation>
+      <source>Invalid regular expression for name: {error}</source>
+      <translation type="finished">Expresión regular inválida para nombre: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="593" />
-<translation type="finished">Недействительное регулярное выражение для содержимого: {error}</translation>
+      <source>Invalid regular expression for content: {error}</source>
+      <translation type="finished">Expresión regular inválida para contenido: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="617" />
-<translation type="finished">Поиск…</translation>
+      <source>Searching…</source>
+      <translation type="finished">Buscando…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="687" />
-<translation type="finished">Ошибка поиска</translation>
+      <source>Search error</source>
+      <translation type="finished">Error de búsqueda</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="703" />
-<translation type="finished">Поиск завершен. Найдено файлов: {count}</translation>
+      <source>Search finished. Files found: {count}</source>
+      <translation type="finished">Búsqueda finalizada. Archivos encontrados: {count}</translation>
     </message>
   </context>
   <context>
@@ -783,283 +901,355 @@
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="85" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="30" />
-<translation type="finished">Импорт из браузера</translation>
+      <source>Import from browser</source>
+      <translation type="finished">Importar desde navegador</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="87" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="46" />
-<translation type="finished">Выберите место для импорта ссылок:</translation>
+      <source>Select where to import links:</source>
+      <translation type="finished">Seleccionar dónde importar enlaces:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="98" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="54" />
       <source>Sphere:</source>
-      <translation>Сфера:</translation>
+      <translation type="finished">Esfera:</translation>
     </message>
     <message>
-<translation type="finished">Раздел:</translation>
+      <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="101" />
+      <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="58" />
+      <source>Section:</source>
+      <translation type="finished">Sección:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="109" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="69" />
-<translation type="finished">Импорт</translation>
+      <source>Import</source>
+      <translation type="finished">Importar</translation>
     </message>
     <message>
-<translation type="finished">Отмена</translation>
+      <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="111" />
+      <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="72" />
+      <source>Cancel</source>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="121" />
-<translation type="finished">Сфер не найдено</translation>
+      <source>No spheres found</source>
+      <translation type="finished">No se encontraron esferas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="137" />
-<translation type="finished">Сначала выберите сферу</translation>
+      <source>Select a sphere first</source>
+      <translation type="finished">Seleccione primero una esfera</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="142" />
-<translation type="finished">Выбранная сфера не содержит разделов</translation>
+      <source>The selected sphere has no sections</source>
+      <translation type="finished">La esfera seleccionada no tiene secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="157" />
-<translation type="finished">Нет данных</translation>
+      <source>No data</source>
+      <translation type="finished">Sin datos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="170" />
-<translation type="finished">Ошибка: {error}</translation>
+      <source>Error: {error}</source>
+      <translation type="finished">Error: {error}</translation>
     </message>
     <message>
-<translation type="finished">Не удалось загрузить разделы.</translation>
+      <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="174" />
+      <source>Failed to load sections.</source>
+      <translation type="finished">Error al cargar secciones.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="175" />
-<translation type="finished">Ошибка загрузки разделов</translation>
+      <source>Sections load error</source>
+      <translation type="finished">Error de carga de secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="176" />
-<translation type="finished">Проверьте подключение к базе данных и попробуйте снова.</translation>
+      <source>Check the database connection and try again.</source>
+      <translation type="finished">Verifique la conexión de la base de datos e inténtelo de nuevo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="214" />
-<translation type="finished">Раздел не выбран для импорта.</translation>
+      <source>No section selected for import.</source>
+      <translation type="finished">No se seleccionó sección para importar.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="215" />
-<translation type="finished">Требуется выбор раздела</translation>
+      <source>Section selection required</source>
+      <translation type="finished">Selección de sección requerida</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="216" />
-<translation type="finished">Выберите раздел из выпадающего списка, затем нажмите 'Импорт'.</translation>
+      <source>Choose a section from the dropdown, then click 'Import'.</source>
+      <translation type="finished">Elija una sección del menú desplegable, luego haga clic en 'Importar'.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="227" />
-<translation type="finished">Выбранный раздел недоступен.</translation>
+      <source>The selected section is unavailable.</source>
+      <translation type="finished">La sección seleccionada no está disponible.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="228" />
-<translation type="finished">Раздел не найден</translation>
+      <source>Section not found</source>
+      <translation type="finished">Sección no encontrada</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="229" />
-<translation type="finished">Раздел мог быть удален. Обновите разделы и выберите другой.</translation>
+      <source>The section may have been removed. Refresh sections and select another.</source>
+      <translation type="finished">La sección puede haber sido eliminada. Actualice las secciones y seleccione otra.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="248" />
-<translation type="finished">Не удалось подтвердить выбор раздела.</translation>
+      <source>Failed to confirm section selection.</source>
+      <translation type="finished">Error al confirmar selección de sección.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="249" />
-<translation type="finished">Ошибка подтверждения</translation>
+      <source>Confirmation error</source>
+      <translation type="finished">Error de confirmación</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="250" />
-<translation type="finished">Попробуйте выбрать раздел снова или обновить список разделов.</translation>
+      <source>Try selecting the section again or refresh the sections list.</source>
+      <translation type="finished">Intente seleccionar la sección nuevamente o actualice la lista de secciones.</translation>
     </message>
   </context>
   <context>
     <name>LanguageSelector</name>
     <message>
       <location filename="..\app\views\widgets\language_selector.py" line="41" />
-<translation type="finished">Изменить язык приложения</translation>
+      <source>Change application language</source>
+      <translation type="finished">Cambiar idioma de la aplicación</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\language_selector.py" line="42" />
-<translation type="finished">Выбор языка</translation>
+      <source>Language Selector</source>
+      <translation type="finished">Selector de idioma</translation>
     </message>
   </context>
   <context>
     <name>LinkDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="275" />
-<translation type="finished">Конфигурация иконок недействительна.</translation>
+      <source>Icon configuration is invalid.</source>
+      <translation type="finished">La configuración del icono no es válida.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
-<translation type="finished">Ошибка конфигурации</translation>
+      <source>Configuration error</source>
+      <translation type="finished">Error de configuración</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
-<translation type="finished">Папка с иконками не установлена. Укажите путь в настройках приложения или конфигурации.</translation>
+      <source>Icons directory is not set. Specify the path in the application settings or config.</source>
+      <translation type="finished">El directorio de iconos no está configurado. Especifique la ruta en la configuración de la aplicación.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
-<translation type="finished">Параметр конфигурации для иконок отсутствует или пуст.</translation>
+      <source>Configuration parameter for icons is missing or empty.</source>
+      <translation type="finished">El parámetro de configuración para iconos falta o está vacío.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="366" />
-<translation type="finished">Стандартная иконка не найдена.</translation>
+      <source>Default icon not found.</source>
+      <translation type="finished">Icono predeterminado no encontrado.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
-<translation type="finished">Проблема с иконкой</translation>
+      <source>Icon issue</source>
+      <translation type="finished">Problema con el icono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
-<translation type="finished">Кнопка будет показана без иконки. Укажите действующий путь к иконкам в настройках.</translation>
+      <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
+      <translation type="finished">El botón se mostrará sin icono. Proporcione una ruta válida de iconos en la configuración.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="371" />
-<translation type="finished">Ожидаемый файл: {path}</translation>
+      <source>Expected file: {path}</source>
+      <translation type="finished">Archivo esperado: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="557" />
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="556" />
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="500" />
-<translation type="finished">Профиль</translation>
+      <source>Profile</source>
+      <translation type="finished">Perfil</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="502" />
-<translation type="finished">Профиль: {email}</translation>
+      <source>Profile: {email}</source>
+      <translation type="finished">Perfil: {email}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="504" />
-<translation type="finished">Профили: {first}, {second}</translation>
+      <source>Profiles: {first}, {second}</source>
+      <translation type="finished">Perfiles: {first}, {second}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="507" />
-<translation type="finished">Профили: {first}, {second} и еще {rest}</translation>
+      <source>Profiles: {first}, {second} and {rest} more</source>
+      <translation type="finished">Perfiles: {first}, {second} y {rest} más</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
-<translation type="finished">Редактировать ссылку</translation>
+      <source>Edit link</source>
+      <translation type="finished">Editar enlace</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
-<translation type="finished">Добавить ссылку</translation>
+      <source>Add link</source>
+      <translation type="finished">Agregar enlace</translation>
     </message>
   </context>
   <context>
     <name>LinkProcessingMixin</name>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="172" />
-<translation type="finished">Не удалось получить информацию о ссылке.</translation>
+      <source>Failed to fetch link information.</source>
+      <translation type="finished">Error al obtener información del enlace.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="173" />
-<translation type="finished">Ошибка обработки ссылки</translation>
+      <source>Link processing error</source>
+      <translation type="finished">Error de procesamiento de enlace</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="174" />
-<translation type="finished">Проверьте правильность пути/URL и доступность ресурса.</translation>
+      <source>Verify the path/URL is valid and the resource is reachable.</source>
+      <translation type="finished">Verifique que la ruta/URL sea válida y el recurso accesible.</translation>
+    </message>
     </message>
   </context>
   <context>
     <name>LinksBusinessLogic</name>
     <message>
       <location filename="..\app\controllers\business\links_business.py" line="315" />
-<translation type="finished">Недействительные данные ссылки для toggle_favorite</translation>
+      <source>Invalid link data for toggle_favorite</source>
+      <translation type="finished">Datos de enlace inválidos para toggle_favorite</translation>
     </message>
     <message>
       <location filename="..\app\controllers\business\links_business.py" line="326" />
-<translation type="finished">Ссылка не найдена</translation>
+      <source>Link not found</source>
+      <translation type="finished">Enlace no encontrado</translation>
+    </message>
     </message>
   </context>
   <context>
     <name>MainMenu</name>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="49" />
-<translation type="finished">&amp;Действия</translation>
+      <source>&amp;Actions</source>
+      <translation type="finished">&amp;Acciones</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="128" />
-<translation type="finished">&amp;Файл</translation>
+      <source>&amp;File</source>
+      <translation type="finished">&amp;Archivo</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="143" />
-<translation type="finished">&amp;Данные</translation>
+      <source>&amp;Data</source>
+      <translation type="finished">&amp;Datos</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="190" />
-<translation type="finished">&amp;Поиск</translation>
+      <source>&amp;Search</source>
+      <translation type="finished">&amp;Buscar</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="201" />
-<translation type="finished">&amp;Темы</translation>
+      <source>&amp;Themes</source>
+      <translation type="finished">&amp;Temas</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="221" />
-<translation type="finished">&amp;Помощь</translation>
+      <source>&amp;Help</source>
+      <translation type="finished">&amp;Ayuda</translation>
+    </message>
     </message>
   </context>
   <context>
     <name>MainWindow</name>
     <message>
       <location filename="..\app\views\windows\main_window.py" line="164" />
-<translation type="finished">&amp;Отменить</translation>
+      <source>&amp;Undo</source>
+      <translation type="finished">&amp;Deshacer</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\main_window.py" line="167" />
-<translation type="finished">&amp;Повторить</translation>
+      <source>&amp;Redo</source>
+      <translation type="finished">&amp;Rehacer</translation>
+    </message>
     </message>
   </context>
   <context>
     <name>MoveOperationsHandler</name>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="94" />
-<translation type="finished">История отмены недоступна. Перемещение отменено.</translation>
+      <source>Undo history is unavailable. Move canceled.</source>
+      <translation type="finished">El historial de deshacer no está disponible. Movimiento cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="262" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="137" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="95" />
-<translation type="finished">История отмены недоступна</translation>
+      <source>Undo history unavailable</source>
+      <translation type="finished">Historial de deshacer no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="263" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="138" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="96" />
-<translation type="finished">Включите поддержку отмены/повтора или инициализируйте undo_stack в главном окне.</translation>
+      <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
+      <translation type="finished">Habilite el soporte de deshacer/rehacer o inicialice undo_stack en la ventana principal.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="136" />
-<translation type="finished">История отмены недоступна. Пакетное перемещение отменено.</translation>
+      <source>Undo history is unavailable. Batch move canceled.</source>
+      <translation type="finished">El historial de deshacer no está disponible. Movimiento por lotes cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="261" />
-<translation type="finished">История недоступна. Перемещение между разделами отменено.</translation>
+      <source>History is unavailable. Move between sections canceled.</source>
+      <translation type="finished">El historial no está disponible. Movimiento entre secciones cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="385" />
-<translation type="finished">Категория с таким именем уже существует в выбранном разделе.</translation>
+      <source>A category with the same name already exists in the selected section.</source>
+      <translation type="finished">Ya existe una categoría con el mismo nombre en la sección seleccionada.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="386" />
-<translation type="finished">Дубликат категории</translation>
+      <source>Category duplicate</source>
+      <translation type="finished">Categoría duplicada</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="387" />
-<translation type="finished">Переименуйте категорию или выберите другой раздел.</translation>
+      <source>Rename the category or choose another section.</source>
+      <translation type="finished">Cambie el nombre de la categoría o elija otra sección.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="397" />
-<translation type="finished">Не удалось обновить позиции элементов.</translation>
+      <source>Failed to update item positions.</source>
+      <translation type="finished">Error al actualizar posiciones de elementos.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="398" />
-<translation type="finished">Ошибка базы данных при перемещении</translation>
+      <source>Database error during move</source>
+      <translation type="finished">Error de base de datos durante el movimiento</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="399" />
-<translation type="finished">Изменения позиций не сохранены.</translation>
+      <source>Position changes were not saved.</source>
+      <translation type="finished">Los cambios de posición no se guardaron.</translation>
+    </message>
     </message>
   </context>
   <context>
@@ -1067,54 +1257,57 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="557" />
       <source>Notes</source>
-      <translation type="finished">Заметки</translation>
+      <translation type="finished">Notas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="559" />
       <source>Enter notes here</source>
-      <translation type="finished">Введите заметки здесь</translation>
+      <translation type="finished">Ingrese notas aquí</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="564" />
       <source>Save</source>
-      <translation type="finished">Сохранить</translation>
+      <translation type="finished">Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="566" />
       <source>Cancel</source>
-      <translation type="finished">Отмена</translation>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="576" />
       <source>Failed to update notes.</source>
-      <translation type="finished">Не удалось обновить заметки.</translation>
+      <translation type="finished">Error al actualizar notas.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="577" />
       <source>Notes update error</source>
-      <translation type="finished">Ошибка обновления заметок</translation>
+      <translation type="finished">Error al actualizar notas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="578" />
       <source>Close and reopen the dialog, then try again.</source>
-      <translation type="finished">Закройте и снова откройте диалог, затем попробуйте снова.</translation>
+      <translation type="finished">Cierre y vuelva a abrir el diálogo, luego inténtelo de nuevo.</translation>
+    </message>
     </message>
   </context>
-
   <context>
     <name>ProfilesMixin</name>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="33" />
-<translation type="finished">Модуль выбора профиля недоступен.</translation>
+      <source>Profile selection module is unavailable.</source>
+      <translation type="finished">El módulo de selección de perfiles no está disponible.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="34" />
       <source>Browser profiles</source>
-      <translation type="finished">Профили браузера</translation>
+      <translation type="finished">Perfiles del navegador</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="35" />
-<translation type="finished">Не удалось загрузить диалог выбора профиля браузера. Убедитесь, что компонент установлен и доступен.</translation>
+      <source>Failed to load browser profile selection dialog. Ensure the component is installed and accessible.</source>
+      <translation type="finished">Error al cargar el diálogo de selección de perfiles del navegador. Asegúrese de que el componente esté instalado y accesible.</translation>
+    </message>
     </message>
   </context>
   <context>
@@ -1123,37 +1316,37 @@
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="363" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="306" />
       <source>Sphere:</source>
-      <translation type="finished">Сфера:</translation>
+      <translation type="finished">Esfera:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="326" />
       <source>Section not found.</source>
-      <translation type="finished">Раздел не найден.</translation>
+      <translation type="finished">Sección no encontrada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="327" />
       <source>Section unavailable</source>
-      <translation type="finished">Раздел недоступен</translation>
+      <translation type="finished">Sección no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="328" />
       <source>The section might have been deleted. ID: %1</source>
-      <translation type="finished">Раздел мог быть удален. ID: %1</translation>
+      <translation type="finished">La sección podría haber sido eliminada. ID: %1</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="348" />
       <source>Sphere not selected.</source>
-      <translation type="finished">Сфера не выбрана.</translation>
+      <translation type="finished">Esfera no seleccionada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="349" />
       <source>Sphere selection required</source>
-      <translation type="finished">Требуется выбор сферы</translation>
+      <translation type="finished">Selección de esfera requerida</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="350" />
       <source>Choose a sphere from the list and press "Save".</source>
-      <translation type="finished">Выберите сферу из списка и нажмите "Сохранить".</translation>
+      <translation type="finished">Elija una esfera de la lista y presione "Guardar".</translation>
     </message>
   </context>
   <context>
@@ -1162,49 +1355,50 @@
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="654" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="609" />
       <source>Language:</source>
-      <translation type="finished">Язык:</translation>
+      <translation type="finished">Idioma:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="658" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="622" />
       <source>Max backups:</source>
-      <translation type="finished">Максимум резервных копий:</translation>
+      <translation type="finished">Máximo de copias de seguridad:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="662" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="635" />
       <source>Font size:</source>
-      <translation type="finished">Размер шрифта:</translation>
+      <translation type="finished">Tamaño de fuente:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="648" />
       <source>Settings</source>
-      <translation type="finished">Настройки</translation>
+      <translation type="finished">Configuración</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="667" />
       <source>Save</source>
-      <translation type="finished">Сохранить</translation>
+      <translation type="finished">Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="669" />
       <source>Cancel</source>
-      <translation type="finished">Отмена</translation>
+      <translation type="finished">Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="694" />
       <source>Failed to save settings.</source>
-      <translation type="finished">Не удалось сохранить настройки.</translation>
+      <translation type="finished">Error al guardar la configuración.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="695" />
       <source>Settings save error</source>
-      <translation type="finished">Ошибка сохранения настроек</translation>
+      <translation type="finished">Error de guardado de configuración</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="696" />
       <source>Check the values and try again.</source>
-      <translation type="finished">Проверьте значения и попробуйте снова.</translation>
+      <translation type="finished">Verifique los valores e inténtelo de nuevo.</translation>
+    </message>
     </message>
   </context>
   <context>
@@ -1212,30 +1406,31 @@
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="140" />
       <source>Button {idx} of {total} visible buttons</source>
-      <translation type="finished">Кнопка {idx} из {total} видимых кнопок</translation>
+      <translation type="finished">Botón {idx} de {total} botones visibles</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="147" />
       <source>Hidden button</source>
-      <translation type="finished">Скрытая кнопка</translation>
+      <translation type="finished">Botón oculto</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="221" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="188" />
       <source>Recent Links</source>
-      <translation type="finished">Недавние ссылки</translation>
+      <translation type="finished">Enlaces recientes</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="222" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="189" />
       <source>Favorites</source>
-      <translation type="finished">Избранное</translation>
+      <translation type="finished">Favoritos</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="223" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
       <source>Quick Add</source>
-      <translation type="finished">Быстрое добавление</translation>
+      <translation type="finished">Añadir rápido</translation>
+    </message>
     </message>
   </context>
   <context>
@@ -1245,8 +1440,7 @@
       <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="428" />
       <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="39" />
       <source>Search… (Ctrl+F)</source>
-      <translation type="finished">Поиск… (Ctrl+F)</translation>
+      <translation type="finished">Buscar... (Ctrl+F)</translation>
     </message>
   </context>
-
 </TS>
