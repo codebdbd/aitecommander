@@ -618,23 +618,47 @@ class ThreadSafeIconCache:
 
 
 class IconManager:
-    """Singleton wrapper over ThreadSafeIconCache."""
+    """Manager for icon caching.
+    
+    Supports both singleton pattern (for backward compatibility) and dependency injection.
+    
+    Args:
+        cache: Optional ThreadSafeIconCache instance. If None, creates default.
+        capacity: Optional cache capacity (maxsize). Only used if cache is None.
+    """
 
     _instance: IconManager | None = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> IconManager:
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+    def __new__(cls, *args, **kwargs) -> IconManager:
+        # If called without arguments, return singleton
+        if not args and not kwargs:
+            if cls._instance is None:
+                with cls._lock:
+                    if cls._instance is None:
+                        cls._instance = super().__new__(cls)
+                        cls._instance._initialized = False
+            return cls._instance
+        # If called with arguments, create new instance (DI mode)
+        return super().__new__(cls)
 
-    def __init__(self, cache: ThreadSafeIconCache | None = None) -> None:
+    def __init__(
+        self,
+        cache: ThreadSafeIconCache | None = None,
+        capacity: int | None = None,
+    ) -> None:
         if getattr(self, "_initialized", False):
             return
-        self._cache = cache if cache is not None else ThreadSafeIconCache()
+        
+        if cache is not None:
+            self._cache = cache
+        else:
+            # Create cache with optional capacity (maxsize parameter)
+            if capacity is not None:
+                self._cache = ThreadSafeIconCache(maxsize=capacity)
+            else:
+                self._cache = ThreadSafeIconCache()
+        
         self._initialized = True
 
     # Unified API (compatible with BaseCache)
@@ -773,13 +797,31 @@ def clear() -> None:
 
 
 def get_cached_category_icon(path: str) -> QIcon:
-    """Get a cached category icon from the general cache without dependencies on icon_operations."""
+    """Get a cached category icon from the general cache without dependencies on icon_operations.
+    
+    Note:
+        Must be called from GUI thread as it creates QIcon.
+        Returns empty QIcon if called from non-GUI thread.
+    """
+    # Thread safety check: QIcon must be created only in GUI thread
+    from PyQt6.QtCore import QThread
+    from PyQt6.QtWidgets import QApplication
+    
+    app = QApplication.instance()
+    if app and QThread.currentThread() != app.thread():
+        logger.warning(
+            "get_cached_category_icon called from non-GUI thread for %s, returning empty icon",
+            path
+        )
+        return QIcon()
+    
     cache_key = f"category::{path}"
     cached_icon = _icon_manager.get_icon(cache_key, "__category__")
     if cached_icon is not None:
         return cached_icon
 
     # Create QIcon directly by path, without calling create_icon_from_path, to avoid import cycles
+    # Safe to create here as we verified GUI thread above
     icon = QIcon(str(path)) if Path(path).exists() else QIcon()
 
     _icon_manager.set_icon(cache_key, "__category__", icon)

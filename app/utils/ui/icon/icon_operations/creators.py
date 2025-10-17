@@ -179,14 +179,20 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
 
 
 def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
-    """Create QIcon with caching and SVG support."""
+    """Create QIcon with caching and SVG support.
+    
+    Raises:
+        RuntimeError: If called from non-GUI thread.
+    """
     # Thread safety check: QIcon must be created only in the GUI thread
     if not _ensure_gui_thread(f"creating themed_icon ({icon_name})"):
-        logger.warning(
-            "themed_icon called from non-GUI thread for %s, returning empty icon",
-            icon_name,
+        error_msg = (
+            f"themed_icon called from non-GUI thread for icon '{icon_name}'. "
+            f"QIcon creation is only allowed in the GUI thread. "
+            f"Use async methods or ensure GUI thread context."
         )
-        return QIcon()
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
 
     # Parameter validation
     if not _validate_icon_name(icon_name):
@@ -405,6 +411,21 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
         return QIcon()
 
 
+def _should_use_fast_path(path_obj: Path) -> bool:
+    """Check if fast path loading should be used for the given file.
+    
+    Args:
+        path_obj: Path object to check
+        
+    Returns:
+        True if fast path should be used (PNG/JPG/etc with standard size)
+    """
+    return (
+        path_obj.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+        and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128)
+    )
+
+
 def _create_png_icon_fast(file_path: str, target_size: int = 24) -> QIcon:
     """Fast PNG icon creation with size optimization."""
     try:
@@ -434,14 +455,20 @@ def _create_png_icon_fast(file_path: str, target_size: int = 24) -> QIcon:
 
 
 def create_icon_from_path(icon_path: str) -> QIcon:
-    """Create QIcon from file path with caching."""
+    """Create QIcon from file path with caching.
+    
+    Raises:
+        RuntimeError: If called from non-GUI thread.
+    """
     # Thread safety check: QIcon must be created only in the GUI thread
     if not _ensure_gui_thread(f"creating icon from path ({icon_path})"):
-        logger.warning(
-            "create_icon_from_path called from non-GUI thread for %s, returning empty icon",
-            icon_path,
+        error_msg = (
+            f"create_icon_from_path called from non-GUI thread for {icon_path}. "
+            f"QIcon creation is only allowed in the GUI thread. "
+            f"Use create_icon_from_path_async() for background threads."
         )
-        return QIcon()
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
 
     # Use namespaced key to avoid collisions
     cache_key = f"abspath::{icon_path}"
@@ -462,13 +489,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         path_obj = Path(icon_path)
 
         # Use fast loading for PNG files with common sizes
-        if path_obj.suffix.lower() in (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".bmp",
-            ".gif",
-        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
+        if _should_use_fast_path(path_obj):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
         else:
             icon = _create_icon_from_file_path(icon_path)
@@ -502,7 +523,12 @@ def create_icon_from_path(icon_path: str) -> QIcon:
 
 
 async def create_icon_from_path_async(icon_path: str) -> QIcon:
-    """Asynchronously create QIcon from file path with caching."""
+    """Asynchronously create QIcon from file path with caching.
+    
+    Note:
+        QIcon creation is performed in GUI thread via run_in_gui_thread_async.
+        File I/O operations are performed in executor to avoid blocking.
+    """
     # Use namespaced key to avoid collisions
     cache_key = f"abspath::{icon_path}"
     # Check cache - TTL logic already implemented in cache_manager
@@ -516,31 +542,27 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
     # Measure load time
     start_time = time.time()
 
-    # Asynchronously create new icon
+    # Check file existence in executor (I/O operation)
     loop = asyncio.get_event_loop()
-
-    def create_icon():
-        if Path(icon_path).exists():
-            path_obj = Path(icon_path)
-
-            # Use fast loading for PNG files with common sizes
-            if path_obj.suffix.lower() in (
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".bmp",
-                ".gif",
-            ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
-                return _create_png_icon_fast(
+    exists = await loop.run_in_executor(None, Path(icon_path).exists)
+    
+    if exists:
+        path_obj = Path(icon_path)
+        
+        # Use fast loading for PNG files with common sizes
+        if _should_use_fast_path(path_obj):
+            # Create icon in GUI thread via run_in_gui_thread_async
+            icon = await run_in_gui_thread_async(
+                lambda: _create_png_icon_fast(
                     icon_path, app_config.get_default_icon_size()
                 )
-            else:
-                return QIcon(icon_path)
+            )
         else:
-            logger.debug("Created empty icon for non-existent file: %s", icon_path)
-            return QIcon()
-
-    icon = await loop.run_in_executor(None, create_icon)
+            # Create icon in GUI thread
+            icon = await run_in_gui_thread_async(lambda: QIcon(icon_path))
+    else:
+        logger.debug("Created empty icon for non-existent file: %s", icon_path)
+        icon = QIcon()
 
     # Measure load time and record successful disk load
     load_time = time.time() - start_time
@@ -586,13 +608,7 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
         path_obj = Path(icon_path)
 
         # Use fast loading for PNG files with common sizes
-        if path_obj.suffix.lower() in (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".bmp",
-            ".gif",
-        ) and app_config.get_default_icon_size() in (16, 24, 32, 48, 64, 128):
+        if _should_use_fast_path(path_obj):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
         else:
             icon = QIcon(icon_path)

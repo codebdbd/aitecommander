@@ -8,6 +8,7 @@ in the GUI thread without extra dependencies.
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import Any, Callable, TypeVar
 
 from PyQt6.QtCore import QThread, QTimer
@@ -33,7 +34,13 @@ def is_gui_thread() -> bool:
 
 
 def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
-    """Execute a function in the GUI thread and return its result (blocking)."""
+    """Execute a function in the GUI thread and return its result (blocking).
+    
+    Note:
+        Uses threading.Event for synchronization (not asyncio.Event) to avoid
+        blocking the event loop and to work correctly when called from threads
+        without a running event loop.
+    """
     if is_gui_thread():
         return func()
 
@@ -43,7 +50,7 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
         return func()
 
     result_container: dict[str, Any] = {}
-    done = asyncio.Event()
+    done = threading.Event()  # Use threading.Event for sync code
 
     def _runner():
         try:
@@ -51,14 +58,11 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
         except Exception as exc:  # noqa: BLE001
             result_container["exc"] = exc
         finally:
-            # asyncio.Event cannot be set directly from another thread
-            loop = asyncio.get_event_loop()
-            loop.call_soon_threadsafe(done.set)
+            done.set()
 
     QTimer.singleShot(0, _runner)
-    # Blocking wait via the current asyncio event loop
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(done.wait())
+    # Blocking wait (does not block event loop)
+    done.wait()
 
     if "exc" in result_container:
         raise result_container["exc"]
