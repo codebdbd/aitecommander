@@ -69,13 +69,13 @@
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="123" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="98" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Отмена</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="132" />
       <source>{percentage}% ({current}/{total})</source>
-      <translation type="unfinished" />
+      <translation>{percentage}% ({current}/{total})</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="174" />
@@ -85,7 +85,7 @@
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="207" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="186" />
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Закрыть</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="201" />
@@ -116,7 +116,7 @@
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="386" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="340" />
       <source>Load error</source>
-      <translation type="unfinished" />
+      <translation>Ошибка загрузки</translation>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="341" />
@@ -487,18 +487,18 @@
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="497" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="404" />
       <source>Sphere:</source>
-      <translation type="unfinished" />
+      <translation>Сфера:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="500" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="407" />
       <source>Section:</source>
-      <translation type="unfinished" />
+      <translation>Раздел:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
       <source>Failed to load sections.</source>
-      <translation type="unfinished" />
+      <translation>Не удалось загрузить разделы.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
@@ -558,12 +558,12 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="811" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Сохранить</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="813" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Отмена</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="818" />
@@ -794,7 +794,7 @@
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="98" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="54" />
       <source>Sphere:</source>
-      <translation type="unfinished" />
+      <translation>Сфера:</translation>
     </message>
     <message>
 <translation type="finished">Раздел:</translation>
