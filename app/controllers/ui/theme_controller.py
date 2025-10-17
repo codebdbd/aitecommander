@@ -2,7 +2,7 @@ import logging
 import threading
 from typing import Any, Callable, Optional, cast
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QThread
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
@@ -212,12 +212,16 @@ class ThemeController:
             logger.error("Failed to load QSS for theme: %s", name)
             return False
 
+        app_instance = QApplication.instance()
+        if app_instance and QThread.currentThread() is not app_instance.thread():
+            logger.error("ThemeController.apply must be called from the GUI thread")
+            return False
+
         try:
             # Apply QSS
             if self._stylesheet_applier is not None:
                 self._stylesheet_applier(qss_content)
             else:
-                app_instance = QApplication.instance()
                 if not app_instance:
                     logger.error("QApplication instance not found")
                     return False
@@ -328,6 +332,13 @@ class ThemeController:
         # Check if main window exists
         mw = getattr(self, "main_window", None)
         if not mw:
+            return
+
+        app_instance = QApplication.instance()
+        if app_instance and QThread.currentThread() is not app_instance.thread():
+            logger.error(
+                "ThemeController.apply_and_refresh_ui must be called from the GUI thread"
+            )
             return
 
         # Get suspend_updates utility

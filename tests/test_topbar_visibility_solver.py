@@ -64,8 +64,8 @@ def layout_context(qtbot, calculator):
             label=label,
             attr_name=f"{label}_widget",
             button_object_name=f"{label}Button",
-            min_attr=f"_min_{label}",
-            max_attr=f"_max_{label}",
+            min_visible=0,
+            max_visible=10,
         )
         state = PanelState(
             definition=definition,

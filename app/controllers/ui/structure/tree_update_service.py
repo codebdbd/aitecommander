@@ -60,7 +60,8 @@ class TreeUpdateService(QObject):
                 lambda: selection_handler._restore_category_selection(item_id),  # noqa: SLF001
                 f"restore_cat_{item_id}",
             )
-            self._schedule_focus()
+            # Don't steal focus from tiles when updating category
+            # self._schedule_focus()
 
     def handle_item_deleted(self, item_type: str, item_id: int) -> None:
         try:

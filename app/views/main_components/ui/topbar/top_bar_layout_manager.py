@@ -1,4 +1,4 @@
-"""TopBarLayoutManager - фасад для управления layout топ-бара."""
+"""TopBarLayoutManager - legacy layout coordinator for the top bar."""
 from __future__ import annotations
 
 import logging
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class TopBarLayoutManager(QObject):
-    """Фасад для управления layout топ-бара. Делегирует работу сервисам."""
+    """Manage top-bar layout orchestration and widget lifecycle."""
 
     layoutAdjusted = pyqtSignal(dict)
     narrowModeChanged = pyqtSignal(bool)
@@ -71,15 +71,9 @@ class TopBarLayoutManager(QObject):
 
         # Границы панелей
         bounds = self._init_service.init_panel_bounds()
-        self._max_recent = bounds["max_recent"]
-        self._max_fav = bounds["max_fav"]
-        self._max_quick = bounds["max_quick"]
-        self._min_recent = bounds["min_recent"]
-        self._min_fav = bounds["min_fav"]
-        self._min_quick = bounds["min_quick"]
 
         # Определения панелей
-        self._panel_definitions = self._init_service.create_panel_definitions()
+        self._panel_definitions = self._init_service.create_panel_definitions(bounds)
         self._panel_labels = tuple(d.label for d in self._panel_definitions)
 
         # Сервисы
@@ -118,7 +112,6 @@ class TopBarLayoutManager(QObject):
             slow_adjust_threshold_ms=self.SLOW_ADJUST_THRESHOLD_MS,
             side_spacing=self._config.get_side_spacing(),
             favorites_min_visible_threshold=favorites_threshold,
-            manager_ref=self,
         )
 
         # Lifecycle manager
@@ -173,11 +166,7 @@ class TopBarLayoutManager(QObject):
 
     @require_main_thread
     def mark_data_ready(self) -> None:
-        """Отметить что данные готовы.
-        
-        FIX: Убрана логика opacity effect — теперь просто переключаем состояние
-        и запускаем adjust().
-        """
+        """Mark that top-bar data is ready and trigger the first adjustment."""
         state = self._orchestrator.get_init_state()
         if state == InitializationState.DATA_READY:
             logger.debug(
@@ -192,29 +181,87 @@ class TopBarLayoutManager(QObject):
         self._orchestrator.set_init_state(InitializationState.DATA_READY)
         logger.debug("TopBarLM: state transition -> DATA_READY")
 
-        # FIX: Убрана установка opacity — топпанель уже видима
+        if self._opacity_effect is None:
+            self._ensure_opacity_effect()
+        self._set_container_opacity(1.0)
         self.adjust()
 
     @require_main_thread
     def prepare_initial_layout(self) -> None:
-        """Подготовить начальный layout.
+        """Prepare container opacity before the first layout pass."""
+        container = self._ensure_opacity_effect()
+        if container is None:
+            logger.debug("TopBarLM: prepare_initial_layout skipped - no container")
 
-        FIX: Убран QGraphicsOpacityEffect для устранения визуальных задержек.
-        Топпанель теперь показывается сразу без fade-in эффекта.
-
-        Thread-safety: Должен вызываться из GUI-потока.
-        """
-        # FIX: Убрана установка opacity effect — она вызывала визуальные рывки
-        # и задержки при загрузке. Топпанель теперь показывается сразу.
-        
         state = self._orchestrator.get_init_state()
         if state == InitializationState.NOT_STARTED:
             self._orchestrator.set_init_state(InitializationState.WAITING_FOR_DATA)
             logger.debug("TopBarLM: state transition -> WAITING_FOR_DATA")
 
+    def _ensure_opacity_effect(self) -> QWidget | None:
+        """Create or reuse opacity effect for the container and set it to 0."""
+        container = self._widget_accessor.get_container_widget()
+        if not isinstance(container, QWidget) or _sip_isdeleted(container):
+            return None
+
+        try:
+            current_effect = container.graphicsEffect()
+        except (RuntimeError, AttributeError):
+            logger.debug(
+                "TopBarLM: failed to read container graphics effect",
+                exc_info=True,
+            )
+            current_effect = None
+
+        if current_effect is not None and current_effect is not self._opacity_effect:
+            logger.warning(
+                "TopBarLM: container already has graphics effect, replacing it"
+            )
+            try:
+                if hasattr(current_effect, "deleteLater"):
+                    current_effect.deleteLater()
+            except Exception:
+                logger.debug(
+                    "TopBarLM: error deleting previous graphics effect",
+                    exc_info=True,
+                )
+            container.setGraphicsEffect(None)
+
+        if self._opacity_effect is None or self._opacity_effect.parent() is not container:
+            self._opacity_effect = QGraphicsOpacityEffect(container)
+        else:
+            # Ensure effect survives even if container changed
+            self._opacity_effect.setParent(container)
+
+        self._opacity_effect.setOpacity(0.0)
+        container.setGraphicsEffect(self._opacity_effect)
+        return container
+
+    def _set_container_opacity(self, value: float) -> None:
+        """Set container opacity if the effect exists."""
+        effect = self._opacity_effect
+        if effect is None:
+            return
+        try:
+            clamped = max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            clamped = 1.0
+
+        try:
+            effect.setOpacity(clamped)
+            container = self._widget_accessor.get_container_widget()
+            if isinstance(container, QWidget) and not _sip_isdeleted(container):
+                if container.graphicsEffect() is not effect:
+                    container.setGraphicsEffect(effect)
+        except (RuntimeError, AttributeError):
+            logger.debug(
+                "TopBarLM: failed to update container opacity",
+                exc_info=True,
+            )
+
     @require_main_thread
     def adjust(self) -> None:
-        """Выполнить layout adjustment."""
+        """Execute a layout adjustment pass if throttling permits."""
         if self._throttle_timer.isActive():
             return
 
@@ -239,7 +286,7 @@ class TopBarLayoutManager(QObject):
             self._orchestrator.release_adjust_lock()
 
     def retranslate_topbar(self) -> None:
-        """Перевести топ-бар на другой язык."""
+        """Retranslate top-bar widgets after language change."""
         try:
             top_bar = self._widget_accessor.get_top_bar()
             if top_bar is None:
@@ -264,7 +311,7 @@ class TopBarLayoutManager(QObject):
     def _visible_counts_from_state(
         self, panel_states: Iterable[PanelState]
     ) -> dict[str, int]:
-        """Получить counts из текущего состояния панелей."""
+        """Calculate visible button counts from live panel state."""
         counts: dict[str, int] = {label: 0 for label in self._panel_labels}
         try:
             for state in panel_states:
@@ -285,24 +332,18 @@ class TopBarLayoutManager(QObject):
         return counts
 
     def get_sip_statistics(self) -> dict:
-        """Получить статистику SIP."""
+        """Expose current SIP statistics helper."""
         return get_sip_statistics()
 
     @require_main_thread
     def cleanup(self) -> None:
-        """Очистить все ресурсы TopBarLayoutManager.
+        """Dispose resources owned by TopBarLayoutManager.
 
-        Выполняет детерминированную очистку в следующем порядке:
-        1. Удаление QGraphicsOpacityEffect с контейнера
-        2. Очистка ResourceManager (таймеры, сервисы)
-        3. Очистка TopBarLifecycleManager (event filters, сигналы)
-        4. Очистка кэша WidgetAccessor
-
-        Thread-safety: Должен вызываться из GUI-потока.
-        Idempotent: Безопасен для множественных вызовов.
-
-        Raises:
-            Не выбрасывает исключения; все ошибки логируются.
+        Steps:
+            1. Detach and delete the opacity effect
+            2. Cleanup the ResourceManager (timers, services)
+            3. Cleanup lifecycle handlers (event filters, signals)
+            4. Clear cached widget references
         """
         self._log_cleanup_start()
 
@@ -381,3 +422,4 @@ class TopBarLayoutManager(QObject):
     def _run_adjust(self) -> None:
         """Запустить adjust (callback для таймера)."""
         self.adjust()
+

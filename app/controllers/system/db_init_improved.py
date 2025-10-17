@@ -9,11 +9,12 @@ from PyQt6.QtCore import (
     QObject,
     QRunnable,
     Qt,
+    QThread,
     QThreadPool,
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.models.db import Database
 
@@ -25,6 +26,18 @@ class DatabaseInitSignals(QObject):
     finished = pyqtSignal(bool)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
+
+
+class _DialogDispatcher(QObject):
+    """Helpers to dispatch dialog display in the GUI thread."""
+
+    def __init__(self, callback: Callable[[], None], parent: QObject | None = None):
+        super().__init__(parent)
+        self._callback = callback
+
+    @pyqtSlot()
+    def invoke(self) -> None:
+        self._callback()
 
 
 class DatabaseInitRunnable(QRunnable):
@@ -181,12 +194,16 @@ class DatabaseInitializer:
             )
 
         if self.main_window:
-            QMetaObject.invokeMethod(
-                self.main_window,
-                "_show_error_dialog",
-                Qt.ConnectionType.QueuedConnection,
-                title, message
-            )
+            app = QApplication.instance()
+            if app is not None and QThread.currentThread() is not app.thread():
+                dispatcher = _DialogDispatcher(show_dialog, parent=self.main_window)
+                QMetaObject.invokeMethod(
+                    dispatcher,
+                    "invoke",
+                    Qt.ConnectionType.QueuedConnection,
+                )
+            else:
+                show_dialog()
         else:
             # Fallback for headless mode
             logger.critical("%s: %s", title, message)

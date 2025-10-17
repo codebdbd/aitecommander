@@ -51,8 +51,8 @@ def _make_panel_state(label: PanelLabel, *, minimum: int, maximum: int, buttons:
         label=label.value,
         attr_name=f"{label.value}_widget",
         button_object_name=f"{label.value}Button",
-        min_attr=f"_min_{label.value}",
-        max_attr=f"_max_{label.value}",
+        min_visible=minimum,
+        max_visible=maximum,
     )
     dummy_buttons = [object() for _ in range(buttons)]
     return PanelState(

@@ -207,8 +207,8 @@ def test_total_width_basic(calculator, mock_panel, qtbot):
         label="test",
         attr_name="test_widget",
         button_object_name="testButton",
-        min_attr="_min_test",
-        max_attr="_max_test",
+        min_visible=0,
+        max_visible=5,
     )
     state = PanelState(
         definition=definition,

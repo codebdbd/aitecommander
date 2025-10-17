@@ -108,7 +108,7 @@ class RestoreDbDialog(BaseDialog):
             logger.debug("Поиск резервных копий в: %s", self.backup_dir)
 
             # Ищем файлы резервных копий
-            backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
+            backups = sorted(self.backup_dir.glob("osteen_path_*.db"), reverse=True)
             logger.debug("Найдено резервных копий: %s", len(backups))
 
             # Проверяем наличие файла links.db.bak
@@ -230,7 +230,7 @@ class RestoreDbDialog(BaseDialog):
         """Парсит дату и время из имени файла резервной копии."""
         try:
             # Убираем префикс и суффикс
-            base = filename.replace("links_", "").replace(".db", "")
+            base = filename.replace("osteen_path_", "").replace("links_", "").replace(".db", "")
 
             # Пробуем разные форматы
             formats = [
@@ -270,7 +270,7 @@ class RestoreDbDialog(BaseDialog):
             )
 
             # Получаем список автоматических резервных копий
-            backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
+            backups = sorted(self.backup_dir.glob("osteen_path_*.db"), reverse=True)
             # Фильтруем пустые файлы
             valid_backups = [b for b in backups if b.stat().st_size > 0]
 
@@ -332,26 +332,8 @@ class RestoreDbDialog(BaseDialog):
             )
             return
 
-        # Дополнительное подтверждение
-        reply = self.ask_confirmation(
-            self.tr("Restore the database from the selected backup?"),
-            self.tr("Database restoration"),
-            informative_text=(
-                self.tr("Current database contents will be replaced with the selected backup.\n")
-                + self.tr("This action cannot be undone. Create a fresh backup if needed beforehand.")
-            ),
-            details=(
-                self.tr("Path: {path}\n").format(path=str(selected_backup))
-                + self.tr("Name: {name}\n").format(name=selected_backup.name)
-                + self.tr("Size: {size} MB").format(
-                    size=f"{selected_backup.stat().st_size / (1024 * 1024):.1f}"
-                )
-            ),
-        )
-
-        if reply:
-            self.selected_backup = selected_backup
-            super().accept()
+        self.selected_backup = selected_backup
+        super().accept()
 
     def get_result(self) -> Optional[Path]:
         """Возвращает выбранную резервную копию после закрытия диалога."""

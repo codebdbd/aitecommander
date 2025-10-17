@@ -48,7 +48,12 @@ def _get_icon_provider():
 
 
 def _validate_exe_path(exe_path: str) -> bool:
-    """Local EXE path validation: existence, file, extension, access and reasonable size."""
+    """Local EXE path validation: existence, file, extension.
+
+    No size limit on the EXE itself - icon extraction via WinAPI stays fast
+    regardless of binary size. Resulting icon validity is checked separately
+    via is_valid_icon_file().
+    """
     if not exe_path or not isinstance(exe_path, str):
         return False
     exe_path_obj = Path(exe_path)
@@ -58,13 +63,6 @@ def _validate_exe_path(exe_path: str) -> bool:
         return False
     # Check read access (simplified - if file exists, assume readable)
     if not exe_path_obj.exists():
-        return False
-    # Soft size limit (100 MB) as protection against accidentally huge files
-    try:
-        if exe_path_obj.stat().st_size > 100 * 1024 * 1024:
-            logger.warning("EXE file too large: %s", exe_path)
-            return False
-    except OSError:
         return False
     return True
 

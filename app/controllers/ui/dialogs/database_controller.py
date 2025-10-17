@@ -64,26 +64,25 @@ class DatabaseController(QObject):
             self.operation_error.emit("Error", "Database path not found.")
             return
 
-        if self.dialogs.confirm_database_restore(backup_path.name):
-            try:
-                # Close old connection
-                self.db.close()
+        try:
+            # Close old connection
+            self.db.close()
 
-                # Copy backup
-                shutil.copy2(backup_path, db_path)
+            # Copy backup
+            shutil.copy2(backup_path, db_path)
 
-                # Create new database connection
-                new_db = Database()
-                self.db = new_db
+            # Create new database connection
+            new_db = Database()
+            self.db = new_db
 
-                # Notify UI via signal - it will update all dependencies
-                self.database_restored.emit(new_db)
-                self.operation_success.emit(
-                    "Done", f"Database restored from backup:\n{backup_path.name}"
-                )
+            # Notify UI via signal - it will update all dependencies
+            self.database_restored.emit(new_db)
+            self.operation_success.emit(
+                "Done", f"Database restored from backup:\n{backup_path.name}"
+            )
 
-            except Exception as e:
-                self.operation_error.emit("Error", f"Restore error: {e}")
+        except Exception as e:
+            self.operation_error.emit("Error", f"Restore error: {e}")
 
     def handle_connect_database(self):
         """Another database connection handler."""

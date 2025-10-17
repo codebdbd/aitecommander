@@ -708,6 +708,13 @@ class SettingsDialog(BaseDialog):
                     # Clear cache and apply theme again
                     self.theme_ctrl.clear_cache()
                     self.theme_ctrl.apply(current_theme)
+            
+            # Apply font size to tree and table widgets
+            if self.parent() and hasattr(self.parent(), 'apply_font_size_to_content'):
+                try:
+                    self.parent().apply_font_size_to_content(font_size)
+                except Exception as e:
+                    logger.debug("Failed to apply font size to content: %s", e)
 
             self.accept()
 

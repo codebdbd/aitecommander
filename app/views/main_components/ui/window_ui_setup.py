@@ -26,6 +26,9 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.main_components.ui.topbar.top_bar_layout_manager import (
     TopBarLayoutManager,
 )
+from app.views.main_components.ui.topbar.models.topbar_constants import (
+    TOPBAR_CONSTANTS as TOPBAR_CONST,
+)
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.custom_widgets import StructureTreeView
 from app.views.widgets.panels.favorites_panel_widget import FavoritesPanelWidget
@@ -346,21 +349,25 @@ class WindowUISetup:
             mgr.prepare_initial_layout()
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
+        except Exception:
+            logger.debug("TopPanel: initial layout setup failed", exc_info=True)
 
         controller = getattr(self.window, "top_panels_controller", None)
 
+        fallback_delay_ms = 2000
         if controller and hasattr(controller, "data_loaded"):
             try:
                 from PyQt6.QtCore import Qt
+
                 controller.data_loaded.connect(
                     mgr.mark_data_ready, Qt.ConnectionType.SingleShotConnection
                 )
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
                 logger.warning(f"TopPanel: failed to connect data_loaded: {e}")
-                QTimer.singleShot(50, mgr.mark_data_ready)
+                QTimer.singleShot(fallback_delay_ms, mgr.mark_data_ready)
         else:
-            QTimer.singleShot(50, mgr.mark_data_ready)
+            QTimer.singleShot(fallback_delay_ms, mgr.mark_data_ready)
 
         if controller and hasattr(controller, "refresh_all"):
             QTimer.singleShot(0, lambda: self._safe_refresh_all(controller))
@@ -439,7 +446,50 @@ class WindowUISetup:
             btn_h = 32
         return max(search_h, btn_h)
 
-    def _configure_panel_widget(self, widget, object_name: str | None, log_label: str) -> None:
+    def _compute_panel_placeholder_width(self, mode: str) -> int:
+        """Estimate placeholder width for data-driven panels."""
+        if mode == "quick":
+            # Quick panel has static content immediately; no placeholder needed.
+            return 0
+
+        try:
+            button_size = int(app_config.ui.get_top_panel_button_size())
+        except (TypeError, ValueError):
+            button_size = TOPBAR_CONST.DEFAULT_BUTTON_SIZE
+
+        try:
+            spacing = int(app_config.ui.get_top_bar_buttons_spacing())
+        except (TypeError, ValueError):
+            spacing = TOPBAR_CONST.SEPARATOR_SPACING_VISIBLE
+
+        baseline_items = {
+            "favorites": max(3, TOPBAR_CONST.DEFAULT_MIN_FAV or 3),
+            "recent": max(3, TOPBAR_CONST.DEFAULT_MIN_RECENT or 3),
+        }.get(mode, 3)
+
+        effective_count = max(1, baseline_items)
+        width = button_size * effective_count
+        if effective_count > 1:
+            width += spacing * (effective_count - 1)
+
+        # Add padding for container margins/borders
+        width += 16
+
+        try:
+            search_min = int(app_config.ui.get_top_panel_search_min_width())
+        except (TypeError, ValueError):
+            search_min = TOPBAR_CONST.MIN_SEARCH_WIDTH
+
+        minimum = max(TOPBAR_CONST.MIN_PANEL_WIDTH * 2, int(search_min * 0.5))
+        return max(width, minimum)
+
+    def _configure_panel_widget(
+        self,
+        widget,
+        object_name: str | None,
+        log_label: str,
+        mode: str,
+    ) -> None:
         if object_name:
             widget.setObjectName(object_name)
         widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
@@ -449,10 +499,17 @@ class WindowUISetup:
             widget.setFixedHeight(fixed_h)
         except Exception:
             logger.debug(f"TopPanel: failed to set height on {log_label}", exc_info=True)
-        try:
-            widget.setMinimumWidth(0)
-        except Exception:
-            logger.debug(f"TopPanel: failed to set min width on {log_label}", exc_info=True)
+
+        placeholder_width = self._compute_panel_placeholder_width(mode)
+        if placeholder_width > 0:
+            try:
+                setattr(widget, "_placeholder_min_width", placeholder_width)
+                widget.setMinimumWidth(placeholder_width)
+            except Exception:
+                logger.debug(
+                    f"TopPanel: failed to configure placeholder width on {log_label}",
+                    exc_info=True,
+                )
 
     def _adjust_panel_spacing(self, widget, log_label: str) -> None:
         try:
@@ -473,7 +530,7 @@ class WindowUISetup:
     ) -> None:
         try:
             widget = self._create_widget_by_mode(mode)
-            self._configure_panel_widget(widget, object_name, log_label)
+            self._configure_panel_widget(widget, object_name, log_label, mode)
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
             self._adjust_panel_spacing(widget, log_label)

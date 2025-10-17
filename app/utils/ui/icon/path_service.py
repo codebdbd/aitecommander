@@ -136,6 +136,8 @@ class IconPathService:
         self._index_ttl: float = 60.0
         self._theme_index_ts: dict[str, float] = {}
         self._theme_dir_mtime: dict[str, float] = {}
+        # Cached listing of QRC resources per theme (only used when QRC is available)
+        self._qrc_index: dict[str, set[str]] = {}
         self._user_data_dir: Path | None = None
         
         # Metrics recorder
@@ -226,7 +228,8 @@ class IconPathService:
             self._theme_index.clear()
             self._theme_index_ts.clear()
             self._theme_dir_mtime.clear()
-            self._qrc_index.clear()
+            if hasattr(self, "_qrc_index"):
+                self._qrc_index.clear()
         logger.debug("Icon path service caches cleared")
 
     # --- Metrics helpers (internal) ---
