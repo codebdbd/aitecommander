@@ -215,7 +215,7 @@ class IconMetricsRecorder:
         try:
             from PyQt6.QtCore import QThread
             from PyQt6.QtWidgets import QApplication
-            from app.utils.ui.qt.gui_exec import run_in_gui_thread
+            from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
 
             app = QApplication.instance()
             if app is None:
@@ -232,7 +232,7 @@ class IconMetricsRecorder:
                 self._setup_qtimer()
 
             self._timer_pending = True
-            run_in_gui_thread(_start_timer)
+            run_in_gui_thread_sync(_start_timer)
         except Exception:
             logger.debug("IconMetricsRecorder: failed to schedule QTimer setup", exc_info=True)
             self._timer_pending = False

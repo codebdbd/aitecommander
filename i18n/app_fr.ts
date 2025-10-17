@@ -5,23 +5,28 @@
     <name>AccessibilityManager</name>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="50" />
-<translation type="finished">Panneau {panel} avec {count} éléments visibles</translation>
+      <source>{panel} panel with {count} visible items</source>
+      <translation type="finished">Panneau {panel} avec {count} éléments visibles</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="59" />
-<translation type="finished">Élément {n} du panneau {panel}</translation>
+      <source>{panel} item {n}</source>
+      <translation type="finished">Élément {n} du panneau {panel}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="64" />
-<translation type="finished">Bouton {idx} sur {total} dans {panel}. Appuyez sur Entrée pour activer, flèches pour naviguer.</translation>
+      <source>Button {idx} of {total} in {panel}. Press Enter to activate, Arrow keys to navigate.</source>
+      <translation type="finished">Bouton {idx} sur {total} dans {panel}. Appuyez sur Entrée pour activer, flèches pour naviguer.</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="79" />
-<translation type="finished">Bouton masqué {n} dans {panel}</translation>
+      <source>Hidden button {n} in {panel}</source>
+      <translation type="finished">Bouton masqué {n} dans {panel}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="109" />
-<translation type="finished"> (Alt+{n})</translation>
+      <source> (Alt+{n})</source>
+      <translation type="finished"> (Alt+{n})</translation>
     </message>
   </context>
   <context>
@@ -65,30 +70,43 @@
   </context>
   <context>
     <name>AsyncOperationDialog</name>
-<translation type="finished">Annuler</translation>
+    <message>
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="123" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="98" />
+      <source>Cancel</source>
+      <translation type="finished">Annuler</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="132" />
-<translation type="finished">{percentage}% ({current}/{total})</translation>
+      <source>{percentage}% ({current}/{total})</source>
+      <translation type="finished">{percentage}% ({current}/{total})</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="174" />
-<translation type="finished">✅ Opération terminée avec succès</translation>
+      <source>✅ Operation completed successfully</source>
+      <translation type="finished">✅ Opération terminée avec succès</translation>
     </message>
-<translation type="finished">Fermer</translation>
+    <message>
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="207" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="186" />
+      <source>Close</source>
+      <translation type="finished">Fermer</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="201" />
-<translation type="finished">❌ Erreur : {error}</translation>
+      <source>❌ Error: {error}</source>
+      <translation type="finished">❌ Erreur : {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="216" />
-<translation type="finished">⚠️ Opération annulée</translation>
+      <source>⚠️ Operation cancelled</source>
+      <translation type="finished">⚠️ Opération annulée</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="224" />
-<translation type="finished">Annulation de l'opération…</translation>
+      <source>Cancelling operation…</source>
+      <translation type="finished">Annulation de l'opération…</translation>
     </message>
   </context>
   <context>
