@@ -268,7 +268,7 @@ class IconPathService:
                     entry_path = iterator.next()
                     if not entry_path:
                         continue
-                    name = Path(entry_path).name.lower()
+                    name = PurePosixPath(entry_path).name.lower()
                     if name:
                         entries.add(name)
         self._qrc_index[theme] = entries
@@ -576,10 +576,10 @@ class IconPathResolver:
                 logger.warning("Failed to convert QRC SVG %s to PNG", resource_to_use)
                 return False
 
-            from app.utils.ui.qt.gui_exec import run_in_gui_thread
+            from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
 
-            if run_in_gui_thread(_convert_resource):
-                return path_str
+            if run_in_gui_thread_sync(_convert_resource):
+                return str(cached_png)
             return None
 
         norm_theme = validate_theme(theme)

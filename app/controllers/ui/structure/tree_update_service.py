@@ -51,11 +51,11 @@ class TreeUpdateService(QObject):
                 item_id,
             )
             raise
-        if item_type == "category" and isinstance(item_id, int):
+        controller = getattr(self._manager, "controller", None)
+        selection_handler = getattr(controller, "selection_handler", None)
+        if item_type == "category" and isinstance(item_id, int) and selection_handler:
             schedule_selection_restore(
-                lambda: self._manager.controller.selection_handler._restore_category_selection(  # noqa: SLF001
-                    item_id
-                ),
+                lambda: selection_handler._restore_category_selection(item_id),  # noqa: SLF001
                 f"restore_cat_{item_id}",
             )
             self._schedule_focus()
@@ -115,14 +115,18 @@ class TreeUpdateService(QObject):
 
         processed = dict(data)
         icon_path = data.get("icon_path")
-        if isinstance(icon_path, str) and icon_path.strip():
-            try:
-                processed["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_update")
-            except Exception:
-                processed["icon"] = None
-        else:
-            processed["icon"] = None
-
+        if isinstance(icon_path, str):
+            trimmed = icon_path.strip()
+            if trimmed:
+                processed["icon_path"] = trimmed
+                try:
+                    processed["icon"] = icon_cache.get_icon(trimmed, source="tree_update")
+                except Exception as exc:
+                    logger.debug("Icon prefetch failed for %s: %s", trimmed, exc, exc_info=True)
+                    processed["icon"] = trimmed
+                    return processed
+                return processed
+        processed["icon"] = None
         return processed
 
     def _preprocess_category_data(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -135,20 +139,29 @@ class TreeUpdateService(QObject):
 
         processed = dict(data)
         icon_path = data.get("icon_path")
-        if isinstance(icon_path, str) and icon_path.strip():
-            try:
-                processed["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_update")
-            except Exception:
-                processed["icon"] = None
-        else:
-            processed["icon"] = None
-
+        if isinstance(icon_path, str):
+            trimmed = icon_path.strip()
+            if trimmed:
+                processed["icon_path"] = trimmed
+                try:
+                    processed["icon"] = icon_cache.get_icon(trimmed, source="tree_update")
+                except Exception as exc:
+                    logger.debug("Icon prefetch failed for %s: %s", trimmed, exc, exc_info=True)
+                    processed["icon"] = trimmed
+                    return processed
+                return processed
+        processed["icon"] = None
         return processed
 
     def _focus_on_new_item(self, item_type: str, item_id: Any) -> None:
         if not isinstance(item_id, int):
             return
-        selection_handler = self._manager.controller.selection_handler
+        controller = getattr(self._manager, "controller", None)
+        if controller is None:
+            return
+        selection_handler = getattr(controller, "selection_handler", None)
+        if selection_handler is None:
+            return
         schedule_selection_restore(
             lambda: selection_handler._set_focus_on_new_item_by_id(item_type, item_id),  # noqa: SLF001
             f"new_{item_type}_{item_id}",
@@ -156,8 +169,10 @@ class TreeUpdateService(QObject):
         self._schedule_focus()
 
     def _schedule_focus(self) -> None:
+        if not hasattr(self._tree, "setFocus"):
+            return
         try:
-            schedule_focus(lambda: self._tree.setFocus(), "structure_tree")
+            schedule_focus(self._tree.setFocus, "structure_tree")
         except Exception:
             logger.debug(
                 "TreeUpdateService._schedule_focus: schedule_focus failed",
