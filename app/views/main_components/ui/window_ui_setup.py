@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
+from app.utils.cache.topbar_snapshot import TopBarSnapshot, TopBarSnapshotStore
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.main_components.ui.topbar.top_bar_layout_manager import (
     TopBarLayoutManager,
@@ -220,6 +221,9 @@ class WindowUISetup:
         self.settings = window_initializer.settings
         self.theme_ctrl = window_initializer.theme_ctrl
         self.main_layout: QVBoxLayout | None = None
+        self._topbar_snapshot_store = TopBarSnapshotStore()
+        self._topbar_snapshot_applied = False
+        self._pending_topbar_snapshot: TopBarSnapshot | None = None
 
         self._language_service = LanguageService.instance()
         self._connect_language_service()
@@ -338,6 +342,69 @@ class WindowUISetup:
                 "TopPanel: failed to schedule topbar initialization", exc_info=True
             )
 
+    def _apply_snapshot_to_widgets(self, snapshot: TopBarSnapshot) -> bool:
+        """Apply snapshot data directly to widgets when controller is unavailable."""
+        applied = False
+        fav_widget = getattr(self.window, "fav_widget", None)
+        recent_widget = getattr(self.window, "recent_links_widget", None)
+        try:
+            if fav_widget and hasattr(fav_widget, "set_data"):
+                fav_widget.set_data(snapshot.favorites)
+                applied = applied or bool(snapshot.favorites)
+        except Exception:
+            logger.debug(
+                "WindowUISetup: failed to apply favorites snapshot directly",
+                exc_info=True,
+            )
+        try:
+            if recent_widget and hasattr(recent_widget, "set_data"):
+                recent_widget.set_data(snapshot.recents)
+                applied = applied or bool(snapshot.recents)
+        except Exception:
+            logger.debug(
+                "WindowUISetup: failed to apply recents snapshot directly",
+                exc_info=True,
+            )
+        return applied
+
+    def _prefill_topbar_from_snapshot(
+        self, controller
+    ) -> tuple[bool, TopBarSnapshot | None]:
+        """Load and apply cached top bar snapshot if available."""
+        store = getattr(self, "_topbar_snapshot_store", None)
+        if store is None:
+            return False, None
+        try:
+            snapshot = store.load()
+        except Exception:
+            logger.debug(
+                "WindowUISetup: failed to load top bar snapshot",
+                exc_info=True,
+            )
+            return False, None
+        if snapshot is None:
+            return False, None
+
+        applied = False
+        if controller is None:
+            applied = self._apply_snapshot_to_widgets(snapshot)
+            if applied:
+                self._pending_topbar_snapshot = snapshot
+                setattr(self.window, "_pending_topbar_snapshot", snapshot)
+        else:
+            try:
+                applied = controller.apply_snapshot(
+                    snapshot.favorites, snapshot.recents
+                )
+            except Exception:
+                logger.debug(
+                    "WindowUISetup: failed to apply top bar snapshot via controller",
+                    exc_info=True,
+                )
+        if applied:
+            self._topbar_snapshot_applied = True
+        return applied, snapshot
+
     def _schedule_topbar_initialization(self, mgr: TopBarLayoutManager) -> None:
         if getattr(self.window, "_topbar_initialized", False):
             return
@@ -354,7 +421,11 @@ class WindowUISetup:
 
         controller = getattr(self.window, "top_panels_controller", None)
 
-        fallback_delay_ms = 2000
+        snapshot_loaded = False
+        snapshot: TopBarSnapshot | None = None
+        if controller:
+            snapshot_loaded, snapshot = self._prefill_topbar_from_snapshot(controller)
+
         if controller and hasattr(controller, "data_loaded"):
             try:
                 from PyQt6.QtCore import Qt
@@ -365,12 +436,29 @@ class WindowUISetup:
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
                 logger.warning(f"TopPanel: failed to connect data_loaded: {e}")
-                QTimer.singleShot(fallback_delay_ms, mgr.mark_data_ready)
-        else:
-            QTimer.singleShot(fallback_delay_ms, mgr.mark_data_ready)
 
         if controller and hasattr(controller, "refresh_all"):
             QTimer.singleShot(0, lambda: self._safe_refresh_all(controller))
+
+        try:
+            mgr.mark_data_ready()
+        except Exception:
+            logger.debug("TopPanel: immediate mark_data_ready failed", exc_info=True)
+
+        if snapshot_loaded and snapshot is not None:
+            try:
+                logger.debug(
+                    "TopPanel: warm snapshot applied (favorites=%s, recents=%s, saved_at=%s)",
+                    len(snapshot.favorites),
+                    len(snapshot.recents),
+                    snapshot.saved_at.isoformat(),
+                )
+            except Exception:
+                logger.debug(
+                    "TopPanel: warm snapshot applied (favorites=%s, recents=%s)",
+                    len(snapshot.favorites),
+                    len(snapshot.recents),
+                )
 
     def _safe_refresh_all(self, controller) -> None:
         try:
@@ -700,6 +788,38 @@ class WindowUISetup:
         from app.views.main_components.ui.right_panel_setup import RightPanelBuilder
 
         RightPanelBuilder(self).build(mid)
+
+    def _prefill_topbar_widgets_before_manager(self) -> None:
+        """Apply snapshot at widget build stage before manager adjusts layout."""
+        if getattr(self, "_topbar_snapshot_applied", False):
+            return
+        store = getattr(self, "_topbar_snapshot_store", None)
+        if store is None:
+            return
+        try:
+            snapshot = store.load()
+        except Exception:
+            logger.debug(
+                "WindowUISetup: early snapshot load failed",
+                exc_info=True,
+            )
+            return
+        if snapshot is None:
+            return
+
+        applied = self._apply_snapshot_to_widgets(snapshot)
+        if applied:
+            self._topbar_snapshot_applied = True
+            setattr(self.window, "_pending_topbar_snapshot", snapshot)
+            try:
+                logger.debug(
+                    "WindowUISetup: top bar prefilled before manager "
+                    "(favorites=%s, recents=%s)",
+                    len(snapshot.favorites),
+                    len(snapshot.recents),
+                )
+            except Exception:
+                pass
 
     def _setup_auto_hide_tree_filter(self, splitter_sizes: list[int]) -> None:
         try:

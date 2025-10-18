@@ -47,7 +47,6 @@ class TreeSnapshotService(QObject):
         self._on_success = None
         self._on_error = None
 
-        # Преобразуем icon_path в QIcon ДО передачи в модель
         processed_snapshot = self._preprocess_snapshot(snapshot)
 
         try:
@@ -74,51 +73,38 @@ class TreeSnapshotService(QObject):
                         exc_info=True,
                     )
 
-    def _preprocess_snapshot(self, snapshot: list[dict]) -> list[dict]:
-        """Преобразуем icon_path в QIcon для корректной работы модели."""
-        try:
-            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-        except ImportError:
-            logger.debug("Icon cache not available, skipping preprocessing")
-            return snapshot
+    @staticmethod
+    def _extract_icon_path(payload: dict, field: str = "icon") -> str | None:
+        """Return trimmed icon path from payload if available."""
+        value = payload.get(field)
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if trimmed:
+                return trimmed
+        return None
 
-        processed = []
-        for section in snapshot:
+    def _preprocess_snapshot(self, snapshot: list[dict]) -> list[dict]:
+        """Preserve icon paths without blocking the UI thread."""
+        processed: list[dict] = []
+        for section in snapshot or []:
             if not isinstance(section, dict):
                 processed.append(section)
                 continue
 
-            # Преобразуем icon_path секции в QIcon
             section_copy = dict(section)
-            icon_path = section.get("icon_path")
-            # Skip if icon_path is None, empty string, or whitespace-only
-            if icon_path and isinstance(icon_path, str) and icon_path.strip():
-                try:
-                    section_copy["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_snapshot")
-                except Exception:
-                    section_copy["icon"] = None
-            else:
-                section_copy["icon"] = None
+            icon_path = self._extract_icon_path(section_copy) or section_copy.get("icon_path")
+            section_copy["icon_path"] = icon_path
 
-            # Преобразуем icon_path категорий в QIcon
-            if "categories" in section:
-                processed_categories = []
-                for category in section["categories"]:
+            categories = section_copy.get("categories")
+            if isinstance(categories, list):
+                processed_categories: list[dict] = []
+                for category in categories:
                     if not isinstance(category, dict):
                         processed_categories.append(category)
                         continue
-
                     category_copy = dict(category)
-                    icon_path = category.get("icon_path")
-                    # Skip if icon_path is None, empty string, or whitespace-only
-                    if icon_path and isinstance(icon_path, str) and icon_path.strip():
-                        try:
-                            category_copy["icon"] = icon_cache.get_icon(icon_path.strip(), source="tree_snapshot")
-                        except Exception:
-                            category_copy["icon"] = None
-                    else:
-                        category_copy["icon"] = None
-
+                    cat_icon_path = self._extract_icon_path(category_copy) or category_copy.get("icon_path")
+                    category_copy["icon_path"] = cat_icon_path
                     processed_categories.append(category_copy)
                 section_copy["categories"] = processed_categories
 

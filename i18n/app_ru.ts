@@ -1,32 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
   <context>
     <name>AccessibilityManager</name>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="50" />
-<translation type="finished">{panel} панель с {count} видимыми элементами</translation>
+      <source>{panel} panel with {count} visible items</source>
+      <translation type="finished">{panel} панель с {count} видимыми элементами</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="59" />
-<translation type="finished">{panel} элемент {n}</translation>
+      <source>{panel} item {n}</source>
+      <translation type="finished">{panel} элемент {n}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="64" />
-<translation type="finished">Кнопка {idx} из {total} в {panel}. Нажмите Enter для активации, стрелки для навигации.</translation>
+      <source>Button {idx} of {total} in {panel}. Press Enter to activate, Arrow keys to navigate.</source>
+      <translation type="finished">Кнопка {idx} из {total} в {panel}. Нажмите Enter для активации, стрелки для навигации.</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="79" />
-<translation type="finished">Скрытая кнопка {n} в {panel}</translation>
+      <source>Hidden button {n} in {panel}</source>
+      <translation type="finished">Скрытая кнопка {n} в {panel}</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="109" />
-<translation type="finished"> (Alt+{n})</translation>
+      <source> (Alt+{n})</source>
+      <translation type="finished"> (Alt+{n})</translation>
     </message>
   </context>
   <context>
     <name>Application</name>
     <message>
+      <location filename="..\app\views\main_components\ui\topbar\accessibility_manager.py" line="50" />
+      <source>{panel} panel with {count} visible items</source>
+      <translation type="finished">{panel} панель с {count} видимыми элементами</translation>
       <source>Aite Commander</source>
       <translation type="vanished">Aite Commander</translation>
     </message>

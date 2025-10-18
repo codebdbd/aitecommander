@@ -75,6 +75,9 @@
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="98" />
       <source>Cancel</source>
       <translation type="finished">Cancelar</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="132" />
       <source>{percentage}% ({current}/{total})</source>
       <translation type="finished">{percentage}% ({current}/{total})</translation>
@@ -89,6 +92,9 @@
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="186" />
       <source>Close</source>
       <translation type="finished">Cerrar</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="201" />
       <source>❌ Error: {error}</source>
       <translation type="finished">❌ Error: {error}</translation>
     </message>
@@ -1125,7 +1131,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <source>Verify the path/URL is valid and the resource is reachable.</source>
       <translation type="finished">Verifique que la ruta/URL sea válida y el recurso accesible.</translation>
     </message>
-    </message>
   </context>
   <context>
     <name>LinksBusinessLogic</name>
@@ -1138,7 +1143,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <location filename="..\app\controllers\business\links_business.py" line="326" />
       <source>Link not found</source>
       <translation type="finished">Enlace no encontrado</translation>
-    </message>
     </message>
   </context>
   <context>
@@ -1173,7 +1177,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <source>&amp;Help</source>
       <translation type="finished">&amp;Ayuda</translation>
     </message>
-    </message>
   </context>
   <context>
     <name>MainWindow</name>
@@ -1186,7 +1189,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <location filename="..\app\views\windows\main_window.py" line="167" />
       <source>&amp;Redo</source>
       <translation type="finished">&amp;Rehacer</translation>
-    </message>
     </message>
   </context>
   <context>
@@ -1249,7 +1251,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="399" />
       <source>Position changes were not saved.</source>
       <translation type="finished">Los cambios de posición no se guardaron.</translation>
-    </message>
     </message>
   </context>
   <context>
