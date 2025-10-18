@@ -42,44 +42,56 @@ class RightPanelBuilder:
         Note: preserves existing behavior and UI-state wiring and metrics.
         """
         # Create the right panel container upfront to parent wrappers
-        right_panel = QWidget()
+        right_panel = QWidget(self.window)
+        widgets = self.window.widgets
 
-        # Category tiles — create with a valid parent hierarchy
-        self.window.tiles_scroll = QScrollArea(parent=right_panel)
-        self.window.tiles_scroll.setWidgetResizable(True)
-        self.window.tiles = CategoryTiles(parent=self.window.tiles_scroll)
+        # Category tiles - create with a valid parent hierarchy
+        widgets.tiles_scroll = QScrollArea(parent=right_panel)
+        tiles_scroll = widgets.tiles_scroll
+        assert tiles_scroll is not None  # for type checkers
+        tiles_scroll.setWidgetResizable(True)
+        widgets.tiles = CategoryTiles(parent=tiles_scroll)
+        tiles = widgets.tiles
 
         # Connect to UIStateManager
-        self.window.tiles.category_selected.connect(
+        if tiles is None:
+            raise RuntimeError("CategoryTiles widget creation failed")
+        tiles.category_selected.connect(
             lambda cat_id: self.window.ui_state.load_category(
                 cat_id, source="CategoryTiles"
             )
         )
 
-        self.window.tiles_scroll.setWidget(self.window.tiles)
+        tiles_scroll.setWidget(tiles)
 
         tiles_wrapper = QWidget(parent=right_panel)
         tiles_layout = QVBoxLayout(tiles_wrapper)
         tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
         tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
-        tiles_layout.addWidget(self.window.tiles_scroll)
+        tiles_layout.addWidget(tiles_scroll)
 
         # Table
-        self.window.table = LinksTableView(self.window)
+        widgets.table = LinksTableView(self.window)
+        table = widgets.table
+        if table is None:
+            raise RuntimeError("LinksTableView creation failed")
 
         # Table wrapper
         table_wrapper = QWidget(parent=right_panel)
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
-        table_layout.addWidget(self.window.table)
+        table_layout.addWidget(table)
 
         # Stack
-        self.window.stack = QStackedLayout()
-        self.window.stack.addWidget(tiles_wrapper)
+        widgets.stack = QStackedLayout()
+        stack = widgets.stack
+        if stack is None:
+            raise RuntimeError("Failed to create stacked layout for right panel")
+        stack.addWidget(tiles_wrapper)
         # API compatibility: either the table widget itself or its container
-        self.window.table_container = table_wrapper
-        self.window.stack.addWidget(table_wrapper)
+        widgets.table_container = table_wrapper
+        stack.addWidget(table_wrapper)
 
         # Right panel container
         right_layout = QVBoxLayout(right_panel)
@@ -87,26 +99,29 @@ class RightPanelBuilder:
         # Strictly use UIConfig API (release): method is guaranteed
         spacing = int(app_config.ui.get_right_layout_spacing())
         right_layout.setSpacing(spacing)
-        right_layout.addLayout(self.window.stack)
+        right_layout.addLayout(stack)
 
         # Splitter
-        self.window.splitter = self._create_splitter()
-        self.window.splitter.addWidget(self.window.left_panel)
-        self.window.splitter.addWidget(right_panel)
+        widgets.splitter = self._create_splitter()
+        splitter = widgets.splitter
+        if splitter is None:
+            raise RuntimeError("Failed to create splitter for right panel")
+        splitter.addWidget(self.window.left_panel)
+        splitter.addWidget(right_panel)
         try:
-            self.window.splitter.setCollapsible(0, True)
+            splitter.setCollapsible(0, True)
         except (RuntimeError, TypeError):
             logger.debug(
                 "RightPanel: failed to set splitter collapsible(0, True)", exc_info=True
             )
 
         stretch_factors = app_config.ui.get_splitter_stretch_factors()
-        self.window.splitter.setStretchFactor(0, stretch_factors[0])
-        self.window.splitter.setStretchFactor(1, stretch_factors[1])
-        mid.addWidget(self.window.splitter)
+        splitter.setStretchFactor(0, stretch_factors[0])
+        splitter.setStretchFactor(1, stretch_factors[1])
+        mid.addWidget(splitter)
 
         splitter_sizes = app_config.ui.get_splitter_sizes()
-        self.window.splitter.setSizes(splitter_sizes)
+        splitter.setSizes(splitter_sizes)
         self.window._first_structure_load = True
 
         # Auto-hide tree

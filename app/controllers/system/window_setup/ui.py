@@ -83,7 +83,9 @@ def _deferred_setup(window: Any, controllers: dict[str, Any]) -> None:
 
 def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
     """Perform dependency injection for CategoryTiles."""
-    if not (hasattr(window, "tiles") and window.tiles):
+    widgets = getattr(window, "widgets", None)
+    tiles = widgets.tiles if widgets else getattr(window, "tiles", None)
+    if tiles is None:
         return
 
     from app.controllers.ui.dialogs import DialogMixin
@@ -111,13 +113,12 @@ def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
 
     dialog_provider = DialogProvider(window)
 
-    window.tiles.inject_dependencies(
+    tiles.inject_dependencies(
         structure_controller=controllers["structure"],
         ui_state_manager=controllers["ui_state"],
         dialog_provider=dialog_provider,
     )
 
-    tiles = window.tiles
     structure_ctrl = controllers["structure"]
 
     def on_tiles_context_menu(category_id: int, global_pos):

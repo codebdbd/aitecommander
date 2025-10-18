@@ -8,16 +8,16 @@ _REGISTERED = False
 
 
 def qInitResources() -> None:
-    """Expose translation files via Qt search path."""
+    """Expose application static assets via Qt search path."""
     global _REGISTERED
     if _REGISTERED:
         return
     base = Path(__file__).resolve().parent
-    QDir.addSearchPath("i18n", str(base))
+    QDir.addSearchPath("appres", str(base))
     _REGISTERED = True
 
 
 def qCleanupResources() -> None:
-    """Qt does not support removing search paths; track state only."""
+    """Reset registration state (Qt lacks API to remove search path)."""
     global _REGISTERED
     _REGISTERED = False

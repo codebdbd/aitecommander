@@ -21,16 +21,19 @@ from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.initializer import ApplicationInitializer, StartupMode
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 from app.startup.signal_handling import SignalManager, should_install_signal_handlers
+from app.resources import app_resources_rc
 from i18n.language_service import LanguageService
+from i18n import resources_rc as i18n_resources_rc
 
 
-# Resources not used - removed unused import
 def qInitResources() -> None:
-    pass
+    app_resources_rc.qInitResources()
+    i18n_resources_rc.qInitResources()
 
 
 def qCleanupResources() -> None:
-    pass
+    app_resources_rc.qCleanupResources()
+    i18n_resources_rc.qCleanupResources()
 
 
 _resources_initialized = False

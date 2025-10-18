@@ -8,7 +8,7 @@ from functools import partial
 from pathlib import Path
 from typing import Protocol
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QEvent, QObject, QSize, QTimer
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QFile, QEvent, QObject, QSize, QTimer
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -267,7 +267,7 @@ class WindowUISetup:
         self.window.setMenuBar(self.window.menu_controller.create_main_menu())
 
     def setup_central_widget(self) -> None:
-        central = QFrame()
+        central = QFrame(self.window)
         try:
             central.setAutoFillBackground(True)
         except (RuntimeError, AttributeError):
@@ -653,7 +653,7 @@ class WindowUISetup:
         self.setup_search_widget(top_bar)
 
     def _create_vertical_separator(self) -> QWidget:
-        sep = QWidget()
+        sep = QWidget(self.window)
         sep.setObjectName("vSeparator")
         sep.setProperty("class", "vertical_separator")
         try:
@@ -748,7 +748,7 @@ class WindowUISetup:
             self.main_layout.addWidget(h_line_2)
 
     def setup_left_panel(self, mid: QHBoxLayout) -> None:
-        left_panel = QWidget()
+        left_panel = QWidget(self.window)
         self.window.left_panel = left_panel
         left_panel.setObjectName("LeftPanel")
         left_panel.setAutoFillBackground(True)
@@ -773,7 +773,7 @@ class WindowUISetup:
         self.setup_spheres_bar(left_layout)
 
     def setup_spheres_bar(self, left_layout: QVBoxLayout) -> None:
-        self.window.spheres_bar = QWidget()
+        self.window.spheres_bar = QWidget(self.window)
         self.window.spheres_bar.setObjectName("spheres_bar")
         self.window.spheres_bar.setFixedHeight(app_config.ui.get_spheres_bar_height())
 
@@ -865,14 +865,15 @@ class WindowUISetup:
         app_dir = (base_dir / ".." / ".." / "..").resolve()
         views_dir = (base_dir / ".." / "..").resolve()
 
-        candidates = [
+        candidates: list[str] = ["appres:logo/logo.png"]
+        file_candidates = [
             app_dir / "resources" / "logo" / "logo.png",
             views_dir / "resources" / "logo" / "logo.png",
             app_dir / "logo" / "logo.png",
         ]
 
         if hasattr(sys, "_MEIPASS"):
-            candidates.extend(
+            file_candidates.extend(
                 [
                     Path(sys._MEIPASS)
                     / "app"
@@ -885,7 +886,17 @@ class WindowUISetup:
                 ]
             )
 
-        logo_path = next((str(p) for p in candidates if p.exists()), None)
+        candidates.extend(str(path) for path in file_candidates)
+
+        def _candidate_exists(candidate: str) -> bool:
+            if candidate.startswith(("appres:", ":/")):
+                return QFile.exists(candidate)
+            try:
+                return Path(candidate).exists()
+            except (OSError, ValueError):
+                return False
+
+        logo_path = next((candidate for candidate in candidates if _candidate_exists(candidate)), None)
         if logo_path:
             self.window.setWindowIcon(create_icon_from_path(logo_path))
         else:

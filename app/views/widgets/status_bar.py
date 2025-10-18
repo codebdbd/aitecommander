@@ -1,11 +1,15 @@
 # app/views/status_bar.py
 
+import logging
+
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data import app_config
 from i18n.language_service import LanguageService
 from i18n.locale_utils import format_number
+
+logger = logging.getLogger(__name__)
 
 _TR_CONTEXT = "StatusBar"
 
@@ -74,15 +78,34 @@ def setup_status_bar(window) -> QStatusBar:
     window._retranslate_status_bar = _retranslate_status_bar  # type: ignore[attr-defined]
 
     service = LanguageService.instance()
-    service.languageChanged.connect(lambda _code: _retranslate_status_bar())
+    previous_handler = getattr(window, "_status_bar_lang_handler", None)
+    if previous_handler is not None:
+        try:
+            service.languageChanged.disconnect(previous_handler)
+        except TypeError:
+            logger.debug(
+                "StatusBar: previous language handler disconnect failed",
+                exc_info=True,
+            )
+
+    def _on_language_changed(lang_code: str) -> None:
+        logger.debug("StatusBar: language changed -> %s", lang_code)
+        _retranslate_status_bar()
+
+    service.languageChanged.connect(_on_language_changed)
+    window._status_bar_lang_handler = _on_language_changed  # type: ignore[attr-defined]
 
     if hasattr(window, "destroyed"):
         # Ensure the connection is removed when the window is destroyed to avoid dangling references
         def _cleanup():
             try:
-                service.languageChanged.disconnect(_retranslate_status_bar)
-            except Exception:
-                pass
+                logger.debug("StatusBar: disconnecting language handler during cleanup")
+                service.languageChanged.disconnect(_on_language_changed)
+            except TypeError:
+                logger.debug(
+                    "StatusBar: language handler already disconnected",
+                    exc_info=True,
+                )
 
         window.destroyed.connect(_cleanup)  # type: ignore[arg-type]
 
@@ -100,7 +123,7 @@ def _set_text_if_changed(label, text: str) -> None:
         if current != text:
             label.setText(text)
     except Exception:
-        pass
+        logger.debug("StatusBar: failed to update label text", exc_info=True)
 
 
 def _update_counter(window) -> None:
@@ -116,9 +139,12 @@ def _update_counter(window) -> None:
                 current_index = None
             tiles_active = current_index == tiles_index
 
-        if tiles_active and hasattr(window, "tiles") and window.tiles:
+        widgets = getattr(window, "widgets", None)
+        tiles_widget = widgets.tiles if widgets else getattr(window, "tiles", None)
+
+        if tiles_active and tiles_widget:
             try:
-                cats = int(window.tiles.get_categories_count())
+                cats = int(tiles_widget.get_categories_count())
             except Exception:
                 cats = 0
             _set_text_if_changed(
@@ -148,7 +174,13 @@ def _update_db_status(window) -> None:
     """Update database connection status in status bar."""
     dc = getattr(window, "database_controller", None)
     db = getattr(dc, "db", None)
-    if db is not None and getattr(db, "is_connected", lambda: False)():
+    try:
+        connected = getattr(db, "is_connected", lambda: False)()
+    except Exception:
+        logger.debug("StatusBar: database connectivity check failed", exc_info=True)
+        connected = False
+
+    if connected:
         _set_text_if_changed(window.db_status_label, _tr("Database: connected"))
     else:
         _set_text_if_changed(window.db_status_label, _tr("Database: disconnected"))
@@ -169,6 +201,7 @@ def _build_tree_path(window) -> list[str]:
                         parts.insert(0, text)
                     cur = cur.parent()
     except Exception:
+        logger.debug("StatusBar: building tree path failed", exc_info=True)
         parts = []
     return parts
 
@@ -182,7 +215,7 @@ def _add_sphere_prefix(window, parts: list[str]) -> None:
             if sphere_data and isinstance(sphere_data.get("name"), str):
                 parts.insert(0, sphere_data["name"])
     except Exception:
-        pass
+        logger.debug("StatusBar: failed to append sphere prefix", exc_info=True)
 
 
 def _add_selected_link(window, parts: list[str]) -> None:
@@ -202,7 +235,7 @@ def _add_selected_link(window, parts: list[str]) -> None:
                 if isinstance(name_data, str) and name_data.strip():
                     parts.append(name_data.strip())
     except Exception:
-        pass
+        logger.debug("StatusBar: failed to append selected link", exc_info=True)
 
 
 def _update_path(window) -> None:
@@ -233,8 +266,11 @@ def update_status_bar(window) -> None:
         _update_db_status(window)
         _update_path(window)
     except Exception:
+        logger.exception("StatusBar: unexpected error during update")
         if hasattr(window, "path_label") and window.path_label:
             try:
                 _set_text_if_changed(window.path_label, _tr("Path: "))
             except Exception:
-                pass
+                logger.debug(
+                    "StatusBar: failed to reset path label after error", exc_info=True
+                )
