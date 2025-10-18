@@ -64,6 +64,11 @@ class TopBarBuilder:
 
         # Build widgets with metrics via existing helper
         self.ui._build_top_bar_widgets_with_metrics(top_bar)
+        try:
+            self.ui._prefill_topbar_widgets_before_manager()
+        except AttributeError:
+            # Older WindowUISetup without snapshot support
+            pass
 
         # Create and insert host
         top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)

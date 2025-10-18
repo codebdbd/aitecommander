@@ -365,8 +365,9 @@
     <message numerus="yes">
       <location filename="..\app\views\widgets\base\base_widgets.py" line="584" />
       <source>%n item selected</source>
-      <translation type="unfinished">
-        <numerusform />
+      <translation type="finished">
+        <numerusform>%n Element ausgewählt</numerusform>
+        <numerusform>%n Elemente ausgewählt</numerusform>
       </translation>
     </message>
   </context>

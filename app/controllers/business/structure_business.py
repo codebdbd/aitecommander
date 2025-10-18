@@ -320,6 +320,12 @@ class StructureBusinessLogic(QObject):
         self._structure_cache_ready = True
         self._structure_preload_in_progress = False
 
+        # Warm up icon cache for sections/categories to avoid UI stalls
+        try:
+            self._warmup_structure_icons(sections_map, categories_map)
+        except Exception as exc:
+            self.logger.debug("Icon warmup failed: %s", exc, exc_info=True)
+
         try:
             self.cache_manager.set(
                 "all_spheres", [dict(entry) for entry in self._cached_spheres]

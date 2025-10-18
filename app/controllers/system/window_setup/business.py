@@ -24,6 +24,7 @@ from app.controllers.ui.state.ui_state_manager import UIStateManager
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.top_panels_controller import TopPanelsController
+from app.utils.cache.topbar_snapshot import TopBarSnapshot
 
 from .types import DatabaseProtocol, SetupError, WindowProtocol
 
@@ -209,6 +210,31 @@ def _setup_top_panels_controller(window: Any, controllers: dict[str, Any]) -> No
             links_business=controllers["links_business"],
         )
         controllers["top_panels_controller"] = window.top_panels_controller
+
+        pending_snapshot = getattr(window, "_pending_topbar_snapshot", None)
+        if isinstance(pending_snapshot, TopBarSnapshot):
+            try:
+                window.top_panels_controller.apply_snapshot(
+                    pending_snapshot.favorites,
+                    pending_snapshot.recents,
+                )
+                logger.debug(
+                    "TopPanelsController: applied pending snapshot "
+                    "(favorites=%s, recents=%s)",
+                    len(pending_snapshot.favorites),
+                    len(pending_snapshot.recents),
+                )
+            except Exception as exc:
+                logger.debug(
+                    "TopPanelsController: failed to apply pending snapshot: %s",
+                    exc,
+                    exc_info=True,
+                )
+            finally:
+                try:
+                    delattr(window, "_pending_topbar_snapshot")
+                except AttributeError:
+                    pass
 
         # Inject top panels controller into business logic with explicit setter (required)
         structure_business = controllers["structure_business"]

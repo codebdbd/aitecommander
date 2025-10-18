@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
@@ -246,27 +247,37 @@ class TopPanelsController(QObject):
                 raise
             return
 
+        self._update_favorites_widget(widget, items)
+
+        if tracking_enabled:
+            self._mark_section_ready("favorites", _refresh_token)
+
+    def _update_favorites_widget(
+        self, widget, items, *, enforce_strict: bool = True
+    ) -> None:
+        """Update favorites widget with prepared items."""
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
-            elif callable(getattr(widget, "set_favorites", None)):
+            elif callable(getattr(widget, "set_favorites", None)) or isinstance(
+                widget, SupportsSetFavorites
+            ):
                 widget.set_favorites(items)  # type: ignore[attr-defined]
             else:
                 raise AttributeError("favorites widget lacks set_data/set_favorites")
         except (TypeError, ValueError):
             logger.error(
-                "TopPanelsController.refresh_favorites: widget set_favorites signature error",
+                "TopPanelsController: widget set_favorites signature error",
                 exc_info=True,
             )
+            if enforce_strict and self._strict:
+                raise
         except Exception:
             logger.exception(
-                "TopPanelsController.refresh_favorites failed: widget update error"
+                "TopPanelsController: widget update error (favorites)"
             )
-            if self._strict:
+            if enforce_strict and self._strict:
                 raise
-
-        if tracking_enabled:
-            self._mark_section_ready("favorites", _refresh_token)
 
     def _get_recent_limit(self, widget):
         """Get recent links limit from widget."""
@@ -327,7 +338,9 @@ class TopPanelsController(QObject):
                 raise
             return None
 
-    def _update_recent_widget(self, widget, items):
+    def _update_recent_widget(
+        self, widget, items, *, enforce_strict: bool = True
+    ):
         """Update recent widget with items."""
         try:
             if callable(getattr(widget, "set_data", None)):
@@ -345,8 +358,81 @@ class TopPanelsController(QObject):
             logger.exception(
                 "TopPanelsController.refresh_recent failed: widget update error"
             )
-            if self._strict:
+            if enforce_strict and self._strict:
                 raise
+
+    @staticmethod
+    def _normalize_snapshot_items(data: Any) -> list[dict[str, Any]]:
+        if not isinstance(data, list):
+            return []
+        result: list[dict[str, Any]] = []
+        for item in data:
+            if isinstance(item, dict):
+                result.append(item)
+        return result
+
+    def _collect_widget_items(self, widget: Any) -> list[dict[str, Any]]:
+        if widget is None:
+            return []
+        getter = getattr(widget, "get_items", None)
+        if callable(getter):
+            try:
+                items = getter()
+            except Exception:
+                logger.debug(
+                    "TopPanelsController: get_items() failed on %s",
+                    type(widget).__name__,
+                    exc_info=True,
+                )
+                return []
+            return self._normalize_snapshot_items(items)
+        raw = getattr(widget, "_last_items", None)
+        return self._normalize_snapshot_items(raw)
+
+    def apply_snapshot(
+        self,
+        favorites: list[dict[str, Any]] | None = None,
+        recents: list[dict[str, Any]] | None = None,
+    ) -> bool:
+        """Prefill widgets with cached data before live refresh."""
+        fav_items = self._normalize_snapshot_items(favorites)
+        rec_items = self._normalize_snapshot_items(recents)
+        applied = bool(fav_items or rec_items)
+
+        try:
+            if self.fav_widget is not None:
+                self._update_favorites_widget(
+                    self.fav_widget,
+                    fav_items,
+                    enforce_strict=False,
+                )
+        except Exception:
+            logger.debug(
+                "TopPanelsController: failed to apply favorites snapshot",
+                exc_info=True,
+            )
+
+        try:
+            if self.recent_links_widget is not None:
+                self._update_recent_widget(
+                    self.recent_links_widget,
+                    rec_items,
+                    enforce_strict=False,
+                )
+        except Exception:
+            logger.debug(
+                "TopPanelsController: failed to apply recents snapshot",
+                exc_info=True,
+            )
+
+        return applied
+
+    def capture_snapshot(self) -> dict[str, list[dict[str, Any]]]:
+        """Capture current widget data for warm start snapshot."""
+        return {
+            "favorites": self._collect_widget_items(self.fav_widget),
+            "recents": self._collect_widget_items(self.recent_links_widget),
+        }
 
     def _begin_refresh_cycle(self) -> int:
         """Prepare tracking state for refresh_all cycle."""
@@ -523,25 +609,7 @@ class TopPanelsController(QObject):
     # --- Business-layer signal handlers ---
     def _on_favorite_links_loaded(self, items: list[dict[str, object]] | list) -> None:
         widget = self.fav_widget
-        try:
-            if callable(getattr(widget, "set_data", None)):
-                widget.set_data(items)  # type: ignore[call-arg]
-            elif isinstance(widget, SupportsSetFavorites):
-                # legacy fallback for test stubs
-                widget.set_favorites(items)  # type: ignore[attr-defined]
-            else:
-                raise AttributeError("favorites widget lacks set_data/set_favorites")
-        except (TypeError, ValueError):
-            logger.error(
-                "TopPanelsController._on_favorite_links_loaded: widget signature error",
-                exc_info=True,
-            )
-        except Exception:
-            logger.exception(
-                "TopPanelsController._on_favorite_links_loaded: widget update error"
-            )
-            if self._strict:
-                raise
+        self._update_favorites_widget(widget, items)
         self._complete_async_section("favorites")
 
     def _on_recent_links_loaded(self, items: list[dict[str, object]] | list) -> None:

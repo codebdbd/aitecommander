@@ -14,6 +14,7 @@ from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
 from app.config_data import app_config
+from app.utils.cache.topbar_snapshot import TopBarSnapshot, TopBarSnapshotStore
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -114,6 +115,7 @@ class AppShutdownController:
         self.shutdown_in_progress = False
         self._shutdown_lock: Optional[threading.RLock] = threading.RLock()
         self._shutdown_started_ts: float | None = None
+        self._topbar_snapshot_store = TopBarSnapshotStore()
         self._register_default_handlers()
 
         # Settings from configuration
@@ -365,7 +367,15 @@ class AppShutdownController:
             timeout=handler_timeout,
             critical=True,
         )
-        # 3) Database backup (non-critical, last)
+        # 3) Persist UI snapshot for warm start
+        self.add_shutdown_handler(
+            "topbar_snapshot",
+            self._save_topbar_snapshot,
+            ShutdownPriority.LOW,
+            timeout=1000,
+            critical=False,
+        )
+        # 4) Database backup (non-critical, last)
         self.add_shutdown_handler(
             "database_backup",
             self._backup_database,
@@ -508,6 +518,61 @@ class AppShutdownController:
                             )
         except Exception as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
+        return True
+
+    def _save_topbar_snapshot(self, timeout_ms: int) -> bool:
+        """Persist top bar state for warm start."""
+        controller = getattr(self.window, "top_panels_controller", None)
+        if controller is None or not hasattr(controller, "capture_snapshot"):
+            logger.debug(
+                "AppShutdownController: top_panels_controller unavailable, skipping snapshot"
+            )
+            return True
+
+        try:
+            snapshot_data = controller.capture_snapshot()
+        except Exception:
+            logger.debug(
+                "AppShutdownController: capture_snapshot failed",
+                exc_info=True,
+            )
+            return True
+
+        favorites_raw = (
+            snapshot_data.get("favorites")
+            if isinstance(snapshot_data, dict)
+            else []
+        )
+        recents_raw = (
+            snapshot_data.get("recents")
+            if isinstance(snapshot_data, dict)
+            else []
+        )
+
+        favorites = (
+            [item for item in favorites_raw if isinstance(item, dict)]
+            if isinstance(favorites_raw, list)
+            else []
+        )
+        recents = (
+            [item for item in recents_raw if isinstance(item, dict)]
+            if isinstance(recents_raw, list)
+            else []
+        )
+
+        snapshot = TopBarSnapshot(favorites=favorites, recents=recents)
+        try:
+            self._topbar_snapshot_store.save(snapshot)
+            logger.debug(
+                "AppShutdownController: snapshot saved (favorites=%s, recents=%s)",
+                len(favorites),
+                len(recents),
+            )
+        except Exception:
+            logger.debug(
+                "AppShutdownController: snapshot store raised unexpectedly",
+                exc_info=True,
+            )
         return True
 
     def _backup_database(self, timeout_ms: int) -> bool:

@@ -1,6 +1,7 @@
 """Base classes for top panel widgets."""
 
 import logging
+import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -62,6 +63,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._create_button_func: Optional[
             Callable[[dict[str, Any]], Optional[QToolButton]]
         ] = None
+        self._last_items: list[dict[str, Any]] = []
 
         # FIX: Batched adjust() to avoid multiple layout recalculations during startup
         self._adjust_timer: Optional[QTimer] = None
@@ -77,6 +79,13 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
 
+    def get_items(self) -> list[dict[str, Any]]:
+        """Return a deep copy of the last items applied to the panel."""
+        try:
+            return copy.deepcopy(self._last_items)
+        except Exception:
+            return list(self._last_items)
+
     def update(self, *args, **kwargs) -> None:
         """Requests data update from external sources."""
         # Base implementation does nothing to avoid circular refresh paths
@@ -84,7 +93,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def clear(self) -> None:
         """Initiates clearing - to be implemented by subclasses if needed."""
-        pass
+        self._last_items = []
 
     def _sync_topbar_layout(self) -> None:
         """Synchronously recalculates top bar to avoid search size switching.
@@ -170,6 +179,11 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         IMPROVEMENT: Supports batched mode to prevent UI freezes. When
         ``batch_size`` > 0 the method uses asynchronous loading via ``QTimer``.
         """
+        try:
+            self._last_items = copy.deepcopy(items)
+        except Exception:
+            self._last_items = list(items)
+
         self._content_expected = bool(items)
         self._content_added = False
 

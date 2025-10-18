@@ -1440,3 +1440,4 @@ Il est recommandé de créer une sauvegarde avant l'importation.</translation>
       <translation type="finished">Rechercher… (Ctrl+F)</translation>
     </message>
   </context>
+</TS>

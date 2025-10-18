@@ -15,7 +15,7 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPixmap
 
 # Tree node types
 NodeType = str  # "section" | "category" | "root"
@@ -141,17 +141,7 @@ class _IconPreloadRunnable(QRunnable):
 
 
 class StructureTreeModel(QAbstractItemModel):
-    """
-    Hierarchical model for sections/categories structure.
-
-    - Single column (name).
-    - Qt.UserRole returns a tuple (type, id) for compatibility with get_tree_tuple().
-    - Qt.DecorationRole returns node icon (if provided).
-
-    Public batch methods (minimal initial set):
-    - set_snapshot(tree: list[dict])
-    - index_for(item_type: str, item_id: int) -> QModelIndex | invalid
-    """
+    """Hierarchical model for sections/categories structure."""
 
     icon_loaded = pyqtSignal(object, QIcon, name="iconLoaded")
     icon_failed = pyqtSignal(object, str, name="iconFailed")
@@ -161,18 +151,34 @@ class StructureTreeModel(QAbstractItemModel):
         self._root = TreeNode(type="root", id=None, name="root")
         self._section_by_id: dict[int, TreeNode] = {}
         self._category_by_id: dict[int, TreeNode] = {}
-        
+        self._placeholder_icon = self._create_placeholder_icon()
+
         # Создаем выделенный пул потоков для изоляции от других компонентов
         self._thread_pool = QThreadPool(self)
+        self._thread_pool.setMaxThreadCount(6)  # increase concurrency for icon loading
         try:
             self._thread_pool.setMaxThreadCount(4)
         except Exception as exc:
             logger.warning("Failed to set thread pool max count: %s", exc)
-        
+
         self._active_icon_tasks: set[int] = set()
         self._active_icon_lock = threading.Lock()
         self._shutdown = False
         # Атрибут `_thread_pool` используется тестами/клиентами для инспекции.
+
+    def _create_placeholder_icon(self) -> QIcon:
+        """Create a transparent QIcon placeholder to reserve space in the tree."""
+        try:
+            from app.config_data import app_config
+
+            size_cfg = app_config.ui.get_tree_icon_size()
+            w = int(size_cfg[0]) if isinstance(size_cfg, (list, tuple)) and len(size_cfg) else 24
+            h = int(size_cfg[1]) if isinstance(size_cfg, (list, tuple)) and len(size_cfg) > 1 else w
+        except Exception:
+            w = h = 24
+        pixmap = QPixmap(w, h)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        return QIcon(pixmap)
 
     def columnCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802 (Qt API)
         return 1
@@ -535,39 +541,61 @@ class StructureTreeModel(QAbstractItemModel):
         self._category_by_id.clear()
 
         for s in sections or []:
-            icon_path = s.get("icon")
-            icon = QIcon()
+            icon_value = s.get("icon")
+            icon_path = None
+
+            if isinstance(icon_value, QIcon) and not icon_value.isNull():
+                section_icon = icon_value
+            else:
+                section_icon = self._placeholder_icon
+                if isinstance(icon_value, str) and icon_value.strip():
+                    icon_path = icon_value.strip()
+                else:
+                    alt_path = s.get("icon_path")
+                    if isinstance(alt_path, str) and alt_path.strip():
+                        icon_path = alt_path.strip()
 
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
                 name=str(s.get("name", "")),
                 parent=self._root,
-                icon=icon,
+                icon=section_icon,
                 payload=s,
             )
             self._root.children.append(sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if isinstance(icon_path, str) and icon_path.strip():
+                if icon_path:
                     self._start_icon_loading(sec_node, icon_path)
 
             for c in s.get("categories") or []:
-                cat_icon_path = c.get("icon")
-                icon = QIcon()
+                cat_icon_value = c.get("icon")
+                cat_icon_path = None
+
+                if isinstance(cat_icon_value, QIcon) and not cat_icon_value.isNull():
+                    category_icon = cat_icon_value
+                else:
+                    category_icon = self._placeholder_icon
+                    if isinstance(cat_icon_value, str) and cat_icon_value.strip():
+                        cat_icon_path = cat_icon_value.strip()
+                    else:
+                        alt_cat_path = c.get("icon_path")
+                        if isinstance(alt_cat_path, str) and alt_cat_path.strip():
+                            cat_icon_path = alt_cat_path.strip()
 
                 cat_node = TreeNode(
                     type="category",
                     id=_coerce_optional_int(c.get("id")),
                     name=str(c.get("name", "")),
                     parent=sec_node,
-                    icon=icon,
+                    icon=category_icon,
                     payload=c,
                 )
                 sec_node.children.append(cat_node)
                 if isinstance(cat_node.id, int):
                     self._category_by_id[cat_node.id] = cat_node
-                    if isinstance(cat_icon_path, str) and cat_icon_path.strip():
+                    if cat_icon_path:
                         self._start_icon_loading(cat_node, cat_icon_path)
 
         self.endResetModel()
