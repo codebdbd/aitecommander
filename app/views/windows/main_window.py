@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QKeySequence, QShowEvent, QUndoStack
-from PyQt6.QtWidgets import QMainWindow, QWidget
+from PyQt6.QtWidgets import QMainWindow, QScrollArea, QSplitter, QStackedLayout, QWidget
 
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link import LinksTableView
@@ -32,12 +32,14 @@ if TYPE_CHECKING:
     )
     from app.controllers.ui.theme_controller import ThemeController
     from app.controllers.ui.top_panels_controller import TopPanelsController
+    from app.views.widgets.tiles import CategoryTiles
 
 from app.controllers.ui.window_facade import WindowFacade
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
 from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
+from app.views.main_components.ui.window_widgets import MainWindowWidgets
 from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,58 @@ class MainWindow(QMainWindow, ReTranslatable):
     facade: Optional[WindowFacade]
 
     _SEARCH_DEBOUNCE_MS = 300
+
+    @property
+    def widgets(self) -> MainWindowWidgets:
+        return self._widgets
+
+    @property
+    def tiles_scroll(self) -> QScrollArea | None:
+        return self._widgets.tiles_scroll
+
+    @tiles_scroll.setter
+    def tiles_scroll(self, value: QScrollArea | None) -> None:
+        self._widgets.tiles_scroll = value
+
+    @property
+    def tiles(self) -> "CategoryTiles | None":
+        return self._widgets.tiles
+
+    @tiles.setter
+    def tiles(self, value: "CategoryTiles | None") -> None:
+        self._widgets.tiles = value
+
+    @property
+    def table(self) -> LinksTableView | None:
+        return self._widgets.table
+
+    @table.setter
+    def table(self, value: LinksTableView | None) -> None:
+        self._widgets.table = value
+
+    @property
+    def table_container(self) -> QWidget | None:
+        return self._widgets.table_container
+
+    @table_container.setter
+    def table_container(self, value: QWidget | None) -> None:
+        self._widgets.table_container = value
+
+    @property
+    def stack(self) -> QStackedLayout | None:
+        return self._widgets.stack
+
+    @stack.setter
+    def stack(self, value: QStackedLayout | None) -> None:
+        self._widgets.stack = value
+
+    @property
+    def splitter(self) -> QSplitter | None:
+        return self._widgets.splitter
+
+    @splitter.setter
+    def splitter(self, value: QSplitter | None) -> None:
+        self._widgets.splitter = value
 
     def handle_import_browser_bookmarks(self) -> None:
         if self.system_dialogs:
@@ -156,6 +210,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         super().__init__()
         self.settings = settings
         self.theme_ctrl = theme_ctrl
+        self._widgets = MainWindowWidgets()
         # Dependencies are injected after construction; initialize placeholders to avoid attribute errors.
         self.facade: Optional[WindowFacade] = None
         self.structure = None
@@ -166,7 +221,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.top_panels_controller = None
         self.ui_state = None
         self.system_dialogs = None
-        self.table: Optional[LinksTableView] = None
+        self.table = None
         self.left_panel = None
         self.undo_stack = None
         self.undo_action = None
@@ -365,6 +420,14 @@ class MainWindow(QMainWindow, ReTranslatable):
                 cleanup_func()
             except Exception as e:
                 logger.debug("MainWindow: cleanup %s failed: %s", task_name, e)
+
+        try:
+            self.widgets.clear()
+        except Exception as exc:
+            logger.debug(
+                "MainWindow: failed to clear widget container during cleanup",
+                exc_info=True,
+            )
 
         logger.debug("MainWindow: cleanup completed")
 

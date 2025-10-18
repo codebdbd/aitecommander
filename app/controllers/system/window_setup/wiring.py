@@ -404,10 +404,10 @@ def _connect_tree_selection_signals(window: Any) -> None:
 
 def _connect_table_selection_signals(window: Any) -> None:
     """Connect table selection signals to statusbar update."""
-    if not hasattr(window, "table") or not window.table:
+    widgets = getattr(window, "widgets", None)
+    table = widgets.table if widgets else getattr(window, "table", None)
+    if table is None:
         return
-
-    table = window.table
     try:
         selection_model = table.selectionModel()
     except (AttributeError, TypeError):
@@ -433,10 +433,10 @@ def _connect_table_selection_signals(window: Any) -> None:
 
 def _connect_table_populated_signal(window: Any) -> None:
     """Connect table populated signal to statusbar update."""
-    if not hasattr(window, "table") or not window.table:
+    widgets = getattr(window, "widgets", None)
+    table = widgets.table if widgets else getattr(window, "table", None)
+    if table is None:
         return
-
-    table = window.table
     try:
         if hasattr(table, "table_populated") and hasattr(
             table.table_populated, "connect"

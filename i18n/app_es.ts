@@ -1290,7 +1290,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <source>Close and reopen the dialog, then try again.</source>
       <translation type="finished">Cierre y vuelva a abrir el diálogo, luego inténtelo de nuevo.</translation>
     </message>
-    </message>
   </context>
   <context>
     <name>ProfilesMixin</name>
@@ -1308,7 +1307,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="35" />
       <source>Failed to load browser profile selection dialog. Ensure the component is installed and accessible.</source>
       <translation type="finished">Error al cargar el diálogo de selección de perfiles del navegador. Asegúrese de que el componente esté instalado y accesible.</translation>
-    </message>
     </message>
   </context>
   <context>
@@ -1400,7 +1398,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <source>Check the values and try again.</source>
       <translation type="finished">Verifique los valores e inténtelo de nuevo.</translation>
     </message>
-    </message>
   </context>
   <context>
     <name>TopBarPanels</name>
@@ -1431,7 +1428,6 @@ Se recomienda crear una copia de seguridad antes de importar.</translation>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
       <source>Quick Add</source>
       <translation type="finished">Añadir rápido</translation>
-    </message>
     </message>
   </context>
   <context>

@@ -140,12 +140,15 @@ def _create_component(component_class: type[Any], *args: Any, **kwargs: Any) -> 
 def _setup_main_window_post_creation(
     main_window: QMainWindow, theme_controller: Any
 ) -> QMainWindow:
-    """Configure main window after creation."""
+    """Configure main window after creation.
+    
+    DO NOT call show() here - it creates a ghost window before UI is initialized.
+    Window will be shown in WindowInitializer._finalize_initialization() after full UI setup.
+    """
     if hasattr(theme_controller, "set_main_window"):
         theme_controller.set_main_window(main_window)
     else:
         theme_controller.main_window = main_window
-    main_window.show()
     return main_window
 
 

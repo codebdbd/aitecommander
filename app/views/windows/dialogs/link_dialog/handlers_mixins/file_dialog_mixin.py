@@ -79,7 +79,7 @@ class FileDialogMixin:
                     start_dir = ""  # Fallback to "This PC"
 
         # Create dialog with explicit directory selection
-        dialog = QFileDialog(self.dialog)
+        dialog = QFileDialog(self.dialog.parent())
         cfg = BROWSE_CONFIG.get(lt.value) or {
             "title": _tr("Select file"),
             "mode": QFileDialog.FileMode.ExistingFile,

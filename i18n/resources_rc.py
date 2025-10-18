@@ -1,17 +1,23 @@
-# Resource file for i18n
-# This file is generated and should not be edited manually
+from __future__ import annotations
 
-from PyQt6.QtCore import QResource
+from pathlib import Path
 
-# Register resource data (empty for now)
-_resource_data = b""
+from PyQt6.QtCore import QDir
 
-
-def qInitResources():
-    """Initialize Qt resources."""
-    QResource.registerResourceData(_resource_data)
+_REGISTERED = False
 
 
-def qCleanupResources():
-    """Cleanup Qt resources."""
-    QResource.unregisterResourceData(_resource_data)
+def qInitResources() -> None:
+    """Expose translation files via Qt search path."""
+    global _REGISTERED
+    if _REGISTERED:
+        return
+    base = Path(__file__).resolve().parent
+    QDir.addSearchPath("i18n", str(base))
+    _REGISTERED = True
+
+
+def qCleanupResources() -> None:
+    """Qt does not support removing search paths; track state only."""
+    global _REGISTERED
+    _REGISTERED = False

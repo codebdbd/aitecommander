@@ -57,17 +57,19 @@ def _setup_ui_state_and_tiles(
     controllers["ui_state"] = window.ui_state
 
     try:
+        widgets = getattr(window, "widgets", None)
+        tiles_widget = widgets.tiles if widgets else getattr(window, "tiles", None)
         window.category_tiles_controller = CategoryTilesController(
             ui_state=controllers["ui_state"],
             structure_business=controllers["structure_business"],
         )
         # Require correct tiles widget and strictly validate connection errors
-        if not hasattr(window, "tiles") or not window.tiles:
+        if tiles_widget is None:
             raise SetupError(
                 "Tiles widget is required for CategoryTilesController setup"
             )
         try:
-            window.category_tiles_controller.attach_tiles_widget(window.tiles)
+            window.category_tiles_controller.attach_tiles_widget(tiles_widget)
         except (AttributeError, TypeError) as e:
             logger.error(
                 "Failed to attach tiles widget to CategoryTilesController: %s",

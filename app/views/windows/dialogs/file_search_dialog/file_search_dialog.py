@@ -566,7 +566,7 @@ class FileSearchDialog(BaseDialog):
             current_path = str(Path.home())
 
         path = QFileDialog.getExistingDirectory(
-            self, self.tr("Select folder for search"), current_path
+            self.parent(), self.tr("Select folder for search"), current_path
         )
         if path:
             self.root_le.setText(path)

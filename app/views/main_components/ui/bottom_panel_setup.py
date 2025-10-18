@@ -173,7 +173,7 @@ class BottomPanelBuilder:
         # Switch-sphere button (created after controllers init)
         # Add a placeholder for future insertion (e.g., at the start of the layout)
         self.window.switch_sphere_button = None  # type: ignore[attr-defined]
-        placeholder = QWidget()  # Temporary spacer for the future button
+        placeholder = QWidget(self.window)  # Temporary spacer for the future button
         placeholder.setFixedWidth(0)  # Takes no space initially
         placeholder.setSizePolicy(
             QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed
