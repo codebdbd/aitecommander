@@ -164,6 +164,9 @@ class StructureTreeModel(QAbstractItemModel):
         self._active_icon_tasks: set[int] = set()
         self._active_icon_lock = threading.Lock()
         self._shutdown = False
+        self._tree_snapshot_icons_ready = False
+        self._tree_snapshot_icons_expected = 0
+        self._tree_snapshot_icons_warmed = 0
         # Атрибут `_thread_pool` используется тестами/клиентами для инспекции.
 
     def _create_placeholder_icon(self) -> QIcon:
@@ -179,6 +182,79 @@ class StructureTreeModel(QAbstractItemModel):
         pixmap = QPixmap(w, h)
         pixmap.fill(Qt.GlobalColor.transparent)
         return QIcon(pixmap)
+
+    def _get_cached_icon(self, icon_ref: str | None) -> QIcon | None:
+        """Return icon from cache if available without hitting disk."""
+        if not isinstance(icon_ref, str):
+            return None
+
+        candidate = icon_ref.strip()
+        if not candidate:
+            return None
+
+        try:
+            from app.utils.ui.icon.cache_manager import get_icon as cache_get_icon
+        except Exception:  # noqa: BLE001 - cache access must be optional
+            return None
+
+        is_absolute = (
+            candidate.startswith(":/")
+            or candidate.startswith("qrc:/")
+            or "\\" in candidate
+            or "/" in candidate
+            or (len(candidate) > 2 and candidate[1] == ":" and candidate[2] in ("\\", "/"))
+        )
+
+        if is_absolute:
+            cache_key = f"abspath::{candidate}"
+            icon = cache_get_icon(cache_key, "__abs__")
+            return icon if icon is not None and not icon.isNull() else None
+
+        normalized = candidate if "." in candidate else f"{candidate}.svg"
+        try:
+            from app.utils.ui.icon.path_service import get_current_theme
+        except Exception:
+            theme = "light"
+        else:
+            try:
+                theme = get_current_theme()
+            except Exception:
+                theme = "light"
+
+        icon = cache_get_icon(normalized, theme)
+        return icon if icon is not None and not icon.isNull() else None
+
+    def _prepare_icon_fields(
+        self,
+        icon_value,
+        icon_path_value,
+    ) -> tuple[QIcon, str | None, str | None]:
+        """Normalize QIcon/icon_path tuple and use cached icons when available."""
+        icon_obj = (
+            icon_value
+            if isinstance(icon_value, QIcon) and not icon_value.isNull()
+            else None
+        )
+
+        stored_path = None
+        if isinstance(icon_path_value, str):
+            stored_path = icon_path_value.strip() or None
+        if stored_path is None and isinstance(icon_value, str):
+            stored_path = icon_value.strip() or None
+
+        pending_path: str | None = None
+        if stored_path:
+            if icon_obj is None:
+                cached_icon = self._get_cached_icon(stored_path)
+                if cached_icon is not None:
+                    icon_obj = cached_icon
+                else:
+                    pending_path = stored_path
+            else:
+                pending_path = None
+
+        display_icon = icon_obj if icon_obj is not None else self._placeholder_icon
+        return display_icon, pending_path, stored_path
 
     def columnCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802 (Qt API)
         return 1
@@ -339,17 +415,12 @@ class StructureTreeModel(QAbstractItemModel):
             return
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i, s in enumerate(sections):
-            icon_data = s.get("icon")
-            icon_path = s.get("icon_path")
-            if not icon_path and isinstance(icon_data, str):
-                icon_path = icon_data
-            icon_path = icon_path.strip() if isinstance(icon_path, str) else None
-
-            icon = icon_data if isinstance(icon_data, QIcon) else QIcon()
-
-            if icon_path is not None:
-                s["icon_path"] = icon_path
-
+            icon, pending_path, stored_path = self._prepare_icon_fields(
+                s.get("icon"),
+                s.get("icon_path"),
+            )
+            if stored_path is not None:
+                s["icon_path"] = stored_path
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
@@ -361,8 +432,8 @@ class StructureTreeModel(QAbstractItemModel):
             self._root.children.insert(row + i, sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if icon_path and (not isinstance(icon, QIcon) or icon.isNull()):
-                    self._start_icon_loading(sec_node, icon_path)
+                if pending_path:
+                    self._start_icon_loading(sec_node, pending_path)
         self.endInsertRows()
 
     def insert_categories(
@@ -390,16 +461,12 @@ class StructureTreeModel(QAbstractItemModel):
 
         self.beginInsertRows(parent_index, row, row + count - 1)
         for i, c in enumerate(categories):
-            icon_data = c.get("icon")
-            icon_path = c.get("icon_path")
-            if not icon_path and isinstance(icon_data, str):
-                icon_path = icon_data
-            icon_path = icon_path.strip() if isinstance(icon_path, str) else None
-
-            icon = icon_data if isinstance(icon_data, QIcon) else QIcon()
-
-            if icon_path is not None:
-                c["icon_path"] = icon_path
+            icon, pending_path, stored_path = self._prepare_icon_fields(
+                c.get("icon"),
+                c.get("icon_path"),
+            )
+            if stored_path is not None:
+                c["icon_path"] = stored_path
 
             cat_node = TreeNode(
                 type="category",
@@ -412,8 +479,8 @@ class StructureTreeModel(QAbstractItemModel):
             sec_node.children.insert(row + i, cat_node)
             if isinstance(cat_node.id, int):
                 self._category_by_id[cat_node.id] = cat_node
-                if icon_path and (not isinstance(icon, QIcon) or icon.isNull()):
-                    self._start_icon_loading(cat_node, icon_path)
+                if pending_path:
+                    self._start_icon_loading(cat_node, pending_path)
         self.endInsertRows()
         # endInsertRows() автоматически уведомляет view, дополнительный dataChanged не нужен
 
@@ -437,10 +504,23 @@ class StructureTreeModel(QAbstractItemModel):
             icon = data.get("icon")
             if isinstance(icon, QIcon):
                 node.icon = icon
+                if isinstance(node.payload, dict) and "icon_path" in data:
+                    node.payload["icon_path"] = data.get("icon_path")
             elif isinstance(icon, str):
-                self._start_icon_loading(node, icon)
+                resolved_icon, pending_path, stored_path = self._prepare_icon_fields(
+                    icon,
+                    data.get("icon_path"),
+                )
+                node.icon = resolved_icon
+                if isinstance(node.payload, dict):
+                    if stored_path is not None:
+                        node.payload["icon_path"] = stored_path
+                    elif "icon_path" in node.payload:
+                        node.payload["icon_path"] = stored_path
+                if pending_path:
+                    self._start_icon_loading(node, pending_path)
             else:
-                node.icon = None
+                node.icon = self._placeholder_icon
         if data:
             node.payload.update(data)
         self.dataChanged.emit(
@@ -535,25 +615,21 @@ class StructureTreeModel(QAbstractItemModel):
             "categories": [ {"id": int, "name": str, "icon": Optional[QIcon]} ]
         }
         """
+        self._tree_snapshot_icons_ready = False
+        self._tree_snapshot_icons_expected = 0
+        self._tree_snapshot_icons_warmed = 0
         self.beginResetModel()
         self._root.children.clear()
         self._section_by_id.clear()
         self._category_by_id.clear()
 
         for s in sections or []:
-            icon_value = s.get("icon")
-            icon_path = None
-
-            if isinstance(icon_value, QIcon) and not icon_value.isNull():
-                section_icon = icon_value
-            else:
-                section_icon = self._placeholder_icon
-                if isinstance(icon_value, str) and icon_value.strip():
-                    icon_path = icon_value.strip()
-                else:
-                    alt_path = s.get("icon_path")
-                    if isinstance(alt_path, str) and alt_path.strip():
-                        icon_path = alt_path.strip()
+            section_icon, pending_icon_path, stored_icon_path = self._prepare_icon_fields(
+                s.get("icon"),
+                s.get("icon_path"),
+            )
+            if stored_icon_path is not None:
+                s["icon_path"] = stored_icon_path
 
             sec_node = TreeNode(
                 type="section",
@@ -566,23 +642,16 @@ class StructureTreeModel(QAbstractItemModel):
             self._root.children.append(sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if icon_path:
-                    self._start_icon_loading(sec_node, icon_path)
+                if pending_icon_path:
+                    self._start_icon_loading(sec_node, pending_icon_path)
 
             for c in s.get("categories") or []:
-                cat_icon_value = c.get("icon")
-                cat_icon_path = None
-
-                if isinstance(cat_icon_value, QIcon) and not cat_icon_value.isNull():
-                    category_icon = cat_icon_value
-                else:
-                    category_icon = self._placeholder_icon
-                    if isinstance(cat_icon_value, str) and cat_icon_value.strip():
-                        cat_icon_path = cat_icon_value.strip()
-                    else:
-                        alt_cat_path = c.get("icon_path")
-                        if isinstance(alt_cat_path, str) and alt_cat_path.strip():
-                            cat_icon_path = alt_cat_path.strip()
+                category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
+                    c.get("icon"),
+                    c.get("icon_path"),
+                )
+                if stored_cat_path is not None:
+                    c["icon_path"] = stored_cat_path
 
                 cat_node = TreeNode(
                     type="category",
@@ -595,8 +664,8 @@ class StructureTreeModel(QAbstractItemModel):
                 sec_node.children.append(cat_node)
                 if isinstance(cat_node.id, int):
                     self._category_by_id[cat_node.id] = cat_node
-                    if cat_icon_path:
-                        self._start_icon_loading(cat_node, cat_icon_path)
+                    if pending_cat_path:
+                        self._start_icon_loading(cat_node, pending_cat_path)
 
         self.endResetModel()
 

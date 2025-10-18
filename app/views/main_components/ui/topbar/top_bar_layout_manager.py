@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 
 from PyQt6.QtCore import QEvent, QObject, pyqtSignal
-from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
+from PyQt6.QtWidgets import QWidget
 
 from ...common.decorators import require_main_thread
 from ...common.resource_manager import ResourceManager
@@ -54,7 +54,6 @@ class TopBarLayoutManager(QObject):
         super().__init__(window)
         self.window = window
         self._resource_manager = ResourceManager("TopBarLayoutManager")
-        self._opacity_effect: QGraphicsOpacityEffect | None = None
 
         # Инициализация через сервис
         self._init_service = TopBarInitializationService(
@@ -181,83 +180,19 @@ class TopBarLayoutManager(QObject):
         self._orchestrator.set_init_state(InitializationState.DATA_READY)
         logger.debug("TopBarLM: state transition -> DATA_READY")
 
-        if self._opacity_effect is None:
-            self._ensure_opacity_effect()
-        self._set_container_opacity(1.0)
         self.adjust()
 
     @require_main_thread
     def prepare_initial_layout(self) -> None:
         """Prepare container opacity before the first layout pass."""
-        container = self._ensure_opacity_effect()
-        if container is None:
+        container = self._widget_accessor.get_container_widget()
+        if not isinstance(container, QWidget) or _sip_isdeleted(container):
             logger.debug("TopBarLM: prepare_initial_layout skipped - no container")
 
         state = self._orchestrator.get_init_state()
         if state == InitializationState.NOT_STARTED:
             self._orchestrator.set_init_state(InitializationState.WAITING_FOR_DATA)
             logger.debug("TopBarLM: state transition -> WAITING_FOR_DATA")
-
-    def _ensure_opacity_effect(self) -> QWidget | None:
-        """Create or reuse opacity effect for the container and set it to 0."""
-        container = self._widget_accessor.get_container_widget()
-        if not isinstance(container, QWidget) or _sip_isdeleted(container):
-            return None
-
-        try:
-            current_effect = container.graphicsEffect()
-        except (RuntimeError, AttributeError):
-            logger.debug(
-                "TopBarLM: failed to read container graphics effect",
-                exc_info=True,
-            )
-            current_effect = None
-
-        if current_effect is not None and current_effect is not self._opacity_effect:
-            logger.warning(
-                "TopBarLM: container already has graphics effect, replacing it"
-            )
-            try:
-                if hasattr(current_effect, "deleteLater"):
-                    current_effect.deleteLater()
-            except Exception:
-                logger.debug(
-                    "TopBarLM: error deleting previous graphics effect",
-                    exc_info=True,
-                )
-            container.setGraphicsEffect(None)
-
-        if self._opacity_effect is None or self._opacity_effect.parent() is not container:
-            self._opacity_effect = QGraphicsOpacityEffect(container)
-        else:
-            # Ensure effect survives even if container changed
-            self._opacity_effect.setParent(container)
-
-        self._opacity_effect.setOpacity(0.0)
-        container.setGraphicsEffect(self._opacity_effect)
-        return container
-
-    def _set_container_opacity(self, value: float) -> None:
-        """Set container opacity if the effect exists."""
-        effect = self._opacity_effect
-        if effect is None:
-            return
-        try:
-            clamped = max(0.0, min(1.0, float(value)))
-        except (TypeError, ValueError):
-            clamped = 1.0
-
-        try:
-            effect.setOpacity(clamped)
-            container = self._widget_accessor.get_container_widget()
-            if isinstance(container, QWidget) and not _sip_isdeleted(container):
-                if container.graphicsEffect() is not effect:
-                    container.setGraphicsEffect(effect)
-        except (RuntimeError, AttributeError):
-            logger.debug(
-                "TopBarLM: failed to update container opacity",
-                exc_info=True,
-            )
 
     @require_main_thread
     def adjust(self) -> None:
@@ -340,34 +275,16 @@ class TopBarLayoutManager(QObject):
         """Dispose resources owned by TopBarLayoutManager.
 
         Steps:
-            1. Detach and delete the opacity effect
-            2. Cleanup the ResourceManager (timers, services)
-            3. Cleanup lifecycle handlers (event filters, signals)
-            4. Clear cached widget references
+            1. Cleanup the ResourceManager (timers, services)
+            2. Cleanup lifecycle handlers (event filters, signals)
+            3. Clear cached widget references
         """
         self._log_cleanup_start()
-
-        # Очистка opacity effect
-        if self._opacity_effect is not None:
-            try:
-                container = self._widget_accessor.get_container_widget()
-                if container and not _sip_isdeleted(container):
-                    container.setGraphicsEffect(None)
-                self._opacity_effect.deleteLater()
-                self._opacity_effect = None
-                logger.debug("TopBarLM: opacity effect cleaned up")
-            except (RuntimeError, AttributeError) as e:
-                logger.debug(
-                    "TopBarLM: opacity effect cleanup failed "
-                    "(expected during shutdown): %s",
-                    e
-                )
 
         self._resource_manager.cleanup_all()
         self._lifecycle_manager.cleanup()
         self._widget_accessor.clear_cache()
         self._log_cleanup_result()
-
     def _log_cleanup_start(self):
         """Логировать начало cleanup."""
         if logger.isEnabledFor(logging.DEBUG):
@@ -422,4 +339,5 @@ class TopBarLayoutManager(QObject):
     def _run_adjust(self) -> None:
         """Запустить adjust (callback для таймера)."""
         self.adjust()
+
 
