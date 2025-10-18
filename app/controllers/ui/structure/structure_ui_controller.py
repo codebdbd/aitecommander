@@ -73,6 +73,8 @@ class StructureUIController(QObject):
         def _schedule_reload():
             if getattr(self, "_icons_reload_pending", False):
                 return
+            if getattr(model, "_tree_snapshot_icons_ready", False):
+                return
             self._icons_reload_pending = True
             from PyQt6.QtCore import QTimer
 
