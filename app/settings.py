@@ -64,14 +64,6 @@ class AppSettings:
     def set_font_size(self, size: int):
         self._qs.setValue("UI/FontSize", size)
 
-    def get_dpi_scale(self) -> int:
-        default_value = 100
-        raw = self._qs.value("UI/DPIScale", default_value)
-        return self._as_int(raw, default_value, "UI/DPIScale")
-
-    def set_dpi_scale(self, pct: int):
-        self._qs.setValue("UI/DPIScale", pct)
-
     def get_hotkey(self, action: str, default: str) -> str:
         return self._qs.value(f"Hotkeys/{action}", default)
 

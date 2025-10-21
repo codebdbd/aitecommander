@@ -8,11 +8,34 @@ eliminating code duplication and ensuring UI consistency.
 import logging
 from typing import Optional
 
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
+
+_DIALOG_MANAGER_CONTEXT = "DialogManager"
+_DM_TITLE_ERROR = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Error")
+_DM_TITLE_WARNING = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Warning")
+_DM_TITLE_INFO = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Information")
+_DM_TITLE_CONFIRM = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Confirmation")
+_DM_BUTTON_YES = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Yes")
+_DM_BUTTON_NO = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "No")
+
+_DIALOG_MIXIN_CONTEXT = "DialogMixin"
+_TITLE_ERROR = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Error")
+_TITLE_WARNING = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Warning")
+_TITLE_INFO = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Information")
+_TITLE_CONFIRM = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Confirmation")
+
+
+def _dm_tr(text: str) -> str:
+    return QCoreApplication.translate(_DIALOG_MANAGER_CONTEXT, text)
+
+
+def _mix_tr(text: str) -> str:
+    return QCoreApplication.translate(_DIALOG_MIXIN_CONTEXT, text)
 
 
 class DialogManager:
@@ -31,7 +54,7 @@ class DialogManager:
     def show_error(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Error",
+        title: Optional[str] = None,
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> None:
@@ -42,10 +65,11 @@ class DialogManager:
             message: Error message text
             title: Dialog title (default "Error")
         """
-        logger.debug("Showing error dialog: %s - %s", title, message)
+        resolved_title = title or _dm_tr(_DM_TITLE_ERROR)
+        logger.debug("Showing error dialog: %s - %s", resolved_title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Critical)
-        msg_box.setWindowTitle(title)
+        msg_box.setWindowTitle(resolved_title)
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
@@ -58,7 +82,7 @@ class DialogManager:
     def show_warning(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Warning",
+        title: Optional[str] = None,
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> None:
@@ -69,10 +93,11 @@ class DialogManager:
             message: Warning text
             title: Dialog title (default "Warning")
         """
-        logger.debug("Showing warning dialog: %s - %s", title, message)
+        resolved_title = title or _dm_tr(_DM_TITLE_WARNING)
+        logger.debug("Showing warning dialog: %s - %s", resolved_title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Warning)
-        msg_box.setWindowTitle(title)
+        msg_box.setWindowTitle(resolved_title)
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
@@ -85,7 +110,7 @@ class DialogManager:
     def show_info(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Information",
+        title: Optional[str] = None,
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
         silent: bool = False,
@@ -100,13 +125,14 @@ class DialogManager:
             details: Details section text (if enabled in config)
             silent: If True, window is shown without icon (and system sound)
         """
-        logger.debug("Showing info dialog: %s - %s", title, message)
+        resolved_title = title or _dm_tr(_DM_TITLE_INFO)
+        logger.debug("Showing info dialog: %s - %s", resolved_title, message)
         msg_box = QMessageBox(parent)
         # For silent message don't use icon to avoid system sound
         msg_box.setIcon(
             QMessageBox.Icon.NoIcon if silent else QMessageBox.Icon.Information
         )
-        msg_box.setWindowTitle(title)
+        msg_box.setWindowTitle(resolved_title)
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
@@ -119,7 +145,7 @@ class DialogManager:
     def ask_confirmation(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Confirmation",
+        title: Optional[str] = None,
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> bool:
@@ -133,12 +159,13 @@ class DialogManager:
         Returns:
             bool: True if user clicked "Yes", False if "No"
         """
-        logger.debug("Showing confirmation dialog: %s - %s", title, message)
+        resolved_title = title or _dm_tr(_DM_TITLE_CONFIRM)
+        logger.debug("Showing confirmation dialog: %s - %s", resolved_title, message)
 
         # Create custom QMessageBox with limited width
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Question)
-        msg_box.setWindowTitle(title)
+        msg_box.setWindowTitle(resolved_title)
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
@@ -156,9 +183,9 @@ class DialogManager:
         yes_button = msg_box.button(QMessageBox.StandardButton.Yes)
         no_button = msg_box.button(QMessageBox.StandardButton.No)
         if yes_button:
-            yes_button.setText("Yes")
+            yes_button.setText(_dm_tr(_DM_BUTTON_YES))
         if no_button:
-            no_button.setText("No")
+            no_button.setText(_dm_tr(_DM_BUTTON_NO))
 
         reply = msg_box.exec()
         result = reply == QMessageBox.StandardButton.Yes
@@ -235,21 +262,29 @@ class DialogMixin:
         # No suitable parent
         return None
 
-    def show_error(self, message: str, title: str = "Error") -> None:
+    def show_error(self, message: str, title: Optional[str] = None) -> None:
         """Show error dialog."""
-        DialogManager.show_error(self._get_parent_widget(), message, title)
+        resolved_title = title or _mix_tr(_TITLE_ERROR)
+        DialogManager.show_error(self._get_parent_widget(), message, resolved_title)
 
-    def show_warning(self, message: str, title: str = "Warning") -> None:
+    def show_warning(self, message: str, title: Optional[str] = None) -> None:
         """Show warning dialog."""
-        DialogManager.show_warning(self._get_parent_widget(), message, title)
+        resolved_title = title or _mix_tr(_TITLE_WARNING)
+        DialogManager.show_warning(self._get_parent_widget(), message, resolved_title)
 
-    def show_info(self, message: str, title: str = "Information") -> None:
+    def show_info(self, message: str, title: Optional[str] = None) -> None:
         """Show information dialog."""
-        DialogManager.show_info(self._get_parent_widget(), message, title)
+        resolved_title = title or _mix_tr(_TITLE_INFO)
+        DialogManager.show_info(self._get_parent_widget(), message, resolved_title)
 
-    def ask_confirmation(self, message: str, title: str = "Confirmation") -> bool:
+    def ask_confirmation(
+        self, message: str, title: Optional[str] = None
+    ) -> bool:
         """Show confirmation dialog."""
-        return DialogManager.ask_confirmation(self._get_parent_widget(), message, title)
+        resolved_title = title or _mix_tr(_TITLE_CONFIRM)
+        return DialogManager.ask_confirmation(
+            self._get_parent_widget(), message, resolved_title
+        )
 
     def show_custom_dialog(
         self,

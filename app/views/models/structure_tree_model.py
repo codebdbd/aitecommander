@@ -17,6 +17,9 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import QIcon, QPixmap
 
+from app.utils.ui.icon.icon_resolver import resolve_icon_path
+from app.utils.ui.icon.validation import _validate_icon_name
+
 # Tree node types
 NodeType = str  # "section" | "category" | "root"
 
@@ -224,6 +227,72 @@ class StructureTreeModel(QAbstractItemModel):
         icon = cache_get_icon(normalized, theme)
         return icon if icon is not None and not icon.isNull() else None
 
+    @staticmethod
+    def _is_theme_icon_path(candidate: str) -> bool:
+        """Return True if icon path refers to a theme-relative or resource icon."""
+        trimmed = candidate.strip()
+        if not trimmed:
+            return False
+
+        if trimmed.startswith((":/", "qrc:/", "qresource:", "appres:")):
+            return True
+
+        lowered = trimmed.lower()
+        if lowered.startswith(("file://", "http://", "https://")):
+            return False
+
+        if trimmed.startswith(("/", "\\")):
+            return False
+
+        if len(trimmed) > 1 and trimmed[1] == ":":
+            return False
+        return _validate_icon_name(trimmed)
+
+    def _load_icon_immediately_if_safe(self, candidate: str) -> QIcon | None:
+        """Try to resolve icon synchronously for lightweight theme-relative paths."""
+        trimmed = candidate.strip()
+        if not trimmed:
+            return None
+
+        if not self._is_theme_icon_path(trimmed):
+            try:
+                resolved_path = resolve_icon_path(trimmed)
+            except Exception:
+                logger.debug(
+                    "StructureTreeModel._load_icon_immediately_if_safe: resolve_icon_path failed for %s",
+                    trimmed,
+                    exc_info=True,
+                )
+                resolved_path = ""
+            if resolved_path:
+                icon = QIcon(resolved_path)
+                return icon if not icon.isNull() else None
+            return None
+
+        try:
+            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+        except Exception:
+            logger.debug(
+                "StructureTreeModel._load_icon_immediately_if_safe: icon cache unavailable",
+                exc_info=True,
+            )
+            return None
+
+        try:
+            icon = icon_cache.get_icon(trimmed, source="tree_model_sync")
+        except RuntimeError:
+            # icon_cache enforces GUI thread for QIcon creation; fall back to async path
+            return None
+        except Exception:
+            logger.debug(
+                "StructureTreeModel._load_icon_immediately_if_safe: failed to load %s synchronously",
+                trimmed,
+                exc_info=True,
+            )
+            return None
+
+        return icon if icon is not None and not icon.isNull() else None
+
     def _prepare_icon_fields(
         self,
         icon_value,
@@ -249,7 +318,11 @@ class StructureTreeModel(QAbstractItemModel):
                 if cached_icon is not None:
                     icon_obj = cached_icon
                 else:
-                    pending_path = stored_path
+                    immediate_icon = self._load_icon_immediately_if_safe(stored_path)
+                    if immediate_icon is not None:
+                        icon_obj = immediate_icon
+                    else:
+                        pending_path = stored_path
             else:
                 pending_path = None
 

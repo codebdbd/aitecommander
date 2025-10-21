@@ -184,4 +184,4 @@ class DataImportExportController(QObject):
         """Quick backup without UI (runs in background)."""
         from app.utils.ui.async_helpers import run_async_backup
 
-        run_async_backup(self.db, parent=self.parent_widget, show_notification=True)
+        run_async_backup(self.db, parent=self.parent_widget)

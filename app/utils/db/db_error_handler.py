@@ -5,12 +5,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import Any, Optional, Type
 
-if TYPE_CHECKING:  # pragma: no cover - typings only
-    from app.models.base.db_base import DatabaseError as _DatabaseError
-else:  # Fallback for runtime before DatabaseError becomes available
-    _DatabaseError = Exception  # type: ignore[assignment]
 
 _DATABASE_ERROR_CLS: Optional[Type[Exception]] = None
 

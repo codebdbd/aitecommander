@@ -48,24 +48,52 @@ class CategoryListView(QListView):
         if not index or not index.isValid():
             logger.debug("CategoryListView.startDrag: no current index")
             return
-        cat_id = index.data(Qt.ItemDataRole.UserRole)
-        if cat_id is None:
-            logger.debug("CategoryListView.startDrag: no category id in UserRole")
+
+        selection_model = self.selectionModel()
+        indexes: list = []
+        if selection_model is not None:
+            try:
+                indexes = selection_model.selectedIndexes()
+            except Exception as exc:
+                logger.debug(
+                    "CategoryListView.startDrag: failed to collect selected indexes: %s",
+                    exc,
+                )
+                indexes = []
+
+        if not indexes:
+            indexes = [index]
+
+        category_ids: list[int] = []
+        primary_name = index.data(Qt.ItemDataRole.DisplayRole)
+        for idx in indexes:
+            if not idx or not idx.isValid():
+                continue
+            cat_id = idx.data(Qt.ItemDataRole.UserRole)
+            try:
+                cat_id = int(cat_id)
+            except (TypeError, ValueError):
+                continue
+            if cat_id in category_ids:
+                continue
+            category_ids.append(cat_id)
+
+        if not category_ids:
+            logger.debug("CategoryListView.startDrag: no valid category ids collected")
             return
 
-        name = index.data(Qt.ItemDataRole.DisplayRole)
         logger.debug(
-            "CategoryListView.startDrag: starting drag for category %s (%s)",
-            cat_id,
-            name,
+            "CategoryListView.startDrag: starting drag for categories %s (primary=%s)",
+            category_ids,
+            primary_name,
         )
         drag = QDrag(self)
-        mime = MimeDataParser.create_mime_data([int(cat_id)], self.MIME_TYPE)
+        mime = MimeDataParser.create_mime_data(category_ids, self.MIME_TYPE)
         drag.setMimeData(mime)
         logger.debug(
             "CategoryListView.startDrag: MIME type = %s, data = %s",
             self.MIME_TYPE,
-            cat_id,
+            category_ids,
         )
 
         result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)

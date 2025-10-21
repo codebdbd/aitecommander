@@ -156,12 +156,15 @@ class ThreadSafeIconCache:
         self._capacity = capacity
 
         # Cache TTL values and refresh them without holding locks
-        self._ttl_lock = threading.RLock()
+        object.__setattr__(self, "_ttl_lock", threading.RLock())
+        object.__setattr__(self, "_suspend_ttl_override_tracking", False)
+        object.__setattr__(self, "_ttl_icon_manual_override", False)
+        object.__setattr__(self, "_ttl_abs_manual_override", False)
+        object.__setattr__(self, "_ttl_negative_manual_override", False)
+        object.__setattr__(self, "_ttl_icon", None)
+        object.__setattr__(self, "_ttl_abs", None)
+        object.__setattr__(self, "_ttl_negative", None)
         self._refresh_ttls_unlocked()
-
-        self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
-        self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
-        self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
         # Initialize QPixmapCache with reasonable limit (in KB)
         # Qt's QPixmapCache is shared globally, so set a reasonable limit
@@ -206,20 +209,53 @@ class ThreadSafeIconCache:
 
     # --- TTL update during monkeypatch ---
 
-    def _refresh_ttls_unlocked(self) -> None:
+    def __setattr__(self, name, value):
+        if name in {"_ttl_icon", "_ttl_abs", "_ttl_negative"}:
+            if not getattr(self, "_suspend_ttl_override_tracking", False):
+                object.__setattr__(
+                    self,
+                    f"{name}_manual_override",
+                    True,
+                )
+        object.__setattr__(self, name, value)
+
+    def reset_ttl_overrides(self) -> None:
+        """Clears manual TTL overrides and reloads values from config."""
+        with self._ttl_lock:
+            object.__setattr__(self, "_ttl_icon_manual_override", False)
+            object.__setattr__(self, "_ttl_abs_manual_override", False)
+            object.__setattr__(self, "_ttl_negative_manual_override", False)
+            self._refresh_ttls_unlocked()
+
+    def _refresh_ttls_unlocked(
+        self,
+        refresh_icon: bool = True,
+        refresh_abs: bool = True,
+        refresh_negative: bool = True,
+    ) -> None:
         """Refresh TTL values from config without holding cache lock."""
+        object.__setattr__(self, "_suspend_ttl_override_tracking", True)
         try:
-            self._ttl_icon: float | None = app_config.get_icon_cache_ttl()
-        except Exception:  # noqa: BLE001
-            self._ttl_icon = None
-        try:
-            self._ttl_abs: float | None = app_config.get_abs_icon_cache_ttl()
-        except Exception:  # noqa: BLE001
-            self._ttl_abs = None
-        try:
-            self._ttl_negative: float | None = app_config.get_negative_cache_ttl()
-        except Exception:  # noqa: BLE001
-            self._ttl_negative = None
+            if refresh_icon and not self._ttl_icon_manual_override:
+                try:
+                    value = app_config.get_icon_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    value = None
+                object.__setattr__(self, "_ttl_icon", value)
+            if refresh_abs and not self._ttl_abs_manual_override:
+                try:
+                    value = app_config.get_abs_icon_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    value = None
+                object.__setattr__(self, "_ttl_abs", value)
+            if refresh_negative and not self._ttl_negative_manual_override:
+                try:
+                    value = app_config.get_negative_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    value = None
+                object.__setattr__(self, "_ttl_negative", value)
+        finally:
+            object.__setattr__(self, "_suspend_ttl_override_tracking", False)
 
     def _ensure_fresh_ttls(self) -> None:
         """Updates cached TTLs when getters change in app_config.
@@ -227,33 +263,17 @@ class ThreadSafeIconCache:
         This method checks if config getters changed and refreshes TTLs
         WITHOUT holding the cache lock to avoid contention.
         """
+        refresh_icon = not self._ttl_icon_manual_override
+        refresh_abs = not self._ttl_abs_manual_override
+        refresh_negative = not self._ttl_negative_manual_override
+        if not any((refresh_icon, refresh_abs, refresh_negative)):
+            return
         try:
-            # Quick check if getters changed (cheap operation)
-            needs_refresh = False
-            if getattr(app_config, "get_icon_cache_ttl", None) is not self._getter_icon:
-                self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
-                needs_refresh = True
-            if (
-                getattr(app_config, "get_abs_icon_cache_ttl", None)
-                is not self._getter_abs
-            ):
-                self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
-                needs_refresh = True
-            if (
-                getattr(app_config, "get_negative_cache_ttl", None)
-                is not self._getter_negative
-            ):
-                self._getter_negative = getattr(
-                    app_config, "get_negative_cache_ttl", None
+            with self._ttl_lock:
+                self._refresh_ttls_unlocked(
+                    refresh_icon, refresh_abs, refresh_negative
                 )
-                needs_refresh = True
-
-            # If refresh needed, do it with separate lock (not cache lock)
-            if needs_refresh:
-                with self._ttl_lock:
-                    self._refresh_ttls_unlocked()
         except Exception as exc:
-            # Never interfere with the main execution path due to configuration errors
             logger.debug(
                 "IconCache: TTL refresh failed, using previous values: %s",
                 exc,
@@ -297,7 +317,6 @@ class ThreadSafeIconCache:
                     pass
                 return None
 
-            self._path_lru.access(key)
             try:
                 self.metrics.record_hit()
             except Exception as exc:  # noqa: BLE001
@@ -357,7 +376,6 @@ class ThreadSafeIconCache:
                     pass
                 return None
 
-            self._qicon_lru.access(key)
             try:
                 self.metrics.record_hit()
             except Exception:  # noqa: BLE001
@@ -592,9 +610,6 @@ class ThreadSafeIconCache:
             self.metrics.reset()
             with self._ttl_lock:
                 self._refresh_ttls_unlocked()
-            self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
-            self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
-            self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
     def get_cache_stats(self) -> dict[str, int | float]:
         """Aggregated cache and metrics statistics."""

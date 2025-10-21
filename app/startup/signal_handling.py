@@ -21,6 +21,19 @@ if TYPE_CHECKING:  # pragma: no cover - type checking only
     from app.startup.initializer import ApplicationInitializer
 
 
+def _stream_is_tty(stream: Any) -> bool:
+    """Safely determine whether a stream is attached to a TTY."""
+    if stream is None:
+        return False
+    isatty = getattr(stream, "isatty", None)
+    if not callable(isatty):
+        return False
+    try:
+        return bool(isatty())
+    except Exception:  # pragma: no cover - defensive guard for exotic streams
+        return False
+
+
 def signal_handler(
     signum: int, frame: Any, initializer: ApplicationInitializer | None = None
 ) -> None:
@@ -51,9 +64,11 @@ def safe_signal_handler(
 
 def should_install_signal_handlers() -> bool:
     """Determine if signal handlers should be installed for console/headless mode."""
+    stdin_tty = _stream_is_tty(sys.stdin)
+    stdout_tty = _stream_is_tty(sys.stdout)
     if platform.system() == "Windows":
-        return not sys.stdin.isatty() or not sys.stdout.isatty()
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return (not stdin_tty) or (not stdout_tty)
+    if (not stdin_tty) or (not stdout_tty):
         return True
     display_empty = os.environ.get("DISPLAY") in (None, "")
     wayland_empty = os.environ.get("WAYLAND_DISPLAY") in (None, "")

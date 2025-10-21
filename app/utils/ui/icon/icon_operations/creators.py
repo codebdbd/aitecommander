@@ -45,6 +45,11 @@ from ..validation import (
 logger = logging.getLogger(__name__)
 
 
+def _is_qt_resource_path(path: str) -> bool:
+    """Return True if the path refers to a Qt resource or alias."""
+    return path.startswith((":/", "qrc:/", "appres:", "qresource:"))
+
+
 def _ensure_gui_thread(context: str = "") -> bool:
     """Ensure code runs in GUI thread. True if in GUI thread.
 
@@ -470,15 +475,25 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         logger.error(error_msg)
         raise RuntimeError(error_msg)
 
-    # Use namespaced key to avoid collisions
-    cache_key = f"abspath::{icon_path}"
-    # Check cache - TTL logic already implemented in cache_manager
-    cached_icon = get_icon(cache_key, "__abs__")
+    is_qrc = _is_qt_resource_path(icon_path)
+    namespace = "__qrc__" if is_qrc else "__abs__"
+
+    cache_key = f"{namespace}::{icon_path}"
+    cached_icon = get_icon(cache_key, namespace)
 
     if cached_icon is not None:
-        logger.debug("Cache HIT for absolute path icon: %s", icon_path)
+        logger.debug("Cache HIT for icon path: %s", icon_path)
         return cached_icon
-    logger.debug("Cache MISS for absolute path icon: %s", icon_path)
+    logger.debug("Cache MISS for icon path: %s", icon_path)
+
+    if is_qrc:
+        icon = QIcon(icon_path)
+        if icon.isNull():
+            logger.warning("Icon resource not found: %s", icon_path)
+        else:
+            logger.debug("Loaded icon from Qt resource: %s", icon_path)
+        set_icon(cache_key, namespace, icon, negative=icon.isNull())
+        return icon
 
     # Measure load time
     start_time = time.time()
@@ -504,7 +519,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     metrics_record_disk_load(load_time)
 
     # Cache result with negative flag for missing files
-    set_icon(cache_key, "__abs__", icon, negative=not exists)
+    set_icon(cache_key, namespace, icon, negative=not exists)
 
     # Log slow operations
     if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
@@ -529,15 +544,22 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
         QIcon creation is performed in GUI thread via run_in_gui_thread_async.
         File I/O operations are performed in executor to avoid blocking.
     """
-    # Use namespaced key to avoid collisions
-    cache_key = f"abspath::{icon_path}"
-    # Check cache - TTL logic already implemented in cache_manager
-    cached_icon = get_icon(cache_key, "__abs__")
+    is_qrc = _is_qt_resource_path(icon_path)
+    namespace = "__qrc__" if is_qrc else "__abs__"
+    cache_key = f"{namespace}::{icon_path}"
+    cached_icon = get_icon(cache_key, namespace)
 
     if cached_icon is not None:
-        logger.debug("Cache HIT for absolute path icon: %s", icon_path)
+        logger.debug("Cache HIT for icon path: %s", icon_path)
         return cached_icon
-    logger.debug("Cache MISS for absolute path icon: %s", icon_path)
+    logger.debug("Cache MISS for icon path: %s", icon_path)
+
+    if is_qrc:
+        icon = await run_in_gui_thread_async(lambda: QIcon(icon_path))
+        if icon.isNull():
+            logger.warning("Icon resource not found: %s", icon_path)
+        set_icon(cache_key, namespace, icon, negative=icon.isNull())
+        return icon
 
     # Measure load time
     start_time = time.time()
@@ -569,7 +591,7 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
     metrics_record_disk_load(load_time)
 
     # Cache result with negative flag for missing files
-    set_icon(cache_key, "__abs__", icon, negative=not Path(icon_path).exists())
+    set_icon(cache_key, namespace, icon, negative=not Path(icon_path).exists())
 
     # Log slow operations
     if load_time > 0.1:
@@ -589,15 +611,22 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
 def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     """Deferred version of create_icon_from_path for execution in GUI thread."""
-    # Use namespaced key to avoid collisions
-    cache_key = f"abspath::{icon_path}"
-    # Check cache - TTL logic already implemented in cache_manager
-    cached_icon = get_icon(cache_key, "__abs__")
+    is_qrc = _is_qt_resource_path(icon_path)
+    namespace = "__qrc__" if is_qrc else "__abs__"
+    cache_key = f"{namespace}::{icon_path}"
+    cached_icon = get_icon(cache_key, namespace)
 
     if cached_icon is not None:
-        logger.debug("Cache HIT for absolute path icon: %s", icon_path)
+        logger.debug("Cache HIT for icon path: %s", icon_path)
         return cached_icon
-    logger.debug("Cache MISS for absolute path icon: %s", icon_path)
+    logger.debug("Cache MISS for icon path: %s", icon_path)
+
+    if is_qrc:
+        icon = QIcon(icon_path)
+        if icon.isNull():
+            logger.warning("Icon resource not found: %s", icon_path)
+        set_icon(cache_key, namespace, icon, negative=icon.isNull())
+        return icon
 
     # Measure load time
     start_time = time.time()
@@ -621,7 +650,7 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     metrics_record_disk_load(load_time)
 
     # Cache result with negative flag for missing files
-    set_icon(cache_key, "__abs__", icon, negative=not exists)
+    set_icon(cache_key, namespace, icon, negative=not exists)
 
     # Log slow operations
     if load_time > 0.1:  # If load took more than 100 ms, log at INFO level

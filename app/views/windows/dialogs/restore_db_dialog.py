@@ -49,6 +49,22 @@ _LIST_ITEM_TEMPLATES: dict[str, str] = {
     "error": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Error: {details}"),
 }
 
+# lupdate hints so pylupdate6 picks up template strings
+if False:  # pragma: no cover
+    QCoreApplication.translate("RestoreDbDialog", "No backups found")
+    QCoreApplication.translate(
+        "RestoreDbDialog",
+        "{backup_name} - before attaching new database: {timestamp} ({size} MB)",
+    )
+    QCoreApplication.translate(
+        "RestoreDbDialog", "{backup_name} - {timestamp} ({size} MB)"
+    )
+    QCoreApplication.translate(
+        "RestoreDbDialog",
+        "{backup_name} ({size} MB)",
+    )
+    QCoreApplication.translate("RestoreDbDialog", "Error: {details}")
+
 logger = logging.getLogger(__name__)
 
 

@@ -542,33 +542,36 @@ class MoveCategoriesCommand(BaseCommand):
                     sb, target_ids, target_section_id, states
                 )
 
-            moved_ids_set = set(moved_ids)
-            remaining_states = (
-                [st for st in states if st.get("id") not in moved_ids_set]
-                if batch_done
-                else list(states)
-            )
-
-            if remaining_states:
+            touched_override: set[int] | None = None
+            if batch_done:
                 touched_override = self._update_remaining_categories(
-                    sb, remaining_states, old_section_by_id
+                    sb, list(states), old_section_by_id
                 )
+            else:
+                moved_ids_set = set(moved_ids)
+                remaining_states = [
+                    st for st in states if st.get("id") not in moved_ids_set
+                ]
+                if remaining_states:
+                    touched_override = self._update_remaining_categories(
+                        sb, remaining_states, old_section_by_id
+                    )
 
-                if touched_override:
-                    normalized = {
-                        int(sid)
-                        for sid in touched_override
-                        if isinstance(sid, int) and sid > 0
-                    }
-                    if normalized:
-                        try:
-                            sb.event_service.replace_touched_sections(normalized)
-                        except Exception as exc:
-                            logger.debug(
-                                "replace_touched_sections failed in _apply_states: %s",
-                                exc,
-                                exc_info=True,
-                            )
+            if touched_override:
+                normalized = {
+                    int(sid)
+                    for sid in touched_override
+                    if isinstance(sid, int) and sid > 0
+                }
+                if normalized:
+                    try:
+                        sb.event_service.replace_touched_sections(normalized)
+                    except Exception as exc:
+                        logger.debug(
+                            "replace_touched_sections failed in _apply_states: %s",
+                            exc,
+                            exc_info=True,
+                        )
         finally:
             if batch_started:
                 try:

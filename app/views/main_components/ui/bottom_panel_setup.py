@@ -20,6 +20,7 @@ _BOTTOM_ACTION_TEXTS: dict[str, str] = {
     "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Link"),
     "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit"),
     "delete_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Delete"),
+    "switch_sphere": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Sphere"),
 }
 
 _BOTTOM_ACTION_TOOLTIPS: dict[str, str] = {
@@ -28,9 +29,14 @@ _BOTTOM_ACTION_TOOLTIPS: dict[str, str] = {
         _BOTTOM_PANEL_CONTEXT, "Create a new category in the selected section."
     ),
     "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new link."),
-    "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit the selected item."),
+    "edit_link": QT_TRANSLATE_NOOP(
+        _BOTTOM_PANEL_CONTEXT, "Edit the selected item."
+    ),
     "delete_link": QT_TRANSLATE_NOOP(
         _BOTTOM_PANEL_CONTEXT, "Delete the selected item."
+    ),
+    "switch_sphere": QT_TRANSLATE_NOOP(
+        _BOTTOM_PANEL_CONTEXT, "Switch to next available sphere"
     ),
 }
 

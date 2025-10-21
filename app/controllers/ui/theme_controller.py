@@ -1,9 +1,9 @@
 import logging
 import threading
+from pathlib import Path
 from typing import Any, Callable, Optional, cast
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QThread
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
@@ -14,6 +14,11 @@ from app.services.theme_stylesheet_service import (
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
+
+# Ensure lupdate picks up theme names defined via QT_TRANSLATE_NOOP.
+if False:  # pragma: no cover
+    QCoreApplication.translate("ThemeController", "Light")
+    QCoreApplication.translate("ThemeController", "Dark")
 
 
 class ThemeController:
@@ -48,10 +53,9 @@ class ThemeController:
         self._qss_cache: dict[str, Any] = {}
         self._max_cache_size = 100
         self._common_qss: Optional[str] = None
-        # Note: reentrancy protection is not used — restoring original behaviort_cache_stats method
+        # Note: reentrancy protection is not used - restoring original behaviort_cache_stats method
 
-        # Themes are fixed (light/dark)
-        self._init_fixed_themes()
+        self._load_available_themes()
 
     # Custom shadows for QMenu removed; no event filters applied
 
@@ -97,9 +101,76 @@ class ThemeController:
         }
         return synonyms.get(v, v)
 
-    def _init_fixed_themes(self) -> None:
-        """Initialize fixed theme list."""
-        self._themes = [
+    def _load_available_themes(self) -> None:
+        """Populate theme list from QSS directory with safe fallbacks."""
+        detected: list[dict[str, Any]] = []
+
+        try:
+            themes_dir = app_config.paths.get_qss_dir()
+        except Exception as exc:
+            logger.error(
+                "ThemeController: failed to resolve QSS directory: %s",
+                exc,
+                exc_info=True,
+            )
+            themes_dir = None
+
+        if themes_dir:
+            try:
+                directory = Path(themes_dir)
+                for qss_file in sorted(
+                    directory.glob("*.qss"), key=lambda p: p.name.lower()
+                ):
+                    if qss_file.name.lower() == "common.qss":
+                        continue
+                    theme_name = qss_file.stem.lower()
+                    display_name, context = self._resolve_display_metadata(theme_name)
+                    detected.append(
+                        {
+                            "name": theme_name,
+                            "display_name": display_name,
+                            "display_context": context,
+                            "qss_file": qss_file.name,
+                            "is_dark": self._infer_is_dark(theme_name),
+                        }
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "ThemeController: failed to auto-detect themes: %s",
+                    exc,
+                    exc_info=True,
+                )
+
+        if not detected:
+            logger.info("ThemeController: falling back to default theme list")
+            detected = self._default_theme_entries()
+
+        self._themes = detected
+
+    def _resolve_display_metadata(self, theme_name: str) -> tuple[str, str]:
+        """Return display name and translation context for theme."""
+        canonical = theme_name.lower()
+        if canonical == "light":
+            return (QT_TRANSLATE_NOOP("ThemeController", "Light"), "ThemeController")
+        if canonical == "dark":
+            return (QT_TRANSLATE_NOOP("ThemeController", "Dark"), "ThemeController")
+
+        humanized = canonical.replace("_", " ").strip()
+        if not humanized:
+            humanized = "Theme"
+        return (humanized.title(), "ThemeController")
+
+    def _infer_is_dark(self, theme_name: str) -> bool:
+        """Best-effort detection for dark themes based on name."""
+        lowered = theme_name.lower()
+        if lowered == "dark":
+            return True
+        markers = ("dark", "night", "noir", "black")
+        return any(marker in lowered for marker in markers)
+
+    def _default_theme_entries(self) -> list[dict[str, Any]]:
+        """Return built-in fallback theme list."""
+        return [
             {
                 "name": "light",
                 "display_name": QT_TRANSLATE_NOOP("ThemeController", "Light"),
@@ -127,9 +198,11 @@ class ThemeController:
             norm = self._normalize_theme_input(current_theme)
             theme_config = self._get_theme_by_name(norm)
             if theme_config:
-                return theme_config.get("is_dark", False)
-            # If theme not found in config, determine by normalized name
-            return norm == "dark"
+                return bool(
+                    theme_config.get("is_dark", self._infer_is_dark(norm))
+                )
+            # If theme not found in config, determine heuristically
+            return self._infer_is_dark(norm)
         except Exception as exc:
             logger.error("Error determining dark theme: %s", exc, exc_info=True)
             return False
@@ -375,50 +448,6 @@ class ThemeController:
         # Don't reset font sizes on theme change.
         # Base app size and specific sizes for menu/menubar are managed separately,
         # and user-set tree/table sizes should not be affected by theme.
-
-    def _apply_qt_icon_theme(self, theme_name: str) -> None:
-        """Set Qt icon theme and search paths for correct standard icon display.
-        Must be executed in GUI thread before showing first menus/dialogs."""
-        if not theme_name:
-            return
-        # Build search paths: app UI icons as Qt theme
-        ui_icons_dir = app_config.paths.get_ui_icons_dir()
-        if not ui_icons_dir.exists():
-            logger.debug("UI icons dir does not exist: %s", ui_icons_dir)
-            return
-        # Check theme directory exists, otherwise use fallback 'light'
-        theme_dir = ui_icons_dir / theme_name
-        if not theme_dir.exists():
-            fallback = "light"
-            fallback_dir = ui_icons_dir / fallback
-            if fallback_dir.exists():
-                logger.warning(
-                    "Icon theme '%s' not found, using fallback '%s'",
-                    theme_name,
-                    fallback,
-                )
-                theme_name = fallback
-            else:
-                logger.warning(
-                    "Icon theme directory not found: %s, fallback 'light' also missing",
-                    theme_dir,
-                )
-        search_paths = [str(ui_icons_dir)]
-        try:
-            # Add existing search paths to preserve system ones
-            current_paths = QIcon.themeSearchPaths()
-            for p in current_paths:
-                if p not in search_paths:
-                    search_paths.append(p)
-        except Exception as exc:
-            logger.debug(
-                "Failed to get current QIcon theme search paths: %s",
-                exc,
-                exc_info=True,
-            )
-        QIcon.setThemeSearchPaths(search_paths)
-        # Theme name is canonical name, expecting subdirectory ui_icons_dir/<theme_name>
-        QIcon.setThemeName(theme_name)
 
     def _build_config_overrides_qss(self) -> str:
         """Build QSS block with config parameters to override theme values.

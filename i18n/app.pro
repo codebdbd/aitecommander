@@ -4,20 +4,12 @@
 TEMPLATE = app
 TARGET = aite-commander
 
-# Source directories to scan for strings
-SOURCES += \
-    app/__init__.py \
-    app/main.py \
-    app/settings.py \
-    app/interfaces.py \
-    app/config_data/*.py \
-    app/controllers/**/*.py \
-    app/models/*.py \
-    app/resources/**/*.py \
-    app/services/*.py \
-    app/startup/*.py \
-    app/utils/*.py \
-    app/views/**/*.py
+# Source directories to scan for strings (recursive search)
+PYTHON_SOURCES = $$files(app, *.py, true)
+UI_SOURCES = $$files(app, *.ui, true)
+QML_SOURCES = $$files(app, *.qml, true)
+
+SOURCES += $$PYTHON_SOURCES $$UI_SOURCES $$QML_SOURCES
 
 # Translation files
 TRANSLATIONS += \

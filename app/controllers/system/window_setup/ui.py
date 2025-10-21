@@ -6,7 +6,7 @@ import logging
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 
@@ -18,21 +18,26 @@ from .types import SetupError
 
 logger = logging.getLogger(__name__)
 
-
 def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
     """Create UI elements: sphere switch action and button, insert into panel."""
+    action_text = QCoreApplication.translate("MainWindow", "Switch Sphere (F6)")
+    action_tooltip = QCoreApplication.translate(
+        "MainWindow", "Switch to next available sphere"
+    )
     window.switch_sphere_action = QAction(
         themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
-        "Switch Sphere (F6)",
+        action_text,
         window,
     )
-    window.switch_sphere_action.setToolTip("Switch to next available sphere")
+    window.switch_sphere_action.setToolTip(action_tooltip)
     window.switch_sphere_action.triggered.connect(
         window.structure.switch_to_next_sphere
     )
 
+    button_label = QCoreApplication.translate("BottomPanel", "Sphere")
     window.switch_sphere_button = QPushButton(
-        window.switch_sphere_action.icon(), "Sphere (F6)"
+        window.switch_sphere_action.icon(),
+        f"{button_label} (F6)",
     )
     window.switch_sphere_button.setToolTip(window.switch_sphere_action.toolTip())
 
@@ -47,6 +52,20 @@ def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
     bottom_container = window.findChild(QWidget, "bottomBarContainer")
     if bottom_container and bottom_container.layout():
         bottom_container.layout().insertWidget(0, window.switch_sphere_button)
+        
+        # Register button for unified retranslation via retranslate_bottom_panel
+        bindings = getattr(window, "_bottom_bar_bindings", None)
+        if bindings is not None:
+            bindings.insert(0, {
+                "button": window.switch_sphere_button,
+                "action": {
+                    "id": "switch_sphere",
+                    "label": "Sphere",
+                    "shortcut": "F6",
+                    "tooltip": "Switch to next available sphere"
+                }
+            })
+            logger.debug("Registered switch_sphere_button in _bottom_bar_bindings")
 
 
 def setup_dependency_injection(window: Any, controllers: dict[str, Any]) -> None:
@@ -105,10 +124,20 @@ def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
                             category_id=category_id, link=link
                         )
                     )
-                self.show_error("Cannot open link dialog: window not ready.")
+                self.show_error(
+                    QCoreApplication.translate(
+                        "DialogProvider",
+                        "Cannot open link dialog: window not ready.",
+                    )
+                )
                 return False
             except Exception as e:
-                self.show_error(f"Error opening link dialog: {e}")
+                self.show_error(
+                    QCoreApplication.translate(
+                        "DialogProvider",
+                        "Error opening link dialog: {error}",
+                    ).format(error=e)
+                )
                 return False
 
     dialog_provider = DialogProvider(window)

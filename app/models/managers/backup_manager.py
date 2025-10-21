@@ -4,13 +4,68 @@ import datetime
 import logging
 import os
 import sqlite3
-import time
 from pathlib import Path
+from typing import Callable
 
 from ..base.db_base import DatabaseError
 from ..types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
+from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
+
+
+def purge_old_backups(
+    backup_dir: Path,
+    max_backups: int,
+    *,
+    keep: Path | None,
+    attempts: int,
+    delay: float,
+    logger: logging.Logger,
+    sleeper: Callable[[float], None] | None = None,
+) -> int:
+    """Remove outdated backup files, keeping at most ``max_backups`` files."""
+    files = sorted(backup_dir.glob("osteen_path_*.db"))
+    if not files or len(files) <= max_backups:
+        return 0
+
+    targets = [f for f in files if keep is None or f != keep]
+    target_deletions = max(0, len(files) - max_backups)
+    deleted = 0
+
+    for attempt in range(max(1, attempts)):
+        if deleted >= target_deletions:
+            break
+
+        remaining = [f for f in targets if f.exists()]
+        if not remaining:
+            break
+
+        for old_file in list(remaining):
+            if deleted >= target_deletions:
+                break
+            try:
+                old_file.unlink()
+                deleted += 1
+                targets.remove(old_file)
+                logger.info("Deleted old backup: %s", old_file.name)
+            except Exception as del_err:
+                logger.warning(
+                    "Failed to delete old backup %s: %s", old_file, del_err
+                )
+
+        if deleted >= target_deletions:
+            break
+        if sleeper is not None and attempt < attempts - 1:
+            sleeper(delay)
+
+    if deleted < target_deletions:
+        logger.warning(
+            "Requested deletion of %d old backups, removed %d",
+            target_deletions,
+            deleted,
+        )
+    return deleted
 
 
 class BackupManager:
@@ -42,6 +97,7 @@ class BackupManager:
             now = datetime.datetime.now()
             timestamp = now.strftime("%Y%m%d_%H%M%S")
             dst = backup_dir / f"osteen_path_{timestamp}.db"
+            backup_dir.mkdir(parents=True, exist_ok=True)
 
             with sqlite3.connect(self.db.db_path) as src, sqlite3.connect(dst) as dest:
                 src.backup(dest)
@@ -60,36 +116,15 @@ class BackupManager:
             files = sorted(backup_dir.glob("osteen_path_*.db"))
 
             if len(files) > max_bak:
-                candidates = [f for f in files if f != dst]
-                deleted_count = 0
-                target_deletions = len(files) - max_bak
-
-                for attempt in range(BACKUP_RETRY_ATTEMPTS):
-                    files_to_try = [f for f in candidates if f.exists()]
-                    if not files_to_try or deleted_count >= target_deletions:
-                        break
-
-                    for old_file in files_to_try:
-                        if deleted_count >= target_deletions:
-                            break
-                        try:
-                            old_file.unlink()
-                            deleted_count += 1
-                            if old_file in candidates:
-                                candidates.remove(old_file)
-                        except Exception as del_err:
-                            logger.warning(
-                                "Failed to delete old backup %s: %s",
-                                old_file,
-                                del_err,
-                                exc_info=False,
-                            )
-
-                    if (
-                        attempt < BACKUP_RETRY_ATTEMPTS - 1
-                        and deleted_count < target_deletions
-                    ):
-                        time.sleep(BACKUP_RETRY_DELAY)
+                purge_old_backups(
+                    backup_dir,
+                    max_bak,
+                    keep=dst,
+                    attempts=BACKUP_RETRY_ATTEMPTS,
+                    delay=BACKUP_RETRY_DELAY,
+                    logger=logger,
+                    sleeper=None,
+                )
 
             self.db.operation_finished.emit(operation, True)
 
@@ -113,6 +148,4 @@ class BackupManager:
 
     def _get_max_backups(self) -> int:
         """Returns maximum number of backups from user settings."""
-        from app.config_data import app_config
-
         return app_config.settings.get_max_backups()

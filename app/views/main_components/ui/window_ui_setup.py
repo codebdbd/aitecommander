@@ -8,7 +8,15 @@ from functools import partial
 from pathlib import Path
 from typing import Protocol
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QFile, QEvent, QObject, QSize, QTimer
+from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
+    QCoreApplication,
+    QFile,
+    QEvent,
+    QObject,
+    QSize,
+    QTimer,
+)
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -41,6 +49,10 @@ from i18n.language_service import LanguageService
 logger = logging.getLogger(__name__)
 
 _SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP("WindowUISetup", "Search\u2026 (Ctrl+F)")
+
+# lupdate hint for dynamic placeholder text
+if False:  # pragma: no cover
+    QCoreApplication.translate("WindowUISetup", "Search\u2026 (Ctrl+F)")
 
 
 class PanelMode(str, Enum):

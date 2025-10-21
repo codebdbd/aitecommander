@@ -156,7 +156,7 @@ def run_async_export(
 
 
 def run_async_backup(
-    db, parent: Optional[QWidget] = None, show_notification: bool = True
+    db, parent: Optional[QWidget] = None
 ) -> tuple[bool, Optional[str]]:
     """Run asynchronous backup.
 
@@ -166,7 +166,6 @@ def run_async_backup(
         db: Database instance
         parent: Parent widget
         on_success: Callback on success
-        show_notification: Whether to show a result notification (deprecated)
 
     Returns:
         Tuple[bool, Optional[str]]: (success, message)
