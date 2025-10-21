@@ -818,26 +818,40 @@ def get_cached_category_icon(path: str) -> QIcon:
         Must be called from GUI thread as it creates QIcon.
         Returns empty QIcon if called from non-GUI thread.
     """
-    # Thread safety check: QIcon must be created only in GUI thread
+    # ✅ FIX: Thread safety check BEFORE any QIcon creation
     from PyQt6.QtCore import QThread
     from PyQt6.QtWidgets import QApplication
     
     app = QApplication.instance()
-    if app and QThread.currentThread() != app.thread():
+    current_thread = QThread.currentThread() if app else None
+    gui_thread = app.thread() if app else None
+    
+    # Check thread affinity BEFORE creating any Qt objects
+    if not app or not current_thread or not gui_thread or current_thread != gui_thread:
         logger.warning(
             "get_cached_category_icon called from non-GUI thread for %s, returning empty icon",
             path
         )
-        return QIcon()
+        # Create empty QIcon in a thread-safe way - this is safe even in wrong thread
+        # because QIcon() without arguments doesn't load resources
+        try:
+            return QIcon()
+        except Exception as exc:
+            logger.error("Failed to create empty QIcon: %s", exc)
+            # Last resort: return None and let caller handle it
+            return QIcon()  # type: ignore[return-value]
     
     cache_key = f"category::{path}"
     cached_icon = _icon_manager.get_icon(cache_key, "__category__")
     if cached_icon is not None:
         return cached_icon
 
-    # Create QIcon directly by path, without calling create_icon_from_path, to avoid import cycles
-    # Safe to create here as we verified GUI thread above
-    icon = QIcon(str(path)) if Path(path).exists() else QIcon()
+    # ✅ Safe to create QIcon here - we verified GUI thread above
+    try:
+        icon = QIcon(str(path)) if Path(path).exists() else QIcon()
+    except Exception as exc:
+        logger.warning("Failed to create QIcon from path %s: %s", path, exc)
+        icon = QIcon()
 
     _icon_manager.set_icon(cache_key, "__category__", icon)
     return icon

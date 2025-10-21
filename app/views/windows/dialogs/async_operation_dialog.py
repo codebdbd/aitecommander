@@ -1,9 +1,12 @@
-"""Dialog showing progress for asynchronous database operations."""
+"""Dialog showing progress for asynchronous database operations.
+
+✅ FIX: All slots now use Qt.QueuedConnection for thread-safe updates.
+"""
 
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import QCoreApplication, pyqtSlot
+from PyQt6.QtCore import QCoreApplication, Qt, pyqtSlot
 from PyQt6.QtWidgets import (
     QDialog,
     QLabel,
@@ -230,3 +233,38 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
     def is_cancelled(self) -> bool:
         """Return whether the operation has been cancelled."""
         return self._cancelled
+
+    def connect_worker_signals(self, worker_signals) -> None:
+        """Connect worker signals with thread-safe QueuedConnection.
+        
+        ✅ FIX: Uses Qt.QueuedConnection to ensure thread safety when
+        signals are emitted from background threads.
+        
+        Args:
+            worker_signals: Worker signals object with progress, finished, error, cancelled
+        """
+        try:
+            # Connect with QueuedConnection for cross-thread safety
+            if hasattr(worker_signals, "progress"):
+                worker_signals.progress.connect(
+                    self.update_progress,
+                    Qt.ConnectionType.QueuedConnection
+                )
+            if hasattr(worker_signals, "finished"):
+                worker_signals.finished.connect(
+                    self.on_finished,
+                    Qt.ConnectionType.QueuedConnection
+                )
+            if hasattr(worker_signals, "error"):
+                worker_signals.error.connect(
+                    self.on_error,
+                    Qt.ConnectionType.QueuedConnection
+                )
+            if hasattr(worker_signals, "cancelled"):
+                worker_signals.cancelled.connect(
+                    self.on_cancelled,
+                    Qt.ConnectionType.QueuedConnection
+                )
+            logger.debug("Worker signals connected with QueuedConnection")
+        except Exception as exc:
+            logger.error("Failed to connect worker signals: %s", exc, exc_info=True)
