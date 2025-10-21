@@ -150,6 +150,13 @@ class LanguageService(QObject):
         else:
             base_path = Path(__file__).resolve().parent.parent
 
+        translator = QTranslator()
+        if translator.load(f"app_{language_code}", "i18n"):
+            logger.debug(
+                "Loaded translator from Qt search path: app_%s", language_code
+            )
+            return translator
+
         i18n_dir = base_path / "i18n"
         qm_file = i18n_dir / f"app_{language_code}.qm"
 
@@ -157,9 +164,8 @@ class LanguageService(QObject):
             logger.warning("Translation file not found: %s", qm_file)
             return None
 
-        translator = QTranslator()
         if translator.load(str(qm_file)):
-            logger.debug("Loaded translator: %s", qm_file)
+            logger.debug("Loaded translator from filesystem: %s", qm_file)
             return translator
 
         logger.warning("Failed to load translator: %s", qm_file)

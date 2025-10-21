@@ -29,15 +29,12 @@ def _resize_image(img: Image.Image, size: int) -> Image.Image:
 # === COPY FUNCTIONS ===
 
 
-def copy_icon_smart(
-    src_path: str, dest_dir: Path, avoid_duplicates: bool = False
-) -> str:
+def copy_icon_smart(src_path: str, dest_dir: Path) -> str:
     """Simple icon copying without auto-conversion.
     
     Args:
         src_path: Source icon path
-        dest_dir: Destination directory  
-        avoid_duplicates: Ignored (kept for compatibility)
+        dest_dir: Destination directory
     
     Returns:
         str: File name in destination directory
@@ -47,7 +44,7 @@ def copy_icon_smart(
 
     dest_dir.mkdir(parents=True, exist_ok=True)
     src_path_obj = Path(src_path)
-    
+
     # Generate unique name if file exists
     dst = dest_dir / src_path_obj.name
     if dst.exists():
@@ -72,7 +69,7 @@ def copy_icon(src_path: str, dest_dir: Path) -> str:
 
     Simple copying without duplicate checking.
     """
-    return copy_icon_smart(src_path, dest_dir, avoid_duplicates=False)
+    return copy_icon_smart(src_path, dest_dir)
 
 
 def copy_icon_to_path(src_path: str, dst_path: str) -> bool:

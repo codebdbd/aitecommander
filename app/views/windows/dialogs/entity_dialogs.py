@@ -16,11 +16,14 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSpinBox,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -603,57 +606,33 @@ class NoteDialog(BaseDialog):
 class SettingsDialog(BaseDialog):
     def __init__(self, settings, theme_ctrl: ThemeController, parent=None):
         self.settings = settings
-        self.theme_ctrl = theme_ctrl  # Keep reference to reapply theme
-        self._form_layout: QFormLayout | None = None
+        self.theme_ctrl = theme_ctrl
         self._button_box: QDialogButtonBox | None = None
         self.language_selector: LanguageSelector | None = None
+        self.theme_combo: QComboBox | None = None
+        self.font_size_combo: QComboBox | None = None
+        self.max_backups_combo: QComboBox | None = None
+        self._tab_widget: QTabWidget | None = None
 
         super().__init__(parent)
-        self.resize(400, 250)
+        self.resize(420, 280)
         self._init_ui()
-
-        # Translate after widgets are created
         self.retranslateUi()
 
     def _init_ui(self):
-        """Initialize the settings dialog UI."""
+        """Initialize the settings dialog UI with tabs."""
         vbox = QVBoxLayout(self)
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        self._form_layout = form
-
-        # Language selector
-        self.language_selector = LanguageSelector(self)
-        form.addRow(self.tr("Language:"), self.language_selector)
-
-        # Configure maximum number of backups via combo box
-        self.max_backups_combo = QComboBox()
-        self.max_backups_combo.addItems([str(i) for i in range(1, 11)])
-        try:
-            current = int(self.settings.get_max_backups())
-            if 1 <= current <= 10:
-                self.max_backups_combo.setCurrentIndex(current - 1)
-            else:
-                self.max_backups_combo.setCurrentIndex(0)
-        except Exception:
-            self.max_backups_combo.setCurrentIndex(0)
-        form.addRow(self.tr("Max backups:"), self.max_backups_combo)
-
-        # Configure font size options
-        self.font_size_combo = QComboBox()
-        self.font_size_combo.addItems([str(i) for i in range(9, 15)])
-        try:
-            current_font_size = int(self.settings.get_font_size())
-            if 9 <= current_font_size <= 14:
-                self.font_size_combo.setCurrentIndex(current_font_size - 9)
-            else:
-                self.font_size_combo.setCurrentIndex(3)  # Default to 12
-        except Exception:
-            self.font_size_combo.setCurrentIndex(3)
-        form.addRow(self.tr("Font size:"), self.font_size_combo)
-
-        vbox.addLayout(form)
-
+        
+        # Create tab widget
+        self._tab_widget = QTabWidget(self)
+        
+        # Create tabs
+        self._create_general_tab()
+        self._create_backup_tab()
+        
+        vbox.addWidget(self._tab_widget)
+        
+        # Buttons
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -661,27 +640,94 @@ class SettingsDialog(BaseDialog):
         bb.rejected.connect(self.reject)
         vbox.addWidget(bb)
         self._button_box = bb
+    
+    def _create_general_tab(self):
+        """Create General settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        group = QGroupBox(self.tr("General"))
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        # Language
+        self.language_selector = LanguageSelector(self)
+        form.addRow(self.tr("Language:"), self.language_selector)
+        
+        # Theme
+        self.theme_combo = QComboBox()
+        themes = self._get_available_themes()
+        for theme_id, theme_name in themes:
+            self.theme_combo.addItem(theme_name, theme_id)
+        current_theme = self.settings.get_theme()
+        index = self.theme_combo.findData(current_theme)
+        if index >= 0:
+            self.theme_combo.setCurrentIndex(index)
+        form.addRow(self.tr("Theme:"), self.theme_combo)
+        
+        # Font size
+        self.font_size_combo = QComboBox()
+        self.font_size_combo.addItems([str(i) for i in range(9, 15)])
+        try:
+            current_font_size = int(self.settings.get_font_size())
+            if 9 <= current_font_size <= 14:
+                self.font_size_combo.setCurrentIndex(current_font_size - 9)
+            else:
+                self.font_size_combo.setCurrentIndex(3)
+        except Exception:
+            self.font_size_combo.setCurrentIndex(3)
+        form.addRow(self.tr("Font size:"), self.font_size_combo)
+        
+        group.setLayout(form)
+        layout.addWidget(group)
+        layout.addStretch()
+        
+        self._tab_widget.addTab(tab, self.tr("General"))
+    
+    def _create_backup_tab(self):
+        """Create Backup settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        group = QGroupBox(self.tr("Backup"))
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        # Max backups
+        self.max_backups_combo = QComboBox()
+        self.max_backups_combo.addItems([str(i) for i in range(1, 21)])
+        try:
+            current = int(self.settings.get_max_backups())
+            if 1 <= current <= 20:
+                self.max_backups_combo.setCurrentIndex(current - 1)
+            else:
+                self.max_backups_combo.setCurrentIndex(9)
+        except Exception:
+            self.max_backups_combo.setCurrentIndex(9)
+        form.addRow(self.tr("Max backups:"), self.max_backups_combo)
+        
+        group.setLayout(form)
+        layout.addWidget(group)
+        layout.addStretch()
+        
+        self._tab_widget.addTab(tab, self.tr("Backup"))
+    
+    
+    def _get_available_themes(self):
+        """Get available themes from parent window."""
+        if hasattr(self.parent(), 'get_available_themes'):
+            return self.parent().get_available_themes()
+        return [("light", "Light"), ("dark", "Dark")]
 
     def retranslateUi(self) -> None:
         self.setWindowTitle(self.tr("Settings"))
-        if self._form_layout is not None:
-            # Language selector label
-            if self.language_selector is not None:
-                lang_label = self._form_layout.labelForField(self.language_selector)
-                if lang_label is not None and hasattr(lang_label, 'setText'):
-                    lang_label.setText(self.tr("Language:"))
-            # Max backups label
-            if self.max_backups_combo is None:
-                return
-            max_label = self._form_layout.labelForField(self.max_backups_combo)
-            if max_label is not None and hasattr(max_label, 'setText'):
-                max_label.setText(self.tr("Max backups:"))
-            # Font size label
-            if self.font_size_combo is None:
-                return
-            font_label = self._form_layout.labelForField(self.font_size_combo)
-            if font_label is not None and hasattr(font_label, 'setText'):
-                font_label.setText(self.tr("Font size:"))
+        
+        # Retranslate tab titles
+        if self._tab_widget is not None:
+            self._tab_widget.setTabText(0, self.tr("General"))
+            self._tab_widget.setTabText(1, self.tr("Backup"))
+        
+        # Retranslate buttons
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
@@ -693,28 +739,32 @@ class SettingsDialog(BaseDialog):
     def _on_accept(self):
         """Persist settings changes."""
         try:
-            # Save user-selected values from the combo boxes
-            max_backups = int(self.max_backups_combo.currentText())
-            self.settings.set_max_backups(max_backups)
-
-            font_size = int(self.font_size_combo.currentText())
-            self.settings.set_font_size(font_size)
-
-            # Reapply current theme to propagate the updated font size
-            # ThemeStylesheetService now reads user font size from settings and generates QSS
-            if self.theme_ctrl:
-                current_theme = self.settings.get_theme()
-                if current_theme:
-                    # Clear cache and apply theme again
-                    self.theme_ctrl.clear_cache()
-                    self.theme_ctrl.apply(current_theme)
+            # General tab
+            if self.theme_combo is not None:
+                theme_id = self.theme_combo.currentData()
+                if theme_id and theme_id != self.settings.get_theme():
+                    self.settings.set_theme(theme_id)
+                    if self.theme_ctrl:
+                        self.theme_ctrl.clear_cache()
+                        self.theme_ctrl.apply(theme_id)
+            
+            if self.font_size_combo is not None:
+                font_size = int(self.font_size_combo.currentText())
+                self.settings.set_font_size(font_size)
+            
+            # Backup tab
+            if self.max_backups_combo is not None:
+                max_backups = int(self.max_backups_combo.currentText())
+                self.settings.set_max_backups(max_backups)
             
             # Apply font size to tree and table widgets
-            if self.parent() and hasattr(self.parent(), 'apply_font_size_to_content'):
-                try:
-                    self.parent().apply_font_size_to_content(font_size)
-                except Exception as e:
-                    logger.debug("Failed to apply font size to content: %s", e)
+            if self.font_size_combo is not None:
+                font_size = int(self.font_size_combo.currentText())
+                if self.parent() and hasattr(self.parent(), 'apply_font_size_to_content'):
+                    try:
+                        self.parent().apply_font_size_to_content(font_size)
+                    except Exception as e:
+                        logger.debug("Failed to apply font size to content: %s", e)
 
             self.accept()
 

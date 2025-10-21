@@ -6,7 +6,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from PyQt6.QtCore import QModelIndex
+from PyQt6.QtCore import QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 
 from app.views.models.structure_tree_model import StructureTreeModel
@@ -23,47 +23,50 @@ class TestTreeUpdateSmooth:
         yield model
         model.cleanup()
 
-    def test_insert_section_no_blocking_icon_load(self, model, qtbot):
-        """Проверяет, что вставка секции не блокирует GUI загрузкой иконки."""
-        # Подготовка: мокируем icon_cache чтобы отследить синхронные вызовы
-        with patch("app.views.models.structure_tree_model.icon_cache") as mock_cache:
-            mock_cache.get_icon = Mock(return_value=QIcon())
-            
-            # Вставляем секцию с иконкой
-            section_data = {
-                "id": 1,
-                "name": "Test Section",
-                "icon": "path/to/icon.png"
-            }
-            
-            # Вставка должна быть мгновенной (не блокирующей)
-            model.insert_sections(0, [section_data])
-            
-            # icon_cache.get_icon НЕ должен вызываться синхронно
-            # (только асинхронно через IconLoader)
-            mock_cache.get_icon.assert_not_called()
+    def test_insert_section_theme_icon_loaded_immediately(self, model, qtbot):
+        """���������, ��� ������� ������ ���������� ������� ��������."""
+        section_data = {
+            "id": 1,
+            "name": "Test Section",
+            "icon": "folder",
+        }
 
-    def test_insert_category_no_blocking_icon_load(self, model, qtbot):
-        """Проверяет, что вставка категории не блокирует GUI загрузкой иконки."""
-        # Подготовка: создаем секцию
+        with (
+            patch(
+                "app.utils.ui.icon.icon_operations.cache_proxy.icon_cache.get_icon",
+                return_value=QIcon(),
+            ) as mock_get_icon,
+            patch.object(model, "_start_icon_loading") as mock_start,
+        ):
+            model.insert_sections(0, [section_data])
+
+        mock_get_icon.assert_called_once()
+        assert mock_get_icon.call_args.args[0] == "folder"
+        assert mock_get_icon.call_args.kwargs.get("source") == "tree_model_sync"
+        mock_start.assert_not_called()
+
+    def test_insert_category_user_icon_loaded_from_path(self, model, qtbot, tmp_path):
+        """���������, ��� ������������ ������ ������������ ������� ��������."""
+        from PyQt6.QtGui import QPixmap
+
+        user_icon = tmp_path / "User Icon.png"
+        pix = QPixmap(16, 16)
+        pix.fill(Qt.GlobalColor.blue)
+        assert pix.save(str(user_icon), "PNG")
+
         section_data = {"id": 1, "name": "Section", "icon": None}
         model.insert_sections(0, [section_data])
-        
-        with patch("app.views.models.structure_tree_model.icon_cache") as mock_cache:
-            mock_cache.get_icon = Mock(return_value=QIcon())
-            
-            # Вставляем категорию с иконкой
-            category_data = {
-                "id": 10,
-                "name": "Test Category",
-                "icon": "path/to/icon.png"
-            }
-            
-            # Вставка должна быть мгновенной
+
+        category_data = {
+            "id": 10,
+            "name": "Test Category",
+            "icon": str(user_icon),
+        }
+
+        with patch.object(model, "_start_icon_loading") as mock_start:
             model.insert_categories(1, 0, [category_data])
-            
-            # icon_cache.get_icon НЕ должен вызываться синхронно
-            mock_cache.get_icon.assert_not_called()
+
+        mock_start.assert_not_called()
 
     def test_no_duplicate_icon_loading(self, model, qtbot):
         """Проверяет, что иконка не загружается повторно если уже загружена."""

@@ -8,7 +8,7 @@ elements via the `widgets` dictionary.
 import logging
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QSize, Qt
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -34,6 +34,24 @@ logger = logging.getLogger(__name__)
 
 _TR_CONTEXT = "LinkDialogUI"
 
+_LINK_TYPE_FALLBACK_LABELS: dict[str, str] = {
+    "web": QT_TRANSLATE_NOOP("LinkDialogUI", "Web link"),
+    "file": QT_TRANSLATE_NOOP("LinkDialogUI", "File"),
+    "program": QT_TRANSLATE_NOOP("LinkDialogUI", "Application"),
+    "script": QT_TRANSLATE_NOOP("LinkDialogUI", "Script"),
+    "chromeapp": QT_TRANSLATE_NOOP("LinkDialogUI", "Chrome App"),
+    "folder": QT_TRANSLATE_NOOP("LinkDialogUI", "Folder"),
+}
+
+# lupdate hint for dynamic link type labels
+if False:  # pragma: no cover
+    QCoreApplication.translate("LinkDialogUI", "Web link")
+    QCoreApplication.translate("LinkDialogUI", "File")
+    QCoreApplication.translate("LinkDialogUI", "Application")
+    QCoreApplication.translate("LinkDialogUI", "Script")
+    QCoreApplication.translate("LinkDialogUI", "Chrome App")
+    QCoreApplication.translate("LinkDialogUI", "Folder")
+
 
 def _tr(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
@@ -49,6 +67,8 @@ class LinkDialogUI:
         """
         self.parent: QWidget = parent
         self.widgets: dict[str, QWidget] = {}
+        self._link_type_titles: dict[str, str] = {}
+        self._type_buttons: dict[str, QToolButton] = {}
 
     def build_ui(self, link_types: list[tuple[str, str]]) -> None:
         """Build the UI.
@@ -81,6 +101,8 @@ class LinkDialogUI:
         self, container: QVBoxLayout, link_types: list[tuple[str, str]]
     ) -> None:
         """Create link type section and add it to container."""
+        self._link_type_titles.clear()
+        self._type_buttons.clear()
         self.lbl_link_type = QLabel(_tr("Link type:"))
         container.addWidget(self.lbl_link_type)
         self.type_group = QButtonGroup(self.parent)
@@ -89,7 +111,7 @@ class LinkDialogUI:
         for code, txt in link_types:
             btn = QToolButton()
             btn.setCheckable(True)
-            btn.setText(txt)
+            self._link_type_titles[code] = txt
             # Enable hover events similar to sphere/category buttons
             try:
                 btn.setMouseTracking(True)
@@ -113,10 +135,12 @@ class LinkDialogUI:
             )
             self.type_group.addButton(btn)
             btn.setProperty("link_type", code)
+            self._type_buttons[code] = btn
             hl_type.addWidget(btn, 1)
 
         container.addLayout(hl_type)
         self.widgets["type_group"] = self.type_group
+        self._apply_link_type_translations()
 
     def _build_form_section(self, container: QVBoxLayout) -> None:
         """Create form section (URL/Name/Arguments/Hierarchy/Notes/Favorite)."""
@@ -138,7 +162,7 @@ class LinkDialogUI:
         hl_path = QHBoxLayout()
         hl_path.addWidget(self.url_le, 1)
 
-        self.browse_btn = QPushButton(_tr("Browse…"))
+        self.browse_btn = QPushButton(_tr("Browse..."))
         self.browse_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.browse_btn)
 
@@ -304,6 +328,7 @@ class LinkDialogUI:
         try:
             if hasattr(self, "lbl_link_type") and self.lbl_link_type is not None:
                 self.lbl_link_type.setText(_tr("Link type:"))
+            self._apply_link_type_translations()
         except Exception:
             pass
 
@@ -311,7 +336,7 @@ class LinkDialogUI:
         """Retranslate path row buttons."""
         try:
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
-                self.browse_btn.setText(_tr("Browse…"))
+                self.browse_btn.setText(_tr("Browse..."))
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
                 if not self.profile_btn.text() or self.profile_btn.text() == _tr(
                     "Profile"
@@ -401,3 +426,25 @@ class LinkDialogUI:
         self._retranslate_hierarchy()
         self._retranslate_notes_and_favorites()
         self._retranslate_buttons()
+
+    def _apply_link_type_translations(self) -> None:
+        """Apply translations to link type buttons."""
+        try:
+            for code, btn in self._type_buttons.items():
+                if btn is None:
+                    continue
+                original = self._link_type_titles.get(code, btn.text())
+                btn.setText(self._translate_link_type_title(code, original))
+        except Exception:
+            pass
+
+    def _translate_link_type_title(self, code: str, original: str) -> str:
+        """Return translated title for link type with graceful fallback."""
+        label_key = _LINK_TYPE_FALLBACK_LABELS.get(code)
+        if label_key:
+            translated = _tr(label_key)
+            if translated != label_key or not original or original == label_key:
+                return translated
+        # Fallback: try translating original value; if unavailable, return original
+        translated_original = _tr(original) if original else ""
+        return translated_original if translated_original else original

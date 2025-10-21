@@ -61,7 +61,9 @@ class StructureAsyncService(QObject):
             pass  # Сигнал уже отключен
 
         try:
-            getattr(self.async_operations, 'shutdown', lambda **kw: None)(timeout=timeout)
+            getattr(self.async_operations, "shutdown", lambda **_: None)(
+                timeout=timeout
+            )
         except AttributeError:
             pass
         except Exception as exc:  # pragma: no cover - defensive

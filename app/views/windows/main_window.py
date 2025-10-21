@@ -244,12 +244,12 @@ class MainWindow(QMainWindow, ReTranslatable):
         redo_action = getattr(self, "redo_action", None)
         if redo_action is not None:
             redo_action.setText(self.tr("&Redo"))
+        switch_action = getattr(self, "switch_sphere_action", None)
+        if switch_action is not None:
+            switch_action.setText(self.tr("Switch Sphere (F6)"))
+            switch_action.setToolTip(self.tr("Switch to next available sphere"))
+        # switch_sphere_button now handled by retranslate_bottom_panel (unified)
         retranslate_bottom_panel(self)
-
-    def _init_spheres_ui(self) -> None:
-        """Initialize the spheres UI asynchronously."""
-        if self.spheres_controller is not None:
-            self.spheres_controller.init()
 
     def show_link_dialog(
         self,
@@ -269,10 +269,6 @@ class MainWindow(QMainWindow, ReTranslatable):
     ) -> bool:
         """Legacy convenience wrapper used by menu/tiles actions."""
         return self.show_link_dialog(link=link, category_id=category_id)
-
-    def _get_selected_links(self) -> list["LinkDict"]:
-        """Return the list of selected links."""
-        return self.facade.get_selected_links() if self.facade else []
 
     def _edit_selected_link(self) -> bool:
         """Edit the currently selected link."""

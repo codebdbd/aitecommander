@@ -66,12 +66,16 @@ class DragDropHandler(TreeHandlerBase):
 
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         if mime.hasFormat(app_config.get_category_mime_type()):
-            self._handle_category_drop_index(mime, target_index)
-            event.accept()
+            if self._handle_category_drop_index(mime, target_index):
+                event.accept()
+            else:
+                event.ignore()
             return
         if mime.hasFormat(app_config.get_link_mime_type()):
-            self._handle_link_drop_index(mime, target_index)
-            event.accept()
+            if self._handle_link_drop_index(mime, target_index):
+                event.accept()
+            else:
+                event.ignore()
             return
         if event.source() == self.tree_widget:
             self._handle_internal_drop_event_index(event)
@@ -232,16 +236,20 @@ class DragDropHandler(TreeHandlerBase):
 
     def _try_atomic_move(self, category_ids, section_id, base_row):
         """Try atomic command for multiple moves."""
-        if len(category_ids) > 1 and hasattr(
-            self.tree_widget, "move_operations_handler"
-        ):
+        handler = getattr(self.tree_widget, "move_operations_handler", None)
+        if len(category_ids) > 1 and handler:
             try:
-                self.tree_widget.move_operations_handler.execute_move_categories_command(
+                handler.execute_move_categories_command(
                     [int(i) for i in category_ids], int(section_id), int(base_row)
                 )
                 return len(category_ids)
             except Exception:
-                pass
+                logger.debug(
+                    "Atomic move via command failed for %s -> %s",
+                    category_ids,
+                    section_id,
+                    exc_info=True,
+                )
         return None
 
     def _begin_batch_operation(self, structure_business):
@@ -401,15 +409,19 @@ class DragDropHandler(TreeHandlerBase):
                 pass
             event.ignore()
 
-    def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> None:
-        """Moving one or multiple categories (from tiles) to section for QTreeView."""
+    def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> bool:
+        """Moving one or multiple categories (from tiles) to section for QTreeView.
+
+        Returns:
+            bool: True if move request was executed, False otherwise.
+        """
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_category_mime_type())
         if not ids:
             logger.warning("Failed to extract category ID from MIME data")
-            return
+            return False
         ttuple = get_tree_tuple(target_index, 0)
         if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
-            return
+            return False
         section_id = int(ttuple[1])
         model = getattr(self.tree_widget, "model", lambda: None)()
         base_row = (
@@ -430,24 +442,35 @@ class DragDropHandler(TreeHandlerBase):
             moved_count = 0
         if moved_count > 1:
             logger.info("Moved categories: %s to section %s", moved_count, section_id)
+        return moved_count > 0
 
-    def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> None:
-        """Moving links to category (QTreeView)."""
+    def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> bool:
+        """Moving links to category (QTreeView).
+
+        Returns:
+            bool: True if move was requested, False otherwise.
+        """
         ttuple = get_tree_tuple(target_index, 0)
         if not (ttuple and ttuple[0] == "category"):
-            return
+            return False
         link_ids = self._extract_link_ids_from_mime(mime)
         if not link_ids:
-            return
+            return False
         new_category_id = ttuple[1]
         if not isinstance(new_category_id, int):
-            return
+            return False
         try:
             self.tree_widget.move_operations_handler.execute_move_links_command(
                 link_ids, new_category_id
             )
         except Exception:
-            pass
+            logger.warning(
+                "Failed to schedule move of links %s to category %s",
+                link_ids,
+                new_category_id,
+                exc_info=True,
+            )
+            return False
         try:
             self.tree_widget.itemsMoved.emit(
                 {
@@ -457,7 +480,10 @@ class DragDropHandler(TreeHandlerBase):
                 }
             )
         except Exception:
-            pass
+            logger.debug(
+                "Failed to emit itemsMoved after moving links %s", link_ids, exc_info=True
+            )
+        return True
 
     def _extract_link_ids_from_mime(self, mime) -> list[int]:
         """Extracts link IDs from MIME data."""

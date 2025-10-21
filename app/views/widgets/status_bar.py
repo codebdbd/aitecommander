@@ -2,7 +2,7 @@
 
 import logging
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data import app_config
@@ -12,6 +12,25 @@ from i18n.locale_utils import format_number
 logger = logging.getLogger(__name__)
 
 _TR_CONTEXT = "StatusBar"
+
+_STATUS_BAR_STRINGS = [
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Ready"),
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Path: "),
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Database: connected"),
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Database: disconnected"),
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Links: %1"),
+    QT_TRANSLATE_NOOP(_TR_CONTEXT, "Categories: %1"),
+]
+
+# Hints for pylupdate6: ensure translation catalogs register these texts even though
+# we resolve them dynamically at runtime.
+if False:  # pragma: no cover
+    QCoreApplication.translate("StatusBar", "Ready")
+    QCoreApplication.translate("StatusBar", "Path: ")
+    QCoreApplication.translate("StatusBar", "Database: connected")
+    QCoreApplication.translate("StatusBar", "Database: disconnected")
+    QCoreApplication.translate("StatusBar", "Links: %1")
+    QCoreApplication.translate("StatusBar", "Categories: %1")
 
 
 def _tr(text: str) -> str:
@@ -261,6 +280,17 @@ def update_status_bar(window) -> None:
     - Update database connection status
     - Build the path of the current structure item and active sphere
     """
+    required_labels = (
+        "links_count_label",
+        "db_status_label",
+        "path_label",
+    )
+    for attr in required_labels:
+        label = getattr(window, attr, None)
+        if label is None:
+            logger.debug("StatusBar: skipping update, missing '%s'", attr)
+            return
+
     try:
         _update_counter(window)
         _update_db_status(window)

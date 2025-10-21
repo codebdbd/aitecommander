@@ -14,7 +14,11 @@ class PathConfig(BaseConfig):
     def get_base_path(self) -> Path:
         """Return the application base path (PyInstaller aware)."""
         if getattr(sys, "frozen", False):
-            return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+            base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+            app_dir = base / "app"
+            if app_dir.exists():
+                return app_dir
+            return base
         else:
             return Path(__file__).parent.parent
 

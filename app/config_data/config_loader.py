@@ -1,6 +1,7 @@
 """Primary entry point that wires together specialized configuration modules."""
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -51,12 +52,54 @@ class AppConfig:
 
     def _load_config(self) -> dict[str, Any]:
         """Load configuration from a JSON file."""
-        if not self._config_path.exists():
+        # 1) Try pkgutil (works when bundled with PyInstaller as package data)
+        try:
+            from pkgutil import get_data
+
+            raw = get_data(__package__, "app_config.json")
+            if raw is not None:
+                return json.loads(raw.decode("utf-8"))
+        except Exception:
+            pass
+
+        # 2) Try importlib.resources (handles namespace/zip packages)
+        try:
+            from importlib import resources
+
+            cfg_resource = resources.files(__package__).joinpath("app_config.json")
+            with resources.as_file(cfg_resource) as cfg_path:
+                with cfg_path.open("r", encoding="utf-8") as handle:
+                    return json.load(handle)
+        except Exception:
+            pass
+
+        # 3) Direct filesystem path (development mode)
+        try:
+            with open(self._config_path, encoding="utf-8") as handle:
+                return json.load(handle)
+        except (FileNotFoundError, PermissionError):
+            pass
+
+        # 4) If running from a PyInstaller one-file bundle, data may live under _MEIPASS
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            candidate = (
+                Path(sys._MEIPASS) / "app" / "config_data" / "app_config.json"  # type: ignore[attr-defined]
+            )
+            try:
+                with candidate.open("r", encoding="utf-8") as handle:
+                    return json.load(handle)
+            except (FileNotFoundError, PermissionError):
+                pass
+
+        # 5) Fallback to in-memory payload as last resort
+        try:
+            from .app_config_payload import APP_CONFIG_JSON
+
+            return json.loads(APP_CONFIG_JSON)
+        except Exception as exc:
             raise FileNotFoundError(
                 f"Configuration file not found: {self._config_path}"
-            )
-        with open(self._config_path, encoding="utf-8") as f:
-            return json.load(f)
+            ) from exc
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """Return a value from the raw configuration via dotted key path."""

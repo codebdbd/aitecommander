@@ -2,7 +2,11 @@
 
 import logging
 import shutil
+import time
 from pathlib import Path
+
+from app.models.managers.backup_manager import purge_old_backups
+from app.models.types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
 
 from .base_worker import DatabaseWorker
 
@@ -65,21 +69,15 @@ class BackupWorker(DatabaseWorker):
         from app.config_data import app_config
         max_backups = app_config.settings.get_max_backups()
 
-        # Удаляем старые backup файлы (оставляем только последние N)
-        backup_files = sorted(
-            self.backup_dir.glob("osteen_path_*.db"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
+        purge_old_backups(
+            self.backup_dir,
+            max_backups,
+            keep=backup_path,
+            attempts=BACKUP_RETRY_ATTEMPTS,
+            delay=BACKUP_RETRY_DELAY,
+            logger=logger,
+            sleeper=time.sleep,
         )
-
-        for old_backup in backup_files[max_backups:]:  # Оставляем max_backups последних
-            try:
-                old_backup.unlink()
-                logger.info("Удален старый backup: %s", old_backup.name)
-            except Exception as e:
-                logger.warning(
-                    "Не удалось удалить старый backup %s: %s", old_backup.name, e
-                )
 
         self.emit_progress(3, 3, "Резервное копирование завершено")
 

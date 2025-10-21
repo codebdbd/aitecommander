@@ -329,16 +329,3 @@ class CategoryTiles(QWidget):
         """Get total number of categories."""
         model = getattr(self, "_model", None)
         return int(model.rowCount()) if model else 0
-
-    # Legacy API: emit signals only
-    def _execute_edit_category(self, category_id: int) -> None:
-        logger.debug("Emit editRequested for ID %s", category_id)
-        self.editRequested.emit(category_id)
-
-    def _execute_delete_category(self, category_id: int) -> None:
-        logger.debug("Emit deleteRequested for ID %s", category_id)
-        self.deleteRequested.emit(category_id)
-
-    def _execute_add_link(self, category_id: int) -> None:
-        logger.debug("Emit addLinkRequested for ID %s", category_id)
-        self.addLinkRequested.emit(category_id)
