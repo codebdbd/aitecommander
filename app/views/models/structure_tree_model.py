@@ -20,15 +20,12 @@ from PyQt6.QtGui import QIcon, QPixmap
 from app.utils.ui.icon.icon_resolver import resolve_icon_path
 from app.utils.ui.icon.validation import _validate_icon_name
 
-# Tree node types
 NodeType = str  # "section" | "category" | "root"
 
 logger = logging.getLogger(__name__)
 
-
 if TYPE_CHECKING:  # pragma: no cover - imported for typing only
     from PyQt6.QtCore import QMimeData
-
 
 def _coerce_optional_int(value: Any) -> int | None:
     """Return ``int(value)`` when the input can be safely coerced, else ``None``."""
@@ -41,7 +38,6 @@ def _coerce_optional_int(value: Any) -> int | None:
         except (TypeError, ValueError):
             return None
     return None
-
 
 @dataclass(eq=False)
 class TreeNode:
@@ -62,10 +58,8 @@ class TreeNode:
             return -1
 
     def __hash__(self) -> int:
-        # Identity-based hash allows using nodes as dict keys
-        # (e.g., grouping by parent) and is safe for mutable objects
-        return id(self)
 
+        return id(self)
 
 class IconLoader(QRunnable):
     """Фоновый загрузчик иконок для узлов дерева.
@@ -86,7 +80,7 @@ class IconLoader(QRunnable):
         self._on_loaded = on_loaded
         self._on_error = on_error
         self.setAutoDelete(True)
-        # Для совместимости с тестами добавляем атрибуты-заглушки
+
         self.icon_loaded = None
         self.icon_error = None
 
@@ -113,7 +107,6 @@ class IconLoader(QRunnable):
             logger.debug("Icon loading failed for %s: %s", self.icon_path, exc)
             if self._on_error:
                 run_in_gui_thread_sync(lambda: self._on_error(self.node, str(exc)))
-
 
 class _IconPreloadRunnable(QRunnable):
     """Фоновая предзагрузка набора иконок для заполнения кэша."""
@@ -142,7 +135,6 @@ class _IconPreloadRunnable(QRunnable):
 
             run_in_gui_thread_sync(_warmup)
 
-
 class StructureTreeModel(QAbstractItemModel):
     """Hierarchical model for sections/categories structure."""
 
@@ -156,7 +148,6 @@ class StructureTreeModel(QAbstractItemModel):
         self._category_by_id: dict[int, TreeNode] = {}
         self._placeholder_icon = self._create_placeholder_icon()
 
-        # Создаем выделенный пул потоков для изоляции от других компонентов
         self._thread_pool = QThreadPool(self)
         self._thread_pool.setMaxThreadCount(6)  # increase concurrency for icon loading
         try:
@@ -170,7 +161,6 @@ class StructureTreeModel(QAbstractItemModel):
         self._tree_snapshot_icons_ready = False
         self._tree_snapshot_icons_expected = 0
         self._tree_snapshot_icons_warmed = 0
-        # Атрибут `_thread_pool` используется тестами/клиентами для инспекции.
 
     def _create_placeholder_icon(self) -> QIcon:
         """Create a transparent QIcon placeholder to reserve space in the tree."""
@@ -281,7 +271,7 @@ class StructureTreeModel(QAbstractItemModel):
         try:
             icon = icon_cache.get_icon(trimmed, source="tree_model_sync")
         except RuntimeError:
-            # icon_cache enforces GUI thread for QIcon creation; fall back to async path
+
             return None
         except Exception:
             logger.debug(
@@ -470,10 +460,9 @@ class StructureTreeModel(QAbstractItemModel):
         column: int,
         parent: QModelIndex,
     ) -> bool:
-        # DnD handled by view/handler; model does not process drops
+
         return False
 
-    # --- High-level incremental operations (convenient APIs) ---
     def insert_sections(self, row: int, sections: list[dict[str, Any]]) -> None:
         """Вставляет секции в указанную позицию.
         
@@ -486,14 +475,32 @@ class StructureTreeModel(QAbstractItemModel):
         count = len(sections or [])
         if count == 0:
             return
+
+        prepared_sections = []
+        for s in sections:
+            icon_value = s.get("icon")
+            if isinstance(icon_value, QIcon) and not icon_value.isNull():
+                prepared_sections.append((s, icon_value))
+                continue
+
+            icon_path_raw = s.get("icon_path") or s.get("icon")
+            if isinstance(icon_path_raw, str):
+                icon_path = icon_path_raw.strip()
+                if icon_path:
+                    try:
+                        resolved = resolve_icon_path(icon_path)
+                        if resolved:
+                            icon = QIcon(resolved)
+                            if not icon.isNull():
+                                prepared_sections.append((s, icon))
+                                continue
+                    except Exception:
+                        pass
+
+            prepared_sections.append((s, self._placeholder_icon))
+        
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
-        for i, s in enumerate(sections):
-            icon, pending_path, stored_path = self._prepare_icon_fields(
-                s.get("icon"),
-                s.get("icon_path"),
-            )
-            if stored_path is not None:
-                s["icon_path"] = stored_path
+        for i, (s, icon) in enumerate(prepared_sections):
             sec_node = TreeNode(
                 type="section",
                 id=_coerce_optional_int(s.get("id")),
@@ -505,8 +512,6 @@ class StructureTreeModel(QAbstractItemModel):
             self._root.children.insert(row + i, sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if pending_path:
-                    self._start_icon_loading(sec_node, pending_path)
         self.endInsertRows()
 
     def insert_categories(
@@ -529,7 +534,6 @@ class StructureTreeModel(QAbstractItemModel):
         if count == 0:
             return
 
-        # Сначала предзагружаем иконки для новых категорий
         self._preload_category_icons(categories)
 
         self.beginInsertRows(parent_index, row, row + count - 1)
@@ -555,7 +559,6 @@ class StructureTreeModel(QAbstractItemModel):
                 if pending_path:
                     self._start_icon_loading(cat_node, pending_path)
         self.endInsertRows()
-        # endInsertRows() автоматически уведомляет view, дополнительный dataChanged не нужен
 
     def update_item(
         self, item_type: NodeType, item_id: int, data: dict[str, Any]
@@ -697,12 +700,18 @@ class StructureTreeModel(QAbstractItemModel):
         self._category_by_id.clear()
 
         for s in sections or []:
-            section_icon, pending_icon_path, stored_icon_path = self._prepare_icon_fields(
-                s.get("icon"),
-                s.get("icon_path"),
-            )
-            if stored_icon_path is not None:
-                s["icon_path"] = stored_icon_path
+
+            icon_value = s.get("icon")
+            if isinstance(icon_value, QIcon) and not icon_value.isNull():
+                section_icon = icon_value
+            else:
+                icon_path = s.get("icon_path") or s.get("icon")
+                if isinstance(icon_path, str) and icon_path.strip():
+                    section_icon = self._load_icon_immediately_if_safe(icon_path.strip())
+                    if section_icon is None:
+                        section_icon = self._placeholder_icon
+                else:
+                    section_icon = self._placeholder_icon
 
             sec_node = TreeNode(
                 type="section",
@@ -715,8 +724,6 @@ class StructureTreeModel(QAbstractItemModel):
             self._root.children.append(sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
-                if pending_icon_path:
-                    self._start_icon_loading(sec_node, pending_icon_path)
 
             for c in s.get("categories") or []:
                 category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
@@ -750,16 +757,20 @@ class StructureTreeModel(QAbstractItemModel):
             
         with self._active_icon_lock:
             self._active_icon_tasks.discard(id(node))
-        
-        # Обновляем иконку только если узел имеет родителя (не root)
+
         if node.parent is None:
             return
             
         node.icon = icon
 
-        idx = self.createIndex(node.row(), 0, node)
-        if idx.isValid():
-            self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+        try:
+            row = node.parent.children.index(node)
+            idx = self.createIndex(row, 0, node)
+            if idx.isValid():
+                self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+        except (ValueError, AttributeError):
+
+            pass
 
         self.icon_loaded.emit(node, icon)
 
@@ -783,27 +794,22 @@ class StructureTreeModel(QAbstractItemModel):
         """
         if not isinstance(icon_path, str) or not icon_path.strip():
             return
-        
-        # Используем Qt-безопасный способ вызова слотов из фонового потока
-        # Проверка _shutdown в слотах защищает от обращений к удалённому объекту
+
         def on_loaded(n: TreeNode, ic: QIcon) -> None:
             self._on_icon_loaded(n, ic)
 
         def on_error(n: TreeNode, msg: str) -> None:
             self._on_icon_failed(n, msg)
 
-        # CRITICAL: Атомарная проверка shutdown и добавление задачи внутри lock
-        # для предотвращения гонки между cleanup() и start()
         with self._active_icon_lock:
-            # Проверка shutdown внутри lock для предотвращения гонки
+
             if self._shutdown:
                 return
                 
             if id(node) in self._active_icon_tasks:
                 return
             self._active_icon_tasks.add(id(node))
-            
-            # Создание и запуск loader внутри lock
+
             loader = IconLoader(node, icon_path, on_loaded=on_loaded, on_error=on_error)
             try:
                 self._thread_pool.start(loader)
@@ -820,8 +826,7 @@ class StructureTreeModel(QAbstractItemModel):
         self._shutdown = True
         with self._active_icon_lock:
             self._active_icon_tasks.clear()
-        
-        # Ждем завершения активных задач
+
         if self._thread_pool:
             self._thread_pool.waitForDone(5000)
 

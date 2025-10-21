@@ -143,9 +143,20 @@ class StructureModel:
     # Wrappers for business logic compatibility (expected methods)
     # ---------------------------------------------------------------------
     def create_section(self, data: dict[str, Any]) -> Optional[int]:
-        """Creates new section (wrapper for upsert_section)."""
+        """Creates new section (wrapper for upsert_section).
+        
+        Returns:
+            Section ID on success, None on error.
+            
+        Note:
+            Logs ValueError (duplicate) as warning, other errors as error.
+        """
         try:
             return self.upsert_section(data)
+        except ValueError as e:
+            # Duplicate section - user-facing error, not system error
+            self.logger.warning("Duplicate section rejected: %s", e)
+            return None
         except Exception as e:
             self.logger.error("Error creating section: %s", e, exc_info=True)
             return None
@@ -353,6 +364,33 @@ class StructureModel:
                 "Error checking category duplicate '%s' in section %s: %s",
                 category_name,
                 section_id,
+                e,
+                exc_info=True,
+            )
+            raise
+
+    def has_duplicate_section(
+        self, sphere_id: int, section_name: str, exclude_id: Optional[int] = None
+    ) -> bool:
+        """Checks for section duplicate in sphere.
+        
+        Args:
+            sphere_id: Sphere ID to check within
+            section_name: Section name to check
+            exclude_id: Optional section ID to exclude from check (for updates)
+            
+        Returns:
+            True if duplicate exists, False otherwise
+        """
+        try:
+            return self.db.sections.has_duplicate_section(
+                sphere_id, section_name, exclude_id
+            )
+        except Exception as e:
+            self.logger.error(
+                "Error checking section duplicate '%s' in sphere %s: %s",
+                section_name,
+                sphere_id,
                 e,
                 exc_info=True,
             )

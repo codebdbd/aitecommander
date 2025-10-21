@@ -1252,7 +1252,7 @@ It is recommended to create a backup before importing.</source>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="52" />
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="42" />
       <source>Chrome App</source>
-      <translation>Додаток Chrome</translation>
+      <translation>Застосунок Chrome</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="53" />
@@ -1261,62 +1261,88 @@ It is recommended to create a backup before importing.</source>
       <translation>Папка</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="106" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="330" />
       <source>Link type:</source>
-      <translation type="vanished">Тип посилання:</translation>
+      <translation>Тип посилання:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="165" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="339" />
       <source>Browse...</source>
-      <translation type="vanished">Огляд...</translation>
+      <translation>Огляд...</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="169" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="344" />
       <source>Profile</source>
-      <translation type="vanished">Профіль</translation>
+      <translation>Профіль</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="173" />
       <source>URL/Path:</source>
-      <translation type="vanished">URL/Шлях:</translation>
+      <translation>URL/Шлях:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="188" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="358" />
       <source>Name:</source>
       <translation>Назва:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="188" />
       <source>Icon</source>
-      <translation type="vanished">Іконка</translation>
+      <translation>Піктограма</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="203" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="366" />
       <source>Arguments:</source>
-      <translation type="vanished">Аргументи:</translation>
+      <translation>Аргументи:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="220" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="377" />
       <source>Sphere:</source>
-      <translation type="vanished">Сфера:</translation>
+      <translation>Сфера:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="221" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="381" />
       <source>Section:</source>
       <translation>Розділ:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="222" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="385" />
       <source>Category:</source>
-      <translation type="vanished">Категорія:</translation>
+      <translation>Категорія:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="239" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="399" />
       <source>Notes:</source>
-      <translation>Примітки:</translation>
+      <translation>Нотатки:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="242" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="401" />
       <source>Add to favorites</source>
       <translation>Додати до вибраного</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="257" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="414" />
       <source>Save</source>
-      <translation type="vanished">Зберегти</translation>
+      <translation>Зберегти</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="268" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="416" />
       <source>Cancel</source>
-      <translation type="vanished">Скасувати</translation>
+      <translation>Скасувати</translation>
     </message>
-  </context>
+</context>
   <context>
     <name>LinkProcessingMixin</name>
     <message>
@@ -1764,6 +1790,7 @@ It is recommended to create a backup before importing.</source>
   </context>
   <context>
     <name>RestoreDbDialog</name>
+
     <message>
       <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="54" />
       <source>No backups found</source>
@@ -1809,7 +1836,23 @@ It is recommended to create a backup before importing.</source>
       <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
       <translation>Виберіть файл зі списку й натисніть «Відновити». Якщо список порожній, перевірте каталог резервних копій.</translation>
     </message>
-  </context>
+
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+      <source>Restore database from backup</source>
+      <translation>Відновити базу даних із резервної копії</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="367" />
+      <source>Restore</source>
+      <translation>Відновити</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="371" />
+      <source>Cancel</source>
+      <translation>Скасувати</translation>
+    </message>
+</context>
   <context>
     <name>SectionDialog</name>
     <message>

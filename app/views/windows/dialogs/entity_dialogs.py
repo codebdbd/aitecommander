@@ -366,6 +366,24 @@ class SectionDialog(BaseEntityDialog):
             )
             return
 
+        # Check for duplicate section name in sphere
+        section_name = base_result["name"]
+        try:
+            if self.structure_business.has_duplicate_section(
+                sphere_id, section_name, exclude_id=self.entity_id
+            ):
+                self.show_warning(
+                    self.tr("Section with this name already exists in the selected sphere."),
+                    self.tr("Duplicate section name"),
+                    informative_text=self.tr(
+                        "Please choose a different name or edit the existing section."
+                    ),
+                )
+                return
+        except Exception as e:
+            logger.warning("Failed to check duplicate section: %s", e, exc_info=True)
+            # Continue anyway - DB constraint will catch it
+
         self._result = base_result
         self._result["sphere_id"] = sphere_id
         self.accept()

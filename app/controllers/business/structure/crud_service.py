@@ -73,7 +73,6 @@ class StructureCrudService:
             section_data.get("sphere_id") if isinstance(section_data, dict) else None
         )
         try:
-            # ✅ Проверяем sphere_id на None перед использованием
             if sphere_id is not None and isinstance(sphere_id, int):
                 self._owner.item_added.emit("section", int(sphere_id), section_data)
             else:
@@ -158,7 +157,6 @@ class StructureCrudService:
             category_data.get("section_id") if isinstance(category_data, dict) else None
         )
         try:
-            # ✅ Проверяем section_id на None перед использованием
             if section_id is not None and isinstance(section_id, int):
                 self._owner.item_added.emit("category", int(section_id), category_data)
             else:

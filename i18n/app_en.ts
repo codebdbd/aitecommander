@@ -1259,62 +1259,88 @@ It is recommended to create a backup before importing.</translation>
       <translation>Folder</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="106" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="330" />
       <source>Link type:</source>
-      <translation type="vanished">Link type:</translation>
+      <translation>Link type:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="165" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="339" />
       <source>Browse...</source>
-      <translation type="vanished">Browse...</translation>
+      <translation>Browse...</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="169" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="344" />
       <source>Profile</source>
-      <translation type="vanished">Profile</translation>
+      <translation>Profile</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="173" />
       <source>URL/Path:</source>
-      <translation type="vanished">URL/Path:</translation>
+      <translation>URL/Path:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="188" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="358" />
       <source>Name:</source>
-      <translation type="vanished">Name:</translation>
+      <translation>Name:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="188" />
       <source>Icon</source>
-      <translation type="vanished">Icon</translation>
+      <translation>Icon</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="203" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="366" />
       <source>Arguments:</source>
-      <translation type="vanished">Arguments:</translation>
+      <translation>Arguments:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="220" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="377" />
       <source>Sphere:</source>
-      <translation type="vanished">Sphere:</translation>
+      <translation>Sphere:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="221" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="381" />
       <source>Section:</source>
-      <translation type="vanished">Section:</translation>
+      <translation>Section:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="222" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="385" />
       <source>Category:</source>
-      <translation type="vanished">Category:</translation>
+      <translation>Category:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="239" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="399" />
       <source>Notes:</source>
-      <translation type="vanished">Notes:</translation>
+      <translation>Notes:</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="242" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="401" />
       <source>Add to favorites</source>
-      <translation type="vanished">Add to favorites</translation>
+      <translation>Add to favorites</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="257" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="414" />
       <source>Save</source>
-      <translation type="vanished">Save</translation>
+      <translation>Save</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="268" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="416" />
       <source>Cancel</source>
-      <translation type="vanished">Cancel</translation>
+      <translation>Cancel</translation>
     </message>
-  </context>
+</context>
   <context>
     <name>LinkProcessingMixin</name>
     <message>
@@ -1807,7 +1833,22 @@ It is recommended to create a backup before importing.</translation>
       <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
       <translation>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</translation>
     </message>
-  </context>
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+      <source>Restore database from backup</source>
+      <translation>Restore database from backup</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="367" />
+      <source>Restore</source>
+      <translation>Restore</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="371" />
+      <source>Cancel</source>
+      <translation>Cancel</translation>
+    </message>
+</context>
   <context>
     <name>SectionDialog</name>
     <message>

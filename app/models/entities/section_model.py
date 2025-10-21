@@ -32,8 +32,18 @@ class SectionModel(DatabaseBase):
         return row_to_dict(row) if row else None
 
     def insert_section(self, data: dict[str, Any]) -> int:
-        """Inserts new section and returns its ID."""
+        """Inserts new section and returns its ID.
+        
+        Raises:
+            ValueError: If section with same name already exists in sphere.
+        """
         self._validate_required_fields(data, ["name", "sphere_id"], "section")
+
+        # Check for duplicate before insert
+        if self.has_duplicate_section(data["sphere_id"], data["name"]):
+            raise ValueError(
+                f"Section '{data['name']}' already exists in this sphere"
+            )
 
         position = self._get_next_position("section", "sphere_id", data["sphere_id"])
         cursor = self._execute_with_error_handling(
@@ -137,3 +147,37 @@ class SectionModel(DatabaseBase):
         """Returns sphere_id for given section."""
         row = self.get_section_by_id(section_id)
         return row["sphere_id"] if row else None
+
+    def has_duplicate_section(
+        self, sphere_id: int, section_name: str, exclude_id: Optional[int] = None
+    ) -> bool:
+        """Checks for section duplicate in sphere.
+        
+        Args:
+            sphere_id: Sphere ID to check within
+            section_name: Section name to check
+            exclude_id: Optional section ID to exclude from check (for updates)
+            
+        Returns:
+            True if duplicate exists, False otherwise
+        """
+        query = "SELECT COUNT(*) as count FROM section WHERE sphere_id = ? AND name = ? COLLATE NOCASE"
+        try:
+            section_name = str(section_name).strip()
+        except Exception:
+            section_name = str(section_name)
+        params = [sphere_id, section_name]
+
+        if exclude_id is not None:
+            query += " AND id != ?"
+            params.append(exclude_id)
+
+        result_row = self._execute_with_error_handling(
+            query,
+            tuple(params),
+            fetch_method="one",
+        )
+        if result_row:
+            count = result_row["count"] if isinstance(result_row, sqlite3.Row) else result_row.get("count", 0)
+            return int(count) > 0
+        return False

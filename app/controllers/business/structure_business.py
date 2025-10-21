@@ -179,24 +179,25 @@ class StructureBusinessLogic(QObject):
             )
 
     def shutdown(self, timeout: int = 5000) -> None:
-        """Perform a graceful shutdown of internal services."""
+        """Perform a graceful shutdown of internal services.
+        
+        ✅ FIX: Safe signal disconnection with individual error handling.
+        """
         try:
-            # Disconnect only the signals connected within this class instance
-            try:
-                self.item_added.disconnect(self.event_service.on_item_added)
-                self.item_updated.disconnect(self.event_service.on_item_updated)
-                self.item_deleted.disconnect(self.event_service.on_item_deleted)
-                self.items_batch_deleted.disconnect(
-                    self.event_service.on_items_batch_deleted
-                )
-                self.item_added.disconnect(self._handle_structure_mutation)
-                self.item_updated.disconnect(self._handle_structure_mutation)
-                self.item_deleted.disconnect(self._handle_structure_mutation)
-                self.items_batch_deleted.disconnect(self._handle_structure_mutation)
-                self.structure_loaded.disconnect(self._handle_structure_reloaded)
-                self.structure_loaded.disconnect(self._on_structure_loaded_warm_cache)
-            except (TypeError, RuntimeError) as e:
-                self.logger.debug("Error while disconnecting signals: %s", e)
+            # ✅ Disconnect signals individually with error handling for each
+            self._safe_disconnect(self.item_added, self.event_service.on_item_added)
+            self._safe_disconnect(self.item_updated, self.event_service.on_item_updated)
+            self._safe_disconnect(self.item_deleted, self.event_service.on_item_deleted)
+            self._safe_disconnect(
+                self.items_batch_deleted,
+                self.event_service.on_items_batch_deleted
+            )
+            self._safe_disconnect(self.item_added, self._handle_structure_mutation)
+            self._safe_disconnect(self.item_updated, self._handle_structure_mutation)
+            self._safe_disconnect(self.item_deleted, self._handle_structure_mutation)
+            self._safe_disconnect(self.items_batch_deleted, self._handle_structure_mutation)
+            self._safe_disconnect(self.structure_loaded, self._handle_structure_reloaded)
+            self._safe_disconnect(self.structure_loaded, self._on_structure_loaded_warm_cache)
 
             self.async_service.shutdown(timeout=timeout)
             self.cache_manager.invalidate()
@@ -205,6 +206,49 @@ class StructureBusinessLogic(QObject):
             self.logger.error(
                 "Error during StructureBusinessLogic shutdown: %s", exc, exc_info=True
             )
+
+    def _safe_disconnect(self, signal, slot) -> bool:
+        """Safely disconnect a signal from a slot.
+        
+        ✅ FIX: Individual error handling prevents cascade failures.
+        
+        Args:
+            signal: PyQt signal to disconnect
+            slot: Slot/method to disconnect from signal
+            
+        Returns:
+            bool: True if disconnected successfully, False otherwise
+        """
+        try:
+            signal.disconnect(slot)
+            return True
+        except TypeError:
+            # Signal was never connected or already disconnected
+            self.logger.debug(
+                "Signal %s was not connected to %s",
+                getattr(signal, 'signal', signal),
+                getattr(slot, '__name__', slot)
+            )
+            return False
+        except RuntimeError as e:
+            # Underlying C++ object was deleted
+            self.logger.debug(
+                "RuntimeError disconnecting signal %s from %s: %s",
+                getattr(signal, 'signal', signal),
+                getattr(slot, '__name__', slot),
+                e
+            )
+            return False
+        except Exception as e:
+            # Unexpected error - log with full traceback
+            self.logger.warning(
+                "Unexpected error disconnecting signal %s from %s: %s",
+                getattr(signal, 'signal', signal),
+                getattr(slot, '__name__', slot),
+                e,
+                exc_info=True
+            )
+            return False
 
     def set_top_panels_controller(
         self, top_panels_controller: "TopPanelsController"
@@ -592,6 +636,24 @@ class StructureBusinessLogic(QObject):
         """Check whether a duplicate category exists within the section."""
         return self.query_service.has_duplicate_category(
             section_id, category_name, exclude_id
+        )
+
+    @handle_exceptions(default_return=False)
+    def has_duplicate_section(
+        self, sphere_id: int, section_name: str, exclude_id: Optional[int] = None
+    ) -> bool:
+        """Check whether a duplicate section exists within the sphere.
+        
+        Args:
+            sphere_id: Sphere ID to check within
+            section_name: Section name to check
+            exclude_id: Optional section ID to exclude from check (for updates)
+            
+        Returns:
+            True if duplicate exists, False otherwise
+        """
+        return self.structure_model.has_duplicate_section(
+            sphere_id, section_name, exclude_id
         )
 
     def get_current_sphere_id(self) -> Optional[int]:

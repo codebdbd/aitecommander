@@ -119,6 +119,8 @@ class TreeUpdateService(QObject):
 
     def _insert_section(self, data: dict[str, Any]) -> None:
         row_index = self._row_to_index(data.get("row"))
+        if row_index < 0:
+            row_index = self._row_to_index(data.get("position"))
         processed_data = self._build_payload(data)
         try:
             self._model.insert_sections(row_index, [processed_data])
@@ -128,6 +130,8 @@ class TreeUpdateService(QObject):
 
     def _insert_category(self, parent_id: int, data: dict[str, Any]) -> None:
         row_index = self._row_to_index(data.get("row"))
+        if row_index < 0:
+            row_index = self._row_to_index(data.get("position"))
         processed_data = self._build_payload(data)
         try:
             self._model.insert_categories(parent_id, row_index, [processed_data])
