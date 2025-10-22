@@ -471,32 +471,18 @@ class MoveOperationsHandler(TreeHandlerBase):
 
     def _suppress_signals(self, struct):
         """Suppress selection and tree signals."""
+        from app.utils.ui.signal_suppression import suppress_ui_signals
+        
         selection = getattr(struct, "selection_handler", None)
         tree = getattr(struct, "tree", None)
-        if selection is not None:
-            try:
-                selection.begin_suppress_selection()
-            except Exception:
-                pass
-        if tree is not None:
-            try:
-                tree.blockSignals(True)
-            except Exception:
-                pass
-        return selection, tree
+        selection_state, tree_state = suppress_ui_signals(selection, tree)
+        return selection, tree, selection_state, tree_state
 
-    def _restore_signals(self, selection, tree):
+    def _restore_signals(self, selection, tree, selection_state=True, tree_state=True):
         """Restore selection and tree signals."""
-        if tree is not None:
-            try:
-                tree.blockSignals(False)
-            except Exception:
-                pass
-        if selection is not None:
-            try:
-                selection.end_suppress_selection()
-            except Exception:
-                pass
+        from app.utils.ui.signal_suppression import restore_ui_signals
+        
+        restore_ui_signals(selection, tree, selection_state, tree_state)
 
     def _emit_section_selected(self, main_win, section_id):
         """Emit section_selected signal with suppressed UI updates."""

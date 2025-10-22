@@ -27,21 +27,9 @@ class ImportStructureWorker(DatabaseWorker):
 
     def _count_total_items(self, root: list[dict]) -> int:
         """Count total items for progress tracking."""
-        return (
-            len(root)
-            + sum(len((s or {}).get("sections", [])) for s in root)
-            + sum(
-                len((sec or {}).get("categories", []))
-                for s in root
-                for sec in (s or {}).get("sections", [])
-            )
-            + sum(
-                len((cat or {}).get("links", []))
-                for s in root
-                for sec in (s or {}).get("sections", [])
-                for cat in (sec or {}).get("categories", [])
-            )
-        )
+        from app.models.utils.structure_stats import count_total_items
+        
+        return count_total_items(root)
 
     def _prepare_spheres(self, root: list[dict]) -> list[dict]:
         """Extract and normalize sphere data."""

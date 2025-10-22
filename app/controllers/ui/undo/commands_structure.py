@@ -581,18 +581,11 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             tree.blockSignals(True)
         return tree, selection
 
-    def _restore_ui_signals(self, tree, selection):
+    def _restore_ui_signals(self, tree, selection, tree_state=True, selection_state=True):
         """Restore selection and tree signals after batch operations."""
-        if tree is not None:
-            try:
-                tree.blockSignals(False)
-            except Exception:
-                pass
-        if selection is not None:
-            try:
-                selection.end_suppress_selection()
-            except Exception:
-                pass
+        from app.utils.ui.signal_suppression import restore_ui_signals
+        
+        restore_ui_signals(selection, tree, selection_state, tree_state)
 
     def _perform_batch_delete(self, business, ids, touched_sections):
         """Perform batch delete operation."""
