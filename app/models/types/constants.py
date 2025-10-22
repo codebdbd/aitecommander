@@ -15,6 +15,7 @@ BACKUP_RETRY_DELAY = 0.1  # Delay between attempts (seconds)
 # Performance
 PERFORMANCE_WARNING_THRESHOLD_MS = 50.0  # Threshold for slow operation warnings (ms)
 DEFAULT_QUERY_TIMEOUT = 30  # Default query timeout (seconds)
+SLOW_OPERATION_THRESHOLD_MS = 100.0  # Threshold for logging slow operations (ms)
 
 # Default values
 DEFAULT_ICON_PATH = "default.ico"
@@ -22,3 +23,10 @@ EMPTY_ICON_PATH = ""
 
 # Valid tables for position operations
 VALID_POSITION_TABLES = frozenset({"sphere", "section", "category", "link"})
+
+# Identifier validation
+MAX_IDENTIFIER_LENGTH = 64  # SQLite max identifier length
+FORBIDDEN_IDENTIFIER_CHARS = frozenset({'"', "'", ";", "\0", "\n", "\r"})
+
+# Database integrity
+INTEGRITY_CHECK_TIMEOUT_SEC = 10

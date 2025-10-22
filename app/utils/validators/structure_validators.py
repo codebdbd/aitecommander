@@ -1,47 +1,20 @@
+"""Legacy validators module — use app.controllers.structure_modules.validation instead.
+
+Improvement note: This module now serves as a compatibility layer, re-exporting
+validators from the canonical location to avoid breaking existing imports.
+"""
+
 import warnings
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING
+
+# Re-export validators from canonical location
+from app.controllers.structure_modules.validation.validation import (
+    validate_category_data,
+    validate_section_data,
+)
 
 if TYPE_CHECKING:
     from app.controllers.structure_modules import ValidationResult
-    from app.controllers.structure_services.validation import ValidationService
-
-_service: "ValidationService | None" = None
-
-
-def _get_service() -> "ValidationService":
-    """Lazy initialization to avoid circular import."""
-    global _service
-    if _service is None:
-        from app.controllers.structure_services.validation import ValidationService
-
-        _service = ValidationService()
-    return _service
-
-
-def validate_section_data(
-    data: dict,
-    *,
-    section_id: Optional[int] = None,
-    get_sections: Callable[[int], list],
-) -> "ValidationResult":
-    """Section validation via ValidationService. Returns ValidationResult."""
-    return _get_service().validate_section_data(
-        data=data, section_id=section_id, get_sections=get_sections
-    )
-
-
-def validate_category_data(
-    data: dict,
-    *,
-    category_id: Optional[int] = None,
-    has_duplicate_category: Callable[[int, str, Optional[int]], bool],
-) -> "ValidationResult":
-    """Category validation via ValidationService. Returns ValidationResult."""
-    return _get_service().validate_category_data(
-        data=data,
-        category_id=category_id,
-        has_duplicate_category=has_duplicate_category,
-    )
 
 
 # Universal checks for structure entity names (kept as utilities)

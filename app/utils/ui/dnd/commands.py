@@ -390,36 +390,19 @@ class MoveCategoriesCommand(BaseCommand):
             offset += 1
 
         self._old_states = old_states
-
         self._new_states = new_states
 
         self._prepared = True
 
     def _suppress_ui_signals(self, selection, tree):
         """Suppress selection and tree signals during batch operations."""
-        if selection is not None:
-            try:
-                selection.begin_suppress_selection()
-            except Exception:
-                pass
-        if tree is not None:
-            try:
-                tree.blockSignals(True)
-            except Exception:
-                pass
+        from app.utils.ui.signal_suppression import suppress_ui_signals
+        return suppress_ui_signals(selection, tree)
 
-    def _restore_ui_signals(self, selection, tree):
+    def _restore_ui_signals(self, selection, tree, selection_state=True, tree_state=True):
         """Restore selection and tree signals after batch operations."""
-        if tree is not None:
-            try:
-                tree.blockSignals(False)
-            except Exception:
-                pass
-        if selection is not None:
-            try:
-                selection.end_suppress_selection()
-            except Exception:
-                pass
+        from app.utils.ui.signal_suppression import restore_ui_signals
+        restore_ui_signals(selection, tree, selection_state, tree_state)
 
     def _extract_target_info(self, states):
         """Extract target IDs and section info from states."""
