@@ -262,32 +262,62 @@ class Database(QObject):
 
     @property
     def connection(self) -> sqlite3.Connection:
-        """Returns thread-local DB connection. WARNING: All write operations MUST use db_lock for synchronization."""
-        with self._connection_lock:
-            conn = getattr(self.thread_local, "conn", None)
-            if conn is not None:
-                try:
-                    conn.execute("SELECT 1").fetchone()
-                    return conn
-                except Exception:
+        """Returns thread-local DB connection with optimized liveness check. WARNING: All write operations MUST use db_lock for synchronization."""
+        conn = getattr(self.thread_local, "conn", None)
+        
+        # Быстрый путь: соединение уже есть и недавно использовалось
+        if conn is not None:
+            last_used = getattr(self.thread_local, "last_used", 0)
+            now = time.monotonic()
+            
+            # Если использовалось недавно (< 30 сек) — считаем живым
+            if now - last_used < 30:
+                self.thread_local.last_used = now
+                return conn
+            
+            # Проверяем живость только если давно не использовалось
+            try:
+                conn.execute("SELECT 1").fetchone()
+                self.thread_local.last_used = now
+                return conn
+            except Exception:
+                # Соединение мертво — пересоздаем
+                with self._connection_lock:
                     try:
                         conn.close()
                     except Exception:
                         pass
                     try:
                         del self.thread_local.conn
+                        del self.thread_local.last_used
                     except Exception:
                         pass
                     thread_id = threading.get_ident()
                     if thread_id in self._active_connections:
                         del self._active_connections[thread_id]
+        
+        # Создаем новое соединение (только здесь нужен lock)
+        with self._connection_lock:
+            # Double-check: может другой поток уже создал
+            conn = getattr(self.thread_local, "conn", None)
+            if conn is not None:
+                self.thread_local.last_used = time.monotonic()
+                return conn
             
             conn = sqlite3.connect(self.db_path, check_same_thread=False)
             conn.row_factory = sqlite3.Row
+            
+            # Оптимизированные PRAGMA
             conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")  # Вместо FULL для производительности
+            conn.execute("PRAGMA cache_size = -64000")  # 64MB cache
+            conn.execute("PRAGMA temp_store = MEMORY")  # Temp tables в RAM
+            conn.execute("PRAGMA mmap_size = 268435456")  # 256MB mmap
             conn.execute("PRAGMA busy_timeout = 5000")
+            
             self.thread_local.conn = conn
+            self.thread_local.last_used = time.monotonic()
             thread_id = threading.get_ident()
             self._active_connections[thread_id] = conn
             return conn
@@ -377,13 +407,36 @@ class Database(QObject):
         return ids
     
     def _check_ids_exist(self, table_name: str, ids: list[int]) -> None:
-        """Checks that all IDs exist in table. Raises ValidationError if any missing."""
+        """Optimized ID existence check with adaptive batching."""
         if not ids:
             return
         
         safe_table_name = self._escape_identifier(table_name)
         
-        if len(ids) > SQLITE_SAFE_SELECT_CHUNK:
+        # Адаптивный размер батча на основе SQLITE_MAX_COMPOUND_SELECT
+        max_batch = min(500, 32766 // 2)
+        
+        if len(ids) <= max_batch:
+            # Быстрый путь: VALUES для малых/средних списков
+            placeholders = ",".join(f"({id_val})" for id_val in ids)
+            
+            query = f"""
+                WITH input_ids(id) AS (VALUES {placeholders})
+                SELECT input_ids.id 
+                FROM input_ids
+                LEFT JOIN {safe_table_name} t ON input_ids.id = t.id
+                WHERE t.id IS NULL
+            """
+            
+            missing = self.connection.execute(query).fetchall()
+            
+            if missing:
+                missing_ids = [row["id"] for row in missing]
+                raise ValidationError(
+                    f"Records with ID not found: {missing_ids} in table {table_name}"
+                )
+        else:
+            # Для больших списков: temp table (эффективнее для 10000+ ID)
             with self.connection:
                 self.connection.execute(
                     "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id INTEGER PRIMARY KEY)"
@@ -401,23 +454,11 @@ class Database(QObject):
                     
                     if missing:
                         missing_ids = [row["id"] for row in missing]
-                        raise ValidationError(f"Records with ID not found: {missing_ids} in table {table_name}")
+                        raise ValidationError(
+                            f"Records with ID not found: {missing_ids} in table {table_name}"
+                        )
                 finally:
                     self.connection.execute("DELETE FROM _check_ids")
-        else:
-            existing_ids = set()
-            for s in range(0, len(ids), SQLITE_SAFE_SELECT_CHUNK):
-                part = ids[s : s + SQLITE_SAFE_SELECT_CHUNK]
-                placeholders = ",".join(["?"] * len(part))
-                rows = self.connection.execute(
-                    f"SELECT id FROM {safe_table_name} WHERE id IN ({placeholders})",
-                    tuple(part)
-                ).fetchall()
-                existing_ids.update(row["id"] for row in rows)
-            
-            if len(existing_ids) != len(ids):
-                missing_ids = [_id for _id in ids if _id not in existing_ids]
-                raise ValidationError(f"Records with ID not found: {missing_ids} in table {table_name}")
     
     def _escape_identifier(self, identifier: str) -> str:
         """Escapes SQL identifier to prevent injection. Returns quoted identifier."""
@@ -594,17 +635,20 @@ class Database(QObject):
                 except Exception as checkpoint_err:
                     logger.warning("Error WAL checkpoint when closing: %s", checkpoint_err, exc_info=True)
                 self.thread_local.conn.close()
-                del self.thread_local.conn
-                with self._connection_lock:
-                    if thread_id in self._active_connections:
-                        del self._active_connections[thread_id]
-                logger.debug("Database connection closed")
+            del self.thread_local.conn
+            
+            if hasattr(self.thread_local, "last_used"):
+                del self.thread_local.last_used
+            
+            with self._connection_lock:
+                if thread_id in self._active_connections:
+                    del self._active_connections[thread_id]
+            logger.debug("Database connection closed")
         except Exception as e:
             logger.error("Error closing connection: %s", e, exc_info=True)
 
     def detect_case_insensitive_duplicates(self) -> dict[str, list[dict[str, Any]]]:
         return self.duplicate_resolver.detect_case_insensitive_duplicates()
-
     def resolve_case_insensitive_duplicates(self, strategy: str = "rename") -> dict[str, int]:
         return self.duplicate_resolver.resolve_case_insensitive_duplicates(strategy)
 
