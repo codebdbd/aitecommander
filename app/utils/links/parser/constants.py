@@ -11,9 +11,11 @@ except Exception:
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/125.0.0.0 Safari/537.36"
+    "Chrome/131.0.0.0 Safari/537.36"  # Updated to latest Chrome version
 )
-TIMEOUT = 8.0  # Increased for more robust fetching under slow/CF-protected sites
+TIMEOUT = 8.0  # Increased timeout for slow sites (was 3.0)
+HTTP_RETRIES = 3  # Number of retry attempts for temporary errors
+HTTP_RETRY_BACKOFF = 0.5  # Exponential backoff factor (0.5s, 1s, 2s)
 CACHE_TTL = 7 * 24 * 3600
 SHORT_NEGATIVE_TTL = 3600  # 1 hour for negative cache (timeouts, 5xx)
 MEDIUM_NEGATIVE_TTL = 4 * 3600  # 4 hours for 4xx
@@ -41,6 +43,8 @@ logger.setLevel(logging.DEBUG)
 __all__ = [
     "USER_AGENT",
     "TIMEOUT",
+    "HTTP_RETRIES",
+    "HTTP_RETRY_BACKOFF",
     "CACHE_TTL",
     "SHORT_NEGATIVE_TTL",
     "MEDIUM_NEGATIVE_TTL",

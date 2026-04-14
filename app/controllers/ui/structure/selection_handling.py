@@ -1,13 +1,21 @@
 # app/controllers/structure/selection_handling.py
 import logging
+import time
 from typing import Optional
 
-from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QObject, pyqtSlot
+from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
+    QCoreApplication,
+    QItemSelectionModel,
+    QModelIndex,
+    QObject,
+    pyqtSlot,
+)
 
 from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
 )
-from app.utils.db.synchronization import signal_guard
+from app.utils.ui.db_sync import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple
 
 from .selection_actions import SelectionActions
@@ -16,6 +24,16 @@ from .selection_workflow_service import SelectionWorkflowService
 # Use string literals "section" and "category"
 
 logger = logging.getLogger(__name__)
+
+_SELECTION_CONTEXT = "SelectionHandling"
+_SELECTION_WARNING_TITLE = QT_TRANSLATE_NOOP(_SELECTION_CONTEXT, "Warning")
+_SELECTION_WARN_INFO = QT_TRANSLATE_NOOP(
+    _SELECTION_CONTEXT, "Check the correctness of actions and try again."
+)
+
+
+def _tr_selection(text: str) -> str:
+    return QCoreApplication.translate(_SELECTION_CONTEXT, text)
 
 
 class SelectionHandling(QObject):
@@ -94,11 +112,12 @@ class SelectionHandling(QObject):
     def _on_error_occurred(self, title: str, message: str) -> None:
         from app.controllers.ui.dialogs import DialogManager
 
+        resolved_title = title or _tr_selection(_SELECTION_WARNING_TITLE)
         DialogManager.show_warning(
             self.main,
-            title or "Warning",
             message,
-            informative_text="Check the correctness of actions and try again.",
+            resolved_title,
+            informative_text=_tr_selection(_SELECTION_WARN_INFO),
         )
 
     def _select_first_item_if_needed(self) -> None:
@@ -179,14 +198,37 @@ class SelectionHandling(QObject):
         if self.is_suppressed():
             logger.debug("Handle selection while suppressed - skip")
             return
+        t0 = time.perf_counter()
         result = self._workflow.handle_item_selection(index, self._last_handled)
+        t1 = time.perf_counter()
         if result:
             self._last_handled = result
+            self._save_selection(result)
+        t2 = time.perf_counter()
+        logger.info(
+            "[Perf] SelectionHandling.handle_item_selection workflow=%.2fms save_selection=%.2fms total=%.2fms result=%s",
+            (t1 - t0) * 1000.0,
+            (t2 - t1) * 1000.0,
+            (t2 - t0) * 1000.0,
+            result,
+        )
 
     def _restore_selection_after_load(self, item_type: str, item_id: int) -> None:
+        t0 = time.perf_counter()
         index = self._workflow.restore_selection_after_load(item_type, item_id)
+        t1 = time.perf_counter()
         if index:
             self._handle_item_selection(index)
+        t2 = time.perf_counter()
+        logger.info(
+            "[Perf] SelectionHandling.restore_selection_after_load type=%s id=%s workflow=%.2fms handle=%.2fms total=%.2fms restored=%s",
+            item_type,
+            item_id,
+            (t1 - t0) * 1000.0,
+            (t2 - t1) * 1000.0,
+            (t2 - t0) * 1000.0,
+            bool(index),
+        )
 
     def _set_focus_on_new_item_by_id(self, item_type: str, item_id: int) -> None:
         self._workflow.set_focus_on_new_item_by_id(item_type, item_id)
@@ -198,3 +240,16 @@ class SelectionHandling(QObject):
         index = self._workflow.restore_category_selection(category_id)
         if index:
             self._handle_item_selection(index)
+
+    # --- Persistence helpers ---
+    def _save_selection(self, selection: tuple[str, int]) -> None:
+        """Persist last selected section/category in settings."""
+        try:
+            item_type, item_id = selection
+            if item_type not in ("section", "category"):
+                return
+            settings = getattr(self.main, "settings", None)
+            if settings and hasattr(settings, "set_last_tree_selection"):
+                settings.set_last_tree_selection(item_type, int(item_id))
+        except Exception:
+            logger.debug("SelectionHandling: failed to save selection", exc_info=True)

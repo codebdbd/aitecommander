@@ -1,452 +1,301 @@
-/* ===============================================================
-   DARK.QSS — Цветовые стили для тёмной темы
-   В этом файле задаются ТОЛЬКО цвета и тени. Геометрия — в common.qss.
-
-   Структура файла (аналогична common.qss):
-   1) Левая панель и панель сфер (цвета фон/обводка)
-   2) Меню (QMenu)
-   3) Меню-бар (QMenuBar)
-   4) Верхняя панель (фон контейнера, поиск, кнопки)
-   5) Базовые кнопки (вне верхней панели)
-   6) QToolButton (вне верхней панели)
-   7) Поля ввода и выпадающие списки (цвета)
-   8) Заголовки таблиц/деревьев (QHeaderView)
-   9) Статус-бар и нижняя панель (цвета контейнеров)
-  10) Разделители и сплиттеры (цвета)
-  11) Панель сфер — контейнер (градиент/фон)
-  12) Скролл-области и скроллбары (цвета)
-  13) Категорийные плитки (цвета состояний)
-  14) Нижняя панель: кнопки (цвета разделителей и hover)
-  15) Диалоги (цвета полей/кнопок/фокуса)
-  16) База для полей и чекбоксов (цвет фокуса)
-  17) Служебные элементы
-   =============================================================== */
-
-/* Базовый цвет текста по умолчанию для тёмной темы */
 QWidget { color: #E0E0E0; }
-
-/* ===============================================================
-   1) Левая панель и панель сфер — цвета
-   =============================================================== */
-
-/* QWidget#LeftPanel: фон и геометрия заданы в common.qss */
-
+QMainWindow {
+background: #1A1F26;
+}
+QMainWindow > QFrame {
+background: #1A1F26;
+}
 QWidget#LeftPanel[sphere="1"] {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26, stop: 0.95 #1A1F26,
-        stop: 0.95 #2E4066, stop: 1 #2E4066
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #1A1F26, stop: 0.95 #1A1F26,
+stop: 0.95 #2E4066, stop: 1 #2E4066
+);
 }
-
 QWidget#LeftPanel[sphere="2"] {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26, stop: 0.95 #1A1F26,
-        stop: 0.95 #6A2E44, stop: 1 #6A2E44
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #1A1F26, stop: 0.95 #1A1F26,
+stop: 0.95 #6A2E44, stop: 1 #6A2E44
+);
 }
-
 QWidget#LeftPanel[sphere="3"] {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26, stop: 0.95 #1A1F26,
-        stop: 0.95 #4A375A, stop: 1 #4A375A
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #1A1F26, stop: 0.95 #1A1F26,
+stop: 0.95 #4A375A, stop: 1 #4A375A
+);
 }
-
 QWidget#LeftPanel[sphere="4"] {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26, stop: 0.95 #1A1F26,
-        stop: 0.95 #2E5A52, stop: 1 #2E5A52
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #1A1F26, stop: 0.95 #1A1F26,
+stop: 0.95 #2E5A52, stop: 1 #2E5A52
+);
 }
-
-/* Цвет обводки кнопок на панели сфер */
 QWidget#spheres_bar QToolButton {
-    border-color: transparent;
 }
-
-/* Усиленное правило hover: явно задаём border, чтобы перебить border:none */
 QWidget#spheres_bar QToolButton:hover,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
-    border-color: transparent; /* без обводки */
-    background: rgba(255, 255, 255, 0.07); /* лёгкая светлая прозрачность, как hover в Win11 */
+border-color: #2ea8ff;
+background: transparent;
 }
-
-QWidget#spheres_bar QToolButton:checked {
-    background: rgba(255, 255, 255, 0.05); /* лёгкая подсветка активной кнопки без обводки */
-    border-color: transparent;
-}
-
-/* При наведении на активную кнопку показывать синюю рамку */
-QWidget#spheres_bar QToolButton:checked:hover,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked:hover {
-    border-color: transparent; /* без обводки */
-    background: rgba(255, 255, 255, 0.08); /* чуть сильнее подсветка при наведении на активную */
-}
-
-/* Внутри LeftPanel активная кнопка сферы должна иметь такую же обводку, как hover */
+QWidget#spheres_bar QToolButton:checked,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
-    background: rgba(255, 255, 255, 0.05); /* та же лёгкая подсветка активной */
-    border-color: transparent;
+border-color: #2ea8ff;
+background: #2ea8ff;
 }
-
-/* Явно убираем фон при нажатии для кнопок сфер */
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
-    background: rgba(255, 255, 255, 0.10); /* немного плотнее при нажатии */
+border-color: #FFFFFF;
+background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+stop: 0 #0C4B78, stop: 1 #1D79B8);
+border-style: inset;
 }
-
-/* QWidget#LeftPanel QToolButton: базовый фон задан в common.qss */
-
 QWidget#LeftPanel QToolButton:hover {
-    background: #1E2633;
+background: #1E2633;
 }
-
-/* Геометрия кнопок панелей сфер — в common.qss */
-
-/* Обводка при наведении для QPushButton в панели сфер (если такие используются) */
 #spheres_bar QPushButton:hover {
-    border-color: #0194F0;
+border-color: #0078d7;
 }
-
-/* ===============================================================
-   2) Меню (QMenu)
-   =============================================================== */
 QMenu {
-    color: #D1D6E0;
-    background-color: #2C2F36; /* фон контекстных меню по запросу */
-    /* Равномерная тёмная рамка */
-    border-color: #3A3E44;
+color: #D1D6E0;
+background-color: #2C2F36;
+border-color: #3A3E44;
 }
-
 QMenu::item {
-    background-color: transparent;
-    color: #D1D6E0;
+color: #D1D6E0;
 }
-
 QMenu::item:disabled {
-    color: #5A6372;
-    background-color: transparent;
+color: #5A6372;
 }
-
 QMenu::separator {
-    background: #3A3E44;
+background: #3A3E44;
 }
-
-
-/* Ховер/выделение пунктов меню (усиленная специфичность) */
 QMenu::item:enabled:hover,
 QMenu::item:enabled:selected,
 QMenu::item:hover,
 QMenu::item:selected {
-    background-color: #2E4066;
-    color: #FFFFFF;
+background-color: #2E4066;
+color: #FFFFFF;
 }
-
-
 QMenu::item:pressed {
-    background-color: #3D507A;
+background-color: #3D507A;
 }
-
-/* right-arrow image moved to common.qss */
-
 QMenu::indicator:checked {
-    background-color: #3A6EFF;
-    border-color: #3A6EFF;
+background-color: #3A6EFF;
+border-color: #3A6EFF;
 }
-
-/* QTreeView базовый фон задан в common.qss */
-
-/* ===============================================================
-   3) Меню-бар (QMenuBar)
-   =============================================================== */
 QMenuBar {
-    background-color: #1A1F26;
-    border-top-color: #3A3E44; /* top separator above main menu */
-    border-bottom-color: #3A3E44; /* subtle separator under menu bar */
+background-color: #1A1F26;
+border-top-color: #3A3E44;
+border-bottom-color: #3A3E44;
 }
-
 QMenuBar::item {
-    background: transparent;
-    color: #C9D1DA;
+color: #C9D1DA;
+border-left-color: transparent;
+border-right-color: transparent;
 }
-
+QMenuBar::item:hover,
 QMenuBar::item:selected {
-    background: #252D3A;
-    color: #FFFFFF;
+background: #252D3A;
+color: #FFFFFF;
+border-left-color: #3A3E44;
+border-right-color: #3A3E44;
 }
-
 QMenuBar::item:pressed {
-    background: #2E4066;
+background: #2C2F36;
+border-left-color: #3A3E44;
+border-right-color: #3A3E44;
 }
-
 QMenuBar QMenu {
-    background-color: #2C2F36; /* фон контекстных меню (из меню-бара) */
-    border-color: #3A3E44;
+background-color: #2C2F36;
+border-color: #3A3E44;
 }
-
-QMainWindow {
-    background-color: #1A1F26;
-    color: #E0E0E0;
-}
-
-/* ===============================================================
-   4) Верхняя панель (фон, поиск, кнопки)
-   =============================================================== */
-/* Хост верхней панели после рефакторинга контейнеров */
 QWidget#topBarHost {
-    background: #1A1F26;
+background: #1A1F26;
 }
-
-
-/* Обводка поиска при hover/focus в верхней панели */
+QWidget#topBarHost QLineEdit {
+border-color: #3A3E44;
+}
 QWidget#topBarHost QLineEdit:hover,
 QWidget#topBarHost QLineEdit:focus {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
 QWidget#topBarHost QToolButton {
-    border-color: transparent;
 }
-
-/* Базовое состояние кнопок в верхней панели: без видимой обводки,
-   чтобы не конфликтовать с глобальным стилем QPushButton */
+QWidget#topBarHost QToolButton#qt_toolbar_ext_button {
+qproperty-icon: url(":/icons/dark/more.svg");
+}
 QWidget#topBarHost QPushButton {
-    border-color: transparent;
 }
-
-/* Обводка на всех кнопках верхней панели при hover (после базового правила) */
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Обводка для активных (checked) кнопок верхней панели */
 QWidget#topBarHost QToolButton:checked,
 QWidget#topBarHost QPushButton:checked {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Базовые фоны кнопок по виджетам верхней панели */
-/* Quick Add — нейтральный базовый фон */
- 
-
-/* ===============================================================
-   5) Базовые кнопки (вне верхней панели)
-   =============================================================== */
 QPushButton {
-    background-color: #252D3A;
-    border-color: #252D3A;
+background-color: #252D3A;
+border-color: #252D3A;
 }
-
 QPushButton:hover {
-    background-color: #2E4066;
-    border-color: #0194F0;
+background-color: #2E4066;
+border-color: #0194F0;
 }
-
-/* ===============================================================
-   6) QToolButton (вне верхней панели)
-   =============================================================== */
 QToolButton {
-    background-color: #252D3A;
-    border-color: #2E4066;
+background-color: #252D3A;
+border-color: #2E4066;
 }
-
-/* ===============================================================
-   13) Категорийные плитки — цвета состояний
-   =============================================================== */
+QListWidget#categoryTiles,
+QListView#categoryTiles {
+background: #1A1F26;
+border: none;
+}
+QListWidget#categoryTiles::item,
+QListView#categoryTiles::item {
+background: transparent;
+border-color: transparent;
+}
 QListWidget#categoryTiles::item:hover,
 QListView#categoryTiles::item:hover {
-    background: #1E2633;
-    border-color: #0194F0;
+background: #1E2633;
+border-color: #FFFFFF;
 }
-
-/* Selected: фиксируем такой же стиль, как у активной кнопки */
 QListWidget#categoryTiles::item:selected,
 QListView#categoryTiles::item:selected {
-    background: #1E2633;
-    border-color: #0194F0;
+background: #1E2633;
+border-color: #0194F0;
 }
-
-/* Selected + Hover: сохраняем синюю обводку */
 QListWidget#categoryTiles::item:selected:hover,
 QListView#categoryTiles::item:selected:hover {
-    border-color: #0194F0;
+background: #1E2633;
+border-color: #0194F0;
 }
-
-/* ===============================================================
-   6.1) QToolButton — дополнительные состояния
-   =============================================================== */
 QToolButton:hover {
-    background-color: #2E4066;
-    border-color: #0194F0;
+background-color: #2E4066;
+border-color: #0194F0;
 }
-
 QToolButton:pressed {
-    background-color: #1E2633;
-    border-color: #2E4066;
+background-color: #1E2633;
+border-color: #2E4066;
 }
-
 QToolButton:checked {
-    background-color: #3A6EFF;
-    border-color: #3A6EFF;
+background-color: #3A6EFF;
+border-color: #3A6EFF;
 }
-
-/* ===============================================================
-   7) Поля ввода (цвета)
-   =============================================================== */
-QLineEdit, QTextEdit, QComboBox, QSpinBox {
-    background-color: #252D3A;
-    border-color: #2E4066;
+QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit {
+background-color: #252D3A;
+border-color: #2E4066;
 }
-
-/* Down arrow icon moved to common.qss */
-
-
-
 QComboBox QAbstractItemView {
-    background-color: #252D3A;
-    selection-background-color: #2E4066;
-    border-color: #2E4066;
+background-color: #252D3A;
+selection-background-color: #2E4066;
+border-color: #2E4066;
 }
-
-/* ===============================================================
-   8) Заголовки таблиц/деревьев
-   =============================================================== */
 QHeaderView::section {
-    background-color: #1A1F26;
-    border-right-color: #3A3E44; /* как горизонтальные сепараторы */
-    color: #C9D1DA;
+background-color: #1A1F26;
+border-right-color: #3A3E44;
+color: #C9D1DA;
 }
-
-/* Нижняя граница для всех заголовков (покрывает TreeView, TableView и др.) */
 QHeaderView {
-    border-bottom-color: #3A3E44;
+border-bottom-color: #3A3E44;
 }
-
 QTableView QHeaderView::section:horizontal {
-    /* Цвет шапки таблицы такой же, как у вертикального заголовка (колонка цифр) */
-    background-color: #202731;
-    border-right-color: #3A3E44; /* как горизонтальные сепараторы */
-    color: #BFC7D5; /* цвет текста шапки таблицы */
+background-color: #202731;
+border-right-color: #3A3E44;
+color: #BFC7D5;
 }
 QTableView QHeaderView {
-    border-bottom-color: #3A3E44;
+border-bottom-color: #3A3E44;
 }
-
 QLabel#pathLabel {
-    color: #9EA9B7;
+color: #9EA9B7;
 }
-
-/* Corner для QTableView (corner принадлежит представлению) */
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
-    background-color: #202731;
-    /* Цвета правой и нижней границы (геометрия в common.qss) */
-    border-right-color: #3A3E44;  /* правая граница */
-    border-bottom-color: #3A3E44; /* нижняя граница */
+background-color: #202731;
+border-right-color: #3A3E44;
+border-bottom-color: #3A3E44;
 }
 QTableView QTableCornerButton::section:alternate {
-    background-color: #202731;
+background-color: #202731;
 }
-
-/* Вертикальные заголовки для QTableView (колонка цифр) */
 QTableView QHeaderView::section:vertical {
-    background-color: #202731;
-    color: #BFC7D5; /* цвет текста колонки с цифрами */
+background-color: #202731;
+color: #BFC7D5;
 }
 QTableView QHeaderView:vertical {
-    background-color: #202731;
+background-color: #202731;
 }
-
-QTableView {
-    background-color: #2D2D2D;
-    alternate-background-color: #1A1F26;
-    gridline-color: transparent;
+QTableView,
+QTableWidget {
+background-color: #2D2D2D;
+alternate-background-color: #1A1F26;
 }
-
-/* Цвет текста для колонки "Открывалась" задаётся через qproperty на LinksTableView */
 LinksTableView {
-    qproperty-openedColColor: #A0A7B5;
-    qproperty-notesColColor: #D0D5E0;
+qproperty-openedColColor: #A0A7B5;
+qproperty-notesColColor: #D0D5E0;
 }
-
-/* TreeView background: задан в common.qss */
-
 QTreeView::item:selected,
-QTableView::item:selected {
-    background-color: #6A2E44;
-    color: #FFFFFF;
+QTableView::item:selected,
+QTableWidget::item:selected {
+background-color: #6A2E44;
+color: #FFFFFF;
 }
-
 QTreeView::item:!selected:hover {
-    background-color: #444444;
+background-color: #444444;
+color: palette(text);
 }
-
 QTreeView::item:!selected:hover {
-    background-color: #444444;
+background-color: #444444;
+color: palette(text);
 }
-
-
-/* ===============================================================
-   10) Разделители и сплиттеры — цвета
-   =============================================================== */
 QWidget[class="separator"] {
-    background-color: #3A3E44;
+background-color: #3A3E44;
 }
-
-/* Вертикальные разделители в верхней панели: тот же цвет, что и у горизонтальных */
 QWidget[class="vertical_separator"] {
-    background-color: #3A3E44;
+background-color: #3A3E44;
 }
-
-/* ===============================================================
-   9) Статус-бар и нижняя панель — цвета контейнеров
-   =============================================================== */
+QWidget#topBarHost QToolBar::separator {
+background-color: #3A3E44;
+}
+QWidget#favQuickSeparatorBefore,
+QWidget#favQuickSeparatorAfter {
+background-color: #3A3E44;
+}
 QStatusBar {
-    background-color: #202731;
-    border-top-color: #3A3E44; /* темовый разделитель сверху */
+background-color: #202731;
+border-top-color: #3A3E44;
 }
-
-/* Менее контрастные надписи справа в статус-баре */
 QStatusBar QLabel#dbStatusLabel,
 QStatusBar QLabel#linksCountLabel {
-    color: #7E8896; /* чуть бледнее, чем #9EA9B7 у pathLabel */
-    font-weight: normal;
+color: #7E8896;
+font-weight: normal;
 }
-
 QWidget#bottomBarContainer {
-    /* Dark theme: requested color for bottom bar */
-    background-color: #292929;
+background-color: #292929;
 }
-
 QWidget#bottomBarContainer QPushButton {
-    color: #fff;
-    /* Разделитель справа между кнопками — только цвет (геометрия в common.qss) */
-    border-right-color: #3A3E44;
-    /* Остальные стороны — прозрачные цвета, без изменения геометрии */
-    border-left-color: transparent;
-    border-top-color: transparent;
-    border-bottom-color: transparent;
+color: #FFFFFF;
+border-right-color: #3A3E44;
 }
-
-/* У последней кнопки убираем разделитель справа */
-/* geometry for last button separator is defined in common.qss */
-
-/* Обводка только при наведении */
 QWidget#bottomBarContainer QPushButton:hover {
-    /* На hover скрываем только правый разделитель (цветом), фон меняем темой */
-    border-right-color: transparent;
-    background-color: #2E4066;            /* темовая подсветка по hover */
+background-color: #2E4066;
 }
-
-/* ===============================================================
-   15) Диалоги — цвета и фокус
-   =============================================================== */
-/* БАЗОВЫЙ ЦВЕТ ОБВОДКИ ДЛЯ ЭЛЕМЕНТОВ ДИАЛОГОВ (по умолчанию) */
+QDialog {
+background-color: #1A1F26;
+color: #E0E0E0;
+}
+QDialog#BrowserProfileDialog,
+QDialog#BrowserProfileDialog QScrollArea#profilesScroll,
+QDialog#BrowserProfileDialog QWidget#profilesScrollViewport,
+QDialog#BrowserProfileDialog QWidget#profilesContent {
+background-color: #1A1F26;
+color: #E0E0E0;
+}
 QDialog QLineEdit,
 QDialog QTextEdit,
 QDialog QPlainTextEdit,
@@ -455,20 +304,21 @@ QDialog QSpinBox,
 QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
-    border-color: #3A3F47;
+border-color: #3A3F47;
 }
-
-/* Кнопки диалогов: базовый цвет обводки по умолчанию */
 QDialog QPushButton,
 QDialog QToolButton {
-    border-color: #3A3F47;
+border-color: #3A3F47;
 }
-
-/* Выпадающий список (popup) у комбобокса в диалогах: базовая обводка */
+QDialog QPushButton:hover,
+QDialog QToolButton:hover {
+background: #2E4066;
+border-color: #0194F0;
+color: #FFFFFF;
+}
 QDialog QComboBox QAbstractItemView {
-    border-color: #3A3F47;
+border-color: #3A3F47;
 }
-/* Focus outline for dialog inputs */
 QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
 QDialog QPlainTextEdit:focus,
@@ -477,189 +327,146 @@ QDialog QSpinBox:focus,
 QDialog QDoubleSpinBox:focus,
 QDialog QDateEdit:focus,
 QDialog QTimeEdit:focus {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Dialog buttons: keyboard focus outline (Tab navigation) */
 QDialog QPushButton:focus,
 QDialog QToolButton:focus {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* (rollback) no overrides here; dialog button borders managed by base + focus rules */
-
-/* Disabled dialog buttons: gray background, keep existing borders */
 QDialog QPushButton:disabled,
 QDialog QToolButton:disabled {
-    background: #3A3A3A; /* gray for dark theme */
+background: #3A3A3A;
 }
 QDialog QPushButton:disabled:hover,
 QDialog QToolButton:disabled:hover {
-    background: #3A3A3A;
+background: #3A3A3A;
 }
-
-
-/* QFocusFrame базовые нейтрали в common.qss */
-
-/* Keyboard focus outline (Tab navigation) */
+QCheckBox::indicator,
+QDialog QCheckBox::indicator {
+border-color: #3A3F47;
+background: #1A1F26;
+}
+QCheckBox::indicator:hover,
+QDialog QCheckBox::indicator:hover {
+border-color: #0194F0;
+}
+QCheckBox::indicator:checked,
+QDialog QCheckBox::indicator:checked {
+background: #0194F0;
+border-color: #0194F0;
+image: url(":/icons/dark/check.svg");
+}
+QCheckBox::indicator:disabled,
+QDialog QCheckBox::indicator:disabled {
+border-color: #3A3F47;
+background: #2C2F36;
+}
 QDialog QCheckBox:focus {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Dialog combobox dropdown (popup list) */
 QDialog QComboBox QAbstractItemView {
-    border-color: #2A2F3A;
-    background: #151A22;
+border-color: #2A2F3A;
+background: #151A22;
 }
-
-/* Item geometry настроена в common.qss */
-
-/* Selected same as table/tree selected */
+QComboBox::down-arrow,
+QDialog QComboBox::down-arrow {
+image: url(":/icons/dark/chevron_down.svg");
+}
+QComboBox QAbstractItemView::item:selected,
 QDialog QComboBox QAbstractItemView::item:selected {
-    background-color: #6A2E44;
-    color: #FFFFFF;
+background-color: #6A2E44;
+color: #FFFFFF;
 }
-
-/* Hover — нейтральная тёмная подсветка в духе темы */
+QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover {
-    background-color: #252D3A;
+background-color: #252D3A;
 }
-
-/* Default buttons: show border only when focused; remove system dotted outline */
 QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Link type buttons (text under icon) — геометрия в common.qss */
-/* Match spheres bar behavior for link type buttons */
-/* linkTypeBtn база перенесена в common.qss */
 QDialog QToolButton#linkTypeBtn:hover {
-    /* Как у кнопок сфер: даём тёмный фон, чтобы неон был вокруг всей плитки */
-    border-color: #0194F0;
-    background: #1E2633;
+border-color: #0194F0;
+background: #1E2633;
 }
 QDialog QToolButton#linkTypeBtn:checked {
-    /* Active state matches spheres: dark bg + blue border */
-    background: #1E2633;
-    border-color: #0194F0;
+background: #1E2633;
+border-color: #0194F0;
 }
 QDialog QToolButton#linkTypeBtn:checked:hover {
-    /* Keep blue outline on hover for active */
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Неоновый эффект: только обводка при активном динамическом свойстве */
 QDialog QToolButton#linkTypeBtn[_neon_on="true"] {
-    border-color: #0194F0;
+border-color: #0194F0;
 }
-
-/* Скрываем вертикальные сепараторы в верхнем тулбаре */
-/* Сепараторы скрываются и фон задаётся в common.qss */
-
-/* На всякий случай: делаем вертикальные сепараторы невидимыми */
-/* vertical_separator геометрия/фон — в common.qss */
-
-/* QSplitter::handle фон — переопределяем для тёмной темы */
 QSplitter::handle { background-color: #3A3E44; }
 QSplitter::handle:horizontal { background-color: #3A3E44; }
 QSplitter::handle:vertical { background-color: #3A3E44; }
-
-/* ===============================================================
-   11) Панель сфер — фон контейнера (градиент)
-   =============================================================== */
 #spheres_bar {
-    /* Dark theme: make spheres bar background transparent */
-    background: transparent;
 }
-
-/* ===============================================================
-   12) Скролл-области и скроллбары — цвета
-   =============================================================== */
-QScrollBar:vertical, QScrollBar:horizontal {
-    background: #1E2633;
-}
-
-QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background: #2E4066;
-}
-
-QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background: #0194F0;
-}
-
-/* ===============================================================
-   OVERRIDES: Сохраняем градиенты кнопок верхней панели поверх общих правил
-   Помещено в конец файла, чтобы перебить QToolButton базовые стили
-   =============================================================== */
-/* Quick */
 QWidget#topBarHost QToolButton#quickButton,
 QWidget#topBarHost QToolButton#quickButton:hover,
 QWidget#topBarHost QToolButton#quickButton:pressed,
 QWidget#topBarHost QToolButton#quickButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2A3443,
-        stop: 0.5 #252D3A,
-        stop: 1   #1E2633
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #2A3443,
+stop: 0.5 #252D3A,
+stop: 1   #1E2633
+);
 }
-/* Favorites */
 QWidget#topBarHost QToolButton#favoriteButton,
 QWidget#topBarHost QToolButton#favoriteButton:hover,
 QWidget#topBarHost QToolButton#favoriteButton:pressed,
 QWidget#topBarHost QToolButton#favoriteButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2F3947,
-        stop: 0.5 #2A2F3A,
-        stop: 1   #212834
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #2F3947,
+stop: 0.5 #2A2F3A,
+stop: 1   #212834
+);
 }
-/* Recent */
 QWidget#topBarHost QToolButton#recentButton,
 QWidget#topBarHost QToolButton#recentButton:hover,
 QWidget#topBarHost QToolButton#recentButton:pressed,
 QWidget#topBarHost QToolButton#recentButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #243040,
-        stop: 0.5 #1E2633,
-        stop: 1   #151A22
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #243040,
+stop: 0.5 #1E2633,
+stop: 1   #151A22
+);
 }
-
-/* FINAL OVERRIDES: без привязки к контейнерам — на случай изменения архитектуры */
 QToolButton#quickButton,
 QToolButton#quickButton:hover,
 QToolButton#quickButton:pressed,
 QToolButton#quickButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2A3443,
-        stop: 0.5 #252D3A,
-        stop: 1   #1E2633
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #2A3443,
+stop: 0.5 #252D3A,
+stop: 1   #1E2633
+);
 }
 QToolButton#favoriteButton,
 QToolButton#favoriteButton:hover,
 QToolButton#favoriteButton:pressed,
 QToolButton#favoriteButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2F3947,
-        stop: 0.5 #2A2F3A,
-        stop: 1   #212834
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #2F3947,
+stop: 0.5 #2A2F3A,
+stop: 1   #212834
+);
 }
 QToolButton#recentButton,
 QToolButton#recentButton:hover,
 QToolButton#recentButton:pressed,
 QToolButton#recentButton:checked {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #243040,
-        stop: 0.5 #1E2633,
-        stop: 1   #151A22
-    );
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0   #243040,
+stop: 0.5 #1E2633,
+stop: 1   #151A22
+);
 }

@@ -1,13 +1,16 @@
 """Module for initializing database in background."""
 
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+from app.core.database_manager import DatabaseManager
+from app.models.base.db_base import db_lock
 from app.models.db import Database
 from app.utils.db.api import run_db
+from app.views.widgets.status_bar import set_status_message
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -26,11 +29,12 @@ class DatabaseInitializer:
         """
         self.database = database
         self.main_window = main_window
+        self._warmup_handle = None
 
     def initialize_async(
         self,
-        on_success: Optional[Callable] = None,
-        on_error: Optional[Callable[[Exception], None]] = None,
+        on_success: Callable[[], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> None:
         """
         Starts asynchronous database initialization.
@@ -40,14 +44,15 @@ class DatabaseInitializer:
             on_error: Callback on initialization error
         """
         # Show status in status bar (if available)
+        self._set_locked_db_warmup_ready(False)
         self._update_status_message(
             QCoreApplication.translate(
                 "DatabaseInitializer", "Database initialization…"
             )
         )
 
-        # Temporarily block UI interaction during DB initialization
-        self._set_ui_enabled(False)
+        # Keep the shell interactive while disabling only DB-dependent controls.
+        self._set_data_widgets_enabled(False)
 
         # Run heavy initialization operations in thread pool
         run_db(
@@ -66,11 +71,18 @@ class DatabaseInitializer:
             bool: True on success, False on error
         """
         self.database.prepare_dirs()
-        self.database.initialize_or_migrate()
+        DatabaseManager.ensure_schema()
+        try:
+            if getattr(self.database, "_is_sphere_empty", None):
+                if self.database._is_sphere_empty():
+                    with db_lock:
+                        self.database.spheres.initialize_default_spheres()
+        except Exception as exc:
+            logger.warning("Failed to initialize default spheres: %s", exc)
         return True
 
     def _on_db_init_finished(
-        self, result: bool, on_success: Optional[Callable] = None
+        self, result: bool, on_success: Callable[[], None] | None = None
     ) -> None:
         """
         Handler for DB initialization completion.
@@ -80,8 +92,8 @@ class DatabaseInitializer:
             on_success: Success callback
         """
         if not result:
-            # Unlock UI on error
-            self._set_ui_enabled(True)
+            # Re-enable DB-dependent controls on error
+            self._set_data_widgets_enabled(True)
 
             # Inform user and exit application
             self._show_critical_error(
@@ -103,7 +115,8 @@ class DatabaseInitializer:
             QCoreApplication.translate("DatabaseInitializer", "Database ready")
         )
         self._update_statusbar()
-        self._set_ui_enabled(True)
+        self._set_data_widgets_enabled(True)
+        self._schedule_locked_db_warmup()
 
         # Call success callback
         if on_success:
@@ -114,8 +127,46 @@ class DatabaseInitializer:
                     "Error in DB initialization success callback: %s", e, exc_info=True
                 )
 
+    def _schedule_locked_db_warmup(self) -> None:
+        """Warm the dedicated locked DB worker to avoid first-user-action cold connect."""
+        try:
+            QTimer.singleShot(0, self._start_locked_db_warmup)
+        except Exception:
+            logger.debug("Failed to schedule locked DB warmup", exc_info=True)
+
+    def _start_locked_db_warmup(self) -> None:
+        """Create the first locked worker connection eagerly after db_init."""
+        try:
+            self._warmup_handle = run_db(
+                self._do_locked_db_warmup,
+                use_lock=True,
+                description="db_warmup",
+                on_finished=lambda _result: self._set_locked_db_warmup_ready(True),
+                on_error=lambda e: (
+                    logger.debug("Locked DB warmup failed: %s", e, exc_info=True),
+                    self._set_locked_db_warmup_ready(True),
+                ),
+            )
+        except Exception:
+            logger.debug("Failed to start locked DB warmup", exc_info=True)
+            self._set_locked_db_warmup_ready(True)
+
+    def _do_locked_db_warmup(self) -> bool:
+        """Touch the DB from the locked worker so the first UI query reuses the connection."""
+        _ = self.database.connection
+        return True
+
+    def _set_locked_db_warmup_ready(self, ready: bool) -> None:
+        """Expose locked DB warmup readiness via app property for startup-sensitive UI paths."""
+        try:
+            app = QCoreApplication.instance()
+            if app is not None:
+                app.setProperty("locked_db_warmup_ready", bool(ready))
+        except Exception:
+            logger.debug("Failed to set locked_db_warmup_ready property", exc_info=True)
+
     def _on_db_init_error(
-        self, error: Exception, on_error: Optional[Callable[[Exception], None]] = None
+        self, error: Exception, on_error: Callable[[Exception], None] | None = None
     ) -> None:
         """
         Handler for DB initialization error.
@@ -136,7 +187,7 @@ class DatabaseInitializer:
         )
         self._update_status_message(detailed_message)
         self._update_statusbar()
-        self._set_ui_enabled(True)
+        self._set_data_widgets_enabled(True)
 
         user_message = (
             f"{detailed_message}\n\n{error}" if str(error).strip() else detailed_message
@@ -161,20 +212,12 @@ class DatabaseInitializer:
 
     def _update_status_message(self, message: str) -> None:
         """Updates message in status bar."""
-        try:
-            if (
-                self.main_window
-                and hasattr(self.main_window, "message_label")
-                and self.main_window.message_label
-            ):
-                self.main_window.message_label.setText(message)
-        except Exception as e:
-            logger.warning(
-                "[DatabaseInitializer] Failed to update status message '%s': %s",
-                message,
-                e,
-                exc_info=True,
-            )
+        if self.main_window and set_status_message(self.main_window, message):
+            return
+        logger.debug(
+            "[DatabaseInitializer] Status bar unavailable for message '%s'",
+            message,
+        )
 
     def _update_statusbar(self) -> None:
         """Updates status bar."""
@@ -188,14 +231,42 @@ class DatabaseInitializer:
                 exc_info=True,
             )
 
-    def _set_ui_enabled(self, enabled: bool) -> None:
-        """Enables/disables UI."""
+    def _set_data_widgets_enabled(self, enabled: bool) -> None:
+        """Enable or disable only controls that depend on initialized DB data."""
         try:
-            if self.main_window:
-                self.main_window.setEnabled(enabled)
+            if not self.main_window:
+                return
+
+            widget_names = (
+                "tree",
+                "table",
+                "tiles",
+                "tiles_scroll",
+                "spheres_bar",
+                "bottom_bar_container",
+                "top_bar_toolbar",
+            )
+            for name in widget_names:
+                widget = getattr(self.main_window, name, None)
+                if widget is not None and hasattr(widget, "setEnabled"):
+                    widget.setEnabled(enabled)
+
+            action_names = (
+                "undo_action",
+                "redo_action",
+                "cut_action",
+                "copy_action",
+                "paste_action",
+                "delete_action",
+                "select_all_action",
+            )
+            for name in action_names:
+                action = getattr(self.main_window, name, None)
+                if action is not None and hasattr(action, "setEnabled"):
+                    action.setEnabled(enabled)
         except Exception as e:
             logger.warning(
-                "[DatabaseInitializer] Failed to %sable UI: %s",
+                "[DatabaseInitializer] Failed to %sable DB-dependent controls: %s",
                 "en" if enabled else "dis",
                 e,
                 exc_info=True,

@@ -63,7 +63,8 @@ class TopBarLayoutManager(QObject):
 
         # Настройки
         settings = self._init_service.init_settings()
-        self._throttle_interval_ms = settings["throttle_interval_ms"]
+        self._throttle_interval_ms = int(settings["throttle_interval_ms"])
+        self._followup_interval_ms = max(8, min(self._throttle_interval_ms, 16))
         self._log_info = settings["log_info"]
         self._min_search_width = settings["min_search_width"]
         self._narrow_threshold = settings["narrow_threshold"]
@@ -97,6 +98,7 @@ class TopBarLayoutManager(QObject):
         self._orchestrator = LayoutOrchestrator(
             window=window,
             widget_accessor=self._widget_accessor,
+            width_calculator=self._width_calculator,
             visibility_manager=self._visibility_manager,
             visibility_solver=self._visibility_solver,
             search_manager=self._search_manager,
@@ -188,6 +190,13 @@ class TopBarLayoutManager(QObject):
         container = self._widget_accessor.get_container_widget()
         if not isinstance(container, QWidget) or _sip_isdeleted(container):
             logger.debug("TopBarLM: prepare_initial_layout skipped - no container")
+            return
+            
+        # Гарантируем фиксированную высоту контейнера при инициализации
+        try:
+            self._widget_accessor.ensure_fixed_heights()
+        except Exception as e:
+            logger.debug(f"Failed to ensure fixed heights during initialization: {e}")
 
         state = self._orchestrator.get_init_state()
         if state == InitializationState.NOT_STARTED:
@@ -197,9 +206,27 @@ class TopBarLayoutManager(QObject):
     @require_main_thread
     def adjust(self) -> None:
         """Execute a layout adjustment pass if throttling permits."""
+        # Всегда проверяем таймер троттлинга
         if self._throttle_timer.isActive():
             return
+            
+        # Проверяем, не выполняется ли сейчас изменение размера окна
+        try:
+            # Проверка флага изменения размера
+            if hasattr(self.window, "_is_resizing") and self.window._is_resizing:
+                # Если идет изменение размера, пропускаем обновление
+                return
+        except Exception:
+            # Игнорируем ошибки доступа к атрибутам
+            pass
+            
+        # Гарантируем фиксированную высоту контейнера
+        try:
+            self._widget_accessor.ensure_fixed_heights()
+        except Exception as e:
+            logger.debug(f"Failed to ensure fixed heights: {e}")
 
+        # Проверяем блокировку
         if not self._orchestrator.acquire_adjust_lock():
             return
 
@@ -216,6 +243,9 @@ class TopBarLayoutManager(QObject):
 
             if new_search_width is not None:
                 self.searchWidthChanged.emit(new_search_width)
+            if self._orchestrator.needs_followup():
+                if not self._throttle_timer.isActive():
+                    self._throttle_timer.start(self._followup_interval_ms)
 
         finally:
             self._orchestrator.release_adjust_lock()

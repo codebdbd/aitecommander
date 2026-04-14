@@ -114,6 +114,16 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
         which must only be created in GUI thread.
     """
     try:
+        # Avoid conversions during shutdown to prevent PIL/Qt crashes
+        try:
+            from PyQt6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app and app.closingDown():
+                return False
+        except Exception:
+            pass
+
         src_path_obj = Path(src_path)
         ext = src_path_obj.suffix.lower()
 
@@ -189,16 +199,6 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
         return False
 
 
-def convert_icon_to_png_32(src_path: str, dst_path: str, size: int = 32) -> bool:
-    """Convert icon to PNG of specified size (default 32x32).
-
-    Note:
-        This is deprecated function for backward compatibility.
-        Use convert_icon_to_png_128.
-    """
-    return convert_icon_to_png_128(src_path, dst_path, size=size)
-
-
 def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> bool:
     """Convert raster icon to PNG of specified size (default 32x32).
 
@@ -211,6 +211,16 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
         bool: True if conversion successful, False otherwise.
     """
     try:
+        # Avoid conversions during shutdown to prevent PIL/Qt crashes
+        try:
+            from PyQt6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app and app.closingDown():
+                return False
+        except Exception:
+            pass
+
         with Image.open(src_path) as img:
             # Resize image
             img = _resize_image(img, size)

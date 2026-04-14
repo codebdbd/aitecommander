@@ -25,7 +25,7 @@ class LinkRecordFactory:
         Args:
             name: Link name
             url: URL or path to link
-            link_type: Link type (web, file, folder, script, program, chromeapp)
+            link_type: Link type (web, file, folder, script, program)
             icon_name: Path to icon
             notes: Link notes
             last_used: Last used time

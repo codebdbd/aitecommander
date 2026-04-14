@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Optional
+
+from PIL import Image, UnidentifiedImageError
 
 from app.config_data import app_config
+
 from .validation import is_valid_icon_file
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 class IconFileService:
     """Service for managing icon file operations."""
 
-    def __init__(self, user_icons_dir: Optional[Path] = None):
+    def __init__(self, user_icons_dir: Path | None = None):
         """Initialize service.
         
         Args:
@@ -36,7 +38,7 @@ class IconFileService:
     def copy_icon_to_user_dir(
         self,
         source_path: Path | str,
-        target_dir: Optional[Path] = None,
+        target_dir: Path | None = None,
     ) -> Path:
         """Copy icon file to user icons directory with automatic renaming if needed.
         
@@ -70,12 +72,15 @@ class IconFileService:
         
         target_dir.mkdir(parents=True, exist_ok=True)
         
+        # For .ico files, normalize to safe PNG to avoid problematic native shell handlers.
+        if src.suffix.lower() == ".ico":
+            safe_dst = self._convert_ico_to_safe_png(src, target_dir)
+            if safe_dst is not None:
+                logger.info("Converted ICO to safe PNG: %s -> %s", src, safe_dst)
+                return safe_dst
+
         # Find unique filename
-        dst = target_dir / src.name
-        counter = 1
-        while dst.exists():
-            dst = target_dir / f"{src.stem}_{counter}{src.suffix}"
-            counter += 1
+        dst = self._unique_path(target_dir, src.stem, src.suffix)
         
         # Copy file
         try:
@@ -85,6 +90,62 @@ class IconFileService:
         except (OSError, PermissionError) as e:
             logger.error("Failed to copy icon from %s to %s: %s", src, dst, e)
             raise
+
+    @staticmethod
+    def _unique_path(target_dir: Path, stem: str, suffix: str) -> Path:
+        dst = target_dir / f"{stem}{suffix}"
+        counter = 1
+        while dst.exists():
+            dst = target_dir / f"{stem}_{counter}{suffix}"
+            counter += 1
+        return dst
+
+    def _convert_ico_to_safe_png(self, src: Path, target_dir: Path) -> Path | None:
+        """Decode ICO via Pillow and save as normalized PNG.
+
+        Returns destination path on success, otherwise None (caller can fallback to copy).
+        """
+        try:
+            with Image.open(src) as im:
+                best = self._pick_best_ico_frame(im)
+                if best.mode != "RGBA":
+                    best = best.convert("RGBA")
+
+                dst = self._unique_path(target_dir, f"{src.stem}_safe", ".png")
+                best.save(dst, format="PNG")
+
+            if not is_valid_icon_file(dst):
+                try:
+                    dst.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise ValueError(f"Generated safe PNG is invalid: {dst}")
+            return dst
+        except (UnidentifiedImageError, OSError, ValueError) as e:
+            logger.warning("ICO safe conversion failed for %s: %s", src, e)
+            return None
+
+    @staticmethod
+    def _pick_best_ico_frame(im: Image.Image) -> Image.Image:
+        """Pick the largest frame from a multi-frame ICO image."""
+        try:
+            n_frames = int(getattr(im, "n_frames", 1) or 1)
+        except Exception:
+            n_frames = 1
+
+        best = im.copy()
+        best_area = best.size[0] * best.size[1]
+        for idx in range(n_frames):
+            try:
+                im.seek(idx)
+                frame = im.copy()
+                area = frame.size[0] * frame.size[1]
+                if area >= best_area:
+                    best = frame
+                    best_area = area
+            except Exception:
+                continue
+        return best
 
     def get_supported_formats_filter(self) -> str:
         """Get file filter string for supported icon formats.

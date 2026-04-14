@@ -1,12 +1,16 @@
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QThread
 from PyQt6.QtWidgets import QApplication
 
-from app.config_data import app_config
+from app.config_data.runtime_config import get_runtime_app_config
+from app.core.paths.path_manager import PathManager
+from app.core.settings_manager import SettingsManager
+from app.core.style_manager import StyleManager
+from app.services.theme_registry import theme_registry
 from app.services.theme_stylesheet_service import (
     ThemeStylesheetService,
     configure_qicon_theme,
@@ -42,8 +46,9 @@ class ThemeController:
         # TopPanelsController can be injected later via set_top_panels_controller()
         self.top_panels_controller = top_panels_controller
         self._themes: list[dict[str, Any]] = []
+        self._theme_registry = theme_registry
         self._stylesheet_service = stylesheet_service or ThemeStylesheetService(
-            app_config, settings=settings
+            get_runtime_app_config(), settings=settings
         )
         # Dependency injection for testability
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
@@ -102,44 +107,29 @@ class ThemeController:
         return synonyms.get(v, v)
 
     def _load_available_themes(self) -> None:
-        """Populate theme list from QSS directory with safe fallbacks."""
+        """Populate theme list from ThemeRegistry."""
         detected: list[dict[str, Any]] = []
-
         try:
-            themes_dir = app_config.paths.get_qss_dir()
+            for theme in self._theme_registry.list_themes():
+                display_name, context = self._resolve_display_metadata(
+                    theme.theme_id, theme.name
+                )
+                detected.append(
+                    {
+                        "name": theme.theme_id,
+                        "display_name": display_name,
+                        "display_context": context,
+                        "qss_path": theme.qss_path,
+                        "is_dark": bool(theme.is_dark),
+                        "source": theme.source,
+                    }
+                )
         except Exception as exc:
-            logger.error(
-                "ThemeController: failed to resolve QSS directory: %s",
+            logger.warning(
+                "ThemeController: failed to load themes from registry: %s",
                 exc,
                 exc_info=True,
             )
-            themes_dir = None
-
-        if themes_dir:
-            try:
-                directory = Path(themes_dir)
-                for qss_file in sorted(
-                    directory.glob("*.qss"), key=lambda p: p.name.lower()
-                ):
-                    if qss_file.name.lower() == "common.qss":
-                        continue
-                    theme_name = qss_file.stem.lower()
-                    display_name, context = self._resolve_display_metadata(theme_name)
-                    detected.append(
-                        {
-                            "name": theme_name,
-                            "display_name": display_name,
-                            "display_context": context,
-                            "qss_file": qss_file.name,
-                            "is_dark": self._infer_is_dark(theme_name),
-                        }
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "ThemeController: failed to auto-detect themes: %s",
-                    exc,
-                    exc_info=True,
-                )
 
         if not detected:
             logger.info("ThemeController: falling back to default theme list")
@@ -147,45 +137,65 @@ class ThemeController:
 
         self._themes = detected
 
-    def _resolve_display_metadata(self, theme_name: str) -> tuple[str, str]:
+    def _resolve_display_metadata(self, theme_id: str, name: str) -> tuple[str, str]:
         """Return display name and translation context for theme."""
-        canonical = theme_name.lower()
+        canonical = theme_id.lower()
         if canonical == "light":
             return (QT_TRANSLATE_NOOP("ThemeController", "Light"), "ThemeController")
         if canonical == "dark":
             return (QT_TRANSLATE_NOOP("ThemeController", "Dark"), "ThemeController")
 
-        humanized = canonical.replace("_", " ").strip()
+        humanized = name.strip() if name else canonical.replace("_", " ").strip()
         if not humanized:
             humanized = "Theme"
-        return (humanized.title(), "ThemeController")
+        return (humanized, "ThemeController")
 
     def _infer_is_dark(self, theme_name: str) -> bool:
         """Best-effort detection for dark themes based on name."""
         lowered = theme_name.lower()
         if lowered == "dark":
             return True
+        explicit_dark = {"matrix", "violet_pulse"}
+        if lowered in explicit_dark:
+            return True
         markers = ("dark", "night", "noir", "black")
         return any(marker in lowered for marker in markers)
 
     def _default_theme_entries(self) -> list[dict[str, Any]]:
         """Return built-in fallback theme list."""
+        qss_dir = PathManager.qss_dir()
         return [
             {
                 "name": "light",
                 "display_name": QT_TRANSLATE_NOOP("ThemeController", "Light"),
                 "display_context": "ThemeController",
-                "qss_file": "light.qss",
+                "qss_path": qss_dir / "light.qss",
                 "is_dark": False,
+                "source": "bundled",
             },
             {
                 "name": "dark",
                 "display_name": QT_TRANSLATE_NOOP("ThemeController", "Dark"),
                 "display_context": "ThemeController",
-                "qss_file": "dark.qss",
+                "qss_path": qss_dir / "dark.qss",
                 "is_dark": True,
+                "source": "bundled",
             },
         ]
+
+    def _apply_saved_theme(self) -> None:
+        saved_theme = SettingsManager.get("theme.name")
+        if not saved_theme:
+            return
+        if QApplication.instance() is None:
+            logger.debug("ThemeController: QApplication not ready for saved theme")
+            return
+        try:
+            self.apply(str(saved_theme))
+        except Exception as exc:
+            logger.warning(
+                "ThemeController: failed to apply saved theme: %s", exc, exc_info=True
+            )
 
     def is_dark(self) -> bool:
         """Check if current theme is dark."""
@@ -265,70 +275,114 @@ class ThemeController:
     def apply(self, name: str) -> bool:
         """Apply theme by name and save to settings."""
         normalized_name = self._normalize_theme_input(name)
-        theme_config = self._get_theme_by_name(normalized_name)
-        if not theme_config:
-            logger.error("Theme not found: %s", name)
-            return False
-        qss_file = theme_config.get("qss_file")
-        if not qss_file:
-            logger.error("QSS file not specified for theme: %s", name)
+        canonical_name, theme_config = self._resolve_theme_config(name, normalized_name)
+        if theme_config is None:
             return False
 
-        # Cache and search by canonical name to avoid duplicate keys
-        canonical_name = theme_config.get("name", normalized_name)
-        # IMPORTANT: invalidate common/theme QSS cache before loading,
-        # to ensure style file changes (especially common.qss) are picked up
-        # without application restart. Safe: cache will restore on read below.
+        # Invalidate cache before load
         self.clear_cache()
-        qss_content = self._stylesheet_service.load_stylesheet(canonical_name, qss_file)
+
+        qss_content = self._load_qss_content(canonical_name, theme_config)
         if qss_content is None:
-            logger.error("Failed to load QSS for theme: %s", name)
+            logger.error("Failed to load composed QSS for theme: %s", name)
             return False
 
-        app_instance = QApplication.instance()
-        if app_instance and QThread.currentThread() is not app_instance.thread():
-            logger.error("ThemeController.apply must be called from the GUI thread")
+        if not self._validate_gui_thread():
             return False
 
-        try:
-            # Apply QSS
-            if self._stylesheet_applier is not None:
-                self._stylesheet_applier(qss_content)
-            else:
-                if not app_instance:
-                    logger.error("QApplication instance not found")
-                    return False
-                app = cast(QApplication, app_instance)
-                app.setStyleSheet(qss_content)
-
-            # Custom menu shadows fully disabled — doing nothing
-
-            # Initialize Qt icon theme
-            try:
-                configure_qicon_theme(canonical_name, app_config)
-            except Exception as icon_exc:
-                logger.warning(
-                    "Failed to apply Qt icon theme: %s", icon_exc, exc_info=True
-                )
-
-            # Update settings and window (restore original update_theme call)
-            logger.info("Applied theme: %s", canonical_name)
-            self.settings.set_theme(canonical_name)
-            if self.main_window and hasattr(self.main_window, "update_theme"):
-                self.main_window.update_theme()
-            return True
-        except Exception as exc:
-            logger.error("Theme application error %s: %s", name, exc, exc_info=True)
+        if not StyleManager.apply_qss_string(qss_content):
+            logger.error("Failed to apply theme via StyleManager: %s", name)
             return False
+
+        return self._finalize_apply(theme_config, canonical_name, name)
 
     def clear_cache(self) -> None:
         """Clear QSS cache."""
         self._stylesheet_service.clear_cache()
 
+    # --- Helpers to reduce complexity of apply() ---
+    def _resolve_theme_config(
+        self, original_name: str, normalized_name: str
+    ) -> tuple[str, dict[str, Any] | None]:
+        """Resolve theme configuration and canonical name with fallback.
+
+        Returns (canonical_name, theme_config) or (normalized_name, None) on failure.
+        """
+        theme_config = self._get_theme_by_name(normalized_name)
+        if not theme_config:
+            logger.error("Theme not found: %s", original_name)
+            fallback = self._theme_registry.get_default_theme_id()
+            theme_config = self._get_theme_by_name(fallback)
+            if not theme_config:
+                return normalized_name, None
+            normalized_name = fallback
+        canonical_name = theme_config.get("name", normalized_name)
+        return canonical_name, theme_config
+
+    def _load_qss_content(
+        self, canonical_name: str, theme_config: dict[str, Any]
+    ) -> str | None:
+        """Load composed QSS content for a theme.
+
+        Supports absolute and resource-relative paths.
+        """
+        qss_path = theme_config.get("qss_path")
+        if qss_path:
+            p = Path(str(qss_path))
+            if not p.is_absolute():
+                parts = p.parts
+                if parts and parts[0].lower() == "resources":
+                    p = Path(*parts[1:])
+                p = PathManager.get_resource_path(p)
+            return self._stylesheet_service.load_stylesheet_from_path(canonical_name, p)
+        return self._stylesheet_service.load_stylesheet(
+            canonical_name, f"{canonical_name}.qss"
+        )
+
+    def _validate_gui_thread(self) -> bool:
+        """Ensure apply() is executed on the GUI thread."""
+        app_instance = QApplication.instance()
+        if app_instance and QThread.currentThread() is not app_instance.thread():
+            logger.error("ThemeController.apply must be called from the GUI thread")
+            return False
+        return True
+
+    def _finalize_apply(
+        self, theme_config: dict[str, Any], canonical_name: str, log_name: str
+    ) -> bool:
+        """Finalize theme application: configure icon theme and persist settings."""
+        try:
+            if theme_config.get("source") == "bundled":
+                try:
+                    configure_qicon_theme(canonical_name)
+                except Exception as icon_exc:
+                    logger.warning(
+                        "Failed to apply Qt icon theme: %s", icon_exc, exc_info=True
+                    )
+
+            logger.info("Applied theme: %s", canonical_name)
+            self.settings.set_theme(canonical_name)
+            SettingsManager.set("theme.name", canonical_name)
+            SettingsManager.save()
+            if self.main_window and hasattr(self.main_window, "update_theme"):
+                self.main_window.update_theme()
+            return True
+        except Exception as exc:
+            logger.error("Theme application error %s: %s", log_name, exc, exc_info=True)
+            return False
+
+    def refresh_themes(self) -> None:
+        """Reload themes from registry (e.g., after import/remove)."""
+        self._theme_registry.invalidate()
+        self._load_available_themes()
+
     def _clear_icon_cache_safe(self) -> None:
         """Clear icon cache with error handling."""
         try:
             clear_icon_cache()
+            from app.utils.ui.icon.path_service import icon_path_service
+
+            icon_path_service.clear_cache()
         except Exception as exc:
             logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
 
@@ -373,12 +427,20 @@ class ThemeController:
         """Refresh top panels (Favorites/Recent)."""
         try:
             if self.top_panels_controller is not None:
-                self.top_panels_controller.refresh_all()
+                if getattr(self.main_window, "_topbar_refresh_requested", False):
+                    return
+                self.top_panels_controller.request_refresh(150)
         except Exception as exc:
             logger.warning("Top panels update error: %s", exc, exc_info=True)
 
     def _perform_ui_updates(self, mw) -> None:
         """Perform all UI updates (menu, structure, panels)."""
+        try:
+            action_controller = getattr(mw, "action_controller", None)
+            if action_controller and hasattr(action_controller, "refresh_action_icons"):
+                action_controller.refresh_action_icons()
+        except Exception as exc:
+            logger.warning("Global action icon refresh error: %s", exc, exc_info=True)
         self._rebuild_menu(mw)
         self._reload_structure_icons(mw)
         self._refresh_top_panels()
@@ -396,7 +458,7 @@ class ThemeController:
         to avoid visual flicker of panel sizes.
         """
         logger.info(
-            "ThemeController: batch UI update after theme change: menu → structure icons → top panels"
+            "ThemeController: batch UI update after theme change: menu -> structure icons -> top panels"
         )
 
         # Clear icon cache
@@ -422,7 +484,7 @@ class ThemeController:
         if suspend_updates is None:
             if require_suspend:
                 logger.warning(
-                    "ThemeController: require_suspend_updates=True, but suspend_updates utility unavailable — skipping batch UI update"
+                    "ThemeController: require_suspend_updates=True, but suspend_updates utility unavailable - skipping batch UI update"
                 )
                 return
             # Fallback: execute without suspended repaint

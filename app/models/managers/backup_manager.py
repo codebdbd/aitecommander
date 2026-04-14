@@ -1,15 +1,11 @@
 """Module for managing database backups."""
 
-import datetime
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Callable
 
 from ..base.db_base import DatabaseError
-from ..types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
-from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +21,7 @@ def purge_old_backups(
     sleeper: Callable[[float], None] | None = None,
 ) -> int:
     """Remove outdated backup files, keeping at most ``max_backups`` files."""
-    files = sorted(backup_dir.glob("osteen_path_*.db"))
+    files = sorted(backup_dir.glob("aite_bd_*.db"))
     if not files or len(files) <= max_backups:
         return 0
 
@@ -69,7 +65,11 @@ def purge_old_backups(
 
 
 class BackupManager:
-    """Database backup management."""
+    """Database backup management.
+    
+    Delegates actual backup operations to BackupWorker for consistency.
+    This class provides a synchronous interface suitable for CLI/scripts.
+    """
 
     def __init__(self, db):
         """
@@ -78,65 +78,67 @@ class BackupManager:
         """
         self.db = db
 
-    def backup(self, backup_dir: Path):
-        """Creates database backup and deletes old copies when limit is exceeded.
+    def backup(self, backup_dir: Path) -> str:
+        """Creates database backup synchronously.
 
         Args:
             backup_dir: Directory for storing backups
 
+        Returns:
+            Path to created backup file
+
         Raises:
             DatabaseError: When backup creation fails
+            
+        Note:
+            This is a synchronous operation suitable for CLI/scripts.
+            For GUI applications, use Database.backup_async() instead.
+            
+            This method delegates to BackupWorker to ensure consistent
+            backup logic across sync and async operations.
         """
+        from ..workers.backup_worker import BackupWorker
+        
         operation = "backup"
+        connection = None
+        
         try:
             self.db.operation_started.emit(operation, 2)
-            max_bak = self._get_max_backups()
-
-            # 1) Create new backup
-            self.db.operation_progress.emit(operation, 0, 2, "Creating backup...")
-            now = datetime.datetime.now()
-            timestamp = now.strftime("%Y%m%d_%H%M%S")
-            dst = backup_dir / f"osteen_path_{timestamp}.db"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-
-            with sqlite3.connect(self.db.db_path) as src, sqlite3.connect(dst) as dest:
-                src.backup(dest)
-            logger.info("Backup created: %s", dst)
-
-            # Explicitly update file timestamp
-            try:
-                os.utime(dst, None)
-            except Exception:
-                pass
-
-            # 2) Cleanup beyond limit
-            self.db.operation_progress.emit(
-                operation, 1, 2, "Cleaning up old copies..."
-            )
-            files = sorted(backup_dir.glob("osteen_path_*.db"))
-
-            if len(files) > max_bak:
-                purge_old_backups(
-                    backup_dir,
-                    max_bak,
-                    keep=dst,
-                    attempts=BACKUP_RETRY_ATTEMPTS,
-                    delay=BACKUP_RETRY_DELAY,
-                    logger=logger,
-                    sleeper=None,
-                )
-
+            
+            # Get max backups setting
+            from app.config_data import app_config
+            max_backups = app_config.settings.get_max_backups()
+            
+            # Create worker instance
+            worker = BackupWorker(backup_dir, max_backups)
+            
+            # Open connection for synchronous execution
+            connection = sqlite3.connect(self.db.db_path)
+            
+            # Execute backup synchronously
+            result = worker.do_work(connection)
+            
+            if not result:
+                raise DatabaseError("Backup was cancelled or returned empty result")
+            
+            backup_path = result.get("backup_path")
+            if not backup_path:
+                raise DatabaseError("Backup did not return a valid path")
+            
             self.db.operation_finished.emit(operation, True)
-
+            
             # Notify UI about successful backup creation
             try:
-                self.db.backup_created.emit(str(dst))
+                self.db.backup_created.emit(backup_path)
             except Exception as signal_err:
                 logger.debug(
                     "Error sending backup_created signal: %s",
                     signal_err,
                     exc_info=True,
                 )
+            
+            return backup_path
+            
         except Exception as e:
             logger.error("Error creating backup: %s", e, exc_info=True)
             self.db.operation_finished.emit(operation, False)
@@ -145,7 +147,9 @@ class BackupManager:
             except Exception:
                 pass
             raise DatabaseError(f"Failed to create backup: {e}") from e
-
-    def _get_max_backups(self) -> int:
-        """Returns maximum number of backups from user settings."""
-        return app_config.settings.get_max_backups()
+        finally:
+            if connection:
+                try:
+                    connection.close()
+                except Exception as close_err:
+                    logger.warning("Error closing backup connection: %s", close_err)

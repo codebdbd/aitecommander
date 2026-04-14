@@ -205,6 +205,114 @@ class WindowFacade:
         """Update current theme and refresh UI."""
         self.theme_ctrl.apply_and_refresh_ui()
 
+    def refresh_structure_after_import(
+        self, structure_business: Any, section_id: int | None = None
+    ) -> None:
+        """Refresh structure-related UI and caches after archive import."""
+        if not structure_business:
+            return
+
+        try:
+            from app.utils.ui.icon.cache_manager import clear_icon_cache
+
+            clear_icon_cache()
+        except Exception:
+            pass
+
+        try:
+            if section_id is not None:
+                structure_business._invalidate_categories_cache(section_id)
+            else:
+                structure_business._invalidate_structure_cache()
+        except Exception:
+            pass
+
+        try:
+            if getattr(structure_business, "async_service", None):
+                structure_business.async_service.schedule_structure_reload(0)
+        except Exception:
+            pass
+
+        if section_id is not None:
+            try:
+                structure_business.section_selected.emit(int(section_id))
+            except Exception:
+                pass
+
+    def resolve_export_item_name(
+        self, structure_business: Any, package_type: str, item_id: int
+    ) -> str:
+        """Resolve section/category display name for archive export."""
+        default_name = "item"
+        if package_type == "section":
+            return self._resolve_named_export_entity(
+                structure_business=structure_business,
+                item_id=item_id,
+                default_name=default_name,
+                by_id_method_name="get_section_by_id",
+                fallback_method_name="get_section_data",
+                export_tree_method_name="export_section_tree",
+                tree_entity_key="section",
+            )
+        if package_type == "category":
+            return self._resolve_named_export_entity(
+                structure_business=structure_business,
+                item_id=item_id,
+                default_name=default_name,
+                by_id_method_name="get_category_by_id",
+                fallback_method_name="get_category_data",
+                export_tree_method_name="export_category_tree",
+                tree_entity_key="category",
+            )
+        return default_name
+
+    def _resolve_named_export_entity(
+        self,
+        *,
+        structure_business: Any,
+        item_id: int,
+        default_name: str,
+        by_id_method_name: str,
+        fallback_method_name: str,
+        export_tree_method_name: str,
+        tree_entity_key: str,
+    ) -> str:
+        name = default_name
+        data = None
+        structure_service = getattr(structure_business, "structure_service", None)
+
+        try:
+            if structure_service is not None:
+                get_by_id = getattr(structure_service, by_id_method_name, None)
+                if callable(get_by_id):
+                    data = get_by_id(int(item_id))
+        except Exception:
+            data = None
+
+        if not data:
+            try:
+                fallback_getter = getattr(structure_business, fallback_method_name, None)
+                if callable(fallback_getter):
+                    data = fallback_getter(int(item_id))
+            except Exception:
+                data = None
+
+        name = (data or {}).get("name") or name
+        if name != default_name:
+            return name
+
+        try:
+            if structure_service is not None:
+                export_tree = getattr(structure_service, export_tree_method_name, None)
+                if callable(export_tree):
+                    tree = export_tree(int(item_id))
+                    entity_data = (tree or {}).get(tree_entity_key) or {}
+                    name = entity_data.get("name") or name
+        except Exception:
+            return name
+
+        return name
+
     # === Service methods ===
 
     def on_structure_item_added(

@@ -120,7 +120,11 @@ class PopulationManagerMixin:
         current_ids = helpers._get_current_link_ids()
         new_ids = helpers._get_new_link_ids(links)
         bulk_changes = len(new_ids - current_ids) + len(current_ids - new_ids)
-        if bulk_changes >= 30 or len(links) >= 200:
+        total_links = len(links)
+        # Prefer incremental updates for bulk deletes/inserts as long as the
+        # table is not extremely large. A full reset is much more expensive on
+        # the UI thread and is the main source of visible hangs after deletes.
+        if total_links >= 900 or bulk_changes >= 350:
             self.logger.info(
                 "[LinksTableView] Large number of changes (%s) — performing full refresh",
                 bulk_changes,
@@ -131,6 +135,12 @@ class PopulationManagerMixin:
     def _get_current_order(self):
         """Get current order of link IDs in table."""
         helpers = self._data_helpers()
+        try:
+            cached_order = helpers.get_cached_link_order()
+            if cached_order:
+                return cached_order
+        except Exception:
+            self.logger.debug("populate: failed to use cached link order", exc_info=True)
         ids: list[int] = []
         model = self._link_table().model()
         total = model.rowCount() if model is not None else 0
@@ -206,9 +216,25 @@ class PopulationManagerMixin:
         table = self._link_table()
 
         with suspend_updates(table):
+            try:
+                if hasattr(table, "ensure_initial_sort"):
+                    table.ensure_initial_sort(links)
+            except Exception:
+                self.logger.debug(
+                    "populate: failed to apply initial sort", exc_info=True
+                )
+
             current_selection, current_scroll_pos, sort_col, sort_order = (
                 self._capture_ui_state()
             )
+
+            # Fast path for mass delete / empty category: a direct model reset to
+            # an empty list is much cheaper than incremental row-by-row removal.
+            if not links:
+                self._current_mode = mode
+                self._full_populate([], mode)
+                self._restore_ui_state([], 0, sort_col, sort_order)
+                return
 
             if mode != self._current_mode:
                 self._current_mode = mode

@@ -19,9 +19,11 @@ class TreeTilesService:
         self._manager = manager
 
     # --- Public API -----------------------------------------------------
-    def refresh_section_tiles(self, section_id: int) -> None:
+    def refresh_section_tiles(self, section_id: int, *, switch_view: bool = True) -> None:
         try:
-            self._manager.tiles_controller.refresh(int(section_id))
+            self._manager.tiles_controller.refresh(
+                int(section_id), switch_view=switch_view
+            )
         except (ValueError, RuntimeError):
             logger.exception(
                 "TreeTilesService.refresh_section_tiles: controller refresh failed (expected)"
@@ -62,7 +64,7 @@ class TreeTilesService:
                     get_tree_tuple(parent, 0) if parent and parent.isValid() else None
                 )
                 if section_meta and section_meta[0] == "section":
-                    self.refresh_section_tiles(section_meta[1])
+                    self.refresh_section_tiles(section_meta[1], switch_view=False)
         except Exception:
             logger.exception(
                 "TreeTilesService.refresh_after_category_edit: refresh failed"

@@ -1,9 +1,17 @@
 import logging
+import os
+import time
 from typing import Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject
 
 logger = logging.getLogger(__name__)
+_DIAG_TABLE_POPULATE = str(os.getenv("APP_LINKS_TABLE_DIAG", "")).lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 @runtime_checkable
@@ -62,9 +70,10 @@ class LinksTableController(QObject):
         self._reloading: bool = False
         self._queued_category_id: Optional[int] = None
         self._current_category_id: Optional[int] = None
+        self._current_request_id: Optional[int] = None
 
     # --- Public API ---
-    def reload(self, category_id: Optional[int]) -> None:
+    def reload(self, category_id: Optional[int], request_id: Optional[int] = None) -> None:
         """Reload links table for specified category.
 
         - Delegate loading to business logic (links_ui.business or main.links_business)
@@ -78,6 +87,16 @@ class LinksTableController(QObject):
                 return
 
             if self._reloading:
+                if (
+                    category_id == self._current_category_id
+                    and request_id == self._current_request_id
+                ):
+                    logger.debug(
+                        "LinksTableController.reload: duplicate in-flight reload (category_id=%s request_id=%s)",
+                        category_id,
+                        request_id,
+                    )
+                    return
                 # If reload already running, queue it, but avoid duplicates
                 if (
                     category_id == self._current_category_id
@@ -100,6 +119,7 @@ class LinksTableController(QObject):
                 "LinksTableController.reload: start (category_id=%s)", category_id
             )
             self._current_category_id = category_id
+            self._current_request_id = request_id
 
             # Centralized: load data via business logic; UI subscribed to changes
             # Catch exceptions here for uniform logging and to not crash UI
@@ -108,25 +128,8 @@ class LinksTableController(QObject):
             logger.error(
                 "LinksTableController.reload: unexpected error: %s", e, exc_info=True
             )
-        finally:
+            # Release lock on error to avoid deadlock
             self._reloading = False
-            # If another category arrived during execution — restart for last one
-            if (
-                isinstance(self._queued_category_id, int)
-                and self._queued_category_id > 0
-                and self._queued_category_id != self._current_category_id
-            ):
-                queued = self._queued_category_id
-                self._queued_category_id = None
-                logger.debug(
-                    "LinksTableController.reload: processing queued category_id=%s",
-                    queued,
-                )
-                # Call again synchronously; _reloading protection already released
-                try:
-                    self.reload(queued)
-                except Exception:
-                    logger.exception("LinksTableController.reload: queued call failed")
 
     def update_row(self, link_dict: Optional[dict]) -> None:
         """Point update of table row by link_dict.
@@ -171,11 +174,41 @@ class LinksTableController(QObject):
                     current_category_id,
                 )
                 return
-            self.table.populate(links)
+            if _DIAG_TABLE_POPULATE:
+                t0 = time.perf_counter()
+                self.table.populate(links)
+                elapsed_ms = (time.perf_counter() - t0) * 1000
+                if elapsed_ms >= 50:
+                    logger.info(
+                        "[Perf] LinksTable.populate: %d links in %.1f ms (category_id=%s)",
+                        len(links or []),
+                        elapsed_ms,
+                        category_id,
+                    )
+            else:
+                self.table.populate(links)
         except Exception as e:
             logger.error(
                 "LinksTableController.on_links_loaded: failed: %s", e, exc_info=True
             )
+        finally:
+            # Release reload lock and process queued category if any
+            self._reloading = False
+            if (
+                isinstance(self._queued_category_id, int)
+                and self._queued_category_id > 0
+                and self._queued_category_id != self._current_category_id
+            ):
+                queued = self._queued_category_id
+                self._queued_category_id = None
+                logger.debug(
+                    "LinksTableController.on_links_loaded: processing queued category_id=%s",
+                    queued,
+                )
+                try:
+                    self.reload(queued)
+                except Exception:
+                    logger.exception("LinksTableController.on_links_loaded: queued call failed")
 
     def on_search_results(self, search_results: list[dict]) -> None:
         """Update table with search results centrally."""
@@ -209,9 +242,9 @@ class LinksTableController(QObject):
     def on_link_saved(self, payload: Optional[dict] = None) -> None:
         """Slot for link_operations.link_saved(dict) signal."""
         try:
-            from app.config_data import app_config
+            from app.config_data.runtime_config import is_debug_links_inline_update
 
-            _debug = bool(app_config.ui.get_debug_links_inline_update())
+            _debug = is_debug_links_inline_update()
             # If sufficiently complete link data arrived and category matches current,
             # perform ONLY point row update without full reload.
             if isinstance(payload, dict):

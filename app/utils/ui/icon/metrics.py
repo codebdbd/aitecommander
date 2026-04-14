@@ -2,7 +2,7 @@
 
 import time
 from collections import deque
-from typing import Any, Deque
+from typing import Any
 
 from .lock_manager import acquire_metrics_lock
 
@@ -16,7 +16,7 @@ class CacheMetrics:
         self.disk_loads = 0  # Counter of successful disk loads
         self.not_found = 0  # Counter of files that were not found
         # Optimize load time storage to reduce load
-        self.load_times: Deque[float] = deque(maxlen=100)
+        self.load_times: deque[float] = deque(maxlen=100)
         # Add aggregated metrics for more accurate average time calculation
         self.total_load_time = 0.0
         self.load_count = 0

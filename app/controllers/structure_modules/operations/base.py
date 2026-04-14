@@ -125,14 +125,15 @@ class BaseOperations:
 
     def __init__(
         self,
-        structure_model: Any,  # StructureModel из app.models.structure_model
+        structure_coordinator: Any,  # StructureCoordinator из app.models.entities.structure_coordinator
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         emit_signal_func: Optional[
             Callable[[str, str, int, AnyItemPayload | None], None]
         ] = None,
     ):
-        self.structure_model = structure_model
+        self.structure_coordinator = structure_coordinator
+        self.db = getattr(structure_coordinator, 'db', None)
         # Сохраняем обычный logger для совместимости со старыми модулями
         self.logger = logger
         # Дополнительно используем структурированный логгер для стандартных сообщений

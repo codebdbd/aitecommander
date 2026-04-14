@@ -39,7 +39,7 @@ class MenuController(QObject):
             self.main_window.destroyed.connect(self._cleanup)
 
     def create_main_menu(self) -> QMenuBar:
-        """Create the main menu bar."""
+        """Create the main menu bar widget."""
         if not self._main_menu_builder:
             self._main_menu_builder = MainMenuBuilder(self.main_window)  # type: ignore[arg-type]
         return self._main_menu_builder.build()
@@ -72,7 +72,6 @@ class MenuController(QObject):
         item: Optional[Any],
         delete_item_cb: Callable,
         add_new_section_cb: Callable,
-        sort_tree_cb: Callable,
     ) -> QMenu:
         """Create context menu for the structure tree."""
         if not self._structure_menu_builder:
@@ -80,7 +79,7 @@ class MenuController(QObject):
                 tree_widget, self.main_window  # type: ignore[arg-type]
             )
         return self._structure_menu_builder.build(
-            item, delete_item_cb, add_new_section_cb, sort_tree_cb
+            item, delete_item_cb, add_new_section_cb
         )
 
     def create_links_context_menu(
@@ -123,39 +122,24 @@ class MenuController(QObject):
         Encapsulates cache clearing and menu recreation.
         """
         try:
-            old_menu = self.main_window.menuBar()
+            old_menu = self.main_window.get_menu_bar_widget()
             if old_menu is not None:
                 old_menu.deleteLater()
         except Exception as e:
-            # If the menu hasn't been initialized yet or already removed
             logger.warning(
-                "MenuController: failed to properly remove old menu on theme change",
-                exc_info=e,
+                "MenuController: failed to remove old menu on theme change", exc_info=e
             )
-            # Soft hint to the user (if there is a status bar)
-            try:
-                status_bar = getattr(self.main_window, "statusBar", None)
-                if callable(status_bar):
-                    sb = status_bar()
-                    if sb is not None and hasattr(sb, "showMessage"):
-                        sb.showMessage(
-                            "Failed to update the old menu, attempting to rebuild...",
-                            3000,
-                        )
-            except Exception:
-                # Do not block further menu rebuild
-                logger.debug("MenuController: status bar hint not shown")
 
         self.clear_cache()
-        self.main_window.setMenuBar(self.create_main_menu())
+        self.main_window.install_menu_bar_widget(self.create_main_menu())
 
     def rebuild_after_language_change(self) -> None:
         """Rebuild the main menu after language change."""
-        try:
-            old_menu = self.main_window.menuBar()
-            if old_menu is not None:
+        old_menu = getattr(self.main_window, "get_menu_bar_widget", lambda: None)()
+        if old_menu is not None:
+            try:
                 old_menu.deleteLater()
-        except Exception:
-            pass
+            except Exception:
+                pass
         self.clear_cache()
-        self.main_window.setMenuBar(self.create_main_menu())
+        self.main_window.install_menu_bar_widget(self.create_main_menu())

@@ -4,15 +4,19 @@
 Supported API:
 - ``run_db``: execute a database callable in the thread pool with error handling and locking
 - ``get_thread_pool`` / ``set_thread_pool``: manage the thread pool (useful in tests)
+- ``build_placeholders`` / ``build_in_clause_placeholders``: SQL query helpers
 """
 
 from __future__ import annotations
 
 from app.utils.db.api import run_db
 from app.utils.db.executors.pool import get_thread_pool, set_thread_pool
+from app.utils.db.sql_helpers import build_in_clause_placeholders, build_placeholders
 
 __all__ = [
     "run_db",
     "get_thread_pool",
     "set_thread_pool",
+    "build_placeholders",
+    "build_in_clause_placeholders",
 ]

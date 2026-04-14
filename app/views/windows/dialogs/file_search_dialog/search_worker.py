@@ -1,11 +1,17 @@
 import os
 import re
+import time
 from pathlib import Path
 
 from PyQt6.QtCore import QCoreApplication, QRunnable
 
 from .common import matches_criteria as _matches_common
 from .search_signals import SearchSignals
+
+# Batch size for sending results to GUI
+_BATCH_SIZE = 50
+# Progress update interval (seconds)
+_PROGRESS_UPDATE_INTERVAL = 0.1
 
 
 class FileSearchWorker(QRunnable):
@@ -18,6 +24,10 @@ class FileSearchWorker(QRunnable):
         self.config = config
         self.signals = SearchSignals()
         self._stop_requested = False
+        self._results_batch = []  # Accumulator for batch sending
+        self._files_processed = 0
+        self._dirs_processed = 0
+        self._last_progress_time = 0.0
 
     def stop(self):
         """Request search cancellation."""
@@ -54,13 +64,7 @@ class FileSearchWorker(QRunnable):
         if self.config["regex_name"]:
             name_regex = re.compile(self.config["regex_name"])
 
-        content_regex = None
-        if self.config["content"]:
-            flags = 0 if self.config["case_sensitive"] else re.IGNORECASE
-            if self.config["content_regex"]:
-                content_regex = re.compile(self.config["content"], flags)
-
-        return name_regex, content_regex
+        return name_regex
 
     def _get_search_constraints(self):
         """Get search constraints from config."""
@@ -98,8 +102,34 @@ class FileSearchWorker(QRunnable):
         except OSError:
             return False
 
+    def _flush_batch(self):
+        """Send accumulated results to GUI."""
+        if self._results_batch:
+            self.signals.results_batch.emit(self._results_batch.copy())
+            self._results_batch.clear()
+    
+    def _add_result(self, filepath: Path):
+        """Add result to batch and flush if needed."""
+        try:
+            # Add to batch: (path,)
+            self._results_batch.append((str(filepath),))
+            
+            # Flush batch if it reached the limit
+            if len(self._results_batch) >= _BATCH_SIZE:
+                self._flush_batch()
+                
+        except OSError:
+            pass  # Skip files that can't be stat'ed
+    
+    def _update_progress(self, force: bool = False):
+        """Send progress update if enough time has passed."""
+        current_time = time.time()
+        if force or (current_time - self._last_progress_time) >= _PROGRESS_UPDATE_INTERVAL:
+            self.signals.progress_update.emit(self._files_processed, self._dirs_processed)
+            self._last_progress_time = current_time
+    
     def _process_files(
-        self, root, files, name_regex, content_regex, allowed_exts, max_file_size_bytes
+        self, root, files, name_regex, allowed_exts, max_file_size_bytes
     ):
         """Process files in directory."""
         for filename in files:
@@ -107,6 +137,7 @@ class FileSearchWorker(QRunnable):
                 break
 
             filepath = Path(root) / filename
+            self._files_processed += 1
 
             if not self._is_extension_allowed(filepath, allowed_exts):
                 continue
@@ -114,11 +145,12 @@ class FileSearchWorker(QRunnable):
             if not self._is_size_allowed(filepath, max_file_size_bytes):
                 continue
 
-            if _matches_common(
-                self.config, str(filepath), filename, name_regex, content_regex
-            ):
-                ext = filepath.suffix.lower()
-                self.signals.result_found.emit(str(filepath), ext)
+            if _matches_common(self.config, str(filepath), filename, name_regex):
+                self._add_result(filepath)
+            
+            # Update progress periodically
+            if self._files_processed % 100 == 0:
+                self._update_progress()
 
     def run(self):
         """Entry point for the background search."""
@@ -128,7 +160,7 @@ class FileSearchWorker(QRunnable):
                 self.signals.search_finished.emit()
                 return
 
-            name_regex, content_regex = self._compile_regexes()
+            name_regex = self._compile_regexes()
             max_depth, allowed_exts, max_file_size_bytes = (
                 self._get_search_constraints()
             )
@@ -138,17 +170,24 @@ class FileSearchWorker(QRunnable):
                 if self._stop_requested:
                     break
 
+                self._dirs_processed += 1
                 self._should_limit_depth(root, base_depth, max_depth, dirs)
                 self._process_files(
                     root,
                     files,
                     name_regex,
-                    content_regex,
                     allowed_exts,
                     max_file_size_bytes,
                 )
+            
+            # Flush any remaining results
+            self._flush_batch()
+            # Send final progress
+            self._update_progress(force=True)
 
         except Exception as e:
+            # Flush any pending results before error
+            self._flush_batch()
             _tr = QCoreApplication.translate
             self.signals.error_occurred.emit(
                 _tr(self._TR_CONTEXT, "Error during search: {error}").format(

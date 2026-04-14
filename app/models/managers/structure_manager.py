@@ -107,6 +107,63 @@ class StructureManager:
             logger.error("Error getting full structure: %s", e, exc_info=True)
             raise DatabaseError(f"Failed to get full structure: {e}") from e
 
+    def get_structure_without_links(self) -> list[dict]:
+        """Return structure outline with spheres, sections and categories only."""
+        try:
+            t0 = time.perf_counter()
+            with db_lock:
+                spheres_rows = self.db.connection.execute(
+                    "SELECT * FROM sphere ORDER BY position"
+                ).fetchall()
+                sections_rows = self.db.connection.execute(
+                    "SELECT * FROM section ORDER BY position"
+                ).fetchall()
+                categories_rows = self.db.connection.execute(
+                    "SELECT * FROM category ORDER BY position"
+                ).fetchall()
+            t1 = time.perf_counter()
+
+            spheres_by_id: dict[int, dict] = {}
+            sections_by_sphere: dict[int, list[dict]] = {}
+            categories_by_section: dict[int, list[dict]] = {}
+
+            for s in spheres_rows:
+                sd = dict(s)
+                sd["sections"] = []
+                spheres_by_id[int(sd["id"])] = sd
+
+            for sec in sections_rows:
+                sc = dict(sec)
+                sc["categories"] = []
+                sections_by_sphere.setdefault(int(sc["sphere_id"]), []).append(sc)
+
+            for cat in categories_rows:
+                cd = dict(cat)
+                categories_by_section.setdefault(int(cd["section_id"]), []).append(cd)
+
+            spheres_data: list[dict] = []
+            for s in spheres_rows:
+                s_obj = spheres_by_id[int(s["id"])]
+                for sc in sections_by_sphere.get(int(s_obj["id"]), []):
+                    sc["categories"] = categories_by_section.get(int(sc["id"]), [])
+                    s_obj["sections"].append(sc)
+                spheres_data.append(s_obj)
+
+            t2 = time.perf_counter()
+            logger.debug(
+                "get_structure_without_links: spheres=%d sections=%d categories=%d db_ms=%.2f build_ms=%.2f total_ms=%.2f",
+                len(spheres_rows),
+                len(sections_rows),
+                len(categories_rows),
+                (t1 - t0) * 1000.0,
+                (t2 - t1) * 1000.0,
+                (t2 - t0) * 1000.0,
+            )
+            return spheres_data
+        except Exception as e:
+            logger.error("Error getting structure without links: %s", e, exc_info=True)
+            raise DatabaseError(f"Failed to get structure without links: {e}") from e
+
     def _count_total_items(self, root: list[dict]) -> int:
         """Count total items for progress tracking."""
         from app.models.utils.structure_stats import count_total_items
@@ -453,23 +510,23 @@ class StructureManager:
             ]
             placeholders = ", ".join(["?"] * len(cols))
             sql = f"INSERT INTO link ({', '.join(cols)}) VALUES ({placeholders})"
-            for link in links_without_id:
-                self.db.connection.execute(
-                    sql,
-                    (
-                        int(link.get("category_id") or 0),
-                        link.get("name", ""),
-                        link.get("url", ""),
-                        link.get("type", "web"),
-                        link.get("notes", ""),
-                        int(link.get("is_favorite", 0) or 0),
-                        link.get("last_used"),
-                        link.get("icon_path", ""),
-                        link.get("args", ""),
-                        link.get("browser_key"),
-                        int(link.get("position", 0)),
-                    ),
+            params = [
+                (
+                    int(link.get("category_id") or 0),
+                    link.get("name", ""),
+                    link.get("url", ""),
+                    link.get("type", "web"),
+                    link.get("notes", ""),
+                    int(link.get("is_favorite", 0) or 0),
+                    link.get("last_used"),
+                    link.get("icon_path", ""),
+                    link.get("args", ""),
+                    link.get("browser_key"),
+                    int(link.get("position", 0)),
                 )
+                for link in links_without_id
+            ]
+            self.db.connection.executemany(sql, params)
 
     def import_full_structure(self, data: list[dict]):
         """Clears database and imports data from structure.

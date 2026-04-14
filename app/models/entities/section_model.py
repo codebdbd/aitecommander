@@ -2,6 +2,7 @@ import logging
 import sqlite3
 from typing import Any, Optional
 
+from ...utils.db.sql_helpers import build_in_clause_placeholders
 from ..base.db_base import DatabaseBase, row_to_dict
 
 # Logging setup
@@ -10,6 +11,30 @@ logger = logging.getLogger(__name__)
 
 class SectionModel(DatabaseBase):
     """Model for working with sections"""
+
+    SQLITE_PARAM_CHUNK_SIZE = 900
+
+    def _validate_and_deduplicate_ids(
+        self, ids: list[int], entity_name: str = "item"
+    ) -> list[int]:
+        """Validate, filter and deduplicate integer IDs."""
+        if not ids:
+            return []
+
+        valid_ids = [
+            int(x) for x in ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
+
+        unique_ids = list(dict.fromkeys(valid_ids))
+
+        if not unique_ids:
+            logger.warning(
+                "No valid %s IDs found in input list of length %d",
+                entity_name, len(ids)
+            )
+
+        return unique_ids
 
     def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """Returns list of sections for specified sphere in dict format."""
@@ -31,19 +56,21 @@ class SectionModel(DatabaseBase):
         assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return row_to_dict(row) if row else None
 
-    def insert_section(self, data: dict[str, Any]) -> int:
-        """Inserts new section and returns its ID.
+    def insert_section(self, data: dict[str, Any]) -> Optional[int]:
+        """Inserts new section and returns its ID. Returns None if duplicate found.
         
-        Raises:
-            ValueError: If section with same name already exists in sphere.
+        NOTE: Must be called within a transaction context.
         """
         self._validate_required_fields(data, ["name", "sphere_id"], "section")
 
         # Check for duplicate before insert
         if self.has_duplicate_section(data["sphere_id"], data["name"]):
-            raise ValueError(
-                f"Section '{data['name']}' already exists in this sphere"
+            logger.warning(
+                "Section '%s' already exists in sphere %s",
+                data["name"],
+                data["sphere_id"],
             )
+            return None
 
         position = self._get_next_position("section", "sphere_id", data["sphere_id"])
         cursor = self._execute_with_error_handling(
@@ -52,8 +79,9 @@ class SectionModel(DatabaseBase):
         )
         logger.info("Added new section: %s", data["name"])
         if isinstance(cursor, sqlite3.Cursor):
-            return cursor.lastrowid or 0
-        return 0
+            lastrowid = cursor.lastrowid
+            return int(lastrowid) if lastrowid else None
+        return None
 
     def update_section(self, section_id: int, data: dict[str, Any]):
         """Updates existing section."""
@@ -86,33 +114,86 @@ class SectionModel(DatabaseBase):
         # Reindex positions of remaining sections in same sphere
         if isinstance(sphere_id, int):
             try:
-                self._reindex_positions(sphere_id)
+                self._reindex_positions("section", "sphere_id", sphere_id)
             except Exception:
                 # Don't interrupt deletion, but log warning
                 logger.warning(
                     "Failed to reindex section positions after deletion", exc_info=False
                 )
 
-    def _reindex_positions(self, sphere_id: int) -> None:
-        """Reindex position field for all sphere sections sequentially from 0.
+    # Note: _reindex_positions() is now inherited from DatabaseBase
 
-        Executed without own begin/commit, assuming external transaction context.
-        """
-        # Get section ids in required order
-        rows = self._execute_with_error_handling(
-            "SELECT id FROM section WHERE sphere_id = ? ORDER BY position, id",
-            (sphere_id,),
-            fetch_method="all",
+    def delete_sections_bulk(self, section_ids: list[int]) -> int:
+        """Bulk delete sections and reindex positions per affected sphere."""
+        unique_ids = self._validate_and_deduplicate_ids(section_ids, "section")
+        if not unique_ids:
+            return 0
+
+        CHUNK = self.SQLITE_PARAM_CHUNK_SIZE
+        affected_spheres: set[int] = set()
+        for i in range(0, len(unique_ids), CHUNK):
+            chunk = unique_ids[i : i + CHUNK]
+            placeholders = build_in_clause_placeholders(len(chunk))
+            rows_raw = self._execute_with_error_handling(
+                f"SELECT DISTINCT sphere_id FROM section WHERE id IN ({placeholders})",
+                tuple(chunk),
+                fetch_method="all",
+            )
+            for row in self._ensure_row_list(rows_raw):
+                sphere_id = row["sphere_id"]
+                if sphere_id is None:
+                    continue
+                affected_spheres.add(int(sphere_id))
+
+        deleted_sections = 0
+        with self.transaction():
+            for i in range(0, len(unique_ids), CHUNK):
+                chunk = unique_ids[i : i + CHUNK]
+                placeholders = build_in_clause_placeholders(len(chunk))
+                pre_count_row = self._execute_with_error_handling(
+                    f"SELECT COUNT(*) as cnt FROM section WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                    fetch_method="one",
+                )
+                if pre_count_row is None:
+                    pre_count = 0
+                else:
+                    try:
+                        pre_count = int(row_to_dict(pre_count_row)["cnt"])
+                    except (ValueError, TypeError, KeyError) as exc:
+                        logger.debug("Failed to parse pre_count: %s", exc)
+                        pre_count = 0
+
+                cursor = self._execute_with_error_handling(
+                    f"DELETE FROM section WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                )
+                rc = getattr(cursor, "rowcount", None)
+                if rc is not None:
+                    deleted_sections += int(rc)
+                else:
+                    logger.warning(
+                        "delete_sections_bulk: cursor.rowcount not available; using pre-count (%s) for chunk %s",
+                        pre_count,
+                        chunk,
+                    )
+                    deleted_sections += pre_count
+
+            for sphere_id in affected_spheres:
+                try:
+                    self._reindex_positions("section", "sphere_id", int(sphere_id))
+                except Exception:
+                    logger.warning(
+                        "Failed to reindex section positions after bulk deletion",
+                        exc_info=False,
+                    )
+
+        logger.info(
+            "Bulk deleted sections (count=%s), ids=%s",
+            deleted_sections,
+            unique_ids,
         )
-        ids_in_order = [int(r["id"]) for r in (rows or [])]
-        if not ids_in_order:
-            return
-        # Prepare batch of position updates 0..n-1
-        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
-        self._execute_many_with_error_handling(
-            "UPDATE section SET position = ? WHERE id = ?",
-            updates,
-        )
+        return deleted_sections
 
     def upsert_section(self, section_data: dict[str, Any]) -> int:
         """Inserts or updates section. If section with this id doesn't exist, inserts new with this id."""

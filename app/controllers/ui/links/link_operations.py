@@ -142,8 +142,22 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_data = link.copy()
             link_data["last_used"] = datetime.now().isoformat()
 
-            # Asynchronously save to DB (old behavior)
-            self.business.save_link(link_data)
+            # Update last_used asynchronously when possible, with safe fallbacks
+            try:
+                link_id = link_data.get("id")
+                update_last_used = getattr(self.business, "update_link_last_used", None)
+                if callable(update_last_used) and isinstance(link_id, int):
+                    update_last_used(link_id)
+                else:
+                    save_async = getattr(self.business, "save_link_async", None)
+                    if callable(save_async):
+                        save_async(link_data)
+                    else:
+                        self.business.save_link(link_data)
+            except DatabaseError as e:
+                logger.error("Database error updating last_used: %s", e)
+            except Exception as e:
+                logger.error("Unexpected error updating last_used: %s", e)
 
             # Centralized signal emission via LinkOperationsController
             try:

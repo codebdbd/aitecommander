@@ -5,13 +5,12 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any, Optional, Type
+from typing import Any
+
+_DATABASE_ERROR_CLS: type[Exception] | None = None
 
 
-_DATABASE_ERROR_CLS: Optional[Type[Exception]] = None
-
-
-def _get_database_error_cls() -> Optional[Type[Exception]]:
+def _get_database_error_cls() -> type[Exception] | None:
     """Lazily import ``DatabaseError`` to avoid circular import during startup."""
 
     global _DATABASE_ERROR_CLS

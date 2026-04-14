@@ -32,274 +32,544 @@ class UniversalProfileProcessor:
         logger.info("Initialized universal profile processor")
 
     def process_profile_links(
+
         self,
+
         name: str,
+
         url: str,
+
         link_type: str,
+
         icon_name: str,
+
         notes: str,
+
         category_id: int,
+
         browser_key: str,
+
         selected_profiles: list[dict],
+
         existing_link: Optional[dict[Any, Any]] = None,
+
         user_args: Optional[str] = None,
+
         existing_links_in_category: Optional[list[dict[Any, Any]]] = None,
+
     ) -> list[dict]:
+
         """
+
         Processes browser profiles and creates corresponding links.
 
+    
+
         Args:
+
             name: Base link name
+
             url: Link URL
+
             link_type: Link type
+
             icon_name: Icon name
+
             notes: Notes
+
             category_id: Category ID
+
             browser_key: Browser key
+
             selected_profiles: List of selected profiles
+
             existing_link: Existing link (when editing)
+
             user_args: User arguments (if manually specified)
+
             existing_links_in_category: Existing links in category (for duplicate checking)
 
+    
+
         Returns:
+
             List[Dict]: List of created link records
+
         """
+
         # Log immediately upon entering method
-        logger.debug(
-            "ENTER process_profile_links: browser_key=%s, selected_profiles_count=%s",
-            browser_key,
-            len(selected_profiles),
-        )
-        # Log input parameters for debugging
-        logger.debug(
-            "process_profile_links called with: name='%s', url='%s', link_type='%s', browser_key='%s', selected_profiles_count=%s, existing_link=%s, user_args=%s",
-            name,
-            url,
-            link_type,
-            browser_key,
-            len(selected_profiles),
-            "present" if existing_link else "None",
-            "present" if user_args else "None",
-        )
 
         logger.debug(
-            "process_profile_links: name=%s, browser_key=%s, selected_profiles count=%s",
-            name,
+
+            "ENTER process_profile_links: browser_key=%s, selected_profiles_count=%s",
+
             browser_key,
+
             len(selected_profiles),
+
         )
+
+        # Log input parameters for debugging
+
+        logger.debug(
+
+            "process_profile_links called with: name='%s', url='%s', link_type='%s', browser_key='%s', selected_profiles_count=%s, existing_link=%s, user_args=%s",
+
+            name,
+
+            url,
+
+            link_type,
+
+            browser_key,
+
+            len(selected_profiles),
+
+            "present" if existing_link else "None",
+
+            "present" if user_args else "None",
+
+        )
+
+    
+
+        logger.debug(
+
+            "process_profile_links: name=%s, browser_key=%s, selected_profiles count=%s",
+
+            name,
+
+            browser_key,
+
+            len(selected_profiles),
+
+        )
+
+    
 
         if not selected_profiles:
+
             logger.warning("No profiles selected")
+
             return []
+
+    
 
         finder = self.profile_manager.finders.get(browser_key)
+
         if not finder:
+
             logger.error("Unknown browser: %s", browser_key)
+
             return []
 
+    
+
         logger.info(
+
             "Processing %s profiles of %s",
+
             len(selected_profiles),
+
             get_browser_display_name(finder, browser_key),
+
         )
+
         logger.debug("Selected profiles: %s", selected_profiles)
 
+    
+
         # Extract base name
+
         base_name = extract_base_name_from_profile_name(name)
 
-        # Get existing links in category
-        if existing_links_in_category is not None:
-            existing_links = [dict(link) for link in existing_links_in_category]
-        else:
-            existing_links = [
-                dict(link) for link in self.database.links.get_links(category_id)
-            ]
-        # Pre-build hash keys for faster duplicate checking
-        # Key: (url, type, args)
-        try:
-            existing_keys = {
-                (
-                    link_item.get("url"),
-                    link_item.get("type"),
-                    (
-                        link_item.get("args")
-                        if (
-                            hasattr(link_item, "get")
-                            and link_item.get("args") is not None
-                        )
-                        else link_item.get("args")
-                        if isinstance(link_item, dict)
-                        else ""
-                    ),
-                )
-                for link_item in existing_links
-            }
-        except Exception:
-            existing_keys = set()
+    
+
+        # Existing links and duplicate keys
+
+        existing_links = self._load_existing_links(category_id, existing_links_in_category)
+
+        existing_keys = self._build_existing_keys(existing_links)
+
+    
 
         result_links: list[dict] = []
+
         is_edit = existing_link is not None
 
         existing_link_data = existing_link if existing_link is not None else None
+
         existing_last_used = (
+
             existing_link_data.get("last_used") if existing_link_data is not None else None
+
         )
+
         existing_position = 0
+
         if existing_link_data is not None:
+
             position_value = existing_link_data.get("position", 0)
+
             try:
+
                 existing_position = int(position_value)  # type: ignore[arg-type]
+
             except (TypeError, ValueError):
+
                 existing_position = 0
 
+    
+
         for profile in selected_profiles:
+
             try:
-                logger.debug("Processing profile: %s", profile)
 
-                # Format profile name
-                prof_name = self._format_profile_name(finder, profile)
-                logger.debug("Formatted profile name: %s", prof_name)
+                maybe_link = self._process_single_profile(
 
-                # Determine arguments: user-provided or auto-generated
-                if user_args is not None:
-                    # Use user-provided arguments
-                    prof_args = user_args
-                    logger.debug("Using user-provided args: '%s'", prof_args)
-                else:
-                    # Generate arguments via finder
-                    prof_args = finder.get_profile_argument(profile)
-                    logger.debug("Using auto-generated args: '%s'", prof_args)
+                    finder=finder,
 
-                # Check that arguments are not empty
-                if not prof_args:
-                    logger.info(
-                        "Skipping profile '%s' — empty arguments (browser=%s)",
-                        prof_name,
-                        browser_key,
-                    )
-                    continue
+                    profile=profile,
 
-                # Determine if this is the current edited profile
-                existing_args = (
-                    existing_link_data.get("args", "")
-                    if existing_link_data is not None
-                    else ""
-                )
-                existing_id = (
-                    existing_link_data.get("id") if existing_link_data is not None else None
-                )
-                is_current = is_edit and prof_args == existing_args
+                    user_args=user_args,
 
-                # For profiles of another browser when editing, check by ID
-                if is_edit and not is_current and existing_id:
-                    # Check if there's already a link with this ID in results
-                    # This is needed for correct processing of mixed profiles
-                    is_current = any(
-                        link.get("id") == existing_id for link in result_links
-                    )
+                    browser_key=browser_key,
 
-                logger.debug(
-                    "Profile check: prof_args='%s', existing_args='%s', is_edit=%s, is_current=%s",
-                    prof_args,
-                    existing_args,
-                    is_edit,
-                    is_current,
-                )
+                    base_name=base_name,
 
-                # Generate link name
-                link_name = self._generate_link_name(
-                    base_name, prof_name, len(selected_profiles) == 1, is_current, name
-                )
+                    name=name,
 
-                logger.debug(
-                    "Generated link_name='%s' for profile '%s'",
-                    link_name,
-                    prof_name,
-                )
-
-                # Check for duplicates
-
-                # When editing mixed profiles, don't check for duplicates profiles of another browser
-                skip_duplicate_check = False
-                if is_edit and not is_current and existing_link:
-                    # This is a profile of another browser when editing - skip duplicate check
-                    skip_duplicate_check = True
-                    logger.debug(
-                        "Skipping duplicate check for profile of another browser: %s",
-                        prof_name,
-                    )
-
-                logger.debug(
-                    "Duplicate check for %s: skip=%s, url=%s, type=%s, args=%s",
-                    link_name,
-                    skip_duplicate_check,
-                    url,
-                    link_type,
-                    prof_args,
-                )
-                if skip_duplicate_check:
-                    duplicate_check_result = False
-                elif is_current:
-                    # Current edited record is not considered a duplicate of itself
-                    duplicate_check_result = False
-                else:
-                    duplicate_check_result = (
-                        url,
-                        link_type,
-                        prof_args,
-                    ) in existing_keys
-                logger.debug("Duplicate check result: %s", duplicate_check_result)
-
-                if not skip_duplicate_check and duplicate_check_result:
-                    logger.info(
-                        "Skipping duplicate: name='%s', args='%s' (browser=%s)",
-                        link_name,
-                        prof_args,
-                        browser_key,
-                    )
-                    continue
-
-                # Create link record
-                link_record = make_profile_link_record(
-                    link_name=link_name,
                     url=url,
+
                     link_type=link_type,
+
                     icon_name=icon_name,
-                    prof_args=prof_args,
+
                     notes=notes,
+
                     category_id=category_id,
-                    last_used=existing_last_used,
-                    position=existing_position if existing_link_data is not None else 0,
-                    link_id=existing_id if is_current else None,
-                    browser_key=browser_key,  # Add browser_key for proper launch
+
+                    is_edit=is_edit,
+
+                    existing_link_data=existing_link_data,
+
+                    existing_last_used=existing_last_used,
+
+                    existing_position=existing_position,
+
+                    existing_keys=existing_keys,
+
+                    selected_count=len(selected_profiles),
+
+                    current_results=result_links,
+
                 )
 
-                result_links.append(link_record)
-                logger.debug("Created link: %s with arguments %s", link_name, prof_args)
+                if maybe_link:
+
+                    result_links.append(maybe_link)
 
             except Exception as e:
+
                 logger.error(
+
                     "Error processing profile %s: %s", profile, e, exc_info=True
+
                 )
+
                 continue
 
+    
+
         logger.info(
+
             "Created %s links for %s",
+
             len(result_links),
+
             get_browser_display_name(finder, browser_key),
+
         )
+
         return result_links
 
+
+    def _load_existing_links(
+
+        self, category_id: int, existing_links_in_category: Optional[list[dict]]
+
+    ) -> list[dict]:
+
+        if existing_links_in_category is not None:
+
+            return [dict(link) for link in existing_links_in_category]
+
+        try:
+
+            return [dict(link) for link in self.database.links.get_links(category_id)]
+
+        except Exception:
+
+            return []
+
+
+    def _build_existing_keys(self, existing_links: list[dict]) -> set[tuple[Any, Any, Any]]:
+
+        """Build duplicate-check keys as (url, type, args)."""
+
+        try:
+
+            return {
+
+                (
+
+                    link_item.get("url"),
+
+                    link_item.get("type"),
+
+                    (
+
+                        link_item.get("args")
+
+                        if (
+
+                            hasattr(link_item, "get") and link_item.get("args") is not None
+
+                        )
+
+                        else link_item.get("args") if isinstance(link_item, dict) else ""
+
+                    ),
+
+                )
+
+                for link_item in existing_links
+
+            }
+
+        except Exception:
+
+            return set()
+
+
+    def _process_single_profile(
+
+        self,
+
+        *,
+
+        finder,
+
+        profile: dict,
+
+        user_args: Optional[str],
+
+        browser_key: str,
+
+        base_name: str,
+
+        name: str,
+
+        url: str,
+
+        link_type: str,
+
+        icon_name: str,
+
+        notes: str,
+
+        category_id: int,
+
+        is_edit: bool,
+
+        existing_link_data: Optional[dict[Any, Any]],
+
+        existing_last_used,
+
+        existing_position: int,
+
+        existing_keys: set[tuple[Any, Any, Any]],
+
+        selected_count: int,
+
+        current_results: list[dict],
+
+    ) -> Optional[dict]:
+
+        logger.debug("Processing profile: %s", profile)
+
+        prof_name = self._format_profile_name(finder, profile)
+
+        logger.debug("Formatted profile name: %s", prof_name)
+
+        if user_args is not None:
+
+            prof_args = user_args
+
+            logger.debug("Using user-provided args: '%s'", prof_args)
+
+        else:
+
+            prof_args = finder.get_profile_argument(profile)
+
+            logger.debug("Using auto-generated args: '%s'", prof_args)
+
+    
+
+        if not prof_args:
+
+            logger.info(
+
+                "Skipping profile '%s' — empty arguments (browser=%s)",
+
+                prof_name,
+
+                browser_key,
+
+            )
+
+            return None
+        existing_args = existing_link_data.get("args", "") if existing_link_data is not None else ""
+
+        existing_id = existing_link_data.get("id") if existing_link_data is not None else None
+
+        is_current = is_edit and prof_args == existing_args
+
+        if is_edit and not is_current and existing_id:
+
+            is_current = any(link.get("id") == existing_id for link in current_results)
+
+    
+
+        logger.debug(
+
+            "Profile check: prof_args='%s', existing_args='%s', is_edit=%s, is_current=%s",
+
+            prof_args,
+
+            existing_args,
+
+            is_edit,
+
+            is_current,
+
+        )
+
+    
+
+        link_name = self._generate_link_name(
+
+            base_name, prof_name, selected_count == 1, is_current, name
+
+        )
+
+        logger.debug("Generated link_name='%s' for profile '%s'", link_name, prof_name)
+
+    
+
+        skip_duplicate_check = False
+
+        if is_edit and not is_current and existing_link_data:
+
+            skip_duplicate_check = True
+
+            logger.debug(
+
+                "Skipping duplicate check for profile of another browser: %s",
+
+                prof_name,
+
+            )
+
+    
+
+        logger.debug(
+
+            "Duplicate check for %s: skip=%s, url=%s, type=%s, args=%s",
+
+            link_name,
+
+            skip_duplicate_check,
+
+            url,
+
+            link_type,
+
+            prof_args,
+
+        )
+
+    
+
+        duplicate_check_result = False
+
+        if not skip_duplicate_check and not is_current:
+
+            duplicate_check_result = (url, link_type, prof_args) in existing_keys
+
+    
+
+        logger.debug("Duplicate check result: %s", duplicate_check_result)
+
+        if not skip_duplicate_check and duplicate_check_result:
+
+            logger.info(
+
+                "Skipping duplicate: name='%s', args='%s' (browser=%s)",
+
+                link_name,
+
+                prof_args,
+
+                browser_key,
+
+            )
+
+            return None
+
+    
+
+        link_record = make_profile_link_record(
+
+            link_name=link_name,
+
+            url=url,
+
+            link_type=link_type,
+
+            icon_name=icon_name,
+
+            prof_args=prof_args,
+
+            notes=notes,
+
+            category_id=category_id,
+
+            last_used=existing_last_used,
+
+            position=existing_position if existing_link_data is not None else 0,
+
+            link_id=existing_id if is_current else None,
+
+            browser_key=browser_key,
+
+        )
+
+        logger.debug("Created link: %s with arguments %s", link_name, prof_args)
+
+        return link_record
     def _format_profile_name(self, finder, profile: dict) -> str:
         """Formats profile name for display."""
         if hasattr(finder, "format_profile_display_name"):
-            return finder.format_profile_display_name(profile)
+            display_name = finder.format_profile_display_name(profile)
+        else:
+            display_name = ""
 
-        # Fallback for compatibility
+        # Prefer profile name over email for link naming
         profile_name = (
-            profile.get("email")
-            or profile.get("name")
+            profile.get("name")
+            or profile.get("email")
+            or display_name
             or getattr(finder, "get_browser_name", lambda: "Browser")()
         )
         return validate_chrome_profile_name(profile_name)
@@ -338,7 +608,7 @@ class UniversalProfileProcessor:
             )
             return base_name
 
-        generated_name = f"{base_name} ({profile_name})"
+        generated_name = f"{base_name} | {profile_name}"
         logger.debug(
             "_generate_link_name: returning generated_name='%s' (new profile)",
             generated_name,
@@ -404,3 +674,5 @@ class UniversalProfileProcessor:
                 return False
 
         return True
+
+

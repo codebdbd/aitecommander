@@ -2,21 +2,31 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
 from PyQt6.QtCore import (
     QAbstractItemModel,
-    QMetaObject,
+    QCoreApplication,
     QModelIndex,
+    QObject,
     QRunnable,
     Qt,
+    QThread,
     QThreadPool,
     pyqtSignal,
     pyqtSlot,
 )
 from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import QApplication
 
+from app.config_data.runtime_config import (
+    get_tree_icon_size,
+    get_tree_section_icon_prewarm_limit,
+)
+from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.icon_resolver import resolve_icon_path
 from app.utils.ui.icon.validation import _validate_icon_name
 
@@ -26,6 +36,52 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover - imported for typing only
     from PyQt6.QtCore import QMimeData
+
+_DISPATCHER = None
+
+
+class _GuiCallbackDispatcher(QObject):
+    invoke = pyqtSignal(object, object, object)
+
+    def __init__(self) -> None:
+        parent = QCoreApplication.instance()
+        super().__init__(parent)
+        self.invoke.connect(
+            self._execute, Qt.ConnectionType.QueuedConnection  # type: ignore[arg-type]
+        )
+
+    @pyqtSlot(object, object, object)
+    def _execute(
+        self, callback: Callable[..., object], args: tuple, kwargs: dict
+    ) -> None:
+        try:
+            callback(*args, **kwargs)
+        except Exception as exc:
+            logger.debug("GUI callback failed: %s", exc)
+
+
+def _get_dispatcher() -> _GuiCallbackDispatcher | None:
+    global _DISPATCHER
+    if _DISPATCHER is not None:
+        return _DISPATCHER
+    app = QCoreApplication.instance()
+    if app is None:
+        return None
+    if QThread.currentThread() != app.thread():
+        return None
+    _DISPATCHER = _GuiCallbackDispatcher()
+    return _DISPATCHER
+
+
+def _invoke_in_gui(callback: Callable[..., object] | None, *args) -> None:
+    if callback is None:
+        return
+    dispatcher = _get_dispatcher()
+    if dispatcher is None:
+        callback(*args)
+        return
+    dispatcher.invoke.emit(callback, args, {})
+
 
 def _coerce_optional_int(value: Any) -> int | None:
     """Return ``int(value)`` when the input can be safely coerced, else ``None``."""
@@ -48,6 +104,7 @@ class TreeNode:
     children: list[TreeNode] = field(default_factory=list)
     payload: dict[str, Any] = field(default_factory=dict)
     icon: QIcon | None = None
+    children_populated: bool = True
 
     def row(self) -> int:
         if not self.parent:
@@ -69,47 +126,60 @@ class IconLoader(QRunnable):
 
     def __init__(
         self,
-        node: TreeNode,
         icon_path: str,
-        on_loaded: Callable[[TreeNode, QIcon], None] | None = None,
-        on_error: Callable[[TreeNode, str], None] | None = None,
+        on_loaded: Callable[[str, QIcon], None] | None = None,
+        on_error: Callable[[str, str], None] | None = None,
     ) -> None:
         super().__init__()
-        self.node = node
         self.icon_path = icon_path.strip()
         self._on_loaded = on_loaded
         self._on_error = on_error
         self.setAutoDelete(True)
 
-        self.icon_loaded = None
-        self.icon_error = None
-
     def run(self) -> None:  # pragma: no cover - executed in worker thread
-        from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
-
         try:
+            app = QApplication.instance()
+            if app and app.closingDown():
+                return
             if not self.icon_path:
                 raise ValueError("Icon path is empty")
 
-            def _fetch_icon() -> QIcon:
+            try:
+                resolved_path = icon_loading_service.resolve_path(self.icon_path)
+            except Exception:
+                logger.debug(
+                    "IconLoader: failed to resolve path for %s",
+                    self.icon_path,
+                    exc_info=True,
+                )
+                resolved_path = ""
+
+            def _run_in_gui() -> None:
+                app_local = QApplication.instance()
+                if app_local and app_local.closingDown():
+                    return
                 try:
-                    from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-
-                    return icon_cache.get_icon(self.icon_path, source="tree_model_async")
+                    icon = (
+                        icon_loading_service.get_path_icon(resolved_path)
+                        if resolved_path
+                        else QIcon()
+                    )
                 except Exception:
-                    return QIcon()
+                    icon = QIcon()
 
-            icon = run_in_gui_thread_sync(_fetch_icon)
+                if self._on_loaded:
+                    self._on_loaded(self.icon_path, icon)
 
-            if self._on_loaded:
-                run_in_gui_thread_sync(lambda: self._on_loaded(self.node, icon))
+            _invoke_in_gui(_run_in_gui)
         except Exception as exc:
             logger.debug("Icon loading failed for %s: %s", self.icon_path, exc)
             if self._on_error:
-                run_in_gui_thread_sync(lambda: self._on_error(self.node, str(exc)))
+                _invoke_in_gui(
+                    lambda err=exc: self._on_error(self.icon_path, str(err))
+                )
 
 class _IconPreloadRunnable(QRunnable):
-    """Фоновая предзагрузка набора иконок для заполнения кэша."""
+    """Best-effort batched icon warmup with a single GUI handoff."""
 
     def __init__(self, icon_paths: set[str]) -> None:
         super().__init__()
@@ -117,23 +187,29 @@ class _IconPreloadRunnable(QRunnable):
         self.setAutoDelete(True)
 
     def run(self) -> None:  # pragma: no cover - executed in worker thread
-        try:
-            from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-            from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
-        except Exception:
+        resolved_paths: list[str] = []
+        for icon_path in self._icon_paths:
+            if not icon_path:
+                continue
+            try:
+                resolved = icon_loading_service.resolve_path(icon_path)
+            except Exception:
+                logger.debug("Icon preload resolve failed for %s", icon_path, exc_info=True)
+                continue
+            if resolved:
+                resolved_paths.append(resolved)
+
+        if not resolved_paths:
             return
 
-        for path in self._icon_paths:
-            if not path:
-                continue
-
-            def _warmup() -> None:
+        def _warmup_batch() -> None:
+            for resolved in resolved_paths:
                 try:
-                    icon_cache.get_icon(path, source="tree_preload")
+                    icon_loading_service.get_path_icon(resolved)
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("Icon preload failed for %s: %s", path, exc)
+                    logger.debug("Icon preload failed for %s: %s", resolved, exc)
 
-            run_in_gui_thread_sync(_warmup)
+        _invoke_in_gui(_warmup_batch)
 
 class StructureTreeModel(QAbstractItemModel):
     """Hierarchical model for sections/categories structure."""
@@ -143,33 +219,33 @@ class StructureTreeModel(QAbstractItemModel):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        _get_dispatcher()
         self._root = TreeNode(type="root", id=None, name="root")
         self._section_by_id: dict[int, TreeNode] = {}
         self._category_by_id: dict[int, TreeNode] = {}
         self._placeholder_icon = self._create_placeholder_icon()
 
         self._thread_pool = QThreadPool(self)
-        self._thread_pool.setMaxThreadCount(6)  # increase concurrency for icon loading
         try:
             self._thread_pool.setMaxThreadCount(4)
         except Exception as exc:
             logger.warning("Failed to set thread pool max count: %s", exc)
 
-        self._active_icon_tasks: set[int] = set()
+        self._active_icon_tasks: set[str] = set()
         self._active_icon_lock = threading.Lock()
+        self._icon_waiters_by_path: dict[str, list[TreeNode]] = {}
         self._shutdown = False
+        self._snapshot_icon_load_token = 0
         self._tree_snapshot_icons_ready = False
         self._tree_snapshot_icons_expected = 0
         self._tree_snapshot_icons_warmed = 0
+        self._deferred_categories_by_section: dict[int, list[dict[str, Any]]] = {}
+        self._deferred_category_parent_by_id: dict[int, int] = {}
 
     def _create_placeholder_icon(self) -> QIcon:
         """Create a transparent QIcon placeholder to reserve space in the tree."""
         try:
-            from app.config_data import app_config
-
-            size_cfg = app_config.ui.get_tree_icon_size()
-            w = int(size_cfg[0]) if isinstance(size_cfg, (list, tuple)) and len(size_cfg) else 24
-            h = int(size_cfg[1]) if isinstance(size_cfg, (list, tuple)) and len(size_cfg) > 1 else w
+            w, h = get_tree_icon_size()
         except Exception:
             w = h = 24
         pixmap = QPixmap(w, h)
@@ -199,6 +275,9 @@ class StructureTreeModel(QAbstractItemModel):
         )
 
         if is_absolute:
+            shared_icon = icon_loading_service.peek_path_icon(candidate)
+            if shared_icon is not None and not shared_icon.isNull():
+                return shared_icon
             cache_key = f"abspath::{candidate}"
             icon = cache_get_icon(cache_key, "__abs__")
             return icon if icon is not None and not icon.isNull() else None
@@ -244,20 +323,29 @@ class StructureTreeModel(QAbstractItemModel):
         if not trimmed:
             return None
 
+        is_absolute = (
+            trimmed.startswith(":/")
+            or trimmed.startswith("qrc:/")
+            or trimmed.startswith("qresource:")
+            or trimmed.startswith("/")
+            or trimmed.startswith("\\")
+            or (len(trimmed) > 2 and trimmed[1] == ":" and trimmed[2] in ("\\", "/"))
+        )
+        if is_absolute:
+            icon = icon_loading_service.get_path_icon(trimmed)
+            return icon if not icon.isNull() else None
+
         if not self._is_theme_icon_path(trimmed):
             try:
-                resolved_path = resolve_icon_path(trimmed)
+                icon = icon_loading_service.get_path_icon(trimmed)
             except Exception:
                 logger.debug(
-                    "StructureTreeModel._load_icon_immediately_if_safe: resolve_icon_path failed for %s",
+                    "StructureTreeModel._load_icon_immediately_if_safe: resolve/load failed for %s",
                     trimmed,
                     exc_info=True,
                 )
-                resolved_path = ""
-            if resolved_path:
-                icon = QIcon(resolved_path)
-                return icon if not icon.isNull() else None
-            return None
+                return None
+            return icon if not icon.isNull() else None
 
         try:
             from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
@@ -319,6 +407,31 @@ class StructureTreeModel(QAbstractItemModel):
         display_icon = icon_obj if icon_obj is not None else self._placeholder_icon
         return display_icon, pending_path, stored_path
 
+    def _load_icon_sync_fallback(self, icon_path: str | None) -> QIcon | None:
+        """Try a synchronous icon load for first-frame rendering.
+
+        Used for section icons during snapshot application to avoid visual pop-in
+        (text appears first, icon later). Falls back silently on any error.
+        """
+        if not isinstance(icon_path, str):
+            return None
+        candidate = icon_path.strip()
+        if not candidate:
+            return None
+        try:
+            from app.utils.ui.icon.icon_service import get_icon
+
+            icon = get_icon(candidate, source="tree_model_sync_fallback")
+            if isinstance(icon, QIcon) and not icon.isNull():
+                return icon
+        except Exception:
+            logger.debug(
+                "StructureTreeModel._load_icon_sync_fallback: failed for %s",
+                candidate,
+                exc_info=True,
+            )
+        return None
+
     def columnCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802 (Qt API)
         return 1
 
@@ -327,6 +440,36 @@ class StructureTreeModel(QAbstractItemModel):
             parent = QModelIndex()
         node = self._node_from_index(parent)
         return len(node.children)
+
+    def hasChildren(self, parent: QModelIndex | None = None) -> bool:  # noqa: N802
+        if parent is None:
+            parent = QModelIndex()
+        node = self._node_from_index(parent)
+        if node is self._root:
+            return bool(self._root.children)
+        if node.type == "section" and isinstance(node.id, int):
+            if node.children:
+                return True
+            return bool(self._deferred_categories_by_section.get(node.id))
+        return bool(node.children)
+
+    def canFetchMore(self, parent: QModelIndex) -> bool:  # noqa: N802
+        if not parent.isValid():
+            return False
+        node = self._node_from_index(parent)
+        if node.type != "section" or not isinstance(node.id, int):
+            return False
+        return (not node.children_populated) and bool(
+            self._deferred_categories_by_section.get(node.id)
+        )
+
+    def fetchMore(self, parent: QModelIndex) -> None:  # noqa: N802
+        if not parent.isValid():
+            return
+        node = self._node_from_index(parent)
+        if node.type != "section" or not isinstance(node.id, int):
+            return
+        self._populate_section_categories(node, parent)
 
     def index(
         self, row: int, column: int, parent: QModelIndex | None = None
@@ -488,12 +631,10 @@ class StructureTreeModel(QAbstractItemModel):
                 icon_path = icon_path_raw.strip()
                 if icon_path:
                     try:
-                        resolved = resolve_icon_path(icon_path)
-                        if resolved:
-                            icon = QIcon(resolved)
-                            if not icon.isNull():
-                                prepared_sections.append((s, icon))
-                                continue
+                        icon = icon_loading_service.get_path_icon(icon_path)
+                        if not icon.isNull():
+                            prepared_sections.append((s, icon))
+                            continue
                     except Exception:
                         pass
 
@@ -527,6 +668,17 @@ class StructureTreeModel(QAbstractItemModel):
         sec_node = self._section_by_id.get(int(section_id))
         if not sec_node:
             return
+        if not sec_node.children_populated and isinstance(sec_node.id, int):
+            deferred = self._deferred_categories_by_section.setdefault(sec_node.id, [])
+            insert_at = len(deferred) if row < 0 else max(0, min(int(row), len(deferred)))
+            for i, c in enumerate(categories or []):
+                if not isinstance(c, dict):
+                    continue
+                deferred.insert(insert_at + i, c)
+                cat_id = _coerce_optional_int(c.get("id"))
+                if isinstance(cat_id, int):
+                    self._deferred_category_parent_by_id[cat_id] = sec_node.id
+            return
         parent_index = self.createIndex(sec_node.row(), 0, sec_node)
         if row < 0:
             row = len(sec_node.children)
@@ -534,16 +686,26 @@ class StructureTreeModel(QAbstractItemModel):
         if count == 0:
             return
 
-        self._preload_category_icons(categories)
-
         self.beginInsertRows(parent_index, row, row + count - 1)
         for i, c in enumerate(categories):
-            icon, pending_path, stored_path = self._prepare_icon_fields(
-                c.get("icon"),
-                c.get("icon_path"),
-            )
-            if stored_path is not None:
-                c["icon_path"] = stored_path
+            icon_value = c.get("icon")
+            if isinstance(icon_value, QIcon) and not icon_value.isNull():
+                icon = icon_value
+            else:
+                icon_path_raw = c.get("icon_path") or c.get("icon")
+                if isinstance(icon_path_raw, str):
+                    icon_path = icon_path_raw.strip()
+                    if icon_path:
+                        try:
+                            icon = icon_loading_service.get_path_icon(icon_path)
+                            if icon.isNull():
+                                icon = self._placeholder_icon
+                        except Exception:
+                            icon = self._placeholder_icon
+                    else:
+                        icon = self._placeholder_icon
+                else:
+                    icon = self._placeholder_icon
 
             cat_node = TreeNode(
                 type="category",
@@ -556,8 +718,6 @@ class StructureTreeModel(QAbstractItemModel):
             sec_node.children.insert(row + i, cat_node)
             if isinstance(cat_node.id, int):
                 self._category_by_id[cat_node.id] = cat_node
-                if pending_path:
-                    self._start_icon_loading(cat_node, pending_path)
         self.endInsertRows()
 
     def update_item(
@@ -570,21 +730,33 @@ class StructureTreeModel(QAbstractItemModel):
             item_id: ID элемента
             data: Словарь с обновляемыми полями (name, icon, etc.)
         """
+        if item_type == "category" and int(item_id) not in self._category_by_id:
+            parent_sid = self._deferred_category_parent_by_id.get(int(item_id))
+            if isinstance(parent_sid, int):
+                deferred = self._deferred_categories_by_section.get(parent_sid) or []
+                for c in deferred:
+                    if isinstance(c, dict) and _coerce_optional_int(c.get("id")) == int(item_id):
+                        c.update(data or {})
+                        break
+
         idx = self.index_for(item_type, int(item_id))
         if not idx.isValid():
             return
         node: TreeNode = idx.internalPointer()
         if "name" in data:
             node.name = str(data.get("name", node.name))
-        if "icon" in data:
-            icon = data.get("icon")
-            if isinstance(icon, QIcon):
-                node.icon = icon
+        icon_value = data.get("icon") if "icon" in data else None
+        if "icon" in data or "icon_path" in data:
+            if isinstance(icon_value, QIcon):
+                node.icon = icon_value
                 if isinstance(node.payload, dict) and "icon_path" in data:
                     node.payload["icon_path"] = data.get("icon_path")
-            elif isinstance(icon, str):
+            else:
+                icon_source = (
+                    icon_value if isinstance(icon_value, str) else data.get("icon_path")
+                )
                 resolved_icon, pending_path, stored_path = self._prepare_icon_fields(
-                    icon,
+                    icon_source,
                     data.get("icon_path"),
                 )
                 node.icon = resolved_icon
@@ -595,8 +767,8 @@ class StructureTreeModel(QAbstractItemModel):
                         node.payload["icon_path"] = stored_path
                 if pending_path:
                     self._start_icon_loading(node, pending_path)
-            else:
-                node.icon = self._placeholder_icon
+                elif icon_source is None and "icon" in data:
+                    node.icon = self._placeholder_icon
         if data:
             node.payload.update(data)
         self.dataChanged.emit(
@@ -626,10 +798,53 @@ class StructureTreeModel(QAbstractItemModel):
 
     def remove_categories(self, category_ids: list[int]) -> None:
         by_parent: dict[TreeNode, list[TreeNode]] = {}
+        affected_section_ids: set[int] = set()
         for cid in list(category_ids or []):
-            cat_node = self._category_by_id.get(int(cid))
+            cat_id = int(cid)
+            cat_node = self._category_by_id.get(cat_id)
             if not cat_node or not cat_node.parent:
+                parent_sid = self._deferred_category_parent_by_id.pop(cat_id, None)
+                if isinstance(parent_sid, int):
+                    affected_section_ids.add(parent_sid)
+                    sec_node = self._section_by_id.get(parent_sid)
+                    if (
+                        sec_node is not None
+                        and isinstance(sec_node.payload, dict)
+                        and isinstance(sec_node.payload.get("categories"), list)
+                    ):
+                        sec_node.payload["categories"] = [
+                            c
+                            for c in sec_node.payload.get("categories") or []
+                            if not (
+                                isinstance(c, dict)
+                                and _coerce_optional_int(c.get("id")) == cat_id
+                            )
+                        ]
+                    deferred = self._deferred_categories_by_section.get(parent_sid)
+                    if deferred is not None:
+                        self._deferred_categories_by_section[parent_sid] = [
+                            c
+                            for c in deferred
+                            if not (
+                                isinstance(c, dict)
+                                and _coerce_optional_int(c.get("id")) == cat_id
+                            )
+                        ]
                 continue
+            if isinstance(cat_node.parent.id, int):
+                affected_section_ids.add(int(cat_node.parent.id))
+                if (
+                    isinstance(cat_node.parent.payload, dict)
+                    and isinstance(cat_node.parent.payload.get("categories"), list)
+                ):
+                    cat_node.parent.payload["categories"] = [
+                        c
+                        for c in cat_node.parent.payload.get("categories") or []
+                        if not (
+                            isinstance(c, dict)
+                            and _coerce_optional_int(c.get("id")) == cat_id
+                        )
+                    ]
             by_parent.setdefault(cat_node.parent, []).append(cat_node)
         for parent_node, cats in by_parent.items():
             cats_sorted = sorted(cats, key=lambda n: n.row())
@@ -645,12 +860,96 @@ class StructureTreeModel(QAbstractItemModel):
                 if isinstance(node.id, int) and node.id in self._category_by_id:
                     del self._category_by_id[node.id]
                 self.endRemoveRows()
+        for section_id in sorted(affected_section_ids):
+            sec_node = self._section_by_id.get(section_id)
+            if sec_node is None:
+                continue
+            sec_index = self.createIndex(sec_node.row(), 0, sec_node)
+            if sec_index.isValid():
+                self.dataChanged.emit(
+                    sec_index,
+                    sec_index,
+                    [
+                        Qt.ItemDataRole.DisplayRole,
+                        Qt.ItemDataRole.DecorationRole,
+                        Qt.ItemDataRole.UserRole,
+                    ],
+                )
+
+    def section_ids_for_categories(self, category_ids: list[int]) -> list[int]:
+        section_ids: set[int] = set()
+        for raw_id in list(category_ids or []):
+            try:
+                cat_id = int(raw_id)
+            except Exception:
+                continue
+            cat_node = self._category_by_id.get(cat_id)
+            if cat_node is not None and isinstance(getattr(cat_node.parent, "id", None), int):
+                section_ids.add(int(cat_node.parent.id))
+                continue
+            parent_sid = self._deferred_category_parent_by_id.get(cat_id)
+            if isinstance(parent_sid, int):
+                section_ids.add(parent_sid)
+        return sorted(section_ids)
+
+    def replace_section_categories(
+        self, section_id: int, categories: list[dict[str, Any]]
+    ) -> None:
+        """Replace section children with optional deferred materialization for large sets."""
+        sec_node = self._section_by_id.get(int(section_id))
+        if sec_node is None or not isinstance(sec_node.id, int):
+            return
+
+        incoming = [c for c in (categories or []) if isinstance(c, dict)]
+        # Large restores should avoid materializing all child nodes in one GUI slice.
+        defer_threshold = 64
+        was_populated = bool(getattr(sec_node, "children_populated", True))
+
+        parent_index = self.createIndex(sec_node.row(), 0, sec_node)
+        if sec_node.children:
+            self.beginRemoveRows(parent_index, 0, len(sec_node.children) - 1)
+            try:
+                for node in sec_node.children:
+                    if isinstance(node.id, int):
+                        self._category_by_id.pop(node.id, None)
+                sec_node.children.clear()
+            finally:
+                self.endRemoveRows()
+
+        # Clear stale deferred ids for this parent before replacing payload.
+        stale_deferred = self._deferred_categories_by_section.pop(sec_node.id, None) or []
+        for payload in stale_deferred:
+            if isinstance(payload, dict):
+                cat_id = _coerce_optional_int(payload.get("id"))
+                if isinstance(cat_id, int):
+                    self._deferred_category_parent_by_id.pop(cat_id, None)
+
+        if len(incoming) >= defer_threshold and not was_populated:
+            sec_node.children_populated = False
+            self._deferred_categories_by_section[sec_node.id] = incoming
+            for payload in incoming:
+                cat_id = _coerce_optional_int(payload.get("id"))
+                if isinstance(cat_id, int):
+                    self._deferred_category_parent_by_id[cat_id] = sec_node.id
+            return
+
+        sec_node.children_populated = True
+        if incoming:
+            self.insert_categories(int(section_id), 0, incoming)
 
     def move_category(
         self, category_id: int, new_section_id: int, new_row: int
     ) -> bool:
         cat_node = self._category_by_id.get(int(category_id))
         dst_parent = self._section_by_id.get(int(new_section_id))
+        if cat_node is None:
+            src_sid = self._deferred_category_parent_by_id.get(int(category_id))
+            if isinstance(src_sid, int):
+                src_node = self._section_by_id.get(src_sid)
+                if src_node is not None and not src_node.children_populated:
+                    src_idx = self.createIndex(src_node.row(), 0, src_node)
+                    self._populate_section_categories(src_node, src_idx)
+                    cat_node = self._category_by_id.get(int(category_id))
         if not cat_node or not dst_parent:
             return False
         src_parent = cat_node.parent
@@ -681,7 +980,14 @@ class StructureTreeModel(QAbstractItemModel):
         self.endMoveRows()
         return True
 
-    def set_snapshot(self, sections: list[dict[str, Any]]) -> None:
+    def set_snapshot(
+        self,
+        sections: list[dict[str, Any]],
+        *,
+        sections_first: bool = False,
+        defer_category_icon_loads: bool = True,
+        allow_sync_section_fallback: bool = True,
+    ) -> None:
         """
         Full tree reload. The format for sections is a list[dict]:
         {
@@ -691,27 +997,62 @@ class StructureTreeModel(QAbstractItemModel):
             "categories": [ {"id": int, "name": str, "icon": Optional[QIcon]} ]
         }
         """
+        perf_t0 = time.perf_counter()
+        sections_count = len(sections or [])
+        categories_count = 0
+        try:
+            categories_count = sum(
+                len(s.get("categories") or [])
+                for s in (sections or [])
+                if isinstance(s, dict)
+            )
+        except Exception:
+            categories_count = -1
+
+        sync_fallback_count = 0
+        sync_fallback_hits = 0
+        sync_fallback_ms = 0.0
+        async_section_icon_loads = 0
+        async_category_icon_loads = 0
+        deferred_category_icon_loads: list[tuple[TreeNode, str]] = []
+
         self._tree_snapshot_icons_ready = False
         self._tree_snapshot_icons_expected = 0
         self._tree_snapshot_icons_warmed = 0
+        self._deferred_categories_by_section.clear()
+        self._deferred_category_parent_by_id.clear()
         self.beginResetModel()
         self._root.children.clear()
         self._section_by_id.clear()
         self._category_by_id.clear()
 
-        for s in sections or []:
-
-            icon_value = s.get("icon")
-            if isinstance(icon_value, QIcon) and not icon_value.isNull():
-                section_icon = icon_value
-            else:
-                icon_path = s.get("icon_path") or s.get("icon")
-                if isinstance(icon_path, str) and icon_path.strip():
-                    section_icon = self._load_icon_immediately_if_safe(icon_path.strip())
-                    if section_icon is None:
-                        section_icon = self._placeholder_icon
-                else:
-                    section_icon = self._placeholder_icon
+        try:
+            section_sync_icon_limit = get_tree_section_icon_prewarm_limit(6)
+        except Exception:
+            section_sync_icon_limit = 6
+        for section_row, s in enumerate(sections or []):
+            section_icon, pending_section_path, stored_section_path = (
+                self._prepare_icon_fields(
+                    s.get("icon"),
+                    s.get("icon_path"),
+                )
+            )
+            if stored_section_path is not None:
+                s["icon_path"] = stored_section_path
+            if (
+                allow_sync_section_fallback
+                and pending_section_path
+                and section_row < section_sync_icon_limit
+            ):
+                # Sections are few; sync fallback keeps first paint visually stable.
+                sync_fallback_count += 1
+                _fb_t0 = time.perf_counter()
+                sync_icon = self._load_icon_sync_fallback(pending_section_path)
+                sync_fallback_ms += (time.perf_counter() - _fb_t0) * 1000.0
+                if sync_icon is not None:
+                    sync_fallback_hits += 1
+                    section_icon = sync_icon
+                    pending_section_path = None
 
             sec_node = TreeNode(
                 type="section",
@@ -721,11 +1062,24 @@ class StructureTreeModel(QAbstractItemModel):
                 icon=section_icon,
                 payload=s,
             )
+            sec_node.children_populated = not bool(sections_first and (s.get("categories") or []))
             self._root.children.append(sec_node)
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
+            if pending_section_path:
+                async_section_icon_loads += 1
+                self._start_icon_loading(sec_node, pending_section_path)
 
-            for c in s.get("categories") or []:
+            section_categories = list(s.get("categories") or [])
+            if sections_first and isinstance(sec_node.id, int) and section_categories:
+                self._deferred_categories_by_section[sec_node.id] = section_categories
+                for c in section_categories:
+                    cat_id = _coerce_optional_int(c.get("id")) if isinstance(c, dict) else None
+                    if isinstance(cat_id, int):
+                        self._deferred_category_parent_by_id[cat_id] = sec_node.id
+                continue
+
+            for c in section_categories:
                 category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
                     c.get("icon"),
                     c.get("icon_path"),
@@ -745,45 +1099,196 @@ class StructureTreeModel(QAbstractItemModel):
                 if isinstance(cat_node.id, int):
                     self._category_by_id[cat_node.id] = cat_node
                     if pending_cat_path:
-                        self._start_icon_loading(cat_node, pending_cat_path)
+                        async_category_icon_loads += 1
+                        if defer_category_icon_loads:
+                            deferred_category_icon_loads.append((cat_node, pending_cat_path))
+                        else:
+                            self._start_icon_loading(cat_node, pending_cat_path)
 
         self.endResetModel()
+        if deferred_category_icon_loads:
+            self._schedule_snapshot_icon_loads(deferred_category_icon_loads)
+        perf_t1 = time.perf_counter()
+        logger.info(
+            "[Perf] StructureTreeModel.set_snapshot sections=%s categories=%s total=%.2fms sync_section_fallback=%d hits=%d sync_fallback_ms=%.2fms async_section_icon_loads=%d async_category_icon_loads=%d",
+            sections_count,
+            categories_count,
+            (perf_t1 - perf_t0) * 1000.0,
+            sync_fallback_count,
+            sync_fallback_hits,
+            sync_fallback_ms,
+            async_section_icon_loads,
+            async_category_icon_loads,
+        )
+
+    def _populate_section_categories(
+        self,
+        sec_node: TreeNode,
+        parent_index: QModelIndex | None = None,
+    ) -> None:
+        if sec_node.type != "section" or not isinstance(sec_node.id, int):
+            return
+        if sec_node.children_populated:
+            return
+        raw_categories = self._deferred_categories_by_section.pop(sec_node.id, None) or []
+        sec_node.children_populated = True
+        if not raw_categories:
+            return
+
+        if parent_index is None or not parent_index.isValid():
+            parent_index = self.createIndex(sec_node.row(), 0, sec_node)
+
+        deferred_category_icon_loads: list[tuple[TreeNode, str]] = []
+        start_row = len(sec_node.children)
+        end_row = start_row + len(raw_categories) - 1
+        self.beginInsertRows(parent_index, start_row, end_row)
+        try:
+            for c in raw_categories:
+                if not isinstance(c, dict):
+                    continue
+                category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
+                    c.get("icon"),
+                    c.get("icon_path"),
+                )
+                if stored_cat_path is not None:
+                    c["icon_path"] = stored_cat_path
+
+                cat_node = TreeNode(
+                    type="category",
+                    id=_coerce_optional_int(c.get("id")),
+                    name=str(c.get("name", "")),
+                    parent=sec_node,
+                    icon=category_icon,
+                    payload=c,
+                )
+                sec_node.children.append(cat_node)
+                if isinstance(cat_node.id, int):
+                    self._category_by_id[cat_node.id] = cat_node
+                    self._deferred_category_parent_by_id.pop(cat_node.id, None)
+                    if pending_cat_path:
+                        deferred_category_icon_loads.append((cat_node, pending_cat_path))
+        finally:
+            self.endInsertRows()
+
+        if deferred_category_icon_loads:
+            self._schedule_snapshot_icon_loads(deferred_category_icon_loads)
+
+    def populate_section_categories_by_id(self, section_id: int) -> bool:
+        """Materialize deferred categories for a section if they were loaded lazily."""
+        sec_node = self._section_by_id.get(int(section_id))
+        if sec_node is None:
+            return False
+        if sec_node.children_populated:
+            return False
+        sec_idx = self.createIndex(sec_node.row(), 0, sec_node)
+        self._populate_section_categories(sec_node, sec_idx)
+        return True
+
+    def populate_for_selection(self, item_type: str, item_id: int) -> bool:
+        """Materialize section children needed to restore/select an item."""
+        if item_type == "section":
+            return self.populate_section_categories_by_id(int(item_id))
+        if item_type == "category":
+            parent_sid = self._deferred_category_parent_by_id.get(int(item_id))
+            if isinstance(parent_sid, int):
+                return self.populate_section_categories_by_id(parent_sid)
+        return False
+
+    def populate_first_section_if_deferred(self) -> bool:
+        """Materialize first section children for first-item auto-select path."""
+        if not self._root.children:
+            return False
+        first = self._root.children[0]
+        if first.type != "section" or not isinstance(first.id, int):
+            return False
+        return self.populate_section_categories_by_id(first.id)
+
+    def _schedule_snapshot_icon_loads(
+        self,
+        pending_loads: list[tuple["TreeNode", str]],
+        *,
+        chunk_size: int = 16,
+        initial_delay_ms: int = 25,
+    ) -> None:
+        """Start category icon loaders after model reset in small GUI slices."""
+        if not pending_loads or self._shutdown:
+            return
+        try:
+            self._snapshot_icon_load_token += 1
+            token = int(self._snapshot_icon_load_token)
+        except Exception:
+            token = 0
+
+        queue = deque(pending_loads)
+
+        def _run_chunk() -> None:
+            if self._shutdown:
+                return
+            try:
+                if token and token != getattr(self, "_snapshot_icon_load_token", 0):
+                    return
+            except Exception:
+                pass
+
+            processed = 0
+            while queue and processed < max(1, int(chunk_size)):
+                node, icon_path = queue.popleft()
+                try:
+                    self._start_icon_loading(node, icon_path)
+                except Exception:
+                    logger.debug("Failed to start deferred snapshot icon load", exc_info=True)
+                processed += 1
+
+            if queue:
+                try:
+                    QTimer.singleShot(0, _run_chunk)
+                except Exception:
+                    _run_chunk()
+
+        try:
+            # Let deferred first-selection/tiles work run first; icon loads are visual polish.
+            QTimer.singleShot(max(0, int(initial_delay_ms)), _run_chunk)
+        except Exception:
+            _run_chunk()
 
     @pyqtSlot(object, QIcon)
-    def _on_icon_loaded(self, node: TreeNode, icon: QIcon) -> None:
+    def _on_icon_loaded(self, icon_path: str, icon: QIcon) -> None:
         """Обработчик успешной загрузки иконки (вызывается в GUI-потоке)."""
         if self._shutdown:
             return
-            
+
         with self._active_icon_lock:
-            self._active_icon_tasks.discard(id(node))
+            waiters = self._icon_waiters_by_path.pop(icon_path, [])
+            self._active_icon_tasks.discard(icon_path)
 
-        if node.parent is None:
-            return
-            
-        node.icon = icon
+        for node in waiters:
+            if node.parent is None:
+                continue
 
-        try:
-            row = node.parent.children.index(node)
-            idx = self.createIndex(row, 0, node)
-            if idx.isValid():
-                self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
-        except (ValueError, AttributeError):
+            node.icon = icon
 
-            pass
+            try:
+                row = node.parent.children.index(node)
+                idx = self.createIndex(row, 0, node)
+                if idx.isValid():
+                    self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+            except (ValueError, AttributeError):
+                pass
 
-        self.icon_loaded.emit(node, icon)
+            self.icon_loaded.emit(node, icon)
 
     @pyqtSlot(object, str)
-    def _on_icon_failed(self, node: TreeNode, _message: str) -> None:
+    def _on_icon_failed(self, icon_path: str, _message: str) -> None:
         """Обработчик ошибки загрузки иконки (вызывается в GUI-потоке)."""
         if self._shutdown:
             return
-            
-        with self._active_icon_lock:
-            self._active_icon_tasks.discard(id(node))
 
-        self.icon_failed.emit(node, _message)
+        with self._active_icon_lock:
+            waiters = self._icon_waiters_by_path.pop(icon_path, [])
+            self._active_icon_tasks.discard(icon_path)
+
+        for node in waiters:
+            self.icon_failed.emit(node, _message)
 
     def _start_icon_loading(self, node: TreeNode, icon_path: str | None) -> None:
         """Запускает асинхронную загрузку иконки для узла.
@@ -795,26 +1300,33 @@ class StructureTreeModel(QAbstractItemModel):
         if not isinstance(icon_path, str) or not icon_path.strip():
             return
 
-        def on_loaded(n: TreeNode, ic: QIcon) -> None:
-            self._on_icon_loaded(n, ic)
+        def on_loaded(path: str, ic: QIcon) -> None:
+            self._on_icon_loaded(path, ic)
 
-        def on_error(n: TreeNode, msg: str) -> None:
-            self._on_icon_failed(n, msg)
+        def on_error(path: str, msg: str) -> None:
+            self._on_icon_failed(path, msg)
+
+        normalized_path = icon_path.strip()
 
         with self._active_icon_lock:
 
             if self._shutdown:
                 return
-                
-            if id(node) in self._active_icon_tasks:
-                return
-            self._active_icon_tasks.add(id(node))
 
-            loader = IconLoader(node, icon_path, on_loaded=on_loaded, on_error=on_error)
+            waiters = self._icon_waiters_by_path.setdefault(normalized_path, [])
+            if node not in waiters:
+                waiters.append(node)
+
+            if normalized_path in self._active_icon_tasks:
+                return
+            self._active_icon_tasks.add(normalized_path)
+
+            loader = IconLoader(normalized_path, on_loaded=on_loaded, on_error=on_error)
             try:
                 self._thread_pool.start(loader)
             except Exception as exc:
-                self._active_icon_tasks.discard(id(node))
+                self._active_icon_tasks.discard(normalized_path)
+                self._icon_waiters_by_path.pop(normalized_path, None)
                 logger.debug("Failed to start icon loader: %s", exc)
 
     def cleanup(self) -> None:
@@ -826,6 +1338,7 @@ class StructureTreeModel(QAbstractItemModel):
         self._shutdown = True
         with self._active_icon_lock:
             self._active_icon_tasks.clear()
+            self._icon_waiters_by_path.clear()
 
         if self._thread_pool:
             self._thread_pool.waitForDone(5000)
@@ -847,6 +1360,14 @@ class StructureTreeModel(QAbstractItemModel):
             return QModelIndex()
         if item_type == "category":
             node = self._category_by_id.get(int(item_id))
+            if node is None:
+                parent_section_id = self._deferred_category_parent_by_id.get(int(item_id))
+                if isinstance(parent_section_id, int):
+                    sec_node = self._section_by_id.get(parent_section_id)
+                    if sec_node is not None:
+                        sec_idx = self.createIndex(sec_node.row(), 0, sec_node)
+                        self._populate_section_categories(sec_node, sec_idx)
+                        node = self._category_by_id.get(int(item_id))
             if node:
                 return self.createIndex(node.row(), 0, node)
             return QModelIndex()
@@ -858,3 +1379,4 @@ class StructureTreeModel(QAbstractItemModel):
             if isinstance(node, TreeNode):
                 return node
         return self._root
+

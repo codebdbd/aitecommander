@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from app.interfaces import MainWindowLike
+from app.views.widgets.status_bar import set_status_message
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,7 @@ class StatusUpdater:
         self._logger = _logger or logger
 
     def set_message(self, message: str) -> None:
-        try:
-            if hasattr(self._window, "message_label") and self._window.message_label:
-                self._window.message_label.setText(message)
-        except (AttributeError, RuntimeError) as e:
-            # Unexpected state during early initialization — log at DEBUG to avoid noise
+        if not set_status_message(self._window, message):
             self._logger.debug(
-                "StatusUpdater: failed to update status '%s': %s", message, e
+                "StatusUpdater: status bar unavailable for message '%s'", message
             )

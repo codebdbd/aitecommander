@@ -14,8 +14,10 @@ from .favicon_cache import favicon_cache
 
 
 def get_cache_path(config=None) -> str:
-    # Path remains compatible with the previous implementation
-    return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
+    icons_dir = icon_path_service.get_user_icons_dir()
+    cache_dir = icons_dir.parent / "icon_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return str(cache_dir / "favicon_cache.db")
 
 
 def read_cache(url: str, config) -> dict[str, Any] | None:
@@ -28,7 +30,6 @@ def read_cache(url: str, config) -> dict[str, Any] | None:
 def write_cache(url: str, data: dict[str, Any], config):
     # ttl can be provided via data["ttl"], FaviconCache accounts for it
     favicon_cache.set(url, data, ttl=data.get("ttl"))
-    logger.debug("[cache] SAVE %s", url)
 
 
 __all__ = ["get_cache_path", "read_cache", "write_cache"]

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
-from .base import get_menu_icon
+from .base import create_context_action, get_menu_icon
 
 if TYPE_CHECKING:
     from app.views.windows.main_window_protocol import MainWindowProtocol
@@ -29,14 +29,19 @@ class LinksMenuBuilder:
     def build(self, idx: QModelIndex, paste_link_cb: Callable) -> QMenu:
         """Build context menu for the links table."""
         menu = QMenu(self.table_widget)
+        try:
+            action_controller = getattr(self.main_window, "action_controller", None)
+            if action_controller is not None:
+                action_controller.update_action_states()
+        except Exception:
+            logger.debug("[CtxMenu] Failed to update global action states", exc_info=True)
 
         if idx.isValid():
             link = self.main_window.get_link_at_row(idx.row())
             if link is not None:
                 self._add_link_item_actions(menu, link)  # type: ignore[arg-type]
-            self._add_common_link_actions(menu, paste_link_cb)
-            if link is not None:
-                self._add_additional_actions(menu, link)  # type: ignore[arg-type]
+                menu.addSeparator()
+                self._add_common_actions(menu, link)  # type: ignore[arg-type]
         else:
             self._add_empty_area_actions(menu, paste_link_cb)
         return menu
@@ -46,21 +51,30 @@ class LinksMenuBuilder:
         logger.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
         menu.addAction(
             self.actions.create(
-                MenuTexts.OPEN,
-                lambda: self.main_window.links_actions.open_link(link),
-                Shortcuts.ENTER,
-                get_menu_icon("run", self.theme),
-            )
-        )
-
-        menu.addAction(
-            self.actions.create(
                 MenuTexts.ADD_LINK,
                 lambda: self.main_window.links_actions.show_link_dialog(
                     category_id=self.main_window.get_current_category_id()
                 ),
                 Shortcuts.ADD_LINK,
                 get_menu_icon("add_link", self.theme),
+            )
+        )
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.EDIT,
+                lambda: self.main_window.links_actions.show_link_dialog(link=link),
+                Shortcuts.EDIT,
+                get_menu_icon("edit", self.theme),
+            )
+        )
+        menu.addSeparator()
+
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.OPEN,
+                self.main_window.links_actions.open_selected_links,
+                Shortcuts.ENTER,
+                get_menu_icon("run", self.theme),
             )
         )
 
@@ -85,65 +99,74 @@ class LinksMenuBuilder:
             )
         )
 
+        has_notes = bool(str(link.get("notes", "") or "").strip())
+        note_text = MenuTexts.EDIT_NOTE if has_notes else MenuTexts.ADD_NOTE
+        menu.addAction(
+            self.actions.create(
+                note_text,
+                lambda: self.main_window.links_actions.show_note_dialog(link),
+                Shortcuts.CTRL_N,
+                get_menu_icon("edit_note", self.theme),
+            )
+        )
+
         if self._is_web_link(link):
+            menu.addSeparator()
             self._add_share_submenu(menu, link)
+            menu.addSeparator()
+
+    def _add_common_actions(self, menu: QMenu, link: dict) -> None:
+        cut_action = self._create_context_action(
+            MenuTexts.CUT, "cut_current", Shortcuts.CTRL_X, "cut", "cut_action"
+        )
+        copy_action = self._create_context_action(
+            MenuTexts.COPY, "copy_current", Shortcuts.CTRL_C, "copy", "copy_action"
+        )
+        paste_action = self._create_context_action(
+            MenuTexts.PASTE, "paste_current", Shortcuts.CTRL_V, "paste", "paste_action"
+        )
+        delete_action = self._create_context_action(
+            MenuTexts.DELETE, "delete_current", Shortcuts.DELETE, "delete", "delete_action"
+        )
+        select_all_action = self._create_context_action(
+            MenuTexts.SELECT_ALL,
+            "select_all_current",
+            Shortcuts.CTRL_A,
+            "select_all",
+            "select_all_action",
+        )
+
+        for action in (cut_action, copy_action, paste_action, delete_action):
+            if action is not None:
+                menu.addAction(action)
 
         menu.addSeparator()
 
-        menu.addAction(
-            self.actions.create(
-                MenuTexts.EDIT,
-                lambda: self.main_window.links_actions.show_link_dialog(link=link),
-                Shortcuts.EDIT,
-                get_menu_icon("edit", self.theme),
-            )
-        )
+        menu.addSeparator()
 
-        menu.addAction(
-            self.actions.create(
-                MenuTexts.DELETE,
-                self._create_delete_callback(),
-                Shortcuts.DELETE,
-                get_menu_icon("delete", self.theme),
-            )
+        if select_all_action is not None:
+            menu.addAction(select_all_action)
+        clear_action = self.actions.create(
+            MenuTexts.CLEAR_SELECTION,
+            self._clear_table_selection,
+            Shortcuts.CLEAR_SELECTION,
+            get_menu_icon("select_all", self.theme),
         )
+        clear_action.setVisible(self._table_selection_count() > 1)
+        menu.addAction(clear_action)
 
         menu.addSeparator()
 
-        menu.addAction(
-            self.actions.create(
-                MenuTexts.COPY,
-                self.main_window.links_actions.copy_selected_links,
-                Shortcuts.CTRL_C,
-                get_menu_icon("copy", self.theme),
-            )
+        undo_action = self._create_context_action(
+            MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
         )
-
-    def _add_common_link_actions(self, menu: QMenu, paste_link_cb: Callable):
-        """Add common actions for links."""
-        if self._clipboard_has_links():
-            menu.addAction(
-                self.actions.create(
-                    MenuTexts.PASTE,
-                    self.main_window.links_actions.paste_links,
-                    Shortcuts.CTRL_V,
-                    get_menu_icon("paste", self.theme),
-                )
-            )
-
-        menu.addAction(
-            self.actions.create(
-                MenuTexts.CUT,
-                self.main_window.links_actions.cut_selected_links,
-                Shortcuts.CTRL_X,
-                get_menu_icon("cut", self.theme),
-            )
+        redo_action = self._create_context_action(
+            MenuTexts.REDO, "redo_current", "edit.redo", "redo", "redo_action"
         )
-
-        if getattr(self.main_window, "undo_action", None) is not None:
-            menu.addAction(self.main_window.undo_action)
-        if getattr(self.main_window, "redo_action", None) is not None:
-            menu.addAction(self.main_window.redo_action)
+        if undo_action is not None:
+            menu.addAction(undo_action)
+        if redo_action is not None:
+            menu.addAction(redo_action)
 
     def _add_share_submenu(self, menu: QMenu, link: dict) -> None:
         """Add "Share" submenu for a single link."""
@@ -260,34 +283,6 @@ class LinksMenuBuilder:
         except Exception:
             return False
 
-    def _add_additional_actions(self, menu: QMenu, link: dict):
-        """Add additional actions."""
-        undo_anchor = getattr(self.main_window, "undo_action", None)
-        if undo_anchor and undo_anchor in menu.actions():
-            menu.insertSeparator(undo_anchor)
-
-            menu.insertAction(
-                undo_anchor,
-                self.actions.create(
-                    MenuTexts.SELECT_ALL,
-                    self.main_window.select_all_links,
-                    Shortcuts.CTRL_A,
-                    get_menu_icon("select_all", self.theme),
-                ),
-            )
-
-            menu.insertAction(
-                undo_anchor,
-                self.actions.create(
-                    MenuTexts.EDIT_NOTE,
-                    lambda: self.main_window.links_actions.show_note_dialog(link),
-                    Shortcuts.CTRL_N,
-                    get_menu_icon("edit_note", self.theme),
-                ),
-            )
-
-            menu.insertSeparator(undo_anchor)
-
     def _add_empty_area_actions(self, menu: QMenu, paste_link_cb: Callable):
         """Add actions for empty area of the table."""
         current_category_id = self.main_window.get_current_category_id()
@@ -302,26 +297,88 @@ class LinksMenuBuilder:
                     get_menu_icon("add_link", self.theme),
                 )
             )
+            menu.addSeparator()
 
         if self._clipboard_has_links():
-            menu.addAction(
-                self.actions.create(
-                    MenuTexts.PASTE,
-                    self.main_window.links_actions.paste_links,
-                    Shortcuts.CTRL_V,
-                    get_menu_icon("paste", self.theme),
-                )
+            paste_action = self._create_context_action(
+                MenuTexts.PASTE, "paste_current", Shortcuts.CTRL_V, "paste", "paste_action"
             )
+            if paste_action is not None:
+                menu.addAction(paste_action)
 
-        # Add undo/redo from main window (if available)
-        if getattr(self.main_window, "undo_action", None) is not None:
-            menu.addAction(self.main_window.undo_action)
-        if getattr(self.main_window, "redo_action", None) is not None:
-            menu.addAction(self.main_window.redo_action)
+        menu.addSeparator()
 
-    def _create_delete_callback(self):
-        """Create delete callback for selected links."""
-        return lambda: self.main_window.links_actions.delete_selected_links()
+        select_all_action = self._create_context_action(
+            MenuTexts.SELECT_ALL,
+            "select_all_current",
+            Shortcuts.CTRL_A,
+            "select_all",
+            "select_all_action",
+        )
+        if select_all_action is not None:
+            menu.addAction(select_all_action)
+        clear_action = self.actions.create(
+            MenuTexts.CLEAR_SELECTION,
+            self._clear_table_selection,
+            Shortcuts.CLEAR_SELECTION,
+            get_menu_icon("select_all", self.theme),
+        )
+        clear_action.setVisible(self._table_selection_count() > 1)
+        menu.addAction(clear_action)
+
+        menu.addSeparator()
+
+        undo_action = self._create_context_action(
+            MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
+        )
+        redo_action = self._create_context_action(
+            MenuTexts.REDO, "redo_current", "edit.redo", "redo", "redo_action"
+        )
+        if undo_action is not None:
+            menu.addAction(undo_action)
+        if redo_action is not None:
+            menu.addAction(redo_action)
+
+    def _create_context_action(
+        self,
+        text: str,
+        handler_name: str,
+        shortcut: str | None,
+        icon_name: str,
+        state_attr: str,
+    ):
+        return create_context_action(
+            actions_builder=self.actions,
+            main_window=self.main_window,
+            text=text,
+            handler_name=handler_name,
+            shortcut=shortcut,
+            icon_name=icon_name,
+            state_attr=state_attr,
+            icon_getter=lambda name: get_menu_icon(name, self.theme),
+        )
+
+    def _clear_table_selection(self) -> None:
+        try:
+            if hasattr(self.table_widget, "clearSelection"):
+                self.table_widget.clearSelection()
+        except Exception:
+            logger.debug("[CtxMenu] Failed to clear table selection", exc_info=True)
+
+    def _table_selection_count(self) -> int:
+        try:
+            if hasattr(self.table_widget, "selectionModel"):
+                sel = self.table_widget.selectionModel()
+                if sel is None:
+                    return 0
+                try:
+                    rows = sel.selectedRows()
+                    return len(rows or [])
+                except Exception:
+                    return 0
+        except Exception:
+            pass
+        return 0
 
     def _clipboard_has_links(self) -> bool:
         """Check if clipboard contains links."""

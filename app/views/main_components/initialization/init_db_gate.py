@@ -35,10 +35,13 @@ class DbReadyGate:
         poll_interval_ms: int = Timeout.DB_POLL_INTERVAL,
         _logger: logging.Logger | None = None,
     ) -> None:
+        if isinstance(poll_interval_ms, logging.Logger):
+            _logger = poll_interval_ms
+            poll_interval_ms = Timeout.DB_POLL_INTERVAL
         self._window = window
         self._logger = _logger or logger
         self._timer: QTimer | None = None
-        self._poll_interval_ms: int = poll_interval_ms
+        self._poll_interval_ms: int = int(poll_interval_ms)
         self._pending_callbacks: list[Callable[[], None]] = []
         self._attempts: int = 0
         self._start_time: float | None = None

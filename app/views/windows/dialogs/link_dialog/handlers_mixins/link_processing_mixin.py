@@ -1,19 +1,20 @@
 """Mixin handling asynchronous link/path processing in `LinkDialogHandlers`."""
 
 import logging
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.models import LinkType
-from app.utils.db.api import run_db
-from app.utils.links.link_parser import parse_local_link
 from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
+from app.utils.ui.db_tasks import run_db
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,8 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
 class LinkProcessingMixin:
     def _on_path_changed(self, text: str) -> None:
         """Handle path change events."""
+        if getattr(self.dialog, "_suspend_auto_processing", False):
+            return
         self.dialog._processing_timer.stop()
         # Use configurable debounce delay from the dialog (fallback to 300 ms)
         try:
@@ -49,6 +52,14 @@ class LinkProcessingMixin:
         # Prevent race conditions
         self._worker_task_id += 1
         _task_id = self._worker_task_id
+        task_created_ts = time.perf_counter()
+        logger.info(
+            "[Trace] link_info task_created id=%s type=%s path=%s processing=%s",
+            _task_id,
+            lt.value if 'lt' in locals() else getattr(self.dialog, "link_type", "<unknown>"),
+            path,
+            self._is_processing,
+        )
 
         # Cancel active job
         if self._active_worker:
@@ -57,22 +68,81 @@ class LinkProcessingMixin:
             except (AttributeError, RuntimeError) as e:
                 # Log cancellation failure but continue
                 logger.debug("Failed to cancel worker: %s", e)
+        try:
+            active_cancel_event = getattr(self, "_active_cancel_event", None)
+            if active_cancel_event is not None:
+                active_cancel_event.set()
+        except Exception:
+            logger.debug("Failed to signal active cancel event", exc_info=True)
+
+        cancel_event = threading.Event()
+        self._active_cancel_event = cancel_event
 
         lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
 
         def _emit_if_current(payload: dict[str, Any]) -> None:
-            # Emit results only if the task is still current
-            if _task_id == self._worker_task_id:
-                self.signals.link_info_finished.emit(payload)
+            # Emit results only if the task is still current AND dialog still exists
+            try:
+                if _task_id == self._worker_task_id and not getattr(self.dialog, '_is_closing', False):
+                    logger.info(
+                        "[Trace] link_info emit_current id=%s age=%.2f ms keys=%s",
+                        _task_id,
+                        (time.perf_counter() - task_created_ts) * 1000.0,
+                        sorted(payload.keys()),
+                    )
+                    self.signals.link_info_finished.emit(payload)
+                else:
+                    logger.info(
+                        "[Trace] link_info emit_stale id=%s current_id=%s closing=%s age=%.2f ms",
+                        _task_id,
+                        getattr(self, "_worker_task_id", None),
+                        getattr(self.dialog, "_is_closing", False),
+                        (time.perf_counter() - task_created_ts) * 1000.0,
+                    )
+            except (AttributeError, RuntimeError):
+                # Dialog was deleted, ignore
+                pass
 
         def _emit_error_if_current(message: str) -> None:
-            if _task_id == self._worker_task_id:
-                self.signals.simple_error.emit(message)
+            try:
+                if _task_id == self._worker_task_id and not getattr(self.dialog, '_is_closing', False):
+                    logger.info(
+                        "[Trace] link_info error_current id=%s age=%.2f ms message=%s",
+                        _task_id,
+                        (time.perf_counter() - task_created_ts) * 1000.0,
+                        message,
+                    )
+                    self.signals.simple_error.emit(message)
+                else:
+                    logger.info(
+                        "[Trace] link_info error_stale id=%s current_id=%s closing=%s age=%.2f ms",
+                        _task_id,
+                        getattr(self, "_worker_task_id", None),
+                        getattr(self.dialog, "_is_closing", False),
+                        (time.perf_counter() - task_created_ts) * 1000.0,
+                    )
+            except (AttributeError, RuntimeError):
+                # Dialog was deleted, ignore
+                pass
 
         def _do_work() -> dict[str, Any]:
+            work_t0 = time.perf_counter()
+            logger.info(
+                "[Trace] link_info do_work_enter id=%s age=%.2f ms cancelled=%s",
+                _task_id,
+                (work_t0 - task_created_ts) * 1000.0,
+                cancel_event.is_set(),
+            )
             if lt == LinkType.WEB:
                 # Resolve icon asynchronously to avoid blocking the UI
+                fetch_t0 = time.perf_counter()
+                logger.info(
+                    "[Trace] link_info fetch_start id=%s age=%.2f ms path=%s",
+                    _task_id,
+                    (fetch_t0 - task_created_ts) * 1000.0,
+                    path,
+                )
                 info = fetch_web_link_info(
                     path,
                     app_config,
@@ -81,15 +151,46 @@ class LinkProcessingMixin:
                     on_icon_ready=lambda icon_path: _emit_if_current(
                         {"title": "", "icon": icon_path}
                     ),
+                    cancel_event=cancel_event,
                 )
-                return {"title": info.get("title"), "icon": info.get("icon")}
+                fetch_ms = (time.perf_counter() - fetch_t0) * 1000.0
+                logger.info(
+                    "[Trace] link_info fetch_done id=%s age=%.2f ms fetch=%.2f ms cancelled=%s",
+                    _task_id,
+                    (time.perf_counter() - task_created_ts) * 1000.0,
+                    fetch_ms,
+                    cancel_event.is_set(),
+                )
+                payload_t0 = time.perf_counter()
+                payload = {"title": info.get("title"), "icon": info.get("icon")}
+                payload_ms = (time.perf_counter() - payload_t0) * 1000.0
+                total_ms = (time.perf_counter() - work_t0) * 1000.0
+                logger.info(
+                    "[Perf] link_info_web id=%s path=%s fetch=%.2f ms payload=%.2f ms total=%.2f ms task_age=%.2f ms",
+                    _task_id,
+                    path,
+                    fetch_ms,
+                    payload_ms,
+                    total_ms,
+                    (time.perf_counter() - task_created_ts) * 1000.0,
+                )
+                return payload
             # Local paths
+            from app.utils.links.link_parser import parse_local_link
+
             info = parse_local_link(lt.value, path, app_config, args=args_val)
-            return info or {"name": "", "icon": ""}
+            payload = info or {"name": "", "icon": ""}
+            logger.debug(
+                "[Perf] link_info_local path=%s total=%.2f ms",
+                path,
+                (time.perf_counter() - work_t0) * 1000.0,
+            )
+            return payload
 
         handle = run_db(
             _do_work,
             description=f"link_info:{lt.value}",
+            use_lock=False,  # CRITICAL: Don't hold DB lock during HTTP requests
             on_finished=lambda info: _emit_if_current(info),
             on_error=lambda e: _emit_error_if_current(str(e)),
         )
@@ -106,6 +207,18 @@ class LinkProcessingMixin:
         """Handle fetched link information."""
         self._is_processing = False
         self._active_worker = None
+        try:
+            self._active_cancel_event = None
+        except Exception:
+            pass
+
+        # CRITICAL: Don't update UI if dialog is closing/closed
+        try:
+            if getattr(self.dialog, '_is_closing', False):
+                return
+        except (AttributeError, RuntimeError):
+            # Dialog was deleted
+            return
 
         title = info.get("title") or info.get("name")
         if title and not self.dialog._get_name_le().text().strip():
@@ -135,7 +248,6 @@ class LinkProcessingMixin:
         if LinkType.from_value(self.dialog.link_type) in (
             LinkType.PROGRAM,
             LinkType.SCRIPT,
-            LinkType.CHROMEAPP,
         ):
             args = info.get("args", "")
             if not self.dialog._get_args_le().text().strip():
@@ -148,6 +260,11 @@ class LinkProcessingMixin:
         # Reset internal processing state
         self._is_processing = False
         self._active_worker = None
+        self._last_processed_path = ""
+        try:
+            self._active_cancel_event = None
+        except Exception:
+            pass
 
         # Diagnostic logging
         try:

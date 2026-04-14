@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from app.config_data.runtime_config import runtime_app_config as app_config
+
 # === Widget attribute names ===
 
 
@@ -104,17 +106,17 @@ class Size(int, Enum):
     """
 
     # Minimum sizes (algorithmic constraints, not changed at runtime)
-    MIN_PANEL_WIDTH = 50
-    MIN_SEARCH_WIDTH = 50
+    MIN_PANEL_WIDTH = app_config.ui.get_topbar_min_panel_width()
+    MIN_SEARCH_WIDTH = app_config.ui.get_main_components_min_search_width()
 
     # Maximum sizes (Qt constraints)
-    MAX_WIDGET_WIDTH = 16777215  # Qt QWIDGETSIZE_MAX
-    MAX_SEARCH_WIDTH = 800
-    MAX_VISIBLE_BUTTONS = 20
+    MAX_WIDGET_WIDTH = app_config.ui.get_topbar_max_widget_width()  # Qt QWIDGETSIZE_MAX
+    MAX_SEARCH_WIDTH = app_config.ui.get_main_components_max_search_width()
+    MAX_VISIBLE_BUTTONS = app_config.ui.get_topbar_max_visible_buttons()
 
     # Adaptive thresholds (not configurable via JSON)
-    NARROW_MODE_THRESHOLD = 380  # Width threshold for narrow mode
-    HYSTERESIS_THRESHOLD = 8  # Base hysteresis threshold
+    NARROW_MODE_THRESHOLD = app_config.ui.get_topbar_narrow_threshold()
+    HYSTERESIS_THRESHOLD = app_config.ui.get_topbar_hysteresis_threshold()
 
 
 class Spacing(int, Enum):
@@ -126,8 +128,8 @@ class Spacing(int, Enum):
     """
 
     # Algorithm constants (static at runtime)
-    SEPARATOR_SPACING_VISIBLE = 4
-    SEPARATOR_SPACING_HIDDEN = 0
+    SEPARATOR_SPACING_VISIBLE = app_config.ui.get_topbar_separator_search_spacing()
+    SEPARATOR_SPACING_HIDDEN = app_config.ui.get_topbar_separator_hidden_spacing()
 
 
 # === Performance limits ===

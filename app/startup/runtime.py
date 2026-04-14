@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import functools
 import logging
+import os
+import platform
 import sys
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Any
 
 from PyQt6.QtCore import QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication
@@ -15,30 +17,76 @@ from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 from app.controllers.system.db_init import DatabaseInitializer
+from app.core.database_manager import DatabaseManager
+from app.core.hotkey_manager import HotkeyManager
+from app.core.log_manager import LogManager
+from app.core.settings_manager import SettingsManager
+from app.core.worker_manager import WorkerManager
+from app.resources import app_resources_rc, icons_rc
 from app.startup.app_factory import create_application
 from app.startup.argument_parser import determine_log_level, parse_arguments
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.initializer import ApplicationInitializer, StartupMode
-from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
-from app.startup.signal_handling import SignalManager, should_install_signal_handlers
-from app.resources import app_resources_rc
-from i18n.language_service import LanguageService
+from app.startup.signal_handling import (
+    SignalManager,
+    should_install_signal_handlers,
+)
 from i18n import resources_rc as i18n_resources_rc
+from i18n.language_service import LanguageService
 
 
 def qInitResources() -> None:
     app_resources_rc.qInitResources()
+    icons_rc.qInitResources()
     i18n_resources_rc.qInitResources()
 
 
 def qCleanupResources() -> None:
     app_resources_rc.qCleanupResources()
+    icons_rc.qCleanupResources()
     i18n_resources_rc.qCleanupResources()
 
 
 _resources_initialized = False
 
 logger = logging.getLogger(__name__)
+_qt_prev_message_handler = None
+
+
+def _install_qt_message_filter() -> None:
+    """Install a narrow Qt message filter to suppress noisy painter warnings.
+
+    We only suppress known benign startup warnings:
+      - ``QPainter::...``
+      - ``...Painter not active...``
+    Everything else is forwarded to the previous Qt handler.
+    """
+    global _qt_prev_message_handler
+    try:
+        from PyQt6.QtCore import qInstallMessageHandler
+    except Exception as exc:
+        logger.debug("Qt message filter unavailable: %s", exc)
+        return
+
+    if _qt_prev_message_handler is not None:
+        return
+
+    def _handler(msg_type: Any, context: Any, message: Any) -> None:  # noqa: ANN401
+        msg = str(message) if message is not None else ""
+        if msg.startswith("QPainter::") or "Painter not active" in msg:
+            return
+
+        prev = _qt_prev_message_handler
+        if prev is not None:
+            try:
+                prev(msg_type, context, message)
+            except Exception:
+                logger.debug("Previous Qt message handler failed", exc_info=True)
+
+    try:
+        _qt_prev_message_handler = qInstallMessageHandler(_handler)
+    except Exception as exc:
+        logger.debug("Failed to install Qt message filter: %s", exc, exc_info=True)
 
 
 class ExitCode(IntEnum):
@@ -64,9 +112,9 @@ def _setup_logging_and_args(options: StartupOptions) -> StartupOptions:
     if args.no_gui and options.mode == StartupMode.GUI:
         options.mode = StartupMode.HEADLESS
     log_level = determine_log_level(args)
-    setup_logging(log_level)
+    LogManager.set_level(log_level)
     if options.log_system_details:
-        log_system_info()
+        _log_system_info()
     return options
 
 
@@ -121,8 +169,12 @@ def _register_cleanup_handler(
 def _setup_signal_handlers(
     app: QApplication | QCoreApplication,
     initializer: ApplicationInitializer,
+    options: StartupOptions,
 ) -> SignalManager | None:
     """Setup signal handlers if needed."""
+    if options.auto_quit:
+        logger.info("Auto-quit enabled, skipping signal handlers")
+        return None
     if should_install_signal_handlers():
         logger.info("Installing signal handlers for console/headless mode")
         signal_manager = SignalManager(app, initializer)
@@ -195,7 +247,19 @@ def _schedule_auto_quit(
 ) -> None:
     """Schedule auto quit if requested."""
     if options.auto_quit:
-        QTimer.singleShot(max(0, options.quit_after_ms), app.quit)
+        def _auto_quit() -> None:
+            # Disable faulthandler right before exit to avoid teardown AV.
+            try:
+                if "faulthandler" in sys.modules:
+                    import faulthandler
+
+                    if faulthandler.is_enabled():
+                        faulthandler.disable()
+            except Exception:
+                pass
+            app.quit()
+
+        QTimer.singleShot(max(0, options.quit_after_ms), _auto_quit)
 
     if options.mode == StartupMode.GUI:
         startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
@@ -246,10 +310,209 @@ def _cleanup_resources(
     log_shutdown()
 
 
+def _register_hotkeys() -> None:
+    """Register all hotkeys with defaults before UI creation."""
+    # Global actions
+    HotkeyManager.register(
+        "global.add_link", "F1", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.edit_link", "F2", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.add_section", "F3", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.add_category", "F4", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.switch_sphere", "F6", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.settings", "F7", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.search_files", "F8", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.enter", "Enter", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.exit", "Alt+F4", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.import_browser", "Ctrl+Alt+C", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.import_icons", "Ctrl+Alt+I", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.import_db", "Ctrl+Alt+D", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.save_db", "Ctrl+Alt+S", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.save", "Ctrl+S", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.export_icons",
+        "Ctrl+Alt+E",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
+        "global.refresh_icons",
+        "Ctrl+Alt+H",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
+        "global.check_bad_urls",
+        "Ctrl+Alt+U",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
+        "global.restore_db",
+        "Ctrl+Alt+B",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
+        "global.clear_favorites",
+        "Ctrl+Alt+F",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
+        "global.delete", "Del", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.undo", "Ctrl+Z", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.redo", "Ctrl+Shift+Z", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
+        "global.redo_alt", "Ctrl+Y", context=Qt.ShortcutContext.WindowShortcut
+    )
+
+    # Table actions
+    HotkeyManager.register(
+        "table.select_all",
+        "Ctrl+A",
+        context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+    )
+    HotkeyManager.register(
+        "table.search_focus",
+        "Ctrl+F",
+        context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+    )
+    HotkeyManager.register(
+        "table.search_clear",
+        "Escape",
+        context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+    )
+    HotkeyManager.register(
+        "table.cut", "Ctrl+X", context=Qt.ShortcutContext.WidgetWithChildrenShortcut
+    )
+    HotkeyManager.register(
+        "table.copy", "Ctrl+C", context=Qt.ShortcutContext.WidgetWithChildrenShortcut
+    )
+    HotkeyManager.register(
+        "table.paste", "Ctrl+V", context=Qt.ShortcutContext.WidgetWithChildrenShortcut
+    )
+    HotkeyManager.register(
+        "table.notes", "Ctrl+N", context=Qt.ShortcutContext.WidgetWithChildrenShortcut
+    )
+    HotkeyManager.register(
+        "table.toggle_favorite",
+        "Ctrl+D",
+        context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+    )
+
+    # Context/edit actions
+    HotkeyManager.register(
+        "edit.undo", "Ctrl+Z", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.redo", "Ctrl+Y", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.cut", "Ctrl+X", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.copy", "Ctrl+C", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.paste", "Ctrl+V", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.delete", "Del", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.select_all", "Ctrl+A", context=Qt.ShortcutContext.WidgetShortcut
+    )
+    HotkeyManager.register(
+        "edit.clear_selection", "Ctrl+Shift+A", context=Qt.ShortcutContext.WidgetShortcut
+    )
+
+    # Topbar accessibility shortcuts (Alt+1..9)
+    for i in range(1, 10):
+        HotkeyManager.register(
+            f"topbar.alt.{i}",
+            f"Alt+{i}",
+            context=Qt.ShortcutContext.WindowShortcut,
+        )
+
+    HotkeyManager.detect_conflicts()
+
+def _log_system_info() -> None:
+    """Log system information for debugging."""
+    try:
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
+    except (AttributeError, RuntimeError):
+        logger.warning("Failed to check log level", exc_info=True)
+
+    from PyQt6.QtCore import QT_VERSION_STR
+    from PyQt6.QtGui import QGuiApplication
+
+    try:
+        logger.info("Operating system: %s", platform.platform())
+        logger.info("Python version: %s", sys.version)
+        logger.info("Python architecture: %s", platform.architecture())
+        logger.info("PyQt6 version: %s", QT_VERSION_STR)
+        logger.info("Launch path: %s", sys.argv[0])
+        logger.info("Working directory: %s", os.getcwd())
+        logger.info("Process PID: %s", os.getpid())
+        logger.info("Command-line arguments count: %s", len(sys.argv))
+
+        screens = QGuiApplication.screens()
+        for i, screen in enumerate(screens):
+            geometry = screen.geometry()
+            logger.info(
+                "Display %s: %sx%s @ %sx",
+                i,
+                geometry.width(),
+                geometry.height(),
+                screen.devicePixelRatio(),
+            )
+    except (OSError, RuntimeError, AttributeError) as exc:
+        logger.warning("Failed to obtain system information: %s", exc)
+
+
+def log_shutdown() -> None:
+    """Log application shutdown."""
+    logger.info("=" * 60)
+    logger.info("APPLICATION SHUTDOWN")
+    logger.info("=" * 60)
+
+
 def run(options: StartupOptions | None = None) -> int:
     """Application runtime entry point."""
     options = options or StartupOptions()
     options = _setup_logging_and_args(options)
+    SettingsManager.load()
+    DatabaseManager.configure()
+    WorkerManager.configure(max_threads=4)
+    _register_hotkeys()
 
     app: QApplication | QCoreApplication | None = None
     initializer: ApplicationInitializer | None = None
@@ -266,10 +529,12 @@ def run(options: StartupOptions | None = None) -> int:
         app = _create_qt_application(options.mode)
         if app is None:
             return ExitCode.INITIALIZATION_FAILURE
+        if options.mode == StartupMode.GUI:
+            _install_qt_message_filter()
 
         initializer = ApplicationInitializer(mode=options.mode)
         about_to_quit_cleanup_registered = _register_cleanup_handler(app, initializer)
-        signal_manager = _setup_signal_handlers(app, initializer)
+        signal_manager = _setup_signal_handlers(app, initializer, options)
         _initialize_language_service(app, options.mode)
 
         # Preload UI icons before window creation
@@ -297,6 +562,14 @@ def run(options: StartupOptions | None = None) -> int:
         _cleanup_resources(
             initializer, signal_manager, app, about_to_quit_cleanup_registered
         )
+        try:
+            WorkerManager.shutdown(timeout_ms=2000)
+        except Exception as exc:
+            logger.warning("WorkerManager shutdown failed: %s", exc)
+        try:
+            DatabaseManager.close_all()
+        except Exception as exc:
+            logger.warning("DatabaseManager close failed: %s", exc)
         # Cleanup resources
         if _resources_initialized:
             qCleanupResources()

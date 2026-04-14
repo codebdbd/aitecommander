@@ -3,11 +3,14 @@ from __future__ import annotations
 import logging
 import re
 from collections import OrderedDict
+from pathlib import Path
 from threading import RLock
 from typing import cast
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
+
+from app.core.paths.path_manager import PathManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ class ThemeStylesheetService:
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: str | None = None
         self._cache_lock = RLock()
-        # ✅ FIX: Cache for QSS overrides
+        # FIX: Cache for QSS overrides
         self._overrides_cache: str | None = None
         try:
             initial_size = max_cache_size
@@ -43,13 +46,13 @@ class ThemeStylesheetService:
     def clear_cache(self) -> None:
         """Clears all caches (themes, common.qss, overrides).
 
-        ✅ FIX: Also clears overrides_cache.
+        FIX: Also clears overrides_cache.
         """
         with self._cache_lock:
             cache_size = len(self._qss_cache)
             self._qss_cache.clear()
             self._common_qss = None
-            self._overrides_cache = None  # ✅ Clear overrides
+            self._overrides_cache = None  # Clear overrides
         logger.debug(
             "ThemeStylesheetService: cache cleared, removed %d entries", cache_size
         )
@@ -70,9 +73,9 @@ class ThemeStylesheetService:
             )
             return None
 
-        theme_path = self._app_config.paths.get_qss_dir() / qss_filename
+        theme_path = PathManager.qss_dir() / qss_filename
         try:
-            qss_dir = self._app_config.paths.get_qss_dir().resolve()
+            qss_dir = PathManager.qss_dir().resolve()
             full_path = theme_path.resolve()
             if not str(full_path).startswith(str(qss_dir)):
                 logger.error(
@@ -133,7 +136,7 @@ class ThemeStylesheetService:
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
         )
 
-        # ✅ FIX: Use cached overrides
+        # FIX: Use cached overrides
         try:
             overrides = self._get_cached_overrides()
             if overrides:
@@ -152,6 +155,80 @@ class ThemeStylesheetService:
         logger.debug("ThemeStylesheetService: loaded and cached theme: %s", theme_name)
         return combined_qss
 
+    def load_stylesheet_from_path(self, theme_name: str, qss_path: Path) -> str | None:
+        """Load QSS from an explicit path (used for user-installed themes)."""
+        cached = self._get_from_cache(theme_name)
+        if cached is not None:
+            return cached
+
+        if not isinstance(qss_path, Path):
+            qss_path = Path(str(qss_path))
+
+        if not qss_path.exists() or not qss_path.is_file():
+            logger.error("ThemeStylesheetService: theme file not found: %s", qss_path)
+            return None
+
+        try:
+            with qss_path.open("r", encoding="utf-8") as fh:
+                theme_qss = fh.read()
+        except UnicodeDecodeError as exc:
+            logger.error(
+                "ThemeStylesheetService: error decoding theme file %s: %s",
+                qss_path,
+                exc,
+            )
+            return None
+        except PermissionError as exc:
+            logger.error(
+                "ThemeStylesheetService: no access to theme file %s: %s",
+                qss_path,
+                exc,
+            )
+            return None
+        except OSError as exc:
+            logger.error(
+                "ThemeStylesheetService: error reading theme %s: %s",
+                qss_path,
+                exc,
+            )
+            return None
+        except Exception as exc:
+            logger.error(
+                "ThemeStylesheetService: unexpected error reading theme %s: %s",
+                qss_path,
+                exc,
+                exc_info=True,
+            )
+            return None
+
+        common_qss = self._load_common_qss()
+        combined_qss = (
+            f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
+        )
+
+        try:
+            overrides = self._get_cached_overrides()
+            if overrides:
+                combined_qss = (
+                    f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
+                )
+        except Exception as exc:
+            logger.warning(
+                "ThemeStylesheetService: failed to build QSS overrides from configuration: %s",
+                exc,
+            )
+
+        with self._cache_lock:
+            self._qss_cache[theme_name] = combined_qss
+            self._qss_cache.move_to_end(theme_name, last=True)
+            self._enforce_cache_limit()
+
+        logger.debug(
+            "ThemeStylesheetService: loaded and cached theme from path: %s",
+            qss_path,
+        )
+        return combined_qss
+
     # ---------------------- Internal methods ----------------------
     def _get_from_cache(self, theme_name: str) -> str | None:
         with self._cache_lock:
@@ -165,7 +242,7 @@ class ThemeStylesheetService:
             if self._common_qss is not None:
                 return self._common_qss
 
-        common_path = self._app_config.paths.get_qss_dir() / "common.qss"
+        common_path = PathManager.qss_dir() / "common.qss"
         if not common_path.exists():
             logger.warning(
                 "ThemeStylesheetService: common styles file not found: %s", common_path
@@ -219,7 +296,7 @@ class ThemeStylesheetService:
     def _get_cached_overrides(self) -> str:
         """Returns cached QSS overrides.
 
-        ✅ FIX: Caches result of _build_config_overrides_qss().
+        FIX: Caches result of _build_config_overrides_qss().
         """
         with self._cache_lock:
             if self._overrides_cache is not None:
@@ -236,7 +313,7 @@ class ThemeStylesheetService:
     def invalidate_overrides_cache(self) -> None:
         """Resets overrides cache when settings change.
 
-        ✅ FIX: Public method to reset cache.
+        FIX: Public method to reset cache.
 
         Call this method after changing font sizes or other UI settings.
         """
@@ -303,6 +380,7 @@ class ThemeStylesheetService:
         app_config = self._app_config
         return {
             "menu_font_size": _safe_int(app_config.ui.get_menu_font_size),
+            "menu_item_height": _safe_int(app_config.ui.get_menu_item_height),
             "menubar_font_size": _safe_int(app_config.ui.get_menubar_font_size),
             "menubar_item_height": _safe_int(app_config.ui.get_menubar_item_height),
             "menu_icon_size": _safe_int(app_config.ui.get_menu_icon_size),
@@ -339,6 +417,7 @@ class ThemeStylesheetService:
     def _generate_menu_styles(self, lines: list[str], menu_params: dict) -> None:
         """Generate QMenu styles."""
         menu_font_size = menu_params.get("menu_font_size")
+        menu_item_height = menu_params.get("menu_item_height")
         menu_icon_size = menu_params.get("menu_icon_size")
         menu_indicator_size = menu_params.get("menu_indicator_size")
 
@@ -352,6 +431,14 @@ class ThemeStylesheetService:
                 "QMenu::item:disabled",
             ]:
                 lines.append(f"{selector} {{ font-size: {menu_font_size}pt; }}")
+
+        if menu_item_height:
+            lines.append(
+                "QMenu::item { "
+                f"min-height: {menu_item_height}px; "
+                f"max-height: {menu_item_height}px; "
+                "}"
+            )
 
         if menu_icon_size:
             lines.append(
@@ -378,6 +465,9 @@ class ThemeStylesheetService:
             sz_val = self._format_size(menubar_px, units)
             if sz_val:
                 menubar_rules.append(f"font-size: {sz_val};")
+        if menubar_item_height:
+            menubar_rules.append(f"min-height: {menubar_item_height}px;")
+            menubar_rules.append(f"max-height: {menubar_item_height}px;")
         if menubar_rules:
             lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
 
@@ -386,6 +476,7 @@ class ThemeStylesheetService:
             item_rules.append(f"font-size: {menubar_font_size}pt;")
         if menubar_item_height:
             item_rules.append(f"min-height: {menubar_item_height}px;")
+            item_rules.append(f"max-height: {menubar_item_height}px;")
         if item_rules:
             rules = " ".join(item_rules)
             for selector in [
@@ -402,7 +493,7 @@ class ThemeStylesheetService:
         """Add simple widget styles (one selector per size)."""
         simple_styles = [
             ("table_row_px", "QTableView"),
-            ("tree_px", "QTreeView"),
+            # ("tree_px", "QTreeView"),  # Removed: tree font managed via setFont() for immediate updates
             ("notes_editor_px", "QTextEdit"),
             ("button_text_px", "QPushButton"),
             ("tooltip_px", "QToolTip"),
@@ -500,20 +591,72 @@ class ThemeStylesheetService:
         self._generate_menu_styles(lines, menu_params)
         self._generate_menubar_styles(lines, menu_params, sizes, units)
         self._generate_widget_styles(lines, sizes, units)
-
+        try:
+            sep_width = int(self._app_config.ui.get_separator_width())
+            sep_spacing = int(self._app_config.ui.get_topbar_separator_spacing())
+            lines.append(
+                "QWidget#topBarHost QToolBar::separator { "
+                f"width: {sep_width}px; margin: 0 {sep_spacing}px; "
+                "}"
+            )
+        except Exception:
+            pass
+        try:
+            sep_height = int(self._app_config.ui.get_separator_height())
+            lines.append(
+                "QWidget[class=\"separator\"] { "
+                f"min-height: {sep_height}px; max-height: {sep_height}px; "
+                "}"
+            )
+        except Exception:
+            pass
+        try:
+            sep_height = int(self._app_config.ui.get_separator_height())
+            lines.append(
+                "QMenu::separator { "
+                f"min-height: {sep_height}px; max-height: {sep_height}px; "
+                f"height: {sep_height}px; margin: 0; padding: 0; "
+                "}"
+            )
+        except Exception:
+            pass
         return "\n".join(lines)
 
 
-def configure_qicon_theme(theme_name: str, app_config) -> None:
+ICON_THEME_ALIASES: dict[str, str] = {
+    "violet_pulse": "dark",
+    "matrix": "dark",
+}
+
+
+def configure_qicon_theme(theme_name: str) -> None:
     if not theme_name:
         return
-    ui_icons_dir = app_config.paths.get_ui_icons_dir()
+    ui_icons_dir = PathManager.ui_icons_dir()
     if not ui_icons_dir.exists():
         logger.debug(
             "ThemeStylesheetService: UI icons directory missing: %s", ui_icons_dir
         )
         return
-    theme_dir = ui_icons_dir / theme_name
+    normalized = theme_name.lower()
+    alias_target = ICON_THEME_ALIASES.get(normalized)
+    effective_name = theme_name
+    if alias_target:
+        alias_dir = ui_icons_dir / alias_target
+        if alias_dir.exists():
+            logger.debug(
+                "ThemeStylesheetService: icon theme '%s' mapped to alias '%s'",
+                theme_name,
+                alias_target,
+            )
+            effective_name = alias_target
+        else:
+            logger.warning(
+                "ThemeStylesheetService: alias '%s' for theme '%s' missing, using original name",
+                alias_target,
+                theme_name,
+            )
+    theme_dir = ui_icons_dir / effective_name
     if not theme_dir.exists():
         fallback = "light"
         fallback_dir = ui_icons_dir / fallback
@@ -523,7 +666,7 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
                 theme_name,
                 fallback,
             )
-            theme_name = fallback
+            effective_name = fallback
         else:
             logger.warning(
                 "ThemeStylesheetService: icon theme directory not found: %s, fallback 'light' also missing",
@@ -542,4 +685,4 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
             exc_info=True,
         )
     QIcon.setThemeSearchPaths(search_paths)
-    QIcon.setThemeName(theme_name)
+    QIcon.setThemeName(effective_name)

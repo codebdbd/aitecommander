@@ -563,6 +563,9 @@ class ThreadSafeIconCache:
     def _store_in_qpixmapcache(self, key: str, icon: QIcon) -> None:
         """Store icon's pixmap in Qt's QPixmapCache for better integration."""
         try:
+            app = QApplication.instance()
+            if app and app.closingDown():
+                return
             # Get the first available pixmap from the icon
             sizes = icon.availableSizes()
             if sizes:
@@ -795,6 +798,60 @@ def set_path(icon_name: str, theme: str, path: str | None) -> None:
     _icon_manager.set_path(icon_name, theme, path)
 
 
+def get_theme_icon(
+    icon_name: str, theme: str | None = None, source: str = "menu"
+) -> QIcon:
+    """Return a themed icon using the central cache/creator logic."""
+    if theme is None:
+        try:
+            from app.utils.ui.icon.path_service import get_current_theme
+        except Exception:
+            theme = "light"
+        else:
+            try:
+                theme = get_current_theme()
+            except Exception:
+                theme = "light"
+    try:
+        from app.utils.ui.icon.validation import validate_theme
+    except Exception:
+        pass
+    else:
+        theme = validate_theme(theme)
+
+    name = icon_name if "." in icon_name else f"{icon_name}.svg"
+    from app.utils.ui.icon.icon_operations.creators import themed_icon
+
+    return themed_icon(name, theme, source)
+
+
+async def get_theme_icon_async(
+    icon_name: str, theme: str | None = None, source: str = "menu"
+) -> QIcon:
+    """Async themed icon creation using the central cache/creator logic."""
+    if theme is None:
+        try:
+            from app.utils.ui.icon.path_service import get_current_theme
+        except Exception:
+            theme = "light"
+        else:
+            try:
+                theme = get_current_theme()
+            except Exception:
+                theme = "light"
+    try:
+        from app.utils.ui.icon.validation import validate_theme
+    except Exception:
+        pass
+    else:
+        theme = validate_theme(theme)
+
+    name = icon_name if "." in icon_name else f"{icon_name}.svg"
+    from app.utils.ui.icon.icon_operations.creators import themed_icon_async
+
+    return await themed_icon_async(name, theme, source)
+
+
 def get(key: str) -> str | QIcon | None:
     return _icon_manager.get(key)
 
@@ -855,3 +912,16 @@ def get_cached_category_icon(path: str) -> QIcon:
 
     _icon_manager.set_icon(cache_key, "__category__", icon)
     return icon
+
+
+def peek_cached_category_icon(path: str) -> QIcon | None:
+    """Return cached category icon if already in memory, without disk load.
+
+    Unlike `get_cached_category_icon`, this function never creates/loads an icon
+    on cache miss. It is safe to use for performance-sensitive prefetch checks.
+    """
+    cache_key = f"category::{path}"
+    try:
+        return _icon_manager.get_icon(cache_key, "__category__")
+    except Exception:
+        return None

@@ -6,12 +6,12 @@ from collections.abc import Iterable
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QObject, QSize, pyqtSlot
+from PyQt6.QtCore import QObject, QSize, Qt, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QToolButton
 
-from app.config_data import app_config
-from app.utils.db.synchronization import signal_guard
+from app.config_data.runtime_config import get_sphere_button_icon_size
+from app.utils.ui.db_sync import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.updates import suspend_updates
@@ -100,6 +100,7 @@ class SpheresBarController(QObject):
         btn = QToolButton()
         sphere_id = sphere["id"]
         btn.setCheckable(True)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
         icon_name = sphere.get("icon_path")
         if icon_name:
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
@@ -109,19 +110,16 @@ class SpheresBarController(QObject):
                 btn.setIcon(QIcon())
         else:
             btn.setIcon(QIcon())
-        # Enforce square size for sphere buttons
-        btn.setFixedSize(62, 62)
+        # Use icon size from config for both icon and button to avoid inner padding
+        icon_w, icon_h = get_sphere_button_icon_size()
+        btn.setFixedSize(icon_w, icon_h)
         # Remove internal margins at widget level
         try:
             btn.setContentsMargins(0, 0, 0, 0)
         except Exception:
             pass
-        # Icon size from UI config; 4px padding is controlled by QSS padding
-        try:
-            _sz = app_config.get_sphere_button_icon_size()
-            btn.setIconSize(QSize(int(_sz[0]), int(_sz[1])))
-        except Exception:
-            pass
+        # Icon size from UI config; matching button size removes inner padding
+        btn.setIconSize(QSize(icon_w, icon_h))
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(partial(self._on_button_clicked, sphere_id))

@@ -6,13 +6,8 @@ from .app_shutdown_controller import (
     ShutdownPriority,
     ShutdownTimeoutError,
 )
-from .bootstrap import ControllersFacade, build_controllers  # re-export for convenience
-from .window_controllers_setup import WindowControllersSetup
 
 __all__ = [
-    "ControllersFacade",
-    "build_controllers",
-    "WindowControllersSetup",
     "AppShutdownController",
     "ShutdownPriority",
     "ShutdownTimeoutError",

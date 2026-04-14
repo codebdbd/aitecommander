@@ -18,7 +18,6 @@ from .cache_proxy import IconCache, icon_cache
 
 # Import from converters
 from .converters import (
-    convert_icon_to_png_32,
     convert_icon_to_png_128,
     convert_raster_icon_to_png,
     copy_icon,
@@ -47,7 +46,6 @@ __all__ = [
     "copy_icon_to_path",
     # Conversion functions
     "convert_icon_to_png_128",
-    "convert_icon_to_png_32",
     "convert_raster_icon_to_png",
     # Icon creation functions
     "themed_icon",

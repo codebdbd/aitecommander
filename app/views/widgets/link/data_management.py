@@ -97,9 +97,21 @@ class DataManagementMixin:
 
     def _get_current_link_ids(self) -> set[int]:
         """Return the set of current link IDs based on table items (not cache)."""
-        ids: set[int] = set()
         model = getattr(self, "model", lambda: None)()
-        total = model.rowCount() if model is not None else 0
+        row_count = model.rowCount() if model is not None else 0
+        cache = self._link_cache
+        if row_count == len(cache) and row_count > 0:
+            ids: set[int] = set()
+            for link_data in cache.values():
+                if link_data is not None:
+                    link_id = link_data.get("id")
+                    if isinstance(link_id, int):
+                        ids.add(link_id)
+            if len(ids) == row_count:
+                return ids
+
+        ids: set[int] = set()
+        total = row_count
         for row in range(total):
             link_data = self.get_link_at(row)
             if link_data is not None:
@@ -166,6 +178,25 @@ class DataManagementMixin:
                 e,
             )
             return None
+
+    def get_cached_link_order(self) -> list[int]:
+        """Return current link IDs in row order using the in-memory cache when possible."""
+        model = getattr(self, "model", lambda: None)()
+        row_count = model.rowCount() if model is not None else 0
+        cache = self._link_cache
+        if row_count == len(cache) and row_count > 0:
+            ordered_ids: list[int] = []
+            for row in sorted(cache.keys()):
+                link_data = cache.get(row)
+                if not link_data:
+                    return []
+                link_id = link_data.get("id")
+                if not isinstance(link_id, int):
+                    return []
+                ordered_ids.append(link_id)
+            if len(ordered_ids) == row_count:
+                return ordered_ids
+        return []
 
     def find_row_by_link_id(self, link_id: int) -> Optional[int]:
         """Find a table row by the link ID."""

@@ -156,39 +156,10 @@ def normalize_rows(
     return result
 
 
-def validate_required_keys(
-    data: dict[str, Any], required_keys: Optional[list[str]] = None
-) -> bool:
-    """Validate normalized data.
-
-        Args:
-            data: Normalized data (dictionary or list of dictionaries)
-    {{ ... }}
-
-        Returns:
-            bool: True if data is valid, False otherwise
-    """
-    if required_keys is None:
-        required_keys = []
-
-    def _validate_dict(d: dict[str, Any]) -> bool:
-        if not isinstance(d, dict):
-            return False
-        return all(key in d for key in required_keys)
-
-    if isinstance(data, dict):
-        return _validate_dict(data)
-    elif isinstance(data, list):
-        return all(isinstance(item, dict) and _validate_dict(item) for item in data)
-
-    return False
-
-
 # For backward compatibility - export old names
 __all__ = [
     "normalize_row",
     "normalize_rows",
-    "validate_required_keys",
     "SupportedRowType",
     "RowLike",
 ]

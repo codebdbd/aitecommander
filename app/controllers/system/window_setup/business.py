@@ -189,6 +189,10 @@ def _setup_additional_controllers(window: Any, controllers: dict[str, Any]) -> N
 
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
+    try:
+        window.action_controller.setup_global_actions()
+    except Exception as e:
+        logger.warning("Failed to setup global actions: %s", e, exc_info=True)
 
     # Required dependency: SpheresBarController must be created successfully
     try:
@@ -216,16 +220,33 @@ def _setup_top_panels_controller(window: Any, controllers: dict[str, Any]) -> No
         pending_snapshot = getattr(window, "_pending_topbar_snapshot", None)
         if isinstance(pending_snapshot, TopBarSnapshot):
             try:
-                window.top_panels_controller.apply_snapshot(
-                    pending_snapshot.favorites,
-                    pending_snapshot.recents,
-                )
-                logger.debug(
-                    "TopPanelsController: applied pending snapshot "
-                    "(favorites=%s, recents=%s)",
-                    len(pending_snapshot.favorites),
-                    len(pending_snapshot.recents),
-                )
+                fav_current = []
+                rec_current = []
+
+                fav_getter = getattr(window.fav_widget, "get_items", None)
+                if callable(fav_getter):
+                    fav_current = fav_getter() or []
+
+                rec_getter = getattr(window.recent_links_widget, "get_items", None)
+                if callable(rec_getter):
+                    rec_current = rec_getter() or []
+
+                if fav_current != pending_snapshot.favorites or rec_current != pending_snapshot.recents:
+                    window.top_panels_controller.apply_snapshot(
+                        pending_snapshot.favorites,
+                        pending_snapshot.recents,
+                    )
+                    logger.debug(
+                        "TopPanelsController: applied pending snapshot "
+                        "(favorites=%s, recents=%s)",
+                        len(pending_snapshot.favorites),
+                        len(pending_snapshot.recents),
+                    )
+                else:
+                    logger.debug(
+                        "TopPanelsController: skipped pending snapshot reapply "
+                        "(already present in widgets)"
+                    )
             except Exception as exc:
                 logger.debug(
                     "TopPanelsController: failed to apply pending snapshot: %s",
@@ -288,9 +309,9 @@ def _connect_controller_signals(controllers: dict[str, Any]) -> None:
         ) from e
 
     try:
-        link_ops_ref.favorites_changed.connect(top_panels_ref.request_favorites_refresh)
+        link_ops_ref.favorites_changed.connect(top_panels_ref.request_refresh)
         # Прямое подключение без getattr
-        link_ops_ref.recents_changed.connect(top_panels_ref.request_recents_refresh)
+        link_ops_ref.recents_changed.connect(top_panels_ref.request_refresh)
     except (AttributeError, TypeError) as e:
         raise SetupError(
             f"Failed to connect LinkOperations -> TopPanelsController: {e}"

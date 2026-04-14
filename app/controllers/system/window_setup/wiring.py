@@ -3,10 +3,11 @@ Signal connections and event handlers.
 """
 
 import logging
+import os
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QTimer, pyqtSlot
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QTimer, pyqtSlot
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.links.table_controller import LinksTableController
@@ -18,6 +19,21 @@ from app.services import LinksService
 from .types import DatabaseProtocol, SetupError, WindowProtocol
 
 logger = logging.getLogger(__name__)
+
+_MESSAGE_CONTEXT = "MessageHandler"
+_MSG_SUCCESS_INFO = QT_TRANSLATE_NOOP(
+    _MESSAGE_CONTEXT, "Operation completed successfully."
+)
+_MSG_ERROR_INFO = QT_TRANSLATE_NOOP(
+    _MESSAGE_CONTEXT, "Try repeating the action or contact support."
+)
+_TOP_PANELS_REFRESH_ON_STRUCTURE = str(
+    os.getenv("APP_TOP_PANELS_REFRESH_ON_STRUCTURE", "")
+).lower() in {"1", "true", "yes", "on"}
+
+
+def _tr_message(text: str) -> str:
+    return QCoreApplication.translate(_MESSAGE_CONTEXT, text)
 
 
 def _on_structure_changed_schedule_refresh(
@@ -181,7 +197,7 @@ def setup_signal_connections(
         spheres_controller=window.spheres_controller,
     )
     _connect_database_signals(window)
-    QTimer.singleShot(0, partial(_connect_ui_signals, window))
+    _connect_ui_signals(window)
 
     # Refresh is called in window_ui_setup._finalize_topbar_startup(), duplicate removed
 
@@ -255,6 +271,12 @@ def _connect_top_panels_refresh(
         raise SetupError(
             "TopPanelsController is required to schedule structure-driven refreshes"
         )
+    if not _TOP_PANELS_REFRESH_ON_STRUCTURE:
+        logger.debug(
+            "TopPanelsController: structure-driven refresh disabled "
+            "(set APP_TOP_PANELS_REFRESH_ON_STRUCTURE=1 to enable)"
+        )
+        return
     try:
         structure_business.active_sphere_changed.connect(
             partial(_on_structure_changed_schedule_refresh, top_panels_controller)
@@ -325,8 +347,7 @@ def _connect_structure_signals(
     # Connect structure reload handler
     _connect_structure_reload_handler(structure_business)
 
-    # Connect top panels refresh
-    _connect_top_panels_refresh(structure_business, top_panels_controller)
+    # Top panels refresh is handled via StructureEventService to avoid duplication.
 
     # Connect structure item signals
     _connect_structure_item_signals(window, structure)
@@ -446,6 +467,70 @@ def _connect_table_populated_signal(window: Any) -> None:
         logger.debug("Failed to connect table_populated to update_statusbar: %s", e)
 
 
+def _connect_statusbar_controller_signals(window: Any) -> None:
+    """Connect controller signals that affect status bar content."""
+    if getattr(window, "_statusbar_controller_signals_connected", False):
+        return
+
+    update_statusbar = getattr(window, "update_statusbar", None)
+    if not callable(update_statusbar):
+        return
+
+    signal_sources = [
+        (
+            getattr(window, "database_controller", None),
+            (
+                "database_connected",
+                "database_restored",
+                "favorites_cleared",
+            ),
+        ),
+        (
+            getattr(window, "structure_business", None),
+            (
+                "active_sphere_changed",
+                "structure_loaded",
+                "item_added",
+                "item_updated",
+                "item_deleted",
+                "items_batch_deleted",
+                "section_selected",
+                "category_selected",
+            ),
+        ),
+        (
+            getattr(window, "link_operations", None),
+            (
+                "links_changed",
+                "favorites_changed",
+                "recents_changed",
+                "link_saved",
+                "link_deleted",
+            ),
+        ),
+        (getattr(window, "top_panels_controller", None), ("data_loaded",)),
+    ]
+
+    for owner, signal_names in signal_sources:
+        if owner is None:
+            continue
+        for signal_name in signal_names:
+            signal = getattr(owner, signal_name, None)
+            if not hasattr(signal, "connect"):
+                continue
+            try:
+                signal.connect(update_statusbar)
+            except (AttributeError, TypeError) as exc:
+                logger.debug(
+                    "Failed to connect %s.%s to update_statusbar: %s",
+                    type(owner).__name__,
+                    signal_name,
+                    exc,
+                )
+
+    window._statusbar_controller_signals_connected = True
+
+
 def _connect_ui_signals(window: Any) -> None:
     """Connect UI signals."""
     if hasattr(window, "_ui_signals_connected") and window._ui_signals_connected:
@@ -460,6 +545,9 @@ def _connect_ui_signals(window: Any) -> None:
     # Connect table populated signal
     _connect_table_populated_signal(window)
 
+    # Connect controller-driven updates for status bar content.
+    _connect_statusbar_controller_signals(window)
+
     window._ui_signals_connected = True
 
 
@@ -470,24 +558,86 @@ class DatabaseEventHandler:
     @pyqtSlot(object)
     def handle_database_restored(window: Any, new_db: Any):
         """Handle database restoration."""
+        logger.info(f"handle_database_restored called with new_db: {new_db}")
+        business = (
+            getattr(window, "structure_business", None)
+            or getattr(window, "business", None)
+            or getattr(getattr(window, "structure", None), "business", None)
+        )
+        if business is not None and hasattr(business, "suspend_structure_preload"):
+            try:
+                business.suspend_structure_preload(
+                    duration_ms=6000,
+                    reason="database-restore",
+                )
+            except Exception:
+                logger.debug(
+                    "handle_database_restored: failed to suspend structure preload",
+                    exc_info=True,
+                )
+        try:
+            tree_manager = getattr(getattr(window, "structure", None), "tree_manager", None)
+            if tree_manager is not None and hasattr(tree_manager, "request_next_snapshot_mode"):
+                tree_manager.request_next_snapshot_mode("full_restore")
+        except Exception:
+            logger.debug(
+                "handle_database_restored: failed to set next snapshot mode",
+                exc_info=True,
+            )
+        logger.info("Updating window.db reference")
         window.db = new_db
+        try:
+            from app.core.database_manager import DatabaseManager
+
+            DatabaseManager.close()
+            DatabaseManager.get_connection()
+        except Exception as exc:
+            logger.warning("handle_database_restored: failed to refresh DB connection: %s", exc)
+        
+        logger.info("Updating controllers with new DB")
         links_actions = getattr(window, "links_actions", None)
         DatabaseEventHandler._update_controllers_with_new_db(
             window, new_db, links_actions=links_actions
         )
+        
+        logger.info("Restoring UI state")
         DatabaseEventHandler._restore_ui_state(window)
+        DatabaseEventHandler._refresh_top_panels(window)
+        
+        logger.info("Updating statusbar")
         window.update_statusbar()
+        if business is not None and hasattr(business, "resume_structure_preload"):
+            try:
+                business.resume_structure_preload(
+                    delay_ms=3500,
+                    reason="database-restore",
+                )
+            except Exception:
+                logger.debug(
+                    "handle_database_restored: failed to resume structure preload",
+                    exc_info=True,
+                )
+        
+        logger.info("Database restoration handler completed")
 
     @staticmethod
     @pyqtSlot(object)
     def handle_database_connected(window: Any, new_db: Any):
         """Handle new database connection."""
         window.db = new_db
+        try:
+            from app.core.database_manager import DatabaseManager
+
+            DatabaseManager.close()
+            DatabaseManager.get_connection()
+        except Exception as exc:
+            logger.warning("handle_database_connected: failed to refresh DB connection: %s", exc)
         links_actions = getattr(window, "links_actions", None)
         DatabaseEventHandler._update_controllers_with_new_db(
             window, new_db, links_actions=links_actions
         )
         DatabaseEventHandler._restore_ui_state(window)
+        DatabaseEventHandler._refresh_top_panels(window)
         window.update_statusbar()
 
     @staticmethod
@@ -520,7 +670,6 @@ class DatabaseEventHandler:
         DatabaseEventHandler._update_structure_controllers(window, new_db)
         DatabaseEventHandler._update_links_controllers(window, new_db, links_actions)
         DatabaseEventHandler._update_business_logic(window, new_db)
-        DatabaseEventHandler._trigger_reload_if_needed(window)
 
     @staticmethod
     def _update_structure_controllers(window: WindowProtocol, new_db: DatabaseProtocol):
@@ -567,12 +716,20 @@ class DatabaseEventHandler:
     def _update_links_business(business: Any, new_db: DatabaseProtocol) -> None:
         """Update LinksBusinessLogic with new DB."""
         try:
+            if hasattr(business, "reset_state_for_database_switch") and callable(
+                business.reset_state_for_database_switch
+            ):
+                business.reset_state_for_database_switch()
             if hasattr(business, "db"):
                 business.db = new_db
             if hasattr(business, "links_model"):
                 business.links_model = new_db.links
             if hasattr(business, "links"):
                 business.links = LinksService(new_db)
+            if hasattr(business, "invalidate_cache") and callable(
+                business.invalidate_cache
+            ):
+                business.invalidate_cache()
         except Exception:
             logger.exception(
                 "Failed to update LinksBusinessLogic with new DB during DB switch"
@@ -687,16 +844,41 @@ class DatabaseEventHandler:
     @staticmethod
     def _update_business_logic(window: WindowProtocol, new_db: DatabaseProtocol):
         """Update business logic with new DB."""
+        logger.info("_update_business_logic: Starting")
         if not hasattr(window, "structure_business"):
+            logger.warning("_update_business_logic: window has no structure_business")
             return
 
         sb = window.structure_business
+        logger.info(f"_update_business_logic: Updating sb.db from {sb.db} to {new_db}")
         sb.db = new_db
+        
+        # CRITICAL: Update coordinator and service with new DB reference
+        # After DB restore, old references become stale and cause data inconsistency
+        if hasattr(sb, "structure_coordinator"):
+            logger.info("_update_business_logic: Updating structure_coordinator.db")
+            sb.structure_coordinator.db = new_db
+        if hasattr(sb, "structure_service"):
+            logger.info("_update_business_logic: Updating structure_service.db")
+            sb.structure_service.db = new_db
+            # StructureService also has internal _model (StructureCoordinator)
+            if hasattr(sb.structure_service, "_model"):
+                logger.info("_update_business_logic: Updating structure_service._model.db")
+                sb.structure_service._model.db = new_db
+        
+        # Update async_service and its nested AsyncOperations
+        if hasattr(sb, "async_service") and hasattr(sb.async_service, "async_operations"):
+            logger.info("_update_business_logic: Updating async_service.async_operations.db")
+            sb.async_service.async_operations.db = new_db
 
         try:
+            logger.info("_update_business_logic: Validating structure_business")
             DatabaseEventHandler._validate_structure_business(sb)
+            logger.info("_update_business_logic: Setting up first sphere handler")
             DatabaseEventHandler._setup_first_sphere_handler(sb)
+            logger.info("_update_business_logic: Triggering initial structure load")
             DatabaseEventHandler._trigger_initial_structure_load(sb)
+            logger.info("_update_business_logic: Completed successfully")
         except Exception:
             logger.exception("Failed to update structure_business with new DB")
             raise
@@ -751,19 +933,37 @@ class DatabaseEventHandler:
                     )
                     raise
             else:
-                if hasattr(window, "links_business") and window.links_business:
-                    try:
-                        window.links_business.load_links(category_id)
-                    except (AttributeError, TypeError) as e:
-                        logger.error(
-                            "_restore_ui_state: links_business.load_links failed due to interface error: %s",
-                            e,
-                        )
-                    except Exception:
-                        logger.exception(
-                            "_restore_ui_state: unexpected error during business load_links"
-                        )
-                        raise
+                    links_ctrl = getattr(window, "links_table_controller", None)
+                    if links_ctrl and hasattr(links_ctrl, "reload"):
+                        try:
+                            links_ctrl.reload(category_id)
+                        except (AttributeError, TypeError) as e:
+                            logger.error(
+                                "_restore_ui_state: links_table_controller.reload failed due to interface error: %s",
+                                e,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "_restore_ui_state: unexpected error during table reload"
+                            )
+                            raise
+
+    @staticmethod
+    def _refresh_top_panels(window: Any) -> None:
+        """Refresh top panels explicitly after DB switch/restore."""
+        controller = getattr(window, "top_panels_controller", None)
+        if controller is None:
+            return
+        try:
+            if hasattr(controller, "refresh_all") and callable(controller.refresh_all):
+                controller.refresh_all()
+                return
+            if hasattr(controller, "request_refresh") and callable(
+                controller.request_refresh
+            ):
+                controller.request_refresh(0)
+        except Exception:
+            logger.exception("Failed to refresh top panels after database switch")
 
 
 class MessageHandler:
@@ -776,9 +976,9 @@ class MessageHandler:
 
         DialogManager.show_info(
             window,
-            title,
             message,
-            informative_text="Operation completed successfully.",
+            title,
+            informative_text=_tr_message(_MSG_SUCCESS_INFO),
         )
 
     @staticmethod
@@ -788,7 +988,7 @@ class MessageHandler:
 
         DialogManager.show_error(
             window,
-            title,
             message,
-            informative_text="Try repeating the action or contact support.",
+            title,
+            informative_text=_tr_message(_MSG_ERROR_INFO),
         )

@@ -15,11 +15,13 @@ from PyQt6.QtCore import (
     Qt,
     QTimer,
 )
-from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit, QWidget
 
+from app.core.hotkey_manager import HotkeyManager
 from app.utils.common import safe_call as _common_safe_call
 from app.utils.common import safe_getattr as _common_safe_getattr
+from app.utils.ui.focus import WidgetType, get_focus_manager
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -28,15 +30,6 @@ logger = logging.getLogger(__name__)
 # Built-in handlers
 # =====================
 T = TypeVar("T")
-
-# Constants for identifying widgets by classes/names
-WIDGET_CLASSES = {
-    "STRUCTURE_TREE": "StructureTreeView",
-    "LINKS_TABLE": "LinksTableView",
-    "CATEGORY_TILES": "CategoryTiles",
-}
-
-WIDGET_OBJECT_NAMES = {"CATEGORY_TILES": "tiles"}
 
 
 class MainWindowProtocol(Protocol):
@@ -70,36 +63,40 @@ class BaseKeyHandler:
             main_window: Main application window
         """
         self.main_window = main_window
-
-    def _is_widget_of_type(self, widget: Optional[QWidget], widget_type: str) -> bool:
-        if not widget or widget_type not in WIDGET_CLASSES:
-            return False
-        class_name_to_check = WIDGET_CLASSES[widget_type]
-        object_name_to_check = WIDGET_OBJECT_NAMES.get(widget_type)
-
-        current: Optional[QWidget] = widget
-        while current is not None:
-            class_name = current.__class__.__name__
-            if class_name_to_check in class_name:
-                return True
-            if (
-                object_name_to_check
-                and hasattr(current, "objectName")
-                and object_name_to_check in current.objectName().lower()
-            ):
-                return True
-            parent_obj = current.parent()
-            current = parent_obj if isinstance(parent_obj, QWidget) else None
-        return False
+        self._focus_manager = get_focus_manager()
 
     def _is_tree_focused(self, widget: Optional[QWidget]) -> bool:
-        return self._is_widget_of_type(widget, "STRUCTURE_TREE")
+        """Check if structure tree has focus.
+        
+        Args:
+            widget: Unused, kept for API compatibility
+            
+        Returns:
+            True if structure tree has focus
+        """
+        return self._focus_manager.is_type_focused(WidgetType.STRUCTURE_TREE)
 
     def _is_table_focused(self, widget: Optional[QWidget]) -> bool:
-        return self._is_widget_of_type(widget, "LINKS_TABLE")
+        """Check if links table has focus.
+        
+        Args:
+            widget: Unused, kept for API compatibility
+            
+        Returns:
+            True if links table has focus
+        """
+        return self._focus_manager.is_type_focused(WidgetType.LINKS_TABLE)
 
     def _is_tiles_focused(self, widget: Optional[QWidget]) -> bool:
-        return self._is_widget_of_type(widget, "CATEGORY_TILES")
+        """Check if category tiles have focus.
+        
+        Args:
+            widget: Unused, kept for API compatibility
+            
+        Returns:
+            True if category tiles have focus
+        """
+        return self._focus_manager.is_type_focused(WidgetType.CATEGORY_TILES)
 
     def _safe_getattr(self, obj: Any, attr: str, default: Optional[T] = None) -> Any:
         # Delegate to shared common utils
@@ -128,126 +125,125 @@ class ClipboardKeyHandler(BaseKeyHandler):
         - Tree: selects all categories of current section
         - Table: selects all rows
         """
-        focused_widget = QApplication.focusWidget()
-        if self._is_tree_focused(focused_widget):
-            self._handle_tree_select_all()
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "select_all_current")
             return
-        table = self._safe_getattr(self.main_window, "table")
-        if table:
-            # Exclusivity: when selecting in table, clear selection in tree
-            try:
-                structure = self._safe_getattr(self.main_window, "structure")
-                tree = self._safe_getattr(structure, "tree") if structure else None
-                if tree and hasattr(tree, "clearSelection"):
-                    tree.clearSelection()
-            except Exception as e:
-                logger.debug(
-                    "ClipboardKeyHandler.handle_select_all: failed to clear tree selection",
-                    exc_info=e,
-                )
-            self._safe_call(table, "selectAll")
+
+    def handle_clear_selection(self) -> None:
+        """Handles clear selection depending on context."""
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "clear_selection_current")
+            return
 
     def _handle_tree_select_all(self) -> None:
         """Selects all categories of current section in structure tree."""
+        tree = self._get_structure_tree()
+        if tree is None:
+            return
+
+        self._clear_table_selection()
+
+        parent_idx = self._resolve_parent_index(tree)
+        if parent_idx is None:
+            return
+
+        model = tree.model() if hasattr(tree, "model") else None
+        if model is None:
+            return
+
+        self._select_rows_in_parent(tree, model, parent_idx)
+
+    def _get_structure_tree(self):
         structure = self._safe_getattr(self.main_window, "structure")
         if not structure:
-            return
+            return None
         tree = self._safe_getattr(structure, "tree")
-        if not tree:
-            return
-            # Exclusivity: when selecting in tree, clear selection in table
+        return tree if tree else None
+
+    def _clear_table_selection(self) -> None:
         try:
             table = self._safe_getattr(self.main_window, "table")
             if table and hasattr(table, "clearSelection"):
                 self._safe_call(table, "clearSelection")
-        except Exception as e:
+        except Exception:
             logger.debug(
                 "ClipboardKeyHandler._handle_tree_select_all: failed to clear table selection",
-                exc_info=e,
+                exc_info=True,
             )
-        # QTreeView: use model and selectionModel
+
+    def _resolve_parent_index(self, tree):
         try:
-            if hasattr(tree, "currentIndex") and callable(tree.currentIndex):
-                idx = tree.currentIndex()
-                if not (idx and idx.isValid()):
-                    return
-                try:
-                    tt = get_tree_tuple(idx, 0)
-                except Exception:
-                    tt = None
-                # Если выделена категория — берем её родителя (раздел), иначе предполагаем раздел
-                parent_idx = idx.parent() if (tt and tt[0] == "category") else idx
-                if not parent_idx or not parent_idx.isValid():
-                    return
-                model = tree.model() if hasattr(tree, "model") else None
-                if not model:
-                    return
-                rows = model.rowCount(parent_idx)
-                if rows <= 0:
-                    return
-                # Clear current selection and select all section rows (categories)
-                try:
-                    sel_model = tree.selectionModel()
-                    if sel_model:
-                        sel_model.clearSelection()
-                        top_left = model.index(0, 0, parent_idx)
-                        bottom_right = model.index(rows - 1, 0, parent_idx)
-                        selection = QItemSelection(top_left, bottom_right)
-                        sel_model.select(
-                            selection,
-                            QItemSelectionModel.SelectionFlag.Select
-                            | QItemSelectionModel.SelectionFlag.Rows,
-                        )
-                        return
-                except Exception as e:
-                    logger.debug(
-                        "ClipboardKeyHandler._handle_tree_select_all: selection application failed",
-                        exc_info=e,
-                    )
-        except Exception as e:
+            if not (hasattr(tree, "currentIndex") and callable(tree.currentIndex)):
+                return None
+            idx = tree.currentIndex()
+            if not (idx and idx.isValid()):
+                return None
+            try:
+                tt = get_tree_tuple(idx, 0)
+            except Exception:
+                tt = None
+            parent_idx = idx.parent() if (tt and tt[0] == "category") else idx
+            if not parent_idx or not parent_idx.isValid():
+                return None
+            return parent_idx
+        except Exception:
             logger.debug(
-                "ClipboardKeyHandler._handle_tree_select_all: unexpected error",
-                exc_info=e,
+                "ClipboardKeyHandler._handle_tree_select_all: failed to resolve parent index",
+                exc_info=True,
             )
+            return None
 
-    def handle_copy(self) -> None:
-        """Handles Ctrl+C - copying selected links.
-
-        ✅ FIX: Added documentation.
-        """
-        la = self._safe_getattr(self.main_window, "links_actions")
-        if la:
-            self._safe_call(la, "copy_selected_links")
-            return
-        links_controller = self._safe_getattr(self.main_window, "links")
-        if links_controller:
-            self._safe_call(links_controller, "copy_selected_links")
+    def _select_rows_in_parent(self, tree, model, parent_idx) -> None:
+        try:
+            rows = model.rowCount(parent_idx)
+            if rows <= 0:
+                return
+            sel_model = tree.selectionModel()
+            if sel_model is None:
+                return
+            sel_model.clearSelection()
+            top_left = model.index(0, 0, parent_idx)
+            bottom_right = model.index(rows - 1, 0, parent_idx)
+            selection = QItemSelection(top_left, bottom_right)
+            sel_model.select(
+                selection,
+                QItemSelectionModel.SelectionFlag.Select
+                | QItemSelectionModel.SelectionFlag.Rows,
+            )
+        except Exception:
+            logger.debug(
+                "ClipboardKeyHandler._handle_tree_select_all: selection failed",
+                exc_info=True,
+            )
 
     def handle_cut(self) -> None:
         """Handles Ctrl+X - cutting selected links.
 
         ✅ FIX: Added documentation.
         """
-        la = self._safe_getattr(self.main_window, "links_actions")
-        if la:
-            self._safe_call(la, "cut_selected_links")
-            return
-        links_controller = self._safe_getattr(self.main_window, "links")
-        if links_controller:
-            self._safe_call(links_controller, "cut_selected_links")
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "cut_current")
+
+    def handle_copy(self) -> None:
+        """Handles Ctrl+C - copying selected links to clipboard.
+
+        ✅ FIX: Added documentation.
+        """
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "copy_current")
 
     def handle_paste(self) -> None:
         """Handles Ctrl+V - pasting links from clipboard.
 
         ✅ FIX: Added documentation.
         """
-        la = self._safe_getattr(self.main_window, "links_actions")
-        if la:
-            self._safe_call(la, "paste_links")
-            return
-        links_controller = self._safe_getattr(self.main_window, "links")
-        if links_controller:
-            self._safe_call(links_controller, "paste_links")
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "paste_current")
 
 
 class EditingKeyHandler(BaseKeyHandler):
@@ -382,6 +378,20 @@ class EditingKeyHandler(BaseKeyHandler):
 class GlobalKeyHandler(BaseKeyHandler):
     """Global hotkey handler."""
 
+    def _handle_text_undo_redo(self, redo: bool = False) -> bool:
+        widget = QApplication.focusWidget()
+        if not isinstance(widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            return False
+        method = "redo" if redo else "undo"
+        handler = getattr(widget, method, None)
+        if not callable(handler):
+            return False
+        try:
+            handler()
+        except Exception:
+            return False
+        return True
+
     def handle_f1(self) -> None:
         logger.debug("KeyboardManager: F1 pressed")
         self._safe_call(self.main_window, "show_link_dialog")
@@ -405,9 +415,84 @@ class GlobalKeyHandler(BaseKeyHandler):
             logger.debug("KeyboardManager: F6 pressed")
             self._safe_call(action, "trigger")
 
+    def handle_file_search(self) -> None:
+        logger.debug("KeyboardManager: F8 pressed")
+        self._safe_call(self.main_window, "show_file_search_dialog")
+
+    def handle_settings(self) -> None:
+        logger.debug("KeyboardManager: F7 pressed")
+        self._safe_call(self.main_window, "show_settings_dialog")
+
+    def handle_import_from_browser(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+C pressed")
+        self._safe_call(self.main_window, "handle_import_browser_bookmarks")
+
+    def handle_import_icons(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+I pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_load_icons")
+
+    def handle_connect_database(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+D pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_connect_database")
+
+    def handle_save_database(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+S pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_save_database")
+
+    def handle_export_icons(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+E pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_save_icons")
+
+    def handle_refresh_icons(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+H pressed")
+        dialogs = self._safe_getattr(self.main_window, "system_dialogs")
+        if dialogs:
+            self._safe_call(dialogs, "handle_refresh_icons")
+
+    def handle_check_bad_urls(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+U pressed")
+        dialogs = self._safe_getattr(self.main_window, "system_dialogs")
+        if dialogs:
+            self._safe_call(dialogs, "handle_check_bad_urls")
+
+    def handle_restore_database(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+B pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_restore_database")
+
+    def handle_clear_favorites(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+F pressed")
+        db = self._safe_getattr(self.main_window, "database_controller")
+        if db:
+            self._safe_call(db, "handle_clear_favorites")
+
     def handle_delete(self) -> None:
-        logger.debug("KeyboardManager: Delete pressed")
+        action = self._safe_getattr(self.main_window, "delete_action")
+        if action and self._safe_call(action, "isEnabled", default=False):
+            self._safe_call(action, "trigger")
+            return
         self._safe_call(self.main_window, "delete_current")
+
+    def handle_undo(self) -> None:
+        logger.debug("KeyboardManager: Undo pressed")
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "undo_current")
+
+    def handle_redo(self) -> None:
+        logger.debug("KeyboardManager: Redo pressed")
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac:
+            self._safe_call(ac, "redo_current")
 
 
 class SearchKeyHandler(BaseKeyHandler):
@@ -480,56 +565,94 @@ class KeyboardManager(QObject):
         """Setup QShortcut for key combinations."""
 
         global_shortcuts = [
-            ("F1", self.global_handler.handle_f1),
-            ("F2", self.global_handler.handle_f2),
-            ("F3", self.global_handler.handle_f3),
-            ("F4", self.global_handler.handle_f4),
-            ("F6", self.global_handler.handle_f6),
-            ("Del", self.global_handler.handle_delete),
+            ("global.add_link", self.global_handler.handle_f1),
+            ("global.edit_link", self.global_handler.handle_f2),
+            ("global.add_section", self.global_handler.handle_f3),
+            ("global.add_category", self.global_handler.handle_f4),
+            ("global.switch_sphere", self.global_handler.handle_f6),
+            ("global.search_files", self.global_handler.handle_file_search),
+            ("global.settings", self.global_handler.handle_settings),
+            ("global.import_browser", self.global_handler.handle_import_from_browser),
+            ("global.import_icons", self.global_handler.handle_import_icons),
+            ("global.import_db", self.global_handler.handle_connect_database),
+            ("global.save_db", self.global_handler.handle_save_database),
+            ("global.export_icons", self.global_handler.handle_export_icons),
+            ("global.refresh_icons", self.global_handler.handle_refresh_icons),
+            ("global.check_bad_urls", self.global_handler.handle_check_bad_urls),
+            ("global.restore_db", self.global_handler.handle_restore_database),
+            ("global.clear_favorites", self.global_handler.handle_clear_favorites),
+            ("global.undo", self.global_handler.handle_undo),
+            ("global.redo", self.global_handler.handle_redo),
+            ("global.redo_alt", self.global_handler.handle_redo),
         ]
 
-        for key_seq, handler in global_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
+        for action_id, handler in global_shortcuts:
+            context = (
+                Qt.ShortcutContext.WindowShortcut
+                if action_id
+                in ("global.undo", "global.redo", "global.redo_alt", "global.delete")
+                else Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
             try:
-                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+                shortcut = HotkeyManager.bind(
+                    action_id, self._parent_widget, handler, context=context
+                )
             except Exception as e:
                 logger.debug(
-                    "KeyboardManager._setup_shortcuts: failed to set ApplicationShortcut context for %s",
-                    key_seq,
+                    "KeyboardManager._setup_shortcuts: failed to bind %s",
+                    action_id,
                     exc_info=e,
                 )
-            shortcut.activated.connect(handler)
+                continue
             self.shortcuts.append(shortcut)
-            logger.debug(
-                "KeyboardManager: registered shortcut %s -> %s",
-                key_seq,
-                handler.__qualname__,
-            )
 
         table_shortcuts = [
-            ("Ctrl+A", self.clipboard_handler.handle_select_all),
-            ("Ctrl+F", self.search_handler.handle_focus_search),
-            ("Escape", self.search_handler.handle_clear_search),
-            ("Ctrl+X", self.clipboard_handler.handle_cut),
-            ("Ctrl+C", self.clipboard_handler.handle_copy),
-            ("Ctrl+V", self.clipboard_handler.handle_paste),
-            ("Ctrl+N", self.editing_handler.handle_show_note),
-            ("Ctrl+D", self.editing_handler.handle_toggle_favorite),
+            ("table.search_focus", self.search_handler.handle_focus_search),
+            ("table.search_clear", self.search_handler.handle_clear_search),
+            ("table.notes", self.editing_handler.handle_show_note),
+            ("table.toggle_favorite", self.editing_handler.handle_toggle_favorite),
         ]
 
         # Register on main window so it works even if table is not yet created
-        for key_seq, handler in table_shortcuts:
-            shortcut = QShortcut(QKeySequence(key_seq), self._parent_widget)
-            # Scope: on widget and its children (table inside window)
+        for action_id, handler in table_shortcuts:
             try:
-                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+                shortcut = HotkeyManager.bind(
+                    action_id,
+                    self._parent_widget,
+                    handler,
+                    context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+                )
             except Exception as e:
-                # In case of incompatibility — leave default context
                 logger.debug(
-                    "KeyboardManager._setup_shortcuts: setContext not supported",
+                    "KeyboardManager._setup_shortcuts: failed to bind %s",
+                    action_id,
                     exc_info=e,
                 )
-            shortcut.activated.connect(handler)
+                continue
+            self.shortcuts.append(shortcut)
+
+        edit_shortcuts = [
+            ("edit.cut", self.clipboard_handler.handle_cut),
+            ("edit.copy", self.clipboard_handler.handle_copy),
+            ("edit.paste", self.clipboard_handler.handle_paste),
+            ("edit.select_all", self.clipboard_handler.handle_select_all),
+            ("edit.clear_selection", self.clipboard_handler.handle_clear_selection),
+        ]
+        for action_id, handler in edit_shortcuts:
+            try:
+                shortcut = HotkeyManager.bind(
+                    action_id,
+                    self._parent_widget,
+                    handler,
+                    context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+                )
+            except Exception as e:
+                logger.debug(
+                    "KeyboardManager._setup_shortcuts: failed to bind %s",
+                    action_id,
+                    exc_info=e,
+                )
+                continue
             self.shortcuts.append(shortcut)
 
     def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:

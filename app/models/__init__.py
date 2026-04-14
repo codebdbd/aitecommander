@@ -8,7 +8,7 @@ from .entities import (
     LinkModel,
     SectionModel,
     SphereModel,
-    StructureModel,
+    StructureCoordinator,
 )
 from .types import LinkType
 
@@ -26,7 +26,7 @@ __all__ = [
     # Core
     "Database",
     # Models
-    "StructureModel",
+    "StructureCoordinator",
     "SphereModel",
     "SectionModel",
     "CategoryModel",

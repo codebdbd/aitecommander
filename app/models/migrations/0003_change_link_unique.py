@@ -46,7 +46,7 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
                 category_id  INTEGER NOT NULL REFERENCES category(id) ON DELETE CASCADE,
                 name         TEXT    NOT NULL,
                 url          TEXT    NOT NULL,
-                type         TEXT    NOT NULL CHECK(type IN ('web','file','program','script','chromeapp','folder')),
+                type         TEXT    NOT NULL CHECK(type IN ('web','file','program','script','folder')),
                 notes        TEXT    DEFAULT '',
                 is_favorite  INTEGER NOT NULL CHECK(is_favorite IN (0,1)) DEFAULT 0,
                 last_used    TEXT    DEFAULT NULL,

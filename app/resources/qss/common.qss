@@ -1,107 +1,73 @@
-/* ===============================================================
-   COMMON.QSS — Общие стили для всех тем (dark/light)
-   Здесь задаются нейтральные (без цветов) базовые параметры:
-   - геометрия (отступы, ширины, высоты, радиусы)
-   - видимость рамок (но не их цвет)
-   - общая типографика (без вмешательства в системный размер шрифта)
+QMainWindow > QFrame {
+    
+    border-radius: 0;
+    border: none;  
+}
 
-   Цвета и конкретные оттенки переопределяются в файлах темы:
-   - dark.qss, light.qss
 
-   Структура файла (навигация по разделам):
-   1) Левая панель и панель сфер (контейнеры/кнопки)
-   2) Меню (QMenu)
-   3) Меню-бар (QMenuBar)
-   4) Верхняя панель (контейнеры, кнопки, поле поиска)
-   5) Базовые кнопки (вне верхней панели)
-   6) QToolButton (вне верхней панели)
-   7) Поля ввода (общие) и выпадающие списки
-   8) Заголовки таблиц/деревьев (QHeaderView)
-   9) Статус-бар и нижняя панель
-   10) Разделители и сплиттеры
-   11) Контейнер панели сфер
-   12) Скролл-области и скроллбары
-   13) Категорийные плитки
-   14) Нижняя панель: кнопки
-   15) Диалоги (кнопки/поля/чекбоксы)
-   16) База для всех полей и чекбоксов (вне диалогов)
-   17) Служебные элементы и фокус-фрейм
-   =============================================================== */
-
-/* ИНДЕКС НАСТРАИВАЕМЫХ ПАРАМЕТРОВ (из app_config.json -> ui)
-   - menu_font_size, menu_icon_size, menu_indicator_size
-   - menubar_font_size, menubar_item_height
-   - top_panel_container_height, top_bar_margins
-   - scrollbar_width, scrollbar_height
-   - tree_item_height, table_item_height
-   - separator_height
-   - splitter_handle_width
-   - spheres_bar_height, spheres_layout_margins, spheres_bar_margin_left/right
-   - default_font_size (общая типографика; применяется из кода или QSS)
-   - top_panel_icon_size, quick_add_button_size (размеры кнопок/иконок верхней панели — задаются из кода)
-   Примечание: часть параметров применяется из Python-кода (layout spacing/margins,
-   фиксированные размеры виджетов) и здесь документируется.
-   --------------------------------------------------------------- */
-
-/* 1) Левая панель (контейнер дерева + панель сфер) */
 QWidget#LeftPanel {
     border: none;
     background: transparent;
 }
 
-/* 1.1) Кнопки на панели сфер (только рамка, без цвета) */
+
 #spheres_bar QToolButton {
-    border: 1px solid;
-    border-color: transparent; /* цвет задаёт тема */
-    border-radius: 12px;
-    padding: 4px;
+    border: 2px solid;
+    border-color: transparent; 
+    border-radius: 0;
+    padding: 0;
 }
 
-/* Сферы: на hover/pressed/checked */
+
 #spheres_bar QToolButton:hover,
 #spheres_bar QToolButton:pressed,
 #spheres_bar QToolButton:checked {
     border: 2px solid;
     border-color: transparent;
-    border-radius: 12px;
+    border-radius: 0;
 }
 
-/* 1.2) QToolButton внутри левой панели: базово без рамки */
+
 QWidget#LeftPanel QToolButton {
     border: none;
 }
 
-/* 2) Меню (контекстные/выпадающие) */
-QMenu {
-    border-radius: 0px;
+QWidget#LeftPanel QWidget#spheres_bar QToolButton {
+    border: 2px solid;
+    border-color: transparent;
+    border-radius: 0;
     padding: 0;
+}
+
+
+QMenu {
+    border-radius: 0;
+    padding: 0;
+    border-style: solid;
+    border-width: 1px;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    /* font-size: из ui.menu_font_size */
+    
 }
 
 QMenu::item {
     padding: 0 12px 0 16px;
     margin: 0;
-    border-radius: 0px;
-    min-width: 180px;
-    height: 32px;
+    border-radius: 0;
+    background: transparent;
 }
 
 QMenu::icon {
     padding-left: 16px;
-    /* width/height: из ui.menu_icon_size */
+    
 }
 
 QMenu::separator {
-    height: 1px;
     margin: 0;
     padding: 0;
 }
 
 QMenu::right-arrow {
     image: none;
-    width: 10px;
-    height: 10px;
     margin-right: 4px;
 }
 
@@ -110,19 +76,30 @@ QMenu::icon:disabled {
 }
 
 QMenu::item:!has-icon {
-    padding-left: 32px;
+    padding-left: 16px; 
+}
+
+QMenu::item:disabled {
+    background: transparent;
 }
 
 QMenu::indicator {
-    /* width/height: из ui.menu_indicator_size */
+    
     margin-left: 4px;
 }
 
 QMenu::indicator:checked {
-    border-radius: 3px;
+    border-radius: 0;
 }
 
-/* 3) Меню-бар (верхнее системное меню) */
+QToolTip {
+    border-radius: 0;
+    border: 1px solid #59F0FF;
+    background: #070B14;
+    color: #DCE6F2;
+}
+
+
 QMenuBar {
     padding: 0;
     border-top: 1px solid;
@@ -135,26 +112,37 @@ QMenuBar {
 }
 
 QMenuBar::item {
-    padding: 4px 10px;
+    padding: 0 10px;
     border-radius: 0;
     margin: 0;
-    /* font-size: из ui.menubar_font_size; min-height: из ui.menubar_item_height */
+    border-left: 0px solid;
+    border-right: 0px solid;
+    
     font-weight: normal;
+    background: transparent;
+}
+
+QMenuBar::item:hover,
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-left-style: solid;
+    border-right-style: solid;
 }
 
 QMenuBar QMenu {
-    margin-top: 2px;
+    margin-top: 6px; 
     padding: 0;
     border-radius: 0;
+    border-top-width: 0px;
 }
 
 QMenuBar QMenu::item {
     padding: 0 24px 0 8px;
-    min-width: 120px;
-    height: 32px;
 }
 
-/* 4) Верхняя панель — фоновые фреймы */
+
 QFrame#favoritesPanelBg,
 QFrame#quickAddPanelBg {
     border-radius: 0;
@@ -178,14 +166,21 @@ QWidget#topBarHost > QWidget {
     padding: 0;
 }
 
+QWidget#topBarHost QToolBar {
+    background: transparent;
+    border: none;
+}
+
+QWidget#topBarHost QToolBar::separator {
+    padding: 0;
+}
+
 QWidget#topBarHost QToolButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 0;
     padding: 0;
     margin: 0;
-    min-height: 32px;
-    max-height: 32px;
 }
 
 QWidget#topBarHost QToolButton:hover,
@@ -197,11 +192,9 @@ QWidget#topBarHost QToolButton:checked {
 QWidget#topBarHost QPushButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
+    border-radius: 0;
     padding: 0;
     margin: 0;
-    min-height: 32px;
-    max-height: 32px;
 }
 
 QWidget#topBarHost QPushButton:hover,
@@ -218,15 +211,11 @@ QWidget#topBarHost QPushButton:focus {
 QWidget#topBarHost QLineEdit {
     border: 1px solid;
     border-color: transparent;
-    min-height: 32px;
-    max-height: 32px;
     padding: 0 8px;
 }
 
 QLineEdit#mainSearch {
-    border-radius: 4px;
-    min-height: 32px;
-    max-height: 32px;
+    border-radius: 0;
     padding: 0 8px;
     padding-top: 1px;
 }
@@ -237,11 +226,11 @@ QLineEdit#mainSearch:focus {
     border-color: transparent;
 }
 
-/* 5) Базовые кнопки (вне верхней панели) */
+
 QPushButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
+    border-radius: 0;
     padding: 4px 8px;
 }
 
@@ -249,12 +238,12 @@ QPushButton:pressed {
     border-style: inset;
 }
 
-/* 6) QToolButton (общие правила вне верхней панели) */
+
 QToolButton {
     border: 1px solid;
     border-color: transparent;
     padding: 4px 8px;
-    border-radius: 8px;
+    border-radius: 0;
 }
 
 QToolButton:hover,
@@ -263,11 +252,11 @@ QToolButton:checked {
     border: 1px solid;
 }
 
-/* 7) Поля ввода (общие) */
+
 QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px; /* добавлено для современного вида */
+    border-radius: 0;
     padding: 2px;
 }
 
@@ -282,7 +271,6 @@ QComboBox QAbstractItemView {
 }
 
 QComboBox QAbstractItemView::item {
-    min-height: 32px;
     padding-left: 4px;
 }
 
@@ -300,16 +288,6 @@ QComboBox::drop-down {
     margin: 0;
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 22px;
-}
-
-QComboBox::down-arrow,
-QDialog QComboBox::down-arrow {
-    image: url("app/resources/ui_icons/dark/chevron_down.svg"); /* используем файловый путь */
-    width: 12px;
-    height: 12px;
-    margin-right: 6px;
-    margin-top: 1px;
 }
 
 QDialog QComboBox::drop-down {
@@ -320,28 +298,28 @@ QDialog QComboBox::drop-down {
     margin: 0;
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 22px;
 }
 
-/* 8) Заголовки колонок в таблицах/деревьях */
+QComboBox::down-arrow,
+QDialog QComboBox::down-arrow {
+    margin-right: 6px;
+    margin-top: 1px;
+}
+
+
 QHeaderView {
-    font-size: /* из ui.default_font_size */;
+    font-size: ;
     font-weight: normal;
 }
 
 QHeaderView::section {
-    border-right: 1px solid;
-    border-right-color: transparent;
+    border: none;
     padding: 4px;
-}
-
-QHeaderView::section:last {
-    border-right: none;
 }
 
 QTableView QHeaderView,
 QTreeView QHeaderView {
-    font-size: /* из ui.default_font_size */;
+    font-size: ;
     font-weight: normal;
 }
 
@@ -353,29 +331,35 @@ QLabel#pathLabel {
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
     border: none;
-    border-right: 1px solid;
-    border-bottom: 1px solid;
 }
 
-QTableView {
+QTableView,
+QTableWidget {
     border: none;
     border-radius: 0;
     outline: none;
+    gridline-color: transparent;
 }
 
 QTableView::item,
+QTableWidget::item,
 QTreeView::item:selected,
 QTableView::item:selected,
+QTableWidget::item:selected,
 QTreeView::item:hover {
     border: none;
-    border-radius: 0px;
+    border-radius: 0;
+}
+
+QTreeView::item:!selected:hover {
+    color: palette(text);
 }
 
 QTreeView {
     background: transparent;
 }
 
-/* 9) Статус-бар и нижняя панель (контейнер) */
+
 QStatusBar {
     border-top: 1px solid;
     border-top-color: transparent;
@@ -391,11 +375,9 @@ QWidget#bottomBarContainer {
     padding: 0;
 }
 
-/* 10) Разделители и сплиттеры */
+
 QWidget[class="separator"] {
     border: none;
-    min-height: 1px;
-    max-height: 1px;
     margin: 0;
     padding: 0;
 }
@@ -407,6 +389,7 @@ QMenu {
 
 QMenuBar QMenu {
     margin-top: 0px;
+    border-top-width: 0px;
 }
 
 QSplitter::handle:horizontal,
@@ -414,53 +397,28 @@ QSplitter::handle:vertical {
     margin: 0;
     padding: 0;
 }
+QSplitter::handle {
+    border: none;
+}
+QSplitter::handle:horizontal {
+}
+QSplitter::handle:vertical {
+}
 
-/* 11) Панель сфер — контейнер */
+
 #spheres_bar {
     border: none;
     margin-bottom: 0;
     border-radius: 0;
     padding: 0;
+    background: transparent;
 }
 
-/* 12) Скролл-области и скроллбары */
+
 QAbstractScrollArea {
     border: none;
 }
 
-QScrollBar:vertical {
-    border: none;
-    /* width: из ui.scrollbar_width */
-    margin: 0;
-}
-
-QScrollBar::handle:vertical {
-    min-height: 20px;
-}
-
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
-    height: 0px;
-    subcontrol-origin: margin;
-}
-
-QScrollBar:horizontal {
-    border: none;
-    /* height: из ui.scrollbar_height */
-    margin: 0;
-}
-
-QScrollBar::handle:horizontal {
-    min-width: 20px;
-}
-
-QScrollBar::add-line:horizontal,
-QScrollBar::sub-line:horizontal {
-    width: 0px;
-    subcontrol-origin: margin;
-}
-
-/* 13) Категорийные плитки */
 QListWidget#categoryTiles,
 QListView#categoryTiles {
     border: none;
@@ -472,16 +430,31 @@ QListView#categoryTiles::item {
     background: transparent;
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
+    border-radius: 0;
 }
 
 QListWidget#categoryTiles::item:hover,
 QListView#categoryTiles::item:hover {
     border: 1px solid;
     border-color: transparent;
+    border-radius: 0;
 }
 
-/* 14) Нижняя панель: кнопки */
+QListWidget#categoryTiles::item:selected,
+QListView#categoryTiles::item:selected {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+}
+
+QListWidget#categoryTiles::item:selected:hover,
+QListView#categoryTiles::item:selected:hover {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+}
+
+
 QWidget#bottomBarContainer QPushButton {
     background: transparent;
     border: 1px solid;
@@ -489,35 +462,36 @@ QWidget#bottomBarContainer QPushButton {
     border-radius: 0;
     border-right: 1px solid;
     border-right-color: transparent;
-    font: 11pt "Segoe UI", system-ui, -apple-system, sans-serif; /* добавлено */
+    margin: 0;
 }
 
 QWidget#bottomBarContainer QPushButton[last="1"] {
     border-right: none;
 }
 
-/* 15) Диалоги */
+
 QDialog QPushButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 0;
     outline: none;
-    min-height: 32px;
-    max-height: 32px;
+    padding: 6px 14px;
 }
 
 QDialog QToolButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
+    border-radius: 0;
     outline: none;
 }
 
 QDialog QToolButton#linkTypeBtn {
-    border-radius: 4px;
+    border-radius: 0;
     padding: 8px 6px;
     margin: 0;
     background: transparent;
+    border: 1px solid;
+    border-color: transparent;
 }
 
 QDialog QPushButton:hover,
@@ -540,7 +514,7 @@ QDialog QDateEdit,
 QDialog QTimeEdit {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px; /* добавлено */
+    border-radius: 0;
 }
 
 QDialog QComboBox {
@@ -554,15 +528,13 @@ QDialog QSpinBox,
 QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
-    min-height: 32px;
-    max-height: 32px;
 }
 
 QDialog QLineEdit {
     padding: 0 8px;
 }
 
-/* 16) База для всех полей и чекбоксов (вне диалогов) */
+
 QLineEdit,
 QTextEdit,
 QPlainTextEdit,
@@ -573,15 +545,31 @@ QDateEdit,
 QTimeEdit {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px; /* добавлено */
+    border-radius: 0;
 }
 
 QCheckBox,
 QDialog QCheckBox {
+    border: none;
+    border-radius: 0;
+    outline: none;
+}
+
+QCheckBox:focus,
+QDialog QCheckBox:focus {
+    outline: none;
+    border: none;
+}
+
+QCheckBox::indicator,
+QDialog QCheckBox::indicator {
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
-    outline: none;
+    background: transparent;
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
 }
 
 QDialog QCheckBox::indicator,
@@ -589,32 +577,18 @@ QDialog QCheckBox::indicator:focus {
     outline: none;
 }
 
-/* 17) Служебные элементы и фокус-фрейм */
-QWidget#LeftPanel QToolButton,
-QWidget#favQuickSeparatorBefore,
-QWidget#favQuickSeparatorAfter,
-QWidget[class="vertical_separator"],
-QSplitter::handle {
+
+QWidget#LeftPanel QToolButton {
     background: transparent;
 }
 
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical,
-QScrollBar::add-line:horizontal,
-QScrollBar::sub-line:horizontal,
-QScrollBar::up-arrow:vertical,
-QScrollBar::down-arrow:vertical,
-QScrollBar::left-arrow:horizontal,
-QScrollBar::right-arrow:horizontal,
-QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical,
-QScrollBar::add-page:horizontal,
-QScrollBar::sub-page:horizontal {
-    background: none;
+QSplitter::handle {
+    background: transparent;
 }
 
 QFocusFrame {
     border: 0px;
     outline: none;
     background: transparent;
+
 }

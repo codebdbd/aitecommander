@@ -5,14 +5,31 @@ import uuid
 from collections import defaultdict
 from urllib.parse import urlparse
 
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
+
 from bs4 import BeautifulSoup
 
 from app.config_data import app_config
-from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
+from app.models.types.constants import CATEGORY_BULK_UUID_FIELD
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.validators.link_validators import validate_link_form_data
 
 logger = logging.getLogger(__name__)
+_BROWSER_IMPORT_CONTEXT = "BrowserBookmarksImporter"
+_IMPORT_TITLE = QT_TRANSLATE_NOOP(_BROWSER_IMPORT_CONTEXT, "Import from browser")
+_HTML_FILTER = QT_TRANSLATE_NOOP(
+    _BROWSER_IMPORT_CONTEXT, "HTML Files (*.html *.htm)"
+)
+_IMPORT_ADDED = QT_TRANSLATE_NOOP(
+    _BROWSER_IMPORT_CONTEXT, "Added links: {count}"
+)
+_IMPORT_CATEGORIES = QT_TRANSLATE_NOOP(
+    _BROWSER_IMPORT_CONTEXT, "Categories created: {count}"
+)
+
+
+def _tr_import(text: str) -> str:
+    return QCoreApplication.translate(_BROWSER_IMPORT_CONTEXT, text)
 
 
 def _normalize_import_url(raw_url: str) -> str:
@@ -47,6 +64,23 @@ def _normalize_import_url(raw_url: str) -> str:
     return candidate if parsed.netloc else ""
 
 
+def _normalize_category_name(raw_name: object) -> str:
+    """Normalize category name for robust matching during import."""
+    if raw_name is None:
+        return ""
+    try:
+        name = str(raw_name).strip()
+    except Exception:
+        return ""
+    return name
+
+
+def _category_key(name: object) -> str:
+    """Case-insensitive key for category matching."""
+    normalized = _normalize_category_name(name)
+    return normalized.casefold()
+
+
 class BrowserBookmarksImporter:
     """HTML bookmarks importer: file selection (UI), parsing (data), DB synchronization (business).
 
@@ -59,8 +93,24 @@ class BrowserBookmarksImporter:
         """Opens HTML file selection dialog. Returns path or empty string."""
         from PyQt6.QtWidgets import QFileDialog
 
+        from app.utils.share_paths import (
+            ensure_service_root,
+            get_desktop_dir,
+            get_entity_dir,
+        )
+
+        start_dir = ""
+        desktop = get_desktop_dir()
+        if desktop:
+            root = ensure_service_root(desktop)
+            if root:
+                start_dir = str(get_entity_dir(root, "links"))
+
         path, _ = QFileDialog.getOpenFileName(
-            parent_widget, "Import from browser", "", "HTML Files (*.html *.htm)"
+            parent_widget,
+            _tr_import(_IMPORT_TITLE),
+            start_dir,
+            _tr_import(_HTML_FILTER),
         )
         return path or ""
 
@@ -125,10 +175,11 @@ class BrowserBookmarksImporter:
         """Process bookmark node recursively."""
         for child in node.find_all(recursive=False):
             if child.name == "h3":
-                current_cat = child.get_text()
+                current_cat = _normalize_category_name(child.get_text()) or "Uncategorized"
             elif child.name == "a":
-                if current_cat not in categories:
-                    categories[current_cat] = []
+                normalized_cat = _normalize_category_name(current_cat) or "Uncategorized"
+                if normalized_cat not in categories:
+                    categories[normalized_cat] = []
                 url = child.get("href")
                 name = child.get_text() or url
                 icon_data = child.get("icon")
@@ -136,7 +187,7 @@ class BrowserBookmarksImporter:
                 if icon_data and icon_data.startswith("data:image/"):
                     icon_path = self._save_icon_from_base64(icon_data, url, icons_dir)
                 link = {"name": name, "url": url, "icon_path": icon_path}
-                categories[current_cat].append(link)
+                categories[normalized_cat].append(link)
             elif child.name == "dl":
                 self._process_bookmark_node(child, current_cat, categories, icons_dir)
             elif child.name in ["p", "dt"]:
@@ -255,7 +306,7 @@ class BrowserBookmarksImporter:
             logger.debug(
                 "DEBUG: Processing category '%s', links: %s", cat_name, len(links)
             )
-            category_id = name_to_id.get(cat_name)
+            category_id = name_to_id.get(_category_key(cat_name))
             if not category_id:
                 logger.error(
                     "ERROR: Category ID '%s' not found after batch insert; skipping links",
@@ -316,22 +367,57 @@ class BrowserBookmarksImporter:
         section_id: int,
         structure_business_logic,
         links_business_logic=None,
-    ) -> tuple[bool, str, int]:
-        """Synchronizes parsed categories/links with DB. Returns (success, msg, added)."""
+    ) -> tuple[bool, str, dict]:
+        """Synchronizes parsed categories/links with DB. Returns (success, msg, stats)."""
         existing_categories = structure_business_logic.get_categories(section_id) or []
-        existing_names = {c.get("name") for c in existing_categories}
+        existing_name_keys = {
+            _category_key(c.get("name"))
+            for c in existing_categories
+            if _category_key(c.get("name"))
+        }
 
-        incoming_names = set(categories.keys())
-        missing_names = [n for n in incoming_names if n not in existing_names]
+        incoming_names = [
+            _normalize_category_name(name)
+            for name in categories.keys()
+            if _normalize_category_name(name)
+        ]
+        incoming_name_keys = {_category_key(name) for name in incoming_names}
+        missing_names = [
+            name
+            for name in incoming_names
+            if _category_key(name) and _category_key(name) not in existing_name_keys
+        ]
 
         self._create_missing_categories(
             missing_names, section_id, structure_business_logic
         )
 
         categories_after = structure_business_logic.get_categories(section_id) or []
-        name_to_id = {c.get("name"): c.get("id") for c in categories_after}
+        name_to_id = {
+            _category_key(c.get("name")): c.get("id")
+            for c in categories_after
+            if _category_key(c.get("name"))
+        }
+        unresolved_keys = sorted(
+            key for key in incoming_name_keys if key and key not in name_to_id
+        )
+        if unresolved_keys:
+            preview = unresolved_keys[:5]
+            logger.warning(
+                "Import sync: %d category names still unresolved after bulk insert; preview=%s",
+                len(unresolved_keys),
+                preview,
+            )
 
-        links_by_category = self._prepare_link_payloads(categories, name_to_id)
+        normalized_categories = {
+            _normalize_category_name(name): links
+            for name, links in categories.items()
+            if _normalize_category_name(name)
+        }
+        links_by_category = self._prepare_link_payloads(
+            normalized_categories,
+            name_to_id,
+        )
         link_payloads = [
             dict(payload)
             for payloads in links_by_category.values()
@@ -347,7 +433,25 @@ class BrowserBookmarksImporter:
                 structure_business_logic,
             )
 
-        return True, f"Added links: {added}", added
+        # Collect statistics
+        http_count = sum(1 for p in link_payloads if p.get("url", "").startswith("http://"))
+        https_count = sum(1 for p in link_payloads if p.get("url", "").startswith("https://"))
+        
+        stats = {
+            "added": added,
+            "http_count": http_count,
+            "https_count": https_count,
+            "categories_created": len(missing_names),
+        }
+        
+        # Build message
+        msg = _tr_import(_IMPORT_ADDED).format(count=added)
+        if len(missing_names) > 0:
+            msg += "\n" + _tr_import(_IMPORT_CATEGORIES).format(
+                count=len(missing_names)
+            )
+        
+        return True, msg, stats
 
     def _fallback_import_links(
         self,

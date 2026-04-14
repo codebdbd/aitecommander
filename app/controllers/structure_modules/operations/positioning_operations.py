@@ -6,19 +6,13 @@ import logging
 import time
 from typing import Optional
 
+from app.config_data.runtime_config import get_slow_update_positions_threshold_sec
 from app.services.structure_service import StructureService
 
 from .base import BaseOperations
 
 # Type alias for batch updates: (table_name, list_of_ids)
 UpdateSpec = tuple[str, list[int]]
-
-# Lazy access to app configuration (without direct dependency on config_loader)
-try:
-    from app.config_data import app_config  # type: ignore
-except Exception:  # pragma: no cover - на случай проблем с импортом
-    app_config = None  # type: ignore
-
 
 class PositioningOperations(BaseOperations):
     """Class for element positioning operations."""
@@ -30,10 +24,9 @@ class PositioningOperations(BaseOperations):
         # Slow update threshold (seconds), read from config with safe fallback
         self._slow_threshold: float = 1.0
         try:
-            if app_config is not None:
-                val = app_config.get("limits.slow_update_positions_threshold_sec", None)
-                if isinstance(val, (int, float)) and val > 0:
-                    self._slow_threshold = float(val)
+            val = get_slow_update_positions_threshold_sec(1.0)
+            if isinstance(val, (int, float)) and val > 0:
+                self._slow_threshold = float(val)
         except Exception:
             # Quietly use default value to avoid breaking execution
             pass

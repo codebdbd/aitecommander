@@ -4,45 +4,49 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol, runtime_checkable
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.core.strings import DialogStrings, MenuStrings, StatusStrings
 
 logger = logging.getLogger(__name__)
 
 
-_BOTTOM_PANEL_CONTEXT = "BottomPanel"
+def _label_for_action(action_id: str) -> str:
+    if action_id == "add_section":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_ADD_SECTION)
+    if action_id == "add_category":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_ADD_CATEGORY)
+    if action_id == "add_link":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_ADD_LINK)
+    if action_id == "edit_link":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_EDIT)
+    if action_id == "delete_link":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_DELETE)
+    if action_id == "switch_sphere":
+        return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_SPHERE)
+    return ""
 
-_BOTTOM_ACTION_TEXTS: dict[str, str] = {
-    "add_section": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Section"),
-    "add_category": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Category"),
-    "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Link"),
-    "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit"),
-    "delete_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Delete"),
-    "switch_sphere": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Sphere"),
-}
 
-_BOTTOM_ACTION_TOOLTIPS: dict[str, str] = {
-    "add_section": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new section."),
-    "add_category": QT_TRANSLATE_NOOP(
-        _BOTTOM_PANEL_CONTEXT, "Create a new category in the selected section."
-    ),
-    "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new link."),
-    "edit_link": QT_TRANSLATE_NOOP(
-        _BOTTOM_PANEL_CONTEXT, "Edit the selected item."
-    ),
-    "delete_link": QT_TRANSLATE_NOOP(
-        _BOTTOM_PANEL_CONTEXT, "Delete the selected item."
-    ),
-    "switch_sphere": QT_TRANSLATE_NOOP(
-        _BOTTOM_PANEL_CONTEXT, "Switch to next available sphere"
-    ),
-}
-
-_ACTION_BUTTON_DESC_TEMPLATE = QT_TRANSLATE_NOOP(
-    _BOTTOM_PANEL_CONTEXT, "Action button: {label}"
-)
+def _tooltip_for_action(action_id: str) -> str:
+    if action_id == "add_section":
+        return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_ADD_SECTION)
+    if action_id == "add_category":
+        return QCoreApplication.translate(
+            "BottomPanel", DialogStrings.TOOLTIP_ADD_CATEGORY
+        )
+    if action_id == "add_link":
+        return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_ADD_LINK)
+    if action_id == "edit_link":
+        return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_EDIT)
+    if action_id == "delete_link":
+        return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_DELETE)
+    if action_id == "switch_sphere":
+        return QCoreApplication.translate(
+            "BottomPanel", DialogStrings.TOOLTIP_SWITCH_SPHERE
+        )
+    return ""
 
 
 def _format_with_shortcut(label: str, shortcut: str | None) -> str:
@@ -54,10 +58,10 @@ def _format_with_shortcut(label: str, shortcut: str | None) -> str:
 
 
 def _resolve_label(action_id: str | None, fallback_label: str | None) -> str:
-    if action_id and action_id in _BOTTOM_ACTION_TEXTS:
-        return QCoreApplication.translate(
-            _BOTTOM_PANEL_CONTEXT, _BOTTOM_ACTION_TEXTS[action_id]
-        )
+    if action_id:
+        resolved = _label_for_action(action_id)
+        if resolved:
+            return resolved
     if fallback_label:
         return fallback_label
     if action_id:
@@ -68,10 +72,8 @@ def _resolve_label(action_id: str | None, fallback_label: str | None) -> str:
 def _resolve_tooltip(action_id: str | None, fallback_tooltip: str | None) -> str:
     if fallback_tooltip:
         return fallback_tooltip
-    if action_id and action_id in _BOTTOM_ACTION_TOOLTIPS:
-        return QCoreApplication.translate(
-            _BOTTOM_PANEL_CONTEXT, _BOTTOM_ACTION_TOOLTIPS[action_id]
-        )
+    if action_id:
+        return _tooltip_for_action(action_id)
     return ""
 
 
@@ -89,7 +91,7 @@ def _apply_translations_to_button(
     button.setAccessibleName(label)
 
     desc_template = QCoreApplication.translate(
-        _BOTTOM_PANEL_CONTEXT, _ACTION_BUTTON_DESC_TEMPLATE
+        "BottomPanel", StatusStrings.ACCESSIBLE_ACTION_TEMPLATE
     )
     try:
         button.setAccessibleDescription(desc_template.format(label=label))
@@ -210,6 +212,14 @@ class BottomPanelBuilder:
             if action_id:
                 btn.setObjectName(f"bottomBarButton_{action_id}")
                 btn.setProperty("action_id", action_id)
+            try:
+                btn.setFixedHeight(app_config.ui.get_bottom_bar_button_height())
+            except (RuntimeError, TypeError):
+                logger.debug(
+                    "BottomPanel: failed to set height for bottom button '%s'",
+                    log_label,
+                    exc_info=True,
+                )
             # Allow horizontal shrink below sizeHint
             try:
                 btn.setMinimumWidth(0)
@@ -267,11 +277,23 @@ class BottomPanelBuilder:
         bottom_bar_container.setLayout(bottom_layout)
         # Store the widget on the window for further focus configuration
         self.window.bottom_bar_container = bottom_bar_container  # type: ignore[attr-defined]
-        # Explicit policy: horizontal expanding/shrinking, vertical fixed
+        
+        # Ensure fixed height based on config
         try:
+            height = int(app_config.ui.get_bottom_bar_button_height())
+            bottom_bar_container.setFixedHeight(height)
+            bottom_bar_container.setMinimumHeight(height)
+            bottom_bar_container.setMaximumHeight(height)
+            
+            # Explicit policy: horizontal expanding only (no vertical resize)
             bottom_bar_container.setSizePolicy(
                 QSizePolicy.Policy.Expanding,
                 QSizePolicy.Policy.Fixed,
+            )
+            
+            # Prevent excessive shrinking that causes jitter
+            bottom_bar_container.setMinimumWidth(
+                app_config.ui.get_bottom_bar_min_width()
             )
         except (RuntimeError, TypeError) as e:
             logger.debug(

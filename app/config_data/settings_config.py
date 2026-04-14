@@ -5,7 +5,42 @@ from __future__ import annotations
 import platform
 from typing import Any
 
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
+
 from .base_config import BaseConfig
+
+_TR_CONTEXT = "SettingsConfig"
+
+
+def _tr(text: str) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text)
+
+
+_DEFAULT_ABOUT_TITLE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "About")
+_DEFAULT_ABOUT_TEXT = QT_TRANSLATE_NOOP(
+    _TR_CONTEXT, "Link Manager\nVersion 1.0\n\u00a9 MyCompany"
+)
+_DEFAULT_LINK_TYPES = [
+    ["web", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link")],
+    ["file", QT_TRANSLATE_NOOP(_TR_CONTEXT, "File")],
+    ["program", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program")],
+    ["script", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script")],
+    ["folder", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder")],
+]
+_DEFAULT_QUICK_TYPES = [
+    ["web", "web_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link")],
+    ["script", "script_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script")],
+    ["file", "documents_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "File")],
+    ["program", "program_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program")],
+    ["folder", "folder_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder")],
+]
+_DEFAULT_QUICK_TYPE_TOOLTIPS = {
+    "web": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link"),
+    "script": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script"),
+    "file": QT_TRANSLATE_NOOP(_TR_CONTEXT, "File"),
+    "program": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program"),
+    "folder": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder"),
+}
 
 
 class SettingsConfig(BaseConfig):
@@ -39,21 +74,17 @@ class SettingsConfig(BaseConfig):
 
     def get_about_title(self) -> str:
         """Return the title for the About dialog."""
-        # Prefer the new key ``app.about_title``; fall back to ``application.about_title``
         title = self.get("app.about_title")
         if title is None:
-            title = self.get("application.about_title", "О программе")
-        return title
+            title = self.get("application.about_title")
+        return title if title is not None else _tr(_DEFAULT_ABOUT_TITLE)
 
     def get_about_text(self) -> str:
         """Return the body text for the About dialog."""
-        # Prefer the new key ``app.about_text``; fall back to ``application.about_text``
         text = self.get("app.about_text")
         if text is None:
-            text = self.get(
-                "application.about_text", "Link Manager\nВерсия 1.0\n© MyCompany"
-            )
-        return text
+            text = self.get("application.about_text")
+        return text if text is not None else _tr(_DEFAULT_ABOUT_TEXT)
 
     # === Database ===
 
@@ -111,17 +142,10 @@ class SettingsConfig(BaseConfig):
         """Return the list of link type descriptors."""
         val = self.get("settings.link_types")
         if val is None:
-            val = self.get(
-                "ui.link_types",
-                [
-                    ["web", "Веб-ссылка"],
-                    ["file", "Файл"],
-                    ["program", "Программа"],
-                    ["script", "Скрипт"],
-                    ["chromeapp", "Chrome App"],
-                    ["folder", "Папка"],
-                ],
-            )
+            val = self.get("ui.link_types")
+        if val is None:
+            val = _DEFAULT_LINK_TYPES
+            return [[key, _tr(label)] for key, label in val]
         return [list(item) for item in val]
 
     def get_default_icons(self) -> dict:
@@ -137,7 +161,6 @@ class SettingsConfig(BaseConfig):
                     "program": "program_icon.png",
                     "script": "script_icon.png",
                     "chrome": "chrome_icon.png",
-                    "chromeapp": "chrome_icon.png",
                     "file": "documents_icon.png",
                     "category": "category.png",
                     "section": "section.png",
@@ -153,32 +176,19 @@ class SettingsConfig(BaseConfig):
         """Return the list of quick link type descriptors."""
         val = self.get("settings.quick_types")
         if val is None:
-            val = self.get(
-                "ui.quick_types",
-                [
-                    ["web", "web_icon.png", "Веб-ссылка"],
-                    ["file", "documents_icon.png", "Файл"],
-                    ["program", "program_icon.png", "Программа"],
-                    ["script", "script_icon.png", "Скрипт"],
-                    ["chromeapp", "chrome_icon.png", "Chrome App"],
-                ],
-            )
+            val = self.get("ui.quick_types")
+        if val is None:
+            val = _DEFAULT_QUICK_TYPES
+            return [[t, icon, _tr(label)] for t, icon, label in val]
         return [list(item) for item in val]
 
     def get_quick_type_tooltips(self) -> dict[str, str]:
         """Return tooltips for quick link types keyed by type name."""
         val = self.get("settings.quick_type_tooltips")
         if val is None:
-            val = self.get(
-                "ui.quick_type_tooltips",
-                {
-                    "web": "Веб-ссылка",
-                    "file": "Файл",
-                    "program": "Программа",
-                    "script": "Скрипт",
-                    "chromeapp": "Chrome App",
-                },
-            )
+            val = self.get("ui.quick_type_tooltips")
+        if val is None:
+            return {key: _tr(text) for key, text in _DEFAULT_QUICK_TYPE_TOOLTIPS.items()}
         return dict(val)
 
     def get_default_browse_paths(self) -> dict[str, str]:
@@ -192,7 +202,6 @@ class SettingsConfig(BaseConfig):
                     "folder": "",
                     "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
                     "script": "",
-                    "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome",
                 },
             )
         return dict(val)

@@ -8,8 +8,7 @@ import logging
 
 from PyQt6.QtGui import QIcon
 
-from ..path_service import get_current_theme
-from ..validation import validate_theme
+from ..cache_manager import get_theme_icon, get_theme_icon_async
 
 logger = logging.getLogger(__name__)
 
@@ -20,36 +19,14 @@ class IconCache:
     def get_icon(
         self, name: str, theme: str | None = None, source: str = "menu"
     ) -> QIcon:
-        """Get icon with caching via proxy to global manager."""
-        if theme is None:
-            theme = get_current_theme()
-        theme = validate_theme(theme)
-
-        # Add .svg extension if not specified
-        icon_name = name if "." in name else f"{name}.svg"
-
-        # Import here to avoid circular imports
-        from .creators import themed_icon
-
-        # themed_icon() will check cache itself, so just call it directly
-        # This eliminates redundant double cache check
-        return themed_icon(icon_name, theme, source)
+        """Get icon with caching via central cache manager."""
+        return get_theme_icon(name, theme, source)
 
     async def get_icon_async(
         self, name: str, theme: str | None = None, source: str = "menu"
     ) -> QIcon:
-        """Get icon asynchronously with caching."""
-        if theme is None:
-            theme = get_current_theme()
-        theme = validate_theme(theme)
-
-        # Add .svg extension if not specified
-        icon_name = name if "." in name else f"{name}.svg"
-
-        # Import here to avoid circular imports
-        from .creators import themed_icon_async
-
-        return await themed_icon_async(icon_name, theme, source)
+        """Get icon asynchronously with caching via central cache manager."""
+        return await get_theme_icon_async(name, theme, source)
 
     def clear_cache(self) -> None:
         """Clear cache (when changing theme)."""

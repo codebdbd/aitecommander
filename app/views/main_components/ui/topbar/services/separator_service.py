@@ -246,12 +246,7 @@ class SeparatorVisibilityService:
                     QSizePolicy.Policy.Fixed,
                 )
         else:
-            is_search_right = isinstance(target_right_widget, QLineEdit)
-            spacing = (
-                self._separator_spacing_visible
-                if is_search_right
-                else self._separator_spacing_hidden
-            )
+            spacing = self._separator_spacing_hidden
             if left_sp:
                 left_sp.changeSize(
                     spacing,

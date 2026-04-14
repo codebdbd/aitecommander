@@ -92,67 +92,19 @@ class IntegrityService:
         logger,
     ) -> dict[str, Any]:
         try:
-            integrity_report: dict[str, Any] = {
-                "is_valid": True,
-                "errors": [],
-                "warnings": [],
-                "statistics": {},
-            }
-
             spheres = get_spheres() or []
+            errors = self._validate_spheres(
+                spheres,
+                get_sections,
+                get_categories,
+            )
 
-            # Optimization: collect all errors in one pass
-            errors = []
-
-            for sphere in spheres:
-                sphere_id = sphere.get("id")
-                if sphere_id is None:
-                    continue
-
-                sections = get_sections(sphere_id)
-                if not sections:
-                    continue
-
-                # Check section-sphere relationships
-                invalid_sections = [
-                    section
-                    for section in sections
-                    if section.get("sphere_id") != sphere_id
-                ]
-
-                for section in invalid_sections:
-                    errors.append(
-                        f"Section {section.get('id')} has invalid sphere relationship"
-                    )
-
-                # Check category-section relationships
-                for section in sections:
-                    section_id = section.get("id")
-                    if section_id is None:
-                        continue
-
-                    categories = get_categories(section_id)
-                    if not categories:
-                        continue
-
-                    # Find categories with invalid relationships
-                    invalid_categories = [
-                        category
-                        for category in categories
-                        if category.get("section_id") != section_id
-                    ]
-
-                    for category in invalid_categories:
-                        errors.append(
-                            f"Category {category.get('id')} has invalid section relationship"
-                        )
-
-            # Set results
-            integrity_report["errors"] = errors
-            integrity_report["is_valid"] = len(errors) == 0
-            integrity_report["statistics"] = get_statistics()
-
-            return integrity_report
+            return {
+                "is_valid": len(errors) == 0,
+                "errors": errors,
+                "warnings": [],
+                "statistics": get_statistics(),
+            }
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error("Data validation error during integrity check: %s", e)
@@ -173,3 +125,57 @@ class IntegrityService:
                 "warnings": [],
                 "statistics": {},
             }
+
+    def _validate_spheres(
+        self,
+        spheres: list[dict[str, Any]],
+        get_sections: Callable[[int], list[dict[str, Any]]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
+    ) -> list[str]:
+        errors: list[str] = []
+        for sphere in spheres:
+            sphere_id = sphere.get("id")
+            if sphere_id is None:
+                continue
+
+            sections = get_sections(sphere_id) or []
+            errors.extend(self._validate_sections(sphere_id, sections, get_categories))
+
+        return errors
+
+    def _validate_sections(
+        self,
+        sphere_id: int,
+        sections: list[dict[str, Any]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
+    ) -> list[str]:
+        errors: list[str] = []
+        errors.extend(self._find_invalid_sections(sphere_id, sections))
+
+        for section in sections:
+            section_id = section.get("id")
+            if section_id is None:
+                continue
+
+            categories = get_categories(section_id) or []
+            errors.extend(self._find_invalid_categories(section_id, categories))
+
+        return errors
+
+    def _find_invalid_sections(
+        self, sphere_id: int, sections: list[dict[str, Any]]
+    ) -> list[str]:
+        return [
+            f"Section {section.get('id')} has invalid sphere relationship"
+            for section in sections
+            if section.get("sphere_id") != sphere_id
+        ]
+
+    def _find_invalid_categories(
+        self, section_id: int, categories: list[dict[str, Any]]
+    ) -> list[str]:
+        return [
+            f"Category {category.get('id')} has invalid section relationship"
+            for category in categories
+            if category.get("section_id") != section_id
+        ]

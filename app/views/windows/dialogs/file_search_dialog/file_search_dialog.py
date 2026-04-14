@@ -2,32 +2,35 @@ import logging
 import platform
 import re
 import subprocess
-import time
 from pathlib import Path
 
 from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
     QAbstractTableModel,
     QCoreApplication,
-    QDate,
     QModelIndex,
     Qt,
-    QThreadPool,
     pyqtSignal,
 )
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
-    QDateEdit,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QTableView,
     QVBoxLayout,
+    QWidget,
 )
+
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.core.worker_manager import WorkerManager
+from app.utils.i18n.common import tr as tr_common
 
 from ..base_dialog import BaseDialog
 from .search_worker import FileSearchWorker
@@ -37,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 _MODEL_TR_CONTEXT = "FileSearchResultsModel"
 _DIALOG_TR_CONTEXT = "FileSearchDialog"
+_HEADER_TRANSLATABLE = [
+    QT_TRANSLATE_NOOP(_MODEL_TR_CONTEXT, "Path"),
+]
 
 
 def _tr_model(text: str, disambiguation: str | None = None) -> str:
@@ -50,17 +56,17 @@ def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
 class _SearchResultsModel(QAbstractTableModel):
     """Table model holding file search results for the dialog."""
 
-    HEADERS = [
-        _tr_model("Name"),
-        _tr_model("Path"),
-        _tr_model("Size (KB)"),
-        _tr_model("Modified"),
-        _tr_model("Contains"),
-    ]
-
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._rows = []  # list of tuples: (name, path, size_kb, mtime_str, has_content)
+        self._rows = []  # list of tuples: (path,)
+        self._headers: list[str] = []
+        self.retranslateUi()
+
+    def retranslateUi(self) -> None:
+        self._headers = [_tr_model(text) for text in _HEADER_TRANSLATABLE]
+        self.headerDataChanged.emit(
+            Qt.Orientation.Horizontal, 0, len(self._headers) - 1
+        )
 
     def rowCount(self, parent=None):  # noqa: N802 Qt signature
         if parent is None:
@@ -70,14 +76,14 @@ class _SearchResultsModel(QAbstractTableModel):
     def columnCount(self, parent=None):  # noqa: N802
         if parent is None:
             parent = QModelIndex()
-        return 0 if parent.isValid() else len(self.HEADERS)
+        return 0 if parent.isValid() else len(self._headers)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if role != Qt.ItemDataRole.DisplayRole:
             return None
         if orientation == Qt.Orientation.Horizontal:
-            if 0 <= section < len(self.HEADERS):
-                return self.HEADERS[section]
+            if 0 <= section < len(self._headers):
+                return self._headers[section]
         return None
 
     def flags(self, index):  # noqa: D401
@@ -107,11 +113,11 @@ class _SearchResultsModel(QAbstractTableModel):
         self.endResetModel()
 
     def add_result(
-        self, name: str, path: str, size_kb: int, mtime_str: str, has_content: str
+        self, path: str
     ):
         row = len(self._rows)
         self.beginInsertRows(QModelIndex(), row, row)
-        self._rows.append((name, path, str(size_kb), mtime_str, has_content))
+        self._rows.append((path,))
         self.endInsertRows()
 
 
@@ -130,18 +136,20 @@ class FileSearchDialog(BaseDialog):
         self.lbl_name_regex = None
         self.lbl_pattern = None
         self.lbl_content = None
-        self.lbl_size = None
-        self.lbl_modified = None
 
         super().__init__(parent)
-        self.setWindowTitle(self.tr("Advanced file search"))
-        self.resize(900, 700)
+        self.setWindowTitle(tr_common("File search"))
+        width, height = app_config.ui.get_file_search_dialog_size()
+        self.resize(width, height)
 
         self._setup_ui()
         self._setup_defaults()
 
-        # ThreadPool for running background search workers
-        self.threadpool = QThreadPool()
+        self._explorer_timeout = 10  # seconds
+        
+        # Throttling for GUI updates
+        self._pending_batches = []  # Queue of batches to add
+        self._update_timer = None  # Timer for throttled updates
 
         # Translate after widgets are created
         self.retranslateUi()
@@ -151,35 +159,49 @@ class FileSearchDialog(BaseDialog):
         layout = QVBoxLayout(self)
 
         # --- Primary filter panel ---
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # Folder selection
-        folder_layout = QHBoxLayout()
-        self.lbl_search_location = QLabel(self.tr("Search location:"))
-        folder_layout.addWidget(self.lbl_search_location)
-        self.root_le = QLineEdit(str(Path.home()))
-        self.root_le.setMinimumWidth(200)
-        browse_btn = QPushButton(self.tr("Browse"))
-        browse_btn.clicked.connect(self._choose_root)
-        folder_layout.addWidget(self.root_le)
-        folder_layout.addWidget(browse_btn)
-
-        # File name/regex and mask row
-        name_mask_layout = QHBoxLayout()
-        self.lbl_name_regex = QLabel(self.tr("Name (regex):"))
-        name_mask_layout.addWidget(self.lbl_name_regex)
-        from PyQt6.QtWidgets import QSizePolicy
-
+        # First row: name + actions
+        self.lbl_name_regex = QLabel(self.tr("Search files:"))
+        name_row = QWidget()
+        name_row_layout = QHBoxLayout(name_row)
+        name_row_layout.setContentsMargins(0, 0, 0, 0)
         self.regex_le = QLineEdit()
         self.regex_le.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        name_mask_layout.addWidget(self.regex_le)
-        name_mask_layout.setStretch(name_mask_layout.count() - 1, 1)
-        self.lbl_pattern = QLabel(self.tr("Pattern:"))
-        name_mask_layout.addWidget(self.lbl_pattern)
+        name_row_layout.addWidget(self.regex_le, 1)
+        self.search_btn = QPushButton(self.tr("Search"))
+        self.search_btn.clicked.connect(self._start_search)
+        self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn.clicked.connect(self._stop_search)
+        self.stop_btn.setEnabled(False)
+        name_row_layout.addWidget(self.search_btn)
+        name_row_layout.addWidget(self.stop_btn)
+        form.addRow(self.lbl_name_regex, name_row)
+
+        # Second row: search location
+        self.lbl_search_location = QLabel(self.tr("Search in:"))
+        location_row = QWidget()
+        location_row_layout = QHBoxLayout(location_row)
+        location_row_layout.setContentsMargins(0, 0, 0, 0)
+        self.root_le = QLineEdit(str(Path.home()))
+        self.root_le.setMinimumWidth(app_config.ui.get_file_search_root_min_width())
+        browse_btn = QPushButton(self.tr("Browse"))
+        browse_btn.clicked.connect(self._choose_root)
+        location_row_layout.addWidget(self.root_le, 1)
+        location_row_layout.addWidget(browse_btn)
+        form.addRow(self.lbl_search_location, location_row)
+
+        # Third row: extension + content
+        self.lbl_pattern = QLabel(self.tr("Extension:"))
+        pattern_row = QWidget()
+        pattern_row_layout = QHBoxLayout(pattern_row)
+        pattern_row_layout.setContentsMargins(0, 0, 0, 0)
         self.pattern_le = QLineEdit("*.*")
-        self.pattern_le.setMaximumWidth(100)
-        name_mask_layout.addWidget(self.pattern_le)
+        self.pattern_le.setMaximumWidth(app_config.ui.get_file_search_pattern_max_width())
+        pattern_row_layout.addWidget(self.pattern_le)
 
         # --- Common extension dropdown ---
         from PyQt6.QtWidgets import QComboBox
@@ -234,7 +256,8 @@ class FileSearchDialog(BaseDialog):
         # Fit dropdown width to contents
         font_metrics = self.pattern_combo.fontMetrics()
         max_width = max(font_metrics.horizontalAdvance(ext) for ext in common_patterns)
-        self.pattern_combo.setFixedWidth(max_width + 36)  # +36 for arrow and padding
+        combo_extra = app_config.ui.get_file_search_pattern_combo_extra_width()
+        self.pattern_combo.setFixedWidth(max_width + combo_extra)  # + for arrow and padding
         self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
         self.pattern_combo.setCurrentIndex(-1)
 
@@ -243,76 +266,20 @@ class FileSearchDialog(BaseDialog):
                 self.pattern_le.setText(self.pattern_combo.itemText(idx))
 
         self.pattern_combo.currentIndexChanged.connect(set_pattern_from_combo)
-        name_mask_layout.addWidget(self.pattern_combo)
+        pattern_row_layout.addWidget(self.pattern_combo)
 
-        # Content filter and toggles
-        self.lbl_content = QLabel(self.tr("Content:"))
-        name_mask_layout.addWidget(self.lbl_content)
+        self.lbl_content = QLabel(self.tr("With text:"))
+        pattern_row_layout.addWidget(self.lbl_content)
         self.content_le = QLineEdit()
-        self.content_le.setMinimumWidth(200)
-        self.content_regex_cb = QCheckBox(self.tr("Regex"))
-        self.case_cb = QCheckBox(self.tr("Case sensitive"))
-        name_mask_layout.addWidget(self.content_le)
-        self.search_btn = QPushButton(self.tr("Search"))
-        self.search_btn.clicked.connect(self._start_search)
-        self.stop_btn = QPushButton(self.tr("Stop"))
-        self.stop_btn.clicked.connect(self._stop_search)
-        self.stop_btn.setEnabled(False)
-        name_mask_layout.addWidget(self.search_btn)
-        name_mask_layout.addWidget(self.stop_btn)
-        name_mask_layout.addStretch()
+        self.content_le.setMinimumWidth(app_config.ui.get_file_search_content_min_width())
+        self.content_le.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        pattern_row_layout.addWidget(self.content_le, 1)
 
-        # First row: path
-        layout.addLayout(folder_layout)
-        # Second row: name, pattern, content, actions
-        layout.addLayout(name_mask_layout)
+        form.addRow(self.lbl_pattern, pattern_row)
 
-        # --- Size and date filters ---
-        filter_row1 = QHBoxLayout()
-
-        # File size filter
-        size_layout = QHBoxLayout()
-        self.lbl_size = QLabel(self.tr("Size (KB):"))
-        size_layout.addWidget(self.lbl_size)
-        from PyQt6.QtGui import QIntValidator
-
-        self.size_min_le = QLineEdit()
-        self.size_min_le.setValidator(QIntValidator(0, 999999))
-        self.size_min_le.setPlaceholderText(self.tr("from"))
-        self.size_min_le.setMaximumWidth(60)
-        size_layout.addWidget(self.size_min_le)
-        size_layout.addWidget(QLabel("-"))
-        self.size_max_le = QLineEdit()
-        self.size_max_le.setValidator(QIntValidator(0, 999999))
-        self.size_max_le.setPlaceholderText(self.tr("to"))
-        self.size_max_le.setMaximumWidth(60)
-        size_layout.addWidget(self.size_max_le)
-
-        # Modified date filter
-        date_layout = QHBoxLayout()
-        self.lbl_modified = QLabel(self.tr("Modified:"))
-        date_layout.addWidget(self.lbl_modified)
-        self.date_from_de = QDateEdit()
-        self.date_from_de.setCalendarPopup(True)
-        self.date_from_de.setDate(QDate.currentDate().addYears(-1))
-
-        self.date_to_de = QDateEdit()
-        self.date_to_de.setCalendarPopup(True)
-        self.date_to_de.setDate(QDate.currentDate())
-
-        date_layout.addWidget(self.date_from_de)
-        date_layout.addWidget(self.date_to_de)
-
-        filter_row1.addLayout(size_layout)
-        filter_row1.addLayout(date_layout)
-        # Additional toggles
-        self.hidden_cb = QCheckBox(self.tr("Hidden files"))
-        self.readonly_cb = QCheckBox(self.tr("Read-only"))
-        filter_row1.addWidget(self.hidden_cb)
-        filter_row1.addWidget(self.readonly_cb)
-        filter_row1.addWidget(self.content_regex_cb)
-        filter_row1.addWidget(self.case_cb)
-        filter_row1.addStretch()
+        layout.addLayout(form)
 
         # --- Progress bar ---
         self.progress_bar = QProgressBar()
@@ -330,13 +297,9 @@ class FileSearchDialog(BaseDialog):
         # Column sizing
         header = self.table.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Name
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Path
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Size
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Date
-        header.setSectionResizeMode(
-            4, QHeaderView.ResizeMode.ResizeToContents
-        )  # Contains
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Path
+        header.setVisible(False)
+        self.table.verticalHeader().setVisible(False)
 
         # Double-click opens file in explorer
         self.table.doubleClicked.connect(self._on_double_click)
@@ -365,7 +328,6 @@ class FileSearchDialog(BaseDialog):
         btns_layout.addWidget(close_btn)
 
         # Assemble main layout
-        layout.addLayout(filter_row1)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.table)
         layout.addLayout(btns_layout)
@@ -381,26 +343,18 @@ class FileSearchDialog(BaseDialog):
     def _translate_labels(self):
         """Translate label texts."""
         if self.lbl_search_location is not None:
-            self.lbl_search_location.setText(self.tr("Search location:"))
+            self.lbl_search_location.setText(self.tr("Search in:"))
         if self.lbl_name_regex is not None:
-            self.lbl_name_regex.setText(self.tr("Name (regex):"))
+            self.lbl_name_regex.setText(self.tr("Search files:"))
         if self.lbl_pattern is not None:
-            self.lbl_pattern.setText(self.tr("Pattern:"))
+            self.lbl_pattern.setText(self.tr("Extension:"))
         if self.lbl_content is not None:
-            self.lbl_content.setText(self.tr("Content:"))
-        if self.lbl_size is not None:
-            self.lbl_size.setText(self.tr("Size (KB):"))
-        if self.lbl_modified is not None:
-            self.lbl_modified.setText(self.tr("Modified:"))
+            self.lbl_content.setText(self.tr("With text:"))
 
     def _translate_buttons(self):
         """Translate button texts and tooltips."""
         if hasattr(self, "pattern_combo") and self.pattern_combo is not None:
             self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
-        if hasattr(self, "content_regex_cb") and self.content_regex_cb is not None:
-            self.content_regex_cb.setText(self.tr("Regex"))
-        if hasattr(self, "case_cb") and self.case_cb is not None:
-            self.case_cb.setText(self.tr("Case sensitive"))
         if hasattr(self, "search_btn") and self.search_btn is not None:
             self.search_btn.setText(self.tr("Search"))
         if hasattr(self, "stop_btn") and self.stop_btn is not None:
@@ -421,18 +375,20 @@ class FileSearchDialog(BaseDialog):
 
     def _translate_placeholders(self):
         """Translate placeholder texts."""
-        if hasattr(self, "size_min_le") and self.size_min_le is not None:
-            self.size_min_le.setPlaceholderText(self.tr("from"))
-        if hasattr(self, "size_max_le") and self.size_max_le is not None:
-            self.size_max_le.setPlaceholderText(self.tr("to"))
+        pass
 
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update all texts on language change."""
-        self.setWindowTitle(self.tr("Advanced file search"))
+        self.setWindowTitle(tr_common("File search"))
         self._translate_labels()
         self._translate_buttons()
         self._translate_status()
         self._translate_placeholders()
+        if hasattr(self, "model") and self.model is not None:
+            try:
+                self.model.retranslateUi()
+            except Exception:
+                pass
 
     def _update_buttons(self):
         """Enable/disable buttons based on current selection."""
@@ -442,18 +398,9 @@ class FileSearchDialog(BaseDialog):
 
     def _get_full_file_path(self, row):
         """Return the full file path for the supplied table row."""
-        idx_name = self.model.index(row, 0)
-        idx_path = self.model.index(row, 1)
-        filename = self.model.data(idx_name, Qt.ItemDataRole.DisplayRole) or ""
-        folder_path = self.model.data(idx_path, Qt.ItemDataRole.DisplayRole) or ""
-
-        # Combine folder path and filename
-        full_path = Path(folder_path) / filename
-
-        # Normalize
-        full_path = Path(full_path).resolve()
-
-        return str(full_path)
+        idx_path = self.model.index(row, 0)
+        full_path = self.model.data(idx_path, Qt.ItemDataRole.DisplayRole) or ""
+        return str(Path(full_path).resolve())
 
     def _on_add_link(self):
         """Add the selected file as a link."""
@@ -512,52 +459,78 @@ class FileSearchDialog(BaseDialog):
             if system == "Windows":
                 # Windows: explorer with /select flag
                 subprocess.run(
-                    ["explorer", "/select,", str(file_path_obj)], shell=False
+                    ["explorer", f"/select,{file_path_obj}"],
+                    shell=False,
+                    check=False,
+                    timeout=self._explorer_timeout,
                 )
             elif system == "Darwin":  # macOS
                 # macOS: use `open -R`
-                subprocess.run(["open", "-R", str(file_path_obj)], check=True)
+                subprocess.run(
+                    ["open", "-R", str(file_path_obj)],
+                    check=True,
+                    timeout=self._explorer_timeout,
+                )
             elif system == "Linux":
                 # Linux: attempt several file managers sequentially
                 try:
                     subprocess.run(
-                        ["nautilus", "--select", str(file_path_obj)], check=True
+                        ["nautilus", "--select", str(file_path_obj)],
+                        check=True,
+                        timeout=self._explorer_timeout,
                     )
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     try:
                         subprocess.run(
-                            ["dolphin", "--select", str(file_path_obj)], check=True
+                            ["dolphin", "--select", str(file_path_obj)],
+                            check=True,
+                            timeout=self._explorer_timeout,
                         )
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         try:
                             subprocess.run(
-                                ["thunar", str(file_path_obj.parent)], check=True
+                                ["thunar", str(file_path_obj.parent)],
+                                check=True,
+                                timeout=self._explorer_timeout,
                             )
                         except (subprocess.CalledProcessError, FileNotFoundError):
                             try:
                                 subprocess.run(
-                                    ["pcmanfm", str(file_path_obj.parent)], check=True
+                                    ["pcmanfm", str(file_path_obj.parent)],
+                                    check=True,
+                                    timeout=self._explorer_timeout,
                                 )
                             except (subprocess.CalledProcessError, FileNotFoundError):
                                 folder_path = file_path_obj.parent
                                 subprocess.run(
-                                    ["xdg-open", str(folder_path)], check=True
+                                    ["xdg-open", str(folder_path)],
+                                    check=True,
+                                    timeout=self._explorer_timeout,
                                 )
             else:
                 folder_path = file_path_obj.parent
-                subprocess.run(["xdg-open", str(folder_path)], check=True)
+                subprocess.run(
+                    ["xdg-open", str(folder_path)],
+                    check=True,
+                    timeout=self._explorer_timeout,
+                )
 
         except subprocess.CalledProcessError as e:
             self.show_warning(
                 self.tr("Failed to open file in explorer: {error}").format(error=str(e))
+            )
+        except subprocess.TimeoutExpired as e:
+            self.show_warning(
+                self.tr("Opening the file explorer timed out: {error}").format(
+                    error=str(e)
+                )
             )
         except Exception as e:
             self.show_warning(self.tr("Unexpected error: {error}").format(error=str(e)))
 
     def _setup_defaults(self):
         """Reset default values."""
-        self.size_min_le.clear()
-        self.size_max_le.clear()
+        pass
 
     def _choose_root(self):
         """Prompt user to select the search root folder."""
@@ -606,20 +579,6 @@ class FileSearchDialog(BaseDialog):
                 )
                 return False
 
-        # Validate content regular expression when regex mode enabled
-        content_pattern = self.content_le.text().strip()
-        if content_pattern and self.content_regex_cb.isChecked():
-            try:
-                flags = 0 if self.case_cb.isChecked() else re.IGNORECASE
-                re.compile(content_pattern, flags)
-            except re.error as e:
-                self.show_warning(
-                    self.tr("Invalid regular expression for content: {error}").format(
-                        error=e
-                    )
-                )
-                return False
-
         return True
 
     def _start_search(self):
@@ -645,11 +604,12 @@ class FileSearchDialog(BaseDialog):
 
         # Create and start worker
         self.search_worker = FileSearchWorker(config)
-        self.search_worker.signals.result_found.connect(self._add_result)
+        self.search_worker.signals.results_batch.connect(self._on_results_batch)
+        self.search_worker.signals.progress_update.connect(self._on_progress_update)
         self.search_worker.signals.search_finished.connect(self._on_search_finished)
         self.search_worker.signals.error_occurred.connect(self._on_search_error)
 
-        self.threadpool.start(self.search_worker)
+        WorkerManager.run(self.search_worker)
 
     def _stop_search(self):
         """Stop the ongoing search."""
@@ -663,47 +623,50 @@ class FileSearchDialog(BaseDialog):
             "root": self.root_le.text().strip(),
             "pattern": self.pattern_le.text().strip() or "*.*",
             "regex_name": self.regex_le.text().strip(),
-            "size_min": int(self.size_min_le.text())
-            if self.size_min_le.text()
-            else None,
-            "size_max": int(self.size_max_le.text())
-            if self.size_max_le.text()
-            else None,
-            "date_from": self.date_from_de.date().toPyDate(),
-            "date_to": self.date_to_de.date().toPyDate(),
-            "hidden": self.hidden_cb.isChecked(),
-            "readonly": self.readonly_cb.isChecked(),
             "content": self.content_le.text().strip(),
-            "content_regex": self.content_regex_cb.isChecked(),
-            "case_sensitive": self.case_cb.isChecked(),
         }
 
-    def _add_result(self, file_path: str, _ext: str = ""):
-        """Append a search result to the table."""
-        try:
-            file_path_obj = Path(file_path)
-            file_stat = file_path_obj.stat()
-            size_kb = file_stat.st_size // 1024
-            mtime = time.strftime(
-                "%Y-%m-%d %H:%M:%S", time.localtime(file_stat.st_mtime)
-            )
-
-            # Mark content column if content filter is used
-            has_content = "✓" if self.content_le.text().strip() else ""
-
-            # Row data
-            filename = file_path_obj.name
-            folder_path = str(file_path_obj.parent)
-            self.model.add_result(filename, folder_path, size_kb, mtime, has_content)
-        except OSError as e:
-            logger.warning(
-                "Failed to gather information for file %s: %s",
-                file_path,
-                e,
-                exc_info=True,
-            )
+    def _on_results_batch(self, batch: list):
+        """Handle batch of results from worker.
+        
+        Batch format: list of tuples (path,)
+        """
+        # Add batch to pending queue
+        self._pending_batches.append(batch)
+        
+        # Schedule GUI update if not already scheduled
+        if self._update_timer is None:
+            from PyQt6.QtCore import QTimer
+            self._update_timer = QTimer()
+            self._update_timer.setSingleShot(True)
+            self._update_timer.timeout.connect(self._process_pending_batches)
+            self._update_timer.start(100)  # 100ms throttle
+    
+    def _process_pending_batches(self):
+        """Process all pending result batches."""
+        if not self._pending_batches:
+            self._update_timer = None
+            return
+        
+        # Process all pending batches at once
+        for batch in self._pending_batches:
+            for result in batch:
+                # result is (path,)
+                self.model.add_result(*result)
+        
+        self._pending_batches.clear()
+        self._update_timer = None
+        
         # Refresh buttons when rows appear
         self._update_buttons()
+    
+    def _on_progress_update(self, files_processed: int, dirs_processed: int):
+        """Update progress information."""
+        self.status_label.setText(
+            self.tr("Searching… Files: {files}, Directories: {dirs}").format(
+                files=files_processed, dirs=dirs_processed
+            )
+        )
 
     def _on_search_error(self, error_msg: str):
         """Handle errors raised by the worker."""
@@ -718,6 +681,10 @@ class FileSearchDialog(BaseDialog):
 
     def _on_search_finished(self):
         """Revert UI after search completion and show summary."""
+        # Process any remaining batches
+        if self._pending_batches:
+            self._process_pending_batches()
+        
         self.is_searching = False
         self.search_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)

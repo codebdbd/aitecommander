@@ -7,11 +7,24 @@ import logging
 import time
 from typing import Optional, cast
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QObject,
+    QRunnable,
+    QT_TRANSLATE_NOOP,
+    QThreadPool,
+    pyqtSignal,
+)
 
 from .profile_manager import BrowserProfileManager, get_profile_manager
 
 logger = logging.getLogger(__name__)
+_PROFILE_CONTEXT = "BrowserProfiles"
+_PROFILE_LOADING = QT_TRANSLATE_NOOP(_PROFILE_CONTEXT, "Loading {browser}")
+
+
+def _tr_profiles(text: str) -> str:
+    return QCoreApplication.translate(_PROFILE_CONTEXT, text)
 
 
 class ProfileLoadWorkerSignals(QObject):
@@ -358,7 +371,8 @@ class AsyncBrowserProfileManager(QObject):
     def _on_all_profiles_progress(self, current_browser: str, current: int, total: int):
         """Processing progress of all profiles loading."""
         logger.debug("Loading progress: %s (%s/%s)", current_browser, current, total)
-        self.loading_progress.emit(f"Loading {current_browser}", current, total)
+        operation = _tr_profiles(_PROFILE_LOADING).format(browser=current_browser)
+        self.loading_progress.emit(operation, current, total)
 
     def _on_all_profiles_error(self, error_message: str):
         """Processing error of all profiles loading."""

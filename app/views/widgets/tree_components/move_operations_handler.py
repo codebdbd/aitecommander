@@ -10,13 +10,12 @@ if TYPE_CHECKING:
 
 from PyQt6.QtWidgets import QMessageBox
 
-from app.utils.db.api import run_db
+from app.controllers.ui.undo.commands import MacroCommand
+from app.utils.ui.db_tasks import run_db
 from app.utils.ui.dnd.base import TreeHandlerBase
-from app.utils.ui.dnd.commands import (
-    MoveCategoriesCommand,
-    MoveCategoryCommand,
-    MoveLinksCommand,
-)
+from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
+from app.utils.ui.dnd.category_command import MoveCategoryCommand
+from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -134,12 +133,13 @@ class MoveOperationsHandler(TreeHandlerBase):
 
     def execute_move_categories_command(
         self, category_ids: list[int], new_section_id: int, base_row: int
-    ) -> None:
+    ) -> bool:
         """Execute batch command to move categories as a single undo record."""
         main_win = self.tree_widget.window()
+        undo_stack = getattr(main_win, "undo_stack", None)
 
-        if hasattr(main_win, "undo_stack"):
-            main_win.undo_stack.push(
+        if undo_stack is not None:
+            undo_stack.push(
                 MoveCategoriesCommand(category_ids, new_section_id, base_row, main_win)
             )
             logger.info(
@@ -148,15 +148,17 @@ class MoveOperationsHandler(TreeHandlerBase):
                 new_section_id,
                 base_row,
             )
-        else:
-            self._show_warning(
-                self.tr("Undo history is unavailable. Batch move canceled."),
-                self.tr("Undo history unavailable"),
-                informative_text=self.tr(
-                    "Enable undo/redo support or initialize undo_stack in the main window."
-                ),
-            )
-            logger.warning("Undo stack not found for batch move of categories")
+            return True
+
+        self._show_warning(
+            self.tr("Undo history is unavailable. Batch move canceled."),
+            self.tr("Undo history unavailable"),
+            informative_text=self.tr(
+                "Enable undo/redo support or initialize undo_stack in the main window."
+            ),
+        )
+        logger.warning("Undo stack not found for batch move of categories")
+        return False
 
     def execute_move_categories_batch(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
@@ -291,15 +293,53 @@ class MoveOperationsHandler(TreeHandlerBase):
         if not params:
             return
 
-        def internal_move_task():
-            main_window = self.tree_widget.window()
-            if not (
-                hasattr(main_window, "structure_business")
-                and main_window.structure_business
-            ):
-                raise Exception("Structure business logic is not available")
+        main_window = self.tree_widget.window()
+        business = getattr(main_window, "structure_business", None)
+        undo_stack = getattr(main_window, "undo_stack", None)
 
-            success = main_window.structure_business.update_item_positions(
+        new_ids = params.get("ids_in_order", [])
+        old_ids: list[int] = []
+        if source_type == "section":
+            sphere_id = self._get_current_sphere_id(business)
+            old_ids = self._get_section_ids_from_business(business, sphere_id)
+        elif source_type == "category" and isinstance(source_id, int):
+            section_id = self._get_section_id_from_hierarchy(source_id)
+            if not isinstance(section_id, int):
+                section_id = self._get_section_id_from_current_index()
+            old_ids = self._get_category_ids_from_business(business, section_id)
+
+        if (
+            undo_stack is not None
+            and business
+            and old_ids
+            and new_ids
+            and old_ids != new_ids
+        ):
+            def _apply_order(ids_in_order: list[int]) -> None:
+                try:
+                    success = business.update_item_positions(
+                        params["table_name"], ids_in_order
+                    )
+                    if not success:
+                        raise RuntimeError("Failed to update positions via business logic")
+                except Exception as exc:
+                    logger.error("Reorder failed: %s", exc)
+                    self._on_db_error(exc)
+                    self._refresh_ui_after_move()
+
+            cmd = MacroCommand(
+                "Reorder items",
+                redo_fn=lambda: _apply_order(new_ids),
+                undo_fn=lambda: _apply_order(old_ids),
+                main_window=main_window,
+            )
+            undo_stack.push(cmd)
+            return
+
+        def internal_move_task():
+            if not business:
+                raise Exception("Structure business logic is not available")
+            success = business.update_item_positions(
                 params["table_name"], params["ids_in_order"]
             )
             if not success:
@@ -372,6 +412,47 @@ class MoveOperationsHandler(TreeHandlerBase):
             if t and t[0] == "category" and isinstance(t[1], int):
                 ids_in_order.append(int(t[1]))
         return ids_in_order
+
+    def _get_section_ids_from_business(self, business, sphere_id: int | None) -> list[int]:
+        """Get section IDs in order from business layer (DB order)."""
+        if not business or not isinstance(sphere_id, int):
+            return []
+        try:
+            sections = business.get_sections(sphere_id) or []
+        except Exception:
+            return []
+        return [
+            int(sec.get("id"))
+            for sec in sections
+            if isinstance(sec.get("id"), int)
+        ]
+
+    def _get_category_ids_from_business(self, business, section_id: int | None) -> list[int]:
+        """Get category IDs in order from business layer (DB order)."""
+        if not business or not isinstance(section_id, int):
+            return []
+        try:
+            categories = business.get_categories(section_id) or []
+        except Exception:
+            return []
+        return [
+            int(cat.get("id"))
+            for cat in categories
+            if isinstance(cat.get("id"), int)
+        ]
+
+    def _get_current_sphere_id(self, business) -> int | None:
+        """Get current sphere id from business logic."""
+        if not business:
+            return None
+        try:
+            if hasattr(business, "get_current_sphere_id") and callable(
+                business.get_current_sphere_id
+            ):
+                return business.get_current_sphere_id()
+        except Exception:
+            return None
+        return getattr(business, "current_sphere_id", None)
 
     def _prepare_position_params(
         self, source_type: str, source_id: int, parent
@@ -495,11 +576,11 @@ class MoveOperationsHandler(TreeHandlerBase):
             return
 
         struct = getattr(main_win, "structure", None)
-        selection, tree = self._suppress_signals(struct)
+        selection, tree, selection_state, tree_state = self._suppress_signals(struct)
         try:
             main_win.structure_business.section_selected.emit(section_id)
         finally:
-            self._restore_signals(selection, tree)
+            self._restore_signals(selection, tree, selection_state, tree_state)
 
     def _refresh_ui_after_move(self) -> None:
         """Refresh UI after a move."""

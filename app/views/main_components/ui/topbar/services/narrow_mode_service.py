@@ -63,15 +63,17 @@ class NarrowModeService:
                     keep_spacing = False
 
                     # Сохранить spacing рядом с search или separator
-                    if isinstance(left_neighbor, QLineEdit) or isinstance(
-                        right_neighbor, QLineEdit
-                    ):
-                        keep_spacing = True
-                    elif (
-                        left_neighbor and left_neighbor.objectName() == "vSeparator"
-                    ) or (
-                        right_neighbor and right_neighbor.objectName() == "vSeparator"
-                    ):
+                    left_sep_visible = (
+                        left_neighbor
+                        and left_neighbor.objectName() == "vSeparator"
+                        and left_neighbor.isVisible()
+                    )
+                    right_sep_visible = (
+                        right_neighbor
+                        and right_neighbor.objectName() == "vSeparator"
+                        and right_neighbor.isVisible()
+                    )
+                    if left_sep_visible or right_sep_visible:
                         keep_spacing = True
 
                     target_width = (
@@ -101,6 +103,20 @@ class NarrowModeService:
                     "NarrowMode: failed to hide widget (may be deleted): %s",
                     e
                 )
+
+        # Выравниваем боковые отступы вокруг поиска (берём максимальный из текущих)
+        try:
+            margins = top_bar.contentsMargins()
+            target = max(margins.left(), margins.right(), C.SEPARATOR_SPACING_VISIBLE)
+            if margins.left() != target or margins.right() != target:
+                top_bar.setContentsMargins(
+                    target,
+                    margins.top(),
+                    target,
+                    margins.bottom(),
+                )
+        except Exception:
+            logger.debug("NarrowMode: failed to normalize search margins", exc_info=True)
 
     def freeze_search_width(self) -> None:
         """Заморозить ширину search widget."""

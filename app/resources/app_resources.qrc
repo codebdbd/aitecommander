@@ -3,25 +3,15 @@
     <file>logo/logo.png</file>
     <file>qss/common.qss</file>
     <file>qss/dark.qss</file>
+    <file>qss/dreamy_room.qss</file>
+    <file>qss/high_contrast.qss</file>
     <file>qss/light.qss</file>
-    <file>ui_icons/1/ai_icon.png</file>
-    <file>ui_icons/1/ChatGPT Image 9 сент. 2025 г., 17_13_43.png</file>
-    <file>ui_icons/1/ChatGPT Image 9 сент. 2025 г., 17_28_21.png</file>
-    <file>ui_icons/1/ChatGPT Image 9 сент. 2025 г., 17_38_31.png</file>
-    <file>ui_icons/1/ChatGPT Image 9 сент. 2025 г., 18_29_11.png</file>
-    <file>ui_icons/1/chrome_icon.png</file>
-    <file>ui_icons/1/documents_icon.png</file>
-    <file>ui_icons/1/personal_icon.png</file>
-    <file>ui_icons/1/program_icon.png</file>
-    <file>ui_icons/1/script_icon.png</file>
-    <file>ui_icons/1/section.png</file>
-    <file>ui_icons/1/study_icon.png</file>
-    <file>ui_icons/1/web_icon.png</file>
-    <file>ui_icons/1/work_icon.png</file>
+    <file>qss/matrix.qss</file>
+    <file>qss/violet_pulse.qss</file>
     <file>ui_icons/ai_icon.png</file>
     <file>ui_icons/category.png</file>
-    <file>ui_icons/ChatGPT Image 10 сент. 2025 г., 13_06_30.png</file>
     <file>ui_icons/chrome_icon.png</file>
+    <file>ui_icons/dark/Settings.png</file>
     <file>ui_icons/dark/add_bd.svg</file>
     <file>ui_icons/dark/add_category.svg</file>
     <file>ui_icons/dark/add_favorites.svg</file>
@@ -48,22 +38,31 @@
     <file>ui_icons/dark/email.svg</file>
     <file>ui_icons/dark/email_client.svg</file>
     <file>ui_icons/dark/exit.svg</file>
+    <file>ui_icons/dark/expor_section.svg</file>
     <file>ui_icons/dark/export.svg</file>
     <file>ui_icons/dark/facebook.svg</file>
+    <file>ui_icons/dark/fav_ok.svg</file>
+    <file>ui_icons/dark/folder_delete.svg</file>
     <file>ui_icons/dark/gmail.svg</file>
     <file>ui_icons/dark/help.svg</file>
     <file>ui_icons/dark/import.svg</file>
+    <file>ui_icons/dark/import_category.svg</file>
+    <file>ui_icons/dark/import_section.svg</file>
+    <file>ui_icons/dark/import_sections.svg</file>
     <file>ui_icons/dark/left.svg</file>
     <file>ui_icons/dark/light.svg</file>
+    <file>ui_icons/dark/link_off.svg</file>
     <file>ui_icons/dark/linkedin.svg</file>
+    <file>ui_icons/dark/more.svg</file>
     <file>ui_icons/dark/paste.svg</file>
     <file>ui_icons/dark/pinterest.svg</file>
     <file>ui_icons/dark/redo.svg</file>
+    <file>ui_icons/dark/refresh.svg</file>
     <file>ui_icons/dark/right.svg</file>
     <file>ui_icons/dark/run.svg</file>
     <file>ui_icons/dark/search.svg</file>
+    <file>ui_icons/dark/search_off.svg</file>
     <file>ui_icons/dark/select_all.svg</file>
-    <file>ui_icons/dark/Settings.png</file>
     <file>ui_icons/dark/settings.svg</file>
     <file>ui_icons/dark/share.svg</file>
     <file>ui_icons/dark/sort.svg</file>
@@ -78,8 +77,137 @@
     <file>ui_icons/dark/zip_ico.svg</file>
     <file>ui_icons/default.ico</file>
     <file>ui_icons/documents_icon.png</file>
+    <file>ui_icons/dreamy_room/Settings.png</file>
+    <file>ui_icons/dreamy_room/add_bd.svg</file>
+    <file>ui_icons/dreamy_room/add_category.svg</file>
+    <file>ui_icons/dreamy_room/add_favorites.svg</file>
+    <file>ui_icons/dreamy_room/add_ico.svg</file>
+    <file>ui_icons/dreamy_room/add_link.svg</file>
+    <file>ui_icons/dreamy_room/add_section.svg</file>
+    <file>ui_icons/dreamy_room/chevron_down.svg</file>
+    <file>ui_icons/dreamy_room/copy.svg</file>
+    <file>ui_icons/dreamy_room/cut.svg</file>
+    <file>ui_icons/dreamy_room/dark.svg</file>
+    <file>ui_icons/dreamy_room/dbrestore.svg</file>
+    <file>ui_icons/dreamy_room/delete.svg</file>
+    <file>ui_icons/dreamy_room/delete_favorites.svg</file>
+    <file>ui_icons/dreamy_room/down.svg</file>
+    <file>ui_icons/dreamy_room/edit-copy.svg</file>
+    <file>ui_icons/dreamy_room/edit-cut.svg</file>
+    <file>ui_icons/dreamy_room/edit-delete.svg</file>
+    <file>ui_icons/dreamy_room/edit-paste.svg</file>
+    <file>ui_icons/dreamy_room/edit-redo.svg</file>
+    <file>ui_icons/dreamy_room/edit-select-all.svg</file>
+    <file>ui_icons/dreamy_room/edit-undo.svg</file>
+    <file>ui_icons/dreamy_room/edit.svg</file>
+    <file>ui_icons/dreamy_room/edit_note.svg</file>
+    <file>ui_icons/dreamy_room/email.svg</file>
+    <file>ui_icons/dreamy_room/email_client.svg</file>
+    <file>ui_icons/dreamy_room/exit.svg</file>
+    <file>ui_icons/dreamy_room/expor_section.svg</file>
+    <file>ui_icons/dreamy_room/export.svg</file>
+    <file>ui_icons/dreamy_room/facebook.svg</file>
+    <file>ui_icons/dreamy_room/fav_ok.svg</file>
+    <file>ui_icons/dreamy_room/folder_delete.svg</file>
+    <file>ui_icons/dreamy_room/gmail.svg</file>
+    <file>ui_icons/dreamy_room/help.svg</file>
+    <file>ui_icons/dreamy_room/import.svg</file>
+    <file>ui_icons/dreamy_room/import_category.svg</file>
+    <file>ui_icons/dreamy_room/import_section.svg</file>
+    <file>ui_icons/dreamy_room/import_sections.svg</file>
+    <file>ui_icons/dreamy_room/left.svg</file>
+    <file>ui_icons/dreamy_room/light.svg</file>
+    <file>ui_icons/dreamy_room/link_off.svg</file>
+    <file>ui_icons/dreamy_room/linkedin.svg</file>
+    <file>ui_icons/dreamy_room/more.svg</file>
+    <file>ui_icons/dreamy_room/paste.svg</file>
+    <file>ui_icons/dreamy_room/pinterest.svg</file>
+    <file>ui_icons/dreamy_room/redo.svg</file>
+    <file>ui_icons/dreamy_room/refresh.svg</file>
+    <file>ui_icons/dreamy_room/right.svg</file>
+    <file>ui_icons/dreamy_room/run.svg</file>
+    <file>ui_icons/dreamy_room/search.svg</file>
+    <file>ui_icons/dreamy_room/search_off.svg</file>
+    <file>ui_icons/dreamy_room/select_all.svg</file>
+    <file>ui_icons/dreamy_room/settings.svg</file>
+    <file>ui_icons/dreamy_room/share.svg</file>
+    <file>ui_icons/dreamy_room/sort.svg</file>
+    <file>ui_icons/dreamy_room/telegram.svg</file>
+    <file>ui_icons/dreamy_room/text_decrease.svg</file>
+    <file>ui_icons/dreamy_room/text_increase.svg</file>
+    <file>ui_icons/dreamy_room/undo.svg</file>
+    <file>ui_icons/dreamy_room/up.svg</file>
+    <file>ui_icons/dreamy_room/viber.svg</file>
+    <file>ui_icons/dreamy_room/whatsapp.svg</file>
+    <file>ui_icons/dreamy_room/x.svg</file>
+    <file>ui_icons/dreamy_room/zip_ico.svg</file>
     <file>ui_icons/folder_icon.png</file>
+    <file>ui_icons/high_contrast/Settings.png</file>
+    <file>ui_icons/high_contrast/add_bd.svg</file>
+    <file>ui_icons/high_contrast/add_category.svg</file>
+    <file>ui_icons/high_contrast/add_favorites.svg</file>
+    <file>ui_icons/high_contrast/add_ico.svg</file>
+    <file>ui_icons/high_contrast/add_link.svg</file>
+    <file>ui_icons/high_contrast/add_section.svg</file>
+    <file>ui_icons/high_contrast/chevron_down.svg</file>
+    <file>ui_icons/high_contrast/copy.svg</file>
+    <file>ui_icons/high_contrast/cut.svg</file>
+    <file>ui_icons/high_contrast/dark.svg</file>
+    <file>ui_icons/high_contrast/dbrestore.svg</file>
+    <file>ui_icons/high_contrast/delete.svg</file>
+    <file>ui_icons/high_contrast/delete_favorites.svg</file>
+    <file>ui_icons/high_contrast/down.svg</file>
+    <file>ui_icons/high_contrast/edit-copy.svg</file>
+    <file>ui_icons/high_contrast/edit-cut.svg</file>
+    <file>ui_icons/high_contrast/edit-delete.svg</file>
+    <file>ui_icons/high_contrast/edit-paste.svg</file>
+    <file>ui_icons/high_contrast/edit-redo.svg</file>
+    <file>ui_icons/high_contrast/edit-select-all.svg</file>
+    <file>ui_icons/high_contrast/edit-undo.svg</file>
+    <file>ui_icons/high_contrast/edit.svg</file>
+    <file>ui_icons/high_contrast/edit_note.svg</file>
+    <file>ui_icons/high_contrast/email.svg</file>
+    <file>ui_icons/high_contrast/email_client.svg</file>
+    <file>ui_icons/high_contrast/exit.svg</file>
+    <file>ui_icons/high_contrast/expor_section.svg</file>
+    <file>ui_icons/high_contrast/export.svg</file>
+    <file>ui_icons/high_contrast/facebook.svg</file>
+    <file>ui_icons/high_contrast/fav_ok.svg</file>
+    <file>ui_icons/high_contrast/folder_delete.svg</file>
+    <file>ui_icons/high_contrast/gmail.svg</file>
+    <file>ui_icons/high_contrast/help.svg</file>
+    <file>ui_icons/high_contrast/import.svg</file>
+    <file>ui_icons/high_contrast/import_category.svg</file>
+    <file>ui_icons/high_contrast/import_section.svg</file>
+    <file>ui_icons/high_contrast/import_sections.svg</file>
+    <file>ui_icons/high_contrast/left.svg</file>
+    <file>ui_icons/high_contrast/light.svg</file>
+    <file>ui_icons/high_contrast/link_off.svg</file>
+    <file>ui_icons/high_contrast/linkedin.svg</file>
+    <file>ui_icons/high_contrast/more.svg</file>
+    <file>ui_icons/high_contrast/paste.svg</file>
+    <file>ui_icons/high_contrast/pinterest.svg</file>
+    <file>ui_icons/high_contrast/redo.svg</file>
+    <file>ui_icons/high_contrast/refresh.svg</file>
+    <file>ui_icons/high_contrast/right.svg</file>
+    <file>ui_icons/high_contrast/run.svg</file>
+    <file>ui_icons/high_contrast/search.svg</file>
+    <file>ui_icons/high_contrast/search_off.svg</file>
+    <file>ui_icons/high_contrast/select_all.svg</file>
+    <file>ui_icons/high_contrast/settings.svg</file>
+    <file>ui_icons/high_contrast/share.svg</file>
+    <file>ui_icons/high_contrast/sort.svg</file>
+    <file>ui_icons/high_contrast/telegram.svg</file>
+    <file>ui_icons/high_contrast/text_decrease.svg</file>
+    <file>ui_icons/high_contrast/text_increase.svg</file>
+    <file>ui_icons/high_contrast/undo.svg</file>
+    <file>ui_icons/high_contrast/up.svg</file>
+    <file>ui_icons/high_contrast/viber.svg</file>
+    <file>ui_icons/high_contrast/whatsapp.svg</file>
+    <file>ui_icons/high_contrast/x.svg</file>
+    <file>ui_icons/high_contrast/zip_ico.svg</file>
     <file>ui_icons/icon.png</file>
+    <file>ui_icons/light/Settings.png</file>
     <file>ui_icons/light/add_bd.svg</file>
     <file>ui_icons/light/add_category.svg</file>
     <file>ui_icons/light/add_favorites.svg</file>
@@ -108,22 +236,31 @@
     <file>ui_icons/light/email.svg</file>
     <file>ui_icons/light/email_client.svg</file>
     <file>ui_icons/light/exit.svg</file>
+    <file>ui_icons/light/expor_section.svg</file>
     <file>ui_icons/light/export.svg</file>
     <file>ui_icons/light/facebook.svg</file>
+    <file>ui_icons/light/fav_ok.svg</file>
+    <file>ui_icons/light/folder_delete.svg</file>
     <file>ui_icons/light/gmail.svg</file>
     <file>ui_icons/light/help.svg</file>
     <file>ui_icons/light/import.svg</file>
+    <file>ui_icons/light/import_category.svg</file>
+    <file>ui_icons/light/import_section.svg</file>
+    <file>ui_icons/light/import_sections.svg</file>
     <file>ui_icons/light/left.svg</file>
     <file>ui_icons/light/light.svg</file>
+    <file>ui_icons/light/link_off.svg</file>
     <file>ui_icons/light/linkedin.svg</file>
+    <file>ui_icons/light/more.svg</file>
     <file>ui_icons/light/paste.svg</file>
     <file>ui_icons/light/pinterest.svg</file>
     <file>ui_icons/light/redo.svg</file>
+    <file>ui_icons/light/refresh.svg</file>
     <file>ui_icons/light/right.svg</file>
     <file>ui_icons/light/run.svg</file>
     <file>ui_icons/light/search.svg</file>
+    <file>ui_icons/light/search_off.svg</file>
     <file>ui_icons/light/select_all.svg</file>
-    <file>ui_icons/light/Settings.png</file>
     <file>ui_icons/light/settings.svg</file>
     <file>ui_icons/light/share.svg</file>
     <file>ui_icons/light/sort.svg</file>
@@ -136,6 +273,70 @@
     <file>ui_icons/light/whatsapp.svg</file>
     <file>ui_icons/light/x.svg</file>
     <file>ui_icons/light/zip_ico.svg</file>
+    <file>ui_icons/matrix/Settings.png</file>
+    <file>ui_icons/matrix/add_bd.svg</file>
+    <file>ui_icons/matrix/add_category.svg</file>
+    <file>ui_icons/matrix/add_favorites.svg</file>
+    <file>ui_icons/matrix/add_ico.svg</file>
+    <file>ui_icons/matrix/add_link.svg</file>
+    <file>ui_icons/matrix/add_section.svg</file>
+    <file>ui_icons/matrix/chevron_down.svg</file>
+    <file>ui_icons/matrix/copy.svg</file>
+    <file>ui_icons/matrix/cut.svg</file>
+    <file>ui_icons/matrix/dark.svg</file>
+    <file>ui_icons/matrix/dbrestore.svg</file>
+    <file>ui_icons/matrix/delete.svg</file>
+    <file>ui_icons/matrix/delete_favorites.svg</file>
+    <file>ui_icons/matrix/down.svg</file>
+    <file>ui_icons/matrix/edit-copy.svg</file>
+    <file>ui_icons/matrix/edit-cut.svg</file>
+    <file>ui_icons/matrix/edit-delete.svg</file>
+    <file>ui_icons/matrix/edit-paste.svg</file>
+    <file>ui_icons/matrix/edit-redo.svg</file>
+    <file>ui_icons/matrix/edit-select-all.svg</file>
+    <file>ui_icons/matrix/edit-undo.svg</file>
+    <file>ui_icons/matrix/edit.svg</file>
+    <file>ui_icons/matrix/edit_note.svg</file>
+    <file>ui_icons/matrix/email.svg</file>
+    <file>ui_icons/matrix/email_client.svg</file>
+    <file>ui_icons/matrix/exit.svg</file>
+    <file>ui_icons/matrix/expor_section.svg</file>
+    <file>ui_icons/matrix/export.svg</file>
+    <file>ui_icons/matrix/facebook.svg</file>
+    <file>ui_icons/matrix/fav_ok.svg</file>
+    <file>ui_icons/matrix/folder_delete.svg</file>
+    <file>ui_icons/matrix/gmail.svg</file>
+    <file>ui_icons/matrix/help.svg</file>
+    <file>ui_icons/matrix/import.svg</file>
+    <file>ui_icons/matrix/import_category.svg</file>
+    <file>ui_icons/matrix/import_section.svg</file>
+    <file>ui_icons/matrix/import_sections.svg</file>
+    <file>ui_icons/matrix/left.svg</file>
+    <file>ui_icons/matrix/light.svg</file>
+    <file>ui_icons/matrix/link_off.svg</file>
+    <file>ui_icons/matrix/linkedin.svg</file>
+    <file>ui_icons/matrix/more.svg</file>
+    <file>ui_icons/matrix/paste.svg</file>
+    <file>ui_icons/matrix/pinterest.svg</file>
+    <file>ui_icons/matrix/redo.svg</file>
+    <file>ui_icons/matrix/refresh.svg</file>
+    <file>ui_icons/matrix/right.svg</file>
+    <file>ui_icons/matrix/run.svg</file>
+    <file>ui_icons/matrix/search.svg</file>
+    <file>ui_icons/matrix/search_off.svg</file>
+    <file>ui_icons/matrix/select_all.svg</file>
+    <file>ui_icons/matrix/settings.svg</file>
+    <file>ui_icons/matrix/share.svg</file>
+    <file>ui_icons/matrix/sort.svg</file>
+    <file>ui_icons/matrix/telegram.svg</file>
+    <file>ui_icons/matrix/text_decrease.svg</file>
+    <file>ui_icons/matrix/text_increase.svg</file>
+    <file>ui_icons/matrix/undo.svg</file>
+    <file>ui_icons/matrix/up.svg</file>
+    <file>ui_icons/matrix/viber.svg</file>
+    <file>ui_icons/matrix/whatsapp.svg</file>
+    <file>ui_icons/matrix/x.svg</file>
+    <file>ui_icons/matrix/zip_ico.svg</file>
     <file>ui_icons/notes.png</file>
     <file>ui_icons/personal_icon.png</file>
     <file>ui_icons/program_icon.png</file>
@@ -143,6 +344,70 @@
     <file>ui_icons/section.png</file>
     <file>ui_icons/star.ico</file>
     <file>ui_icons/study_icon.png</file>
+    <file>ui_icons/violet_pulse/Settings.png</file>
+    <file>ui_icons/violet_pulse/add_bd.svg</file>
+    <file>ui_icons/violet_pulse/add_category.svg</file>
+    <file>ui_icons/violet_pulse/add_favorites.svg</file>
+    <file>ui_icons/violet_pulse/add_ico.svg</file>
+    <file>ui_icons/violet_pulse/add_link.svg</file>
+    <file>ui_icons/violet_pulse/add_section.svg</file>
+    <file>ui_icons/violet_pulse/chevron_down.svg</file>
+    <file>ui_icons/violet_pulse/copy.svg</file>
+    <file>ui_icons/violet_pulse/cut.svg</file>
+    <file>ui_icons/violet_pulse/dark.svg</file>
+    <file>ui_icons/violet_pulse/dbrestore.svg</file>
+    <file>ui_icons/violet_pulse/delete.svg</file>
+    <file>ui_icons/violet_pulse/delete_favorites.svg</file>
+    <file>ui_icons/violet_pulse/down.svg</file>
+    <file>ui_icons/violet_pulse/edit-copy.svg</file>
+    <file>ui_icons/violet_pulse/edit-cut.svg</file>
+    <file>ui_icons/violet_pulse/edit-delete.svg</file>
+    <file>ui_icons/violet_pulse/edit-paste.svg</file>
+    <file>ui_icons/violet_pulse/edit-redo.svg</file>
+    <file>ui_icons/violet_pulse/edit-select-all.svg</file>
+    <file>ui_icons/violet_pulse/edit-undo.svg</file>
+    <file>ui_icons/violet_pulse/edit.svg</file>
+    <file>ui_icons/violet_pulse/edit_note.svg</file>
+    <file>ui_icons/violet_pulse/email.svg</file>
+    <file>ui_icons/violet_pulse/email_client.svg</file>
+    <file>ui_icons/violet_pulse/exit.svg</file>
+    <file>ui_icons/violet_pulse/expor_section.svg</file>
+    <file>ui_icons/violet_pulse/export.svg</file>
+    <file>ui_icons/violet_pulse/facebook.svg</file>
+    <file>ui_icons/violet_pulse/fav_ok.svg</file>
+    <file>ui_icons/violet_pulse/folder_delete.svg</file>
+    <file>ui_icons/violet_pulse/gmail.svg</file>
+    <file>ui_icons/violet_pulse/help.svg</file>
+    <file>ui_icons/violet_pulse/import.svg</file>
+    <file>ui_icons/violet_pulse/import_category.svg</file>
+    <file>ui_icons/violet_pulse/import_section.svg</file>
+    <file>ui_icons/violet_pulse/import_sections.svg</file>
+    <file>ui_icons/violet_pulse/left.svg</file>
+    <file>ui_icons/violet_pulse/light.svg</file>
+    <file>ui_icons/violet_pulse/link_off.svg</file>
+    <file>ui_icons/violet_pulse/linkedin.svg</file>
+    <file>ui_icons/violet_pulse/more.svg</file>
+    <file>ui_icons/violet_pulse/paste.svg</file>
+    <file>ui_icons/violet_pulse/pinterest.svg</file>
+    <file>ui_icons/violet_pulse/redo.svg</file>
+    <file>ui_icons/violet_pulse/refresh.svg</file>
+    <file>ui_icons/violet_pulse/right.svg</file>
+    <file>ui_icons/violet_pulse/run.svg</file>
+    <file>ui_icons/violet_pulse/search.svg</file>
+    <file>ui_icons/violet_pulse/search_off.svg</file>
+    <file>ui_icons/violet_pulse/select_all.svg</file>
+    <file>ui_icons/violet_pulse/settings.svg</file>
+    <file>ui_icons/violet_pulse/share.svg</file>
+    <file>ui_icons/violet_pulse/sort.svg</file>
+    <file>ui_icons/violet_pulse/telegram.svg</file>
+    <file>ui_icons/violet_pulse/text_decrease.svg</file>
+    <file>ui_icons/violet_pulse/text_increase.svg</file>
+    <file>ui_icons/violet_pulse/undo.svg</file>
+    <file>ui_icons/violet_pulse/up.svg</file>
+    <file>ui_icons/violet_pulse/viber.svg</file>
+    <file>ui_icons/violet_pulse/whatsapp.svg</file>
+    <file>ui_icons/violet_pulse/x.svg</file>
+    <file>ui_icons/violet_pulse/zip_ico.svg</file>
     <file>ui_icons/web_icon.png</file>
     <file>ui_icons/work_icon.png</file>
   </qresource>

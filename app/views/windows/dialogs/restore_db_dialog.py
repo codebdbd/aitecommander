@@ -1,19 +1,11 @@
-"""
-Диалог восстановления базы данных из резервной копии.
-
-Исправления:
-- Наследование от BaseDialog
-- Убран отладочный код (print)
-- Добавлено логирование
-- Улучшена обработка ошибок
-"""
+"""Dialog used to restore the application database from backups."""
 
 import datetime
 import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QListWidget,
@@ -21,63 +13,33 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.i18n.common import tr as tr_common
 from app.views.common.retranslatable import ReTranslatable
 
 from .base_dialog import BaseDialog
 
-_TR_CONTEXT = "RestoreDbDialog"
-
-
-def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
-
-
 _LIST_ITEM_TEMPLATES: dict[str, str] = {
-    "no_backups": QT_TRANSLATE_NOOP(_TR_CONTEXT, "No backups found"),
-    "single_backup": QT_TRANSLATE_NOOP(
-        _TR_CONTEXT,
-        "{backup_name} — before attaching new database: {timestamp} ({size} MB)",
-    ),
-    "auto_backup_with_timestamp": QT_TRANSLATE_NOOP(
-        _TR_CONTEXT, "{backup_name} — {timestamp} ({size} MB)"
-    ),
-    "auto_backup_without_timestamp": QT_TRANSLATE_NOOP(
-        _TR_CONTEXT,
-        "{backup_name} ({size} MB)",
-    ),
-    "error": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Error: {details}"),
+    "no_backups": "Резервные копии не найдены",
+    "single_backup": "{timestamp} | {backup_name} ({size} МБ)",
+    "auto_backup_with_timestamp": "{timestamp} | {backup_name} ({size} МБ)",
+    "auto_backup_without_timestamp": "{backup_name} ({size} МБ)",
+    "error": "Ошибка: {details}",
 }
-
-# lupdate hints so pylupdate6 picks up template strings
-if False:  # pragma: no cover
-    QCoreApplication.translate("RestoreDbDialog", "No backups found")
-    QCoreApplication.translate(
-        "RestoreDbDialog",
-        "{backup_name} - before attaching new database: {timestamp} ({size} MB)",
-    )
-    QCoreApplication.translate(
-        "RestoreDbDialog", "{backup_name} - {timestamp} ({size} MB)"
-    )
-    QCoreApplication.translate(
-        "RestoreDbDialog",
-        "{backup_name} ({size} MB)",
-    )
-    QCoreApplication.translate("RestoreDbDialog", "Error: {details}")
 
 logger = logging.getLogger(__name__)
 
 
 class RestoreDbDialog(BaseDialog):
-    """Диалог для восстановления базы данных из резервной копии."""
+    """Dialog that lets the user pick and restore a database backup."""
 
     def __init__(self, backup_dir: Optional[Path] = None, parent=None):
         super().__init__(parent)
 
-        self.resize(500, 300)
+        width, height = app_config.ui.get_restore_db_dialog_size()
+        self.resize(width, height)
         self.setModal(True)
 
-        # Используем переданную директорию или получаем стандартную из PathConfig
         self.paths = app_config.paths
         self.backup_dir = backup_dir or self.paths.get_backups_dir()
         self.selected_backup = None
@@ -85,49 +47,41 @@ class RestoreDbDialog(BaseDialog):
         self._init_ui()
         self._populate_list()
 
-        # Подключаемся к языковой службе и выполняем первоначальную локализацию
         ReTranslatable.__init__(self)
 
     def _init_ui(self) -> None:
-        """Инициализирует пользовательский интерфейс."""
+        """Initialise dialog widgets and wiring."""
         layout = QVBoxLayout(self)
 
-        # Список резервных копий
         self.list_widget = QListWidget(self)
         layout.addWidget(self.list_widget)
 
-        # Кнопки
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
 
-        # Настройка кнопок
-        ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok)
 
-        cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
 
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
 
-        # Подключение сигналов
         self.list_widget.currentRowChanged.connect(self._update_ok_state)
         self.list_widget.itemDoubleClicked.connect(self.accept)
 
     def _populate_list(self) -> None:
-        """Заполняет список резервных копий."""
+        """Populate available backups in the list widget."""
         self.list_widget.clear()
 
         try:
-            # Создаем директорию если не существует
             self.backup_dir.mkdir(parents=True, exist_ok=True)
-            logger.debug("Поиск резервных копий в: %s", self.backup_dir)
+            logger.debug("Scanning backup directory: %s", self.backup_dir)
 
-            # Ищем файлы резервных копий
-            backups = sorted(self.backup_dir.glob("osteen_path_*.db"), reverse=True)
-            logger.debug("Найдено резервных копий: %s", len(backups))
+            backups = self._get_backup_files()
+            logger.debug("Backups discovered: %s", len(backups))
 
-            # Проверяем наличие файла links.db.bak
             single_backup_path = self.paths.get_db_backup_path()
             single_backup_exists = (
                 single_backup_path.exists() and single_backup_path.stat().st_size > 0
@@ -136,14 +90,12 @@ class RestoreDbDialog(BaseDialog):
             if not backups and not single_backup_exists:
                 self._show_no_backups_message()
             else:
-                # Добавляем одиночную резервную копию в начало списка, если она существует
                 if single_backup_exists:
                     self._add_single_backup_item(single_backup_path)
 
                 if backups:
                     self._populate_backup_list(backups)
                 else:
-                    # Если в наличии только одиночная резервная копия — выделяем ее
                     if single_backup_exists and self.list_widget.count() > 0:
                         self.list_widget.setEnabled(True)
                         self.list_widget.setCurrentRow(0)
@@ -154,26 +106,23 @@ class RestoreDbDialog(BaseDialog):
             self._show_error_message(self.tr("Failed to list database backups: {error}").format(error=str(e)))
 
     def _show_no_backups_message(self) -> None:
-        """Показывает сообщение об отсутствии резервных копий."""
+        """Display an empty-state entry when no backups exist."""
         item = self._create_list_item("no_backups")
         self.list_widget.addItem(item)
         self.list_widget.setEnabled(False)
         logger.info("No backups found")
 
     def _add_single_backup_item(self, backup_path: Path) -> None:
-        """Добавляет одиночную резервную копию links.db.bak в список с визуальным выделением."""
+        """Insert the standalone ``links.db.bak`` backup with a highlighted row."""
         try:
-            # Проверяем размер файла
             if backup_path.stat().st_size == 0:
                 logger.warning("Empty backup file encountered: %s", backup_path.name)
                 return
 
-            # Получаем дату и время создания файла
             stat = backup_path.stat()
             creation_time = datetime.datetime.fromtimestamp(stat.st_mtime)
             time_str = creation_time.strftime("%d.%m.%Y %H:%M")
 
-            # Форматируем отображение с выделением и датой создания
             size_mb = backup_path.stat().st_size / (1024 * 1024)
             item = self._create_list_item(
                 "single_backup",
@@ -183,7 +132,6 @@ class RestoreDbDialog(BaseDialog):
                 font_bold=True,
             )
 
-            # Добавляем элемент в список
             self.list_widget.addItem(item)
 
             logger.debug("Added single backup entry: %s", backup_path.name)
@@ -192,15 +140,13 @@ class RestoreDbDialog(BaseDialog):
             logger.warning("Failed to handle backup file %s: %s", backup_path.name, e)
 
     def _populate_backup_list(self, backups: list) -> None:
-        """Заполняет список найденными резервными копиями."""
+        """Append discovered backup files to the list."""
         for backup in backups:
             try:
-                # Проверяем размер файла
                 if backup.stat().st_size == 0:
                     logger.warning("Empty backup file encountered: %s", backup.name)
                     continue
 
-                # Форматируем отображение
                 dt_str = self._parse_datetime(backup.name)
                 size_mb = backup.stat().st_size / (1024 * 1024)
 
@@ -227,14 +173,14 @@ class RestoreDbDialog(BaseDialog):
 
         if self.list_widget.count() > 0:
             self.list_widget.setEnabled(True)
-            self.list_widget.setCurrentRow(0)  # Выбираем самую новую
+            self.list_widget.setCurrentRow(0)
         else:
             self._show_no_backups_message()
 
         self._update_ok_state()
 
     def _show_error_message(self, message: str) -> None:
-        """Показывает сообщение об ошибке."""
+        """Display an error row when the backup directory cannot be listed."""
         item = self._create_list_item(
             "error",
             details=message,
@@ -243,16 +189,14 @@ class RestoreDbDialog(BaseDialog):
         self.list_widget.setEnabled(False)
 
     def _parse_datetime(self, filename: str) -> Optional[str]:
-        """Парсит дату и время из имени файла резервной копии."""
+        """Parse a timestamp from a backup filename."""
         try:
-            # Убираем префикс и суффикс
-            base = filename.replace("osteen_path_", "").replace("links_", "").replace(".db", "")
+            base = filename.replace("aite_bd_", "").replace("links_", "").replace(".db", "")
 
-            # Пробуем разные форматы
             formats = [
-                "%Y%m%d_%H%M%S_%f",  # С микросекундами
-                "%Y%m%d_%H%M%S",  # Без микросекунд
-                "%Y-%m-%d_%H-%M-%S",  # Альтернативный формат
+                "%Y%m%d_%H%M%S_%f",
+                "%Y%m%d_%H%M%S",
+                "%Y-%m-%d_%H-%M-%S",
             ]
 
             for fmt in formats:
@@ -270,7 +214,7 @@ class RestoreDbDialog(BaseDialog):
             return None
 
     def get_selected_backup(self) -> Optional[Path]:
-        """Возвращает путь к выбранной резервной копии."""
+        """Return the filesystem path for the selected backup entry."""
         if not self.list_widget.isEnabled():
             return None
 
@@ -279,30 +223,24 @@ class RestoreDbDialog(BaseDialog):
             return None
 
         try:
-            # Проверяем наличие одиночной резервной копии
             single_backup_path = self.paths.get_db_backup_path()
             single_backup_exists = (
                 single_backup_path.exists() and single_backup_path.stat().st_size > 0
             )
 
-            # Получаем список автоматических резервных копий
-            backups = sorted(self.backup_dir.glob("osteen_path_*.db"), reverse=True)
-            # Фильтруем пустые файлы
+            backups = self._get_backup_files()
             valid_backups = [b for b in backups if b.stat().st_size > 0]
 
-            # Если есть одиночная резервная копия, она будет первой в списке
             if single_backup_exists:
-                # Если выбрана первая строка (одиночная резервная копия)
                 if row == 0:
                     logger.info(
                         "Single backup selected: %s", single_backup_path.name
                     )
                     return single_backup_path
                 else:
-                    # Смещаем индекс для автоматических резервных копий
                     adjusted_row = row - 1
                     if adjusted_row >= len(valid_backups):
-                        logger.warning("Неверный индекс резервной копии: %s", row)
+                        logger.warning("Backup index is out of range: %s", row)
                         return None
 
                     selected = valid_backups[adjusted_row]
@@ -311,9 +249,8 @@ class RestoreDbDialog(BaseDialog):
                     )
                     return selected
             else:
-                # Если нет одиночной резервной копии, работаем как раньше
                 if row >= len(valid_backups):
-                    logger.warning("Неверный индекс резервной копии: %s", row)
+                    logger.warning("Backup index is out of range: %s", row)
                     return None
 
                 selected = valid_backups[row]
@@ -324,8 +261,19 @@ class RestoreDbDialog(BaseDialog):
             logger.error("Failed to resolve selected backup: %s", e)
             return None
 
+    def _get_backup_files(self) -> list[Path]:
+        backups = []
+        for path in self.backup_dir.glob("aite_bd_*.db"):
+            if path.is_file():
+                backups.append(path)
+        try:
+            backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        except Exception:
+            logger.debug("Failed to sort backups by mtime", exc_info=True)
+        return backups
+
     def _update_ok_state(self) -> None:
-        """Обновляет состояние кнопки OK."""
+        """Enable or disable the OK button based on current selection state."""
         ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         enabled = (
             self.list_widget.isEnabled()
@@ -335,7 +283,7 @@ class RestoreDbDialog(BaseDialog):
         ok_btn.setEnabled(enabled)
 
     def accept(self) -> None:
-        """Подтверждение выбора резервной копии."""
+        """Confirm the selected backup and close the dialog when valid."""
         selected_backup = self.get_selected_backup()
 
         if not selected_backup:
@@ -352,23 +300,23 @@ class RestoreDbDialog(BaseDialog):
         super().accept()
 
     def get_result(self) -> Optional[Path]:
-        """Возвращает выбранную резервную копию после закрытия диалога."""
+        """Return the chosen backup path after the dialog closes."""
         return self.selected_backup
 
     def retranslateUi(self) -> None:
-        """Обновляет тексты интерфейса при смене языка."""
+        """Refresh UI strings when the application language changes."""
         if not hasattr(self, "buttons"):
             return
 
-        self.setWindowTitle(_tr("Restore database from backup"))
+        self.setWindowTitle(tr_common("Restore Database"))
 
         ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn is not None:
-            ok_btn.setText(_tr("Restore"))
+            ok_btn.setText(QCoreApplication.translate("RestoreDbDialog", "Restore"))
 
         cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel_btn is not None:
-            cancel_btn.setText(_tr("Cancel"))
+            cancel_btn.setText(tr_common("Cancel"))
 
         # Обновляем существующие элементы списка
         if hasattr(self, "list_widget"):
@@ -404,12 +352,11 @@ class RestoreDbDialog(BaseDialog):
         try:
             template = _LIST_ITEM_TEMPLATES.get(template_key)
             if template is None:
-                logger.warning("Неизвестный ключ шаблона для элемента списка: %s", template_key)
+                logger.warning("Unknown list item template key: %s", template_key)
                 template = template_key
-            translated = _tr(template)
             if format_kwargs:
-                translated = translated.format(**format_kwargs)
-            item.setText(translated)
+                template = template.format(**format_kwargs)
+            item.setText(template)
         except Exception:
             fallback_template = template if template is not None else template_key
             if format_kwargs and isinstance(fallback_template, str):

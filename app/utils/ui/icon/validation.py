@@ -14,6 +14,9 @@ from __future__ import annotations
 
 import logging
 import re
+import stat as stat_module
+import threading
+from collections import OrderedDict
 from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
@@ -23,6 +26,28 @@ from PIL import Image, UnidentifiedImageError
 from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
+
+_VALID_ICON_CACHE_MAX = 1024
+_valid_icon_file_cache: OrderedDict[tuple[str, int, int], bool] = OrderedDict()
+_valid_icon_file_cache_lock = threading.RLock()
+
+
+def _get_cached_icon_validation(cache_key: tuple[str, int, int]) -> bool | None:
+    with _valid_icon_file_cache_lock:
+        cached = _valid_icon_file_cache.get(cache_key)
+        if cached is None:
+            return None
+        _valid_icon_file_cache.move_to_end(cache_key)
+        return cached
+
+
+def _set_cached_icon_validation(cache_key: tuple[str, int, int], is_valid: bool) -> bool:
+    with _valid_icon_file_cache_lock:
+        _valid_icon_file_cache[cache_key] = bool(is_valid)
+        _valid_icon_file_cache.move_to_end(cache_key)
+        while len(_valid_icon_file_cache) > _VALID_ICON_CACHE_MAX:
+            _valid_icon_file_cache.popitem(last=False)
+    return bool(is_valid)
 
 
 # === Configuration proxies (updated dynamically) ===
@@ -40,7 +65,12 @@ def get_supported_icon_formats() -> Iterable[str]:
 
 def get_valid_themes() -> Iterable[str]:
     """List of valid theme names."""
-    return app_config.get_valid_themes()
+    try:
+        from app.services.theme_registry import theme_registry
+
+        return theme_registry.get_theme_ids()
+    except Exception:
+        return ["light", "dark"]
 
 
 # === Enums / exceptions ===
@@ -76,7 +106,7 @@ class InvalidIconError(IconError):
 def _safe_decode_bytes_preview(data: bytes) -> str | None:
     """Attempt to decode the first bytes of a file into a string.
 
-    Encoding order: utf-8 → utf-16 → latin-1.
+    Encoding order: utf-8 -> utf-16 -> latin-1.
     Returns None if decoding failed.
     """
     for enc in ("utf-8", "utf-16", "latin-1"):
@@ -160,7 +190,7 @@ def _validate_icon_name(icon_name: str) -> bool:
         # Forbidden traversal
         return False
 
-    # no slashes — icons are searched only in expected theme folders by path service
+    # no slashes - icons are searched only in expected theme folders by path service
     if "/" in icon_name or "\\" in icon_name:
         return False
 
@@ -168,15 +198,25 @@ def _validate_icon_name(icon_name: str) -> bool:
 
 
 def validate_theme(theme: str) -> str:
-    """Theme name normalization. Non-str or unknown → 'light'."""
+    """Theme name normalization with safe fallback."""
     if not theme or not isinstance(theme, str):
-        return "light"
-    t = theme.lower().strip()
-    if t in get_valid_themes():
-        return t
-    logger.warning("Invalid theme '%s', using 'light'", theme)
-    return "light"
+        try:
+            from app.services.theme_registry import theme_registry
 
+            return theme_registry.get_default_theme_id()
+        except Exception:
+            return "light"
+    t = theme.lower().strip()
+    valid = set(get_valid_themes())
+    if t in valid:
+        return t
+    logger.warning("Invalid theme '%s', using fallback", theme)
+    try:
+        from app.services.theme_registry import theme_registry
+
+        return theme_registry.get_default_theme_id()
+    except Exception:
+        return "light"
 
 def is_valid_icon_file(file_path: str | Path) -> bool:
     """Check if path is a valid icon file.
@@ -193,44 +233,55 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
         return False
 
     path = Path(file_path)
-    if not (path.exists() and path.is_file()):
-        return False
 
     # size limit
     try:
-        file_size = path.stat().st_size
+        stat_result = path.stat()
     except OSError as exc:
         logger.debug("stat() failed for %s: %s", path, exc)
         return False
 
+    if not stat_module.S_ISREG(stat_result.st_mode):
+        return False
+
+    cache_key = (
+        str(path),
+        int(stat_result.st_mtime_ns),
+        int(stat_result.st_size),
+    )
+    cached = _get_cached_icon_validation(cache_key)
+    if cached is not None:
+        return cached
+
+    file_size = int(stat_result.st_size)
     max_size = get_max_icon_size()
     if file_size > max_size:
         logger.debug("File too large %s (%s > %s)", path, file_size, max_size)
-        return False
+        return _set_cached_icon_validation(cache_key, False)
 
     ext = path.suffix.lower()
 
     if ext == ".svg":
-        return _is_valid_svg(path)
+        return _set_cached_icon_validation(cache_key, _is_valid_svg(path))
 
     if ext == ".svgz":
-        return _is_valid_svgz(path)
+        return _set_cached_icon_validation(cache_key, _is_valid_svgz(path))
 
     if ext not in set(map(str.lower, get_supported_icon_formats())):
         logger.debug("Unsupported raster format %s for %s", ext, path)
-        return False
+        return _set_cached_icon_validation(cache_key, False)
 
     # Rasters: quick integrity check
     try:
         with Image.open(path) as img:
             img.verify()  # does not load fully into memory
-        return True
+        return _set_cached_icon_validation(cache_key, True)
     except (UnidentifiedImageError, OSError) as exc:
         logger.debug("PIL verify failed for %s: %s", path, exc)
-        return False
+        return _set_cached_icon_validation(cache_key, False)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Unexpected raster validation error for %s: %s", path, exc)
-        return False
+        return _set_cached_icon_validation(cache_key, False)
 
 
 def validate_config_for_icons(config) -> bool:
@@ -267,7 +318,7 @@ def validate_ui_icon_environment() -> bool:
 
     Checks:
     - Base UI icons directory exists from configuration (`app_config.paths.get_ui_icons_dir()`).
-    - Subfolders exist for all valid themes (`app_config.get_valid_themes()`).
+    - Bundled theme icon folders exist (from ThemeRegistry).
 
     Returns True if all checks passed; otherwise False.
     Logs itself (error/warning/info).
@@ -290,23 +341,29 @@ def validate_ui_icon_environment() -> bool:
     else:
         logger.info("UI icons directory: %s", base_dir)
 
-    # Theme check
+    # Theme check (bundled themes only)
     try:
-        themes = list(get_valid_themes())
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to get list of valid themes: %s", exc)
-        themes = ["light", "dark"]
+        from app.services.theme_registry import theme_registry
 
-    for t in themes:
-        theme_dir = base_dir / t
+        themes = [t for t in theme_registry.list_themes() if t.source == "bundled"]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to get list of bundled themes: %s", exc)
+        themes = []
+
+    for theme in themes:
+        theme_dir = theme.icons_dir
         if not theme_dir.exists() or not theme_dir.is_dir():
             logger.error("Theme folder not found: %s", theme_dir)
             ok = False
         else:
-            # Small informational summary
             try:
                 count = sum(1 for _ in theme_dir.iterdir())
-                logger.info("Theme '%s': %s (elements: %d)", t, theme_dir, count)
+                logger.info(
+                    "Theme '%s': %s (elements: %d)",
+                    theme.theme_id,
+                    theme_dir,
+                    count,
+                )
             except OSError as exc:  # noqa: BLE001
                 logger.debug("Failed to scan theme folder %s: %s", theme_dir, exc)
 

@@ -1,9 +1,12 @@
 import logging
+import re
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from typing import Any, Literal, Optional, Union, overload
 
+from app.models.base.db_connection_protocol import ConnectionManagerProtocol
 from app.utils.db.synchronization import db_lock
 
 # Logging setup
@@ -31,19 +34,37 @@ class ValidationError(DatabaseError):
     pass
 
 
+# Whitelist допустимых таблиц для защиты от SQL-инъекций
+ALLOWED_TABLES = {"sphere", "section", "category", "link"}
+ALLOWED_PARENT_FIELDS = {"sphere_id", "section_id", "category_id"}
+
+# Regex для валидации SQL идентификаторов (имена колонок)
+IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
 class DatabaseBase:
     """Base class for DB models with unified connection and operations access."""
 
-    def __init__(self, connection_manager):
+    def __init__(self, connection_manager: ConnectionManagerProtocol):
         """Initializes base class with connection manager (Database)."""
         self.connection_manager = connection_manager
-        # Counter for generating unique SAVEPOINT names within process/thread
-        self._savepoint_counter = 0
+        # Используем threading.local для автоматической очистки при завершении потока
+        self._transaction_state = threading.local()
 
     @property
     def connection(self):
         """Returns active SQLite connection through manager."""
         return self.connection_manager.connection
+
+    @property
+    def _nesting_level(self) -> int:
+        """Returns current transaction nesting level for this thread."""
+        return getattr(self._transaction_state, "nesting_level", 0)
+
+    @_nesting_level.setter
+    def _nesting_level(self, value: int):
+        """Sets transaction nesting level for this thread."""
+        self._transaction_state.nesting_level = value
 
     def commit(self) -> None:
         """Commits current transaction."""
@@ -67,45 +88,68 @@ class DatabaseBase:
     def transaction(self):
         """Transaction context manager with automatic commit/rollback.
 
-        Now global `db_lock` is held for the ENTIRE duration
-        of the transaction block (including `with ...:` body), which ensures
-        exclusive DB access and excludes interference from other threads
-        between BEGIN/COMMIT/ROLLBACK.
+        IMPORTANT: Holds db_lock for the ENTIRE transaction to ensure isolation.
+        Nested transactions use SAVEPOINT mechanism.
+
+        Example:
+            with self.transaction():
+                # Outer transaction
+                self._execute_with_error_handling("INSERT INTO sphere ...", ())
+
+                with self.transaction():
+                    # Nested transaction (SAVEPOINT)
+                    self._execute_with_error_handling("INSERT INTO section ...", ())
+                    # If this fails, only nested is rolled back
+
+                # Outer continues here
 
         Notes:
-        - `db_lock` is reentrant (RLock), so nested calls that
-          also use `db_lock` are safe and don't cause deadlocks.
-        - Inside the block, don't open nested transactions at SQLite level,
-          use one common block or SAVEPOINT when needed.
+        - `db_lock` is reentrant (RLock), so nested calls are safe.
+        - Nested transactions are implemented via SAVEPOINT.
+        - Only the outermost transaction commits to database.
+        - All SQL operations should be within a transaction for data consistency.
         """
-        with db_lock:
-            conn = self.connection
-            # If already inside transaction — create nested via SAVEPOINT
-            if getattr(conn, "in_transaction", False):
-                sp_name = f"sp_{threading.get_ident()}_{self._savepoint_counter}"
-                self._savepoint_counter += 1
+        conn = self.connection
+        nesting_level = self._nesting_level
+
+        if nesting_level > 0:
+            # Вложенная транзакция — используем SAVEPOINT
+            # UUID гарантирует уникальность без дополнительной блокировки
+            sp_name = f"sp_{uuid.uuid4().hex[:8]}"
+
+            # Явно держим db_lock для консистентности (RLock позволяет реентрантность)
+            with db_lock:
                 try:
                     conn.execute(f"SAVEPOINT {sp_name}")
+                    self._nesting_level = nesting_level + 1
                     yield
                     conn.execute(f"RELEASE SAVEPOINT {sp_name}")
                 except Exception:
                     try:
-                        # Rollback only to nested transaction boundary
                         conn.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
                         conn.execute(f"RELEASE SAVEPOINT {sp_name}")
-                    except Exception:
-                        # Ignore secondary rollback errors to not hide primary error
-                        pass
+                    except Exception as rollback_error:
+                        logger.warning(
+                            "Failed to rollback savepoint %s: %s",
+                            sp_name,
+                            rollback_error,
+                        )
                     raise
-            else:
-                # External (top-level) transaction
+                finally:
+                    self._nesting_level = nesting_level
+        else:
+            # Внешняя транзакция — держим db_lock на весь блок для изоляции
+            with db_lock:
                 try:
                     conn.execute("BEGIN TRANSACTION")
+                    self._nesting_level = 1
                     yield
                     conn.commit()
                 except Exception:
                     conn.rollback()
                     raise
+                finally:
+                    self._nesting_level = 0
 
     def _validate_required_fields(
         self, data: dict[str, Any], required_fields: list[str], entity_name: str = ""
@@ -119,29 +163,64 @@ class DatabaseBase:
                 f"Missing required fields for {entity_name}: {[field for field in required_fields if field not in data]}"
             )
 
+    def _validate_and_deduplicate_ids(
+        self, ids: list[int], entity_name: str = "item"
+    ) -> list[int]:
+        """Validate, filter and deduplicate integer IDs.
+        
+        Args:
+            ids: List of IDs to validate
+            entity_name: Name of entity for logging (unused, kept for compatibility)
+            
+        Returns:
+            List of unique valid positive integer IDs
+        """
+        if not ids:
+            return []
+
+        valid_ids = [
+            int(x) for x in ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
+
+        unique_ids = list(dict.fromkeys(valid_ids))
+
+        return unique_ids
+
     def _get_next_position(
         self,
         table_name: str,
         parent_field: Optional[str] = None,
         parent_id: Optional[int] = None,
     ) -> int:
-        """Gets next position for element in table."""
+        """Gets next position for element in table.
+
+        IMPORTANT: Must be called within an active transaction to prevent race conditions.
+        The transaction ensures atomicity between SELECT MAX and INSERT operations.
+        """
+        # Валидация table_name для защиты от SQL-инъекций
+        if table_name not in ALLOWED_TABLES:
+            raise ValidationError(f"Invalid table name: {table_name}")
+
+        if parent_field and parent_field not in ALLOWED_PARENT_FIELDS:
+            raise ValidationError(f"Invalid parent field: {parent_field}")
+
         try:
             if parent_field and parent_id is not None:
+                # Безопасно: table_name и parent_field проверены через whitelist
                 row = self._execute_with_error_handling(
-                    f"SELECT COALESCE(MAX(position), 0) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
+                    f"SELECT COALESCE(MAX(position), -1) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
                     (parent_id,),
                     fetch_method="one",
                 )
             else:
                 row = self._execute_with_error_handling(
-                    f"SELECT COALESCE(MAX(position), 0) AS max_pos FROM {table_name}",
+                    f"SELECT COALESCE(MAX(position), -1) AS max_pos FROM {table_name}",
                     fetch_method="one",
                 )
 
-            # Type assertion for mypy - when fetch_method="one" is used, result is Row | None
-            assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
-            max_pos = row_to_dict(row).get("max_pos", 0)
+            # row гарантированно Row | None благодаря overload
+            max_pos = row_to_dict(row).get("max_pos", -1)
             return max_pos + 1
         except Exception as e:
             logger.error("Error getting position for table %s: %s", table_name, e)
@@ -186,7 +265,13 @@ class DatabaseBase:
         *,
         fetch_method: Optional[str] = None,
     ) -> Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]:
-        """Executes SQL query with error handling and locking."""
+        """Executes SQL query with error handling and locking.
+
+        IMPORTANT:
+        - Does NOT commit automatically. Caller must use transaction() or commit() explicitly.
+        - For write operations (INSERT/UPDATE/DELETE), always use within transaction() context.
+        - db_lock is held during query execution for thread safety.
+        """
         try:
             with db_lock:
                 cursor = self.connection.execute(query, params)
@@ -196,8 +281,6 @@ class DatabaseBase:
 
         if fetch_method == "one":
             result = cursor.fetchone()
-            # Type assertion for mypy - fetchone() returns Row when fetch_method is "one"
-            assert result is None or isinstance(result, sqlite3.Row)  # type: ignore[unreachable]
             return result  # type: ignore[return-value]
         elif fetch_method == "all":
             result = cursor.fetchall()
@@ -234,16 +317,32 @@ class DatabaseBase:
         data: dict[str, Any],
         valid_keys: list[str],
     ):
-        """Universal entity update method."""
+        """Universal entity update method.
+
+        IMPORTANT:
+        - Does NOT commit automatically. Caller must use transaction() or commit() explicitly.
+        - Should be called within transaction() context for data consistency.
+        - Validates table name and column names to prevent SQL injection.
+        """
+        # Валидация table_name
+        if table_name not in ALLOWED_TABLES:
+            raise ValidationError(f"Invalid table name: {table_name}")
+
         fields = []
         params = []
 
         for key in valid_keys:
             if key in data:
+                # Валидация имени колонки для дополнительной защиты
+                if not IDENTIFIER_PATTERN.match(key):
+                    raise ValidationError(
+                        f"Invalid column name: {key}. Must match pattern: {IDENTIFIER_PATTERN.pattern}"
+                    )
                 fields.append(f"{key} = ?")
                 params.append(data[key])
 
         if not fields:
+            logger.debug("No fields to update for %s (ID: %s)", table_name, entity_id)
             return
 
         query = f"UPDATE {table_name} SET {', '.join(fields)} WHERE id=?"
@@ -257,6 +356,61 @@ class DatabaseBase:
             logger.error("Error updating %s: %s", table_name, e)
             raise DatabaseError(f"Failed to update {table_name}: {e}") from e
 
+    def _reindex_positions(
+        self, 
+        table_name: str, 
+        parent_column: Optional[str] = None, 
+        parent_id: Optional[int] = None
+    ) -> None:
+        """Reindex position field for items sequentially from 0.
+        
+        Args:
+            table_name: Name of table to reindex
+            parent_column: Optional parent column name (e.g., 'sphere_id', 'section_id')
+            parent_id: Optional parent ID value for filtering
+            
+        Example:
+            >>> self._reindex_positions('section', 'sphere_id', 1)  # Reindex sections in sphere 1
+            >>> self._reindex_positions('sphere')  # Reindex all spheres
+        """
+        # Validate table name
+        if table_name not in {"sphere", "section", "category", "link"}:
+            raise ValueError(f"Invalid table name: {table_name}")
+        
+        # Build query
+        if parent_column and parent_id is not None:
+            where_clause = f"WHERE {parent_column} = ?"
+            params = (parent_id,)
+        else:
+            where_clause = ""
+            params = ()
+        
+        # Get items in order
+        rows = self._execute_with_error_handling(
+            f"SELECT id FROM {table_name} {where_clause} ORDER BY position, id",
+            params,
+            fetch_method="all",
+        )
+        
+        ids_in_order = [int(r["id"]) for r in (rows or [])]
+        if not ids_in_order:
+            return
+        
+        # Prepare batch updates
+        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
+        
+        self._execute_many_with_error_handling(
+            f"UPDATE {table_name} SET position = ? WHERE id = ?",
+            updates,
+        )
+        
+        logger.debug(
+            "Reindexed %d items in %s%s",
+            len(updates),
+            table_name,
+            f" (parent {parent_column}={parent_id})" if parent_column else "",
+        )
+
     @staticmethod
     def _ensure_row_list(
         rows: Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]
@@ -268,4 +422,6 @@ class DatabaseBase:
             return rows.fetchall()
         if isinstance(rows, sqlite3.Row):
             return [rows]
-        return list(rows)
+        if isinstance(rows, list):
+            return rows
+        raise TypeError(f"Unexpected type for rows: {type(rows)}")

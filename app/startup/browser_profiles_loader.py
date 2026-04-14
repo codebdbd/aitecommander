@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 class BrowserProfilesLoader:
     """Manage loading of browser profiles."""
+
+    _INITIAL_LOAD_DELAY_MS = 250
 
     def __init__(self, main_window: Any):
         """Initialize the loader.
@@ -160,11 +162,21 @@ class BrowserProfilesLoader:
 
     def _on_window_shown(self) -> None:
         """Window shown handler to start profile loading."""
+        self._disconnect_shown_signal()
+        try:
+            QTimer.singleShot(self._INITIAL_LOAD_DELAY_MS, self._start_profile_loading)
+        except Exception:
+            logger.debug(
+                "Failed to defer browser profile loading after window shown",
+                exc_info=True,
+            )
+            self._start_profile_loading()
+
+    def _start_profile_loading(self) -> None:
+        """Start non-critical browser profile loading after the first window paint."""
         _apm, _pc, _pm = self._import_profile_modules()
         if not _apm or not _pc or not _pm:
             return
-
-        self._disconnect_shown_signal()
 
         try:
             cache_path = _pc.get_cache_path()

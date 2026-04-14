@@ -16,13 +16,12 @@ class ImportStructureWorker(DatabaseWorker):
     с поддержкой прогресса и отмены операции.
     """
 
-    def __init__(self, db_path: str, data: list[dict]):
+    def __init__(self, data: list[dict]):
         """
         Args:
-            db_path: Путь к файлу БД
             data: Структура данных для импорта
         """
-        super().__init__(db_path)
+        super().__init__()
         self.data = copy.deepcopy(data or [])
 
     def _count_total_items(self, root: list[dict]) -> int:

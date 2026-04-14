@@ -21,6 +21,15 @@ class SupportsSetData(Protocol):
 
 
 @runtime_checkable
+class SupportsUpdateData(Protocol):
+    def update_data(
+        self,
+        items: Sequence[dict[str, Any]],
+        options: dict[str, Any] | None = None,
+    ) -> bool: ...
+
+
+@runtime_checkable
 class SupportsSetFavorites(Protocol):
     def set_favorites(self, items: Sequence[dict[str, Any]]) -> None: ...
 
@@ -36,8 +45,13 @@ class SupportsGetLimit(Protocol):
 
 
 @runtime_checkable
+class SupportsCancelUpdate(Protocol):
+    def cancel_update(self) -> bool: ...
+
+
+@runtime_checkable
 class CategoryTilesControllerProtocol(Protocol):
-    def refresh(self, section_id: int) -> None: ...
+    def refresh(self, section_id: int, *, switch_view: bool = True) -> None: ...
 
     def clear(self) -> None: ...
 
@@ -54,7 +68,14 @@ class UIStateManagerProtocol(Protocol):
 
 @runtime_checkable
 class StructureTreeModelProtocol(Protocol):
-    def set_snapshot(self, snapshot: Sequence[dict[str, Any]]) -> None: ...
+    def set_snapshot(
+        self,
+        snapshot: Sequence[dict[str, Any]],
+        *,
+        sections_first: bool = False,
+        defer_category_icon_loads: bool = True,
+        allow_sync_section_fallback: bool = True,
+    ) -> None: ...
 
     def insert_sections(self, row: int, sections: Sequence[dict[str, Any]]) -> None: ...
 
@@ -87,6 +108,7 @@ class StructureTreeModelProtocol(Protocol):
 class LinksBusinessProtocol(Protocol):
     favorite_links_loaded: pyqtBoundSignal
     recent_links_loaded: pyqtBoundSignal
+    favorites_cleared: pyqtBoundSignal
 
     def load_favorite_links(self) -> None: ...
 

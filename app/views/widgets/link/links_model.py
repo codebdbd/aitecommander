@@ -4,7 +4,13 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
-from PyQt6.QtCore import QAbstractTableModel, QCoreApplication, QModelIndex, Qt
+from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
+    QAbstractTableModel,
+    QCoreApplication,
+    QModelIndex,
+    Qt,
+)
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
@@ -12,6 +18,12 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link.item_builders import ItemBuildersMixin
+
+_HEADER_TRANSLATABLE = [
+    QT_TRANSLATE_NOOP("LinksTableModel", "Name"),
+    QT_TRANSLATE_NOOP("LinksTableModel", "Last opened"),
+    QT_TRANSLATE_NOOP("LinksTableModel", "Notes"),
+]
 
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
@@ -35,7 +47,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     ``notes``, ``is_favorite``, ``url``/``path``.
     """
 
-    DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]  # source strings
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
     def __init__(
@@ -59,12 +70,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = [
-            self._tr("♥"),
-            self._tr("Name"),
-            self._tr("Last opened"),
-            self._tr("Notes"),
-        ]
+        self._headers = ["♥"] + [self._tr(text) for text in _HEADER_TRANSLATABLE]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -426,10 +432,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             if column == 1:
                 return str(link.get("name", "")).casefold()
             if column == 2:
-                return normalize_last_used(link.get("last_used"))
+                last_used = link.get("last_used")
+                if last_used in (None, ""):
+                    # Never opened: keep alphabetical order within this bucket
+                    return (0, str(link.get("name", "")).casefold())
+                return (1, normalize_last_used(last_used))
             if column == 3:
                 return str(link.get("notes", "")).casefold()
-            # Unknown column — sort by stable ``id`` if available, otherwise index order
+            # Unknown column - sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
             if isinstance(lid, (int, str)):
                 try:

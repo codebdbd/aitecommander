@@ -75,15 +75,41 @@ class PerformanceMetrics:
         """
         timings = list(self._timings.get(operation, []))
         if not timings:
-            return {"count": 0, "min": 0.0, "max": 0.0, "avg": 0.0, "total": 0.0}
+            return {
+                "count": 0,
+                "min": 0.0,
+                "max": 0.0,
+                "avg": 0.0,
+                "total": 0.0,
+                "p50": 0.0,
+                "p95": 0.0,
+            }
 
+        p50 = self._percentile(timings, 50.0)
+        p95 = self._percentile(timings, 95.0)
         return {
             "count": len(timings),
             "min": min(timings),
             "max": max(timings),
             "avg": sum(timings) / len(timings),
             "total": sum(timings),
+            "p50": p50,
+            "p95": p95,
         }
+
+    @staticmethod
+    def _percentile(values: list[float], percentile: float) -> float:
+        """Compute percentile using nearest-rank strategy."""
+        if not values:
+            return 0.0
+        if percentile <= 0:
+            return min(values)
+        if percentile >= 100:
+            return max(values)
+        ordered = sorted(values)
+        rank = int(round((percentile / 100.0) * (len(ordered) - 1)))
+        rank = max(0, min(rank, len(ordered) - 1))
+        return float(ordered[rank])
 
     def get_cache_stats(self, cache_name: str) -> dict[str, Any]:
         """Get cache statistics.
@@ -221,56 +247,9 @@ def get_metrics() -> PerformanceMetrics:
     return _metrics
 
 
-def log_performance_summary() -> None:
-    """Log summary of all collected metrics."""
-    stats = _metrics.get_all_stats()
-
-    logger.info("=" * 60)
-    logger.info("PERFORMANCE METRICS SUMMARY")
-    logger.info("=" * 60)
-
-    # Timing stats
-    if stats["timings"]:
-        logger.info("\n📊 EXECUTION TIMES:")
-        for operation, timing_stats in sorted(stats["timings"].items()):
-            if timing_stats["count"] > 0:
-                logger.info(
-                    "  %s: avg=%.2fms, min=%.2fms, max=%.2fms, count=%d",
-                    operation,
-                    timing_stats["avg"],
-                    timing_stats["min"],
-                    timing_stats["max"],
-                    timing_stats["count"],
-                )
-
-    # Cache stats
-    if stats["caches"]:
-        logger.info("\n💾 CACHE STATISTICS:")
-        for cache_name, cache_stats in sorted(stats["caches"].items()):
-            if cache_stats["total"] > 0:
-                logger.info(
-                    "  %s: hit_rate=%.1f%%, hits=%d, misses=%d",
-                    cache_name,
-                    cache_stats["hit_rate"],
-                    cache_stats["hits"],
-                    cache_stats["misses"],
-                )
-
-    # Call counts
-    if stats["call_counts"]:
-        logger.info("\n📞 CALL COUNTS:")
-        for operation, count in sorted(
-            stats["call_counts"].items(), key=lambda x: x[1], reverse=True
-        )[:10]:
-            logger.info("  %s: %d calls", operation, count)
-
-    logger.info("=" * 60)
-
-
 __all__ = [
     "PerformanceMetrics",
     "measure_time",
     "cache_metrics",
     "get_metrics",
-    "log_performance_summary",
 ]

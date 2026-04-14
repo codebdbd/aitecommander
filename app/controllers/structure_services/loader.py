@@ -12,7 +12,7 @@ class LoaderService:
 
     def load_structure_from_db(
         self,
-        structure_model,
+        db,
         sphere_id: int,
         logger,
     ) -> list[dict[str, Any]]:
@@ -21,14 +21,14 @@ class LoaderService:
         Does not know about caches and signals; only model reading and data collection.
         """
         try:
-            sections = structure_model.get_sections(sphere_id) or []
+            sections = db.sections.get_sections(sphere_id) or []
 
             for section in sections:
                 section_id = section.get("id")
                 if section_id is None:
                     section["categories"] = []
                     continue
-                categories = structure_model.get_categories(section_id) or []
+                categories = db.categories.get_categories(section_id) or []
                 section["categories"] = categories
 
             return sections

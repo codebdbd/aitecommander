@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer
-from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -24,15 +23,21 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.models.types.link_type import LinkType
+from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
-from app.views.common.effects.neon_effect import NeonEventFilter
+from app.utils.ui.qt.combo_helpers import (
+    add_combo_item,
+    try_select_combo_data,
+    try_select_first_combo_item,
+)
 
 from ..base_dialog import BaseDialog
+from .icon_utils import get_cached_icon
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
 
@@ -152,6 +157,11 @@ class LinkDialog(BaseDialog):
         )
 
         super().__init__(parent)
+        try:
+            self.setObjectName("LinkDialog")
+            self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        except AttributeError:
+            pass
 
         # Ensure user icons directory exists (moved from module scope to avoid import side-effects)
         icon_path_service.ensure_user_icons_dir()
@@ -161,6 +171,10 @@ class LinkDialog(BaseDialog):
 
         # Optional MVC controller
         self.link_controller = link_controller
+        self._sphere_icons_applied = False
+        self._hierarchy_icons_applied = False
+        self._type_icons_applied = False
+        self._initial_icon_applied = False
 
         # Init components
         self._init_components()
@@ -172,6 +186,7 @@ class LinkDialog(BaseDialog):
         # Configure UI and load data
         self._setup_ui_properties()
         self._load_initial()
+        
         # Initial translation pass
         self.retranslateUi()
 
@@ -190,37 +205,13 @@ class LinkDialog(BaseDialog):
         self.link_type = self.link.get("type", "web")
         self.icon_name = self.link.get("icon_path", "")
         self.selected_profiles: list[dict] = []
+        self._profiles_explicitly_changed = False
 
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
         # UI components
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self.link_types)
-
-        # Neon glow for type buttons — same behaviour as sphere buttons
-        try:
-            # Apply hover and active neon effect similar to sphere buttons
-            self._neon_link_filter = NeonEventFilter(
-                color=QColor("#0194F0"), blur_radius=18
-            )
-            for btn in self._get_type_group().buttons():
-                btn.installEventFilter(self._neon_link_filter)
-                # Track toggled state to sync the glow
-                try:
-                    self._neon_link_filter._maybe_connect_toggled(btn)
-                    if getattr(btn, "isChecked", lambda: False)():
-                        self._neon_link_filter._apply_effect(btn)
-                    else:
-                        self._neon_link_filter._clear_effect(btn)
-                except Exception:
-                    pass
-        except (AttributeError, RuntimeError) as e:
-            # Do not block the dialog if neon effect fails
-            logger.warning(
-                "Failed to install neon effect on link type buttons: %s",
-                e,
-                exc_info=True,
-            )
 
         # Event handlers
         self.handlers = LinkDialogHandlers(self)
@@ -329,12 +320,15 @@ class LinkDialog(BaseDialog):
 
         logger.debug("Initial form data: %s", form_data)
 
-        self.ui.set_form_data(form_data)
+        self._suspend_auto_processing = True
+        try:
+            self.ui.set_form_data(form_data)
+        finally:
+            self._suspend_auto_processing = False
 
         logger.debug("Initial values applied to UI; continuing with icon setup")
 
-        # Set icon
-        self._set_initial_icon()
+        # Initial icon is applied after the first paint to avoid blocking dialog open.
 
         # Populate hierarchy
         self._populate_hierarchy()
@@ -418,88 +412,168 @@ class LinkDialog(BaseDialog):
         2) apply initial selection (from `category_hierarchy`, if present),
         3) delegate updating sections/categories to `HierarchyMixin`.
         """
-        # 1) Load spheres from initialization_data
-        self._populate_spheres()
+        from PyQt6.QtCore import QSignalBlocker
+        
+        sphere_cb = self._get_sphere_cb()
+        section_cb = self._get_section_cb()
+        category_cb = self._get_category_cb()
+
+        # CRITICAL FIX: Block signals during initialization to prevent
+        # automatic DB queries from currentIndexChanged handlers
+        with QSignalBlocker(sphere_cb), QSignalBlocker(section_cb), QSignalBlocker(category_cb):
+            # 1) Load spheres from initialization_data
+            self._populate_spheres()
+
+            # 2) Apply initial selection (based on link/constructor params)
+            cid = self.link.get("category_id") or self.initial_category
+            if cid:
+                hierarchy = self.initialization_data.get("category_hierarchy") or {}
+
+                # Set sphere first (if provided)
+                self._set_index_by_data(sphere_cb, hierarchy.get("sphere_id"))
+
+                # Update sections under the current sphere
+                self.handlers._update_sections(with_icons=False)
+
+                # Apply section if provided, otherwise keep current (or first)
+                section_id = hierarchy.get("section_id")
+                if not self._set_index_by_data(section_cb, section_id):
+                    self._select_first_if_unset(section_cb)
+
+                # Update categories under the current section
+                self.handlers._update_categories(with_icons=False)
+
+                # Apply category if provided, otherwise keep current (or first)
+                category_id = hierarchy.get("category_id")
+                if not self._set_index_by_data(category_cb, category_id):
+                    self._select_first_if_unset(category_cb)
+            else:
+                # Defaults: first sphere/section/category
+                self._apply_default_hierarchy_selection()
+                self.handlers._update_sections(with_icons=False)
+                if section_cb.count() > 0:
+                    self._select_first_if_unset(section_cb)
+                    self.handlers._update_categories(with_icons=False)
+                    if category_cb.count() > 0:
+                        self._select_first_if_unset(category_cb)
+
+    def _populate_spheres(self) -> None:
+        """Populate the sphere list from `initialization_data` without icons."""
+        sphere_cb = self._get_sphere_cb()
+        sphere_cb.clear()
+        for sp in self.initialization_data.get("spheres", []):
+            if not isinstance(sp, dict):
+                continue
+            name = sp.get("name")
+            sphere_id = sp.get("id")
+            if name is None or sphere_id is None:
+                continue
+            add_combo_item(sphere_cb, name, sphere_id)
+
+    def _apply_sphere_icons(self) -> None:
+        """Apply sphere icons after the dialog becomes visible."""
+        if self._sphere_icons_applied:
+            return
+        self._sphere_icons_applied = True
+
+        sphere_cb = self._get_sphere_cb()
+        spheres = self.initialization_data.get("spheres", [])
+        icons_by_id = {
+            sp.get("id"): str(sp.get("icon_path", ""))
+            for sp in spheres
+            if isinstance(sp, dict) and sp.get("id") is not None
+        }
+        for idx in range(sphere_cb.count()):
+            sphere_id = sphere_cb.itemData(idx)
+            icon_path = icons_by_id.get(sphere_id, "")
+            if not icon_path:
+                continue
+            icon = get_cached_icon(icon_path)
+            if icon:
+                sphere_cb.setItemIcon(idx, icon)
+
+    def _apply_current_hierarchy_icons(self) -> None:
+        """Apply section/category icons after the first paint."""
+        if self._hierarchy_icons_applied or not self.dialog_controller:
+            return
+        self._hierarchy_icons_applied = True
 
         sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
 
-        # 2) Apply initial selection (based on link/constructor params)
-        cid = self.link.get("category_id") or self.initial_category
-        if cid:
-            hierarchy = self.initialization_data.get("category_hierarchy") or {}
+        sphere_id = sphere_cb.currentData()
+        if sphere_id:
+            sections = self.dialog_controller.get_sections_for_sphere(sphere_id)
+            section_icons = {
+                sec.get("id"): str(sec.get("icon_path", ""))
+                for sec in sections
+                if isinstance(sec, dict) and sec.get("id") is not None
+            }
+            for idx in range(section_cb.count()):
+                section_id = section_cb.itemData(idx)
+                icon_path = section_icons.get(section_id, "")
+                if not icon_path:
+                    continue
+                icon = get_cached_icon(icon_path)
+                if icon:
+                    section_cb.setItemIcon(idx, icon)
 
-            # Set sphere first (if provided)
-            self._set_index_by_data(sphere_cb, hierarchy.get("sphere_id"))
+        section_id = section_cb.currentData()
+        if section_id:
+            categories = self.dialog_controller.get_categories_for_section(section_id)
+            category_icons = {
+                cat.get("id"): str(cat.get("icon_path", ""))
+                for cat in categories
+                if isinstance(cat, dict) and cat.get("id") is not None
+            }
+            for idx in range(category_cb.count()):
+                category_id = category_cb.itemData(idx)
+                icon_path = category_icons.get(category_id, "")
+                if not icon_path:
+                    continue
+                icon = get_cached_icon(icon_path)
+                if icon:
+                    category_cb.setItemIcon(idx, icon)
 
-            # Update sections under the current sphere
-            self.handlers._update_sections()
+    def _apply_type_icons(self) -> None:
+        """Apply link type button icons after the first paint."""
+        if self._type_icons_applied:
+            return
+        self._type_icons_applied = True
+        try:
+            self.ui.apply_deferred_type_icons()
+        except Exception:
+            logger.debug("Deferred type icon apply failed", exc_info=True)
 
-            # Apply section if provided, otherwise keep current (or first)
-            section_id = hierarchy.get("section_id")
-            if not self._set_index_by_data(section_cb, section_id):
-                self._select_first_if_unset(section_cb)
-
-            # Update categories under the current section
-            self.handlers._update_categories()
-
-            # Apply category if provided, otherwise keep current (or first)
-            category_id = hierarchy.get("category_id")
-            if not self._set_index_by_data(category_cb, category_id):
-                self._select_first_if_unset(category_cb)
-        else:
-            # Defaults: first sphere/section/category
-            self._apply_default_hierarchy_selection()
-            self.handlers._update_sections()
-            if section_cb.count() > 0:
-                self._select_first_if_unset(section_cb)
-                self.handlers._update_categories()
-                if category_cb.count() > 0:
-                    self._select_first_if_unset(category_cb)
-
-    def _populate_spheres(self) -> None:
-        """Populate the sphere list from `initialization_data` (no icons)."""
-        sphere_cb = self._get_sphere_cb()
-        sphere_cb.clear()
-        for sp in self.initialization_data.get("spheres", []):
-            sphere_cb.addItem(sp["name"], sp["id"])
+    def _apply_initial_icon(self) -> None:
+        """Apply the initial icon button image after the first paint."""
+        if self._initial_icon_applied:
+            return
+        self._initial_icon_applied = True
+        try:
+            self._set_initial_icon()
+        except Exception:
+            logger.debug("Deferred initial icon apply failed", exc_info=True)
 
     def _apply_default_hierarchy_selection(self) -> None:
         """Select the first sphere, section, and category by default."""
         sphere_cb = self._get_sphere_cb()
-        if sphere_cb.count() > 0:
-            sphere_cb.setCurrentIndex(0)
+        try_select_first_combo_item(sphere_cb)
 
     def _set_index_by_data(self, combo: Any, data_id: Any) -> bool:
         """Safely set combo box index by item data.
 
         Returns True when index changed, False if `data_id` is None, not found, or an exception occurs.
         """
-        try:
-            if data_id is None:
-                return False
-            idx = combo.findData(data_id)
-            if idx >= 0:
-                combo.setCurrentIndex(idx)
-                return True
-        except (AttributeError, RuntimeError, TypeError):
-            # Do not change state on errors
-            return False
-        return False
+        return try_select_combo_data(combo, data_id)
 
     def _select_first_if_unset(self, combo: Any) -> bool:
         """Select the first combo box item if nothing is currently selected.
 
         Returns True on success, False if items are missing, an index already set, or an exception occurs.
         """
-        try:
-            if combo.count() > 0 and combo.currentIndex() < 0:
-                combo.setCurrentIndex(0)
-                return True
-        except (AttributeError, RuntimeError):
-            return False
-        return False
+        return try_select_first_combo_item(combo, only_if_unset=True)
 
     def get_ui_icons_dir(self) -> Path:
         """Return the UI icons directory."""
@@ -511,17 +585,17 @@ class LinkDialog(BaseDialog):
 
     def _format_profile_text(self, profiles: list[dict]) -> str:
         """Format display text for selected profiles."""
-        emails = [p.get("email") or p.get("name") for p in profiles]
-        if not emails:
+        profile_names = [p.get("name") or p.get("email") for p in profiles]
+        if not profile_names:
             return self.tr("Profile")
-        elif len(emails) == 1:
-            return self.tr("Profile: {email}").format(email=emails[0])
-        elif len(emails) == 2:
+        elif len(profile_names) == 1:
+            return self.tr("Profile: {name}").format(name=profile_names[0])
+        elif len(profile_names) == 2:
             return self.tr("Profiles: {first}, {second}").format(
-                first=emails[0], second=emails[1]
+                first=profile_names[0], second=profile_names[1]
             )
         return self.tr("Profiles: {first}, {second} and {rest} more").format(
-            first=emails[0], second=emails[1], rest=len(emails) - 2
+            first=profile_names[0], second=profile_names[1], rest=len(profile_names) - 2
         )
 
     def closeEvent(self, event) -> None:
@@ -530,18 +604,14 @@ class LinkDialog(BaseDialog):
         If background processing is running, ask for confirmation, stop timers and
         clean up event filters to avoid leaks.
         """
+        # CRITICAL: Set flag to prevent callbacks from accessing deleted dialog
+        self._is_closing = True
+        
         if self.handlers._is_processing or self.handlers._active_worker:
             if not self._show_confirm_close_while_processing():
+                self._is_closing = False  # Reset if user cancels close
                 event.ignore()
                 return
-
-        # Clean event filters to prevent leaks
-        try:
-            if hasattr(self, "_neon_link_filter") and self._neon_link_filter:
-                self._neon_link_filter.cleanup()
-                self._neon_link_filter = None
-        except Exception:
-            pass
 
         self.handlers.cancel_processing()
         try:
@@ -554,10 +624,23 @@ class LinkDialog(BaseDialog):
             )
         super().closeEvent(event)
 
+    def showEvent(self, event: QEvent) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        if not self._initial_icon_applied:
+            QTimer.singleShot(0, self._apply_initial_icon)
+        if not self._type_icons_applied:
+            QTimer.singleShot(0, self._apply_type_icons)
+        if not self._sphere_icons_applied:
+            QTimer.singleShot(0, self._apply_sphere_icons)
+        if not self._hierarchy_icons_applied:
+            QTimer.singleShot(0, self._apply_current_hierarchy_icons)
+
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
         # Window title
-        self.setWindowTitle(self.tr("Edit link") if self.link else self.tr("Add link"))
+        self.setWindowTitle(
+            tr_common("Edit link") if self.link else tr_common("Add link")
+        )
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()

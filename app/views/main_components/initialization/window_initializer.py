@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import Callable, TypeAlias
+from typing import Any, Callable, TypeAlias
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from app.controllers.system.window_controllers_setup import WindowControllersSetup
+from app.controllers.system.window_setup.coordinator import WindowControllersSetup
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
@@ -108,6 +108,16 @@ class WindowInitializer:
         # Database readiness state
         self._db_ready: bool = False
         self._waiting_for_db: bool = False
+        self._reload_structure_timer = QTimer(self.window)
+        self._reload_structure_timer.setSingleShot(True)
+        self._reload_structure_timer.setInterval(100)
+        self._reload_structure_timer.timeout.connect(self._reload_structure_debounced)
+        self._reload_category_timer = QTimer(self.window)
+        self._reload_category_timer.setSingleShot(True)
+        self._reload_category_timer.setInterval(75)
+        self._reload_category_timer.timeout.connect(
+            self._reload_current_category_debounced
+        )
 
     def initialize_window(self) -> None:
         """Perform full step-by-step initialization of the main window."""
@@ -130,13 +140,12 @@ class WindowInitializer:
             )
 
     def _run_light_steps(self) -> None:
-        """Run light synchronous steps and wire signals (without showing the window)."""
         light_steps = (
             self._init_window_properties,
             self._init_basic_attributes,
             self._init_menu,
             self._init_central_widget,
-            self._capture_main_layout,
+            self._capture_main_layout,  # WIDGETS: must follow central_widget
             self._init_top_panel,
             self._connect_db_signals,  # Connect database signals to UI
         )
@@ -153,9 +162,6 @@ class WindowInitializer:
             logger.exception(
                 "WindowInitializer: failed to connect slot to 'shown' signal"
             )
-
-        # Early window show removed because it caused a white flash.
-        # The window displays only after full UI initialization and theme application.
 
     def _schedule_heavy_steps(self) -> None:
         """Split heavy steps into async phases and schedule them around DB readiness."""
@@ -207,7 +213,6 @@ class WindowInitializer:
 
     def _init_top_panel(self) -> None:
         self.ui_setup.setup_top_panel()
-
     def _connect_db_signals(self) -> None:
         """Wire Qt database signals to UI components.
 
@@ -251,13 +256,10 @@ class WindowInitializer:
 
             # Refresh the UI when specific tables change
             if table_name == "link":
-                # The links table refresh occurs through structure_business
-                if hasattr(self.window, "reload_current_category"):
-                    self.window.reload_current_category()
+                self._reload_category_timer.start()
 
             elif table_name in ("sphere", "section", "category"):
-                if hasattr(self.window, "reload_structure"):
-                    self.window.reload_structure()
+                self._reload_structure_timer.start()
         except Exception as e:
             logger.warning("Error handling DB data change: %s", e, exc_info=True)
 
@@ -265,10 +267,19 @@ class WindowInitializer:
         """Handle completion of structure loading."""
         try:
             logger.info("Database structure loaded - reloading UI")
-            if hasattr(self.window, "reload_structure"):
-                self.window.reload_structure()
+            self._reload_structure_timer.start()
         except Exception as e:
             logger.warning("Error handling structure loaded: %s", e, exc_info=True)
+
+    def _reload_structure_debounced(self) -> None:
+        """Reload structure tree after coalescing bursty DB events."""
+        if hasattr(self.window, "reload_structure"):
+            self.window.reload_structure()
+
+    def _reload_current_category_debounced(self) -> None:
+        """Reload current category after coalescing bursty DB events."""
+        if hasattr(self.window, "reload_current_category"):
+            self.window.reload_current_category()
 
     def _on_db_backup_created(self, backup_path: str) -> None:
         """Handle creation of a database backup."""
@@ -294,6 +305,9 @@ class WindowInitializer:
     def _init_main_content(self) -> None:
         self.ui_setup.setup_main_content()
 
+    def _finalize_main_content(self) -> None:
+        self.ui_setup.finalize_main_content()
+
     def _init_bottom_panel(self) -> None:
         self.ui_setup.setup_bottom_panel()
 
@@ -318,6 +332,15 @@ class WindowInitializer:
                 )
 
     def _initialize_spheres(self) -> None:
+        try:
+            if hasattr(self.window, "isVisible") and self.window.isVisible():
+                QTimer.singleShot(0, self.controllers_setup.initialize_spheres)
+                return
+        except Exception:
+            logger.debug(
+                "WindowInitializer: failed to defer initial sphere loading",
+                exc_info=True,
+            )
         self.controllers_setup.initialize_spheres()
 
     def _post_status_bar_init(self) -> None:
@@ -391,7 +414,7 @@ class WindowInitializer:
         )
 
     def _finalize_initialization(self) -> None:
-        """Finish async initialization and present the fully assembled window."""
+        """Finish deferred initialization and present the window as early as possible."""
         # Summarize startup metrics (errors here are non-critical)
         try:
             self._metrics.flush_log(logger)
@@ -401,22 +424,8 @@ class WindowInitializer:
                 exc_info=True,
             )
 
-        # Update status to "Ready" (status bar exists by this point)
-        self._status.set_message(StatusMessage.READY)
+        logger.info("WindowInitializer: window shell is ready for first paint")
 
-        logger.info(
-            "WindowInitializer: asynchronous initialization completed successfully"
-        )
-
-        # Diagnostics prior to showing the window
-        try:
-            self._dump_top_levels("before final window.show")
-        except Exception:
-            logger.debug(
-                "DiagTopLevels: failed to dump before final show", exc_info=False
-            )
-
-        # Show the window only if it has not been shown earlier
         try:
             if hasattr(self.window, "show"):
                 need_show = True
@@ -436,35 +445,9 @@ class WindowInitializer:
             # Delegate to the centralized error handler
             self._on_init_error(e)
             return
-
-        # Post-show diagnostics
-        try:
-            self._dump_top_levels("after final window.show")
-            QTimer.singleShot(
-                10, lambda: self._dump_top_levels("+10ms after final show")
-            )
-            QTimer.singleShot(
-                100, lambda: self._dump_top_levels("+100ms after final show")
-            )
-            # Diagnose table header font after the UI is fully assembled
-            try:
-                tc = getattr(self, "theme_ctrl", None)
-                if tc and hasattr(tc, "_log_tables_header_font"):
-                    # Invoke immediately and again after 50 ms in case the table is created lazily
-                    QTimer.singleShot(
-                        0, lambda: tc._log_tables_header_font(self.window)
-                    )
-                    QTimer.singleShot(
-                        50, lambda: tc._log_tables_header_font(self.window)
-                    )
-            except Exception:
-                logger.debug(
-                    "WindowInitializer: header font diagnostics scheduling failed",
-                    exc_info=True,
-                )
-        except Exception:
-            logger.debug(
-                "DiagTopLevels: failed post-show dumps (final)", exc_info=False
+        finally:
+            self._status.set_message(
+                QCoreApplication.translate("StatusBar", StatusMessage.READY)
             )
 
     def _on_init_error(self, exc: Exception) -> None:
@@ -493,7 +476,7 @@ class WindowInitializer:
         Either waits for database readiness or proceeds to post-database steps.
         """
         # Use the database readiness gate
-        gate = DbReadyGate(self.window, logger)
+        gate = DbReadyGate(self.window, _logger=logger)
         gate.ensure_ready_or_wait(
             on_ready=self._execute_db_dependent_steps,
             on_waiting=self._on_waiting_for_db,
@@ -513,81 +496,94 @@ class WindowInitializer:
         """Log the current set of Qt top-level widgets and QGuiApplication windows."""
         app = QApplication.instance()
         if app is None:
+            logger.warning(
+                "WindowInitializer: QApplication.instance() returned None for _dump_top_levels"
+            )
             return
-        try:
-            tops = list(app.topLevelWidgets())
-        except Exception:
-            tops = []
-        info_list: list[str] = []
-        for w in tops:
-            try:
-                name = w.objectName() or "<noname>"
-            except Exception:
-                name = "<noname>"
-            cls = type(w).__name__
-            try:
-                sz = w.size()
-                size_s = f"{sz.width()}x{sz.height()}"
-            except Exception:
-                size_s = "?"
-            try:
-                pos = w.pos()
-                pos_s = f"({pos.x()},{pos.y()})"
-            except Exception:
-                pos_s = "?"
-            try:
-                visible = w.isVisible()
-            except Exception:
-                visible = False
-            # Additional diagnostics: title and window flags
-            try:
-                title = getattr(w, "windowTitle", lambda: "")() or ""
-            except Exception:
-                title = ""
-            try:
-                flags = getattr(w, "windowFlags", lambda: None)()
-                flags_s = hex(int(flags)) if flags is not None else "?"
-            except Exception:
-                flags_s = "?"
-            info_list.append(f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}")
+
+        top_widgets = self._safe_collect(lambda: list(app.topLevelWidgets()))
+        gui_windows = self._safe_collect(self._list_qwindows)
+
         logger.debug(
             "DiagTopLevels[%s]: %d widgets: %s",
             tag,
-            len(info_list),
-            "; ".join(info_list),
+            len(top_widgets),
+            "; ".join(self._summarize_widget(w) for w in top_widgets),
         )
 
-        # Inspect QWindow instances (tooltips/menus may be plain QWindow objects)
-        try:
-            from PyQt6.QtGui import QGuiApplication
-
-            wins = list(QGuiApplication.allWindows())
-        except Exception:
-            wins = []
-        win_list: list[str] = []
-        for win in wins:
-            try:
-                cls = type(win).__name__
-                title = win.title() if hasattr(win, "title") else ""
-                sz = win.size() if hasattr(win, "size") else None
-                size_s = f"{sz.width()}x{sz.height()}" if sz is not None else "?"
-                pos = win.position() if hasattr(win, "position") else None
-                pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
-                vis = win.isVisible() if hasattr(win, "isVisible") else False
-                flags = win.flags() if hasattr(win, "flags") else None
-                flags_s = hex(int(flags)) if flags is not None else "?"
-                win_list.append(
-                    f"{cls} title='{title}' vis={vis} size={size_s} pos={pos_s} flags={flags_s}"
-                )
-            except Exception:
-                continue
-        if win_list:
+        window_summaries = [self._summarize_window(w) for w in gui_windows]
+        if window_summaries:
             logger.debug(
                 "DiagTopLevels[%s]: QWindows(%d): %s",
                 tag,
-                len(win_list),
-                "; ".join(win_list),
+                len(window_summaries),
+                "; ".join(window_summaries),
             )
+
+    def _safe_collect(self, supplier: Callable[[], list[Any]]) -> list[Any]:
+        try:
+            return supplier()
+        except Exception:
+            logger.debug("WindowInitializer: collection failed", exc_info=True)
+            return []
+
+    def _list_qwindows(self) -> list[Any]:
+        try:
+            from PyQt6.QtGui import QGuiApplication
+
+            return list(QGuiApplication.allWindows())
+        except Exception:
+            logger.debug("WindowInitializer: failed to list QWindows", exc_info=True)
+            return []
+
+    def _summarize_widget(self, widget: Any) -> str:
+        name = self._safe_call(lambda: widget.objectName() or "<noname>")
+        cls = type(widget).__name__
+        size_s = self._format_size(self._safe_call(widget.size))
+        pos_s = self._format_point(self._safe_call(widget.pos))
+        visible = self._safe_call(widget.isVisible, default=False)
+        return f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}"
+
+    def _summarize_window(self, window: Any) -> str:
+        cls = type(window).__name__
+        title = self._safe_call(getattr, window, "title", default="")
+        size_s = self._format_size(self._safe_call(getattr(window, "size", None)))
+        pos_s = self._format_point(self._safe_call(getattr(window, "position", None)))
+        visible = self._safe_call(getattr(window, "isVisible", None), default=False)
+        flags_s = self._format_flags(self._safe_call(getattr(window, "flags", None)))
+        return f"{cls} title='{title}' vis={visible} size={size_s} pos={pos_s} flags={flags_s}"
+
+    def _safe_call(self, func: Callable[..., Any] | None, *args: Any, default: Any = None) -> Any:
+        if func is None:
+            return default
+        try:
+            return func(*args)
+        except Exception:
+            return default
+
+    def _format_size(self, size: Any) -> str:
+        if size is None:
+            return "?"
+        try:
+            return f"{size.width()}x{size.height()}"
+        except Exception:
+            return "?"
+
+    def _format_point(self, point: Any) -> str:
+        if point is None:
+            return "?"
+        try:
+            return f"({point.x()},{point.y()})"
+        except Exception:
+            return "?"
+
+    def _format_flags(self, flags: Any) -> str:
+        if flags is None:
+            return "?"
+        try:
+            return hex(int(flags))
+        except Exception:
+            return "?"
 
     # === Slots ===
     def _on_window_shown(self) -> None:

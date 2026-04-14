@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.models import StructureModel
+from app.models import StructureCoordinator
 from app.services.structure_service import StructureService
 
 
@@ -12,7 +12,7 @@ class ImportService:
 
     def create_category_for_import(
         self,
-        model: StructureModel,
+        model: StructureCoordinator,
         category_data: dict[str, Any],
         logger: logging.Logger | None = None,
     ) -> int | None:

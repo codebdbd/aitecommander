@@ -54,24 +54,6 @@ class TypeChangeMixin:
 
         self._update_ui_state()
 
-        # Sync neon effect for type tiles: remove residual glow
-        try:
-            filt = getattr(self.dialog, "_neon_link_filter", None)
-            type_group = (
-                self.dialog.ui.widgets.get("type_group")
-                if hasattr(self.dialog, "ui")
-                else None
-            )
-            if filt and type_group:
-                for btn in type_group.buttons():
-                    if getattr(btn, "isChecked", lambda: False)():
-                        filt._apply_effect(btn)
-                    else:
-                        filt._clear_effect(btn)
-        except Exception:
-            # Do not fail because of visual effect sync
-            pass
-
     def _update_ui_state(self) -> None:
         """Update UI state according to link type."""
         lt = LinkType.from_value(self.dialog.link_type)
@@ -91,7 +73,6 @@ class TypeChangeMixin:
                 LinkType.FOLDER,
                 LinkType.PROGRAM,
                 LinkType.SCRIPT,
-                LinkType.CHROMEAPP,
             )
         )
 

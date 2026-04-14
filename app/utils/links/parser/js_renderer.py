@@ -23,6 +23,61 @@ _context: Any = None
 _pl: Any = None
 
 
+def _make_launch_kwargs(config: Any) -> dict[str, bool | str | float]:
+    """Build Playwright launch kwargs from config."""
+    headless = bool(getattr(config, "PLAYWRIGHT_HEADLESS", True))
+    launch_kwargs: dict[str, bool | str | float] = {"headless": headless}
+    cfg_channel = getattr(config, "PLAYWRIGHT_CHANNEL", None)
+    if cfg_channel and isinstance(cfg_channel, str):
+        launch_kwargs["channel"] = cfg_channel
+    return launch_kwargs
+
+
+def _create_context(browser: Any, config: Any) -> Any:
+    """Create a new browser context with sensible defaults."""
+    return browser.new_context(
+        user_agent=getattr(config, "USER_AGENT", None) or None,
+        java_script_enabled=True,
+        ignore_https_errors=bool(getattr(config, "PLAYWRIGHT_IGNORE_HTTPS_ERRORS", True)),
+        bypass_csp=True,
+        viewport={"width": 1280, "height": 800},
+    )
+
+
+def _install_blocking_route(ctx: Any) -> None:
+    """Install a route to block heavy resources for performance."""
+    def _route_intercept(route):
+        req = route.request
+        if req.resource_type in {"image", "media", "font", "stylesheet"}:
+            return route.abort()
+        return route.continue_()
+
+    ctx.route("**/*", _route_intercept)
+
+
+def _cleanup_partial_init() -> None:
+    """Cleanup helper for partial initialization failures."""
+    global _browser, _context, _pl
+    try:
+        if _context:
+            _context.close()
+    except Exception:
+        logger.debug("Context close failed during init cleanup", exc_info=True)
+    try:
+        if _browser:
+            _browser.close()
+    except Exception:
+        logger.debug("Browser close failed during init cleanup", exc_info=True)
+    try:
+        if _pl:
+            _pl.stop()
+    except Exception:
+        logger.debug("Playwright stop failed during init cleanup", exc_info=True)
+    _pl = None
+    _browser = None
+    _context = None
+
+
 def _init_browser(config: Any) -> bool:
     global _browser, _context, _pl
     if sync_playwright is None:
@@ -32,32 +87,10 @@ def _init_browser(config: Any) -> bool:
         return True
     try:
         _pl = sync_playwright().start()
-        headless = bool(getattr(config, "PLAYWRIGHT_HEADLESS", True))
-        # By default use built-in Chromium without specifying channel.
-        # If PLAYWRIGHT_CHANNEL is explicitly set in config, use it.
-        launch_kwargs: dict[str, bool | str | float] = {"headless": headless}
-        cfg_channel = getattr(config, "PLAYWRIGHT_CHANNEL", None)
-        if cfg_channel and isinstance(cfg_channel, str):
-            launch_kwargs["channel"] = cfg_channel
+        launch_kwargs = _make_launch_kwargs(config)
         _browser = _pl.chromium.launch(**launch_kwargs)
-        _context = _browser.new_context(
-            user_agent=getattr(config, "USER_AGENT", None) or None,
-            java_script_enabled=True,
-            ignore_https_errors=bool(
-                getattr(config, "PLAYWRIGHT_IGNORE_HTTPS_ERRORS", True)
-            ),
-            bypass_csp=True,
-            viewport={"width": 1280, "height": 800},
-        )
-
-        # Block heavy resources
-        def _route_intercept(route):
-            req = route.request
-            if req.resource_type in {"image", "media", "font", "stylesheet"}:
-                return route.abort()
-            return route.continue_()
-
-        _context.route("**/*", _route_intercept)
+        _context = _create_context(_browser, config)
+        _install_blocking_route(_context)
         return True
     except (RuntimeError, ValueError) as e:
         logger.warning("Playwright init failed: %s", e)
@@ -65,27 +98,7 @@ def _init_browser(config: Any) -> bool:
         logger.exception("Playwright init failed with unexpected error")
     finally:
         if _browser is None or _context is None or _pl is None:
-            # partial init, ensure cleanup
-            try:
-                if _context:
-                    _context.close()
-            except Exception:
-                logger.debug("Context close failed during init cleanup", exc_info=True)
-            try:
-                if _browser:
-                    _browser.close()
-            except Exception:
-                logger.debug("Browser close failed during init cleanup", exc_info=True)
-            try:
-                if _pl:
-                    _pl.stop()
-            except Exception:
-                logger.debug(
-                    "Playwright stop failed during init cleanup", exc_info=True
-                )
-            _pl = None
-            _browser = None
-            _context = None
+            _cleanup_partial_init()
 
     return False
 

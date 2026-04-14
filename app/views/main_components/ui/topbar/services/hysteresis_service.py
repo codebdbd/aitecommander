@@ -1,9 +1,14 @@
-"""Сервис применения гистерезиса к изменениям layout."""
+"""Service applying hysteresis to top bar layout changes."""
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
-from ..models.topbar_constants import TOPBAR_CONSTANTS as C
+from app.views.main_components.ui.topbar.models.topbar_constants import (
+    TOPBAR_CONSTANTS as C,
+)
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..models.layout_context import LayoutContext
@@ -11,9 +16,14 @@ if TYPE_CHECKING:
 
 
 class HysteresisService:
-    """Применяет гистерезис для предотвращения частых переключений layout."""
+    """Apply hysteresis to reduce layout thrashing on small width changes."""
 
     def __init__(self, width_calculator: WidthCalculator) -> None:
+        """Initialize service.
+
+        Args:
+            width_calculator: Helper to compute total layout width.
+        """
         self._width_calculator = width_calculator
 
     def apply_hysteresis(
@@ -23,19 +33,12 @@ class HysteresisService:
         last_applied: tuple[int, ...] | None,
         panel_labels: tuple[str, ...],
     ) -> dict[str, int]:
-        """
-        Применить гистерезис к новым counts.
-        
-        Если разница между новым и предыдущим layout меньше порога,
-        оставить предыдущий layout.
-        """
+        """Return possibly adjusted counts when changes are below a threshold."""
         if last_applied is None:
             return counts
 
         try:
-            prev_counts = {
-                label: last_applied[i] for i, label in enumerate(panel_labels)
-            }
+            prev_counts = {label: last_applied[i] for i, label in enumerate(panel_labels)}
             total_new = self._width_calculator.total_width(
                 ctx.top_bar,
                 ctx.search,
@@ -57,7 +60,6 @@ class HysteresisService:
             try:
                 spacing = int(ctx.top_bar.spacing() or 0)
             except (RuntimeError, AttributeError, TypeError):
-                # Layout deleted, spacing() unavailable, or conversion failed
                 spacing = C.LAYOUT_SPACING_FALLBACK
 
             threshold = max(
@@ -68,7 +70,6 @@ class HysteresisService:
             if abs(slack_new) < threshold and abs(slack_prev) < threshold:
                 return prev_counts
         except (RuntimeError, AttributeError, TypeError, ValueError):
-            # Context invalid, calculations failed, or conversion error
             logger.debug(
                 "HysteresisService: hysteresis calculation failed, using new counts"
             )

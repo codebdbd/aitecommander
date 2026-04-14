@@ -6,6 +6,8 @@
 import logging
 from pathlib import Path
 
+from app.core.database_manager import DatabaseManager
+
 from .base_worker import DatabaseWorker
 
 logger = logging.getLogger(__name__)
@@ -18,13 +20,12 @@ class InitializationWorker(DatabaseWorker):
     без блокировки UI.
     """
 
-    def __init__(self, db_path: str, migrations_dir: Path):
+    def __init__(self, migrations_dir: Path):
         """
         Args:
-            db_path: Путь к файлу БД
             migrations_dir: Директория с миграциями
         """
-        super().__init__(db_path)
+        super().__init__()
         self.migrations_dir = migrations_dir
 
     def do_work(self, connection) -> dict:
@@ -35,7 +36,7 @@ class InitializationWorker(DatabaseWorker):
         """
         from app.utils.db.migrations import MigrationRunner
 
-        db_path = Path(self.db_path)
+        db_path = Path(DatabaseManager.get_db_path())
         is_new = not db_path.exists()
 
         self.emit_progress(0, 1, "Применение миграций...")

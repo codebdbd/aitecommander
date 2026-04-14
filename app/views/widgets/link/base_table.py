@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QStyleOptionViewItem,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
 from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
@@ -41,8 +41,10 @@ class TableDelegate(QStyledItemDelegate):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._rebuild_in_progress = False
         self.hovered_row = -1
-        self.hover_color = QColor("#444444")  # Hover color for table rows
+        # Unified hover color across themes (Win11 accent blue @30% alpha)
+        self.hover_color = QColor(0, 120, 212, 77)
 
         # Font size settings pulled from the centralized ``ui.fonts.*`` registry
         def _get_px(key: str) -> int | None:
@@ -194,6 +196,9 @@ class LinksTableView(
 ):
     """Primary links table view with modular architecture."""
 
+    _sort_initialized: bool = False
+    _allow_sort_persist: bool = False
+
     # qproperty: color for the "Opened" column (QSS: ``qproperty-openedColColor``)
     def _get_opened_col_color(self) -> QColor:
         try:
@@ -280,6 +285,7 @@ class LinksTableView(
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._settings = getattr(parent, "settings", None)
         # Object name used for QSS tweaks (e.g., header font size)
         try:
             self.setObjectName("linksTable")
@@ -287,56 +293,21 @@ class LinksTableView(
             pass
         self._current_links = {}  # Cache of current data: {row: link_data}
         self._current_mode = "normal"  # Active presentation mode
+        self._rebuild_in_progress = False
+        self._cleanup_done = False
+        self._sort_initialized = False
+        self._allow_sort_persist = False
         self._setup_table()
-
-        # Enable sorting and header indicator
-        self.setSortingEnabled(True)
-        header = self.horizontalHeader()
-        header.setSortIndicatorShown(True)
-        # Default ordering: ascending by name
-        try:
-            self.sortByColumn(1, Qt.SortOrder.AscendingOrder)
-        except Exception:
-            logger.debug("LinksTableView: initial sortByColumn failed", exc_info=True)
-        self.delegate = TableDelegate(self)
-        self.setItemDelegate(self.delegate)
-        # Global table settings: no word wrap, elide on the right
-        try:
-            self.setWordWrap(False)
-        except Exception:
-            pass
-        try:
-            self.setTextElideMode(Qt.TextElideMode.ElideRight)
-        except Exception:
-            pass
-        # Use the single delegate for every column so hover applies to entire rows
-        self.setMouseTracking(True)
-        # QTableView: rely on ``entered(QModelIndex)`` instead of ``cellEntered``
-        try:
-            self.entered.connect(self._on_index_entered)
-        except Exception:
-            logger.debug(
-                "LinksTableView: failed to connect entered signal", exc_info=True
-            )
-        self.leaveEvent = self._on_leave_event
-
-        # Sorting on header click: re-enable if disabled after drag-and-drop and perform one sort
-        self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
-        # Rebuild the cache only when the model layout changes (cheaper and correct)
-        try:
-            self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
-        except Exception:
-            logger.debug(
-                "LinksTableView: failed to connect layoutChanged", exc_info=True
-            )
 
         # Forward base-class signal to our alias for compatibility
         self.items_reordered.connect(self.links_reordered.emit)
+        try:
+            self.destroyed.connect(self._cleanup_connections)  # type: ignore[arg-type]
+        except Exception:
+            pass
 
     def _setup_table(self):
-        headers = app_config.ui.get_links_table_headers()
         model = LinksTableModel([])
-        model.set_headers(headers)
         self.setModel(model)
 
         # Subscribe to language changes to update table headers
@@ -344,7 +315,7 @@ class LinksTableView(
             self._lang_service = LanguageService.instance()
             self._lang_service.languageChanged.connect(self._on_language_changed)
         except Exception:
-            pass
+            self._lang_service = None
 
         # Visual configuration
         self.setAlternatingRowColors(True)
@@ -394,6 +365,47 @@ class LinksTableView(
             # Fallback to Fixed
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.setSortingEnabled(True)
+        header.setSortIndicatorShown(True)
+        initial_col, initial_order = self._load_initial_sort()
+        self._apply_sort(initial_col, initial_order)
+        self.delegate = TableDelegate(self)
+        self.setItemDelegate(self.delegate)
+        # Global table settings: no word wrap, elide on the right
+        try:
+            self.setWordWrap(False)
+        except Exception:
+            pass
+        try:
+            self.setTextElideMode(Qt.TextElideMode.ElideRight)
+        except Exception:
+            pass
+        # Use the single delegate for every column so hover applies to entire rows
+        self.setMouseTracking(True)
+        # QTableView: rely on ``entered(QModelIndex)`` instead of ``cellEntered``
+        try:
+            self.entered.connect(self._on_index_entered)
+        except Exception:
+            logger.debug(
+                "LinksTableView: failed to connect entered signal", exc_info=True
+            )
+        self.leaveEvent = self._on_leave_event
+
+        # Sorting on header click: re-enable if disabled after drag-and-drop and perform one sort
+        self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
+        try:
+            header.sortIndicatorChanged.connect(self._on_sort_indicator_changed)
+        except Exception:
+            logger.debug(
+                "LinksTableView: failed to connect sortIndicatorChanged", exc_info=True
+            )
+        # Rebuild the cache only when the model layout changes (cheaper and correct)
+        try:
+            self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
+        except Exception:
+            logger.debug(
+                "LinksTableView: failed to connect layoutChanged", exc_info=True
+            )
 
     def _on_index_entered(self, index: QModelIndex):
         row = index.row()
@@ -443,44 +455,141 @@ class LinksTableView(
 
     def _rebuild_cache_on_layout(self):
         """Rebuild cache after the model layout changes (sorting/reordering)."""
+        if self._rebuild_in_progress:
+            return
+        self._rebuild_in_progress = True
         try:
             self.rebuild_cache_from_items()
         except Exception as e:
             logger.debug(
                 "[SORT] Cache rebuild failed on layoutChanged: %s", e, exc_info=True
             )
+        finally:
+            self._rebuild_in_progress = False
 
-    def __del__(self):
+    def _cleanup_connections(self, *_args) -> None:
         """Disconnect signals to prevent memory leaks."""
+        if getattr(self, "_cleanup_done", False):
+            return
+        self._cleanup_done = True
         try:
             if hasattr(self, "entered"):
-                self.entered.disconnect()
-            if hasattr(self, "horizontalHeader"):
-                header = self.horizontalHeader()
-                if header:
-                    header.sectionClicked.disconnect()
-            if hasattr(self, "model"):
-                model = self.model()
-                if model and hasattr(model, "layoutChanged"):
-                    model.layoutChanged.disconnect()
-            if hasattr(self, "items_reordered"):
-                self.items_reordered.disconnect()
-            if hasattr(self, "_lang_service") and self._lang_service:
                 try:
-                    self._lang_service.languageChanged.disconnect(
-                        self._on_language_changed
-                    )
-                except Exception:
+                    self.entered.disconnect()
+                except (RuntimeError, TypeError):
                     pass
-        except (RuntimeError, TypeError):
-            # Object already deleted or signal not connected
+            header = self.horizontalHeader() if hasattr(self, "horizontalHeader") else None
+            if header:
+                try:
+                    header.sectionClicked.disconnect()
+                    header.sortIndicatorChanged.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+            model = self.model() if hasattr(self, "model") else None
+            if model and hasattr(model, "layoutChanged"):
+                try:
+                    model.layoutChanged.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+            try:
+                self.items_reordered.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            lang = getattr(self, "_lang_service", None)
+            if lang is not None:
+                try:
+                    lang.languageChanged.disconnect(self._on_language_changed)
+                except (RuntimeError, TypeError):
+                    pass
+                self._lang_service = None
+        except Exception:
             pass
 
     def _on_language_changed(self, _code: str) -> None:
         """Update localized headers on language change."""
         try:
             m = self.model()
-            if m is not None and hasattr(m, "retranslate"):
-                m.retranslate()
+            if m is not None and hasattr(m, "retranslateUi"):
+                m.retranslateUi()
         except Exception:
             pass
+
+    # --- Sorting helpers ---
+    def _load_sort_from_settings(self) -> tuple[int | None, Qt.SortOrder | None]:
+        """Fetch saved sort state from settings if available."""
+        settings = getattr(self, "_settings", None)
+        if settings and hasattr(settings, "get_table_sort"):
+            try:
+                col, order = settings.get_table_sort()
+                return col, order
+            except Exception:
+                logger.debug("LinksTableView: get_table_sort failed", exc_info=True)
+        return None, None
+
+    def _load_initial_sort(self) -> tuple[int, Qt.SortOrder]:
+        """Return initial sort (saved or default)."""
+        col, order = self._load_sort_from_settings()
+        if isinstance(col, int) and isinstance(order, Qt.SortOrder):
+            return col, order
+        return 1, Qt.SortOrder.AscendingOrder
+
+    def _save_sort_to_settings(self, col: int, order: Qt.SortOrder) -> None:
+        if not getattr(self, "_allow_sort_persist", False):
+            return
+        settings = getattr(self, "_settings", None)
+        if settings and hasattr(settings, "set_table_sort"):
+            try:
+                settings.set_table_sort(int(col), Qt.SortOrder(order))
+            except Exception:
+                logger.debug("LinksTableView: set_table_sort failed", exc_info=True)
+
+    def _apply_sort(self, column: int | None, order: Qt.SortOrder) -> None:
+        """Apply sort safely, updating header indicator as well."""
+        if column is None or column < 0:
+            return
+        try:
+            self.sortByColumn(column, order)
+            header = self.horizontalHeader()
+            if header:
+                header.setSortIndicatorShown(True)
+                header.setSortIndicator(column, order)
+        except Exception:
+            logger.debug("LinksTableView: applying sort failed", exc_info=True)
+
+    def _default_sort_from_links(
+        self, links: list[dict] | None
+    ) -> tuple[int, Qt.SortOrder]:
+        """Pick default sort: name asc or last_used asc when any launch info exists."""
+        try:
+            if links and any(
+                link.get("last_used") for link in links if isinstance(link, dict)
+            ):
+                # Ascending keeps most recently opened at bottom
+                return 2, Qt.SortOrder.AscendingOrder
+        except Exception:
+            logger.debug("LinksTableView: default sort detection failed", exc_info=True)
+        return 1, Qt.SortOrder.AscendingOrder
+
+    def ensure_initial_sort(self, links: list[dict] | None = None) -> None:
+        """Apply initial sort once, preferring saved settings then heuristics."""
+        if self._sort_initialized:
+            return
+        self._sort_initialized = True
+        col, order = self._load_sort_from_settings()
+        if not (isinstance(col, int) and isinstance(order, Qt.SortOrder)):
+            col, order = self._default_sort_from_links(links)
+        self._apply_sort(col, order)
+        self._allow_sort_persist = True
+        try:
+            self._save_sort_to_settings(col, order)
+        except Exception:
+            logger.debug("LinksTableView: failed to persist initial sort", exc_info=True)
+
+    def _on_sort_indicator_changed(
+        self, logical_index: int, order: Qt.SortOrder
+    ) -> None:
+        """Persist sort changes."""
+        try:
+            self._save_sort_to_settings(logical_index, order)
+        except Exception:
+            logger.debug("LinksTableView: failed to persist sort change", exc_info=True)

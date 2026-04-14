@@ -27,13 +27,14 @@ import json
 import re
 import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 from app.config_data import app_config
+from app.core.worker_manager import WorkerManager
 
 from .constants import FORMAT_RANK, TARGET_SIZE, logger
 from .http_client import http_request
@@ -76,6 +77,11 @@ OG_IMAGE_BANNED_MARKERS = [
 SIZE_RE = re.compile(r"(\d+)\s*x\s*(\d+)")
 # Precompiled regex for first integer fallback
 FIRST_INT_RE = re.compile(r"(\d+)")
+
+
+def _is_cancelled(cancel_event) -> bool:
+    """Return True when cancel_event is set (if provided)."""
+    return bool(cancel_event is not None and getattr(cancel_event, "is_set", lambda: False)())
 
 
 def _get_manifest_executor() -> ThreadPoolExecutor:
@@ -335,11 +341,17 @@ def _deduplicate_urls(urls: list[str]) -> list[str]:
         return result
 
 
-def _fetch_manifest_icons(m_url: str, config) -> list[str]:
+def _fetch_manifest_icons(m_url: str, config, cancel_event=None) -> list[str]:
     """Fetch and parse icons from a single manifest URL."""
+    if _is_cancelled(cancel_event):
+        return []
     urls = []
     try:
-        m_resp = http_request(m_url, config, allow_non_2xx=True)
+        if _is_cancelled(cancel_event):
+            return []
+        m_resp = http_request(
+            m_url, config, allow_non_2xx=True, cancel_event=cancel_event
+        )
         if m_resp and getattr(m_resp, "ok", False):
             try:
                 m_json = json.loads(m_resp.text)
@@ -349,6 +361,8 @@ def _fetch_manifest_icons(m_url: str, config) -> list[str]:
                     if not src:
                         continue
                     i_url = urljoin(m_url, src)
+                    if _is_cancelled(cancel_event):
+                        return urls
                     urls.append(i_url)
             except json.JSONDecodeError:
                 logger.warning(
@@ -362,39 +376,92 @@ def _fetch_manifest_icons(m_url: str, config) -> list[str]:
 
 
 def _fetch_all_manifests_async(
-    manifest_urls: list[str], config, on_manifest_icons: Callable[[list[str]], None]
+    manifest_urls: list[str],
+    config,
+    on_manifest_icons: Callable[[list[str]], None],
+    cancel_event=None,
 ) -> None:
     """Fetch all manifests asynchronously and invoke callback."""
-    all_urls: list[str] = []
-
     if not manifest_urls:
         return
 
+    futures = _submit_manifest_tasks(manifest_urls, config, cancel_event)
+    if not futures:
+        return
+
+    all_urls = _collect_manifest_results(futures, cancel_event)
+    if not all_urls:
+        return
+
+    all_urls = _deduplicate_urls(all_urls)
+    _emit_manifest_icons_in_gui(all_urls, on_manifest_icons, cancel_event)
+
+
+def _submit_manifest_tasks(
+    manifest_urls: list[str], config, cancel_event=None
+) -> list[Future]:
+    """Submit manifest fetch tasks to the global executor. Returns list of futures or empty list."""
     try:
+        if _is_cancelled(cancel_event):
+            return []
         executor = _get_manifest_executor()
-        futures = [
-            executor.submit(_fetch_manifest_icons, m_url, config)
+        return [
+            executor.submit(_fetch_manifest_icons, m_url, config, cancel_event)
             for m_url in manifest_urls
         ]
-        for fut in futures:
-            try:
-                urls = fut.result() or []
-                if urls:
-                    all_urls.extend(urls)
-            except Exception:
-                logger.warning("Manifest fetch task raised an exception", exc_info=True)
     except Exception:
         logger.warning("Manifest executor failure", exc_info=True)
+        return []
 
-    if all_urls:
-        all_urls = _deduplicate_urls(all_urls)
+
+def _collect_manifest_results(futures: list[Future], cancel_event=None) -> list[str]:
+    """Collect URLs from manifest futures with defensive error handling."""
+    collected: list[str] = []
+    for fut in futures:
         try:
-            on_manifest_icons(all_urls)
+            if _is_cancelled(cancel_event):
+                break
+            urls = fut.result() or []
+            if urls:
+                collected.extend(urls)
         except Exception:
-            logger.warning(
-                "on_manifest_icons callback raised an exception", exc_info=True
-            )
+            logger.warning("Manifest fetch task raised an exception", exc_info=True)
+    return collected
 
+
+def _emit_manifest_icons_in_gui(
+    all_urls: list[str],
+    on_manifest_icons: Callable[[list[str]], None],
+    cancel_event=None,
+) -> None:
+    """Invoke callback on GUI thread if necessary with robust fallbacks."""
+    if not all_urls:
+        return
+
+    def _emit_icons() -> None:
+        if _is_cancelled(cancel_event):
+            return
+        on_manifest_icons(all_urls)
+
+    try:
+        from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_sync
+    except Exception:
+        needs_gui_dispatch = False
+    else:
+        try:
+            needs_gui_dispatch = not is_gui_thread()
+        except Exception:
+            needs_gui_dispatch = False
+
+    try:
+        if needs_gui_dispatch:
+            run_in_gui_thread_sync(_emit_icons)
+        else:
+            _emit_icons()
+    except Exception:
+        logger.warning(
+            "on_manifest_icons callback raised an exception", exc_info=True
+        )
 
 def _create_icon_candidate(i_url: str, size_str: str | None, fmt: str) -> IconCandidate:
     """Create IconCandidate from manifest icon data."""
@@ -409,15 +476,25 @@ def _create_icon_candidate(i_url: str, size_str: str | None, fmt: str) -> IconCa
     )
 
 
-def _process_manifest_sync(m_url: str, config, candidates: list[IconCandidate]) -> None:
+def _process_manifest_sync(
+    m_url: str, config, candidates: list[IconCandidate], cancel_event=None
+) -> None:
     """Process single manifest synchronously and add to candidates."""
+    if _is_cancelled(cancel_event):
+        return
     try:
-        m_resp = http_request(m_url, config, allow_non_2xx=True)
+        if _is_cancelled(cancel_event):
+            return
+        m_resp = http_request(
+            m_url, config, allow_non_2xx=True, cancel_event=cancel_event
+        )
         if m_resp and getattr(m_resp, "ok", False):
             try:
                 m_json = json.loads(m_resp.text)
                 icons = m_json.get("icons") or []
                 for icon in icons:
+                    if _is_cancelled(cancel_event):
+                        return
                     src = icon.get("src")
                     if not src:
                         continue
@@ -428,6 +505,8 @@ def _process_manifest_sync(m_url: str, config, candidates: list[IconCandidate]) 
 
                     if sizes:
                         for sz in sizes:
+                            if _is_cancelled(cancel_event):
+                                return
                             candidates.append(_create_icon_candidate(i_url, sz, fmt))
                     else:
                         candidates.append(_create_icon_candidate(i_url, None, fmt))
@@ -447,6 +526,7 @@ def _handle_manifests(
     config,
     on_manifest_icons: Callable[[list[str]], None] | None,
     candidates: list[IconCandidate],
+    cancel_event=None,
 ):
     """Processes manifests: asynchronously invokes callback or synchronously enriches candidates.
 
@@ -465,18 +545,18 @@ def _handle_manifests(
 
     # Async path: fetch in background and invoke callback
     if on_manifest_icons is not None:
-        threading.Thread(
-            target=lambda: _fetch_all_manifests_async(
-                manifest_urls, config, on_manifest_icons
-            ),
-            name="manifest-coordinator",
-            daemon=True,
-        ).start()
+        WorkerManager.run(
+            lambda: _fetch_all_manifests_async(
+                manifest_urls, config, on_manifest_icons, cancel_event
+            )
+        )
         return
 
     # Sync path: enrich candidates directly
     for m_url in manifest_urls:
-        _process_manifest_sync(m_url, config, candidates)
+        if _is_cancelled(cancel_event):
+            return
+        _process_manifest_sync(m_url, config, candidates, cancel_event=cancel_event)
 
 
 def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
@@ -619,9 +699,19 @@ def find_favicon_candidates(
     config=None,
     on_manifest_icons: Callable[[list[str]], None] | None = None,
     use_external: bool = False,
+    cancel_event=None,
 ) -> list[str]:
+    if _is_cancelled(cancel_event):
+        return []
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
-    _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
+    _handle_manifests(
+        manifest_urls,
+        base_url,
+        config,
+        on_manifest_icons,
+        candidates,
+        cancel_event=cancel_event,
+    )
 
     _add_fallback_paths(base_url, candidates)
     _add_external_services(base_url, use_external, candidates)
@@ -668,3 +758,6 @@ __all__ = [
     "TARGET_SIZE",
     "shutdown_manifest_executor",
 ]
+
+
+

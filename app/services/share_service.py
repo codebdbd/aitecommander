@@ -202,3 +202,4 @@ def copy_email_template(name: Optional[str], url: str) -> tuple[bool, Optional[s
 
     message = "Email template copied to clipboard. Open any email and paste (Ctrl+V)."
     return True, message
+

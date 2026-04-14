@@ -15,11 +15,11 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
 
 
 # Reusable field labels for messaging/focus handling
-NAME_LABEL = _tr("Name")
-URL_LABEL = _tr("URL")
-LINK_TYPE_LABEL = _tr("Link type")
-CATEGORY_LABEL = _tr("Category")
-ARGS_LABEL = _tr("Arguments")
+NAME_LABEL = QCoreApplication.translate("ValidationMixin", "Name")
+URL_LABEL = QCoreApplication.translate("ValidationMixin", "URL")
+LINK_TYPE_LABEL = QCoreApplication.translate("ValidationMixin", "Link type")
+CATEGORY_LABEL = QCoreApplication.translate("ValidationMixin", "Category")
+ARGS_LABEL = QCoreApplication.translate("ValidationMixin", "Arguments")
 
 
 class ValidationMixin:
@@ -49,9 +49,9 @@ class ValidationMixin:
     def _show_empty_form_message(self) -> None:
         """Show message when form is empty."""
         self.dialog.show_info(
-            _tr("The form is empty—add at least a URL or a name before saving."),
-            _tr("Hint"),
-            informative_text=_tr("Enter a URL or a name and try again."),
+            QCoreApplication.translate("ValidationMixin", "The form is empty—add at least a URL or a name before saving."),
+            QCoreApplication.translate("ValidationMixin", "Hint"),
+            informative_text=QCoreApplication.translate("ValidationMixin", "Enter a URL or a name and try again."),
             silent=True,
         )
 
@@ -76,30 +76,30 @@ class ValidationMixin:
     def _generate_error_messages(self, problems: set) -> tuple[str, str]:
         """Build primary and informative messages based on problematic fields."""
         hint_map = {
-            NAME_LABEL: _tr("Provide a clear name (for example, 'API documentation')."),
-            URL_LABEL: _tr("Enter a valid URL such as https://example.com."),
-            LINK_TYPE_LABEL: _tr("Choose a link type (web, file, folder, etc.)."),
-            CATEGORY_LABEL: _tr("Select a category for the link."),
-            ARGS_LABEL: _tr("Review launch arguments—only safe values are allowed."),
+            NAME_LABEL: QCoreApplication.translate("ValidationMixin", "Provide a clear name (for example, 'API documentation')."),
+            URL_LABEL: QCoreApplication.translate("ValidationMixin", "Enter a valid URL such as https://example.com."),
+            LINK_TYPE_LABEL: QCoreApplication.translate("ValidationMixin", "Choose a link type (web, file, folder, etc.)."),
+            CATEGORY_LABEL: QCoreApplication.translate("ValidationMixin", "Select a category for the link."),
+            ARGS_LABEL: QCoreApplication.translate("ValidationMixin", "Review launch arguments—only safe values are allowed."),
         }
         hints = [hint_map[p] for p in sorted(problems) if p in hint_map]
         # Limit total hints to avoid overwhelming the dialog
         short_hints = hints[:2]
 
         if problems:
-            main_msg = _tr("Complete or correct: {fields}.").format(
+            main_msg = QCoreApplication.translate("ValidationMixin", "Complete or correct: {fields}.").format(
                 fields=", ".join(sorted(problems))
             )
             extra = (" " + " ".join(short_hints)) if short_hints else ""
             info_msg = (
-                _tr("Check the field hints.")
+                QCoreApplication.translate("ValidationMixin", "Check the field hints.")
                 + extra
                 + " "
-                + _tr("Full details are available in the More Information section.")
+                + QCoreApplication.translate("ValidationMixin", "Full details are available in the More Information section.")
             )
         else:
-            main_msg = _tr("Please review the data before saving.")
-            info_msg = _tr("Check highlighted fields and tooltip hints.")
+            main_msg = QCoreApplication.translate("ValidationMixin", "Please review the data before saving.")
+            info_msg = QCoreApplication.translate("ValidationMixin", "Check highlighted fields and tooltip hints.")
 
         return main_msg, info_msg
 
@@ -110,7 +110,7 @@ class ValidationMixin:
 
         self.dialog.show_info(
             main_msg,
-            _tr("Quick hint"),
+            QCoreApplication.translate("ValidationMixin", "Quick hint"),
             informative_text=info_msg,
             details=error_text,
             silent=True,

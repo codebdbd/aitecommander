@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Protocol
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from app.services import share_service
 
 
@@ -48,6 +49,10 @@ class LinksActions:
         if self.links:
             self.links.open_link(link)
 
+    def open_selected_links(self):
+        if self.links and hasattr(self.links, "open_selected_links"):
+            self.links.open_selected_links()
+
     def toggle_link_favorite(self, link: dict | None = None):
         if self.links:
             self.links.toggle_favorite(link)
@@ -65,8 +70,11 @@ class LinksActions:
             self.links.cut_selected_links()
 
     def delete_selected_links(self):
-        if self.links:
-            self.links.delete_selected_links()
+        if not self.links or not self.link_ops:
+            return
+        links = self.links.get_selected_links()
+        if links:
+            self.link_ops.delete_links_with_confirmation(links)
 
     def show_note_dialog(self, link: dict):
         if self.links:
@@ -96,9 +104,7 @@ class LinksActions:
 
     # --- Internal helpers ---
     class _ShareHandler(Protocol):
-        def __call__(self, name: Optional[str], url: str) -> Union[
-            bool, tuple[bool, Optional[str]]
-        ]:
+        def __call__(self, name: str | None, url: str) -> bool | tuple[bool, str | None]:
             ...
 
     def _share(self, link: dict, handler: _ShareHandler) -> bool:
@@ -152,7 +158,8 @@ class LinksActions:
         """
         key = f"table_selection_{link_id}"
         # Pass explicit callback to controller method
-        schedule_selection_restore(lambda: self.restore_selection(link_id), key)
+        delay_ms = get_table_selection_restore_delay_ms(100)
+        schedule_selection_restore(lambda: self.restore_selection(link_id), key, delay=delay_ms)
 
     # --- Access to link widget data / selection ---
     def get_link_at(self, row: int):

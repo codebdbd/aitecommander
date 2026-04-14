@@ -40,7 +40,7 @@ class TopBarInitializationService:
     ) -> TopBarConfigProtocol:
         """Инициализация конфигурации."""
         if config is None:
-            from app.config_data import app_config
+            from app.config_data.runtime_config import runtime_app_config as app_config
 
             config = AppConfigAdapter(app_config)
         return config

@@ -8,10 +8,13 @@ eliminating code duplication and ensuring UI consistency.
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
-from app.config_data import app_config
+from app.config_data.runtime_config import (
+    get_dialog_message_box_max_width,
+    is_dialogs_enable_details,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.ui.get_dialogs_enable_details() and details:
+        if is_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -101,7 +104,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.ui.get_dialogs_enable_details() and details:
+        if is_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -136,7 +139,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.ui.get_dialogs_enable_details() and details:
+        if is_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -169,7 +172,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.ui.get_dialogs_enable_details() and details:
+        if is_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
@@ -177,7 +180,7 @@ class DialogManager:
         msg_box.setDefaultButton(QMessageBox.StandardButton.No)
 
         # Limit maximum dialog width
-        msg_box.setMaximumWidth(400)
+        msg_box.setMaximumWidth(get_dialog_message_box_max_width())
 
         # Set button texts
         yes_button = msg_box.button(QMessageBox.StandardButton.Yes)
@@ -214,6 +217,10 @@ class DialogManager:
         Returns:
             QMessageBox.StandardButton: Нажатая пользователем кнопка
         """
+        from app.views.windows.dialogs.base_dialog import (
+            apply_uniform_height_to_message_box,
+        )
+        
         logger.debug("Showing custom dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(icon)
@@ -221,6 +228,7 @@ class DialogManager:
         msg_box.setText(message)
         msg_box.setStandardButtons(buttons)
         msg_box.setDefaultButton(default_button)
+        apply_uniform_height_to_message_box(msg_box)
 
         result = msg_box.exec()
         logger.debug("Custom dialog result: %s", result)

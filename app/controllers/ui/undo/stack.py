@@ -5,11 +5,15 @@ Wrapper over QUndoStack with convenient methods and a macro-command context mana
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 
 from PyQt6.QtCore import QObject
 from PyQt6.QtGui import QUndoStack
+
+from app.core.results import ErrorNotification, InvalidateRegion, Result
+
+from .dispatcher import UndoDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,7 @@ class UndoManager:
 
     def __init__(self, parent: QObject | None = None) -> None:
         self.stack = QUndoStack(parent)
+        self.dispatcher = UndoDispatcher(parent)
 
     def push(self, cmd) -> None:
         """Push a command into the stack with logging."""
@@ -64,6 +69,37 @@ class UndoManager:
         finally:
             self.end_macro()
 
+    def set_invalidate_handler(
+        self, handler: Callable[[Iterable[InvalidateRegion]], None]
+    ) -> None:
+        """Attach invalidate handler to internal dispatcher."""
+
+        self.dispatcher.set_invalidate_handler(handler)
+
+    def set_notification_handler(
+        self, handler: Callable[[Iterable[ErrorNotification]], None]
+    ) -> None:
+        """Attach notification handler to internal dispatcher."""
+
+        self.dispatcher.set_notification_handler(handler)
+
+    def dispatch_result(
+        self,
+        result: Result[object],
+        *,
+        on_success: Callable[[object | None], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
+        description: str = "unnamed-task",
+    ) -> None:
+        """Proxy dispatch call to the internal dispatcher."""
+
+        self.dispatcher.dispatch(
+            result,
+            on_success=on_success,
+            on_error=on_error,
+            description=description,
+        )
+
     # Delegate all other attributes to the inner QUndoStack
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         return getattr(self.stack, name)
