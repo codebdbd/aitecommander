@@ -102,9 +102,18 @@ class TopBarController(QObject):
         self._install_event_filters()
         if hasattr(self.window, "shown"):
             try:
-                self.window.shown.connect(self.adjust)
+                self.window.shown.connect(self._schedule_initial_adjust)
             except (AttributeError, TypeError, RuntimeError):
                 pass
+
+    def _schedule_initial_adjust(self) -> None:
+        """Defer the first top bar adjust to avoid blocking the first post-show loop."""
+        try:
+            if self._throttle_timer.isActive():
+                return
+            self._throttle_timer.start(0)
+        except Exception:
+            self.adjust()
 
     def adjust(self) -> None:
         """Trigger layout adjustment (throttled)."""

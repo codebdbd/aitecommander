@@ -1,6 +1,11 @@
 """Protocols for views module type safety."""
 
+from __future__ import annotations
+
 from pathlib import Path
+from dataclasses import dataclass, field
+from enum import Enum
+from time import time
 from typing import Any, Optional, Protocol, TypedDict
 
 from PyQt6.QtCore import QAbstractItemModel, QItemSelectionModel, QModelIndex, Qt
@@ -22,6 +27,72 @@ class LinkDict(TypedDict, total=False):
     position: int
     is_favorite: int
     notes: str
+
+
+class UpdateStatus(Enum):
+    """Status of panel update operation."""
+
+    IDLE = "idle"
+    UPDATING = "updating"
+    PAUSED = "paused"
+    ERROR = "error"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class UpdatablePanelProtocol(Protocol):
+    """Unified interface for panels that support explicit update lifecycle."""
+
+    def update_data(
+        self,
+        data: list[dict[str, Any]],
+        options: dict[str, Any] | None = None,
+    ) -> bool:
+        """Schedule/update panel data and return success state."""
+        ...
+
+    def get_update_status(self) -> UpdateStatus:
+        """Return current update status."""
+        ...
+
+    def cancel_update(self) -> bool:
+        """Cancel current update flow if active."""
+        ...
+
+    def clear_data(self) -> None:
+        """Clear current panel data."""
+        ...
+
+    def refresh(self) -> bool:
+        """Request external refresh and return scheduling state."""
+        ...
+
+
+@dataclass(slots=True)
+class BatchUpdateConfig:
+    """Configuration for batched panel updates."""
+
+    enabled: bool = True
+    batch_size: int = 10
+    interval_ms: int = 16
+    max_concurrent: int = 1
+
+    def __post_init__(self) -> None:
+        self.batch_size = max(1, int(self.batch_size))
+        self.interval_ms = max(1, int(self.interval_ms))
+        self.max_concurrent = max(1, int(self.max_concurrent))
+
+
+@dataclass(slots=True)
+class UpdateContext:
+    """Runtime context for panel updates."""
+
+    start_time: float = field(default_factory=time)
+    data_version: float = field(default_factory=time)
+    batch_count: int = 0
+    item_count: int = 0
+    error_count: int = 0
+    is_cancelled: bool = False
 
 
 class TreeNodeDict(TypedDict):
@@ -107,7 +178,7 @@ class AppConfigWidgetAdapter:
     Wraps global app_config with type-safe interface and fallback values.
 
     Example:
-        >>> from app.config_data import app_config
+        >>> from app.config_data.runtime_config import runtime_app_config as app_config
         >>> config = AppConfigWidgetAdapter(app_config)
         >>> button_size = config.get_top_panel_button_size()
     """

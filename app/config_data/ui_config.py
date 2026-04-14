@@ -4,6 +4,8 @@ import logging
 
 from PyQt6.QtGui import QFont
 
+from app.core.strings import WindowStrings
+
 from .base_config import BaseConfig
 from .qt_adapters import to_qfont
 
@@ -56,6 +58,10 @@ class UIConfig(BaseConfig):
         """Return the default icon size."""
         return self.get("ui.default_icon_size", 24)
 
+    def get_widget_icon_fallback_size(self) -> int:
+        """Return fallback icon size for widgets without explicit size."""
+        return int(self.get("ui.widget_icon_fallback_size", 16))
+
     def get_application_font(self) -> QFont:
         """Return the base application font."""
         font_config = self.get("ui.application_font")
@@ -81,11 +87,7 @@ class UIConfig(BaseConfig):
 
     def get_main_window_title(self) -> str:
         """Return the main window title."""
-        # New config key: ``ui.main_window_title``; backwards compatible with ``ui.window.title``
-        title = self.get("ui.main_window_title")
-        if title is None:
-            title = self.get("ui.window.title", "Aite Commander")
-        return title
+        return WindowStrings.WINDOW_TITLE
 
     def get_main_window_size(self) -> tuple:
         """Return the startup size of the main window."""
@@ -93,6 +95,42 @@ class UIConfig(BaseConfig):
         width = self.get("ui.window.width", 1024)
         height = self.get("ui.window.height", 768)
         return (width, height)
+
+    # === Window border and styling ===
+
+    def get_window_border_enabled(self) -> bool:
+        """Return whether window border is enabled."""
+        return bool(self.get("ui.window_border.enabled", True))
+
+    def get_window_border_width(self) -> int:
+        """Return window border width in pixels."""
+        return int(self.get("ui.window_border.width", 1))
+
+    def get_window_border_radius(self) -> int:
+        """Return window border corner radius in pixels."""
+        return int(self.get("ui.window_border.radius", 12))
+
+    def get_window_shadow_enabled(self) -> bool:
+        """Return whether window shadow is enabled."""
+        return bool(self.get("ui.window_border.shadow_enabled", True))
+
+    def get_window_shadow_blur_radius(self) -> int:
+        """Return window shadow blur radius."""
+        return int(self.get("ui.window_border.shadow_blur_radius", 20))
+
+    def get_window_shadow_offset(self) -> tuple[int, int]:
+        """Return window shadow offset as (x, y)."""
+        offset = self.get("ui.window_border.shadow_offset", [0, 4])
+        if isinstance(offset, (list, tuple)) and len(offset) == 2:
+            return (int(offset[0]), int(offset[1]))
+        return (0, 4)
+
+    def get_window_content_margins(self) -> tuple[int, int, int, int]:
+        """Return content margins for window border effect."""
+        margins = self.get("ui.window.content_margins", [1, 1, 1, 1])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (1, 1, 1, 1)
 
     # === Icon sizes ===
 
@@ -152,6 +190,15 @@ class UIConfig(BaseConfig):
         h = int(self.get("ui.tile_height", 110))
         return [w, h]
 
+    def get_tile_size_safe(self) -> tuple[int, int]:
+        """Return tile size with safe fallbacks."""
+        try:
+            w = int(self.get("ui.tile_width", 110))
+            h = int(self.get("ui.tile_height", 110))
+        except (TypeError, ValueError):
+            w, h = 110, 110
+        return (w, h)
+
     def get_tile_icon_size(self) -> list:
         """Return the icon size on category tiles as ``[w, h]``."""
         size = self.get("ui.tile_icon_size", [64, 64])
@@ -161,13 +208,36 @@ class UIConfig(BaseConfig):
             return [size[0], size[1]]
         return [64, 64]
 
+    def get_tile_icon_size_safe(self) -> tuple[int, int]:
+        """Return tile icon size with safe fallbacks."""
+        size = self.get("ui.tile_icon_size", [64, 64])
+        if isinstance(size, int):
+            return (size, size)
+        if isinstance(size, (list, tuple)) and len(size) >= 2:
+            return (int(size[0]), int(size[1]))
+        return (64, 64)
+
     def get_tile_spacing(self) -> int:
         """Return the spacing between category tiles."""
         return self.get("ui.tile_spacing", 6)
 
+    def get_tile_spacing_safe(self) -> int:
+        """Return tile spacing with safe fallbacks."""
+        try:
+            return int(self.get("ui.tile_spacing", 6))
+        except (TypeError, ValueError):
+            return 6
+
     def get_tile_padding(self) -> int:
         """Return the inner padding for tiles."""
         return self.get("ui.tile_padding", 6)
+
+    def get_tile_padding_safe(self) -> int:
+        """Return tile padding with safe fallbacks."""
+        try:
+            return int(self.get("ui.tile_padding", 6))
+        except (TypeError, ValueError):
+            return 6
 
     def get_tile_icon_text_gap(self) -> int:
         """Return the gap between tile icon and text."""
@@ -285,19 +355,8 @@ class UIConfig(BaseConfig):
         return self.get("ui.top_panel_size_policy", ["Expanding", "Fixed"])
 
     def get_top_bar_height(self) -> int:
-        """Return the height of the top bar host widget.
-
-        New key: ``ui.top_bar_height``. Backwards compatible with
-        ``ui.top_panel_container_height``.
-        """
-        value = self.get("ui.top_bar_height")
-        if value is None:
-            value = self.get("ui.top_panel_container_height", 40)
-        return int(value)
-
-    def get_top_panel_container_height(self) -> int:
-        """Return the height of the top panel container."""
-        return self.get("ui.top_panel_container_height", 40)
+        """Return the height of the top bar host widget."""
+        return int(self.get("ui.top_bar_height", 40))
 
     def get_top_panel_search_width(self) -> int:
         """Return the search field width in the top panel."""
@@ -310,6 +369,70 @@ class UIConfig(BaseConfig):
     def get_top_panel_search_height(self) -> int:
         """Return the search field height in the top panel."""
         return self.get("ui.top_panel_search_height", 32)
+
+    def get_topbar_panel_padding(self) -> int:
+        """Return padding used in top bar panel placeholders."""
+        return int(self.get("ui.topbar.panel_padding", 16))
+
+    def get_topbar_panel_spacing_adjustment(self) -> int:
+        """Return spacing adjustment for top bar panels."""
+        return int(self.get("ui.topbar.panel_spacing_adjustment", -1))
+
+    def get_topbar_separator_spacing(self) -> int:
+        """Return spacing around separators in the top bar."""
+        return int(self.get("ui.topbar.separator_spacing", 4))
+
+    def get_topbar_button_size(self) -> int:
+        """Return default button size for top bar widgets."""
+        return int(self.get("ui.topbar.button_size", 32))
+
+    def get_topbar_max_visible_recent(self) -> int:
+        """Return max visible buttons for recent panel."""
+        return int(self.get("ui.topbar.max_visible.recent", 10))
+
+    def get_topbar_max_visible_fav(self) -> int:
+        """Return max visible buttons for favorites panel."""
+        return int(self.get("ui.topbar.max_visible.fav", 10))
+
+    def get_topbar_max_visible_quick(self) -> int:
+        """Return max visible buttons for quick panel."""
+        return int(self.get("ui.topbar.max_visible.quick", 6))
+
+    def get_topbar_min_panel_width(self) -> int:
+        """Return minimum panel width in the top bar."""
+        return int(self.get("ui.topbar.min_panel_width", 50))
+
+    def get_topbar_min_search_width_absolute(self) -> int:
+        """Return absolute minimum search width for the top bar."""
+        return int(self.get("ui.topbar.min_search_width_absolute", 148))
+
+    def get_topbar_max_search_width(self) -> int:
+        """Return maximum search width for the top bar."""
+        return int(self.get("ui.topbar.max_search_width", 500))
+
+    def get_topbar_max_widget_width(self) -> int:
+        """Return maximum widget width for the top bar."""
+        return int(self.get("ui.topbar.max_widget_width", 16777215))
+
+    def get_topbar_max_visible_buttons(self) -> int:
+        """Return maximum visible button count in top bar panels."""
+        return int(self.get("ui.topbar.max_visible_buttons", 20))
+
+    def get_topbar_narrow_threshold(self) -> int:
+        """Return the narrow mode threshold for the top bar."""
+        return int(self.get("ui.topbar.narrow_threshold", 380))
+
+    def get_topbar_hysteresis_threshold(self) -> int:
+        """Return the hysteresis threshold for top bar layout logic."""
+        return int(self.get("ui.topbar.hysteresis_threshold", 8))
+
+    def get_main_components_min_search_width(self) -> int:
+        """Return minimum search width used by main components."""
+        return int(self.get("ui.main_components.min_search_width", 50))
+
+    def get_main_components_max_search_width(self) -> int:
+        """Return maximum search width used by main components."""
+        return int(self.get("ui.main_components.max_search_width", 800))
 
     def get_stack_index_tiles(self) -> int:
         """Return the stacked-widget index that shows tiles.
@@ -343,7 +466,7 @@ class UIConfig(BaseConfig):
 
     def get_structure_reload_delay_ms(self) -> int:
         """Return the coalesced structure reload delay in milliseconds."""
-        return int(self.get("ui.structure_reload_delay_ms", 200))
+        return int(self.get("ui.structure_reload_delay_ms", 50))
 
     def get_structure_reload_immediate_delay_ms(self) -> int:
         """Return the immediate structure reload delay (usually 0 ms)."""
@@ -357,22 +480,19 @@ class UIConfig(BaseConfig):
 
     def get_delete_confirm_title(self) -> str:
         """Return the delete confirmation dialog title."""
-        return self.get("ui.delete_confirm_title", "Confirm Deletion")
+        return "Confirm Deletion"
 
     def get_delete_confirm_text(self) -> str:
         """Return the delete confirmation dialog body text."""
-        return self.get(
-            "ui.delete_confirm_text",
-            "Are you sure you want to delete {count} link(s)?",
-        )
+        return "Are you sure you want to delete {count} link(s)?"
 
     def get_yes_text(self) -> str:
         """Return the label for the affirmative button."""
-        return self.get("ui.yes_text", "Yes")
+        return "Yes"
 
     def get_no_text(self) -> str:
         """Return the label for the negative button."""
-        return self.get("ui.no_text", "No")
+        return "No"
 
     def get_link_dialog_width(self) -> int:
         """Return the width for the add/edit link dialog."""
@@ -393,6 +513,129 @@ class UIConfig(BaseConfig):
     def get_link_dialog_type_icon_size(self) -> int:
         """Return the icon size for link type buttons in the link dialog."""
         return int(self.get("ui.link_dialog_type_icon_size", 32))
+
+    def get_dialog_control_height(self) -> int:
+        """Return the uniform control height for dialogs."""
+        return int(self.get("ui.dialogs.control_height", 32))
+
+    def get_dialog_message_box_max_width(self) -> int:
+        """Return the maximum width for standard message boxes."""
+        return int(self.get("ui.dialogs.message_box_max_width", 400))
+
+    def get_restore_db_dialog_size(self) -> tuple[int, int]:
+        """Return the restore DB dialog size."""
+        width = int(self.get("ui.dialogs.restore_db.width", 500))
+        height = int(self.get("ui.dialogs.restore_db.height", 300))
+        return (width, height)
+
+    def get_import_browser_dialog_size(self) -> tuple[int, int]:
+        """Return the import browser dialog size."""
+        width = int(self.get("ui.dialogs.import_browser.width", 400))
+        height = int(self.get("ui.dialogs.import_browser.height", 180))
+        return (width, height)
+
+    def get_browser_profile_dialog_min_size(self) -> tuple[int, int]:
+        """Return the minimum size for the browser profile dialog."""
+        width = int(self.get("ui.dialogs.browser_profile.min_width", 480))
+        height = int(self.get("ui.dialogs.browser_profile.min_height", 400))
+        return (width, height)
+
+    def get_async_operation_dialog_min_width(self) -> int:
+        """Return the minimum width for async operation dialogs."""
+        return int(self.get("ui.dialogs.async_operation.min_width", 400))
+
+    def get_async_operation_dialog_spacing(self) -> int:
+        """Return layout spacing for async operation dialogs."""
+        return int(self.get("ui.dialogs.async_operation.spacing", 15))
+
+    def get_icon_refresh_dialog_min_width(self) -> int:
+        """Return the minimum width for icon refresh dialogs."""
+        return int(self.get("ui.dialogs.icon_refresh.min_width", 400))
+
+    def get_icon_refresh_buttons_spacing(self) -> int:
+        """Return spacing for icon refresh dialog buttons."""
+        return int(self.get("ui.dialogs.icon_refresh.buttons_spacing", 8))
+
+    def get_bad_url_cleanup_dialog_min_size(self) -> tuple[int, int]:
+        """Return the minimum size for bad URL cleanup dialogs."""
+        width = int(self.get("ui.dialogs.bad_url_cleanup.min_width", 900))
+        height = int(self.get("ui.dialogs.bad_url_cleanup.min_height", 400))
+        return (width, height)
+
+    def get_file_search_dialog_size(self) -> tuple[int, int]:
+        """Return the file search dialog size."""
+        width = int(self.get("ui.dialogs.file_search.width", 900))
+        height = int(self.get("ui.dialogs.file_search.height", 700))
+        return (width, height)
+
+    def get_file_search_root_min_width(self) -> int:
+        """Return the minimum width for the file search root input."""
+        return int(self.get("ui.dialogs.file_search.root_min_width", 200))
+
+    def get_file_search_pattern_max_width(self) -> int:
+        """Return the maximum width for the file search pattern input."""
+        return int(self.get("ui.dialogs.file_search.pattern_max_width", 100))
+
+    def get_file_search_pattern_combo_extra_width(self) -> int:
+        """Return extra width added to the pattern combo for arrow/padding."""
+        return int(self.get("ui.dialogs.file_search.pattern_combo_extra_width", 36))
+
+    def get_file_search_content_min_width(self) -> int:
+        """Return the minimum width for the file search content input."""
+        return int(self.get("ui.dialogs.file_search.content_min_width", 200))
+
+    def get_file_search_size_field_max_width(self) -> int:
+        """Return the maximum width for file size inputs."""
+        return int(self.get("ui.dialogs.file_search.size_field_max_width", 60))
+
+    def get_entity_dialog_name_spacing(self) -> int:
+        """Return spacing inside entity name rows."""
+        return int(self.get("ui.dialogs.entity.name_spacing", 6))
+
+    def get_entity_dialog_fixed_width(self) -> int:
+        """Return fixed width for entity dialogs."""
+        return int(self.get("ui.dialogs.entity.fixed_width", 400))
+
+    def get_settings_dialog_size(self) -> tuple[int, int]:
+        """Return the settings dialog size."""
+        width = int(self.get("ui.dialogs.settings.width", 420))
+        height = int(self.get("ui.dialogs.settings.height", 280))
+        return (width, height)
+
+    def get_settings_dialog_margins(self) -> tuple[int, int, int, int]:
+        """Return settings dialog layout margins."""
+        margins = self.get("ui.dialogs.settings.margins", [12, 12, 12, 12])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (12, 12, 12, 12)
+
+    def get_settings_dialog_spacing(self) -> int:
+        """Return settings dialog layout spacing."""
+        return int(self.get("ui.dialogs.settings.spacing", 10))
+
+    def get_settings_dialog_form_horizontal_spacing(self) -> int:
+        """Return settings dialog form horizontal spacing."""
+        return int(self.get("ui.dialogs.settings.form_horizontal_spacing", 12))
+
+    def get_settings_dialog_form_vertical_spacing(self) -> int:
+        """Return settings dialog form vertical spacing."""
+        return int(self.get("ui.dialogs.settings.form_vertical_spacing", 8))
+
+    def get_settings_dialog_actions_spacing(self) -> int:
+        """Return settings dialog action-row spacing."""
+        return int(self.get("ui.dialogs.settings.actions_spacing", 8))
+
+    def get_notes_dialog_size(self) -> tuple[int, int]:
+        """Return the notes dialog size."""
+        width = int(self.get("ui.dialogs.notes.width", 400))
+        height = int(self.get("ui.dialogs.notes.height", 300))
+        return (width, height)
+
+    def get_chrome_profile_dialog_base_size(self) -> tuple[int, int]:
+        """Return the base size for the Chrome profile dialog."""
+        width = int(self.get("ui.dialogs.chrome_profiles.base_width", 600))
+        height = int(self.get("ui.dialogs.chrome_profiles.base_height", 500))
+        return (width, height)
 
     # === Bottom panel ===
 
@@ -451,7 +694,7 @@ class UIConfig(BaseConfig):
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return self.get("ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"])
+        return ["♥", "Name", "Last opened", "Notes"]
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
@@ -462,21 +705,17 @@ class UIConfig(BaseConfig):
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""
-        return self.get(
-            "ui.links_table_messages",
-            {
-                "no_categories": "No categories available. Create a category first.",
-                "select_category": "Select a category to insert the link",
-                "error_saving": "Error saving note",
-                "database_error": "Database error",
-                "validation_error": "Validation error",
-                "warning_title": "Warning",
-                "error_title": "Error",
-                # Security messages for LinksUILinkOperations._open_link
-                "unsafe_url_info": "This link cannot be opened for security reasons.",
-                "unsafe_url_hint": "Check the link address or edit it.",
-            },
-        )
+        return {
+            "no_categories": "No categories available. Create a category first.",
+            "select_category": "Select a category to insert the link",
+            "error_saving": "Error saving note",
+            "database_error": "Database error",
+            "validation_error": "Validation error",
+            "warning_title": "Warning",
+            "error_title": "Error",
+            "unsafe_url_info": "This link cannot be opened for security reasons.",
+            "unsafe_url_hint": "Check the link address or edit it.",
+        }
 
     # === Margins and spacing ===
 
@@ -564,6 +803,14 @@ class UIConfig(BaseConfig):
         """Return spacing in the bottom layout."""
         return self.get("ui.layout.spacing.bottom", 0)
 
+    def get_bottom_bar_min_width(self) -> int:
+        """Return minimum width for the bottom bar container."""
+        return int(self.get("ui.bottom_bar.min_width", 200))
+
+    def get_bottom_bar_button_height(self) -> int:
+        """Return fixed height for bottom bar buttons."""
+        return int(self.get("ui.bottom_bar.button_height", 32))
+
     def get_spheres_layout_margins(self) -> tuple:
         """Return margins for the spheres layout."""
         margins = self.get("ui.spheres_layout_margins", [5, 5, 5, 5])
@@ -589,7 +836,7 @@ class UIConfig(BaseConfig):
 
     def get_search_placeholder(self) -> str:
         """Return the placeholder text for the search field."""
-        return self.get("ui.search_placeholder", "Search… (Ctrl+F)")
+        return WindowStrings.SEARCH_PLACEHOLDER
 
     def get_qss_path(self) -> str:
         """Return path to the default QSS theme file."""
@@ -607,23 +854,66 @@ class UIConfig(BaseConfig):
 
     def get_db_connected_text(self) -> str:
         """Return status text for a connected DB."""
-        return self.get("ui.db_connected_text", "DB: Connected")
+        return "DB: Connected"
 
     def get_db_disconnected_text(self) -> str:
         """Return status text for a disconnected DB."""
-        return self.get("ui.db_disconnected_text", "DB: Disconnected")
+        return "DB: Disconnected"
 
     def get_links_count_text(self) -> str:
         """Return the default text showing total links."""
-        return self.get("ui.links_count_text", "Links: 0")
+        return "Links: 0"
 
     def get_status_ready_text(self) -> str:
         """Return the "ready" status string."""
-        return self.get("ui.status_ready_text", "Ready")
+        return "Ready"
 
     def get_path_label_min_width(self) -> int:
         """Return minimum width for the path label."""
         return self.get("ui.path_label_min_width", 350)
+
+    def get_status_bar_margins(self) -> tuple[int, int, int, int]:
+        """Return status bar outer margins."""
+        margins = self.get("ui.status_bar.margins", [6, 2, 6, 2])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (6, 2, 6, 2)
+
+    def get_status_bar_message_margins(self) -> tuple[int, int, int, int]:
+        """Return content margins for the status message label."""
+        margins = self.get("ui.status_bar.message_margins", [6, 2, 12, 2])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (6, 2, 12, 2)
+
+    def get_status_bar_path_margins(self) -> tuple[int, int, int, int]:
+        """Return content margins for the path label."""
+        margins = self.get("ui.status_bar.path_margins", [0, 2, 12, 2])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (0, 2, 12, 2)
+
+    def get_status_bar_db_margins(self) -> tuple[int, int, int, int]:
+        """Return content margins for the DB status label."""
+        margins = self.get("ui.status_bar.db_margins", [12, 2, 6, 2])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (12, 2, 6, 2)
+
+    def get_status_bar_links_margins(self) -> tuple[int, int, int, int]:
+        """Return content margins for the links count label."""
+        margins = self.get("ui.status_bar.links_margins", [6, 2, 6, 2])
+        if isinstance(margins, (list, tuple)) and len(margins) == 4:
+            return tuple(int(v) for v in margins)
+        return (6, 2, 6, 2)
+
+    def get_status_bar_min_height(self) -> int:
+        """Return the minimum height for the status bar."""
+        return int(self.get("ui.status_bar.min_height", 24))
+
+    def get_status_bar_extra_height_padding(self) -> int:
+        """Return extra padding added to status bar height calculations."""
+        return int(self.get("ui.status_bar.extra_height_padding", 8))
 
     def get_powershell_path(self) -> str:
         """Return the configured PowerShell executable path."""
@@ -639,9 +929,13 @@ class UIConfig(BaseConfig):
         """Return the menu font size."""
         return self.get("ui.menu_font_size", 11)
 
+    def get_menu_item_height(self) -> int:
+        """Return menu item height."""
+        return self.get("ui.menu_item_height", 32)
+
     def get_menubar_font_size(self) -> int:
         """Return the menubar font size."""
-        return self.get("ui.menubar_font_size", 11)
+        return self.get("ui.menubar_font_size", 10)
 
     def get_menubar_item_height(self) -> int:
         """Return menubar item height."""
@@ -673,7 +967,7 @@ class UIConfig(BaseConfig):
 
     def get_separator_height(self) -> int:
         """Return separator widget height."""
-        return self.get("ui.separator_height", 24)
+        return self.get("ui.separator_height", 1)
 
     def get_separator_width(self) -> int:
         """Return separator width for vertical dividers."""
@@ -712,12 +1006,42 @@ class UIConfig(BaseConfig):
     def get_drop_stale_structure_snapshots(self) -> bool:
         """Return whether outdated structure snapshots should be discarded.
 
-        Config key: ``ui.drop_stale_structure_snapshots``. Defaults to ``False``.
+        Config key: ``ui.drop_stale_structure_snapshots``. Defaults to ``True``.
         """
         try:
-            return bool(self.get("ui.drop_stale_structure_snapshots", False))
+            return bool(self.get("ui.drop_stale_structure_snapshots", True))
         except Exception:
-            return False
+            return True
+
+    def get_tree_sections_first_render(self) -> bool:
+        """Return whether sphere switches should render sections before categories.
+
+        Config key: ``ui.tree_sections_first_render``. Defaults to ``True``.
+        """
+        try:
+            return bool(self.get("ui.tree_sections_first_render", True))
+        except Exception:
+            return True
+
+    def get_tree_quiet_first_selection(self) -> bool:
+        """Return whether first tree selection should suppress signal cascade during setCurrentIndex.
+
+        Config key: ``ui.tree_quiet_first_selection``. Defaults to ``True``.
+        """
+        try:
+            return bool(self.get("ui.tree_quiet_first_selection", True))
+        except Exception:
+            return True
+
+    def get_tree_section_icon_prewarm_limit(self) -> int:
+        """Return the number of top sections to prewarm icons for during sphere switches.
+
+        Config key: ``ui.tree_section_icon_prewarm_limit``. Defaults to ``6``.
+        """
+        try:
+            return max(0, int(self.get("ui.tree_section_icon_prewarm_limit", 6)))
+        except Exception:
+            return 6
 
     # === Debug toggles ===
 

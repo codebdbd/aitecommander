@@ -1,5 +1,14 @@
 """Constants for working with database models."""
 
+# Entity-specific constants
+CATEGORY_BULK_UUID_FIELD = "__source_uuid"  # Field for client-side identifier in bulk operations
+
+# Field length limits
+MAX_NAME_LENGTH = 255
+MAX_URL_LENGTH = 2048
+MAX_NOTES_LENGTH = 10000
+MAX_ICON_PATH_LENGTH = 512
+
 # SQLite parameters and limits
 SQLITE_MAX_VARIABLES = 999  # Maximum number of variables in SQLite query by default
 SQLITE_SAFE_BATCH_SIZE = (
@@ -23,6 +32,9 @@ EMPTY_ICON_PATH = ""
 
 # Valid tables for position operations
 VALID_POSITION_TABLES = frozenset({"sphere", "section", "category", "link"})
+
+# Tables for duplicate checking
+DUPLICATE_CHECK_TABLES = ("sphere", "section", "category")
 
 # Identifier validation
 MAX_IDENTIFIER_LENGTH = 64  # SQLite max identifier length

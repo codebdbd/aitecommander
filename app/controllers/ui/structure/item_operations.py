@@ -1,16 +1,50 @@
-# app/controllers/structure/item_operations.py
+# app/controllers/ui/structure/item_operations.py
+
+from __future__ import annotations
 
 import logging
+import time
 
-from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QObject, pyqtSlot
 
-# Use string literals "section" and "category"
 from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
 from app.controllers.ui.structure.item_dialogs_service import ItemDialogService
+from app.utils.ui.focus import get_focus_manager
 
 logger = logging.getLogger(__name__)
 
+_ITEM_OPS_CONTEXT = "ItemOperations"
+_IO_DELETE_SECTION_MSG = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT,
+    "Section '{section}' contains {categories} categor(y/ies) and {links} link(s).\n\n"
+    "All nested categories and links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_IO_DELETE_CATEGORY_MSG = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT,
+    "Category '{category}' contains {links} link(s).\n\n"
+    "All nested links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_IO_TITLE_DELETE_SECTION = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT, "Delete section"
+)
+_IO_TITLE_CONFIRM_DELETE = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT, "Confirm deletion"
+)
+_IO_INFO_DELETE_SECTION = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT,
+    "This action is irreversible. All nested categories and links will be deleted.",
+)
+_IO_INFO_DELETE_CATEGORY = QT_TRANSLATE_NOOP(
+    _ITEM_OPS_CONTEXT,
+    "This action is irreversible. All links in the category will be deleted.",
+)
+
+
+def _tr_item_ops(text: str) -> str:
+    return QCoreApplication.translate(_ITEM_OPS_CONTEXT, text)
 
 class ItemOperations(QObject):
     def __init__(self, controller):
@@ -40,10 +74,16 @@ class ItemOperations(QObject):
     def load(self, item_to_select=None) -> None:
         # On structure load, tree_management will automatically save and restore selection
         # if item_to_select is not provided; otherwise the specified selection will be restored
-        self.business.load_structure()
+        try:
+            self.business.async_service.schedule_structure_reload()
+        except Exception as exc:
+            logger.warning(
+                "[ItemOperations.load] schedule_structure_reload failed: %s",
+                exc,
+                exc_info=True,
+            )
         if item_to_select:
             from app.controllers.ui.state.task_scheduler import (
-                schedule_focus,
                 schedule_selection_restore,
             )
 
@@ -55,11 +95,14 @@ class ItemOperations(QObject):
                 ),
                 f"{item_type}_{item_id}",
             )
-            # Additionally restore focus to the tree
+            # Restore focus to the tree
             try:
-                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+                manager = get_focus_manager()
+                manager.set_focus(
+                    self.tree, widget_name="structure_tree", origin="user_action"
+                )
             except Exception as e:
-                logger.debug("[ItemOperations.load] schedule_focus failed: %s", e)
+                logger.debug("[ItemOperations.load] set_focus failed: %s", e)
 
     @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
@@ -77,6 +120,12 @@ class ItemOperations(QObject):
                     sphere_id,
                 )
                 return
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self.main, "__dict__"):
+                self.main._sphere_switch_started_ms = time.monotonic()
         except Exception:
             pass
 
@@ -133,34 +182,29 @@ class ItemOperations(QObject):
         self, section_data: dict, cats_count: int, links_count: int
     ) -> bool:
         section_name = section_data.get("name", "unknown section")
-        msg = (
-            f"Section '{section_name}' contains {cats_count} categor"
-            f"{'y' if cats_count == 1 else 'ies'} and {links_count} link"
-            f"{'s' if links_count != 1 else ''}.\n\n"
-            "All nested categories and links will be permanently deleted!\n\n"
-            "Are you sure you want to continue?"
+        msg = _tr_item_ops(_IO_DELETE_SECTION_MSG).format(
+            section=section_name,
+            categories=cats_count,
+            links=links_count,
         )
         return DialogManager.ask_confirmation(
             self.main,
             msg,
-            "Delete section",
-            informative_text="This action is irreversible. All nested categories and links will be deleted.",
+            _tr_item_ops(_IO_TITLE_DELETE_SECTION),
+            informative_text=_tr_item_ops(_IO_INFO_DELETE_SECTION),
             details=f"section_id={section_data.get('id')}, cats={cats_count}, links={links_count}",
         )
 
     def _confirm_category_deletion(self, category_data: dict, links_count: int) -> bool:
         category_name = category_data.get("name", "unknown category")
-        msg = (
-            f"Category '{category_name}' contains {links_count} link"
-            f"{'s' if links_count != 1 else ''}.\n\n"
-            "All nested links will be permanently deleted!\n\n"
-            "Are you sure you want to continue?"
+        msg = _tr_item_ops(_IO_DELETE_CATEGORY_MSG).format(
+            category=category_name, links=links_count
         )
         return DialogManager.ask_confirmation(
             self.main,
             msg,
-            "Confirm deletion",
-            informative_text="This action is irreversible. All links in the category will be deleted.",
+            _tr_item_ops(_IO_TITLE_CONFIRM_DELETE),
+            informative_text=_tr_item_ops(_IO_INFO_DELETE_CATEGORY),
             details=f"category_id={category_data.get('id')}, links={links_count}",
         )
 
@@ -171,6 +215,11 @@ class ItemOperations(QObject):
         if self._is_delete_suppressed():
             return
         self._deleter.handle_delete_category(category_id)
+
+    def handle_delete_categories(self, category_ids) -> None:
+        if self._is_delete_suppressed():
+            return
+        self._deleter.handle_delete_categories(category_ids)
 
     def _has_any_items_in_tree(self) -> bool:
         """Return True if the tree (QTreeView) has at least one item."""

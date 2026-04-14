@@ -3,17 +3,58 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from PyQt6.QtCore import QObject
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QObject
 
 from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.undo.commands_structure import (
-    DeleteCategoriesBatchCmd,
+    BatchDeleteCategoriesCmd,
     DeleteCategoryCmd,
     DeleteSectionCmd,
+    DeleteSectionsCmd,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
+
+_DELETION_CONTEXT = "StructureDeletion"
+_BATCH_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "{categories} categor(y/ies) and {links} link(s) will be deleted in total.\n\n"
+    "All nested links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_SECTION_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "Section '{section}' contains {categories} categor(y/ies) and {links} link(s).\n\n"
+    "All nested categories and links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_SECTIONS_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.\n\n"
+    "All nested categories and links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_CATEGORY_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "Category '{category}' contains {links} link(s).\n\n"
+    "All nested links will be permanently deleted!\n\n"
+    "Are you sure you want to continue?",
+)
+_CONFIRM_DELETION_TITLE = QT_TRANSLATE_NOOP(_DELETION_CONTEXT, "Confirm deletion")
+_DELETE_SECTION_TITLE = QT_TRANSLATE_NOOP(_DELETION_CONTEXT, "Delete section")
+_DELETE_SECTION_INFO = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "This action is irreversible. All nested categories and links will be deleted.",
+)
+_DELETE_CATEGORY_INFO = QT_TRANSLATE_NOOP(
+    _DELETION_CONTEXT,
+    "This action is irreversible. All links in the category will be deleted.",
+)
+
+
+def _tr_deletion(text: str) -> str:
+    return QCoreApplication.translate(_DELETION_CONTEXT, text)
 
 
 class ItemDeletionService(QObject):
@@ -44,6 +85,8 @@ class ItemDeletionService(QObject):
     def delete_selected_item(self) -> None:
         selected_indexes = self._selected_tree_indexes()
         if selected_indexes and len(selected_indexes) > 1:
+            if self._delete_multiple_sections(selected_indexes):
+                return
             if self._delete_multiple_categories(selected_indexes):
                 return
         current = self._current_tree_index()
@@ -51,9 +94,46 @@ class ItemDeletionService(QObject):
             self.delete_item(current)
 
     def handle_delete_category(self, category_id: int) -> None:
-        item = self._controller.tree_manager._find_item_by_id("category", category_id)
-        if item:
-            self.delete_item(item)
+        try:
+            cid = int(category_id)
+        except Exception:
+            return
+        if cid <= 0:
+            return
+        self._delete_category(cid)
+
+    def handle_delete_categories(self, category_ids: Iterable[int]) -> None:
+        """Delete multiple categories by IDs with a single confirmation dialog."""
+        ids: list[int] = []
+        seen: set[int] = set()
+        for raw in category_ids or []:
+            try:
+                cid = int(raw)
+            except Exception:
+                continue
+            if cid <= 0 or cid in seen:
+                continue
+            seen.add(cid)
+            ids.append(cid)
+        if not ids:
+            return
+        if len(ids) == 1:
+            self.handle_delete_category(ids[0])
+            return
+        totals = self._count_links_for_categories(ids)
+        if totals == 0:
+            self._delete_categories_without_confirmation(ids)
+            return
+        message = _tr_deletion(_BATCH_DELETE_MESSAGE).format(
+            categories=len(ids), links=totals
+        )
+        if DialogManager.ask_confirmation(
+            self._main,
+            message,
+            _tr_deletion(_CONFIRM_DELETION_TITLE),
+        ):
+            self._delete_categories_without_confirmation(ids)
+        # cancel = handled, no fallback here
 
     # ------------- Helper methods -------------
     def _delete_multiple_categories(self, indexes: Iterable) -> bool:
@@ -68,19 +148,64 @@ class ItemDeletionService(QObject):
         if totals == 0:
             self._delete_categories_without_confirmation(category_ids)
             return True
-        message = (
-            f"{len(category_ids)} categor(y/ies) and {totals} link(s) will be deleted in total.\n\n"
-            "All nested links will be permanently deleted!\n\n"
-            "Are you sure you want to continue?"
+        message = _tr_deletion(_BATCH_DELETE_MESSAGE).format(
+            categories=len(category_ids), links=totals
         )
         if DialogManager.ask_confirmation(
             self._main,
             message,
-            "Confirm deletion",
+            _tr_deletion(_CONFIRM_DELETION_TITLE),
         ):
             self._delete_categories_without_confirmation(category_ids)
             return True
-        return False
+        # User explicitly cancelled the batch delete; treat as handled
+        # so caller does not fall back to single-item deletion and show
+        # a second confirmation dialog.
+        return True
+
+    def _delete_multiple_sections(self, indexes: Iterable) -> bool:
+        section_ids = []
+        for index in indexes:
+            meta = get_tree_tuple(index, 0)
+            if meta and meta[0] == "section" and isinstance(meta[1], int):
+                section_ids.append(meta[1])
+        if len(section_ids) < 2:
+            return False
+        total_categories = 0
+        total_links = 0
+        for section_id in section_ids:
+            cats_count, links_count = self._count_nested_objects(section_id)
+            total_categories += int(cats_count)
+            total_links += int(links_count)
+        message = _tr_deletion(_SECTIONS_DELETE_MESSAGE).format(
+            categories=total_categories, links=total_links
+        )
+        if not DialogManager.ask_confirmation(
+            self._main,
+            message,
+            _tr_deletion(_DELETE_SECTION_TITLE),
+            informative_text=_tr_deletion(_DELETE_SECTION_INFO),
+            details=f"sections={len(section_ids)}, cats={total_categories}, links={total_links}",
+        ):
+            return True
+        sections_payload = [
+            self._business.get_section_data(section_id)
+            for section_id in section_ids
+        ]
+        sections_payload = [s for s in sections_payload if s]
+        if not sections_payload:
+            return True
+        cmd = DeleteSectionsCmd(
+            sections_payload,
+            self._main,
+            business=self._business,
+            undo_manager=self._undo_stack,
+        )
+        logger.debug(
+            "[BatchDeleteSections] queued sections=%s", len(sections_payload)
+        )
+        self._undo_stack.push(cmd)
+        return True
 
     def _delete_categories_without_confirmation(
         self, category_ids: Iterable[int]
@@ -90,9 +215,15 @@ class ItemDeletionService(QObject):
                 self._business.get_category_data(cid) for cid in category_ids
             ]
             categories_payload = [c for c in categories_payload if c]
-            if categories_payload:
-                cmd = DeleteCategoriesBatchCmd(categories_payload, self._main)
-                self._undo_stack.push(cmd)
+            if not categories_payload:
+                return
+            cmd = BatchDeleteCategoriesCmd(
+                categories_payload,
+                self._main,
+                business=self._business,
+                undo_manager=self._undo_stack,
+            )
+            self._undo_stack.push(cmd)
         except Exception:  # pragma: no cover - UI protection
             logger.exception("Batch category deletion error")
 
@@ -121,7 +252,7 @@ class ItemDeletionService(QObject):
     # ------------- Counters -------------
     def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         try:
-            return self._business.structure_model.count_nested_objects_for_section(
+            return self._business.db.sections.count_nested_objects_for_section(
                 section_id
             )
         except Exception:  # pragma: no cover - stats not critical
@@ -131,14 +262,14 @@ class ItemDeletionService(QObject):
     def _count_links_for_category(self, category_id: int) -> int:
         try:
             return int(
-                self._business.structure_model.count_links_by_category(category_id)
+                self._business.db.links.count_links_by_category(category_id)
             )
         except Exception:  # pragma: no cover - stats not critical
             return 0
 
     def _count_links_for_categories(self, category_ids: Iterable[int]) -> int:
         try:
-            counts_map = self._business.structure_model.count_links_by_categories(
+            counts_map = self._business.db.links.count_links_by_categories(
                 category_ids
             )
         except Exception:  # pragma: no cover - stats not critical
@@ -150,41 +281,41 @@ class ItemDeletionService(QObject):
         self, section_data: dict, cats_count: int, links_count: int
     ) -> bool:
         section_name = section_data.get("name", "unknown section")
-        message = (
-            f"Section '{section_name}' contains {cats_count} categor"
-            f"{'y' if cats_count == 1 else 'ies'} and {links_count} link"
-            f"{'s' if links_count != 1 else ''}.\n\n"
-            "All nested categories and links will be permanently deleted!\n\n"
-            "Are you sure you want to continue?"
+        message = _tr_deletion(_SECTION_DELETE_MESSAGE).format(
+            section=section_name,
+            categories=cats_count,
+            links=links_count,
         )
         return DialogManager.ask_confirmation(
             self._main,
             message,
-            "Delete section",
-            informative_text="This action is irreversible. All nested categories and links will be deleted.",
+            _tr_deletion(_DELETE_SECTION_TITLE),
+            informative_text=_tr_deletion(_DELETE_SECTION_INFO),
             details=f"section_id={section_data.get('id')}, cats={cats_count}, links={links_count}",
         )
 
     def _confirm_category_deletion(self, category_data: dict, links_count: int) -> bool:
         category_name = category_data.get("name", "unknown category")
-        message = (
-            f"Category '{category_name}' contains {links_count} link"
-            f"{'s' if links_count != 1 else ''}.\n\n"
-            "All nested links will be permanently deleted!\n\n"
-            "Are you sure you want to continue?"
+        message = _tr_deletion(_CATEGORY_DELETE_MESSAGE).format(
+            category=category_name, links=links_count
         )
         return DialogManager.ask_confirmation(
             self._main,
             message,
-            "Confirm deletion",
-            informative_text="This action is irreversible. All links in the category will be deleted.",
+            _tr_deletion(_CONFIRM_DELETION_TITLE),
+            informative_text=_tr_deletion(_DELETE_CATEGORY_INFO),
             details=f"category_id={category_data.get('id')}, links={links_count}",
         )
 
     # ------------- Direct operations of undo commands -------------
     def _push_section_delete(self, section_data: dict) -> None:
         try:
-            cmd = DeleteSectionCmd(section_data, self._main)
+            cmd = DeleteSectionCmd(
+                section_data,
+                self._main,
+                business=self._business,
+                undo_manager=self._undo_stack,
+            )
             if cmd:
                 self._undo_stack.push(cmd)
         except Exception:  # pragma: no cover - UI protection
@@ -195,6 +326,8 @@ class ItemDeletionService(QObject):
             cmd = DeleteCategoryCmd(
                 category_data,
                 self._main,
+                business=self._business,
+                undo_manager=self._undo_stack,
                 skip_reload=False,
                 lightweight_reload=True,
             )

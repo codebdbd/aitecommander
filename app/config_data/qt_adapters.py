@@ -9,12 +9,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from PyQt6.QtCore import (
-    QCoreApplication,
-    QLocale,
     QObject,
     QSize,
     Qt,
-    QTranslator,
 )
 from PyQt6.QtGui import QColor, QFont, QIcon
 
@@ -26,7 +23,6 @@ __all__ = [
     "to_qfont",
     "to_qcolor",
     "to_qicon",
-    "load_and_install_translator",
     "safe_connect",
     "has_signal",
 ]
@@ -117,51 +113,6 @@ def to_qicon(path: str | Path, *, base_path: Path | None = None) -> QIcon:
     if not icon_path.exists():
         logger.warning("Icon path does not exist: %s", icon_path)
     return QIcon(str(icon_path))
-
-
-def load_and_install_translator(
-    base_name: str,
-    locale: str | QLocale,
-    translations_dir: str | Path,
-    *,
-    application: QCoreApplication | None = None,
-    fallback_locale: str | None = None,
-) -> QTranslator | None:
-    """Load a `.qm` translation file, install it into the Qt application, and return it."""
-
-    app = application or QCoreApplication.instance()
-    if app is None:
-        logger.warning(
-            "Cannot install translator without an active QCoreApplication instance."
-        )
-        return None
-
-    translations_path = Path(translations_dir)
-    if not translations_path.exists():
-        logger.warning("Translations directory not found: %s", translations_path)
-        return None
-
-    locale_obj = QLocale(locale) if not isinstance(locale, QLocale) else locale
-    translator = QTranslator()
-
-    def _load(locale_name: str) -> bool:
-        filename = translations_path / f"{base_name}_{locale_name}.qm"
-        if filename.exists() and translator.load(str(filename)):
-            app.installTranslator(translator)
-            logger.debug("Installed translator: %s", filename)
-            return True
-        logger.warning("Translation file not found or failed to load: %s", filename)
-        return False
-
-    if _load(locale_obj.name()):
-        return translator
-
-    if fallback_locale:
-        fallback = QLocale(fallback_locale)
-        if _load(fallback.name()):
-            return translator
-
-    return None
 
 
 def safe_connect(

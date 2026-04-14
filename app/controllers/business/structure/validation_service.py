@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from app.controllers.business.structure_business import StructureBusinessLogic
     from app.controllers.structure_services.utilities import UtilityService
     from app.controllers.structure_services.validation import ValidationService
-    from app.models import StructureModel
+    from app.models import StructureCoordinator
     from app.services.structure_service import StructureService
 
 
@@ -27,7 +27,7 @@ class StructureValidationService:
         utility_service: UtilityService,
         cache_service: StructureCacheService,
         structure_service: StructureService,
-        structure_model: StructureModel,
+        structure_coordinator: StructureCoordinator,
         logger: Logger,
     ) -> None:
         self._owner = owner
@@ -35,13 +35,13 @@ class StructureValidationService:
         self._utility_service = utility_service
         self._cache_service = cache_service
         self._structure_service = structure_service
-        self._structure_model = structure_model
+        self._structure_coordinator = structure_coordinator
         self._logger = logger
 
     def get_links(self, category_id: int) -> list[dict[str, Any]]:
         """Return links for a category via ``UtilityService``."""
         return self._utility_service.get_links(
-            self._structure_model,
+            self._structure_coordinator,
             category_id,
             self._logger,
         )
@@ -61,18 +61,18 @@ class StructureValidationService:
         return self._utility_service.get_item_for_editing(
             item_id=item_id,
             item_type=item_type,
-            get_section_data=self._structure_model.get_section_data,
-            get_category_data=self._structure_model.get_category_data,
+            get_section_data=lambda sid: self._structure_coordinator.db.sections.get_section_by_id(sid),
+            get_category_data=lambda cid: self._structure_coordinator.db.categories.get_category_by_id(cid),
             logger=self._logger,
         )
 
     def get_section_for_editing(self, section_id: int) -> dict[str, Any] | None:
         """Return section payload for editing dialogs."""
-        return self._structure_model.get_section_data(section_id)
+        return self._structure_coordinator.db.sections.get_section_by_id(section_id)
 
     def get_category_for_editing(self, category_id: int) -> dict[str, Any] | None:
         """Return category payload for editing dialogs."""
-        return self._structure_model.get_category_data(category_id)
+        return self._structure_coordinator.db.categories.get_category_by_id(category_id)
 
     def validate_section_data(
         self, data: dict[str, Any], section_id: int | None = None

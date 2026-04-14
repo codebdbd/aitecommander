@@ -147,58 +147,14 @@ class DragDropHandlerMixin:
 
     def _get_drop_positions(self, event) -> tuple[list[int], int]:
         """Return source rows and insertion row for an internal drop."""
-
-        try:
-            source_rows = self._extract_source_rows_from_mime(event)
-        except Exception as exc:
-            logger.debug("[DROP] Failed to read rows from MIME: %s", exc, exc_info=True)
-            source_rows = []
-
+        source_rows = self._safe_extract_source_rows(event)
         if not source_rows:
             source_rows = self._get_selected_rows()
 
         source_rows = sorted({row for row in source_rows if isinstance(row, int)})
 
-        target_row = -1
-        row_count = 0
-        try:
-            pos = None
-            if hasattr(event, "position"):
-                pos_value = event.position()
-                if hasattr(pos_value, "toPoint"):
-                    pos = pos_value.toPoint()
-                else:
-                    pos = pos_value
-            elif hasattr(event, "pos"):
-                pos = event.pos()
-
-            model = getattr(self, "model", lambda: None)()
-            row_count = model.rowCount() if model is not None else 0
-
-            if pos is not None and hasattr(self, "indexAt"):
-                index = self.indexAt(pos)
-            else:
-                index = None
-
-            if index is not None and index.isValid():
-                target_row = index.row()
-                if pos is not None and hasattr(self, "visualRect"):
-                    rect = self.visualRect(index)
-                    try:
-                        mid_y = rect.center().y()
-                    except Exception:
-                        mid_y = rect.top() + rect.height() // 2
-                    if pos.y() >= mid_y:
-                        target_row = min(index.row() + 1, row_count)
-            else:
-                target_row = row_count
-        except Exception as exc:
-            logger.debug(
-                "[DROP] Failed to compute drop target row: %s", exc, exc_info=True
-            )
-            model = getattr(self, "model", lambda: None)()
-            row_count = model.rowCount() if model is not None else 0
-            target_row = row_count
+        row_count = self._safe_row_count()
+        target_row = self._safe_compute_target_row(event, row_count)
 
         if target_row < 0:
             target_row = 0
@@ -206,6 +162,73 @@ class DragDropHandlerMixin:
             target_row = row_count
 
         return source_rows, target_row
+
+    def _safe_extract_source_rows(self, event) -> list[int]:
+        """Extract source rows with defensive logging."""
+        try:
+            return self._extract_source_rows_from_mime(event)
+        except Exception as exc:
+            logger.debug("[DROP] Failed to read rows from MIME: %s", exc, exc_info=True)
+            return []
+
+    def _safe_row_count(self) -> int:
+        """Return model row count with full guards."""
+        try:
+            model = getattr(self, "model", lambda: None)()
+            return model.rowCount() if model is not None else 0
+        except Exception:
+            return 0
+
+    def _event_pos(self, event):
+        """Return QPoint for event position, supporting Qt6 APIs."""
+        pos = None
+        try:
+            if hasattr(event, "position"):
+                pv = event.position()
+                pos = pv.toPoint() if hasattr(pv, "toPoint") else pv
+            elif hasattr(event, "pos"):
+                pos = event.pos()
+        except Exception:
+            pos = None
+        return pos
+
+    def _safe_index_at(self, pos):
+        """Return index at pos if possible."""
+        try:
+            if pos is not None and hasattr(self, "indexAt"):
+                return self.indexAt(pos)
+        except Exception:
+            return None
+        return None
+
+    def _mid_y(self, index) -> int:
+        """Compute middle Y of index rect, with fallbacks."""
+        try:
+            if hasattr(self, "visualRect"):
+                rect = self.visualRect(index)
+                try:
+                    return rect.center().y()
+                except Exception:
+                    return rect.top() + rect.height() // 2
+        except Exception:
+            pass
+        return 0
+
+    def _safe_compute_target_row(self, event, row_count: int) -> int:
+        """Compute target row for the drop with robust guards."""
+        try:
+            pos = self._event_pos(event)
+            index = self._safe_index_at(pos)
+            if index is not None and index.isValid():
+                row = index.row()
+                if pos is not None and hasattr(pos, "y"):
+                    if pos.y() >= self._mid_y(index):
+                        return min(row + 1, row_count)
+                return row
+            return row_count
+        except Exception as exc:
+            logger.debug("[DROP] Failed to compute drop target row: %s", exc, exc_info=True)
+            return row_count
 
 
 # --- Reusable table helpers ---

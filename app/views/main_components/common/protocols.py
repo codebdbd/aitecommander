@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
+from app.views.widgets.protocols import UpdateStatus
 
 if TYPE_CHECKING:
     pass
@@ -81,9 +82,9 @@ class MainWindowProtocol(Protocol):
     # UI components — top bar
     top_bar_host: QWidget | None
     content_container: QWidget | None
-    quick_add_widget: QWidget | None
-    fav_widget: QWidget | None
-    recent_links_widget: QWidget | None
+    quick_add_widget: TopPanelWidgetProtocol | None
+    fav_widget: TopPanelWidgetProtocol | None
+    recent_links_widget: TopPanelWidgetProtocol | None
     search: QLineEdit | None
 
     # UI components — main area
@@ -209,6 +210,47 @@ class TopPanelsControllerProtocol(Protocol):
 
     def refresh_all(self) -> None:
         """Refresh all panels."""
+        ...
+
+
+@runtime_checkable
+class TopPanelWidgetProtocol(Protocol):
+    """Protocol for top-panel widgets and toolbar adapters."""
+
+    actionRequested: pyqtSignal
+    refreshRequested: pyqtSignal
+    clearRequested: pyqtSignal
+
+    def set_data(self, items: list[Any]) -> None:
+        """Apply panel data (no-op for quick add)."""
+        ...
+
+    def get_items(self) -> list[dict[str, Any]]:
+        """Return current panel items for snapshotting."""
+        ...
+
+    def update_data(
+        self,
+        data: list[dict[str, Any]],
+        options: dict[str, Any] | None = None,
+    ) -> bool:
+        """Apply new data through unified update lifecycle."""
+        ...
+
+    def get_update_status(self) -> UpdateStatus:
+        """Return current update status."""
+        ...
+
+    def cancel_update(self) -> bool:
+        """Cancel ongoing update if supported."""
+        ...
+
+    def clear_data(self) -> None:
+        """Clear panel data via unified API."""
+        ...
+
+    def refresh(self) -> bool:
+        """Request data refresh via unified API."""
         ...
 
 

@@ -8,7 +8,6 @@ from typing import Optional
 
 from PyQt6.QtCore import QCoreApplication, Qt, pyqtSlot
 from PyQt6.QtWidgets import (
-    QDialog,
     QLabel,
     QProgressBar,
     QPushButton,
@@ -16,7 +15,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.views.common.retranslatable import ReTranslatable
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.i18n.common import tr as tr_common
+from app.views.windows.dialogs.base_dialog import BaseDialog
 
 _TR_CONTEXT = "AsyncOperationDialog"
 
@@ -30,7 +31,7 @@ _DEFAULT_MESSAGE = None
 logger = logging.getLogger(__name__)
 
 
-class AsyncOperationDialog(QDialog, ReTranslatable):
+class AsyncOperationDialog(BaseDialog):
     """Progress dialog for asynchronous database operations.
 
     Features:
@@ -54,8 +55,6 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
             cancelable: Whether to show the cancel button
             parent: Parent widget
         """
-        super().__init__(parent)
-
         # Ensure literals are extractable by lupdate: translate only string literals here
         # and also translate custom titles/messages if provided.
         # Remember source strings to support runtime retranslate
@@ -63,20 +62,23 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
         self._message_source: str = "Processing…" if message is None else message
         self._message_is_initial: bool = True  # becomes False after runtime updates
 
+        self._cancelled = False
+        self._auto_close = True
+        self.cancel_button: Optional[QPushButton] = None
+        self._last_progress: tuple[int, int] | None = None  # ensure ready before BaseDialog init
+
+        super().__init__(parent)
+
         effective_title = _tr(self._title_source)
         effective_message = _tr(self._message_source)
 
         self.setWindowTitle(effective_title)
         self.setModal(True)
-        self.setMinimumWidth(400)
-
-        self._cancelled = False
-        self._auto_close = True
-        self.cancel_button: Optional[QPushButton] = None
+        self.setMinimumWidth(app_config.ui.get_async_operation_dialog_min_width())
 
         # Layout
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
+        layout.setSpacing(app_config.ui.get_async_operation_dialog_spacing())
 
         # Main status message
         self.message_label = QLabel(effective_message)
@@ -88,7 +90,6 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(True)
-        self._last_progress: tuple[int, int] | None = None  # (current, total)
         layout.addWidget(self.progress_bar)
 
         # Details of the current stage
@@ -99,7 +100,7 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
 
         # Cancel button
         if cancelable:
-            self.cancel_button = QPushButton(self.tr("Cancel"))
+            self.cancel_button = QPushButton(tr_common("Cancel"))
             self.cancel_button.clicked.connect(self._on_cancel)
             layout.addWidget(self.cancel_button)
         else:
@@ -107,11 +108,12 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
 
         layout.addStretch()
 
-        # Connect to language change and perform initial translate at the end
-        ReTranslatable.__init__(self)
-
     def retranslateUi(self) -> None:
         """Apply runtime translations when language changes."""
+        # Защита от вызова до полной инициализации
+        if not hasattr(self, '_title_source'):
+            return
+        
         # Window title from source literal/custom value
         self.setWindowTitle(_tr(self._title_source))
 
@@ -124,7 +126,7 @@ class AsyncOperationDialog(QDialog, ReTranslatable):
 
         # Cancel button text (if present)
         if self.cancel_button is not None:
-            self.cancel_button.setText(self.tr("Cancel"))
+            self.cancel_button.setText(tr_common("Cancel"))
 
         # Re-format progress string using last known values
         if self._last_progress is not None:

@@ -26,20 +26,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 logger = logging.getLogger(__name__)
-
-_TR_CONTEXT = "LinkDialogUI"
 
 _LINK_TYPE_FALLBACK_LABELS: dict[str, str] = {
     "web": QT_TRANSLATE_NOOP("LinkDialogUI", "Web link"),
     "file": QT_TRANSLATE_NOOP("LinkDialogUI", "File"),
     "program": QT_TRANSLATE_NOOP("LinkDialogUI", "Application"),
     "script": QT_TRANSLATE_NOOP("LinkDialogUI", "Script"),
-    "chromeapp": QT_TRANSLATE_NOOP("LinkDialogUI", "Chrome App"),
     "folder": QT_TRANSLATE_NOOP("LinkDialogUI", "Folder"),
 }
 
@@ -49,12 +47,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "File")
     QCoreApplication.translate("LinkDialogUI", "Application")
     QCoreApplication.translate("LinkDialogUI", "Script")
-    QCoreApplication.translate("LinkDialogUI", "Chrome App")
     QCoreApplication.translate("LinkDialogUI", "Folder")
-
-
-def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
 
 
 class LinkDialogUI:
@@ -69,6 +62,7 @@ class LinkDialogUI:
         self.widgets: dict[str, QWidget] = {}
         self._link_type_titles: dict[str, str] = {}
         self._type_buttons: dict[str, QToolButton] = {}
+        self._type_button_codes: list[str] = []
 
     def build_ui(self, link_types: list[tuple[str, str]]) -> None:
         """Build the UI.
@@ -103,7 +97,10 @@ class LinkDialogUI:
         """Create link type section and add it to container."""
         self._link_type_titles.clear()
         self._type_buttons.clear()
-        self.lbl_link_type = QLabel(_tr("Link type:"))
+        self._type_button_codes.clear()
+        self.lbl_link_type = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Link type:")
+        )
         container.addWidget(self.lbl_link_type)
         self.type_group = QButtonGroup(self.parent)
         hl_type = QHBoxLayout()
@@ -119,12 +116,9 @@ class LinkDialogUI:
             except Exception:
                 pass
             try:
-                icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
-                if icon_path:
-                    btn.setIcon(create_icon_from_path(str(icon_path)))
-                    # Icon size comes from UI config
-                    type_icon_size = app_config.ui.get_link_dialog_type_icon_size()
-                    btn.setIconSize(QSize(type_icon_size, type_icon_size))
+                self._type_button_codes.append(code)
+                type_icon_size = app_config.ui.get_link_dialog_type_icon_size()
+                btn.setIconSize(QSize(type_icon_size, type_icon_size))
             except (AttributeError, RuntimeError) as e:
                 logger.warning("Failed to configure link type icon size: %s", e)
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
@@ -141,6 +135,19 @@ class LinkDialogUI:
         container.addLayout(hl_type)
         self.widgets["type_group"] = self.type_group
         self._apply_link_type_translations()
+
+    def apply_deferred_type_icons(self) -> None:
+        """Apply link type icons after the dialog is shown."""
+        for code in self._type_button_codes:
+            btn = self._type_buttons.get(code)
+            if btn is None:
+                continue
+            try:
+                icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
+                if icon_path:
+                    btn.setIcon(create_icon_from_path(str(icon_path)))
+            except Exception:
+                logger.debug("Failed to apply deferred type icon for %s", code, exc_info=True)
 
     def _build_form_section(self, container: QVBoxLayout) -> None:
         """Create form section (URL/Name/Arguments/Hierarchy/Notes/Favorite)."""
@@ -162,15 +169,21 @@ class LinkDialogUI:
         hl_path = QHBoxLayout()
         hl_path.addWidget(self.url_le, 1)
 
-        self.browse_btn = QPushButton(_tr("Browse..."))
+        self.browse_btn = QPushButton(
+            QCoreApplication.translate("LinkDialogUI", "Browse...")
+        )
         self.browse_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.browse_btn)
 
-        self.profile_btn = QPushButton(_tr("Profile"))
+        self.profile_btn = QPushButton(
+            QCoreApplication.translate("LinkDialogUI", "Profile")
+        )
         self.profile_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.profile_btn)
 
-        self.form.addRow(_tr("URL/Path:"), hl_path)
+        self.form.addRow(
+            QCoreApplication.translate("LinkDialogUI", "URL/Path:"), hl_path
+        )
         self.widgets.update(
             {
                 "url_le": self.url_le,
@@ -185,7 +198,7 @@ class LinkDialogUI:
         hl_name = QHBoxLayout()
         hl_name.addWidget(self.name_le, 1)
 
-        self.icon_btn = QPushButton(_tr("Icon"))
+        self.icon_btn = QPushButton(tr_common("Icon"))
         self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         try:
             default_icon = int(app_config.ui.get_default_icon_size())
@@ -194,13 +207,15 @@ class LinkDialogUI:
             logger.warning("Failed to configure icon button size: %s", e)
         hl_name.addWidget(self.icon_btn)
 
-        self.form.addRow(_tr("Name:"), hl_name)
+        self.form.addRow(tr_common("Name:"), hl_name)
         self.widgets.update({"name_le": self.name_le, "icon_btn": self.icon_btn})
 
     def _form_add_args_row(self) -> None:
         """Add row for launch arguments."""
         self.args_le = QLineEdit()
-        self.args_label = QLabel(_tr("Arguments:"))
+        self.args_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Arguments:")
+        )
         self.form.addRow(self.args_label, self.args_le)
         self.widgets.update({"args_le": self.args_le, "args_label": self.args_label})
 
@@ -217,9 +232,15 @@ class LinkDialogUI:
         except Exception:
             pass
 
-        self.form.addRow(_tr("Sphere:"), self.sphere_cb)
-        self.form.addRow(_tr("Section:"), self.section_cb)
-        self.form.addRow(_tr("Category:"), self.category_cb)
+        self.form.addRow(
+            QCoreApplication.translate("LinkDialogUI", "Sphere:"), self.sphere_cb
+        )
+        self.form.addRow(
+            QCoreApplication.translate("LinkDialogUI", "Section:"), self.section_cb
+        )
+        self.form.addRow(
+            QCoreApplication.translate("LinkDialogUI", "Category:"), self.category_cb
+        )
 
         self.widgets.update(
             {
@@ -236,10 +257,14 @@ class LinkDialogUI:
             self.notes_te.setTabChangesFocus(True)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to set tabChangesFocus for notes_te: %s", e)
-        self.form.addRow(_tr("Notes:"), self.notes_te)
+        self.form.addRow(
+            QCoreApplication.translate("LinkDialogUI", "Notes:"), self.notes_te
+        )
         self.widgets["notes_te"] = self.notes_te
 
-        self.fav_chk = QCheckBox(_tr("Add to favorites"))
+        self.fav_chk = QCheckBox(
+            QCoreApplication.translate("LinkDialogUI", "Add to favorites")
+        )
         fav_row = QHBoxLayout()
         fav_row.setContentsMargins(0, 0, 0, 0)
         fav_row.setSpacing(0)
@@ -254,7 +279,7 @@ class LinkDialogUI:
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
-        ok_btn.setText(_tr("Save"))
+        ok_btn.setText(tr_common("Save"))
         # Remove default dotted focus: disable default/autoDefault and auto focus
         try:
             ok_btn.setAutoDefault(False)
@@ -265,7 +290,7 @@ class LinkDialogUI:
         ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        cancel_btn.setText(_tr("Cancel"))
+        cancel_btn.setText(tr_common("Cancel"))
         try:
             cancel_btn.setAutoDefault(False)
             cancel_btn.setDefault(False)
@@ -327,7 +352,9 @@ class LinkDialogUI:
         """Retranslate type section label."""
         try:
             if hasattr(self, "lbl_link_type") and self.lbl_link_type is not None:
-                self.lbl_link_type.setText(_tr("Link type:"))
+                self.lbl_link_type.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Link type:")
+                )
             self._apply_link_type_translations()
         except Exception:
             pass
@@ -336,12 +363,16 @@ class LinkDialogUI:
         """Retranslate path row buttons."""
         try:
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
-                self.browse_btn.setText(_tr("Browse..."))
+                self.browse_btn.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Browse...")
+                )
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
-                if not self.profile_btn.text() or self.profile_btn.text() == _tr(
-                    "Profile"
+                if not self.profile_btn.text() or self.profile_btn.text() == (
+                    QCoreApplication.translate("LinkDialogUI", "Profile")
                 ):
-                    self.profile_btn.setText(_tr("Profile"))
+                    self.profile_btn.setText(
+                        QCoreApplication.translate("LinkDialogUI", "Profile")
+                    )
         except Exception:
             pass
 
@@ -355,7 +386,9 @@ class LinkDialogUI:
             ):
                 name_label = self.form.labelForField(self.name_le)
                 if name_label is not None:
-                    name_label.setText(_tr("Name:"))
+                    name_label.setText(tr_common("Name:"))
+            if hasattr(self, "icon_btn") and self.icon_btn is not None:
+                self.icon_btn.setText(tr_common("Icon"))
         except Exception:
             pass
 
@@ -363,7 +396,9 @@ class LinkDialogUI:
         """Retranslate arguments row label."""
         try:
             if hasattr(self, "args_label") and self.args_label is not None:
-                self.args_label.setText(_tr("Arguments:"))
+                self.args_label.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Arguments:")
+                )
         except Exception:
             pass
 
@@ -374,15 +409,21 @@ class LinkDialogUI:
                 if hasattr(self, "sphere_cb"):
                     lbl = self.form.labelForField(self.sphere_cb)
                     if lbl is not None:
-                        lbl.setText(_tr("Sphere:"))
+                        lbl.setText(
+                            QCoreApplication.translate("LinkDialogUI", "Sphere:")
+                        )
                 if hasattr(self, "section_cb"):
                     lbl = self.form.labelForField(self.section_cb)
                     if lbl is not None:
-                        lbl.setText(_tr("Section:"))
+                        lbl.setText(
+                            QCoreApplication.translate("LinkDialogUI", "Section:")
+                        )
                 if hasattr(self, "category_cb"):
                     lbl = self.form.labelForField(self.category_cb)
                     if lbl is not None:
-                        lbl.setText(_tr("Category:"))
+                        lbl.setText(
+                            QCoreApplication.translate("LinkDialogUI", "Category:")
+                        )
         except Exception:
             pass
 
@@ -396,9 +437,13 @@ class LinkDialogUI:
             ):
                 notes_label = self.form.labelForField(self.notes_te)
                 if notes_label is not None:
-                    notes_label.setText(_tr("Notes:"))
+                    notes_label.setText(
+                        QCoreApplication.translate("LinkDialogUI", "Notes:")
+                    )
             if hasattr(self, "fav_chk") and self.fav_chk is not None:
-                self.fav_chk.setText(_tr("Add to favorites"))
+                self.fav_chk.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Add to favorites")
+                )
         except Exception:
             pass
 
@@ -411,9 +456,9 @@ class LinkDialogUI:
                     QDialogButtonBox.StandardButton.Cancel
                 )
                 if ok_btn is not None:
-                    ok_btn.setText(_tr("Save"))
+                    ok_btn.setText(tr_common("Save"))
                 if cancel_btn is not None:
-                    cancel_btn.setText(_tr("Cancel"))
+                    cancel_btn.setText(tr_common("Cancel"))
         except Exception:
             pass
 
@@ -442,9 +487,11 @@ class LinkDialogUI:
         """Return translated title for link type with graceful fallback."""
         label_key = _LINK_TYPE_FALLBACK_LABELS.get(code)
         if label_key:
-            translated = _tr(label_key)
+            translated = QCoreApplication.translate("LinkDialogUI", label_key)
             if translated != label_key or not original or original == label_key:
                 return translated
         # Fallback: try translating original value; if unavailable, return original
-        translated_original = _tr(original) if original else ""
+        translated_original = (
+            QCoreApplication.translate("LinkDialogUI", original) if original else ""
+        )
         return translated_original if translated_original else original

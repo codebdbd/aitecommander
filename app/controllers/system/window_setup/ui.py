@@ -6,9 +6,8 @@ import logging
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QTimer
-from PyQt6.QtGui import QAction, QFont
-from PyQt6.QtWidgets import QPushButton, QWidget
+from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtGui import QAction
 
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
@@ -34,43 +33,12 @@ def setup_ui_elements(window: Any, controllers: dict[str, Any]) -> None:
         window.structure.switch_to_next_sphere
     )
 
-    button_label = QCoreApplication.translate("BottomPanel", "Sphere")
-    window.switch_sphere_button = QPushButton(
-        window.switch_sphere_action.icon(),
-        f"{button_label} (F6)",
-    )
-    window.switch_sphere_button.setToolTip(window.switch_sphere_action.toolTip())
-
-    font = QFont()
-    try:
-        font.setPointSize(window.font().pointSize())
-    except Exception:
-        font.setPointSize(10)
-    window.switch_sphere_button.setFont(font)
-    window.switch_sphere_button.clicked.connect(window.switch_sphere_action.trigger)
-
-    bottom_container = window.findChild(QWidget, "bottomBarContainer")
-    if bottom_container and bottom_container.layout():
-        bottom_container.layout().insertWidget(0, window.switch_sphere_button)
-        
-        # Register button for unified retranslation via retranslate_bottom_panel
-        bindings = getattr(window, "_bottom_bar_bindings", None)
-        if bindings is not None:
-            bindings.insert(0, {
-                "button": window.switch_sphere_button,
-                "action": {
-                    "id": "switch_sphere",
-                    "label": "Sphere",
-                    "shortcut": "F6",
-                    "tooltip": "Switch to next available sphere"
-                }
-            })
-            logger.debug("Registered switch_sphere_button in _bottom_bar_bindings")
+    # Button for sphere switch is handled via bottom_actions (bottom panel builder).
 
 
 def setup_dependency_injection(window: Any, controllers: dict[str, Any]) -> None:
-    """Schedule deferred dependency injection into widgets."""
-    QTimer.singleShot(0, partial(_deferred_setup, window, controllers))
+    """Perform dependency injection into widgets immediately."""
+    _deferred_setup(window, controllers)
 
 
 def _deferred_setup(window: Any, controllers: dict[str, Any]) -> None:

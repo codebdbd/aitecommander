@@ -11,7 +11,7 @@ from app.controllers.ui.undo.commands_links import (
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 
 from .base_component import BaseLinksUIComponent
-from .exceptions import CategoryNotFoundError, DatabaseError
+from .exceptions import CategoryNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,6 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if not links:
             return
 
-        category_id = links[0].get("category_id")
-
         if len(links) > 1:
             # Batch command: one transaction and one external reload
             with self.main.undo_stack.macro(f"Deleting {len(links)} links"):
@@ -88,16 +86,10 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 cmd = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
                 cmd._suppress_ui = True  # type: ignore[attr-defined]
                 self.main.undo_stack.push(cmd)
-
-        # Update display (command suppresses internal UI, here — one reload)
-        if category_id is not None:
-            try:
-                self._update_category_safe(category_id)
-            except DatabaseError as e:
-                logger.error("Failed to update category after deletion: %s", e)
         # Centralized signal emission through LinkOperationsController
         try:
-            self.link_operations.on_links_deleted(links)
+            if len(links) <= 1:
+                self.link_operations.on_links_deleted(links)
         except Exception as e:
             logger.debug("Failed to emit signals after delete_links: %s", e)
 

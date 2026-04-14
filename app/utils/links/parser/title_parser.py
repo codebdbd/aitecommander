@@ -200,6 +200,33 @@ def _try_playwright_title(url: str, config) -> str:
         return ""
 
 
+def get_title_for_blocked_status(url: str, config, fallback: str = "") -> str:
+    """Resolve title for blocked pages (HTTP 403/429).
+
+    Behavior:
+    - Uses Playwright only when explicitly enabled by config.
+    - Falls back to provided `fallback` (usually derived from URL host).
+    """
+    try:
+        enabled = bool(getattr(config, "USE_PLAYWRIGHT_FOR_BLOCKED_TITLE", True))
+    except Exception:
+        enabled = False
+
+    if not enabled:
+        return fallback
+
+    try:
+        logger.info("[title][blocked] try_playwright url=%s", url)
+        title = _try_playwright_title(url, config)
+        if title and title.strip():
+            host = base_domain(urlparse(url).netloc)
+            return _smart_postprocess_title(title, host)
+    except Exception:
+        logger.warning("[title][blocked] playwright failed url=%s", url, exc_info=True)
+
+    return fallback
+
+
 def _fetch_youtube_title(url: str, config) -> str | None:
     api_url = "https://www.youtube.com/oembed?" + urlencode(
         {"url": url, "format": "json"}
@@ -212,6 +239,39 @@ def _fetch_youtube_title(url: str, config) -> str | None:
         except (json.JSONDecodeError, TypeError, ValueError):
             return None
     return None
+
+
+def _fetch_oembed_title(endpoint: str, url: str, config) -> str | None:
+    api_url = endpoint + urlencode({"url": url, "format": "json"})
+    resp = http_request(api_url, config)
+    if resp and getattr(resp, "ok", False):
+        try:
+            data = json.loads(resp.text)
+            title = data.get("title")
+            if isinstance(title, str) and title.strip():
+                return title.strip()
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return None
+    return None
+
+
+def get_provider_title_fast(url: str, config) -> str:
+    """Fast provider-specific title extraction without generic HTML parsing."""
+    host = base_domain(urlparse(url).netloc).lower()
+
+    if host in ("youtube.com", "youtu.be"):
+        yt = _fetch_youtube_title(url, config)
+        if yt:
+            return _smart_postprocess_title(yt, host)
+        return ""
+
+    if host in ("vimeo.com", "player.vimeo.com"):
+        vm = _fetch_oembed_title("https://vimeo.com/api/oembed.json?", url, config)
+        if vm:
+            return _smart_postprocess_title(vm, host)
+        return ""
+
+    return ""
 
 
 def _extract_jsonld_title(
@@ -606,51 +666,56 @@ def _get_config_params(config) -> tuple[str | None, int | None, int]:
     except Exception:
         ua = None
     timeout_override = getattr(config, "HTML_FETCH_TIMEOUT", None)
-    retries_override = getattr(config, "HTML_FETCH_RETRIES", 2)
-    return ua, timeout_override, retries_override
-
-
-def _try_head_request(url: str, config, timeout_override: int | None) -> None:
-    """Perform HEAD preflight to check content type."""
     try:
-        head_resp = http_request(
-            url,
-            config,
-            allow_non_2xx=True,
-            timeout_override=timeout_override,
-            retries=1,
-            method="HEAD",
-        )
-        if head_resp is not None:
-            ctype = head_resp.headers.get("Content-Type", "")
-            clen = head_resp.headers.get("Content-Length", "")
-            logger.debug("[title][HEAD] url=%s type='%s' len=%s", url, ctype, clen)
-            if ctype and "text/html" not in ctype.lower():
-                logger.warning(
-                    "[title][HEAD] non-html content-type url=%s type='%s'", url, ctype
-                )
-    except RequestException as he:
-        logger.debug(
-            "[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True
-        )
+        raw_retries = getattr(config, "HTML_FETCH_RETRIES", 1)
+        retries_override = 1 if raw_retries is None else int(raw_retries)
+    except Exception:
+        retries_override = 1
+    retries_override = max(0, min(retries_override, 1))
+    return ua, timeout_override, retries_override
 
 
 def _fetch_and_parse_html(
     url: str, config, timeout_override: int | None, retries_override: int
 ) -> tuple[BeautifulSoup | None, str]:
     """Fetch HTML and parse with BeautifulSoup."""
+    logger.debug(
+        "[title][fetch] phase=get url=%s timeout=%s retries=%s",
+        url,
+        timeout_override,
+        retries_override,
+    )
     resp = http_request(
         url, config, timeout_override=timeout_override, retries=retries_override
     )
     if not resp:
+        logger.info("[title][fetch] result=empty url=%s", url)
         return None, ""
 
     try:
+        ctype = str(resp.headers.get("Content-Type", "") or "").lower()
+        if ctype and not any(
+            token in ctype
+            for token in ("text/html", "application/xhtml+xml", "application/xml")
+        ):
+            logger.warning(
+                "[title][GET] non-html content-type url=%s type='%s'",
+                url,
+                ctype,
+            )
+            logger.info("[title][fetch] result=non_html url=%s type=%s", url, ctype)
+            return None, ""
         txt = _decode_response_text(resp, config)
         s = _make_soup(txt)
+        logger.info(
+            "[title][fetch] result=html url=%s bytes=%s",
+            url,
+            len(txt or ""),
+        )
         return s, txt
     except Exception as e:
         logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
+        logger.info("[title][fetch] result=parse_error url=%s", url)
         return None, ""
 
 
@@ -776,6 +841,7 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
 
     # Use provided soup if available
     if soup is not None:
+        logger.info("[title][path] mode=provided_soup url=%s", url)
         return _extract_title(soup, url)
 
     # Fetch and parse HTML
@@ -787,8 +853,6 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
         timeout_override,
         retries_override,
     )
-
-    _try_head_request(url, config, timeout_override)
 
     soup_obj, txt = _fetch_and_parse_html(
         url, config, timeout_override, retries_override
@@ -805,11 +869,17 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
 
         title = _extract_title(soup_obj, url)
         title = _try_playwright_render(url, config, title, js_suspected)
-        logger.info("[title] done url=%s extracted='%s'", url, title)
+        logger.info(
+            "[title] done url=%s extracted='%s' mode=http_get js_suspected=%s",
+            url,
+            title,
+            js_suspected,
+        )
         return title
 
     # Selenium fallback
+    logger.info("[title][path] mode=selenium_fallback url=%s", url)
     return _try_selenium_fallback(url, config, host, ua)
 
 
-__all__ = ["get_title"]
+__all__ = ["get_title", "get_title_for_blocked_status", "get_provider_title_fast"]

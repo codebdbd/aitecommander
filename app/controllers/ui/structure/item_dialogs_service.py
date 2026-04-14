@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import QObject
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QObject
 
 from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.undo.commands_structure import SaveCategoryCmd, SaveSectionCmd
@@ -10,6 +10,51 @@ from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.windows.dialogs.entity_dialogs import CategoryDialog, SectionDialog
 
 logger = logging.getLogger(__name__)
+
+_ITEM_DIALOGS_CONTEXT = "ItemDialogService"
+_IDS_SECTION_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Section addition error"
+)
+_IDS_SECTION_ADD_FAILED = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Failed to add section."
+)
+_IDS_SECTION_ADD_INFO = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Check the entered data and try again."
+)
+_IDS_CATEGORY_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Category addition error"
+)
+_IDS_CATEGORY_ADD_FAILED = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Failed to add category."
+)
+_IDS_SECTION_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Section edit error"
+)
+_IDS_SECTION_EDIT_FAILED = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Failed to edit section."
+)
+_IDS_TRY_AGAIN_SUPPORT = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Try again or contact support."
+)
+_IDS_CATEGORY_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Category edit error"
+)
+_IDS_CATEGORY_EDIT_FAILED = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "Failed to edit category."
+)
+_IDS_NO_SECTIONS_MSG = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "No sections in the current sphere. Create a new section?"
+)
+_IDS_NO_SECTIONS_TITLE = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "No sections"
+)
+_IDS_NO_SECTIONS_INFO = QT_TRANSLATE_NOOP(
+    _ITEM_DIALOGS_CONTEXT, "The section creation dialog will be opened."
+)
+
+
+def _tr_item_dialogs(text: str) -> str:
+    return QCoreApplication.translate(_ITEM_DIALOGS_CONTEXT, text)
 
 
 class ItemDialogService(QObject):
@@ -34,7 +79,11 @@ class ItemDialogService(QObject):
             if dlg.exec() == dlg.DialogCode.Accepted:
                 data = dlg.get_result()
                 cmd = SaveSectionCmd(
-                    new_data=data, old_data=None, main_window=self._main
+                    new_data=data,
+                    old_data=None,
+                    main_window=self._main,
+                    business=self._business,
+                    undo_manager=self._undo_stack,
                 )
                 if cmd:
                     self._undo_stack.push(cmd)
@@ -42,9 +91,9 @@ class ItemDialogService(QObject):
             logger.exception("Section addition error")
             DialogManager.show_error(
                 self._main,
-                "Section addition error",
-                "Failed to add section.",
-                informative_text="Check the entered data and try again.",
+                _tr_item_dialogs(_IDS_SECTION_ADD_FAILED),
+                _tr_item_dialogs(_IDS_SECTION_ADD_ERROR_TITLE),
+                informative_text=_tr_item_dialogs(_IDS_SECTION_ADD_INFO),
                 details=str(exc),
             )
 
@@ -65,9 +114,9 @@ class ItemDialogService(QObject):
             logger.exception("Category addition error")
             DialogManager.show_error(
                 self._main,
-                "Category addition error",
-                "Failed to add category.",
-                informative_text="Check the entered data and try again.",
+                _tr_item_dialogs(_IDS_CATEGORY_ADD_FAILED),
+                _tr_item_dialogs(_IDS_CATEGORY_ADD_ERROR_TITLE),
+                informative_text=_tr_item_dialogs(_IDS_SECTION_ADD_INFO),
                 details=str(exc),
             )
 
@@ -105,9 +154,9 @@ class ItemDialogService(QObject):
     def _offer_create_section(self) -> bool:
         return DialogManager.ask_confirmation(
             self._main,
-            "No sections in the current sphere. Create a new section?",
-            "No sections",
-            informative_text="The section creation dialog will be opened.",
+            _tr_item_dialogs(_IDS_NO_SECTIONS_MSG),
+            _tr_item_dialogs(_IDS_NO_SECTIONS_TITLE),
+            informative_text=_tr_item_dialogs(_IDS_NO_SECTIONS_INFO),
         )
 
     def ensure_section_for_category(self) -> int | None:
@@ -134,7 +183,11 @@ class ItemDialogService(QObject):
                 new_data = dlg.get_result()
                 new_data["id"] = section_id
                 cmd = SaveSectionCmd(
-                    new_data=new_data, old_data=old_data, main_window=self._main
+                    new_data=new_data,
+                    old_data=old_data,
+                    main_window=self._main,
+                    business=self._business,
+                    undo_manager=self._undo_stack,
                 )
                 if cmd:
                     self._undo_stack.push(cmd)
@@ -142,9 +195,9 @@ class ItemDialogService(QObject):
             logger.exception("Section edit error")
             DialogManager.show_error(
                 self._main,
-                "Section edit error",
-                "Failed to edit section.",
-                informative_text="Try again or contact support.",
+                _tr_item_dialogs(_IDS_SECTION_EDIT_FAILED),
+                _tr_item_dialogs(_IDS_SECTION_EDIT_ERROR_TITLE),
+                informative_text=_tr_item_dialogs(_IDS_TRY_AGAIN_SUPPORT),
                 details=str(exc),
             )
 
@@ -173,9 +226,9 @@ class ItemDialogService(QObject):
             logger.exception("Category edit error")
             DialogManager.show_error(
                 self._main,
-                "Category edit error",
-                "Failed to edit category.",
-                informative_text="Try again or contact support.",
+                _tr_item_dialogs(_IDS_CATEGORY_EDIT_FAILED),
+                _tr_item_dialogs(_IDS_CATEGORY_EDIT_ERROR_TITLE),
+                informative_text=_tr_item_dialogs(_IDS_TRY_AGAIN_SUPPORT),
                 details=str(exc),
             )
 

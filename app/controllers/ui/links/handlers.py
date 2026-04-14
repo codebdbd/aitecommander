@@ -122,86 +122,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Connect signals from table."""
         if self._table_signals_connected:
             return
-        # Required table signals/methods for context menu — strict interface check
-        if not hasattr(self.table, "setContextMenuPolicy") or not callable(
-            self.table.setContextMenuPolicy
-        ):
-            raise SetupError("links table must provide callable setContextMenuPolicy()")
-        if not hasattr(self.table, "customContextMenuRequested"):
-            raise SetupError(
-                "links table must expose signal customContextMenuRequested with connect()"
-            )
-        context_sig = self.table.customContextMenuRequested
-        if not hasattr(context_sig, "connect") or not callable(context_sig.connect):
-            raise SetupError(
-                "links table must expose signal customContextMenuRequested with connect()"
-            )
-        connect_fn = context_sig.connect
-
-        # Connect required context menu handlers
-        try:
-            self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        except (AttributeError, TypeError) as e:
-            logger.error(
-                "Failed to set context menu policy on links table: %s", e, exc_info=True
-            )
-            raise SetupError("Failed to set context menu policy on links table") from e
-        except Exception:
-            logger.exception(
-                "Unexpected error while setting context menu policy on links table"
-            )
-            raise
-        try:
-            connect_fn(self._on_context_menu)
-        except (AttributeError, TypeError) as e:
-            logger.error(
-                "Failed to connect customContextMenuRequested for links table: %s",
-                e,
-                exc_info=True,
-            )
-            raise SetupError(
-                "Failed to connect customContextMenuRequested for links table"
-            ) from e
-        except Exception:
-            logger.exception(
-                "Unexpected error while connecting customContextMenuRequested for links table"
-            )
-            raise
-
-        # QTableView: use index-based signals and adapt to existing handlers
-        try:
-            self.table.doubleClicked.connect(
-                lambda idx: self._on_double_click(idx.row(), idx.column())
-            )
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect doubleClicked: {e}") from e
-        try:
-            self.table.clicked.connect(
-                lambda idx: self._on_cell_clicked(idx.row(), idx.column())
-            )
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect clicked: {e}") from e
-        # Reentrancy flag to protect from loops during reordering
-        # (e.g. when order update in DB triggers UI reload)
-        self._handling_reorder: bool = False
-        try:
-            if hasattr(self.table, "links_reordered"):
-                self.table.links_reordered.connect(self._on_links_reordered)
-            else:
-                raise AttributeError("links_reordered signal is missing")
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect links_reordered: {e}") from e
-        # Exclusive selection: any selection in table clears tree selection
-        try:
-            if hasattr(self.table, "selectionModel"):
-                sel_model = self.table.selectionModel()
-                if sel_model is None:
-                    raise AttributeError("selectionModel() returned None")
-                sel_model.selectionChanged.connect(self._on_table_selection_changed)
-            else:
-                raise AttributeError("selectionModel() is missing on table")
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect selectionChanged: {e}") from e
+        self._connect_context_menu()
+        self._connect_index_signals()
+        self._connect_reorder_signal()
+        self._connect_selection_clear_on_table()
         self._table_signals_connected = True
 
         # Key handling now centralized in KeyboardManager
@@ -374,6 +298,74 @@ class LinksUIHandlers(BaseLinksUIComponent):
         )
         if menu:
             menu.exec(self.table.mapToGlobal(pos))
+
+    # --- Helpers to keep cyclomatic complexity low ---
+    def _connect_context_menu(self) -> None:
+        """Wire up context menu policy and its signal with strict contract checks."""
+        if not hasattr(self.table, "setContextMenuPolicy") or not callable(
+            self.table.setContextMenuPolicy
+        ):
+            raise SetupError("links table must provide callable setContextMenuPolicy()")
+        if not hasattr(self.table, "customContextMenuRequested"):
+            raise SetupError(
+                "links table must expose signal customContextMenuRequested with connect()"
+            )
+        context_sig = self.table.customContextMenuRequested
+        if not hasattr(context_sig, "connect") or not callable(context_sig.connect):
+            raise SetupError(
+                "links table must expose signal customContextMenuRequested with connect()"
+            )
+        try:
+            self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            context_sig.connect(self._on_context_menu)
+        except (AttributeError, TypeError) as e:
+            logger.error(
+                "Failed to setup context menu on links table: %s", e, exc_info=True
+            )
+            raise SetupError("Failed to setup context menu on links table") from e
+        except Exception:
+            logger.exception(
+                "Unexpected error while setting up context menu on links table"
+            )
+            raise
+
+    def _connect_index_signals(self) -> None:
+        """Connect index-based table signals (clicked, doubleClicked)."""
+        try:
+            self.table.doubleClicked.connect(
+                lambda idx: self._on_double_click(idx.row(), idx.column())
+            )
+            self.table.clicked.connect(
+                lambda idx: self._on_cell_clicked(idx.row(), idx.column())
+            )
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to connect table index signals: {e}") from e
+
+        # Reentrancy flag to protect from loops during reordering
+        self._handling_reorder: bool = False
+
+    def _connect_reorder_signal(self) -> None:
+        """Connect custom links_reordered signal if present."""
+        try:
+            if hasattr(self.table, "links_reordered"):
+                self.table.links_reordered.connect(self._on_links_reordered)
+            else:
+                raise AttributeError("links_reordered signal is missing")
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to connect links_reordered: {e}") from e
+
+    def _connect_selection_clear_on_table(self) -> None:
+        """Clear tree selection on table selection to keep exclusivity."""
+        try:
+            if hasattr(self.table, "selectionModel"):
+                sel_model = self.table.selectionModel()
+                if sel_model is None:
+                    raise AttributeError("selectionModel() returned None")
+                sel_model.selectionChanged.connect(self._on_table_selection_changed)
+            else:
+                raise AttributeError("selectionModel() is missing on table")
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to connect selectionChanged: {e}") from e
 
     # Method _handle_key_press removed - key handling centralized in KeyboardManager
 

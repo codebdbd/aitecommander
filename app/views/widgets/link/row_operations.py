@@ -45,7 +45,7 @@ class RowOperationsMixin:
         Update a table row by the link ID when present.
         """
         try:
-            from app.config_data import app_config
+            from app.config_data.runtime_config import runtime_app_config as app_config
 
             _debug = bool(app_config.ui.get_debug_links_inline_update())
             # Validate input
@@ -312,18 +312,42 @@ class RowOperationsMixin:
         if total <= 0:
             return
 
-        removed: set[int] = set()
+        # Fast path for mass deletes: remove rows first, rebuild cache once.
+        row_indexes: list[tuple[int, int]] = []
         for row in range(total - 1, -1, -1):
             link_data = table.get_link_at(row)
             link_id = link_data.get("id") if isinstance(link_data, dict) else None
-            if not isinstance(link_id, int) or link_id not in ids:
-                continue
+            if isinstance(link_id, int) and link_id in ids:
+                row_indexes.append((row, link_id))
 
-            if self._remove_row(row):
+        removed: set[int] = set()
+        if not row_indexes:
+            return
+
+        for row, link_id in row_indexes:
+            removed_ok = False
+            if model is not None and hasattr(model, "remove_row"):
+                try:
+                    removed_ok = bool(model.remove_row(row))
+                except Exception as e:
+                    logger.debug(
+                        "[LinksTableView] model.remove_row raised: %s",
+                        e,
+                        exc_info=True,
+                    )
+                    removed_ok = False
+            if not removed_ok and self._remove_row(row):
+                removed_ok = True
+            if removed_ok:
                 removed.add(link_id)
 
-            if removed == ids:
-                break
+        try:
+            table.rebuild_cache_from_items()
+        except Exception:
+            logger.debug(
+                "[LinksTableView] rebuild_cache_from_items failed after bulk remove",
+                exc_info=True,
+            )
 
         missing = ids - removed
         if missing:

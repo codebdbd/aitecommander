@@ -82,12 +82,16 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
             created_count += 1
             logger.debug(f"Migration 0005: created index {index_name}")
         except sqlite3.OperationalError as e:
-            logger.warning(f"Migration 0005: failed to create index {index_name}: {e}")
-            # Continue creating other indexes, even if one failed
+            logger.error(f"Migration 0005: failed to create index {index_name}: {e}")
+            raise
 
-    logger.info(
-        f"Migration 0005: created {created_count}/{len(indexes)} performance indexes"
-    )
+    if created_count != len(indexes):
+        raise RuntimeError(
+            "Migration 0005: not all required indexes were created "
+            f"({created_count}/{len(indexes)})"
+        )
+
+    logger.info(f"Migration 0005: created {created_count} performance indexes")
 
     # Analyze tables to update optimizer statistics
     try:

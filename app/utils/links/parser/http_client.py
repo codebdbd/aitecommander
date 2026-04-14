@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import atexit
 import threading
+import warnings
 
 import requests
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
+from urllib3.exceptions import InsecureRequestWarning
 
-from .constants import TIMEOUT, USER_AGENT, logger
+from .constants import HTTP_RETRIES, HTTP_RETRY_BACKOFF, TIMEOUT, USER_AGENT, logger
 
 try:
     import cloudscraper  # type: ignore
@@ -25,6 +27,14 @@ _CLOUDSCRAPER_GUARD = threading.Lock()
 # One-time registration guard for session atexit cleanup
 _SESSION_CLEANUP_REGISTERED = False
 _SESSION_CLEANUP_GUARD = threading.Lock()
+
+
+def _is_cancelled(cancel_event) -> bool:
+    """Return True if cancel_event is set (safe for None)."""
+    return bool(
+        cancel_event is not None
+        and getattr(cancel_event, "is_set", lambda: False)()
+    )
 
 
 def get_cloudscraper():
@@ -152,13 +162,15 @@ def _prepare_headers(config, extra_headers):
     return headers
 
 
-def _build_request_kwargs(headers, timeout, stream, allow_redirects):
+def _build_request_kwargs(headers, timeout, stream, allow_redirects, verify=None):
     """Build request kwargs dict."""
     kwargs = {"headers": headers, "timeout": timeout}
     if stream is not None:
         kwargs["stream"] = stream
     if allow_redirects is not None:
         kwargs["allow_redirects"] = allow_redirects
+    if verify is not None:
+        kwargs["verify"] = verify
     return kwargs
 
 
@@ -177,13 +189,13 @@ def _try_injected_http_get(http_get, url, headers, timeout, allow_non_2xx, metho
 
 
 def _try_cloudscraper(
-    enable_cf, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx
+    enable_cf, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx, verify=None
 ):
     """Try cloudscraper request."""
     scraper = get_cloudscraper() if enable_cf else None
     if scraper is not None:
         logger.debug("[cloudscraper] %s %s", method, url)
-        kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects)
+        kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects, verify=verify)
         resp = scraper.request(method, url, **kwargs)
         if allow_non_2xx:
             return resp
@@ -192,27 +204,84 @@ def _try_cloudscraper(
     return None
 
 
+def _prefer_cloudscraper_primary(config) -> bool:
+    try:
+        return bool(getattr(config, "HTTP_CLOUDSCRAPER_PRIMARY", True))
+    except Exception:
+        return True
+
+
+def _session_retry_mode_label(retries: int | None) -> str:
+    if retries is None:
+        return "shared"
+    return f"temp:{max(0, int(retries))}"
+
+
 def _try_session_request(
-    config, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx
+    config,
+    method,
+    url,
+    headers,
+    timeout,
+    retries,
+    stream,
+    allow_redirects,
+    allow_non_2xx,
+    cancel_event=None,
+    verify=None,
 ):
     """Try request using shared session."""
-    sess = get_session()
+    retries_override = None if retries is None else int(retries)
+    use_temp_session = retries_override is not None
+    sess = requests.Session() if use_temp_session else get_session()
+    logger.debug(
+        "[http][session_mode] method=%s url=%s retry_mode=%s",
+        method,
+        url,
+        _session_retry_mode_label(retries_override),
+    )
     try:
-        if not bool(getattr(sess, "_retry_installed", False)):
-            _configure_session_retries(sess, config=config)
+        try:
+            if use_temp_session:
+                _configure_session_retries(
+                    sess,
+                    config=config,
+                    retries_override=retries_override,
+                )
+            elif not bool(getattr(sess, "_retry_installed", False)):
+                _configure_session_retries(sess, config=config)
+                try:
+                    sess._retry_installed = True  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            logger.debug("failed to configure session retries (one-time)", exc_info=True)
+        logger.debug("[session] %s %s", method, url)
+        if _is_cancelled(cancel_event):
+            return None
+        req_kwargs = _build_request_kwargs(
+            headers,
+            timeout,
+            stream,
+            allow_redirects,
+            verify=verify,
+        )
+        if verify is False:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", InsecureRequestWarning)
+                resp = sess.request(method, url, **req_kwargs)
+        else:
+            resp = sess.request(method, url, **req_kwargs)
+        if allow_non_2xx:
+            return resp
+        resp.raise_for_status()
+        return resp
+    finally:
+        if use_temp_session:
             try:
-                sess._retry_installed = True  # type: ignore[attr-defined]
+                sess.close()
             except Exception:
                 pass
-    except Exception:
-        logger.debug("failed to configure session retries (one-time)", exc_info=True)
-    logger.debug("[session] %s %s", method, url)
-    req_kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects)
-    resp = sess.request(method, url, **req_kwargs)
-    if allow_non_2xx:
-        return resp
-    resp.raise_for_status()
-    return resp
 
 
 def _should_try_cloudscraper_fallback(enable_cf, e, method):
@@ -225,6 +294,96 @@ def _should_try_cloudscraper_fallback(enable_cf, e, method):
         status is None
         and any(tok in err_s.lower() for tok in ["forbidden", "blocked", "cloudflare"])
     )
+
+def _attempt_cloud_primary(
+    enable_cf,
+    method,
+    url,
+    headers,
+    timeout,
+    stream,
+    allow_redirects,
+    allow_non_2xx,
+    cancel_event,
+) -> requests.Response | None:
+    """Attempt a primary request via cloudscraper, honoring cancellation.
+
+    Returns a response or None. Raises RequestException for fatal aborts
+    (so the caller can short-circuit) after logging via _handle_cloudscraper_error.
+    """
+    if _is_cancelled(cancel_event):
+        return None
+    try:
+        resp = _try_cloudscraper(
+            enable_cf,
+            method,
+            url,
+            headers,
+            timeout,
+            stream,
+            allow_redirects,
+            allow_non_2xx,
+        )
+        if resp is not None:
+            return resp
+    except RequestException as e:
+        if _handle_cloudscraper_error(e, url):
+            # re-raise for outer handler to treat as fatal
+            raise
+    return None
+
+def _attempt_injected_request_safe(
+    http_get,
+    url,
+    headers,
+    timeout,
+    allow_non_2xx,
+    method,
+):
+    """Attempt injected GET safely; capture RequestException instead of raising."""
+    try:
+        resp = _try_injected_http_get(
+            http_get, url, headers, timeout, allow_non_2xx, method
+        )
+        return resp, None
+    except RequestException as e:  # pragma: no cover - injected path mostly in tests
+        return None, e
+
+def _handle_main_request_exception(
+    e: Exception,
+    enable_cf: bool,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    timeout,
+    allow_non_2xx: bool,
+    cancel_event,
+):
+    """Handle RequestException from main flow; may try cloudscraper fallback.
+
+    Returns (response or None, last_exception or None).
+    """
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    logger.debug(
+        "[http][error] method=%s url=%s status=%s err=%s", "GET" if method is None else method, url, status, e, exc_info=True
+    )
+    if _is_fatal_exception(e):
+        logger.info("[http] Fatal error, aborting: %s", url)
+        try:
+            setattr(e, "_codex_fatal_http", True)
+        except Exception:
+            pass
+        return None, e
+    if _should_try_cloudscraper_fallback(enable_cf, e, method) and not _is_cancelled(cancel_event):
+        try:
+            cf_resp = _try_cloudscraper_fallback(
+                enable_cf, method, url, headers, timeout, allow_non_2xx
+            )
+            return cf_resp, None
+        except RequestException as ce:
+            logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
+            return None, ce
+    return None, e
 
 
 def _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_non_2xx):
@@ -240,59 +399,171 @@ def _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_n
     return resp
 
 
+def _allow_insecure_ssl_fallback(config) -> bool:
+    try:
+        return bool(getattr(config, "HTTP_ALLOW_INSECURE_SSL_FALLBACK", True))
+    except Exception:
+        return True
+
+
+def _is_ssl_error(exc: Exception) -> bool:
+    """Return True if exception looks like an SSL error."""
+    return "SSLError" in type(exc).__name__ or "SSL" in str(exc)
+
+
+def _is_name_resolution_error(exc: Exception) -> bool:
+    """Return True if exception indicates DNS/name resolution failure."""
+    text = f"{type(exc).__name__}: {exc}"
+    lowered = text.lower()
+    return (
+        "nameresolutionerror" in lowered
+        or "getaddrinfo failed" in lowered
+        or "failed to resolve" in lowered
+        or "temporary failure in name resolution" in lowered
+    )
+
+
+def _is_fatal_status_code(code: int | None) -> bool:
+    """Return True for HTTP statuses that are treated as fatal (no retry/fallback)."""
+    return code in (403, 404)
+
+
+def _is_fatal_exception(exc: Exception) -> bool:
+    """Return True if exception is considered fatal.
+
+    SSL errors are intentionally not treated as fatal here, because some sites
+    still succeed via the alternative request path/browser-like fetch strategy.
+    """
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return (
+        _is_name_resolution_error(exc)
+        or _is_fatal_status_code(status)
+    )
+
+
+def _handle_cloudscraper_error(e: Exception, url: str) -> bool:
+    """Log cloudscraper error and return True if we must abort immediately."""
+    logger.warning("Cloudscraper failed for %s: %s", url, e)
+    if _is_name_resolution_error(e):
+        logger.info("[http] Name resolution error is fatal, aborting: %s", url)
+        return True
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    if _is_fatal_status_code(status):
+        logger.info("[http] Status %s is fatal, aborting: %s", status, url)
+        return True
+    return False
+
+
 def http_request(
     url: str,
     config,
     extra_headers: dict[str, str] | None = None,
     allow_non_2xx: bool = False,
     timeout_override: object | None = None,
-    retries: int = 2,
+    retries: int = 1,  # Reduced retries to avoid long waits on unreachable sites
     http_get=None,
     method: str = "GET",
     stream: bool | None = None,
     allow_redirects: bool | None = None,
+    cancel_event=None,
+    prefer_cloudscraper_primary: bool | None = None,
 ) -> requests.Response | None:
+    if _is_cancelled(cancel_event):
+        logger.debug("[http] cancel_event set before request %s", url)
+        return None
     headers = _prepare_headers(config, extra_headers)
     base_timeout = getattr(config, "TIMEOUT", TIMEOUT)
     timeout = timeout_override if timeout_override is not None else base_timeout
 
-    last_err: Exception | None = None
-    cf_fallback_attempted = False
     enable_cf = bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True))
+    if prefer_cloudscraper_primary is None:
+        prefer_cloudscraper_primary = _prefer_cloudscraper_primary(config)
     logger.debug(
-        "[http][start] method=%s url=%s enable_cf=%s retries=%s timeout=%s",
+        "[http][start] method=%s url=%s enable_cf=%s retries=%s timeout=%s retry_mode=%s cf_primary=%s",
         method,
         url,
         enable_cf,
         retries,
         timeout,
+        _session_retry_mode_label(retries),
+        prefer_cloudscraper_primary,
     )
-    try:
-        resp = _try_injected_http_get(
-            http_get, url, headers, timeout, allow_non_2xx, method
+
+    resp, last_err = _http_request_impl(
+        url=url,
+        config=config,
+        headers=headers,
+        timeout=timeout,
+        retries=retries,
+        allow_non_2xx=allow_non_2xx,
+        http_get=http_get,
+        method=method,
+        stream=stream,
+        allow_redirects=allow_redirects,
+        cancel_event=cancel_event,
+        enable_cf=enable_cf,
+        prefer_cloudscraper_primary=prefer_cloudscraper_primary,
+    )
+    if resp is not None:
+        return resp
+    logger.warning("Requests failed for %s: %s", url, last_err)
+    return None
+
+
+def _http_request_impl(
+    *,
+    url: str,
+    config,
+    headers: dict[str, str],
+    timeout,
+    retries: int,
+    allow_non_2xx: bool,
+    http_get,
+    method: str,
+    stream: bool | None,
+    allow_redirects: bool | None,
+    cancel_event,
+    enable_cf: bool,
+    prefer_cloudscraper_primary: bool,
+):
+    """Core HTTP flow extracted from http_request to reduce complexity.
+
+    Returns a tuple of (response or None, last_exception or None).
+    """
+    last_err: Exception | None = None
+    insecure_ssl_allowed = _allow_insecure_ssl_fallback(config)
+    if _is_cancelled(cancel_event):
+        return None, None
+
+    # 1) injected (safe)
+    resp, err = _attempt_injected_request_safe(
+        http_get, url, headers, timeout, allow_non_2xx, method
+    )
+    if resp is not None:
+        return resp, None
+    if err is not None:
+        r, last_err = _handle_main_request_exception(
+            err, enable_cf, method, url, headers, timeout, allow_non_2xx, cancel_event
         )
-        if resp is not None:
-            return resp
+        if r is not None:
+            return r, None
 
-        try:
-            resp = _try_cloudscraper(
-                enable_cf,
-                method,
-                url,
-                headers,
-                timeout,
-                stream,
-                allow_redirects,
-                allow_non_2xx,
-            )
-            if resp is not None:
-                return resp
-        except RequestException as e:
-            logger.warning("Cloudscraper failed for %s: %s", url, e)
-            last_err = e
-
+    def _attempt_session():
         return _try_session_request(
             config,
+            method,
+            url,
+            headers,
+            timeout,
+            retries,
+            stream,
+            allow_redirects,
+            allow_non_2xx,
+            cancel_event=cancel_event,
+        )
+    def _attempt_cloud():
+        return _attempt_cloud_primary(
+            enable_cf,
             method,
             url,
             headers,
@@ -300,65 +571,97 @@ def http_request(
             stream,
             allow_redirects,
             allow_non_2xx,
+            cancel_event,
         )
 
-    except RequestException as e:
-        last_err = e
-        status = getattr(getattr(e, "response", None), "status_code", None)
-        logger.debug(
-            "[http][error] method=%s url=%s status=%s err=%s",
-            method,
-            url,
-            status,
-            e,
-            exc_info=True,
-        )
-        if not cf_fallback_attempted and _should_try_cloudscraper_fallback(
-            enable_cf, e, method
-        ):
-            try:
-                return _try_cloudscraper_fallback(
-                    enable_cf, method, url, headers, timeout, allow_non_2xx
-                )
-            except RequestException as ce:
-                logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
-            finally:
-                cf_fallback_attempted = True
-    except Exception as e:
-        last_err = e
-        logger.error(
-            "[http][unexpected] method=%s url=%s err=%s",
-            method,
-            url,
-            e,
-            exc_info=True,
-        )
-    logger.warning("Requests failed for %s: %s", url, last_err)
-    return None
+    attempts = (
+        (_attempt_cloud, "cloudscraper-primary"),
+        (_attempt_session, "session"),
+    ) if prefer_cloudscraper_primary else (
+        (_attempt_session, "session"),
+        (_attempt_cloud, "cloudscraper-primary"),
+    )
+
+    for attempt_func, attempt_name in attempts:
+        try:
+            resp = attempt_func()
+            if resp is not None:
+                return resp, None
+        except RequestException as e:
+            r, last_err = _handle_main_request_exception(
+                e, enable_cf, method, url, headers, timeout, allow_non_2xx, cancel_event
+            )
+            if r is not None:
+                return r, None
+            if bool(getattr(last_err, "_codex_fatal_http", False)):
+                return None, last_err
+            if (
+                attempt_name == "session"
+                and insecure_ssl_allowed
+                and _is_ssl_error(e)
+                and not _is_cancelled(cancel_event)
+            ):
+                try:
+                    logger.info("[http] SSL verify failed, retrying insecure session for %s", url)
+                    insecure_resp = _try_session_request(
+                        config,
+                        method,
+                        url,
+                        headers,
+                        timeout,
+                        0,
+                        stream,
+                        allow_redirects,
+                        allow_non_2xx,
+                        cancel_event=cancel_event,
+                        verify=False,
+                    )
+                    if insecure_resp is not None:
+                        return insecure_resp, None
+                except RequestException as insecure_err:
+                    last_err = insecure_err
+        except Exception as e:  # unexpected
+            last_err = e
+            logger.error(
+                "[http][unexpected] phase=%s method=%s url=%s err=%s",
+                attempt_name,
+                method,
+                url,
+                e,
+                exc_info=True,
+            )
+    return None, last_err
 
 
 __all__ = ["http_request", "get_session"]
 
 
-def _configure_session_retries(session: requests.Session, *, config=None) -> None:
+def _configure_session_retries(
+    session: requests.Session,
+    *,
+    config=None,
+    retries_override: int | None = None,
+) -> None:
     """Configure retry policy on the shared session ONCE.
 
-    Uses config.HTTP_RETRIES (int, default 2), config.HTTP_RETRY_BACKOFF (float, default 0.5),
-    and config.HTTP_RETRY_ON_STATUS (bool, default False). Safe to call multiple times; idempotent by remounting once
+    Uses config.HTTP_RETRIES (int, default 3), config.HTTP_RETRY_BACKOFF (float, default 0.5),
+    and config.HTTP_RETRY_ON_STATUS (bool, default True). Safe to call multiple times; idempotent by remounting once
     at session creation.
     """
     try:
         # Read config values with safe defaults
-        retries = 0
-        backoff_factor = 0.5
-        enable_status = False
+        retries = HTTP_RETRIES  # Default 3 retries
+        backoff_factor = HTTP_RETRY_BACKOFF  # Default 0.5s exponential backoff
+        enable_status = True  # Enable status-based retries by default
         try:
-            if config is not None:
-                retries = int(getattr(config, "HTTP_RETRIES", 2) or 0)
+            if retries_override is not None:
+                retries = max(0, int(retries_override))
+            elif config is not None:
+                retries = int(getattr(config, "HTTP_RETRIES", HTTP_RETRIES) or HTTP_RETRIES)
                 backoff_factor = float(
-                    getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5
+                    getattr(config, "HTTP_RETRY_BACKOFF", HTTP_RETRY_BACKOFF) or HTTP_RETRY_BACKOFF
                 )
-                enable_status = bool(getattr(config, "HTTP_RETRY_ON_STATUS", False))
+                enable_status = bool(getattr(config, "HTTP_RETRY_ON_STATUS", True))
         except Exception:
             pass
 
@@ -366,11 +669,11 @@ def _configure_session_retries(session: requests.Session, *, config=None) -> Non
         allowed_methods = frozenset(["HEAD", "GET", "OPTIONS"])  # idempotent only
 
         r = Retry(
-            total=max(0, int(retries)),
-            connect=max(0, int(retries)),
-            read=max(0, int(retries)),
-            status=max(0, int(retries)) if enable_status else 0,
-            backoff_factor=float(backoff_factor),
+            total=retries,
+            connect=retries,
+            read=retries,
+            status=retries if enable_status else 0,
+            backoff_factor=backoff_factor,
             status_forcelist=status_forcelist,
             allowed_methods=allowed_methods,
             respect_retry_after_header=True,

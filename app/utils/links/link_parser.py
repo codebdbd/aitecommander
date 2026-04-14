@@ -1,6 +1,5 @@
 import logging
 import re
-import shutil
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -136,7 +135,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
             logger.error("Cannot create icons directory %s: %s", save_dir, e)
             return None
     base_name = Path(exe_path).stem
-    save_path = save_dir_obj / f"program_{base_name}.ico"
+    save_path = save_dir_obj / f"program_{base_name}.png"
     if is_cached_icon_valid(str(save_path), exe_path):
         logger.debug("Using cached EXE icon: %s", save_path)
         return str(save_path)
@@ -166,7 +165,9 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
                 0,
                 1,
             )
-            img.save(save_path, format="ICO")
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
+            img.save(save_path, format="PNG")
             logger.debug("Extracted EXE icon saved: %s", save_path)
             return str(save_path)
     except win32ui.error as e:
@@ -229,9 +230,9 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str])
     if not path:
         return "Unknown"
     try:
-        if link_type == "chromeapp":
-            return Path(path).stem
-        elif link_type == "program":
+        if link_type == "program":
+            if path.lower().endswith(".lnk"):
+                return Path(path).stem
             target_path = lnk_info.get("path") if lnk_info else path
             return Path(target_path).stem if target_path else Path(path).stem
         elif link_type == "folder":
@@ -258,8 +259,8 @@ def _handle_folder_icon(config) -> str:
     return _get_default_icon("folder", config)
 
 
-def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional[str]:
-    """Handles Chrome app icon"""
+def _handle_shortcut_app_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional[str]:
+    """Handles app icon extraction for shortcut-based launches."""
     args = lnk_info.get("args", "")
     if not args:
         return None
@@ -268,20 +269,22 @@ def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional
         return None
     app_id = app_id_match.group(1)
     icons_dir_obj = Path(icons_dir)
-    icon_dst = icons_dir_obj / f"chromeapp_{app_id}.png"
+    icon_dst = icons_dir_obj / f"shortcut_app_{app_id}.png"
     if is_valid_icon_file(str(icon_dst)):
-        logger.debug("Using cached chromeapp icon: %s", icon_dst)
+        logger.debug("Using cached shortcut app icon: %s", icon_dst)
         return str(icon_dst)
     icon_src = lnk_info.get("icon_path")
     if icon_src and Path(icon_src).exists():
         try:
             icon_dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(icon_src, str(icon_dst))
+            with Image.open(icon_src) as src_img:
+                out = src_img.convert("RGBA") if src_img.mode != "RGBA" else src_img.copy()
+                out.save(icon_dst, format="PNG")
             if is_valid_icon_file(str(icon_dst)):
-                logger.debug("Copied chromeapp icon: %s", icon_dst)
+                logger.debug("Copied shortcut app icon: %s", icon_dst)
                 return str(icon_dst)
         except OSError as e:
-            logger.error("Failed to copy chromeapp icon: %s", e)
+            logger.error("Failed to copy shortcut app icon: %s", e)
     return None
 
 
@@ -289,6 +292,12 @@ def _handle_program_icon(
     path: str, lnk_info: dict[str, str], icons_dir: str
 ) -> Optional[str]:
     """Handles program icon"""
+    if path.lower().endswith(".lnk"):
+        # Preserve rich icon extraction for PWA-style shortcuts.
+        shortcut_app_icon = _handle_shortcut_app_icon(lnk_info, icons_dir)
+        if shortcut_app_icon:
+            return shortcut_app_icon
+
     target_path = lnk_info.get("path") if lnk_info else path
     if target_path and target_path.lower().endswith(".exe"):
         return _extract_icon_from_exe(target_path, icons_dir)
@@ -328,8 +337,6 @@ def _get_icon_for_link_type(
     try:
         if link_type == "folder":
             icon = _handle_folder_icon(config)
-        elif link_type == "chromeapp":
-            icon = _handle_chromeapp_icon(lnk_info, icons_dir)
         elif link_type == "program":
             icon = _handle_program_icon(path, lnk_info, icons_dir)
         elif link_type == "file":

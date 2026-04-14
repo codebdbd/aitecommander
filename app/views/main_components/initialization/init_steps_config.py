@@ -16,6 +16,7 @@ BEFORE_DB_STEP_CONFIG: list[StepConfig] = [
 
 # Steps executed after the database is ready
 AFTER_DB_STEP_CONFIG: list[StepConfig] = [
+    ("Finalizing primary content...", "_finalize_main_content", None),
     ("Configuring controllers...", "_init_controllers", "_post_controllers_init"),
     ("Finalizing initialization...", "_initialize_spheres", None),
 ]

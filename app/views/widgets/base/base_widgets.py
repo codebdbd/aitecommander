@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.dnd.link import (
     extract_source_rows_from_mime as dnd_extract_source_rows,
 )
@@ -299,7 +299,73 @@ class BaseDragDropTableWidget(QTableView):
         super().__init__(parent)
         self._sorting_enabled_before_drag = True
         self._sorting_disabled_for_drag: bool = False
+        self._normalize_scrollbars()
+        try:
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        except Exception:
+            logger.debug("BaseDragDropTableWidget: failed to set scrollbar policies", exc_info=True)
         self._setup_drag_drop()
+
+    def _normalize_scrollbars(self) -> None:
+        """Ensure scrollbars use normal (non-inverted) controls."""
+        try:
+            bars = (self.verticalScrollBar(), self.horizontalScrollBar())
+        except Exception:
+            bars = ()
+        for bar in bars:
+            if bar is None:
+                continue
+            try:
+                # Make scrollbars visible and easy to grab (local only, no global QSS).
+                if bar.orientation() == Qt.Orientation.Vertical:
+                    bar.setStyleSheet(
+                        """
+                        QScrollBar:vertical {
+                            width: 10px;
+                            background: transparent;
+                            margin: 0;
+                        }
+                        QScrollBar::handle:vertical {
+                            background: #8a8a8a;
+                            min-height: 24px;
+                        }
+                        QScrollBar::handle:vertical:hover {
+                            background: #aaaaaa;
+                        }
+                        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                            height: 0px;
+                        }
+                        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                            background: transparent;
+                        }
+                        """
+                    )
+                else:
+                    bar.setStyleSheet(
+                        """
+                        QScrollBar:horizontal {
+                            height: 10px;
+                            background: transparent;
+                            margin: 0;
+                        }
+                        QScrollBar::handle:horizontal {
+                            background: #8a8a8a;
+                            min-width: 24px;
+                        }
+                        QScrollBar::handle:horizontal:hover {
+                            background: #aaaaaa;
+                        }
+                        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                            width: 0px;
+                        }
+                        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                            background: transparent;
+                        }
+                        """
+                    )
+            except Exception:
+                logger.debug("BaseDragDropTableWidget: failed to normalize scrollbar", exc_info=True)
 
     def _setup_drag_drop(self) -> None:
         """Configure drag-and-drop parameters."""

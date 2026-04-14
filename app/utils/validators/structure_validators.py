@@ -14,7 +14,7 @@ from app.controllers.structure_modules.validation.validation import (
 )
 
 if TYPE_CHECKING:
-    from app.controllers.structure_modules import ValidationResult
+    pass
 
 
 # Universal checks for structure entity names (kept as utilities)

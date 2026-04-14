@@ -1,10 +1,14 @@
-import logging
-from typing import Optional
+from __future__ import annotations
 
-from PyQt6.QtCore import QObject
+import logging
+import time
+
+from PyQt6.QtCore import QCoreApplication, QObject, QTimer
+from PyQt6.QtWidgets import QMessageBox
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.utils.common import safe_call
+from app.utils.ui.focus import get_focus_manager
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 from app.views.widgets.link import LinksTableView
 
@@ -13,6 +17,10 @@ from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
 logger = logging.getLogger(__name__)
+_TR_CTX = "LinksUIController"
+_OPEN_BATCH_SIZE = 5
+_OPEN_BATCH_DELAY_MS = 250
+_OPEN_LIMIT = 10
 
 
 class LinksUIController(QObject):
@@ -24,9 +32,9 @@ class LinksUIController(QObject):
         business_logic: LinksBusinessLogic,
         main_window,
         *,
-        link_operations=None,
+        link_operations: LinksUILinkOperations | None = None,
         links_table_controller=None,
-    ):
+    ) -> None:
         super().__init__()
         if table_widget is None:
             logger.error("LinksUIController: table_widget is required")
@@ -103,7 +111,7 @@ class LinksUIController(QObject):
         else:
             self.business.search_links(text)
 
-    def get_link_at(self, row: int) -> Optional[dict]:
+    def get_link_at(self, row: int) -> dict | None:
         """Get link by row number, delegating call to table.
 
         Bounds checks and error handling encapsulated in view method.
@@ -194,6 +202,72 @@ class LinksUIController(QObject):
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
+    def open_selected_links(self) -> None:
+        """Open all currently selected links."""
+        links = self.get_selected_links()
+        if not links:
+            return
+        limit = self._confirm_open_many_links(len(links))
+        if limit is None:
+            return
+        if limit is not None and limit < len(links):
+            links = links[:limit]
+        logger.info("open_selected_links: count=%s", len(links))
+        if len(links) == 1:
+            self.link_ops._open_link(links[0])
+            return
+        self._open_links_in_batches(links, max_total=limit)
+
+    def _confirm_open_many_links(self, count: int) -> int | None:
+        if count <= _OPEN_LIMIT:
+            return count
+        title = QCoreApplication.translate(_TR_CTX, "Открытие ссылок")
+        text = QCoreApplication.translate(
+            _TR_CTX,
+            "Вы пытаетесь открыть более 10 ссылок одновременно.\n"
+            "В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.\n"
+            "Если хотите, мы откроем первые 10 выбранных.",
+        )
+        limit = _OPEN_LIMIT
+        parent = self.main if self.main is not None else self.table
+        box = QMessageBox(parent)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(title)
+        box.setText(text)
+        open_btn = box.addButton(
+            QCoreApplication.translate(_TR_CTX, "Открыть 10"),
+            QMessageBox.ButtonRole.AcceptRole,
+        )
+        cancel_btn = box.addButton(
+            QCoreApplication.translate(_TR_CTX, "Отмена"),
+            QMessageBox.ButtonRole.RejectRole,
+        )
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+        if box.clickedButton() is not open_btn:
+            return None
+        return limit
+
+    def _open_links_in_batches(self, links: list[dict], *, max_total: int | None) -> None:
+        pending = list(links)
+        opened = 0
+
+        def _open_next_batch() -> None:
+            nonlocal opened
+            if max_total is not None and opened >= max_total:
+                return
+            batch = pending[:_OPEN_BATCH_SIZE]
+            del pending[:_OPEN_BATCH_SIZE]
+            for link in batch:
+                if max_total is not None and opened >= max_total:
+                    break
+                self.link_ops._open_link(link)
+                opened += 1
+            if pending:
+                QTimer.singleShot(_OPEN_BATCH_DELAY_MS, _open_next_batch)
+
+        _open_next_batch()
+
     def toggle_favorite(self, link: dict | None = None) -> None:
         """Toggle favorite status."""
         self.link_ops._toggle_fav(link)
@@ -233,8 +307,12 @@ class LinksUIController(QObject):
                 self.set_current_cell(row, 0)
                 self.scroll_to_row(row)
                 try:
-                    if hasattr(self.table, "setFocus"):
-                        self.table.setFocus()
+                    manager = get_focus_manager()
+                    manager.set_focus(
+                        self.table,
+                        widget_name="links_table",
+                        origin="user_action",
+                    )
                 except Exception:
                     pass
             else:

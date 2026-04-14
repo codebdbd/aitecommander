@@ -6,19 +6,29 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDateEdit,
     QDialog,
+    QDoubleSpinBox,
     QLineEdit,
+    QListWidget,
     QMenu,
     QMessageBox,
     QPushButton,
+    QListView,
     QSpinBox,
     QTextEdit,
+    QTimeEdit,
     QToolButton,
 )
 
-from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.core.hotkey_manager import HotkeyManager
 from app.utils.ui.icon.path_service import get_current_theme
+from app.utils.ui.menu_builders.base import get_menu_icon
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
+from app.utils.ui.qt.delegates.list_item_height_delegate import (
+    ListItemHeightDelegate,
+)
 from app.views.common.retranslatable import ReTranslatable
 
 logger = logging.getLogger(__name__)
@@ -30,62 +40,77 @@ def apply_uniform_height(dialog: QDialog):
     Excludes special-cased QToolButtons used for link type selection.
     """
     widgets_to_resize = dialog.findChildren(
-        (QLineEdit, QComboBox, QPushButton, QToolButton, QSpinBox)
+        (
+            QLineEdit,
+            QComboBox,
+            QPushButton,
+            QToolButton,
+            QSpinBox,
+            QDoubleSpinBox,
+            QDateEdit,
+            QTimeEdit,
+        )
     )
     for widget in widgets_to_resize:
         # Exclude the large link type selector buttons in LinkDialog
         if isinstance(widget, QToolButton) and widget.property("link_type"):
             continue
-        widget.setFixedHeight(32)
-        if isinstance(widget, QPushButton):
-            try:
-                base_size = dialog.font().pointSize()
-                f = widget.font()
-                f.setPointSize(base_size)
-                widget.setFont(f)
-            except (RuntimeError, AttributeError, TypeError):
-                # Fall back to leaving the current font as-is if something goes wrong
-                logger.exception("Failed to set uniform font size for QPushButton")
+        widget.setFixedHeight(app_config.ui.get_dialog_control_height())
+
+
+def apply_uniform_height_to_message_box(msg_box: QMessageBox):
+    """
+    Apply uniform 32px height to all buttons in a QMessageBox.
+    Call this after adding all buttons to the message box.
+    """
+    buttons = msg_box.findChildren(QPushButton)
+    for button in buttons:
+        button.setFixedHeight(app_config.ui.get_dialog_control_height())
 
 
 def _tr(text: str) -> str:
-    return QCoreApplication.translate("BaseDialog", text)
+    return QCoreApplication.translate("MenuActions", text)
 
 
 def create_context_menu(widget):
     menu = QMenu(widget)
 
-    theme = get_current_theme()
+    theme = getattr(getattr(widget, "window", lambda: None)(), "settings", None)
+    theme_name = (
+        theme.get_theme()
+        if theme and hasattr(theme, "get_theme")
+        else get_current_theme()
+    )
 
     undo_action = cast(
         QAction,
-        menu.addAction(icon_cache.get_icon("undo", theme, "context_menu"), _tr("Undo")),
+        menu.addAction(get_menu_icon("undo", theme_name), _tr("&Undo")),
     )
     undo_action.triggered.connect(widget.undo)
-    undo_action.setShortcut("Ctrl+Z")
+    undo_action.setShortcut(HotkeyManager.get_sequence("edit.undo"))
 
     redo_action = cast(
         QAction,
-        menu.addAction(icon_cache.get_icon("redo", theme, "context_menu"), _tr("Redo")),
+        menu.addAction(get_menu_icon("redo", theme_name), _tr("&Redo")),
     )
     redo_action.triggered.connect(widget.redo)
-    redo_action.setShortcut("Ctrl+Y")
+    redo_action.setShortcut(HotkeyManager.get_sequence("edit.redo"))
 
     menu.addSeparator()
 
     cut_action = cast(
         QAction,
-        menu.addAction(icon_cache.get_icon("cut", theme, "context_menu"), _tr("Cut")),
+        menu.addAction(get_menu_icon("cut", theme_name), _tr("Cut")),
     )
     cut_action.triggered.connect(widget.cut)
-    cut_action.setShortcut("Ctrl+X")
+    cut_action.setShortcut(HotkeyManager.get_sequence("edit.cut"))
 
     copy_action = cast(
         QAction,
-        menu.addAction(icon_cache.get_icon("copy", theme, "context_menu"), _tr("Copy")),
+        menu.addAction(get_menu_icon("copy", theme_name), _tr("Copy")),
     )
     copy_action.triggered.connect(widget.copy)
-    copy_action.setShortcut("Ctrl+C")
+    copy_action.setShortcut(HotkeyManager.get_sequence("edit.copy"))
 
     try:
         clip_has_text = False
@@ -97,32 +122,32 @@ def create_context_menu(widget):
             paste_action = cast(
                 QAction,
                 menu.addAction(
-                    icon_cache.get_icon("paste", theme, "context_menu"),
+                    get_menu_icon("paste", theme_name),
                     _tr("Paste"),
                 ),
             )
             paste_action.triggered.connect(widget.paste)
-            paste_action.setShortcut("Ctrl+V")
+            paste_action.setShortcut(HotkeyManager.get_sequence("edit.paste"))
     except (RuntimeError, AttributeError):
         logger.exception("Failed to evaluate clipboard state for context menu")
 
     delete_action = cast(
         QAction,
-        menu.addAction(icon_cache.get_icon("delete", theme, "context_menu"), _tr("Delete")),
+        menu.addAction(get_menu_icon("delete", theme_name), _tr("Delete")),
     )
     delete_action.triggered.connect(widget.clear)
-    delete_action.setShortcut("Del")
+    delete_action.setShortcut(HotkeyManager.get_sequence("edit.delete"))
 
     menu.addSeparator()
 
     select_all_action = cast(
         QAction,
         menu.addAction(
-            icon_cache.get_icon("select_all", theme, "context_menu"), _tr("Select All")
+            get_menu_icon("select_all", theme_name), _tr("Select all")
         ),
     )
     select_all_action.triggered.connect(widget.selectAll)
-    select_all_action.setShortcut("Ctrl+A")
+    select_all_action.setShortcut(HotkeyManager.get_sequence("edit.select_all"))
 
     return menu
 
@@ -159,6 +184,7 @@ class BaseDialog(QDialog, ReTranslatable):
         if not self._styles_applied:
             apply_uniform_height(self)
             self._apply_combo_popup_styles()
+            self._apply_list_widget_styles()
             self._styles_applied = True
             self._setup_russian_context_menus()
         super().showEvent(event)
@@ -207,14 +233,23 @@ class BaseDialog(QDialog, ReTranslatable):
             target_icon = int(round(24 * scale))
             for combo in combos:
                 try:
+                    view = combo.view()
+                    if view is None or not isinstance(view, QListView):
+                        view = QListView(combo)
+                        combo.setView(view)
                     # Apply row height delegate to the combo (popup uses it), DPI-aware 32px logical
                     combo.setItemDelegate(ComboRowHeightDelegate(combo))
                     # Ensure the combo field icon matches popup icon size
                     combo.setIconSize(QSize(target_icon, target_icon))
-                    # Ensure popup view exists and set icon size
-                    view = combo.view()
+                    # Force the Qt popup path and enable hover tracking uniformly.
                     if view is not None:
                         view.setIconSize(QSize(target_icon, target_icon))
+                        view.setMouseTracking(True)
+                        view.setUniformItemSizes(False)
+                        viewport = view.viewport()
+                        if viewport is not None:
+                            viewport.setMouseTracking(True)
+                            viewport.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
                 except (RuntimeError, AttributeError, TypeError):
                     logger.exception(
                         "Failed to apply combo popup styles to a QComboBox"
@@ -222,6 +257,29 @@ class BaseDialog(QDialog, ReTranslatable):
                     continue
         except (RuntimeError, AttributeError):
             logger.exception("Failed to apply combo popup styles (outer)")
+
+    def _apply_list_widget_styles(self) -> None:
+        """Apply DPI-aware row height delegate to all QListWidget in this dialog."""
+        try:
+            list_widgets = self.findChildren(QListWidget)
+            if not list_widgets:
+                return
+            for list_widget in list_widgets:
+                try:
+                    # Skip if delegate is already set (e.g., manually in subclass)
+                    if list_widget.itemDelegate() is not None and isinstance(
+                        list_widget.itemDelegate(), ListItemHeightDelegate
+                    ):
+                        continue
+                    # Apply row height delegate for 32px logical height
+                    list_widget.setItemDelegate(ListItemHeightDelegate(list_widget))
+                except (RuntimeError, AttributeError, TypeError):
+                    logger.exception(
+                        "Failed to apply list widget styles to a QListWidget"
+                    )
+                    continue
+        except (RuntimeError, AttributeError):
+            logger.exception("Failed to apply list widget styles (outer)")
 
     def _show_context_menu(self, widget, pos):
         """Show context menu with tracking for cleanup."""
@@ -251,6 +309,7 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
         except (RuntimeError, AttributeError):
@@ -274,6 +333,7 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
         except (RuntimeError, AttributeError):
@@ -297,12 +357,13 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
         except (RuntimeError, AttributeError):
             logger.exception("Failed to show error message box")
 
-    def ask_confirmation(
+    def show_confirmation(
         self,
         text: str,
         title: str | None = None,
@@ -322,6 +383,7 @@ class BaseDialog(QDialog, ReTranslatable):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
+            apply_uniform_height_to_message_box(mb)
             return mb.exec() == QMessageBox.StandardButton.Yes
         except (RuntimeError, AttributeError):
             logger.exception("Failed to show confirmation dialog")

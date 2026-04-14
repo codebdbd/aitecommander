@@ -1,41 +1,51 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Optional
 
 from PyQt6.QtCore import (
     QCoreApplication,
     QRunnable,
     QSize,
     Qt,
-    QThreadPool,
+    QUrl,
     pyqtSignal,
     pyqtSlot,
 )
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
-    QSpinBox,
-    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
+from app.core.worker_manager import WorkerManager
+from app.services.theme_import_service import (
+    ThemeConflictError,
+    ThemeImportError,
+    ThemeImportService,
+)
+from app.services.theme_registry import theme_registry
+from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
+from app.utils.ui.qt.combo_helpers import add_combo_mapping_item, select_combo_data
 from app.views.widgets.language_selector import LanguageSelector
-from app.views.windows.dialogs.link_dialog.icon_utils import make_icon
+from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
 
 from .base_dialog import BaseDialog
 
@@ -50,7 +60,14 @@ def _populate_spheres_common(
     """
     spheres = structure_business.get_spheres()
     for sphere in spheres:
-        sphere_cb.addItem(sphere["name"], sphere["id"])
+        if not isinstance(sphere, dict):
+            continue
+        add_combo_mapping_item(
+            sphere_cb,
+            sphere,
+            icon_key="icon_path",
+            icon_loader=get_cached_icon,
+        )
 
 
 def _tr(context: str, text: str) -> str:
@@ -60,11 +77,18 @@ def _tr(context: str, text: str) -> str:
 class BaseEntityDialog(BaseDialog):
     """Base dialog for entities that have a name and an icon (section, category)."""
 
+    _TR_CONTEXT = "BaseEntityDialog"
+
+    @classmethod
+    def _translate(cls, text: str) -> str:
+        """Translate text using the shared base dialog context."""
+        return _tr(cls._TR_CONTEXT, text)
+
     def __init__(
         self,
         structure_business: StructureBusinessLogic,
         entity_name: str,
-        entity_id: Optional[int] = None,
+        entity_id: int | None = None,
         parent=None,
     ):
         # Assign critical attributes before dialog initialization so that
@@ -110,7 +134,7 @@ class BaseEntityDialog(BaseDialog):
         name_container = QWidget()
         name_layout = QHBoxLayout(name_container)
         name_layout.setContentsMargins(0, 0, 0, 0)
-        name_layout.setSpacing(6)
+        name_layout.setSpacing(app_config.ui.get_entity_dialog_name_spacing())
         name_layout.addWidget(self.name_le, 1)
         name_layout.addWidget(self.icon_btn)
 
@@ -180,26 +204,42 @@ class BaseEntityDialog(BaseDialog):
     # Language changes are handled via BaseDialog(ReTranslatable)
 
     def retranslateUi(self) -> None:
-        title_verb = self.tr("Edit") if self.entity_id else self.tr("Add")
-        title_noun_map = {
-            "section": self.tr("section"),
-            "category": self.tr("category"),
-        }
-        title_noun = title_noun_map.get(self.entity_name, self.tr("entity"))
-        self.setWindowTitle(f"{title_verb} {title_noun}")
+        if self.entity_name == "section":
+            title = (
+                tr_common("Edit section")
+                if self.entity_id
+                else tr_common("Add section")
+            )
+        elif self.entity_name == "category":
+            title = (
+                tr_common("Edit category")
+                if self.entity_id
+                else tr_common("Add category")
+            )
+        else:
+            title_verb = (
+                self._translate("Edit") if self.entity_id else self._translate("Add")
+            )
+            title_noun_map = {
+                "section": self._translate("section"),
+                "category": self._translate("category"),
+            }
+            title_noun = title_noun_map.get(self.entity_name, self._translate("entity"))
+            title = f"{title_verb} {title_noun}"
+        self.setWindowTitle(title)
 
         if self._name_label is not None:
-            self._name_label.setText(self.tr("Name:"))
+            self._name_label.setText(tr_common("Name:"))
         if self.icon_btn is not None:
-            self.icon_btn.setText(self.tr("Icon"))
+            self.icon_btn.setText(tr_common("Icon"))
 
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if ok_btn is not None:
-                ok_btn.setText(self.tr("Save"))
+                ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def showEvent(self, event):
         """Force focus to the name field when the dialog appears to prevent button focus."""
@@ -245,24 +285,24 @@ class BaseEntityDialog(BaseDialog):
 
         except Exception as e:
             self.show_error(
-                self.tr("Unable to set selected icon."),
-                self.tr("Icon selection error"),
-                informative_text=self.tr(
+                self._translate("Unable to set selected icon."),
+                self._translate("Icon selection error"),
+                informative_text=self._translate(
                     "Choose another image file (.png, .ico, .jpg, .svg) and try again."
                 ),
                 details=str(e),
             )
 
-    def _on_accept_base(self) -> Optional[dict]:
+    def _on_accept_base(self) -> dict | None:
         """Perform base validation and collect name/icon data, returning ``None`` on error."""
         if self.name_le is None:
             return None
         name = self.name_le.text().strip()
         if not name:
             self.show_warning(
-                self.tr("Name cannot be empty."),
-                self.tr("Invalid input"),
-                informative_text=self.tr("Please provide a name for the entity."),
+                self._translate("Name cannot be empty."),
+                self._translate("Invalid input"),
+                informative_text=self._translate("Please provide a name for the entity."),
             )
             return None
         return {"name": name, "icon_path": self._icon_filename}
@@ -279,14 +319,14 @@ class SectionDialog(BaseEntityDialog):
     def __init__(
         self,
         structure_business: StructureBusinessLogic,
-        section_id: Optional[int] = None,
-        default_sphere_id: Optional[int] = None,
+        section_id: int | None = None,
+        default_sphere_id: int | None = None,
         parent=None,
     ):
         super().__init__(structure_business, "section", section_id, parent)
         self.default_sphere_id = default_sphere_id
         # Fix width only; height is determined by content
-        self.setFixedWidth(400)
+        self.setFixedWidth(app_config.ui.get_entity_dialog_fixed_width())
         self._init_ui()
         self._finalize_translations()
         # Focus the name field on open
@@ -325,9 +365,11 @@ class SectionDialog(BaseEntityDialog):
 
     def _set_sphere_selection(self, sphere_id: int):
         """Select a sphere by its ID."""
-        idx = self.sphere_cb.findData(sphere_id)
-        if idx >= 0:
-            self.sphere_cb.setCurrentIndex(idx)
+        select_combo_data(
+            self.sphere_cb,
+            current_data=sphere_id,
+            fallback_to_first=False,
+        )
 
     def _load_section(self):
         """Load section data for editing."""
@@ -400,12 +442,12 @@ class CategoryDialog(BaseEntityDialog):
     def __init__(
         self,
         structure_business: StructureBusinessLogic,
-        category_id: Optional[int] = None,
+        category_id: int | None = None,
         parent=None,
     ):
         super().__init__(structure_business, "category", category_id, parent)
         # Fix width only; height is determined by content
-        self.setFixedWidth(400)
+        self.setFixedWidth(app_config.ui.get_entity_dialog_fixed_width())
         self._init_ui()
         self._finalize_translations()
         # Focus the name field on open
@@ -455,14 +497,14 @@ class CategoryDialog(BaseEntityDialog):
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
                 # Follow the same pattern as in `LinkDialog`: add icon when available
-                icon_path = (
-                    section.get("icon_path", "") if isinstance(section, dict) else ""
+                if not isinstance(section, dict):
+                    continue
+                add_combo_mapping_item(
+                    self.section_cb,
+                    section,
+                    icon_key="icon_path",
+                    icon_loader=get_cached_icon,
                 )
-                icon = make_icon(icon_path)
-                if icon:
-                    self.section_cb.addItem(icon, section["name"], section["id"])
-                else:
-                    self.section_cb.addItem(section["name"], section["id"])
         except Exception as e:
             self.show_error(
                 self.tr("Failed to load sections."),
@@ -493,14 +535,21 @@ class CategoryDialog(BaseEntityDialog):
         if hierarchy:
             sphere_id = hierarchy["sphere_id"]
             # Select the stored sphere
-            sphere_idx = self.sphere_cb.findData(sphere_id)
-            if sphere_idx >= 0:
-                self.sphere_cb.setCurrentIndex(sphere_idx)
+            if (
+                select_combo_data(
+                    self.sphere_cb,
+                    current_data=sphere_id,
+                    fallback_to_first=False,
+                )
+                >= 0
+            ):
                 self._update_sections()
                 # Select the stored section
-                section_idx = self.section_cb.findData(section_id)
-                if section_idx >= 0:
-                    self.section_cb.setCurrentIndex(section_idx)
+                select_combo_data(
+                    self.section_cb,
+                    current_data=section_id,
+                    fallback_to_first=False,
+                )
 
         # Set icon from stored data
         icon = category_data["icon_path"] or f"{self.entity_name}.ico"
@@ -551,13 +600,20 @@ class CategoryDialog(BaseEntityDialog):
 
         if section_data:
             sphere_id = section_data["sphere_id"]
-            sphere_idx = self.sphere_cb.findData(sphere_id)
-            if sphere_idx >= 0:
-                self.sphere_cb.setCurrentIndex(sphere_idx)
+            if (
+                select_combo_data(
+                    self.sphere_cb,
+                    current_data=sphere_id,
+                    fallback_to_first=False,
+                )
+                >= 0
+            ):
                 self._update_sections()
-                section_idx = self.section_cb.findData(section_id)
-                if section_idx >= 0:
-                    self.section_cb.setCurrentIndex(section_idx)
+                select_combo_data(
+                    self.section_cb,
+                    current_data=section_id,
+                    fallback_to_first=False,
+                )
 
 
 class NoteDialog(BaseDialog):
@@ -567,7 +623,8 @@ class NoteDialog(BaseDialog):
         self.notes_te: QTextEdit | None = None
 
         super().__init__(parent)
-        self.resize(400, 300)
+        width, height = app_config.ui.get_notes_dialog_size()
+        self.resize(width, height)
         self._init_ui()
 
         # Translate after widgets are created
@@ -593,16 +650,16 @@ class NoteDialog(BaseDialog):
         self._button_box = bb
 
     def retranslateUi(self) -> None:
-        self.setWindowTitle(self.tr("Notes"))
+        self.setWindowTitle(tr_common("Notes"))
         if self.notes_te is not None:
             self.notes_te.setPlaceholderText(self.tr("Enter notes here"))
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if ok_btn is not None:
-                ok_btn.setText(self.tr("Save"))
+                ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def _on_accept(self):
         """Update notes in the link object."""
@@ -628,61 +685,68 @@ class SettingsDialog(BaseDialog):
         self._button_box: QDialogButtonBox | None = None
         self.language_selector: LanguageSelector | None = None
         self.theme_combo: QComboBox | None = None
+        self.theme_import_btn: QPushButton | None = None
+        self.remove_theme_btn: QPushButton | None = None
+        self._form_layout: QFormLayout | None = None
+        self._theme_actions_row: QWidget | None = None
         self.font_size_combo: QComboBox | None = None
         self.max_backups_combo: QComboBox | None = None
-        self._tab_widget: QTabWidget | None = None
+        self._theme_importer = ThemeImportService()
 
         super().__init__(parent)
-        self.resize(420, 280)
+        self.setObjectName("SettingsDialog")
+        try:
+            self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        except AttributeError:
+            pass
+        width, height = app_config.ui.get_settings_dialog_size()
+        self.resize(width, height)
         self._init_ui()
         self.retranslateUi()
 
     def _init_ui(self):
-        """Initialize the settings dialog UI with tabs."""
+        """Initialize the settings dialog UI as a single-page form."""
         vbox = QVBoxLayout(self)
-        
-        # Create tab widget
-        self._tab_widget = QTabWidget(self)
-        
-        # Create tabs
-        self._create_general_tab()
-        self._create_backup_tab()
-        
-        vbox.addWidget(self._tab_widget)
-        
-        # Buttons
-        bb = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        bb.accepted.connect(self._on_accept)
-        bb.rejected.connect(self.reject)
-        vbox.addWidget(bb)
-        self._button_box = bb
-    
-    def _create_general_tab(self):
-        """Create General settings tab."""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        
-        group = QGroupBox(self.tr("General"))
+        vbox.setContentsMargins(*app_config.ui.get_settings_dialog_margins())
+        vbox.setSpacing(app_config.ui.get_settings_dialog_spacing())
+
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        
+        form.setHorizontalSpacing(
+            app_config.ui.get_settings_dialog_form_horizontal_spacing()
+        )
+        form.setVerticalSpacing(
+            app_config.ui.get_settings_dialog_form_vertical_spacing()
+        )
+        self._form_layout = form
+
         # Language
         self.language_selector = LanguageSelector(self)
         form.addRow(self.tr("Language:"), self.language_selector)
-        
+
         # Theme
         self.theme_combo = QComboBox()
-        themes = self._get_available_themes()
-        for theme_id, theme_name in themes:
-            self.theme_combo.addItem(theme_name, theme_id)
-        current_theme = self.settings.get_theme()
-        index = self.theme_combo.findData(current_theme)
-        if index >= 0:
-            self.theme_combo.setCurrentIndex(index)
+        self._refresh_theme_list()
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_selection_changed)
         form.addRow(self.tr("Theme:"), self.theme_combo)
-        
+
+        actions_row = QWidget()
+        self._theme_actions_row = actions_row
+        actions_layout = QHBoxLayout(actions_row)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
+        actions_layout.setSpacing(app_config.ui.get_settings_dialog_actions_spacing())
+
+        self.theme_import_btn = QPushButton(self)
+        self.theme_import_btn.clicked.connect(self._on_import_theme)
+        actions_layout.addWidget(self.theme_import_btn)
+
+        self.remove_theme_btn = QPushButton(self)
+        self.remove_theme_btn.clicked.connect(self._on_remove_theme)
+        actions_layout.addWidget(self.remove_theme_btn)
+
+        actions_layout.addStretch(1)
+        form.addRow(self.tr("Theme actions:"), actions_row)
+
         # Font size
         self.font_size_combo = QComboBox()
         self.font_size_combo.addItems([str(i) for i in range(9, 15)])
@@ -695,22 +759,7 @@ class SettingsDialog(BaseDialog):
         except Exception:
             self.font_size_combo.setCurrentIndex(3)
         form.addRow(self.tr("Font size:"), self.font_size_combo)
-        
-        group.setLayout(form)
-        layout.addWidget(group)
-        layout.addStretch()
-        
-        self._tab_widget.addTab(tab, self.tr("General"))
-    
-    def _create_backup_tab(self):
-        """Create Backup settings tab."""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        
-        group = QGroupBox(self.tr("Backup"))
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        
+
         # Max backups
         self.max_backups_combo = QComboBox()
         self.max_backups_combo.addItems([str(i) for i in range(1, 21)])
@@ -723,12 +772,17 @@ class SettingsDialog(BaseDialog):
         except Exception:
             self.max_backups_combo.setCurrentIndex(9)
         form.addRow(self.tr("Max backups:"), self.max_backups_combo)
-        
-        group.setLayout(form)
-        layout.addWidget(group)
-        layout.addStretch()
-        
-        self._tab_widget.addTab(tab, self.tr("Backup"))
+
+        vbox.addLayout(form)
+
+        # Buttons
+        bb = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        bb.accepted.connect(self._on_accept)
+        bb.rejected.connect(self.reject)
+        vbox.addWidget(bb)
+        self._button_box = bb
     
     
     def _get_available_themes(self):
@@ -737,22 +791,173 @@ class SettingsDialog(BaseDialog):
             return self.parent().get_available_themes()
         return [("light", "Light"), ("dark", "Dark")]
 
+    def _refresh_theme_list(self, *, keep_selection: bool = True) -> None:
+        if self.theme_combo is None:
+            return
+        current = self.theme_combo.currentData() if keep_selection else None
+        preferred = self.settings.get_theme() if hasattr(self, "settings") else None
+        if self.theme_ctrl:
+            self.theme_ctrl.refresh_themes()
+        themes = self._get_available_themes()
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.clear()
+        for theme_id, theme_name in themes:
+            self.theme_combo.addItem(theme_name, theme_id)
+        select_combo_data(
+            self.theme_combo,
+            current_data=current if keep_selection else None,
+            preferred_data=preferred,
+            fallback_to_first=bool(themes),
+        )
+        self.theme_combo.blockSignals(False)
+        self._update_remove_button_state()
+
+    def _on_theme_selection_changed(self) -> None:
+        self._update_remove_button_state()
+
+    def _update_remove_button_state(self) -> None:
+        if self.remove_theme_btn is None or self.theme_combo is None:
+            return
+        theme_id = self.theme_combo.currentData()
+        can_remove = bool(theme_id and theme_registry.is_user_theme(str(theme_id)))
+        self.remove_theme_btn.setEnabled(can_remove)
+
+    def _on_import_theme(self) -> None:
+        if self.theme_combo is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Import theme"),
+            "",
+            self.tr("Theme packages (*.zip);;All files (*)"),
+        )
+        if not path:
+            return
+        try:
+            theme = self._theme_importer.import_theme(Path(path), conflict_policy="prompt")
+        except ThemeConflictError as conflict:
+            msg = QMessageBox(self)
+            msg.setWindowTitle(tr_common("Theme already exists"))
+            msg.setText(
+                self.tr("Theme '%1' already exists. What would you like to do?")
+                .replace("%1", conflict.theme_id)
+            )
+            replace_btn = msg.addButton(self.tr("Replace"), QMessageBox.ButtonRole.AcceptRole)
+            rename_btn = msg.addButton(self.tr("Rename"), QMessageBox.ButtonRole.ActionRole)
+            msg.addButton(QMessageBox.StandardButton.Cancel)
+            msg.exec()
+            clicked = msg.clickedButton()
+            if clicked == replace_btn:
+                theme = self._theme_importer.import_theme(
+                    Path(path), conflict_policy="overwrite"
+                )
+            elif clicked == rename_btn:
+                theme = self._theme_importer.import_theme(
+                    Path(path), conflict_policy="rename"
+                )
+            else:
+                return
+        except ThemeImportError as exc:
+            self.show_error(
+                self.tr("Failed to import theme."),
+                self.tr("Theme import error"),
+                details=str(exc),
+            )
+            return
+
+        self._refresh_theme_list(keep_selection=False)
+        if theme and self.theme_combo is not None:
+            select_combo_data(
+                self.theme_combo,
+                current_data=theme.theme_id,
+                fallback_to_first=False,
+            )
+
+    def _on_open_themes_dir(self) -> None:
+        themes_dir = app_config.paths.get_user_themes_dir()
+        themes_dir.mkdir(parents=True, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(themes_dir)))
+
+    def _on_remove_theme(self) -> None:
+        if self.theme_combo is None:
+            return
+        theme_id = self.theme_combo.currentData()
+        if not theme_id:
+            return
+        theme_id = str(theme_id)
+        if not theme_registry.is_user_theme(theme_id):
+            return
+        confirm = QMessageBox.question(
+            self,
+            self.tr("Remove theme"),
+            self.tr("Remove theme '%1'?").replace("%1", theme_id),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._theme_importer.remove_theme(theme_id)
+        except ThemeImportError as exc:
+            self.show_error(
+                self.tr("Failed to remove theme."),
+                self.tr("Theme remove error"),
+                details=str(exc),
+            )
+            return
+
+        if self.settings.get_theme() == theme_id:
+            fallback = theme_registry.get_default_theme_id()
+            self.settings.set_theme(fallback)
+            if self.theme_ctrl:
+                self.theme_ctrl.clear_cache()
+                self.theme_ctrl.apply(fallback)
+
+        self._refresh_theme_list(keep_selection=False)
+
     def retranslateUi(self) -> None:
-        self.setWindowTitle(self.tr("Settings"))
-        
-        # Retranslate tab titles
-        if self._tab_widget is not None:
-            self._tab_widget.setTabText(0, self.tr("General"))
-            self._tab_widget.setTabText(1, self.tr("Backup"))
-        
+        self.setWindowTitle(tr_common("Settings"))
+
+        if self._form_layout is not None:
+            if self.language_selector is not None:
+                label = self._form_layout.labelForField(self.language_selector)
+                if label is not None:
+                    label.setText(self.tr("Language:"))
+            if self.theme_combo is not None:
+                label = self._form_layout.labelForField(self.theme_combo)
+                if label is not None:
+                    label.setText(self.tr("Theme:"))
+            if self.font_size_combo is not None:
+                label = self._form_layout.labelForField(self.font_size_combo)
+                if label is not None:
+                    label.setText(self.tr("Font size:"))
+            if self.max_backups_combo is not None:
+                label = self._form_layout.labelForField(self.max_backups_combo)
+                if label is not None:
+                    label.setText(self.tr("Max backups:"))
+
+        if self.theme_import_btn is not None:
+            self.theme_import_btn.setText(self.tr("Import theme..."))
+        if self.remove_theme_btn is not None:
+            self.remove_theme_btn.setText(self.tr("Remove theme"))
+
+        if self._form_layout is not None and self._theme_actions_row is not None:
+            label = self._form_layout.labelForField(self._theme_actions_row)
+            if label is not None:
+                label.setText(self.tr("Theme actions:"))
+
+        if self.theme_combo is not None:
+            # Refresh theme names to match current language while preserving selection.
+            self._refresh_theme_list(keep_selection=True)
+
         # Retranslate buttons
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if ok_btn is not None:
-                ok_btn.setText(self.tr("Save"))
+                ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def _on_accept(self):
         """Persist settings changes."""
@@ -837,7 +1042,6 @@ class ChromeProfileDialog(BaseDialog):
 
         # Translate after widgets are created
         self.retranslateUi()
-        self.threadpool = QThreadPool.globalInstance()
         self.profiles_loaded.connect(self._populate_profiles)
         self._start_profiles_loading()
 
@@ -845,7 +1049,7 @@ class ChromeProfileDialog(BaseDialog):
 
     def _setup_size(self):
         """Set the dialog size based on scale factor."""
-        base_width, base_height = 600, 500
+        base_width, base_height = app_config.ui.get_chrome_profile_dialog_base_size()
         scale = getattr(self, "scale_factor", 1.0)
         self.resize(int(base_width * scale), int(base_height * scale))
 
@@ -859,6 +1063,17 @@ class ChromeProfileDialog(BaseDialog):
         # List of profiles with checkboxes
         self.scroll = QScrollArea(self)
         self.scroll.setWidgetResizable(True)
+        try:
+            for bar in (self.scroll.verticalScrollBar(), self.scroll.horizontalScrollBar()):
+                if bar is None:
+                    continue
+        except Exception:
+            logger.debug("ChromeProfileDialog: failed to normalize scrollbars", exc_info=True)
+        try:
+            self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        except Exception:
+            logger.debug("ChromeProfileDialog: failed to set scrollbar policies", exc_info=True)
         scroll_content = QWidget(self.scroll)
         self.profiles_layout = QVBoxLayout(scroll_content)
         self.profiles_layout.setContentsMargins(0, 0, 0, 0)
@@ -895,7 +1110,7 @@ class ChromeProfileDialog(BaseDialog):
         self._button_box = button_box
 
     def retranslateUi(self) -> None:
-        self.setWindowTitle(self.tr("Select Chrome profile"))
+        self.setWindowTitle(tr_common("Select Chrome profile"))
         if self._title_label is not None:
             self._title_label.setText(self.tr("Choose a Chrome profile:"))
         if self.select_all_btn is not None:
@@ -908,16 +1123,16 @@ class ChromeProfileDialog(BaseDialog):
             save_btn = self._button_box.button(QDialogButtonBox.StandardButton.Save)
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if save_btn is not None:
-                save_btn.setText(self.tr("Save"))
+                save_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def _set_loading_state(self, loading: bool) -> None:
         if self.refresh_btn is None:
             return
         self.refresh_btn.setEnabled(not loading)
         if loading:
-            self.refresh_btn.setText(self.tr("Loading…"))
+            self.refresh_btn.setText(self.tr("Loading..."))
         else:
             self.refresh_btn.setText(self.tr("Refresh profiles"))
 
@@ -926,7 +1141,7 @@ class ChromeProfileDialog(BaseDialog):
         self._set_loading_state(True)
 
         worker = ChromeProfilesWorker(self._on_profiles_loaded)
-        self.threadpool.start(worker)
+        WorkerManager.run(worker)
 
     def _on_profiles_loaded(self, profiles):
         """Handle worker completion and emit results."""

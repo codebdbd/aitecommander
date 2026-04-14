@@ -3,10 +3,18 @@
 """Centralized UI state manager to eliminate logic duplication."""
 
 import logging
+import os
+import time
 
-from app.config_data import app_config
+from app.config_data.runtime_config import get_table_stack_index, get_tiles_stack_index
 
 logger = logging.getLogger(__name__)
+_DIAG_SPHERE_SWITCH = str(os.getenv("APP_SPHERE_SWITCH_DIAG", "")).lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 class UIStateManager:
@@ -47,6 +55,20 @@ class UIStateManager:
             self._loading = True
             logger.debug("Loading category %s from %s", category_id, source)
 
+            if _DIAG_SPHERE_SWITCH:
+                try:
+                    started = getattr(self.main, "_sphere_switch_started_ms", None)
+                    if isinstance(started, (int, float)) and started > 0:
+                        elapsed_ms = int((time.monotonic() - float(started)) * 1000)
+                        logger.info(
+                            "[Perf] Sphere switch -> load_category start: %d ms (source=%s)",
+                            elapsed_ms,
+                            source,
+                        )
+                        self.main._sphere_switch_started_ms = None
+                except Exception:
+                    pass
+
             # 1. Валидация входных данных
             if not isinstance(category_id, int) or category_id <= 0:
                 logger.warning("Invalid category_id: %s from %s", category_id, source)
@@ -59,7 +81,7 @@ class UIStateManager:
                     if hasattr(self.main, "stack")
                     else None
                 )
-                table_idx = app_config.ui.get_stack_index_table()
+                table_idx = get_table_stack_index()
             except Exception:
                 current_idx = None
                 table_idx = None
@@ -77,15 +99,13 @@ class UIStateManager:
             # 3. Update application state
             self.main.current_category_id = category_id
 
-            # 4. Load data through business logic
-            if hasattr(self.main, "links_business") and self.main.links_business:
-                self.main.links_business.load_links(category_id)
-            elif hasattr(self.main, "links") and self.main.links:
-                # Fallback to UI controller (business logic only)
-                self.main.links.business.load_links(category_id)
+            # 4. Load data through centralized links table controller
+            links_ctrl = getattr(self.main, "links_table_controller", None)
+            if links_ctrl and hasattr(links_ctrl, "reload"):
+                links_ctrl.reload(category_id)
             else:
                 logger.error(
-                    "No links business logic available for category %s",
+                    "No links_table_controller available for category %s",
                     category_id,
                 )
                 return False
@@ -110,7 +130,7 @@ class UIStateManager:
         """Switch UI to links table view."""
         if hasattr(self.main, "stack"):
             # Use consistent configuration getter
-            table_index = app_config.ui.get_stack_index_table()
+            table_index = get_table_stack_index()
             count = (
                 self.main.stack.count() if hasattr(self.main.stack, "count") else None
             )
@@ -158,18 +178,32 @@ class UIStateManager:
         self._clear_tiles_selection()
         # Can add user notification in future
 
-    def switch_to_category_tiles(self, categories_data: list):
-        """Switch to category tiles for specified section."""
+    def switch_to_category_tiles(
+        self, categories_data: list, *, force_show_when_empty: bool = False
+    ) -> bool:
+        """Switch to category tiles for specified section and apply tile data.
+        
+        Returns:
+            True if tiles data was applied via UIStateManager path.
+        """
+        applied_tiles = False
+        perf_t0 = None
         try:
-            # 1. Set category data in tiles
-            if hasattr(self.main, "tiles") and self.main.tiles:
-                self.main.tiles.set_categories(categories_data)
-
-            # 2. Switch stack to category tiles ONLY when there's something to show
-            #    This prevents "empty screen" when temporarily no selection during tree reload
-            if hasattr(self.main, "stack") and categories_data:
+            import time as _time
+            perf_t0 = _time.perf_counter()
+            t_switch_done = perf_t0
+            t_status_done = perf_t0
+        except Exception:
+            _time = None
+            t_switch_done = None
+            t_status_done = None
+        try:
+            # 1. Switch stack to category tiles when explicitly requested for a section,
+            #    even if it has zero categories. Keep old behavior for transient empty states.
+            should_show_tiles = bool(categories_data) or bool(force_show_when_empty)
+            if hasattr(self.main, "stack") and should_show_tiles:
                 # Use consistent configuration getter
-                tiles_index = app_config.ui.get_stack_index_tiles()
+                tiles_index = get_tiles_stack_index()
                 count = (
                     self.main.stack.count()
                     if hasattr(self.main.stack, "count")
@@ -213,8 +247,10 @@ class UIStateManager:
                         )
                 except Exception:
                     pass
+                if _time is not None and perf_t0 is not None:
+                    t_switch_done = _time.perf_counter()
 
-                # 3. After switching to tiles update status bar,
+                # 2. After switching to tiles update status bar,
                 #    to reflect category count instead of link count
                 try:
                     if hasattr(self.main, "update_statusbar"):
@@ -224,9 +260,43 @@ class UIStateManager:
                         "Failed to update status bar after switching to tiles",
                         exc_info=True,
                     )
+                if _time is not None and perf_t0 is not None:
+                    t_status_done = _time.perf_counter()
+            # 3. Apply tile data through the central UI state path.
+            applied_tiles = self.set_tiles_data(categories_data)
+            if _time is not None and perf_t0 is not None:
+                t_end = _time.perf_counter()
+                logger.debug(
+                    "[Perf] UIState.switch_to_category_tiles categories=%s switch_stack=%.2fms statusbar=%.2fms set_tiles_data=%.2fms total=%.2fms",
+                    len(categories_data) if isinstance(categories_data, list) else -1,
+                    ((t_switch_done or perf_t0) - perf_t0) * 1000.0,
+                    ((t_status_done or t_switch_done or perf_t0) - (t_switch_done or perf_t0)) * 1000.0,
+                    (t_end - (t_status_done or t_switch_done or perf_t0)) * 1000.0,
+                    (t_end - perf_t0) * 1000.0,
+                )
 
         except Exception as e:
             logger.exception("Error switching to category tiles: %s", e)
+        return applied_tiles
+
+    def set_tiles_data(self, categories_data: list) -> bool:
+        """Update tiles data without switching the current view.
+        
+        Returns:
+            True when tiles widget was updated.
+        """
+        try:
+            tiles_widget = getattr(self.main, "tiles", None)
+            if tiles_widget is None:
+                widgets = getattr(self.main, "widgets", None)
+                tiles_widget = getattr(widgets, "tiles", None) if widgets else None
+            if tiles_widget is None or not hasattr(tiles_widget, "set_categories"):
+                return False
+            tiles_widget.set_categories(categories_data or [])
+            return True
+        except Exception as e:
+            logger.exception("Error setting tiles data: %s", e)
+            return False
 
     def _clear_tiles_selection(self):
         """Reset category tiles selection."""
@@ -239,11 +309,11 @@ class UIStateManager:
 
     def get_stack_index_table(self):
         """Get stack index for links table."""
-        return app_config.ui.get_stack_index_table()
+        return get_table_stack_index()
 
     def get_stack_index_tiles(self):
         """Get stack index for category tiles."""
-        return app_config.ui.get_stack_index_tiles()
+        return get_tiles_stack_index()
 
     # ========== DEBUG AND MONITORING METHODS ==========
 

@@ -36,7 +36,7 @@ class TopBarSnapshot:
         }
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "TopBarSnapshot | None":
+    def from_payload(cls, payload: dict[str, Any]) -> TopBarSnapshot | None:
         """Create snapshot from JSON payload if it is valid."""
         if not isinstance(payload, dict):
             return None

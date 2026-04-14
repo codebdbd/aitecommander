@@ -12,21 +12,14 @@ import time
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Optional, Protocol
 
-from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QObject, QThreadPool
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import StructureService
 from app.utils.db.api import run_db
+from app.utils.metrics import get_metrics
 
-from ..models.types import (
-    AnyItemData,
-    CategoryData,
-    LinkData,
-    SearchResultItem,
-    SectionData,
-    SphereData,
-)
 from ..signals.signals import StructureSignals
 
 if TYPE_CHECKING:
@@ -88,6 +81,9 @@ class AsyncOperations(QObject):
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         # Unified global task scheduler instead of QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
+        # Dedicated serialized DB pool for structure operations to reduce lock contention.
+        self._structure_db_pool = QThreadPool(self)
+        self._structure_db_pool.setMaxThreadCount(1)
         # Pass parent to ensure correct memory ownership
         self._worker_signals: StructureSignals = StructureSignals(self)
         # Thread-safe protection for shared state
@@ -97,6 +93,30 @@ class AsyncOperations(QObject):
         self._active_metric_spans: set[str] = set()
         # Direct dependency on TopPanelsController to update top panels
         self.top_panels = top_panels_controller
+        self._structure_pool_prewarm_started = False
+        self._prewarm_structure_db_pool()
+
+    def _prewarm_structure_db_pool(self) -> None:
+        """Warm the dedicated structure DB worker thread before first real query."""
+        if self._structure_pool_prewarm_started:
+            return
+        self._structure_pool_prewarm_started = True
+
+        def _warm() -> int:
+            row = self.db.connection.execute("SELECT 1").fetchone()
+            return int(row[0]) if row else 0
+
+        try:
+            run_db(
+                _warm,
+                description="structure_db_prewarm",
+                pool=self._structure_db_pool,
+                on_error=lambda e: self.logger.debug(
+                    "structure_db_prewarm failed: %s", e, exc_info=True
+                ),
+            )
+        except Exception:
+            self.logger.debug("Failed to schedule structure_db_prewarm", exc_info=True)
 
     def cleanup(self) -> None:
         """Proper cleanup for Qt objects.
@@ -161,6 +181,12 @@ class AsyncOperations(QObject):
                     len(self._active_metric_spans),
                 )
                 self._active_metric_spans.clear()
+
+        # Cancel queued structure DB tasks; running task will complete naturally.
+        try:
+            self._structure_db_pool.clear()
+        except Exception as e:
+            self.logger.debug("Error during structure DB pool cleanup: %s", e)
 
     def _add_pending_task(self, task_id: str, task_data: Any = True) -> bool:
         """Добавляет pending task с проверкой лимита.
@@ -374,6 +400,7 @@ class AsyncOperations(QObject):
         run_db(
             _fetch,
             description="load_spheres",
+            pool=self._structure_db_pool,
             on_finished=_on_spheres_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
@@ -395,36 +422,92 @@ class AsyncOperations(QObject):
             "async:structure_load", self._worker_signals.structure_loaded
         )
         self._worker_signals.operation_started.emit(desc)
+        started_ts = time.perf_counter()
+        self.logger.info(
+            "[Trace] AsyncOperations.load_structure_async enter sphere=%s",
+            current_sphere_id,
+        )
 
         def _fetch():
+            worker_started_ts = time.perf_counter()
+            worker_queue_ms = (worker_started_ts - started_ts) * 1000
+            sections_started_ts = time.perf_counter()
             sections_raw = self.db.sections.get_sections(current_sphere_id)
+            sections_query_ms = (time.perf_counter() - sections_started_ts) * 1000
             if not sections_raw:
-                return [], current_sphere_id
+                return [], current_sphere_id, worker_queue_ms, sections_query_ms, 0.0, 0.0
             sections_data = sections_raw
             section_ids = [s["id"] for s in sections_data]
+            categories_started_ts = time.perf_counter()
             categories_raw = self.db.categories.get_categories_for_sections(section_ids)
+            categories_query_ms = (time.perf_counter() - categories_started_ts) * 1000
             all_categories = categories_raw or []
+            build_started_ts = time.perf_counter()
             categories_by_section: dict[int, list[dict[str, Any]]] = {}
             for category in all_categories:
                 sid = category["section_id"]
                 categories_by_section.setdefault(sid, []).append(category)
             for section in sections_data:
                 section["categories"] = categories_by_section.get(section["id"], [])
-            return sections_data, current_sphere_id
+            build_ms = (time.perf_counter() - build_started_ts) * 1000
+            return (
+                sections_data,
+                current_sphere_id,
+                worker_queue_ms,
+                sections_query_ms,
+                categories_query_ms,
+                build_ms,
+            )
 
         def _on_finished(payload):
-            sections_data, sphere_id = payload
+            (
+                sections_data,
+                sphere_id,
+                worker_queue_ms,
+                sections_query_ms,
+                categories_query_ms,
+                build_ms,
+            ) = payload
+            finished_started_ts = time.perf_counter()
+            main_thread_handoff_ms = (finished_started_ts - started_ts) * 1000 - (
+                worker_queue_ms + sections_query_ms + categories_query_ms + build_ms
+            )
+            emit_started_ts = time.perf_counter()
             self._worker_signals.structure_loaded.emit(sections_data, sphere_id)
+            emit_ms = (time.perf_counter() - emit_started_ts) * 1000
+            total_ms = (time.perf_counter() - started_ts) * 1000
+            self.logger.info(
+                "[Perf] Structure load sphere=%s: total=%.2f ms worker_queue=%.2f ms main_thread_handoff=%.2f ms sections_query=%.2f ms categories_query=%.2f ms build=%.2f ms emit=%.2f ms sections=%s",
+                sphere_id,
+                total_ms,
+                worker_queue_ms,
+                max(0.0, main_thread_handoff_ms),
+                sections_query_ms,
+                categories_query_ms,
+                build_ms,
+                emit_ms,
+                len(sections_data),
+            )
             self._worker_signals.operation_finished.emit(self.tr("Structure loaded"))
 
+        self.logger.info(
+            "[Trace] AsyncOperations.load_structure_async scheduling run_db sphere=%s",
+            current_sphere_id,
+        )
         run_db(
             _fetch,
             description=f"load_structure(sphere_id={current_sphere_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_finished,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
                 self.tr("Failed to load structure: {error}").format(error=e),
             ),
+        )
+        self.logger.info(
+            "[Trace] AsyncOperations.load_structure_async run_db submitted sphere=%s submit_elapsed=%.2f ms",
+            current_sphere_id,
+            (time.perf_counter() - started_ts) * 1000.0,
         )
 
     def load_sections_async(self, sphere_id: int) -> None:
@@ -446,6 +529,7 @@ class AsyncOperations(QObject):
         run_db(
             lambda: self.db.sections.get_sections(sphere_id) or [],
             description=f"load_sections(sphere_id={sphere_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_sections_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
@@ -459,19 +543,50 @@ class AsyncOperations(QObject):
             self.logger.error("Invalid section ID: %s", section_id)
             return
 
+        started_ts = time.perf_counter()
         self._worker_signals.operation_started.emit(
             self.tr("Loading categories for section {section_id}…").format(
                 section_id=section_id,
             )
         )
 
-        def _on_categories_loaded(categories: list) -> None:
+        def _fetch_categories():
+            db_started_ts = time.perf_counter()
+            categories = self.db.categories.get_categories(section_id) or []
+            db_ms = (time.perf_counter() - db_started_ts) * 1000
+            return categories, db_ms
+
+        def _on_categories_loaded(payload: tuple[list, float]) -> None:
+            categories, db_ms = payload
+            emit_started_ts = time.perf_counter()
             self._worker_signals.categories_loaded.emit(categories, section_id)
+            emit_ms = (time.perf_counter() - emit_started_ts) * 1000
+            total_ms = (time.perf_counter() - started_ts) * 1000
+            metrics = get_metrics()
+            metrics.record_timing("categories.load.total_ms", total_ms)
+            stats = metrics.get_stats("categories.load.total_ms")
+            self.logger.info(
+                "[Perf] Categories load section=%s: total=%.2f ms db=%.2f ms emit=%.2f ms count=%s",
+                section_id,
+                total_ms,
+                db_ms,
+                emit_ms,
+                len(categories),
+            )
+            if stats.get("count", 0) % 20 == 0 and stats.get("count", 0) > 0:
+                self.logger.info(
+                    "[PerfAgg] categories.load.total_ms: n=%s p50=%.2f ms p95=%.2f ms avg=%.2f ms",
+                    stats.get("count", 0),
+                    float(stats.get("p50", 0.0)),
+                    float(stats.get("p95", 0.0)),
+                    float(stats.get("avg", 0.0)),
+                )
             self._worker_signals.operation_finished.emit(self.tr("Categories loaded"))
 
         run_db(
-            lambda: self.db.categories.get_categories(section_id) or [],
+            _fetch_categories,
             description=f"load_categories(section_id={section_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_categories_loaded,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Load error"),
@@ -530,6 +645,7 @@ class AsyncOperations(QObject):
         run_db(
             _create,
             description=f"create_section(name={name!r})",
+            pool=self._structure_db_pool,
             on_finished=_on_section_created,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
@@ -572,6 +688,7 @@ class AsyncOperations(QObject):
         run_db(
             _create,
             description=f"create_category(name={name!r})",
+            pool=self._structure_db_pool,
             on_finished=_on_category_created,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Create error"),
@@ -608,6 +725,7 @@ class AsyncOperations(QObject):
         run_db(
             _update,
             description=f"update_section(id={section_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_section_updated,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
@@ -644,6 +762,7 @@ class AsyncOperations(QObject):
         run_db(
             _update,
             description=f"update_category(id={category_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_category_updated,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Update error"),
@@ -678,6 +797,7 @@ class AsyncOperations(QObject):
         run_db(
             _delete,
             description=f"delete_section(id={section_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_section_deleted,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Delete error"),
@@ -730,6 +850,7 @@ class AsyncOperations(QObject):
             run_db(
                 _delete,
                 description=f"delete_category(id={category_id})",
+                pool=self._structure_db_pool,
                 on_finished=_on_category_deleted,
                 on_error=lambda e: self._worker_signals.error.emit(
                     self.tr("Delete error"),
@@ -783,6 +904,7 @@ class AsyncOperations(QObject):
         run_db(
             _count,
             description=f"count_nested(section_id={section_id})",
+            pool=self._structure_db_pool,
             on_finished=_on_count_completed,
             on_error=lambda e: self._worker_signals.error.emit(
                 self.tr("Count error"),

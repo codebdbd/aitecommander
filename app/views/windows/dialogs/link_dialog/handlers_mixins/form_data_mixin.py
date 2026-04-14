@@ -34,6 +34,9 @@ class FormDataMixin:
             "icon_name": self.dialog.icon_name,
             "notes": self.dialog._get_notes_te().toPlainText().strip(),
             "selected_profiles": self.dialog.selected_profiles,
+            "profiles_explicitly_changed": bool(
+                getattr(self.dialog, "_profiles_explicitly_changed", False)
+            ),
             "link_id": collected_link_id,
             "last_used": self.dialog.link.get("last_used")
             if self.dialog.link

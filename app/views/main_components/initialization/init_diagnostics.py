@@ -2,12 +2,19 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Callable
 
 from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
+_DIAG_ENABLED = os.getenv("AITE_DIAGNOSTICS", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 class DiagnosticsInstaller:
@@ -25,7 +32,18 @@ class DiagnosticsInstaller:
         self._window = window
         self._dump_top_levels = dump_top_levels_cb
 
+    def _log_diagnostics(self, message: str, *args) -> None:
+        try:
+            logger.info(message, *args)
+        except Exception:
+            logger.debug(
+                "DiagnosticsInstaller: failed to log diagnostic message",
+                exc_info=True,
+            )
+
     def install_all(self) -> None:
+        if not _DIAG_ENABLED:
+            return
         try:
             self._install_qt_message_filter()
         except Exception:
@@ -90,103 +108,71 @@ class DiagnosticsInstaller:
 
     def _get_resize_logger_limits(self):
         """Get resize and move logging limits from config."""
+        fallback = (5, 5)
         try:
-            from app.config_data import app_config as _cfg
+            from app.config_data.runtime_config import runtime_app_config as _cfg
 
-            max_resizes = int(
-                getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_resizes", 5)
-            )
-            max_moves = int(
-                getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_moves", 5)
-            )
+            max_resizes = int(getattr(_cfg, "diag_resize_log_max_resizes", fallback[0]))
+            max_moves = int(getattr(_cfg, "diag_resize_log_max_moves", fallback[1]))
             return max_resizes, max_moves
         except Exception:
-            return 5, 5
+            logger.debug("DiagnosticsInstaller: using fallback resize logger limits", exc_info=True)
+            return fallback
 
     def _create_resize_logger_class(self):
         """Create ResizeLogger class."""
+        from PyQt6.QtCore import QCoreApplication
+        from PyQt6.QtWidgets import QPlainTextEdit
 
-        class _ResizeLogger(QObject):
-            def __init__(self, parent, max_resizes, max_moves):
-                super().__init__(parent)
-                self._resizes = 0
-                self._moves = 0
-                self._max_resizes = max_resizes
-                self._max_moves = max_moves
-                self._owner = parent
+        manager = self
 
-            def _should_uninstall(self):
-                """Check if logger should be uninstalled."""
-                return (
-                    self._resizes >= self._max_resizes
-                    and self._moves >= self._max_moves
+        def _init_logger(widget: QPlainTextEdit, message: str) -> None:
+            widget.setPlainText(message)
+            widget.setReadOnly(True)
+            try:
+                widget.document().setMaximumBlockCount(500)
+            except Exception:
+                pass
+
+        def _log_resize(widget: QPlainTextEdit, event) -> None:
+            manager._log_diagnostics(
+                "[ResizeLogger] Widget resized to %sx%s",
+                event.size().width(),
+                event.size().height(),
+            )
+            manager._log_diagnostics(
+                "[ResizeLogger] Document block count: %s",
+                widget.document().blockCount(),
+            )
+            try:
+                QCoreApplication.processEvents()
+            except Exception as exc:
+                manager._log_diagnostics(
+                    "[ResizeLogger] Qt event processing failed: %s",
+                    exc,
                 )
 
-            def _uninstall_from_owner(self, obj):
-                """Uninstall event filter and reset flags."""
-                try:
-                    obj.removeEventFilter(self)
-                except Exception:
-                    logger.debug(
-                        "DiagnosticsInstaller: removeEventFilter failed in _ResizeLogger",
-                        exc_info=True,
-                    )
-                try:
-                    if (
-                        hasattr(self._owner, "_diag_resize_logger")
-                        and getattr(self._owner, "_diag_resize_logger", None) is self
-                    ):
-                        self._owner._diag_resize_logger = None  # type: ignore[attr-defined]
-                        self._owner._diag_resize_logger_installed = False  # type: ignore[attr-defined]
-                except Exception:
-                    logger.debug(
-                        "DiagnosticsInstaller: failed to reset _diag_resize_logger flags",
-                        exc_info=True,
-                    )
+        def _log_error(exc: Exception) -> None:
+            manager._log_diagnostics(
+                "[ResizeLogger] Error logging resize event: %s",
+                exc,
+            )
 
-            def _handle_resize(self, obj):
-                """Handle resize event."""
-                if self._resizes >= self._max_resizes:
-                    return
-                self._resizes += 1
+        class ResizeLogger(QPlainTextEdit):
+            """Logs resize events for diagnostics."""
+
+            def __init__(self, message: str, parent=None):
+                super().__init__(parent)
+                _init_logger(self, message)
+
+            def resizeEvent(self, event):  # type: ignore[override]
+                super().resizeEvent(event)
                 try:
-                    sz = getattr(obj, "size", lambda: None)()
-                    size_s = f"{sz.width()}x{sz.height()}" if sz is not None else "?"
-                except Exception:
-                    size_s = "?"
-                logger.info("DiagTopLevels: Resize #%s -> %s", self._resizes, size_s)
+                    _log_resize(self, event)
+                except Exception as exc:  # noqa: BLE001
+                    _log_error(exc)
 
-            def _handle_move(self, obj):
-                """Handle move event."""
-                if self._moves >= self._max_moves:
-                    return
-                self._moves += 1
-                try:
-                    pos = getattr(obj, "pos", lambda: None)()
-                    pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
-                except Exception:
-                    pos_s = "?"
-                logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
-
-            def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
-                """Filter and log resize/move events."""
-                try:
-                    et = event.type()
-                    if et == QEvent.Type.Resize:
-                        self._handle_resize(obj)
-                    elif et == QEvent.Type.Move:
-                        self._handle_move(obj)
-
-                    if self._should_uninstall():
-                        self._uninstall_from_owner(obj)
-                except Exception:
-                    logger.debug(
-                        "DiagnosticsInstaller: _ResizeLogger.eventFilter failed",
-                        exc_info=True,
-                    )
-                return QObject.eventFilter(self, obj, event)
-
-        return _ResizeLogger
+        return ResizeLogger
 
     def _install_window_resize_logger(self) -> None:
         win = self._window
@@ -197,7 +183,11 @@ class DiagnosticsInstaller:
 
         max_resizes, max_moves = self._get_resize_logger_limits()
         _ResizeLogger = self._create_resize_logger_class()
-        rl = _ResizeLogger(win, max_resizes, max_moves)
+        message = (
+            "Resize diagnostics active "
+            f"(max resizes={max_resizes}, max moves={max_moves})"
+        )
+        rl = _ResizeLogger(message, win)
         win.installEventFilter(rl)
         win._diag_resize_logger = rl  # type: ignore[attr-defined]
         win._diag_resize_logger_installed = True  # type: ignore[attr-defined]

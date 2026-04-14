@@ -85,9 +85,20 @@ class MigrationRunner:
                 if mig.version <= current:
                     continue
                 logger.info("Migration v%04d: %s", mig.version, mig.name)
-                self._apply_one(mig)
-                self.set_version(mig.version)
-                self.connection.commit()
+                try:
+                    self._apply_one(mig)
+                    self.set_version(mig.version)
+                    self.connection.commit()
+                except Exception as exc:
+                    try:
+                        self.connection.rollback()
+                    except Exception:
+                        logger.warning(
+                            "Rollback failed after migration v%04d error", mig.version
+                        )
+                    raise MigrationError(
+                        f"Migration v{mig.version:04d} failed: {mig.name}"
+                    ) from exc
                 applied += 1
                 current = mig.version
                 logger.info("Migration v%04d applied", mig.version)

@@ -199,6 +199,14 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         logger.error(error_msg)
         raise RuntimeError(error_msg)
 
+    # Avoid icon creation during shutdown
+    try:
+        app = QApplication.instance()
+        if app and app.closingDown():
+            return QIcon()
+    except Exception:
+        pass
+
     # Parameter validation
     if not _validate_icon_name(icon_name):
         logger.warning("Invalid icon name from %s: %r (len=%d)", source, icon_name, len(icon_name))
@@ -474,6 +482,14 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         )
         logger.error(error_msg)
         raise RuntimeError(error_msg)
+
+    # Avoid icon creation during shutdown
+    try:
+        app = QApplication.instance()
+        if app and app.closingDown():
+            return QIcon()
+    except Exception:
+        pass
 
     is_qrc = _is_qt_resource_path(icon_path)
     namespace = "__qrc__" if is_qrc else "__abs__"

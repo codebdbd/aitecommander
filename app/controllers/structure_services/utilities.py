@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-from app.models import StructureModel
+from app.models import StructureCoordinator
 
-# Module logger for diagnostic messages (does not enforce logger parameter)
+if TYPE_CHECKING:
+    from app.models.structure_model import StructureModel
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +17,7 @@ class UtilityService:
 
     def get_links(
         self,
-        model: StructureModel,
+        model: StructureCoordinator,
         category_id: int,
         logger: logging.Logger | None = None,
     ) -> list[dict[str, Any]]:

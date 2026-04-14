@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
@@ -135,5 +135,5 @@ class LinkButtonMixin:
             except Exception:
                 pass
 
-        button.setToolTip(link_data.get("name", _tr("Unknown link")))
+        button.setToolTip(link_data.get("name", QCoreApplication.translate("LinkButtonMixin", "Unknown link")))
         return button

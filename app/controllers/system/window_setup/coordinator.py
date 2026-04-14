@@ -104,8 +104,7 @@ class WindowControllersSetup:
                     f"Cannot initialize WindowFacade: missing controller '{ctrl_name}'"
                 )
 
-        # Create facade
-        self.window.facade = WindowFacade(
+        facade = WindowFacade(
             structure=self.window.structure,
             links_actions=self.window.links_actions,
             ui_state=self.window.ui_state,
@@ -113,7 +112,17 @@ class WindowControllersSetup:
             theme_ctrl=self.window.theme_ctrl,
         )
 
-        logger.debug("WindowFacade created with all controllers")
+        # Prefer setter if available (aligns with MainWindow API), fallback to direct assignment
+        if hasattr(self.window, "set_facade"):
+            try:
+                self.window.set_facade(facade)  # type: ignore[attr-defined]
+            except Exception:
+                logger.warning("WindowControllersSetup: set_facade failed, assigning directly")
+                self.window.facade = facade  # type: ignore[attr-defined]
+        else:
+            self.window.facade = facade  # type: ignore[attr-defined]
+
+        logger.debug("WindowFacade created and attached to window")
 
     def initialize_spheres(self):
         """Initialize spheres."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QLayout, QWidget
+from PyQt6.QtWidgets import QLayout, QSizePolicy, QWidget
 
 from ..utils.qt_utils import is_deleted as _sip_isdeleted
 
@@ -50,3 +50,33 @@ class WidgetAccessor:
     def clear_cache(self) -> None:
         """Очистить кэш виджетов."""
         self._container_widget = None
+
+    def ensure_fixed_heights(self) -> None:
+        """Принудительно зафиксировать высоту top-bar контейнера."""
+        try:
+            from app.config_data.runtime_config import runtime_app_config as app_config
+            self._fix_top_bar_height(app_config)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to fix top bar height: {e}")
+
+    def _fix_top_bar_height(self, app_config) -> None:
+        """Фиксируем высоту топбара."""
+        container = self.get_container_widget()
+        if isinstance(container, QWidget) and not _sip_isdeleted(container):
+            try:
+                # Получаем высоту из конфигурации или используем безопасное значение
+                try:
+                    height = int(app_config.ui.get_top_bar_height())
+                except (AttributeError, ValueError, TypeError):
+                    height = 40  # Безопасное значение по умолчанию
+
+                # Устанавливаем фиксированную высоту
+                container.setFixedHeight(height)
+                container.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Fixed
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to fix top bar height: {e}")

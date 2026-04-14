@@ -17,6 +17,11 @@ class MainWindowProtocol(Protocol):
     settings: Any
     undo_action: Any
     redo_action: Any
+    cut_action: Any
+    copy_action: Any
+    paste_action: Any
+    delete_action: Any
+    select_all_action: Any
     switch_sphere_action: Any
     structure_business: Any
     database_controller: Any

@@ -37,7 +37,7 @@ class BaseBrowserProfileFinder(ABC):
 
     def format_profile_display_name(self, profile_data: dict) -> str:
         """Formats profile name for display in UI."""
-        return profile_data.get("email") or profile_data.get("name") or "Profile"
+        return profile_data.get("name") or profile_data.get("email") or "Profile"
 
     def get_browser_key(self) -> str:
         """Returns browser key for internal use."""

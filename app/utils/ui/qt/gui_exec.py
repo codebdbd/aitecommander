@@ -46,7 +46,7 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
 
     app = QApplication.instance()
     if not app:
-        # If QApplication is not initialised — run directly (better than crashing)
+        # If QApplication is not initialised - run directly (better than crashing)
         return func()
 
     result_container: dict[str, Any] = {}

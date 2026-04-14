@@ -46,14 +46,14 @@ def run_async_import(
     Example:
         >>> success, msg, stats = run_async_import(db, data, parent=self)
         >>> if success and msg:
-        ...     QMessageBox.information(self, _tr("Import"), msg)
+        ...     QMessageBox.information(self, QCoreApplication.translate("AsyncHelpers", "Import"), msg)
     """
     result_stats = None
     result_message = None
     result_success = False
     dialog = AsyncOperationDialog(
-        title=_tr(title),
-        message=_tr("Importing data structure..."),
+        title=QCoreApplication.translate("AsyncHelpers", title),
+        message=QCoreApplication.translate("AsyncHelpers", "Importing data structure..."),
         cancelable=cancelable,
         parent=parent,
     )
@@ -65,11 +65,11 @@ def run_async_import(
         result_stats = stats
         result_success = True
         result_message = (
-            _tr("Imported:") + "\n"
-            "• " + _tr("Spheres") + f": {stats.get('spheres', 0)}\n"
-            f"• " + _tr("Sections") + f": {stats.get('sections', 0)}\n"
-            f"• " + _tr("Categories") + f": {stats.get('categories', 0)}\n"
-            f"• " + _tr("Links") + f": {stats.get('links', 0)}"
+            QCoreApplication.translate("AsyncHelpers", "Imported:") + "\n"
+            "• " + QCoreApplication.translate("AsyncHelpers", "Spheres") + f": {stats.get('spheres', 0)}\n"
+            f"• " + QCoreApplication.translate("AsyncHelpers", "Sections") + f": {stats.get('sections', 0)}\n"
+            f"• " + QCoreApplication.translate("AsyncHelpers", "Categories") + f": {stats.get('categories', 0)}\n"
+            f"• " + QCoreApplication.translate("AsyncHelpers", "Links") + f": {stats.get('links', 0)}"
         )
 
         if on_success:
@@ -80,7 +80,7 @@ def run_async_import(
         dialog.on_error(e, tb)
 
         result_success = False
-        result_message = _tr("Failed to import data:") + f"\n{str(e)}"
+        result_message = QCoreApplication.translate("AsyncHelpers", "Failed to import data:") + f"\n{str(e)}"
 
     # Start asynchronous import
     db.import_full_structure_async(
@@ -118,8 +118,8 @@ def run_async_export(
     result_data: Any = None
 
     dialog = AsyncOperationDialog(
-        title=_tr(title),
-        message=_tr("Exporting data structure..."),
+        title=QCoreApplication.translate("AsyncHelpers", title),
+        message=QCoreApplication.translate("AsyncHelpers", "Exporting data structure..."),
         cancelable=False,
         parent=parent,
     )
@@ -137,14 +137,14 @@ def run_async_export(
                 + len(result.get("categories", []))
                 + len(result.get("links", []))
             )
-            result_message = _tr("Exported %1 records").replace("%1", str(count))
+            result_message = QCoreApplication.translate("AsyncHelpers", "Exported %1 records").replace("%1", str(count))
 
     def on_error(e, tb):
         nonlocal result_success, result_message
         dialog.on_error(e, tb)
 
         result_success = False
-        result_message = _tr("Failed to export data:") + f"\n{str(e)}"
+        result_message = QCoreApplication.translate("AsyncHelpers", "Failed to export data:") + f"\n{str(e)}"
 
     # Start asynchronous export
     db.export_full_structure_async(
@@ -156,9 +156,13 @@ def run_async_export(
 
 
 def run_async_backup(
-    db, parent: Optional[QWidget] = None
+    db,
+    parent: Optional[QWidget] = None,
+    on_success: Optional[Callable] = None,
+    title: str = "Create backup",
+    cancelable: bool = False,
 ) -> tuple[bool, Optional[str]]:
-    """Run asynchronous backup.
+    """Run asynchronous backup with a progress dialog.
 
     Returns (success, message) instead of showing QMessageBox.
 
@@ -166,6 +170,8 @@ def run_async_backup(
         db: Database instance
         parent: Parent widget
         on_success: Callback on success
+        title: Dialog title
+        cancelable: Whether the operation can be cancelled
 
     Returns:
         Tuple[bool, Optional[str]]: (success, message)
@@ -173,27 +179,46 @@ def run_async_backup(
     Example:
         >>> success, msg = run_async_backup(db, parent=self)
         >>> if success and msg:
-        ...     QMessageBox.information(self, "Backup", msg)
+        ...     QMessageBox.information(self, QCoreApplication.translate("AsyncHelpers", "Backup"), msg)
     """
     result_success = False
     result_message = None
 
+    dialog = AsyncOperationDialog(
+        title=QCoreApplication.translate("AsyncHelpers", title),
+        message=QCoreApplication.translate("AsyncHelpers", "Creating database backup..."),
+        cancelable=cancelable,
+        parent=parent,
+    )
+
     def on_finished(result):
         nonlocal result_success, result_message
-        backup_file = result.get("backup_filename", _tr("unknown"))
+        backup_file = result.get("backup_filename", QCoreApplication.translate("AsyncHelpers", "unknown"))
         logger.info(f"Backup created: {backup_file}")
 
         result_success = True
-        result_message = _tr("Backup created:") + f"\n{backup_file}"
+        result_message = QCoreApplication.translate("AsyncHelpers", "Backup created:") + f"\n{backup_file}"
+
+        dialog.on_finished(result)
+
+        if on_success:
+            on_success(result)
 
     def on_error(e, tb):
         nonlocal result_success, result_message
         logger.error(f"Backup error: {e}")
 
         result_success = False
-        result_message = _tr("Failed to create backup:") + f"\n{str(e)}"
+        result_message = QCoreApplication.translate("AsyncHelpers", "Failed to create backup:") + f"\n{str(e)}"
 
-    # Start asynchronous backup (without dialog)
-    db.backup_async(on_finished=on_finished, on_error=on_error)
+        dialog.on_error(e, tb)
+
+    # Start asynchronous backup with progress dialog
+    db.backup_async(
+        on_finished=on_finished,
+        on_error=on_error,
+        on_progress=dialog.update_progress,
+    )
+    dialog.exec()
 
     return result_success, result_message

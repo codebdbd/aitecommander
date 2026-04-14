@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 class SelectionService:
     """Selection and computation service based on model (without Qt and cache)."""
 
-    def get_spheres(self, structure_model, logger) -> list[dict[str, Any]]:
+    def get_spheres(self, db, logger) -> list[dict[str, Any]]:
         try:
-            spheres = structure_model.get_spheres() or []
+            spheres = db.spheres.get_spheres() or []
             return spheres
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
@@ -24,10 +24,10 @@ class SelectionService:
             raise  # Re-raise critical errors
 
     def get_sections(
-        self, structure_model, sphere_id: int, logger
+        self, db, sphere_id: int, logger
     ) -> list[dict[str, Any]]:
         try:
-            sections = structure_model.get_sections(sphere_id) or []
+            sections = db.sections.get_sections(sphere_id) or []
             return sections
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
@@ -45,10 +45,10 @@ class SelectionService:
             raise  # Re-raise critical errors
 
     def get_categories(
-        self, structure_model, section_id: int, logger
+        self, db, section_id: int, logger
     ) -> list[dict[str, Any]]:
         try:
-            categories = structure_model.get_categories(section_id) or []
+            categories = db.categories.get_categories(section_id) or []
             return categories
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:

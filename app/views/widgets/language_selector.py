@@ -4,6 +4,7 @@ import logging
 
 from PyQt6.QtWidgets import QComboBox
 
+from app.utils.ui.qt.combo_helpers import select_combo_data
 from app.views.common.retranslatable import ReTranslatable
 from i18n.language_service import LanguageService
 
@@ -29,14 +30,16 @@ class LanguageSelector(QComboBox, ReTranslatable):
         self.blockSignals(True)
         self.clear()
         for descriptor in languages:
-            self.addItem(descriptor.name, descriptor.code)
-        index = self.findData(current)
-        if index >= 0:
-            self.setCurrentIndex(index)
+            self.addItem(descriptor.native_name, descriptor.code)
+        select_combo_data(
+            self,
+            current_data=current,
+            fallback_to_first=False,
+        )
         self.blockSignals(False)
 
     def retranslateUi(self) -> None:
-        # Language names are already stored in native form, but tooltips must be updated.
+        # Language names are stored in native form; only tooltips need translation.
         self.setToolTip(self.tr("Change application language"))
         self.setAccessibleName(self.tr("Language Selector"))
         # Re-populate to ensure dynamic data stays in sync with available languages.
@@ -61,15 +64,17 @@ class LanguageSelector(QComboBox, ReTranslatable):
         service.set_language(code)
         # After switching language, refresh selection to reflect any normalization.
         normalized = service.current_language()
-        normalized_index = self.findData(normalized)
         logger.debug(
-            "LanguageSelector: after set_language, normalized=%s, index=%d",
+            "LanguageSelector: after set_language, normalized=%s",
             normalized,
-            normalized_index,
         )
-        if normalized_index >= 0:
+        if self.count() > 0:
             self.blockSignals(True)
-            self.setCurrentIndex(normalized_index)
+            select_combo_data(
+                self,
+                current_data=normalized,
+                fallback_to_first=False,
+            )
             self.blockSignals(False)
 
     def _ensure_service(self) -> LanguageService:

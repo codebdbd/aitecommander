@@ -6,9 +6,13 @@ Inherits from QObject for proper use of PyQt6 slots.
 """
 
 import logging
+import time
 from typing import Any, Optional
 
 from PyQt6.QtCore import QObject, pyqtSlot
+
+from app.config_data.runtime_config import is_drop_stale_structure_snapshots
+from app.utils.metrics import get_metrics
 
 from ..models.types import (
     AnyItemData,
@@ -56,67 +60,39 @@ class AsyncSignalHandlers(QObject):
     @pyqtSlot(list, int)
     def on_structure_loaded(self, structure: list[SectionData], sphere_id: int) -> None:
         """Handler for structure loading completion."""
+        t0 = time.perf_counter()
         try:
             self.logger.debug(
                 "Loaded structure for sphere %s: %s sections",
                 sphere_id,
                 len(structure),
             )
-            # Perf-metric: time from sphere switch start to structure readiness
-            try:
-                start = getattr(self.controller, "_last_switch_started_ms", None)
-                if isinstance(start, (int, float)) and start > 0:
-                    import time as _time
-
-                    elapsed_ms = int((_time.monotonic() - float(start)) * 1000)
-                    self.logger.info(
-                        "[Perf] Sphere switch %s: structure loaded in %d ms",
-                        sphere_id,
-                        elapsed_ms,
-                    )
-                    # Reset marker to avoid interfering with subsequent measurements
-                    try:
-                        self.controller._last_switch_started_ms = None
-                    except Exception:
-                        pass
-            except Exception:
-                # Never break UI due to metrics
-                pass
-            # Optionally drop stale snapshots if flag is enabled in config
-            try:
-                from app.config_data import app_config
-
-                drop_stale = bool(app_config.ui.get_drop_stale_structure_snapshots())
-            except Exception:
-                drop_stale = False
-            if drop_stale:
-                try:
-                    current = getattr(self.controller, "current_sphere_id", None)
-                    if (
-                        isinstance(current, int)
-                        and current > 0
-                        and current != sphere_id
-                    ):
-                        self.logger.info(
-                            "Skipping structure_loaded: sphere %s loaded, current = %s (drop_stale enabled)",
-                            sphere_id,
-                            current,
-                        )
-                        return
-                except Exception:
-                    # Never break UI due to diagnostics
-                    pass
-
-            # Cache result in business logic if cache_manager is available
-            try:
-                cache = getattr(self.controller, "cache_manager", None)
-                if cache and hasattr(cache, "set"):
-                    cache.set(f"structure_{int(sphere_id)}", structure or [])
-            except Exception:
-                # Cache is auxiliary optimization; caching errors are not critical
-                pass
-            if hasattr(self.controller, "structure_loaded"):
-                self.controller.structure_loaded.emit(structure)
+            t1 = time.perf_counter()
+            self._log_switch_metrics(sphere_id)
+            t2 = time.perf_counter()
+            if self._should_skip_structure_update(sphere_id):
+                self.logger.info(
+                    "[Perf] AsyncSignalHandlers.on_structure_loaded sphere=%s skipped=True log_switch=%.2f ms total=%.2f ms",
+                    sphere_id,
+                    (t2 - t1) * 1000.0,
+                    (time.perf_counter() - t0) * 1000.0,
+                )
+                return
+            t3 = time.perf_counter()
+            self._cache_structure_snapshot(sphere_id, structure)
+            t4 = time.perf_counter()
+            self._emit_structure_loaded(structure)
+            t5 = time.perf_counter()
+            self.logger.info(
+                "[Perf] AsyncSignalHandlers.on_structure_loaded sphere=%s sections=%s should_skip=%.2f ms log_switch=%.2f ms cache_snapshot=%.2f ms emit_structure_loaded=%.2f ms total=%.2f ms",
+                sphere_id,
+                len(structure),
+                (t3 - t2) * 1000.0,
+                (t2 - t1) * 1000.0,
+                (t4 - t3) * 1000.0,
+                (t5 - t4) * 1000.0,
+                (t5 - t0) * 1000.0,
+            )
         except (AttributeError, TypeError) as e:
             # ✅ Expected errors - log as warning
             self.logger.warning("Expected error in on_structure_loaded: %s", e)
@@ -124,6 +100,78 @@ class AsyncSignalHandlers(QObject):
             # ✅ Unexpected errors - full traceback
             self.logger.exception("Critical error in on_structure_loaded: %s", e)
             raise
+
+    def _log_switch_metrics(self, sphere_id: int) -> None:
+        """Log elapsed time for sphere switch if metrics are available."""
+
+        try:
+            start = getattr(self.controller, "_last_switch_started_ms", None)
+            if not (isinstance(start, (int, float)) and start > 0):
+                return
+
+            import time as _time
+
+            elapsed_ms = int((_time.monotonic() - float(start)) * 1000)
+            self.logger.info(
+                "[Perf] Sphere switch %s: structure loaded in %d ms",
+                sphere_id,
+                elapsed_ms,
+            )
+            try:
+                self.controller._last_switch_started_ms = None
+            except Exception:
+                pass
+        except Exception:
+            # Metrics are auxiliary; never break the UI if they fail.
+            pass
+
+    def _should_skip_structure_update(self, sphere_id: int) -> bool:
+        """Return True when stale structure updates should be dropped."""
+
+        try:
+            drop_stale = is_drop_stale_structure_snapshots(False)
+        except Exception:
+            drop_stale = False
+
+        if not drop_stale:
+            return False
+
+        try:
+            current = getattr(self.controller, "current_sphere_id", None)
+            if (
+                isinstance(current, int)
+                and current > 0
+                and current != sphere_id
+            ):
+                self.logger.info(
+                    "Skipping structure_loaded: sphere %s loaded, current = %s (drop_stale enabled)",
+                    sphere_id,
+                    current,
+                )
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    def _cache_structure_snapshot(
+        self, sphere_id: int, structure: list[SectionData]
+    ) -> None:
+        """Store structure snapshot in cache when available."""
+
+        try:
+            cache = getattr(self.controller, "cache_manager", None)
+            if cache and hasattr(cache, "set"):
+                cache.set(f"structure_{int(sphere_id)}", structure or [])
+        except Exception:
+            # Cache is an optimization; errors should not surface to the UI.
+            pass
+
+    def _emit_structure_loaded(self, structure: list[SectionData]) -> None:
+        """Forward the structure_loaded signal when the controller supports it."""
+
+        if hasattr(self.controller, "structure_loaded"):
+            self.controller.structure_loaded.emit(structure)
 
     @pyqtSlot(list, int)
     def on_sections_loaded(self, sections: list[SectionData], sphere_id: int) -> None:
@@ -146,19 +194,66 @@ class AsyncSignalHandlers(QObject):
     ) -> None:
         """Handler for category loading completion.
 
-        IMPORTANT: re-emit correct signal `categories_loaded(categories, section_id)`,
-        not `section_selected`, so UI gets the category loading event.
+        IMPORTANT: re-emit correct signal `categories_loaded(categories, section_id)`
+        when available. Legacy fallback emits `section_selected` only for the
+        currently selected section to avoid tiles flicker.
         """
         try:
+            import time as _time
+
+            try:
+                async_service = getattr(self.controller, "async_service", None)
+                if async_service and hasattr(async_service, "should_drop_categories_emit"):
+                    if bool(async_service.should_drop_categories_emit(section_id)):
+                        self.logger.debug(
+                            "Skipping stale categories_loaded for section %s (newer reload pending)",
+                            section_id,
+                        )
+                        return
+            except Exception:
+                pass
+
+            started_ts = None
+            try:
+                async_service = getattr(self.controller, "async_service", None)
+                if async_service and hasattr(async_service, "pop_category_load_started_ts"):
+                    started_ts = async_service.pop_category_load_started_ts(section_id)
+            except Exception:
+                started_ts = None
             self.logger.info(
                 "Loaded %s categories for section %s", len(categories), section_id
             )
+            if isinstance(started_ts, (int, float)) and started_ts > 0:
+                elapsed_ms = (_time.perf_counter() - float(started_ts)) * 1000
+                metrics = get_metrics()
+                metrics.record_timing("categories.async_to_signal_ms", elapsed_ms)
+                stats = metrics.get_stats("categories.async_to_signal_ms")
+                self.logger.info(
+                    "[Perf] Categories async->signal section=%s: %.2f ms (count=%s)",
+                    section_id,
+                    elapsed_ms,
+                    len(categories),
+                )
+                if stats.get("count", 0) % 20 == 0 and stats.get("count", 0) > 0:
+                    self.logger.info(
+                        "[PerfAgg] categories.async_to_signal_ms: n=%s p50=%.2f ms p95=%.2f ms avg=%.2f ms",
+                        stats.get("count", 0),
+                        float(stats.get("p50", 0.0)),
+                        float(stats.get("p95", 0.0)),
+                        float(stats.get("avg", 0.0)),
+                    )
             if hasattr(self.controller, "categories_loaded"):
                 self.controller.categories_loaded.emit(categories, section_id)
             else:
-                # Fallback: if controller has no new categories_loaded signal,
-                # re-emit section selection notification without passing categories
-                if hasattr(self.controller, "section_selected"):
+                # Fallback: only re-emit for current selection to avoid UI jumps
+                last_selected = getattr(
+                    self.controller, "_last_selected_section_id", None
+                )
+                if (
+                    hasattr(self.controller, "section_selected")
+                    and isinstance(last_selected, int)
+                    and last_selected == int(section_id)
+                ):
                     self.controller.section_selected.emit(section_id)
         except (AttributeError, TypeError) as e:
             self.logger.warning("Expected error in on_categories_loaded: %s", e)
@@ -190,18 +285,13 @@ class AsyncSignalHandlers(QObject):
                     # Инвалидируем кэш категорий текущего раздела и общую структуру
                     if hasattr(self.controller, "_invalidate_categories_cache"):
                         self.controller._invalidate_categories_cache(parent_id)
-                    if hasattr(self.controller, "async_operations"):
-                        self.controller.async_operations.load_categories_async(
-                            parent_id
-                        )
                 elif item_type == "section":
                     sphere_id = getattr(self.controller, "current_sphere_id", None)
                     if hasattr(self.controller, "_invalidate_structure_cache"):
                         self.controller._invalidate_structure_cache()
-                    if isinstance(sphere_id, int) and sphere_id > 0:
-                        # Централизуем перезагрузку структуры в бизнес-логике с дебаунсом
-                        if hasattr(self.controller, "_schedule_structure_reload"):
-                            self.controller._schedule_structure_reload(delay_ms=150)
+                    # Incremental UI update already handled; avoid full reload to
+                    # prevent selection jumps after edits.
+                    return
             except Exception as e2:
                 self.logger.warning(
                     "Failed to initiate UI update after creating %s: %s",
@@ -226,10 +316,6 @@ class AsyncSignalHandlers(QObject):
                     # Инвалидируем кэш категорий текущего раздела и общую структуру
                     if hasattr(self.controller, "_invalidate_categories_cache"):
                         self.controller._invalidate_categories_cache(
-                            item_data.get("section_id")
-                        )
-                    if hasattr(self.controller, "async_operations"):
-                        self.controller.async_operations.load_categories_async(
                             item_data.get("section_id")
                         )
                 elif item_type == "section":
@@ -274,10 +360,6 @@ class AsyncSignalHandlers(QObject):
                         self.controller, "_invalidate_categories_cache"
                     ):
                         self.controller._invalidate_categories_cache(section_id)
-                    if section_id and hasattr(self.controller, "async_operations"):
-                        self.controller.async_operations.load_categories_async(
-                            section_id
-                        )
                 elif item_type == "section":
                     if hasattr(self.controller, "_invalidate_structure_cache"):
                         self.controller._invalidate_structure_cache()
@@ -389,7 +471,14 @@ class AsyncSignalHandlers(QObject):
                     "top_panels not injected; skipping favorites update"
                 )
                 return
-            self.top_panels.request_favorites_refresh()
+            if hasattr(self.top_panels, "request_refresh"):
+                if getattr(self.top_panels, "_pending_refresh", False):
+                    return
+                self.top_panels.request_refresh()
+            else:
+                if getattr(self.top_panels, "_pending_fav_refresh", False):
+                    return
+                self.top_panels.request_favorites_refresh()
         except (AttributeError, TypeError) as e:
             self.logger.warning("Expected error in on_update_favorites: %s", e)
         except Exception as e:
@@ -405,7 +494,14 @@ class AsyncSignalHandlers(QObject):
                     "top_panels not injected; skipping recent links update"
                 )
                 return
-            self.top_panels.request_recents_refresh()
+            if hasattr(self.top_panels, "request_refresh"):
+                if getattr(self.top_panels, "_pending_refresh", False):
+                    return
+                self.top_panels.request_refresh()
+            else:
+                if getattr(self.top_panels, "_pending_recent_refresh", False):
+                    return
+                self.top_panels.request_recents_refresh()
         except (AttributeError, TypeError) as e:
             self.logger.warning("Expected error in on_update_recent_links: %s", e)
         except Exception as e:

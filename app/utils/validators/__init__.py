@@ -13,7 +13,6 @@ from .import_validators import can_parse_bookmarks_html, is_valid_bookmarks_html
 from .link_validators import (
     extract_base_name_from_profile_name,
     validate_chrome_profile_name,
-    validate_favorite_limit,
     validate_link_duplicate,
     validate_link_form_data,
     validate_name_and_url,
@@ -36,7 +35,6 @@ __all__ = [
     # Link validators
     "validate_name_and_url",
     "validate_web_url",
-    "validate_favorite_limit",
     "validate_link_duplicate",
     "validate_link_form_data",
     "validate_chrome_profile_name",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from app.controllers.structure_modules import CacheManager
     from app.controllers.structure_services.loader import LoaderService
     from app.controllers.structure_services.utilities import UtilityService
-    from app.models import StructureModel
+    from app.models import StructureCoordinator
     from app.services.structure_service import StructureService
 
 
@@ -34,7 +35,7 @@ class StructureCacheService:
         structure_service: StructureService,
         loader_service: LoaderService,
         utility_service: UtilityService,
-        structure_model: StructureModel,
+        structure_coordinator: StructureCoordinator,
         logger: Logger,
     ) -> None:
         self._owner = owner
@@ -42,7 +43,7 @@ class StructureCacheService:
         self._structure_service = structure_service
         self._loader_service = loader_service
         self._utility_service = utility_service
-        self._structure_model = structure_model
+        self._structure_coordinator = structure_coordinator
         self._logger = logger
 
     def warm_first_category(
@@ -97,7 +98,7 @@ class StructureCacheService:
         try:
             payload = (
                 self._loader_service.load_structure_from_db(
-                    self._structure_model,
+                    self._structure_coordinator.db,
                     sphere_id,
                     self._logger,
                 )
@@ -217,6 +218,12 @@ class StructureCacheService:
         cache_key = f"categories_{section_id}"
         cached = self._cache_manager.get(cache_key)
         if cached is not None:
+            try:
+                sync_ts = getattr(self._owner, "_last_categories_sync_load_ts", None)
+                if isinstance(sync_ts, dict):
+                    sync_ts[int(section_id)] = time.perf_counter()
+            except Exception:
+                pass
             if _metrics:
                 _metrics.record_cache_hit("categories_cache")
             return cached
@@ -224,11 +231,17 @@ class StructureCacheService:
             _metrics.record_cache_miss("categories_cache")
         categories = self._structure_service.get_categories(section_id)
         self._cache_manager.set(cache_key, categories)
+        try:
+            sync_ts = getattr(self._owner, "_last_categories_sync_load_ts", None)
+            if isinstance(sync_ts, dict):
+                sync_ts[int(section_id)] = time.perf_counter()
+        except Exception:
+            pass
         return categories or []
 
     def get_links(self, category_id: int) -> list[dict[str, Any]]:
         return self._utility_service.get_links(
-            self._structure_model, category_id, self._logger
+            self._structure_coordinator, category_id, self._logger
         )
 
     def get_item_for_editing(
@@ -237,8 +250,8 @@ class StructureCacheService:
         return self._utility_service.get_item_for_editing(
             item_id=item_id,
             item_type=item_type,
-            get_section_data=self._structure_model.get_section_data,
-            get_category_data=self._structure_model.get_category_data,
+            get_section_data=lambda sid: self._structure_coordinator.db.sections.get_section_by_id(sid),
+            get_category_data=lambda cid: self._structure_coordinator.db.categories.get_category_by_id(cid),
             logger=self._logger,
         )
 

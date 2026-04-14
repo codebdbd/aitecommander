@@ -11,7 +11,11 @@ from PyQt6.QtCore import (  # Import Qt and QSize from QtCore
 )
 from PyQt6.QtWidgets import QAbstractItemView, QTreeView
 
-from app.config_data import app_config
+from app.config_data.runtime_config import (
+    get_table_stack_index,
+    get_tiles_stack_index,
+    get_tree_icon_size,
+)
 from app.utils.ui.qt.roles import get_tree_tuple
 
 from .icon_handling import IconHandling
@@ -53,7 +57,6 @@ class StructureUIController(QObject):
         self._setup_tree()
         self._connect_business_signals()
         self._connect_model_icon_reload_signals()
-
     def _connect_model_icon_reload_signals(self) -> None:
         """Connect to model signals to repopulate icons after tree stabilizes.
 
@@ -69,75 +72,69 @@ class StructureUIController(QObject):
             return
 
         self._icons_reload_pending = False
+        self._connect_model_reset_handlers(model)
 
-        def _schedule_reload():
-            if getattr(self, "_icons_reload_pending", False):
-                return
-            if getattr(model, "_tree_snapshot_icons_ready", False):
-                return
-            self._icons_reload_pending = True
-            from PyQt6.QtCore import QTimer
-
-            def _do_reload():
-                try:
-                    self.icon_handler.reload_icons()
-                finally:
-                    self._icons_reload_pending = False
-
-            QTimer.singleShot(0, _do_reload)
-
-        # After modelReset QTreeView's selectionModel changes. Reconnect currentChanged.
-        def _schedule_selection_reconnect():
-            try:
-                from PyQt6.QtCore import QTimer
-
-                def _reconnect():
-                    try:
-                        sel_model = self.tree.selectionModel()
-                    except Exception:
-                        sel_model = None
-                    if not sel_model:
-                        return
-                    try:
-                        self.selection_handler.bind_to_selection_model(sel_model)
-                    except Exception:
-                        import logging
-
-                        logging.getLogger(__name__).debug(
-                            "Selection reconnect: bind failed", exc_info=True
-                        )
-
-                QTimer.singleShot(0, _reconnect)
-            except Exception:
-                # Not critical, log in DEBUG only
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    "Failed to schedule selection reconnect after modelReset",
-                    exc_info=True,
-                )
-
-        # Subscribe ONLY to modelReset to perform a single pass
-        # after full snapshot assembly and avoid repaint on each rowsInserted/layoutChanged
+    def _get_tree_model_safe(self):
+        """Return tree model or None on error."""
         try:
-            model.modelReset.connect(_schedule_reload)
+            return self.tree.model()
         except Exception:
-            pass
-        # Reconnect selectionModel after model reset
+            return None
+
+    def _connect_model_reset_handlers(self, model) -> None:
+        """Connect modelReset to deferred handlers."""
+        # NOTE:
+        # Full icon reload on every modelReset is expensive for large trees and
+        # duplicates icon work already performed by StructureTreeModel snapshot
+        # pipeline. Keep only selection model reconnect here.
         try:
-            model.modelReset.connect(_schedule_selection_reconnect)
+            model.modelReset.connect(self._schedule_selection_reconnect)
         except Exception:
             pass
 
+    def _schedule_reload(self, model) -> None:
+        """Schedule a single icons reload after model changes have settled."""
+        if getattr(self, "_icons_reload_pending", False):
+            return
+        if getattr(model, "_tree_snapshot_icons_ready", False):
+            return
+        self._icons_reload_pending = True
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._do_reload_icons)
+
+    def _do_reload_icons(self) -> None:
+        """Perform icons reload and reset pending flag safely."""
+        try:
+            self.icon_handler.reload_icons()
+        finally:
+            self._icons_reload_pending = False
+
+    def _schedule_selection_reconnect(self) -> None:
+        """Defer selection model rebinding to allow QTreeView to recreate it."""
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._reconnect_selection_model)
+
+    def _reconnect_selection_model(self) -> None:
+        """Rebind selection handler to current selection model with debug logging."""
+        try:
+            sel_model = self.tree.selectionModel()
+        except Exception:
+            sel_model = None
+        if not sel_model:
+            return
+        try:
+            self.selection_handler.bind_to_selection_model(sel_model)
+        except Exception:
+            logger.debug("Selection reconnect: bind failed", exc_info=True)
     def _setup_tree(self) -> None:
         self.tree.setHeaderHidden(True)
         # Tree icon size — from configuration (ui.tree_icon_size)
         try:
-            w, h = app_config.ui.get_tree_icon_size()
+            w, h = get_tree_icon_size()
             self.tree.setIconSize(QSize(int(w), int(h)))
         except Exception:
-            # Fallback to safe value
-            self.tree.setIconSize(QSize(28, 28))
+            w, h = get_tree_icon_size()
+            self.tree.setIconSize(QSize(int(w), int(h)))
         self.tree.setDragEnabled(True)
         self.tree.setAcceptDrops(True)
         self.tree.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
@@ -158,6 +155,9 @@ class StructureUIController(QObject):
         self.business.item_added.connect(self.tree_manager._on_item_added)
         self.business.item_updated.connect(self.tree_manager._on_item_updated)
         self.business.item_deleted.connect(self.tree_manager._on_item_deleted)
+        self.business.items_batch_deleted.connect(
+            self.tree_manager._on_items_batch_deleted
+        )
         self.business.section_selected.connect(
             self.selection_handler._on_section_selected
         )
@@ -180,7 +180,6 @@ class StructureUIController(QObject):
             item,
             delete_item_cb=self.item_ops.delete_item,
             add_new_section_cb=self.item_ops.add_new_section,
-            sort_tree_cb=self.tree_manager._sort_tree,
         )
         menu.popup(self.tree.viewport().mapToGlobal(pos))
 
@@ -224,6 +223,9 @@ class StructureUIController(QObject):
     def handle_delete_category(self, category_id: int) -> None:
         self.item_ops.handle_delete_category(category_id)
 
+    def handle_delete_categories(self, category_ids) -> None:
+        self.item_ops.handle_delete_categories(category_ids)
+
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
     ) -> None:
@@ -240,7 +242,7 @@ class StructureUIController(QObject):
         """
         # 1) If category tiles view is active — use current tile
         try:
-            tiles_stack_index = app_config.ui.get_stack_index_tiles()
+            tiles_stack_index = get_tiles_stack_index()
             stack = getattr(self.main, "stack", None)
             tiles = getattr(self.main, "tiles", None)
             if (
@@ -257,7 +259,26 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        # 2) Try to get category via TreeManagement (considering saved state)
+        # 2) If table view is active, trust centralized table context.
+        # This keeps behavior consistent for both navigation paths:
+        # tree -> category -> table and tiles -> category -> table.
+        try:
+            table_stack_index = get_table_stack_index()
+            stack = getattr(self.main, "stack", None)
+            current_category_id = getattr(self.main, "current_category_id", None)
+            if (
+                stack is not None
+                and stack.currentIndex() == table_stack_index
+                and isinstance(current_category_id, int)
+            ):
+                return current_category_id
+        except Exception:
+            logger.debug(
+                "StructureUIController.get_current_category_id: table state lookup failed",
+                exc_info=True,
+            )
+
+        # 3) Try to get category via TreeManagement (considering saved state)
         try:
             category_id = self.tree_manager.get_current_category_id()
             if isinstance(category_id, int):
@@ -268,7 +289,7 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        # 3) Directly read selection from tree as a fallback
+        # 4) Directly read selection from tree as a fallback
         try:
             index = self.tree.currentIndex()
             if index and index.isValid():
@@ -281,7 +302,7 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        # 4) Fallback: ask business logic for the first available category
+        # 5) Fallback: ask business logic for the first available category
         try:
             return self.business.get_first_category_id()
         except Exception:
@@ -290,3 +311,4 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
             return None
+

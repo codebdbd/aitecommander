@@ -14,7 +14,7 @@ class SphereOperations(BaseOperations):
         """Get list of all spheres with guaranteed normalization."""
 
         def _load_spheres():
-            result = self.structure_model.get_spheres() or []
+            result = self.db.spheres.get_spheres() or []
             self.logger.debug("Loaded %s spheres", len(result))
             return result
 
@@ -30,7 +30,7 @@ class SphereOperations(BaseOperations):
             return None
 
         def _get_sphere():
-            sphere_data = self.structure_model.get_sphere_by_id(sphere_id)
+            sphere_data = self.db.spheres.get_sphere_by_id(sphere_id)
             if sphere_data:
                 self.logger.debug("Found sphere %s", sphere_id)
                 return sphere_data
@@ -53,7 +53,7 @@ class SphereOperations(BaseOperations):
         """
 
         def _get_next_sphere():
-            spheres = self.structure_model.get_spheres()
+            spheres = self.db.spheres.get_spheres()
             if not spheres:
                 return None
 
@@ -117,7 +117,7 @@ class SphereOperations(BaseOperations):
             return None
 
         def _get_target_section():
-            sections_data = self.structure_model.get_sections(current_sphere_id)
+            sections_data = self.db.sections.get_sections(current_sphere_id)
             if not sections_data:
                 self.logger.debug("Sections in sphere %s not found", current_sphere_id)
                 return None

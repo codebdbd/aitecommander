@@ -9,39 +9,43 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QLineEdit, QWidget
 
-from ....common.constants import Timeout
 from ..models.layout_context import LayoutContext
 from ..models.panel_state import PanelState
+from ..models.topbar_constants import TOPBAR_CONSTANTS as C
 
 if TYPE_CHECKING:
-    from ..models.types import TopBarWindow
+    from ..models.types import TopBarWindow, WidgetAccessor
     from .hysteresis_service import HysteresisService
     from .narrow_mode_service import NarrowModeService
     from .panel_visibility_manager import PanelVisibilityManager
     from .search_manager import SearchWidgetManager
     from .separator_service import SeparatorVisibilityService
     from .visibility_solver import VisibilitySolver
-    from .widget_accessor import WidgetAccessor
-
+    from .width_calculator import WidthCalculator
 logger = logging.getLogger(__name__)
 
 
 class InitializationState(Enum):
-    """╨б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╨╕ layout."""
+    """Состояние инициализации layout.
 
+    NOT_STARTED - инициализация не началась
+    WAITING_FOR_DATA - ожидание данных
+    DATA_READY - данные готовы
+    LAYOUT_APPLIED - макет применен
+    """
     NOT_STARTED = auto()
     WAITING_FOR_DATA = auto()
     DATA_READY = auto()
     LAYOUT_APPLIED = auto()
 
-
 class LayoutOrchestrator:
-    """╨Ъ╨╛╨╛╤А╨┤╨╕╨╜╨╕╤А╤Г╨╡╤В ╨┐╤А╨╛╤Ж╨╡╤Б╤Б layout adjustment."""
+    """Координирует процесс layout adjustment."""
 
     def __init__(
         self,
         window: TopBarWindow,
         widget_accessor: WidgetAccessor,
+        width_calculator: WidthCalculator,
         visibility_manager: PanelVisibilityManager,
         visibility_solver: VisibilitySolver,
         search_manager: SearchWidgetManager,
@@ -59,6 +63,7 @@ class LayoutOrchestrator:
     ) -> None:
         self.window = window
         self._widget_accessor = widget_accessor
+        self._width_calculator = width_calculator
         self._visibility_manager = visibility_manager
         self._visibility_solver = visibility_solver
         self._search_manager = search_manager
@@ -73,11 +78,10 @@ class LayoutOrchestrator:
         self._slow_adjust_threshold_ms = slow_adjust_threshold_ms
         self._side_spacing = side_spacing
 
-        # ╨Ш╤Б╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╤М ╨┐╨╡╤А╨╡╨┤╨░╨╜╨╜╨╛╨╡ ╨╖╨╜╨░╤З╨╡╨╜╨╕╨╡ ╨╕╨╗╨╕ ╨║╨╛╨╜╤Б╤В╨░╨╜╤В╤Г ╨┐╨╛ ╤Г╨╝╨╛╨╗╤З╨░╨╜╨╕╤О
+       
         if favorites_min_visible_threshold is not None:
             self._favorites_min_visible_threshold = favorites_min_visible_threshold
         else:
-            from ..models.topbar_constants import TOPBAR_CONSTANTS as C
             self._favorites_min_visible_threshold = C.FAVORITES_MIN_VISIBLE_THRESHOLD
 
         # State
@@ -86,10 +90,10 @@ class LayoutOrchestrator:
         self._adjust_running = False
         self._narrow_mode_active = False
         self._last_applied: tuple[int, ...] | None = None
-        self._data_ready_timeout_ms = Timeout.DATA_READY_FALLBACK
+        self._needs_followup = False
 
     def acquire_adjust_lock(self) -> bool:
-        """╨Я╨╛╨┐╤Л╤В╨░╤В╤М╤Б╤П ╨╖╨░╤Е╨▓╨░╤В╨╕╤В╤М ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨║╤Г ╨┤╨╗╤П adjust."""
+       
         with self._adjust_lock:
             if self._adjust_running:
                 return False
@@ -97,12 +101,13 @@ class LayoutOrchestrator:
             return True
 
     def release_adjust_lock(self) -> None:
-        """╨Ю╤Б╨▓╨╛╨▒╨╛╨┤╨╕╤В╤М ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨║╤Г adjust."""
+    
         with self._adjust_lock:
             self._adjust_running = False
 
     def perform_adjust(self, measure_operation_context) -> tuple[dict[str, int], bool, int | None] | None:
-        """╨Т╤Л╨┐╨╛╨╗╨╜╨╕╤В╤М layout adjustment. ╨Т╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В (applied_counts, is_narrow, new_search_width) ╨╕╨╗╨╕ None."""
+        """Выполнить layout adjustment. Возвращает (applied_counts, is_narrow, new_search_width) или None."""
+        # Проверка состояния инициализации
         if self._init_state == InitializationState.WAITING_FOR_DATA:
             logger.debug(
                 "LayoutOrchestrator: skipping adjust - waiting for data (state=%s)",
@@ -125,7 +130,7 @@ class LayoutOrchestrator:
                 return applied, self._narrow_mode_active, new_width
 
     def _prepare_layout_context(self) -> LayoutContext | None:
-        """╨Я╨╛╨┤╨│╨╛╤В╨╛╨▓╨╕╤В╤М ╨║╨╛╨╜╤В╨╡╨║╤Б╤В ╨┤╨╗╤П layout adjustment."""
+        
         container = self._widget_accessor.get_container_widget()
         if not container:
             return None
@@ -157,7 +162,6 @@ class LayoutOrchestrator:
         )
 
     def _handle_narrow_mode(self, ctx: LayoutContext) -> dict[str, int]:
-        """╨Ю╨▒╤А╨░╨▒╨╛╤В╨░╤В╤М narrow mode."""
         counts = {}
         for state in ctx.panel_states:
             if state.definition.label == "quick":
@@ -176,21 +180,23 @@ class LayoutOrchestrator:
 
         if is_narrow != self._narrow_mode_active:
             self._narrow_mode_active = is_narrow
+        self._needs_followup = False
 
         return applied
 
     def _handle_normal_mode(self, ctx: LayoutContext) -> dict[str, int]:
-        """╨Ю╨▒╤А╨░╨▒╨╛╤В╨░╤В╤М normal mode."""
-        counts = self._visibility_solver.compute_visible_counts(ctx)
-        counts = self._hysteresis_service.apply_hysteresis(
-            ctx, counts, self._last_applied, self._panel_labels
+        target_counts = self._visibility_solver.compute_visible_counts(ctx)
+        target_counts = self._hysteresis_service.apply_hysteresis(
+            ctx, target_counts, self._last_applied, self._panel_labels
         )
 
-        # ╨Я╤А╨╕╨╝╨╡╨╜╨╕╤В╤М ╨┐╨╛╤А╨╛╨│ ╨╝╨╕╨╜╨╕╨╝╨░╨╗╤М╨╜╨╛╨╣ ╨▓╨╕╨┤╨╕╨╝╨╛╤Б╤В╨╕ ╨┤╨╗╤П favorites
-        if "fav" in counts and 0 < counts["fav"] < self._favorites_min_visible_threshold:
-            counts["fav"] = 0
+        if "fav" in target_counts and 0 < target_counts["fav"] < self._favorites_min_visible_threshold:
+            target_counts["fav"] = 0
 
-        applied = self._apply_counts(ctx, ctx.panel_states, counts)
+        step_counts = self._step_counts_towards_target(target_counts)
+        step_counts = self._ensure_counts_fit(ctx, step_counts, target_counts)
+        self._needs_followup = step_counts != target_counts
+        applied = self._apply_counts(ctx, ctx.panel_states, step_counts)
         self._finalize_regular_layout(ctx, applied)
 
         if self._init_state == InitializationState.DATA_READY:
@@ -208,7 +214,7 @@ class LayoutOrchestrator:
         panel_states: Iterable[PanelState],
         counts: dict[str, int],
     ) -> dict[str, int]:
-        """╨Я╤А╨╕╨╝╨╡╨╜╨╕╤В╤М counts ╨║ ╨┐╨░╨╜╨╡╨╗╤П╨╝."""
+    
         try:
             from app.utils.ui.updates import suspend_updates
         except (ImportError, AttributeError) as e:
@@ -242,11 +248,16 @@ class LayoutOrchestrator:
     def _finalize_regular_layout(
         self, ctx: LayoutContext, applied_counts: dict[str, int]
     ) -> None:
-        """╨д╨╕╨╜╨░╨╗╨╕╨╖╨╕╤А╨╛╨▓╨░╤В╤М regular layout."""
+        
         top_bar = ctx.top_bar
         search = ctx.search
+        if self._narrow_mode_active:
+            left_margin = right_margin = 0
+        else:
+            left_margin = right_margin = self._side_spacing
+
         self._narrow_mode_service.set_top_bar_margins(
-            top_bar, self._side_spacing, 0, self._side_spacing, 0
+            top_bar, left_margin, 0, right_margin, 0
         )
         self._search_manager.enforce_stretches(top_bar, search)
         self._update_separators_visibility(
@@ -298,11 +309,107 @@ class LayoutOrchestrator:
 
 
     def _counts_tuple(self, applied: dict[str, int]) -> tuple[int, ...]:
-        """╨Я╤А╨╡╨╛╨▒╤А╨░╨╖╨╛╨▓╨░╤В╤М applied counts ╨▓ tuple ╨┤╨╗╤П ╤Б╤А╨░╨▓╨╜╨╡╨╜╨╕╤П."""
+       
         return tuple(applied.get(label, 0) for label in self._panel_labels)
 
+    def _step_counts_towards_target(
+        self, target_counts: dict[str, int]
+    ) -> dict[str, int]:
+        if self._last_applied is None:
+            return target_counts
+
+        prev_counts = {
+            label: self._last_applied[i] for i, label in enumerate(self._panel_labels)
+        }
+        if prev_counts == target_counts:
+            return target_counts
+
+        prev_total = sum(prev_counts.values())
+        target_total = sum(target_counts.values())
+        direction = 1 if target_total > prev_total else -1
+        stepped_counts = dict(prev_counts)
+        stepped = False
+
+        for label in self._panel_labels:
+            diff = target_counts.get(label, 0) - stepped_counts.get(label, 0)
+            if diff * direction > 0:
+                stepped_counts[label] += direction
+                if direction > 0:
+                    stepped_counts[label] = min(
+                        stepped_counts[label], target_counts[label]
+                    )
+                else:
+                    stepped_counts[label] = max(
+                        stepped_counts[label], target_counts[label]
+                    )
+                stepped = True
+                break
+
+        if not stepped:
+            for label in self._panel_labels:
+                diff = target_counts.get(label, 0) - stepped_counts.get(label, 0)
+                if diff != 0:
+                    step = 1 if diff > 0 else -1
+                    stepped_counts[label] += step
+                    if step > 0:
+                        stepped_counts[label] = min(
+                            stepped_counts[label], target_counts[label]
+                        )
+                    else:
+                        stepped_counts[label] = max(
+                            stepped_counts[label], target_counts[label]
+                        )
+                    break
+
+        return stepped_counts
+
+    def _ensure_counts_fit(
+        self,
+        ctx: LayoutContext,
+        current_counts: dict[str, int],
+        target_counts: dict[str, int],
+    ) -> dict[str, int]:
+        if self._total_width(ctx, current_counts) <= ctx.width:
+            return current_counts
+
+        adjusted = dict(current_counts)
+        while self._total_width(ctx, adjusted) > ctx.width:
+            if self._reduce_one_towards_target(adjusted, target_counts):
+                continue
+            if not self._reduce_one_any(adjusted, skip_label="quick"):
+                break
+        return adjusted
+
+    def _total_width(self, ctx: LayoutContext, counts: dict[str, int]) -> int:
+        return self._width_calculator.total_width(
+            ctx.top_bar, ctx.search, ctx.panel_states, counts, ctx.min_search_width
+        )
+
+    def _reduce_one_towards_target(
+        self, current: dict[str, int], target: dict[str, int]
+    ) -> bool:
+        for label in self._panel_labels:
+            cur = current.get(label, 0)
+            tgt = target.get(label, 0)
+            if cur > tgt:
+                current[label] = max(0, cur - 1)
+                return True
+        return False
+
+    def _reduce_one_any(
+        self, current: dict[str, int], skip_label: str | None = None
+    ) -> bool:
+        for label in self._panel_labels:
+            if skip_label is not None and label == skip_label:
+                continue
+            cur = current.get(label, 0)
+            if cur > 0:
+                current[label] = cur - 1
+                return True
+        return False
+
     def _compute_effective_width(self, width: int) -> int:
-        """╨Т╤Л╤З╨╕╤Б╨╗╨╕╤В╤М ╤Н╤Д╤Д╨╡╨║╤В╨╕╨▓╨╜╤Г╤О ╤И╨╕╤А╨╕╨╜╤Г."""
+        
         try:
             win_width = int(getattr(self.window, "width", lambda: width)())
             return min(width, win_width) if win_width > 0 else width
@@ -313,7 +420,7 @@ class LayoutOrchestrator:
     def _log_layout_snapshot(
         self, ctx: LayoutContext, counts: dict[str, int]
     ) -> None:
-        """╨Ы╨╛╨│╨╕╤А╨╛╨▓╨░╤В╤М snapshot layout."""
+        
         if logger.isEnabledFor(logging.DEBUG):
             try:
                 logger.debug(
@@ -331,7 +438,7 @@ class LayoutOrchestrator:
     def _clamp_search_width(
         self, ctx: LayoutContext, applied_counts: dict[str, int]
     ) -> int | None:
-        """╨Ю╨│╤А╨░╨╜╨╕╤З╨╕╤В╤М ╤И╨╕╤А╨╕╨╜╤Г search widget."""
+        
         return self._search_manager.clamp_width(
             ctx, applied_counts, self._min_search_width
         )
@@ -342,7 +449,7 @@ class LayoutOrchestrator:
         applied_counts: dict[str, int],
         has_search: bool,
     ) -> None:
-        """╨Ю╨▒╨╜╨╛╨▓╨╕╤В╤М ╨▓╨╕╨┤╨╕╨╝╨╛╤Б╤В╤М separators."""
+       
         panel_widgets_map = self._separator_service.build_panel_widgets_map(
             self.window, self._panel_labels
         )
@@ -355,21 +462,25 @@ class LayoutOrchestrator:
 
     # State management
     def get_init_state(self) -> InitializationState:
-        """╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╤В╨╡╨║╤Г╤Й╨╡╨╡ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╨╕."""
+       
         return self._init_state
 
     def set_init_state(self, state: InitializationState) -> None:
-        """╨г╤Б╤В╨░╨╜╨╛╨▓╨╕╤В╤М ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╨╕."""
+        
         self._init_state = state
 
     def is_narrow_mode_active(self) -> bool:
-        """╨Я╤А╨╛╨▓╨╡╤А╨╕╤В╤М ╨░╨║╤В╨╕╨▓╨╡╨╜ ╨╗╨╕ narrow mode."""
+      
         return self._narrow_mode_active
 
     def set_narrow_mode_active(self, active: bool) -> None:
-        """╨г╤Б╤В╨░╨╜╨╛╨▓╨╕╤В╤М ╤Д╨╗╨░╨│ narrow mode."""
+       
         self._narrow_mode_active = active
 
     def get_last_applied(self) -> tuple[int, ...] | None:
-        """╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╨┐╨╛╤Б╨╗╨╡╨┤╨╜╨╕╨╡ ╨┐╤А╨╕╨╝╨╡╨╜╨╡╨╜╨╜╤Л╨╡ counts."""
+        
         return self._last_applied
+
+    def needs_followup(self) -> bool:
+        
+        return self._needs_followup

@@ -7,7 +7,7 @@ from importlib import import_module
 from types import ModuleType
 from typing import Any, Callable, Optional, Protocol, cast
 
-from app.models import StructureModel
+from app.models import StructureCoordinator
 from app.services.structure_service import StructureService
 
 from ..models.category_types import CategoryDeletionInfo, SignalTypes
@@ -64,7 +64,7 @@ class CategoryOperations(BaseOperations):
 
     def __init__(
         self,
-        structure_model: StructureModel,
+        structure_coordinator: StructureCoordinator,
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         execute_with_validation: Callable,
@@ -72,7 +72,10 @@ class CategoryOperations(BaseOperations):
         cache_manager,
     ):
         super().__init__(
-            structure_model, logger, execute_with_error_handling, emit_signal_callback
+            structure_coordinator,
+            logger,
+            execute_with_error_handling,
+            emit_signal_callback,
         )
         self._execute_with_validation_fn: Callable[
             [Callable[[], Optional[int]], Any, StructureItemType, str], Optional[int]
@@ -81,7 +84,7 @@ class CategoryOperations(BaseOperations):
         # Service layer: transactions and reads without duplicating SQL
         try:
             self._structure_service: Optional[StructureService] = StructureService(
-                structure_model.db
+                structure_coordinator.db
             )
         except Exception:
             self._structure_service = None
@@ -186,7 +189,7 @@ class CategoryOperations(BaseOperations):
             categories_data = (
                 self._structure_service.get_categories(section_id)
                 if self._structure_service
-                else self.structure_model.get_categories(section_id)
+                else self.db.categories.get_categories(section_id)
             )
             result = categories_data if categories_data else []
             self.logger.debug(
@@ -209,7 +212,7 @@ class CategoryOperations(BaseOperations):
 
         def _get_categories_batch_operation():
             # Use the optimized model method
-            rows = self.structure_model.get_categories_batch(section_ids)
+            rows = self.db.categories.get_categories_batch(section_ids)
             return rows if rows else []
 
         # Apply normalization and validation
@@ -302,7 +305,7 @@ class CategoryOperations(BaseOperations):
 
         def _get_first_category_operation():
             # The service layer lacks this method, rely on the model
-            category_id = self.structure_model.get_first_category_id()
+            category_id = self.db.categories.get_first_category_id()
             if category_id:
                 self.logger.debug("First category found with ID: %s", category_id)
                 self._cache_manager.set_first_category_id(category_id)
@@ -343,12 +346,12 @@ class CategoryOperations(BaseOperations):
                 get_sections = (
                     self._structure_service.get_sections
                     if self._structure_service
-                    else self.structure_model.get_sections
+                    else self.db.sections.get_sections
                 )
                 get_categories = (
                     self._structure_service.get_categories
                     if self._structure_service
-                    else self.structure_model.get_categories
+                    else self.db.categories.get_categories
                 )
                 sections = get_sections(int(sphere_id)) or []
                 for section in sections:
@@ -382,7 +385,7 @@ class CategoryOperations(BaseOperations):
             hierarchy_data = (
                 self._structure_service.get_category_hierarchy(category_id)
                 if self._structure_service
-                else self.structure_model.get_category_hierarchy(category_id)
+                else self.db.categories.get_category_hierarchy(category_id)
             )
             if hierarchy_data:
                 self.logger.debug("Hierarchy found for category %s", category_id)
@@ -428,12 +431,12 @@ class CategoryOperations(BaseOperations):
         """Internal helper to load category data."""
         if self._structure_service:
             return self._structure_service.get_category_by_id(category_id)
-        return self.structure_model.get_category_by_id(category_id)
+        return self.db.categories.get_category_by_id(category_id)
 
     def _count_category_links(self, category_id: int) -> int:
         """Count the number of links in a category."""
         try:
-            return self.structure_model.count_links_by_category(category_id)
+            return self.db.links.count_links_by_category(category_id)
         except Exception as e:
             self.logger.error(
                 "Failed to count links for category %s: %s",

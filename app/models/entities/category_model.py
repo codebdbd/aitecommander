@@ -5,8 +5,10 @@ CategoryModel - model for working with categories in database.
 import logging
 from typing import Any, Optional
 
+from ...utils.db.sql_helpers import build_in_clause_placeholders, build_placeholders
 from ..base.db_base import DatabaseBase, ValidationError, row_to_dict
-from .constants import CATEGORY_BULK_UUID_FIELD
+from ..types.category_types import BulkInsertResult, CategoryDict
+from ..types.constants import CATEGORY_BULK_UUID_FIELD
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +16,39 @@ logger = logging.getLogger(__name__)
 class CategoryModel(DatabaseBase):
     """Model for working with categories."""
 
+    SQLITE_PARAM_CHUNK_SIZE = 900
+
     def __init__(self, database):
         """Initialization of category model."""
         super().__init__(database)
 
-    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
+    def _validate_and_deduplicate_ids(
+        self, ids: list[int], entity_name: str = "item"
+    ) -> list[int]:
+        """Validate, filter and deduplicate integer IDs."""
+        if not ids:
+            return []
+
+        valid_ids = [
+            int(x) for x in ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
+
+        unique_ids = list(dict.fromkeys(valid_ids))
+
+        if not unique_ids:
+            logger.warning(
+                "No valid %s IDs found in input list of length %d",
+                entity_name, len(ids)
+            )
+
+        return unique_ids
+
+    def get_categories(self, section_id: int) -> list[CategoryDict]:
         """Returns list of categories for specified section in dict format."""
         rows = self._execute_with_error_handling(
-            "SELECT id, name, section_id, position, icon_path FROM category WHERE section_id = ?",
+            "SELECT id, name, section_id, position, icon_path FROM category "
+            "WHERE section_id = ? ORDER BY position",
             (section_id,),
             fetch_method="all",
         )
@@ -29,12 +56,16 @@ class CategoryModel(DatabaseBase):
 
     def get_categories_for_sections(
         self, section_ids: list[int]
-    ) -> list[dict[str, Any]]:
-        """Returns categories for multiple sections in one query in dict format."""
+    ) -> list[CategoryDict]:
+        """Returns categories for multiple sections in one query."""
         if not section_ids:
             return []
 
-        placeholders = ",".join("?" * len(section_ids))
+        validated_ids = self._validate_and_deduplicate_ids(section_ids, "section")
+        if not validated_ids:
+            return []
+
+        placeholders = build_in_clause_placeholders(len(validated_ids))
         query = f"""
             SELECT id, name, section_id, position, icon_path 
             FROM category 
@@ -42,27 +73,22 @@ class CategoryModel(DatabaseBase):
             ORDER BY section_id, position
         """
         rows_raw = self._execute_with_error_handling(
-            query, tuple(section_ids), fetch_method="all"
+            query, tuple(validated_ids), fetch_method="all"
         )
         rows = self._ensure_row_list(rows_raw)
         return [row_to_dict(row) for row in rows] if rows else []
 
-    def get_category_by_id(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_by_id(self, category_id: int) -> Optional[CategoryDict]:
         """Returns category by its ID in dict format."""
         row = self._execute_with_error_handling(
-            "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
+            "SELECT id, name, section_id, position, icon_path FROM category WHERE id = ?",
+            (category_id,),
+            fetch_method="one"
         )
         return row_to_dict(row) if row else None
 
     def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
-        """Get category hierarchy (sphere -> section -> category).
-
-        Args:
-            category_id: Category ID
-
-        Returns:
-            Dict with sphere_id, section_id, category_id or None on error
-        """
+        """Get category hierarchy (sphere -> section -> category)."""
         result = self._execute_with_error_handling(
             """SELECT s.sphere_id, c.section_id 
                FROM category c 
@@ -79,35 +105,20 @@ class CategoryModel(DatabaseBase):
                 "section_id": result_dict["section_id"],
                 "category_id": category_id,
             }
-        return None
 
     def insert_category(self, data: dict[str, Any]) -> Optional[int]:
-        """Inserts new category and returns its ID.
-
-        Args:
-            data: Category data dictionary, must contain 'name' and 'section_id'
-
-        Returns:
-            int: ID of created category or None if category with same name already exists
+        """Inserts new category and returns its ID. Returns None if duplicate found.
+        
+        NOTE: Must be called within a transaction context.
         """
         self._validate_required_fields(data, ["name", "section_id"], "category")
 
-        # Input normalization: remove extra spaces around name
-        try:
-            name_norm = str(data["name"]).strip()
-        except Exception:
-            name_norm = str(data["name"])  # just in case
-        data = dict(data)
-        data["name"] = name_norm
-
-        # Check if category with this name already exists in this section
         cursor = self._execute_with_error_handling(
             "SELECT id FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE",
-            (data["section_id"], data["name"]),
+            (data["section_id"], str(data["name"]).strip()),
             fetch_method="one",
         )
         if cursor is not None:
-            # Category with this name already exists in this section
             logger.warning(
                 "Category '%s' already exists in section %s",
                 data["name"],
@@ -120,56 +131,53 @@ class CategoryModel(DatabaseBase):
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
-        logger.info("Добавлена новая категория: %s", data["name"])
+        logger.info("Added new category: %s", data["name"])
         lastrowid = getattr(insert_cursor, "lastrowid", None)
         return int(lastrowid) if lastrowid is not None else None
 
     def _validate_and_prepare_items(
         self, items: list[dict[str, Any]]
-    ) -> tuple[dict[int, tuple[int, str, str]], bool]:
-        """Validate input items and prepare normalized metadata.
-
-        Returns: (prepared_info, has_uuid_tokens)
-        """
-        prepared_info: dict[int, tuple[int, str, str]] = {}
+    ) -> tuple[list[tuple[int, str, str]], bool]:
+        """Validate input items and prepare normalized metadata."""
+        prepared_items: list[tuple[int, str, str]] = []
         has_uuid_tokens = False
 
-        for it in items:
+        for idx, it in enumerate(items):
             self._validate_required_fields(it or {}, ["name", "section_id"], "category")
             section_id_raw = it.get("section_id")
             try:
                 if section_id_raw is None:
                     raise ValueError("section_id is missing")
                 sid = int(section_id_raw)
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 raise ValidationError(
-                    "Incorrect section_id in one of batch elements"
+                    f"Incorrect section_id in batch element at index {idx}"
                 ) from e
             raw_name = it.get("name")
             name_canon = str(raw_name).strip() if raw_name is not None else ""
+            if not name_canon:
+                raise ValidationError(
+                    f"Empty category name at index {idx}"
+                )
             name_norm = name_canon.lower()
-            prepared_info[id(it)] = (sid, name_canon, name_norm)
+            prepared_items.append((sid, name_canon, name_norm))
 
             if not has_uuid_tokens:
                 token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
                 if token_raw is not None and str(token_raw).strip():
                     has_uuid_tokens = True
 
-        return prepared_info, has_uuid_tokens
+        return prepared_items, has_uuid_tokens
 
     def _group_by_section(
         self,
         items: list[dict[str, Any]],
-        prepared_info: dict[int, tuple[int, str, str]],
-    ) -> dict[int, list[dict[str, Any]]]:
-        """Group items by section_id."""
-        by_section: dict[int, list[dict[str, Any]]] = {}
-        for it in items:
-            info = prepared_info.get(id(it))
-            if not info:
-                continue
-            sid, _, _ = info
-            by_section.setdefault(sid, []).append(it)
+        prepared_items: list[tuple[int, str, str]],
+    ) -> dict[int, list[tuple[int, dict[str, Any]]]]:
+        """Group items by section_id, preserving their indices."""
+        by_section: dict[int, list[tuple[int, dict[str, Any]]]] = {}
+        for idx, (it, (sid, _, _)) in enumerate(zip(items, prepared_items)):
+            by_section.setdefault(sid, []).append((idx, it))
         return by_section
 
     def _load_max_positions(self, section_ids: list[int]) -> dict[int, Optional[int]]:
@@ -178,7 +186,7 @@ class CategoryModel(DatabaseBase):
         if not section_ids:
             return max_pos_map
 
-        placeholders = ",".join(["?"] * len(section_ids))
+        placeholders = build_in_clause_placeholders(len(section_ids))
         query = (
             f"SELECT section_id, MAX(position) AS max_pos "
             f"FROM category WHERE section_id IN ({placeholders}) "
@@ -192,13 +200,13 @@ class CategoryModel(DatabaseBase):
             max_pos_map[row_dict["section_id"]] = row_dict["max_pos"]
         return max_pos_map
 
-    def _load_existing_names(self, section_ids: list[int]) -> dict[int, set]:
+    def _load_existing_names(self, section_ids: list[int]) -> dict[int, set[str]]:
         """Load existing category names for all sections in one query."""
-        existing_names_by_section: dict[int, set] = {}
+        existing_names_by_section: dict[int, set[str]] = {}
         if not section_ids:
             return existing_names_by_section
 
-        placeholders = ",".join(["?"] * len(section_ids))
+        placeholders = build_in_clause_placeholders(len(section_ids))
         query_names = (
             f"SELECT section_id, LOWER(name) AS lname FROM category "
             f"WHERE section_id IN ({placeholders})"
@@ -218,8 +226,8 @@ class CategoryModel(DatabaseBase):
 
     def _build_insert_batch(
         self,
-        by_section: dict[int, list[dict[str, Any]]],
-        prepared_info: dict[int, tuple[int, str, str]],
+        by_section: dict[int, list[tuple[int, dict[str, Any]]]],
+        prepared_items: list[tuple[int, str, str]],
         max_pos_map: dict[int, Optional[int]],
         existing_names_by_section: dict[int, set],
     ) -> list[tuple]:
@@ -233,11 +241,8 @@ class CategoryModel(DatabaseBase):
             existing_names = existing_names_by_section.get(section_id, set())
             seen_in_batch = set()
 
-            for it in group:
-                info = prepared_info.get(id(it))
-                if not info:
-                    continue
-                _, name_canon, name_norm = info
+            for idx, it in group:
+                sid, name_canon, name_norm = prepared_items[idx]
                 if not name_norm:
                     continue
                 if name_norm in existing_names or name_norm in seen_in_batch:
@@ -252,18 +257,15 @@ class CategoryModel(DatabaseBase):
 
     def _collect_category_pairs(
         self,
-        by_section: dict[int, list[dict[str, Any]]],
-        prepared_info: dict[int, tuple[int, str, str]],
+        by_section: dict[int, list[tuple[int, dict[str, Any]]]],
+        prepared_items: list[tuple[int, str, str]],
     ) -> list[tuple[int, str]]:
         """Collect unique (section_id, name) pairs for DB query."""
         pairs: list[tuple] = []
         seen = set()
         for section_id, group in by_section.items():
-            for g in group:
-                info = prepared_info.get(id(g))
-                if not info:
-                    continue
-                _, nm_canon, _ = info
+            for idx, _ in group:
+                _, nm_canon, _ = prepared_items[idx]
                 key = (section_id, nm_canon)
                 if key in seen:
                     continue
@@ -278,7 +280,7 @@ class CategoryModel(DatabaseBase):
         if not pairs:
             return []
 
-        placeholders = ",".join(["(?, ?)"] * len(pairs))
+        placeholders = build_placeholders(len(pairs), "(?, ?)")
         flat_params: list[Any] = []
         for sid, nm in pairs:
             flat_params.extend([sid, nm])
@@ -304,11 +306,15 @@ class CategoryModel(DatabaseBase):
                 section_id = (
                     int(r["section_id"]) if r["section_id"] is not None else None
                 )
-            except Exception:
+            except (ValueError, TypeError, KeyError) as e:
+                logger.debug("Failed to parse section_id from row: %s", e)
                 section_id = None
             if section_id is None:
                 continue
             name_value = str(r["name"]).strip().lower() if r["name"] is not None else ""
+            if not name_value:
+                logger.debug("Skipping category with empty name: id=%s", r.get("id"))
+                continue
             rows_by_key[(section_id, name_value)] = r
         return rows_by_key
 
@@ -316,15 +322,12 @@ class CategoryModel(DatabaseBase):
         self,
         rows_by_key: dict[tuple[int, str], dict[str, Any]],
         items: list[dict[str, Any]],
-        prepared_info: dict[int, tuple[int, str, str]],
+        prepared_items: list[tuple[int, str, str]],
     ) -> list[dict[str, Any]]:
         """Attach UUID tokens to fetched categories."""
         result: list[dict[str, Any]] = []
-        for it in items:
-            info = prepared_info.get(id(it))
-            if not info:
-                continue
-            section_id, _, name_norm = info
+        for idx, it in enumerate(items):
+            section_id, _, name_norm = prepared_items[idx]
             if not name_norm:
                 continue
             row = rows_by_key.get((section_id, name_norm))
@@ -340,13 +343,13 @@ class CategoryModel(DatabaseBase):
 
     def _fetch_inserted_categories(
         self,
-        by_section: dict[int, list[dict[str, Any]]],
-        prepared_info: dict[int, tuple[int, str, str]],
+        by_section: dict[int, list[tuple[int, dict[str, Any]]]],
+        prepared_items: list[tuple[int, str, str]],
         has_uuid_tokens: bool,
         items: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """Fetch inserted categories from DB and attach UUID tokens if needed."""
-        pairs = self._collect_category_pairs(by_section, prepared_info)
+        pairs = self._collect_category_pairs(by_section, prepared_items)
         if not pairs:
             return []
 
@@ -355,52 +358,65 @@ class CategoryModel(DatabaseBase):
             return rows
 
         rows_by_key = self._build_category_index(rows)
-        return self._attach_uuid_tokens(rows_by_key, items, prepared_info)
+        return self._attach_uuid_tokens(rows_by_key, items, prepared_items)
 
     def insert_categories_bulk(
         self, items: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Bulk category insertion with atomic transaction.
-
-        - Expects list of dictionaries with keys at least: 'name', 'section_id'.
-        - Additionally supports 'icon_path'.
-        - Duplicates (UNIQUE(section_id, name)) are silently ignored (INSERT OR IGNORE).
-        - Positions calculated efficiently: sequentially for each section_id group
-          from current MAX(position) + 1.
-
-        Returns list of categories (dict) for all passed names by sections
-        after operation (both new and existing), so calling side can
-        synchronize UI. Order in result: by section_id, then by position.
-        """
+    ) -> BulkInsertResult:
+        """Bulk category insertion with atomic transaction. Duplicates are skipped and logged."""
         if not items:
-            return []
+            return BulkInsertResult(inserted=[], duplicates_skipped=0, total_items=0)
 
-        prepared_info, has_uuid_tokens = self._validate_and_prepare_items(items)
-        by_section = self._group_by_section(items, prepared_info)
+        prepared_items, has_uuid_tokens = self._validate_and_prepare_items(items)
+        by_section = self._group_by_section(items, prepared_items)
 
-        try:
-            with self.transaction():
-                section_ids = list(by_section.keys())
-                max_pos_map = self._load_max_positions(section_ids)
-                existing_names_by_section = self._load_existing_names(section_ids)
+        with self.transaction():
+            section_ids = list(by_section.keys())
+            max_pos_map = self._load_max_positions(section_ids)
+            existing_names_by_section = self._load_existing_names(section_ids)
 
-                batched_params = self._build_insert_batch(
-                    by_section, prepared_info, max_pos_map, existing_names_by_section
+            batched_params = self._build_insert_batch(
+                by_section, prepared_items, max_pos_map, existing_names_by_section
+            )
+
+            total_items = len(items)
+            items_to_insert = len(batched_params)
+            duplicates_skipped = total_items - items_to_insert
+
+            if duplicates_skipped > 0:
+                logger.info(
+                    "Bulk insert: %d duplicates skipped out of %d items",
+                    duplicates_skipped,
+                    total_items,
                 )
 
-                # Insert with single executemany
-                self._execute_many_with_error_handling(
-                    "INSERT OR IGNORE INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
-                    batched_params,
-                )
+            cursor = self._execute_many_with_error_handling(
+                "INSERT OR IGNORE INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                batched_params,
+            )
 
-                return self._fetch_inserted_categories(
-                    by_section, prepared_info, has_uuid_tokens, items
-                )
-        except Exception:
-            raise
+            rowcount = getattr(cursor, "rowcount", None)
+            if rowcount is not None:
+                if rowcount != items_to_insert:
+                    logger.warning(
+                        "Bulk insert: expected %d inserts, but rowcount=%d (possible DB-level duplicates)",
+                        items_to_insert,
+                        rowcount,
+                    )
+                elif rowcount > 0:
+                    logger.debug("Successfully inserted %d categories", rowcount)
 
-    def update_category(self, category_id: int, data: dict[str, Any]):
+            inserted = self._fetch_inserted_categories(
+                by_section, prepared_items, has_uuid_tokens, items
+            )
+
+            return BulkInsertResult(
+                inserted=inserted,
+                duplicates_skipped=duplicates_skipped,
+                total_items=total_items,
+            )
+
+    def update_category(self, category_id: int, data: dict[str, Any]) -> None:
         """Updates existing category."""
         return self._update_entity(
             "category",
@@ -409,46 +425,66 @@ class CategoryModel(DatabaseBase):
             ["name", "section_id", "icon_path", "position"],
         )
 
-    def delete_category(self, category_id: int):
+    def update_categories_bulk(self, updates: list[dict[str, Any]]) -> int:
+        """Bulk update multiple categories in one transaction.
+        
+        Args:
+            updates: List of dicts with 'id' and fields to update
+            
+        Returns:
+            Number of categories updated
+        """
+        if not updates:
+            return 0
+        
+        updated_count = 0
+        with self.transaction():
+            for item in updates:
+                if not isinstance(item, dict) or "id" not in item:
+                    logger.warning("update_categories_bulk: skipping invalid item %s", item)
+                    continue
+                
+                category_id = item.get("id")
+                if not isinstance(category_id, int) or category_id <= 0:
+                    logger.warning("update_categories_bulk: invalid category_id %s", category_id)
+                    continue
+                
+                try:
+                    self.update_category(category_id, item)
+                    updated_count += 1
+                except Exception as exc:
+                    logger.warning(
+                        "update_categories_bulk: failed to update category %s: %s",
+                        category_id,
+                        exc,
+                    )
+        
+        logger.info("Bulk updated %d categories", updated_count)
+        return updated_count
+
+    def delete_category(self, category_id: int) -> None:
         """Deletes category by its ID along with all its links (atomically)."""
         with self.transaction():
-            # First delete all category links
             self._execute_with_error_handling(
                 "DELETE FROM link WHERE category_id=?", (category_id,)
             )
-            # Then delete the category itself
             self._execute_with_error_handling(
                 "DELETE FROM category WHERE id=?", (category_id,)
             )
         logger.info("Deleted category with ID %s and all its links", category_id)
 
     def delete_categories_bulk(self, category_ids: list[int]) -> int:
-        """Bulk deletion of multiple categories (and their links) in one transaction.
-
-        Returns number of deleted categories. Ignores invalid IDs.
-        """
-        if not category_ids:
-            return 0
-
-        # Keep only valid positive integer IDs (excluding bool) and remove duplicates
-        ids = [
-            int(x)
-            for x in category_ids
-            if isinstance(x, int) and not isinstance(x, bool) and x > 0
-        ]
-        # Deduplication preserving first occurrence order
-        unique_ids = list(dict.fromkeys(ids))
+        """Bulk deletion of multiple categories (and their links) in one transaction."""
+        unique_ids = self._validate_and_deduplicate_ids(category_ids, "category")
         if not unique_ids:
             return 0
 
-        # Chunking to comply with SQLite parameter limit (~999)
-        CHUNK = 900
+        CHUNK = self.SQLITE_PARAM_CHUNK_SIZE
 
-        # 0) Collect affected sections in chunks
         affected_sections: list[int] = []
         for i in range(0, len(unique_ids), CHUNK):
             chunk = unique_ids[i : i + CHUNK]
-            placeholders = ",".join(["?"] * len(chunk))
+            placeholders = build_in_clause_placeholders(len(chunk))
             rows_raw = self._execute_with_error_handling(
                 f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
                 tuple(chunk),
@@ -462,17 +498,13 @@ class CategoryModel(DatabaseBase):
 
         deleted_categories = 0
         with self.transaction():
-            # 1) Delete links and categories in chunks to not exceed parameter limit
             for i in range(0, len(unique_ids), CHUNK):
                 chunk = unique_ids[i : i + CHUNK]
-                placeholders = ",".join(["?"] * len(chunk))
-                # Delete links for chunk categories
+                placeholders = build_in_clause_placeholders(len(chunk))
                 self._execute_with_error_handling(
                     f"DELETE FROM link WHERE category_id IN ({placeholders})",
                     tuple(chunk),
                 )
-                # Pre-count category records in chunk,
-                # to have exact value in case cursor.rowcount is missing
                 pre_count_row = self._execute_with_error_handling(
                     f"SELECT COUNT(*) as cnt FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
@@ -484,11 +516,11 @@ class CategoryModel(DatabaseBase):
                     try:
                         pre_count = int(
                             row_to_dict(pre_count_row)["cnt"]
-                        )  # sqlite3.Row converted to dict
-                    except Exception:
+                        )
+                    except (ValueError, TypeError, KeyError) as e:
+                        logger.debug("Failed to parse pre_count: %s", e)
                         pre_count = 0
 
-                # Delete the categories themselves
                 cursor = self._execute_with_error_handling(
                     f"DELETE FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
@@ -497,7 +529,6 @@ class CategoryModel(DatabaseBase):
                 if rc is not None:
                     deleted_categories += int(rc)
                 else:
-                    # Log missing rowcount and use pre-count
                     logger.warning(
                         "delete_categories_bulk: cursor.rowcount not available; using pre-count (%s) for chunk %s",
                         pre_count,
@@ -505,19 +536,14 @@ class CategoryModel(DatabaseBase):
                     )
                     deleted_categories += pre_count
 
-            # 2) Reindex positions in affected sections to remove "gaps"
             try:
-                # Deduplication and filter valid ids
-                uniq_sections = list(
-                    dict.fromkeys(
-                        [s for s in affected_sections if isinstance(s, int) and s > 0]
-                    )
+                self._reindex_positions_bulk(affected_sections)
+            except Exception as e:
+                logger.warning(
+                    "Failed to reindex category positions after deletion: %s",
+                    e,
+                    exc_info=True,
                 )
-                for sid in uniq_sections:
-                    self._reindex_positions(sid)
-            except Exception:
-                # Don't interrupt deletion, but log at top level
-                logger.warning("Failed to reindex category positions after deletion")
 
         logger.info(
             "Bulk deleted categories (count=%s), ids=%s",
@@ -529,35 +555,27 @@ class CategoryModel(DatabaseBase):
     def move_categories_to_section_bulk(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
     ) -> list[int]:
-        """Atomically moves multiple categories to target section in one transaction.
-
-        - Skips categories that would cause name duplicate in target section
-          (UNIQUE(section_id, name)).
-        - Positions for moved categories assigned sequentially starting from base_row.
-        - Reindexes positions in affected source sections and target section.
-
-        Returns list of actually moved ids in application order.
-        """
-        # Input data validation
-        if (
-            not category_ids
-            or not isinstance(target_section_id, int)
-            or target_section_id <= 0
-        ):
+        """Atomically moves multiple categories to target section. Skips duplicates and logs."""
+        if not category_ids or not isinstance(target_section_id, int) or target_section_id <= 0:
             return []
 
-        # Keep only valid positive integer IDs (excluding bool) and remove duplicates (preserving order)
-        ids = [
-            int(x)
-            for x in category_ids
-            if isinstance(x, int) and not isinstance(x, bool) and x > 0
-        ]
-        unique_ids = list(dict.fromkeys(ids))
+        target_exists = self._execute_with_error_handling(
+            "SELECT COUNT(*) as cnt FROM section WHERE id = ?",
+            (target_section_id,),
+            fetch_method="one",
+        )
+        if not target_exists or row_to_dict(target_exists).get("cnt", 0) == 0:
+            logger.warning(
+                "Cannot move categories: target section %d does not exist",
+                target_section_id,
+            )
+            return []
+
+        unique_ids = self._validate_and_deduplicate_ids(category_ids, "category")
         if not unique_ids:
             return []
 
-        # Get category data (id, name, section_id, position), filter existing
-        placeholders = ",".join(["?"] * len(unique_ids))
+        placeholders = build_in_clause_placeholders(len(unique_ids))
         rows_raw = self._execute_with_error_handling(
             f"SELECT id, name, section_id, position FROM category WHERE id IN ({placeholders})",
             tuple(unique_ids),
@@ -567,13 +585,10 @@ class CategoryModel(DatabaseBase):
         if not rows:
             return []
 
-        # Dictionary by id
         data_by_id: dict[int, dict[str, Any]] = {int(r["id"]): dict(r) for r in rows}
 
-        # Preserve user-defined order (sequence unique_ids)
         ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
 
-        # Names already occupied in target section
         existing_names_rows = self._execute_with_error_handling(
             "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
             (target_section_id,),
@@ -584,31 +599,38 @@ class CategoryModel(DatabaseBase):
             for r in self._ensure_row_list(existing_names_rows)
         }
 
-        # Filter by name duplicates (in target section)
-        to_move_ids: list[int] = []
+        to_move_ids = []
+        skipped_duplicates = []
+
         for cid in ordered_existing_ids:
-            nm = str(data_by_id[cid].get("name", "")).strip().lower()
-            # If duplicate already exists in target — skip
-            if nm in existing_names:
+            cat_data = data_by_id[cid]
+            name_lower = str(cat_data["name"]).strip().lower()
+            if name_lower in existing_names:
+                skipped_duplicates.append({
+                    "id": cid,
+                    "name": cat_data["name"],
+                })
                 continue
             to_move_ids.append(cid)
-            existing_names.add(nm)  # reserve name to exclude repeats within set
+
+        if skipped_duplicates:
+            logger.info(
+                "Bulk move: skipped %d categories due to duplicates in target section %d: %s",
+                len(skipped_duplicates),
+                target_section_id,
+                [s["name"] for s in skipped_duplicates],
+            )
 
         if not to_move_ids:
             return []
-
-        # Collect source sections for reindexing after move
         source_sections = [
             int(data_by_id[cid].get("section_id", 0) or 0) for cid in to_move_ids
         ]
         source_sections = [
             sid for sid in source_sections if sid and sid != target_section_id
         ]
-        uniq_source_sections = list(dict.fromkeys(source_sections))
 
-        # Apply updates in one transaction
         with self.transaction():
-            # Update section_id and temporary positions for moved categories
             updates = []
             pos = int(base_row) if isinstance(base_row, int) and base_row >= 0 else 0
             for cid in to_move_ids:
@@ -619,23 +641,14 @@ class CategoryModel(DatabaseBase):
                 updates,
             )
 
-            # Reindex source sections (close gaps)
             try:
-                for sid in uniq_source_sections:
-                    self._reindex_positions(sid)
-            except Exception:
+                all_affected = source_sections + [target_section_id]
+                self._reindex_positions_bulk(all_affected)
+            except Exception as e:
                 logger.warning(
-                    "Failed to reindex source sections after move",
-                    exc_info=False,
-                )
-
-            # Reindex target section to synchronize positions
-            try:
-                self._reindex_positions(target_section_id)
-            except Exception:
-                logger.warning(
-                    "Failed to reindex target section after move",
-                    exc_info=False,
+                    "Failed to reindex positions after bulk move: %s",
+                    e,
+                    exc_info=True,
                 )
 
         logger.info(
@@ -643,39 +656,42 @@ class CategoryModel(DatabaseBase):
         )
         return to_move_ids
 
-    def _reindex_positions(self, section_id: int) -> None:
-        """Reindex position field for all section categories sequentially from 0.
-
-        Executed without own begin/commit, assuming external transaction context.
+    def _reindex_positions_bulk(self, section_ids: list[int]) -> None:
+        """Reindex category positions for multiple sections.
+        
+        Note: For single section, prefer calling base _reindex_positions directly.
         """
-        # Get category ids in required order
-        rows_raw = self._execute_with_error_handling(
-            "SELECT id FROM category WHERE section_id = ? ORDER BY position, id",
-            (section_id,),
-            fetch_method="all",
-        )
-        ids_in_order = [int(r["id"]) for r in self._ensure_row_list(rows_raw)]
-        if not ids_in_order:
+        if not section_ids:
             return
-        # Prepare batch of position updates 0..n-1
-        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
-        self._execute_many_with_error_handling(
-            "UPDATE category SET position = ? WHERE id = ?",
-            updates,
-        )
+
+        unique_sections = self._validate_and_deduplicate_ids(section_ids, "section")
+        if not unique_sections:
+            return
+        
+        # Reindex each section separately using base method
+        for section_id in unique_sections:
+            try:
+                super()._reindex_positions("category", "section_id", section_id)
+            except Exception as e:
+                logger.warning(
+                    "Failed to reindex categories for section %d: %s",
+                    section_id,
+                    e,
+                )
+
+    # Note: _reindex_positions() is now inherited from DatabaseBase
 
     def upsert_category(self, category_data: dict[str, Any]) -> int:
         """Inserts or updates category. If category with this id doesn't exist, inserts new with this id."""
-        # Canonicalize name: remove spaces around
-        data = dict(category_data)  # don't mutate incoming dict
-        if "name" in data:
+        data = dict(category_data)
+        if "name" in data and data["name"] is not None:
             try:
                 data["name"] = str(data["name"]).strip()
-            except Exception:
-                data["name"] = str(data["name"])
+            except (AttributeError, TypeError) as e:
+                logger.warning("Failed to strip category name: %s", e)
+                data["name"] = str(data.get("name", ""))
 
-        if "id" in data and data["id"]:
-            # Execute atomically under transaction and unified locking mechanism
+        if "id" in data and data["id"] is not None:
             with self.transaction():
                 cursor = self._execute_with_error_handling(
                     "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id= ?",
@@ -688,7 +704,6 @@ class CategoryModel(DatabaseBase):
                     ),
                 )
                 if int(getattr(cursor, "rowcount", 0) or 0) == 0:
-                    # No record existed, do insertion with required id
                     self._execute_with_error_handling(
                         "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                         (
@@ -708,23 +723,26 @@ class CategoryModel(DatabaseBase):
                 )
             return category_id
 
-    def get_first_category_id(self):
+    def get_first_category_id(self) -> Optional[int]:
         """Returns first category in system."""
         result = self._execute_with_error_handling(
             "SELECT id FROM category ORDER BY id LIMIT 1", fetch_method="one"
         )
-        return result["id"] if result else None
+        if not result:
+            return None
+        from ..base.db_base import row_to_dict
+        result_dict = row_to_dict(result)
+        return result_dict.get("id")
 
     def has_duplicate_category(
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
-    ):
+    ) -> bool:
         """Checks for category duplicate in section."""
-        # Check for duplicate ignoring case
         query = "SELECT COUNT(*) as count FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE"
-        # Normalize input for predictable behavior
         try:
             category_name = str(category_name).strip()
-        except Exception:
+        except (AttributeError, TypeError) as e:
+            logger.debug("Failed to strip category name: %s", e)
             category_name = str(category_name)
         params = [section_id, category_name]
 

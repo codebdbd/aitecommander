@@ -1,6 +1,7 @@
 # app/controllers/links_business.py
 
 import logging
+import os
 from collections import defaultdict
 from functools import wraps
 from typing import Any, Callable, Optional
@@ -96,6 +97,7 @@ class LinksBusinessLogic(QObject):
         int, int, name="nextPositionLoaded"
     )  # int, int - position, category_id
     batch_updated = pyqtSignal(bool, name="batchUpdated")  # bool - batch result
+    items_batch_deleted = pyqtSignal(str, list, name="itemsBatchDeleted")  # str, list - item_type, ids
 
     # Internal dispatch signals to marshal worker callbacks into the QObject's thread
     _finished_dispatch = pyqtSignal(
@@ -120,15 +122,23 @@ class LinksBusinessLogic(QObject):
         self.scheduler = scheduler or get_task_scheduler()
         self._tasks_lock = tasks_lock_instance or tasks_lock
         self.pending_tasks: dict[
-            int, int
-        ] = {}  # Store task_id -> category_id or other payloads
+            int, tuple[int, int]
+        ] = {}  # task_id -> (category_id, request_generation)
         self.task_counter = 0
+        self._request_generation = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         # TTLCache with automatic expiration for better memory management
         self._cache: cachetools.TTLCache[str, Any] = cachetools.TTLCache(
             maxsize=128, ttl=self.CACHE_TTL_SECONDS
         )
+        self._load_links_started: dict[int, float] = {}
+        self._diag_links_load = str(os.getenv("APP_LINKS_LOAD_DIAG", "")).lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
         self._mutex = QMutex()  # Qt-compatible mutex for thread safety
         # Connect internal dispatchers
@@ -171,6 +181,14 @@ class LinksBusinessLogic(QObject):
         with self._tasks_lock:
             self.pending_tasks.clear()
 
+    def reset_state_for_database_switch(self) -> None:
+        """Drop in-flight state and caches before/after DB reference switch."""
+        with self._tasks_lock:
+            self.pending_tasks.clear()
+            self._request_generation += 1
+        self._load_links_started.clear()
+        self._invalidate_cache()
+
     @measure_time("load_links", log_threshold_ms=200)
     def load_links(self, category_id: int) -> None:
         """Load links for a category.
@@ -181,11 +199,19 @@ class LinksBusinessLogic(QObject):
         task_id = self.task_counter
 
         with self._tasks_lock:
-            self.pending_tasks[task_id] = category_id
+            self.pending_tasks[task_id] = (category_id, self._request_generation)
 
         self.logger.debug(
             "Loading links for category %s, task_id=%s", category_id, task_id
         )
+
+        if self._diag_links_load:
+            try:
+                import time as _time
+
+                self._load_links_started[task_id] = _time.perf_counter()
+            except Exception:
+                pass
 
         self._run_db_task(
             lambda: self.links.get_links(category_id) or [],
@@ -208,6 +234,30 @@ class LinksBusinessLogic(QObject):
             return self._cache[cache_key]
 
         links = self.links.get_links(category_id) or []
+        self._cache[cache_key] = links
+        return links
+
+    def get_recent_links(self, limit: int = DEFAULT_RECENT_LIMIT) -> list[dict[str, Any]]:
+        """Return recent links synchronously (used by UI fallback)."""
+        if not isinstance(limit, int) or limit <= 0:
+            self.logger.warning("Invalid limit for recent links: %s", limit)
+            return []
+        cache_key = f"recent_links_{limit}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        links = self.links.get_recent_links(limit) or []
+        self._cache[cache_key] = links
+        return links
+
+    def get_favorite_links(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """Return favorite links synchronously (used by UI fallback)."""
+        limit_key = int(limit) if isinstance(limit, int) and limit > 0 else None
+        cache_key = (
+            f"favorite_links_{limit_key}" if limit_key is not None else "favorite_links"
+        )
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        links = self.links.get_favorite_links(limit=limit_key) or []
         self._cache[cache_key] = links
         return links
 
@@ -408,16 +458,23 @@ class LinksBusinessLogic(QObject):
             ),
         )
 
-    def load_favorite_links(self) -> None:
+    def load_favorite_links(self, limit: int | None = None) -> None:
         """Load favorite links asynchronously."""
-        cache_key = "favorite_links"
+        limit_key = int(limit) if isinstance(limit, int) and limit > 0 else None
+        cache_key = (
+            f"favorite_links_{limit_key}" if limit_key is not None else "favorite_links"
+        )
         if cache_key in self._cache:
             self.favorite_links_loaded.emit(self._cache[cache_key])
             return
 
         self._run_db_task(
-            lambda: self.links.get_favorite_links(),
-            description="load_favorite_links",
+            lambda: self.links.get_favorite_links(limit=limit_key),
+            description=(
+                f"load_favorite_links(limit={limit_key})"
+                if limit_key is not None
+                else "load_favorite_links"
+            ),
             on_finished=lambda links: self._cache_links_and_emit(
                 cache_key, links or [], self.favorite_links_loaded.emit
             ),
@@ -491,6 +548,32 @@ class LinksBusinessLogic(QObject):
             lambda: self.links.batch_update(links_data),
             description="batch_update_links_async",
             on_finished=self._on_batch_updated,
+        )
+
+    def delete_links_bulk_async(self, link_ids: list[int]) -> None:
+        """Delete multiple links asynchronously.
+        
+        Args:
+            link_ids: List of link IDs to delete
+        """
+        if not link_ids:
+            self.logger.warning("Empty link_ids for delete_links_bulk_async")
+            self.items_batch_deleted.emit("link", [])
+            return
+        
+        # Validate all IDs
+        valid_ids = [lid for lid in link_ids if isinstance(lid, int) and lid > 0]
+        if not valid_ids:
+            self.logger.warning("No valid link IDs provided for delete_links_bulk_async")
+            self.items_batch_deleted.emit("link", [])
+            return
+        
+        self.logger.debug("Deleting %d links asynchronously", len(valid_ids))
+        
+        self._run_db_task(
+            lambda: self.links.batch_delete_links(valid_ids),
+            description=f"delete_links_bulk_async({len(valid_ids)} links)",
+            on_finished=lambda count: self._on_bulk_delete_finished(valid_ids, count),
         )
 
     def _extract_category_ids(self, links_payload: list[dict[str, Any]]) -> set[int]:
@@ -710,6 +793,10 @@ class LinksBusinessLogic(QObject):
         """Invalidate caches after a mutating operation."""
         self._cache.clear()
 
+    def invalidate_cache(self) -> None:
+        """Public cache invalidation for external writes (e.g., undo commands)."""
+        self._invalidate_cache()
+
     def _cache_links_and_emit(
         self, key: str, data: Any, emit_func: Callable[[Any], None]
     ) -> None:
@@ -743,6 +830,17 @@ class LinksBusinessLogic(QObject):
         self._invalidate_cache()
         self.batch_updated.emit(result)
 
+    def _on_bulk_delete_finished(self, link_ids: list[int], count: int) -> None:
+        """Handle completion of bulk delete operation.
+        
+        Args:
+            link_ids: List of deleted link IDs
+            count: Number of actually deleted links
+        """
+        self._invalidate_cache()
+        self.items_batch_deleted.emit("link", link_ids)
+        self.logger.info("Bulk delete completed: %d links deleted", count)
+
     # Slots for handling asynchronous results
 
     @pyqtSlot(object, int, int)
@@ -750,12 +848,33 @@ class LinksBusinessLogic(QObject):
         self, links: list[dict[str, Any]], category_id: int, task_id: int
     ) -> None:
         """Handle completion of link loading."""
+        if self._diag_links_load:
+            try:
+                import time as _time
+
+                started = self._load_links_started.pop(task_id, None)
+                if isinstance(started, (int, float)):
+                    elapsed_ms = (_time.perf_counter() - float(started)) * 1000
+                    self.logger.info(
+                        "[Perf] load_links(category_id=%s, task_id=%s) -> %d links in %.1f ms",
+                        category_id,
+                        task_id,
+                        len(links or []),
+                        elapsed_ms,
+                    )
+            except Exception:
+                pass
         # Avoid emitting signals while holding the lock to prevent potential deadlocks
         should_emit = False
         with self._tasks_lock:
-            if task_id in self.pending_tasks:
+            payload = self.pending_tasks.get(task_id)
+            if payload is not None:
+                pending_category, pending_generation = payload
                 del self.pending_tasks[task_id]
-                should_emit = True
+                should_emit = (
+                    pending_category == category_id
+                    and pending_generation == self._request_generation
+                )
         if should_emit:
             self.links_loaded.emit(links or [], category_id, task_id)
 

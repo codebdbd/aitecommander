@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from PyQt6.QtCore import QObject
 
@@ -9,6 +10,7 @@ from app.controllers.ui.types import (
     LinksTableControllerProtocol,
     UIStateManagerProtocol,
 )
+from app.utils.ui.focus import get_focus_manager
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,14 @@ class SelectionActions(QObject):
     # --- Tiles and business reactions ---
     def refresh_tiles(self, section_id: int) -> None:
         try:
+            t0 = time.perf_counter()
             self._tiles_controller.refresh(int(section_id))
+            t1 = time.perf_counter()
+            logger.debug(
+                "[Perf] SelectionActions.refresh_tiles section=%s total=%.2fms",
+                section_id,
+                (t1 - t0) * 1000.0,
+            )
         except Exception:  # pragma: no cover - UI protection
             logger.exception(
                 "SelectionActions.refresh_tiles: controller refresh failed"
@@ -59,7 +68,13 @@ class SelectionActions(QObject):
         table = getattr(self._main, "table", None)
         if table and hasattr(table, "clearSelection"):
             try:
+                t0 = time.perf_counter()
                 table.clearSelection()
+                t1 = time.perf_counter()
+                logger.debug(
+                    "[Perf] SelectionActions.clear_table_selection total=%.2fms",
+                    (t1 - t0) * 1000.0,
+                )
             except Exception:  # pragma: no cover - UI protection
                 logger.debug(
                     "SelectionActions.clear_table_selection: clearSelection failed",
@@ -82,22 +97,30 @@ class SelectionActions(QObject):
                 category_id,
             )
 
-    def focus_tree(self, *, use_scheduler: bool = True) -> None:
-        from app.controllers.ui.state.task_scheduler import schedule_focus
-
-        if use_scheduler:
-            try:
-                schedule_focus(lambda: self._tree.setFocus(), "structure_tree")
-                return
-            except Exception:  # pragma: no cover - UI protection
-                logger.debug(
-                    "SelectionActions.focus_tree: schedule_focus failed",
-                    exc_info=True,
-                )
+    def focus_tree(
+        self,
+        *,
+        use_scheduler: bool = True,
+        origin: str = "user_action",
+    ) -> None:
+        """Set focus to structure tree.
+        
+        Uses centralized FocusManager for consistent behavior.
+        
+        Args:
+            use_scheduler: Use scheduled focus (default: True, recommended)
+            origin: Focus origin passed to FocusManager
+        """
         try:
-            self._tree.setFocus()
+            focus_manager = get_focus_manager()
+            focus_manager.set_focus(
+                self._tree,
+                scheduled=use_scheduler,
+                widget_name="structure_tree",
+                origin=origin,
+            )
         except Exception:  # pragma: no cover - UI protection
-            logger.debug("SelectionActions.focus_tree: setFocus failed", exc_info=True)
+            logger.debug("SelectionActions.focus_tree: FocusManager failed", exc_info=True)
 
     # --- Fallback utilities ---
     def current_ui_state(self) -> UIStateManagerProtocol | None:

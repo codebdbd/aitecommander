@@ -1,6 +1,8 @@
 import logging
+import re
 from typing import Optional
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -14,11 +16,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.browser.browser_profiles import async_profile_manager as _apm
 from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles import persistent_cache as _pc
 from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
+from app.utils.i18n.common import tr as tr_common
+from app.utils.ui.qt.combo_helpers import select_first_combo_item
 
 from .base_dialog import BaseDialog
 
@@ -28,8 +33,10 @@ logger = logging.getLogger(__name__)
 class BrowserProfileDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(self.tr("Select browser profile"))
-        self.setMinimumSize(480, 400)
+        self.setObjectName("BrowserProfileDialog")
+        self.setWindowTitle(tr_common("Select browser profile"))
+        width, height = app_config.ui.get_browser_profile_dialog_min_size()
+        self.setMinimumSize(width, height)
         self.manager = get_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
@@ -68,8 +75,25 @@ class BrowserProfileDialog(BaseDialog):
 
         # Profiles list
         self.scroll = QScrollArea()
+        self.scroll.setObjectName("profilesScroll")
         self.scroll.setWidgetResizable(True)
+        try:
+            for bar in (self.scroll.verticalScrollBar(), self.scroll.horizontalScrollBar()):
+                if bar is None:
+                    continue
+        except Exception:
+            logger.debug("BrowserProfileDialog: failed to normalize scrollbars", exc_info=True)
+        try:
+            self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        except Exception:
+            logger.debug(
+                "BrowserProfileDialog: failed to set scrollbar policies", exc_info=True
+            )
+        # Match background via QSS by targeting viewport
+        self.scroll.viewport().setObjectName("profilesScrollViewport")
         self.profile_widget = QWidget()
+        self.profile_widget.setObjectName("profilesContent")
         self.profile_layout = QVBoxLayout(self.profile_widget)
         self.scroll.setWidget(self.profile_widget)
         layout.addWidget(self.scroll)
@@ -98,11 +122,11 @@ class BrowserProfileDialog(BaseDialog):
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         if ok_btn is not None:
-            ok_btn.setText(self.tr("Save"))
+            ok_btn.setText(tr_common("Save"))
             ok_btn.setEnabled(False)  # disabled until a profile is selected
             self._ok_button = ok_btn
         if cancel_btn is not None:
-            cancel_btn.setText(self.tr("Cancel"))
+            cancel_btn.setText(tr_common("Cancel"))
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         bottom_layout.addWidget(self.button_box, 0)
@@ -110,7 +134,7 @@ class BrowserProfileDialog(BaseDialog):
 
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
-        self.setWindowTitle(self.tr("Select browser profile"))
+        self.setWindowTitle(tr_common("Select browser profile"))
         if hasattr(self, "lbl_browsers") and self.lbl_browsers is not None:
             self.lbl_browsers.setText(self.tr("Browsers:"))
         if hasattr(self, "refresh_btn") and self.refresh_btn is not None:
@@ -125,9 +149,9 @@ class BrowserProfileDialog(BaseDialog):
             ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if ok_btn is not None:
-                ok_btn.setText(self.tr("Save"))
+                ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def _set_controls_enabled(self, enabled: bool):
         self.browser_combo.setEnabled(enabled)
@@ -147,9 +171,7 @@ class BrowserProfileDialog(BaseDialog):
         browsers = self.manager.get_supported_browsers()
         for b in browsers:
             self.browser_combo.addItem(b["name"], b["key"])
-        # Select the first browser by default
-        if self.browser_combo.count() > 0:
-            self.browser_combo.setCurrentIndex(0)
+        select_first_combo_item(self.browser_combo)
 
     def _clear_profiles_layout(self) -> None:
         for cb in self.profile_checkboxes:
@@ -214,14 +236,13 @@ class BrowserProfileDialog(BaseDialog):
             self._update_save_enabled()
             return
 
+        working_profiles.sort(
+            key=lambda p: str(p.get("name") or p.get("email") or "").lower()
+        )
+
         for profile in working_profiles:
-            browser_name = profile.get("browser_name", "")
-            profile_name = (
-                profile.get("email") or profile.get("name") or self.tr("Unnamed")
-            )
-            text = self.tr("{profile} ({browser})").format(
-                profile=profile_name, browser=browser_name
-            )
+            profile_name = self._format_profile_display_name(profile)
+            text = profile_name
             cb = QCheckBox(text)
             cb.profile_data = profile
             try:
@@ -236,6 +257,18 @@ class BrowserProfileDialog(BaseDialog):
 
         self.profile_layout.addStretch()
         self._update_save_enabled()
+
+    def _format_profile_display_name(self, profile: dict) -> str:
+        """Return a compact display name for the profile list."""
+        raw_name = profile.get("name") or profile.get("email") or self.tr("Unnamed")
+        profile_name = str(raw_name).strip()
+        profile_name = re.sub(
+            r"^(?:Profile|Профиль|Профіль)\s+",
+            "",
+            profile_name,
+            flags=re.IGNORECASE,
+        ).strip()
+        return profile_name or self.tr("Unnamed")
 
     def _on_async_profiles_ready(self, browser_key: str, profiles: list[dict]) -> None:
         current_key = self.browser_combo.currentData()

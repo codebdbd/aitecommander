@@ -4,9 +4,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
-from app.utils.browser.browser_profiles import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +23,19 @@ class LinkDialogController:
     ):
         self.database = database
         self.structure_business = structure_business
+        from app.controllers.business.links_business import LinksBusinessLogic
+
         self.links_business = LinksBusinessLogic(database)
         self.result_data: list[dict[str, Any]] = []
-        # Unified profile manager via factory - exclude repeated profile scans
-        self.profile_manager = get_profile_manager()
+        self.profile_manager = None
+
+    def _get_profile_manager(self):
+        """Initialize browser profile manager only when needed."""
+        if self.profile_manager is None:
+            from app.utils.browser.browser_profiles import get_profile_manager
+
+            self.profile_manager = get_profile_manager()
+        return self.profile_manager
 
     def _get_spheres_cached(self) -> list[dict[str, Any]]:
         if self.structure_business is not None:
@@ -84,35 +91,11 @@ class LinkDialogController:
         elif link and link.get("category_id"):
             category_hierarchy = self._get_category_hierarchy(link["category_id"])
 
-        # Get Chrome profiles
-        chrome_profiles = self._get_chrome_profiles()
-
-        # Migrate old Chrome profiles to universal format
-        if link and link.get("args", "").startswith("--profile-directory"):
-            from app.utils.browser.browser_profiles import UniversalProfileProcessor
-
-            processor = UniversalProfileProcessor(self.database)
-            browser_key, profiles = processor.parse_existing_profile(link)
-            if browser_key and profiles:
-                # Добавляем browser_key в каждый профиль для совместимости
-                for profile in profiles:
-                    profile["browser_key"] = browser_key
-                    if "browser_name" not in profile:
-                        from app.utils.browser.browser_profiles.utils import (
-                            get_browser_display_name,
-                        )
-
-                        finder = self.profile_manager.finders.get(browser_key)
-                        if finder:
-                            profile["browser_name"] = get_browser_display_name(
-                                finder, browser_key
-                            )
-                link["migrated_profiles"] = profiles
-
         return {
             "spheres": spheres,
             "category_hierarchy": category_hierarchy,
-            "chrome_profiles": chrome_profiles,
+            # Browser profiles are loaded only on explicit profile selection.
+            "chrome_profiles": [],
             "selected_category_id": category_id,
             "form_data": link,
         }
@@ -124,7 +107,7 @@ class LinkDialogController:
     def _get_chrome_profiles(self) -> list[dict[str, Any]]:
         """Gets list of Chrome profiles."""
         try:
-            return self.profile_manager.get_browser_profiles("chrome")
+            return self._get_profile_manager().get_browser_profiles("chrome")
         except Exception:
             return []
 
@@ -183,8 +166,10 @@ class LinkDialogController:
         # otherwise — one record
         is_edit = form_data.get("link_id") is not None
         if is_edit:
-            if form_data.get("link_type") == "web" and form_data.get(
-                "selected_profiles"
+            if (
+                form_data.get("link_type") == "web"
+                and form_data.get("selected_profiles")
+                and form_data.get("profiles_explicitly_changed")
             ):
                 links_data.extend(self._prepare_profile_links(form_data))
             else:

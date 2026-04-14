@@ -7,6 +7,8 @@ from typing import Protocol
 
 from PyQt6.QtWidgets import QLineEdit, QWidget
 
+from app.views.main_components.common.protocols import TopPanelWidgetProtocol
+
 
 class PanelLabel(str, Enum):
     """Labels for topbar panels."""
@@ -34,13 +36,13 @@ class TopBarWindow(Protocol):
     search: QLineEdit
     """Main search widget in the top bar."""
 
-    fav_widget: QWidget | None
+    fav_widget: TopPanelWidgetProtocol | None
     """Favorites panel widget."""
 
-    recent_links_widget: QWidget | None
+    recent_links_widget: TopPanelWidgetProtocol | None
     """Recent links panel widget."""
 
-    quick_add_widget: QWidget | None
+    quick_add_widget: TopPanelWidgetProtocol | None
     """Quick add panel widget."""
 
     top_bar_host: QWidget | None

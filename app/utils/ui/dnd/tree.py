@@ -49,38 +49,112 @@ class DragDropHandler(TreeHandlerBase):
                 and src_index.isValid()
                 and self._is_valid_drop_index(src_index, event)
             ):
+                # Highlight target without changing selection
+                target_index = self._resolve_internal_target_index(event)
+                self.tree_widget.set_drag_highlight_index(target_index)
                 event.accept()
             else:
+                self.tree_widget.clear_drag_highlight()
                 event.ignore()
         else:
             self._handle_external_drag_move_index(event, mime)
         return
 
+    def _resolve_internal_target_index(self, event: QDropEvent) -> QModelIndex | None:
+        """Resolve which index should be highlighted during internal drag."""
+        try:
+            target_index: QModelIndex = self.tree_widget.indexAt(
+                event.position().toPoint()
+            )
+        except Exception:
+            return None
+
+        if not target_index or not target_index.isValid():
+            return None
+
+        drop_pos = self.tree_widget.dropIndicatorPosition()
+        ttuple = get_tree_tuple(target_index, 0)
+        if not ttuple:
+            return None
+
+        target_type, _ = ttuple
+
+        # OnItem drops: highlight the target itself
+        if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+            return target_index if target_type in ("section", "category") else None
+
+        # Above/Below drops on categories: highlight parent section
+        if target_type == "category":
+            parent_index = target_index.parent()
+            if parent_index.isValid():
+                parent_tuple = get_tree_tuple(parent_index, 0)
+                if parent_tuple and parent_tuple[0] == "section":
+                    return parent_index
+
+        return None
+
+    def _update_internal_drag_focus(self, event: QDropEvent) -> None:
+        """Ensure target rows are highlighted during internal drags."""
+        try:
+            target_index: QModelIndex = self.tree_widget.indexAt(
+                event.position().toPoint()
+            )
+        except Exception:
+            return
+
+        if not target_index or not target_index.isValid():
+            return
+
+        drop_pos = self.tree_widget.dropIndicatorPosition()
+        ttuple = get_tree_tuple(target_index, 0)
+        if not ttuple:
+            return
+
+        target_type, _ = ttuple
+
+        if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+            if target_type == "section":
+                self._focus_target_section_index(target_index)
+            elif target_type == "category":
+                self._focus_target_category_index(target_index)
+            return
+
+        if target_type == "category":
+            parent_index = target_index.parent()
+            parent_tuple = get_tree_tuple(parent_index, 0)
+            if parent_tuple and parent_tuple[0] == "section":
+                self._focus_target_section_index(parent_index)
+
     def handle_drag_leave_event(self, event) -> None:
         """Handle drag leave event."""
+        self.tree_widget.clear_drag_highlight()
         event.accept()
 
     def handle_drop_event(self, event) -> None:
         """Main drop event handler."""
-        mime = event.mimeData()
+        try:
+            mime = event.mimeData()
 
-        target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
-        if mime.hasFormat(app_config.get_category_mime_type()):
-            if self._handle_category_drop_index(mime, target_index):
-                event.accept()
-            else:
-                event.ignore()
-            return
-        if mime.hasFormat(app_config.get_link_mime_type()):
-            if self._handle_link_drop_index(mime, target_index):
-                event.accept()
-            else:
-                event.ignore()
-            return
-        if event.source() == self.tree_widget:
-            self._handle_internal_drop_event_index(event)
-            return
-        event.ignore()
+            target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
+            if mime.hasFormat(app_config.get_category_mime_type()):
+                if self._handle_category_drop_index(mime, target_index):
+                    event.accept()
+                else:
+                    event.ignore()
+                return
+            if mime.hasFormat(app_config.get_link_mime_type()):
+                if self._handle_link_drop_index(mime, target_index):
+                    event.accept()
+                else:
+                    event.ignore()
+                return
+            if event.source() == self.tree_widget:
+                self._handle_internal_drop_event_index(event)
+                return
+            event.ignore()
+        finally:
+            # Always clear highlight after drop
+            self.tree_widget.clear_drag_highlight()
 
     # --- Index version of external dragMove ---
     def _handle_external_drag_move_index(self, event, mime) -> None:
@@ -103,7 +177,11 @@ class DragDropHandler(TreeHandlerBase):
                 event.ignore()
         elif mime.hasFormat(app_config.get_category_mime_type()):
             if target_type == "section":
-                if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+                if drop_pos in (
+                    QAbstractItemView.DropIndicatorPosition.OnItem,
+                    QAbstractItemView.DropIndicatorPosition.AboveItem,
+                    QAbstractItemView.DropIndicatorPosition.BelowItem,
+                ):
                     valid_drop = True
                     event.accept()
                 else:
@@ -112,12 +190,11 @@ class DragDropHandler(TreeHandlerBase):
                 event.ignore()
         else:
             event.ignore()
-        if (
-            valid_drop
-            and mime.hasFormat(app_config.get_link_mime_type())
-            and target_type == "category"
-        ):
-            self._focus_target_category_index(target_index)
+        if valid_drop:
+            # Use highlight instead of focus for external drags too
+            self.tree_widget.set_drag_highlight_index(target_index)
+        else:
+            self.tree_widget.clear_drag_highlight()
 
     def _focus_target_category_index(self, target_index: QModelIndex):
         """Focus on target category (QTreeView)."""
@@ -139,6 +216,30 @@ class DragDropHandler(TreeHandlerBase):
                 except Exception as e:
                     logger.warning(
                         "Failed to send dragFeedback for category %s: %s",
+                        target_id,
+                        e,
+                    )
+
+    def _focus_target_section_index(self, target_index: QModelIndex):
+        """Focus on target section (QTreeView) during category drag."""
+        if target_index and target_index.isValid():
+            self.tree_widget.setCurrentIndex(target_index)
+            ttuple = get_tree_tuple(target_index, 0)
+            if not ttuple:
+                return
+            target_type, target_id = ttuple
+            if target_type == "section":
+                try:
+                    self.tree_widget.dragFeedback.emit(
+                        {
+                            "type": "focus_section_request",
+                            "section_id": target_id,
+                            "title": target_index.data(),
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to send dragFeedback for section %s: %s",
                         target_id,
                         e,
                     )
@@ -171,6 +272,34 @@ class DragDropHandler(TreeHandlerBase):
         category_indices.sort(key=lambda i: i.row())
         return category_indices
 
+    def _determine_for_section_target(self, target_index: QModelIndex, model, drop_pos):
+        """Compute target data when dropping OnItem over a section."""
+        new_section_index = target_index
+        new_section_tuple = get_tree_tuple(new_section_index, 0)
+        new_section_id = new_section_tuple[1] if new_section_tuple else None
+        base_row = model.rowCount(new_section_index)
+        parent_for_count = new_section_index
+        return new_section_id, base_row, parent_for_count
+
+    def _determine_for_category_target(self, target_index: QModelIndex, model, drop_pos):
+        """Compute target data when dropping around/on a category."""
+        parent_index = target_index.parent()
+        parent_tuple = get_tree_tuple(parent_index, 0)
+        if not (parent_tuple and parent_tuple[0] == "section"):
+            raise ValueError("invalid target")
+        new_section_id = parent_tuple[1]
+        tgt_row = target_index.row()
+        if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
+            base_row = tgt_row
+        elif drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
+            base_row = tgt_row + 1
+        elif drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+            base_row = model.rowCount(parent_index)
+        else:
+            raise ValueError("invalid target")
+        parent_for_count = parent_index
+        return new_section_id, base_row, parent_for_count
+
     def determine_target(self, event: QDropEvent) -> tuple[int, int]:
         """Determines target section and base insertion position.
 
@@ -188,31 +317,18 @@ class DragDropHandler(TreeHandlerBase):
 
         model = self.tree_widget.model()
 
-        if (
-            target_type == "section"
-            and drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem
+        if target_type == "section" and drop_pos in (
+            QAbstractItemView.DropIndicatorPosition.OnItem,
+            QAbstractItemView.DropIndicatorPosition.AboveItem,
+            QAbstractItemView.DropIndicatorPosition.BelowItem,
         ):
-            new_section_index = target_index
-            new_section_tuple = get_tree_tuple(new_section_index, 0)
-            new_section_id = new_section_tuple[1] if new_section_tuple else None
-            base_row = model.rowCount(new_section_index)
-            parent_for_count = new_section_index
+            new_section_id, base_row, parent_for_count = self._determine_for_section_target(
+                target_index, model, drop_pos
+            )
         elif target_type == "category":
-            parent_index = target_index.parent()
-            parent_tuple = get_tree_tuple(parent_index, 0)
-            if not (parent_tuple and parent_tuple[0] == "section"):
-                raise ValueError("invalid target")
-            new_section_id = parent_tuple[1]
-            tgt_row = target_index.row()
-            if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
-                base_row = tgt_row
-            elif drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
-                base_row = tgt_row + 1
-            elif drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-                base_row = model.rowCount(parent_index)
-            else:
-                raise ValueError("invalid target")
-            parent_for_count = parent_index
+            new_section_id, base_row, parent_for_count = self._determine_for_category_target(
+                target_index, model, drop_pos
+            )
         else:
             raise ValueError("invalid target")
 
@@ -234,15 +350,55 @@ class DragDropHandler(TreeHandlerBase):
 
         return int(new_section_id), int(base_row)
 
+    def _collect_category_ids(self, category_indices: list[QModelIndex]) -> list[int]:
+        """Extract integer category IDs from indexes in stable order."""
+        ids: list[int] = []
+        for idx in category_indices:
+            st = get_tree_tuple(idx, 0)
+            if st and isinstance(st[1], int):
+                ids.append(int(st[1]))
+        return ids
+
+    def _schedule_focus_after_category_drop(self, first_category_id: int | None) -> None:
+        """Schedule focus restoration on the first moved category."""
+        if not first_category_id:
+            return
+        try:
+            from app.controllers.ui.state.task_scheduler import (
+                schedule_selection_restore,
+            )
+
+            def _restore_focus():
+                try:
+                    model = self.tree_widget.model()
+                    if model and hasattr(model, 'index_for'):
+                        cat_index = model.index_for('category', first_category_id)
+                        if cat_index and cat_index.isValid():
+                            self.tree_widget.setCurrentIndex(cat_index)
+                            from app.utils.ui.focus import get_focus_manager
+                            manager = get_focus_manager()
+                            manager.set_focus(
+                                self.tree_widget,
+                                widget_name="structure_tree",
+                                origin="user_action",
+                            )
+                except Exception as e:
+                    logger.debug("Failed to restore focus after category drop: %s", e)
+
+            schedule_selection_restore(_restore_focus, f"cat_drop_{first_category_id}")
+        except Exception as e:
+            logger.debug("Failed to schedule focus after category drop: %s", e)
+
     def _try_atomic_move(self, category_ids, section_id, base_row):
-        """Try atomic command for multiple moves."""
+        """Try atomic command for undoable moves."""
         handler = getattr(self.tree_widget, "move_operations_handler", None)
-        if len(category_ids) > 1 and handler:
+        if handler:
             try:
-                handler.execute_move_categories_command(
+                used_command = handler.execute_move_categories_command(
                     [int(i) for i in category_ids], int(section_id), int(base_row)
                 )
-                return len(category_ids)
+                if used_command:
+                    return len(category_ids)
             except Exception:
                 logger.debug(
                     "Atomic move via command failed for %s -> %s",
@@ -386,11 +542,7 @@ class DragDropHandler(TreeHandlerBase):
             return
 
         # 3) Формирование списка ID в стабильном порядке
-        ids: list[int] = []
-        for idx in category_indices:
-            st = get_tree_tuple(idx, 0)
-            if st and isinstance(st[1], int):
-                ids.append(int(st[1]))
+        ids: list[int] = self._collect_category_ids(category_indices)
 
         if not ids:
             event.ignore()
@@ -402,6 +554,9 @@ class DragDropHandler(TreeHandlerBase):
         # 5) Результат
         if moved_count > 0:
             event.accept()
+            # Set focus on first moved category in new location
+            first_category_id = ids[0] if ids else None
+            self._schedule_focus_after_category_drop(first_category_id)
         else:
             try:
                 self.tree_widget.invalidDrop.emit("Invalid move operation")
@@ -442,6 +597,38 @@ class DragDropHandler(TreeHandlerBase):
             moved_count = 0
         if moved_count > 1:
             logger.info("Moved categories: %s to section %s", moved_count, section_id)
+        
+        # Set focus on first moved category from tiles
+        if moved_count > 0 and ids:
+            try:
+                from app.controllers.ui.state.task_scheduler import (
+                    schedule_selection_restore,
+                )
+                
+                first_category_id = ids[0] if isinstance(ids[0], int) else None
+                
+                def _restore_focus():
+                    try:
+                        if first_category_id:
+                            model = self.tree_widget.model()
+                            if model and hasattr(model, 'index_for'):
+                                cat_index = model.index_for('category', first_category_id)
+                                if cat_index and cat_index.isValid():
+                                    self.tree_widget.setCurrentIndex(cat_index)
+                                    from app.utils.ui.focus import get_focus_manager
+                                    manager = get_focus_manager()
+                                    manager.set_focus(
+                                        self.tree_widget,
+                                        widget_name="structure_tree",
+                                        origin="user_action",
+                                    )
+                    except Exception as e:
+                        logger.debug("Failed to restore focus after tile category drop: %s", e)
+                
+                schedule_selection_restore(_restore_focus, f"tile_cat_drop_{first_category_id}")
+            except Exception as e:
+                logger.debug("Failed to schedule focus after tile category drop: %s", e)
+        
         return moved_count > 0
 
     def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> bool:
@@ -483,6 +670,42 @@ class DragDropHandler(TreeHandlerBase):
             logger.debug(
                 "Failed to emit itemsMoved after moving links %s", link_ids, exc_info=True
             )
+        
+        # Set focus on first moved link after table is populated
+        if link_ids:
+            first_link_id = link_ids[0] if link_ids else None
+            if first_link_id:
+                self._schedule_focus_after_table_update(first_link_id)
+        return True
+    
+    def _schedule_focus_after_table_update(self, link_id: int) -> None:
+        """Schedule focus on link after table_populated signal."""
+        try:
+            main_win = self.tree_widget.window()
+            if not main_win:
+                return
+            
+            # Get the target category from the last drop operation
+            # The category should already be selected by the command execution
+            
+            table = getattr(main_win, 'links_table', None)
+            if table and hasattr(table, 'table_populated'):
+                def _on_populated():
+                    try:
+                        if hasattr(main_win, 'links_actions'):
+                            main_win.links_actions.focus_on_link(link_id)
+                        # Disconnect after first call
+                        try:
+                            table.table_populated.disconnect(_on_populated)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        logger.debug("Failed to focus on link %s: %s", link_id, e)
+                
+                table.table_populated.connect(_on_populated)
+        except Exception as e:
+            logger.debug("Failed to schedule focus after table update: %s", e)
+        
         return True
 
     def _extract_link_ids_from_mime(self, mime) -> list[int]:
@@ -514,6 +737,11 @@ class DragDropHandler(TreeHandlerBase):
             target_type, _ = ttuple
             if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
                 return target_type in ("section", "category")
+            if target_type == "section" and drop_pos in (
+                QAbstractItemView.DropIndicatorPosition.AboveItem,
+                QAbstractItemView.DropIndicatorPosition.BelowItem,
+            ):
+                return True
             else:
                 # Between elements only allowed between categories of same section
                 if target_type != "category":

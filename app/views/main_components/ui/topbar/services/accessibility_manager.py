@@ -10,8 +10,10 @@ import logging
 from weakref import WeakKeyDictionary
 
 from PyQt6.QtCore import QEvent, QObject, Qt
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QShortcut
 from PyQt6.QtWidgets import QToolButton, QWidget
+
+from app.core.hotkey_manager import HotkeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +108,10 @@ class AccessibilityManager(QObject):
         try:
             self._remove_button_shortcut(button)
 
-            shortcut = QShortcut(QKeySequence(f"Alt+{number}"), button)
+            seq = HotkeyManager.get_sequence(f"topbar.alt.{number}")
+            if seq.isEmpty():
+                return
+            shortcut = QShortcut(seq, button)
             shortcut.activated.connect(button.click)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             self._shortcuts.append(shortcut)

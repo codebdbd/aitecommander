@@ -13,7 +13,14 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app.utils.db.api import run_db
+from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.ui.db_tasks import run_db
+from app.utils.i18n.common import tr as tr_common
+from app.utils.ui.qt.combo_helpers import (
+    add_combo_mapping_item,
+    select_first_combo_item,
+)
+from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
 
 from .base_dialog import BaseDialog
 
@@ -45,8 +52,9 @@ class ImportBrowserDialog(BaseDialog):
         self._sections_request_token = 0
         self._latest_requested_sphere: Optional[int] = None
 
-        self.setWindowTitle(self.tr("Import from browser"))
-        self.resize(400, 180)
+        self.setWindowTitle(tr_common("Import from browser"))
+        width, height = app_config.ui.get_import_browser_dialog_size()
+        self.resize(width, height)
         self.setModal(True)
 
         self._init_ui()
@@ -65,13 +73,11 @@ class ImportBrowserDialog(BaseDialog):
         form = QFormLayout()
 
         self.sphere_cb = QComboBox()
-        self.sphere_cb.setMinimumHeight(32)
         self.sphere_cb.setEnabled(False)
         self.sphere_cb.addItem(self.tr("Loading…"))
         form.addRow(self.tr("Sphere:"), self.sphere_cb)
 
         self.section_cb = QComboBox()
-        self.section_cb.setMinimumHeight(32)
         self.section_cb.setEnabled(False)
         self.section_cb.addItem(self.tr("Select a sphere first"))
         form.addRow(self.tr("Section:"), self.section_cb)
@@ -90,7 +96,7 @@ class ImportBrowserDialog(BaseDialog):
 
         cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel_btn:
-            cancel_btn.setText(self.tr("Cancel"))
+            cancel_btn.setText(tr_common("Cancel"))
 
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -103,7 +109,7 @@ class ImportBrowserDialog(BaseDialog):
 
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update all user-facing texts on language change."""
-        self.setWindowTitle(self.tr("Import from browser"))
+        self.setWindowTitle(tr_common("Import from browser"))
         if self._header_label:
             self._header_label.setText(self.tr("Select where to import links:"))
         # Update form labels via labelForField
@@ -141,7 +147,7 @@ class ImportBrowserDialog(BaseDialog):
             if ok_btn is not None:
                 ok_btn.setText(self.tr("Import"))
             if cancel_btn is not None:
-                cancel_btn.setText(self.tr("Cancel"))
+                cancel_btn.setText(tr_common("Cancel"))
 
     def _load_spheres_async(self) -> None:
         cached_spheres: list[dict[str, Any]] = []
@@ -267,14 +273,15 @@ class ImportBrowserDialog(BaseDialog):
                 self._show_no_data_message(self.tr("No spheres found"))
                 return
             for sphere in spheres:
-                name = sphere.get("name")
-                sphere_id = sphere.get("id")
-                if name is None or sphere_id is None:
-                    continue
-                self.sphere_cb.addItem(str(name), sphere_id)
+                add_combo_mapping_item(
+                    self.sphere_cb,
+                    sphere,
+                    icon_key="icon_path",
+                    icon_loader=get_cached_icon,
+                )
             if self.sphere_cb.count() > 0:
                 self.sphere_cb.setEnabled(True)
-                self.sphere_cb.setCurrentIndex(0)
+                select_first_combo_item(self.sphere_cb)
         current_data = self.sphere_cb.currentData()
         self._latest_requested_sphere = (
             current_data if isinstance(current_data, int) else None
@@ -295,13 +302,14 @@ class ImportBrowserDialog(BaseDialog):
                 )
                 return
             for section in sections:
-                name = section.get("name")
-                section_id = section.get("id")
-                if name is None or section_id is None:
-                    continue
-                self.section_cb.addItem(str(name), section_id)
+                add_combo_mapping_item(
+                    self.section_cb,
+                    section,
+                    icon_key="icon_path",
+                    icon_loader=get_cached_icon,
+                )
             self.section_cb.setEnabled(True)
-            self.section_cb.setCurrentIndex(0)
+            select_first_combo_item(self.section_cb)
         self.selected_section_id = self.get_selected_section_id()
 
     def _set_section_placeholder(self, text: str, *, enabled: bool) -> None:

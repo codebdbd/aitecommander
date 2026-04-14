@@ -25,7 +25,6 @@ from app.controllers.system.app_shutdown_controller import (
     AppShutdownController,
     ShutdownPriority,
 )
-from app.controllers.system.bootstrap import create_main_window
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
@@ -177,6 +176,10 @@ class ApplicationInitializer:
 
         self._resource_manager = ResourceManager("ApplicationInitializer")
         self._cleanup_done = False
+        self._cleanup_in_progress = False
+        self._cleanup_failed = False
+        self._last_cleanup_error: str | None = None
+        self._shutdown_cleanup_started = False
         self._cleanup_lock = threading.Lock()
         self._shutdown_controller: AppShutdownController | None = None
         self._signal_notifiers: list[QSocketNotifier] = []
@@ -194,55 +197,68 @@ class ApplicationInitializer:
     ) -> bool:
         self.cleanup(async_cleanup=False)
         return False
-
     def is_healthy(self) -> bool:
         """Check if all critical components are initialized and healthy."""
         try:
             if self._cleanup_done:
                 return False
-
-            basic_checks = all(
-                [
-                    self.settings is not None,
-                    self.database is not None,
-                    self.theme_controller is not None,
-                    self.main_window is not None,
-                ]
-            )
-            if not basic_checks:
+            if not self._basic_checks_ok():
                 return False
-
-            if self.database and hasattr(self.database, "is_connected"):
-                try:
-                    if not self.database.is_connected():
-                        logger.warning("Database connection is not healthy")
-                        return False
-                except Exception as exc:
-                    logger.warning("Database health check failed: %s", exc)
-                    return False
-
-            if self.main_window and hasattr(self.main_window, "isVisible"):
-                try:
-                    if not self.main_window.isVisible():
-                        logger.debug(
-                            "Main window is not visible (may be normal during startup)"
-                        )
-                except Exception as exc:
-                    logger.warning("Main window visibility check failed: %s", exc)
-
-            if hasattr(self._resource_manager, "is_healthy"):
-                try:
-                    if not self._resource_manager.is_healthy():
-                        logger.warning("ResourceManager is not healthy")
-                        return False
-                except Exception as exc:
-                    logger.warning("ResourceManager health check failed: %s", exc)
-
+            if not self._database_healthy():
+                return False
+            # Visibility is non-critical; keep diagnostic logging only
+            self._main_window_visibility_check()
+            if not self._resources_healthy():
+                return False
             return True
-
         except Exception as exc:
             logger.error("Health check failed with exception: %s", exc, exc_info=True)
             return False
+
+    # --- Helpers to reduce complexity of is_healthy() ---
+    def _basic_checks_ok(self) -> bool:
+        """Ensure core components are created."""
+        return all([
+            self.settings is not None,
+            self.database is not None,
+            self.theme_controller is not None,
+            self.main_window is not None,
+        ])
+
+    def _database_healthy(self) -> bool:
+        """Check database connectivity if API is available."""
+        if self.database and hasattr(self.database, "is_connected"):
+            try:
+                if not self.database.is_connected():
+                    logger.warning("Database connection is not healthy")
+                    return False
+            except Exception as exc:
+                logger.warning("Database health check failed: %s", exc)
+                return False
+        return True
+
+    def _main_window_visibility_check(self) -> None:
+        """Log main window visibility issues (non-critical for health)."""
+        if self.main_window and hasattr(self.main_window, "isVisible"):
+            try:
+                if not self.main_window.isVisible():
+                    logger.debug(
+                        "Main window is not visible (may be normal during startup)"
+                    )
+            except Exception as exc:
+                logger.warning("Main window visibility check failed: %s", exc)
+
+    def _resources_healthy(self) -> bool:
+        """Check ResourceManager if available."""
+        if hasattr(self._resource_manager, "is_healthy"):
+            try:
+                if not self._resource_manager.is_healthy():
+                    logger.warning("ResourceManager is not healthy")
+                    return False
+            except Exception as exc:
+                logger.warning("ResourceManager health check failed: %s", exc)
+                return False
+        return True
 
     def get_status(self) -> dict[str, Any]:
         """Get detailed initialization status."""
@@ -253,6 +269,9 @@ class ApplicationInitializer:
             "theme_loaded": self.theme_controller is not None,
             "window_created": self.main_window is not None,
             "cleanup_done": self._cleanup_done,
+            "cleanup_in_progress": self._cleanup_in_progress,
+            "cleanup_failed": self._cleanup_failed,
+            "last_cleanup_error": self._last_cleanup_error,
             "healthy": self.is_healthy(),
         }
 
@@ -274,7 +293,7 @@ class ApplicationInitializer:
     def has_pending_cleanup(self) -> bool:
         """Return True if cleanup still needs to be executed."""
         with self._cleanup_lock:
-            return not self._cleanup_done
+            return not self._cleanup_done and not self._cleanup_in_progress
 
     def ensure_emergency_cleanup(self) -> None:
         """Perform emergency cleanup if required."""
@@ -287,17 +306,13 @@ class ApplicationInitializer:
         if self._cleanup_done:
             return True
 
-        if self._shutdown_controller and not async_cleanup:
-            logger.debug("Delegating cleanup to AppShutdownController")
+        if self._cleanup_in_progress:
+            logger.debug("Cleanup already in progress, skipping duplicate request")
             return True
 
         if not async_cleanup:
             start_time = time.perf_counter()
-            try:
-                self._cleanup_sync()
-            except Exception as exc:
-                logger.error("Cleanup failed: %s", exc)
-                return False
+            self._cleanup_sync()
 
             duration = time.perf_counter() - start_time
             if timeout > 0 and duration > timeout:
@@ -306,7 +321,7 @@ class ApplicationInitializer:
                     timeout,
                     duration,
                 )
-            return True
+            return self._cleanup_done
         else:
             app = QCoreApplication.instance()
             if app and not app.closingDown():
@@ -314,12 +329,8 @@ class ApplicationInitializer:
                 return True
 
             logger.warning("Event loop not running, forcing sync cleanup")
-            try:
-                self._cleanup_sync()
-                return True
-            except Exception as exc:
-                logger.error("Forced sync cleanup failed: %s", exc)
-                return False
+            self._cleanup_sync()
+            return self._cleanup_done
 
     def _cleanup_sync(self) -> None:
         """Synchronous cleanup implementation using ResourceManager."""
@@ -327,14 +338,22 @@ class ApplicationInitializer:
             if self._cleanup_done:
                 logger.debug("Cleanup already performed, skipping")
                 return
-            self._cleanup_done = True
+            if self._cleanup_in_progress:
+                logger.debug("Cleanup already in progress, skipping")
+                return
+            self._cleanup_in_progress = True
+            self._cleanup_failed = False
+            self._last_cleanup_error = None
 
         start_time = time.perf_counter()
+        cleanup_succeeded = False
         try:
             logger.debug("Starting ApplicationInitializer cleanup")
 
+            logger.debug("Cleanup step: detach signal notifiers")
             self.detach_signal_notifiers()
 
+            logger.debug("Cleanup step: resource manager cleanup")
             self._resource_manager.cleanup_all()
 
             if self.thread_pool and hasattr(self.thread_pool, "waitForDone"):
@@ -342,21 +361,44 @@ class ApplicationInitializer:
                     self.thread_pool, "activeThreadCount", lambda: 0
                 )()
                 if active_count > 0:
+                    logger.debug("Cleanup step: wait for thread pool")
                     logger.debug("Waiting for %d threads to complete", active_count)
                     self.thread_pool.waitForDone(THREAD_POOL_SHUTDOWN_TIMEOUT_MS)
+            cleanup_succeeded = True
 
         except Exception as exc_type:
-            _exc_val, _exc_tb = sys.exc_info()
+            error_message = str(exc_type)
             logger.error(
                 "Error during ApplicationInitializer cleanup: %s",
                 exc_type,
                 exc_info=True,
             )
         finally:
+            with self._cleanup_lock:
+                self._cleanup_in_progress = False
+                if cleanup_succeeded:
+                    self._cleanup_done = True
+                    self._cleanup_failed = False
+                    self._last_cleanup_error = None
+                else:
+                    self._cleanup_failed = True
+                    self._last_cleanup_error = locals().get("error_message") or "unknown cleanup error"
             duration = time.perf_counter() - start_time
             logger.debug(
                 "ApplicationInitializer cleanup completed in %.2fms", duration * 1000
             )
+
+    def _cleanup_via_shutdown_controller(self, timeout_ms: int | None = None) -> bool:
+        """Mark cleanup ownership and execute initializer cleanup via shutdown controller."""
+        with self._cleanup_lock:
+            self._shutdown_cleanup_started = True
+        try:
+            self._cleanup_sync()
+            return self._cleanup_done
+        finally:
+            with self._cleanup_lock:
+                if not self._cleanup_done:
+                    self._shutdown_cleanup_started = False
 
     def _register_if_cleanable(self, resource: Any, name: str) -> None:
         """Helper to safely register cleanable resources using duck typing."""
@@ -389,23 +431,7 @@ class ApplicationInitializer:
         critical_message="Unexpected error initializing database",
     )
     def initialize_database(self) -> bool:
-        retry_count = [0]
-
-        def on_db_retry(attempt: int, error: Exception) -> None:
-            retry_count[0] = attempt + 1
-            logger.info("Database initialization retry %d: %s", attempt + 1, error)
-
-        db = retry_on_failure(
-            lambda: _create_component(Database),
-            max_attempts=3,
-            delay=0.5,
-            on_retry=on_db_retry,
-        )
-
-        if retry_count[0] > 0:
-            logger.info(
-                "Database initialized successfully after %d retries", retry_count[0]
-            )
+        db = _create_component(Database)
 
         if db is None or not isinstance(db, Database):
             logger.error(
@@ -444,9 +470,17 @@ class ApplicationInitializer:
         if self.mode != StartupMode.GUI:
             self.main_window = None
             return True
-        self.main_window = _create_component(
-            create_main_window, self.settings, self.theme_controller, self.database
+        from app.views.main_components.initialization.window_initializer import (
+            WindowInitializer,
         )
+        from app.views.windows.main_window import MainWindow
+
+        window = _create_component(MainWindow, self.settings, self.theme_controller)
+        initializer = WindowInitializer(
+            window, self.database, self.settings, self.theme_controller
+        )
+        initializer.initialize_window()
+        self.main_window = window
         _setup_main_window_post_creation(self.main_window, self.theme_controller)
         self._register_if_cleanable(self.main_window, "main_window")
 
@@ -454,7 +488,7 @@ class ApplicationInitializer:
             self._shutdown_controller = AppShutdownController(self.main_window)
             self._shutdown_controller.add_shutdown_handler(
                 "application_initializer_cleanup",
-                self._cleanup_sync,
+                self._cleanup_via_shutdown_controller,
                 priority=ShutdownPriority.HIGH,
                 timeout=3000,
                 critical=True,
@@ -523,3 +557,5 @@ __all__ = [
     "Stoppable",
     "initialization_method",
 ]
+
+

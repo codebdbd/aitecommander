@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import ContextManager, Optional
+from contextlib import AbstractContextManager
 
 from app.models.db import Database
 
@@ -14,7 +14,7 @@ class UnitOfWork:
 
     def __init__(self, db: Database):
         self.db = db
-        self._tx_ctx: Optional[ContextManager[None]] = None
+        self._tx_ctx: AbstractContextManager[None] | None = None
         # Short aliases to repositories (without code duplication); safe for test DBs
         self.spheres = getattr(db, "spheres", None)
         self.sections = getattr(db, "sections", None)

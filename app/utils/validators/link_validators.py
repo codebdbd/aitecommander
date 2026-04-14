@@ -15,14 +15,6 @@ def validate_web_url(url: str) -> bool:
     return bool(parsed_url.netloc) and ("." in parsed_url.netloc)
 
 
-def validate_favorite_limit(db, want_fav: bool, is_edit: bool, was_fav: bool) -> bool:
-    if want_fav and (not is_edit or not was_fav):
-        fav_count = db.links.count_favorites()
-        if fav_count >= 20:
-            return False
-    return True
-
-
 def validate_link_duplicate(
     url: str,
     link_type: str,

@@ -6,8 +6,11 @@ from PyQt6.QtCore import QObject, pyqtSignal
 class SearchSignals(QObject):
     """Qt signals used by `FileSearchWorker`."""
 
-    result_found = pyqtSignal(
-        str, str
-    )  # file_path, found_content; pass empty string when content is not needed
+    # Batch results signal: list of tuples (filename, folder_path, size_kb, mtime_str, has_content)
+    results_batch = pyqtSignal(list)
+    
+    # Progress signal: (files_processed, directories_processed)
+    progress_update = pyqtSignal(int, int)
+    
     search_finished = pyqtSignal()
     error_occurred = pyqtSignal(str)

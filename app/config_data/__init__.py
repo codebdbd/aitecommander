@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Configuration entry point with lazy initialization semantics.
 
 Avoids performing filesystem I/O while importing `app.config_data`; the actual
@@ -7,10 +5,13 @@ configuration object is created only when code first accesses attributes on
 `app_config`.
 """
 
-# Публичные символы модуля
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
-__all__ = ["app_config", "get_app_config", "AppConfig"]
+from .app_config_payload import APP_CONFIG_JSON
+
+__all__ = ["app_config", "get_app_config", "AppConfig", "APP_CONFIG_JSON"]
 
 if TYPE_CHECKING:  # pragma: no cover - только для подсказок типов
     from .config_loader import AppConfig as AppConfig
@@ -95,4 +96,3 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     return sorted(set(globals()) | set(__all__))
-from .app_config_payload import APP_CONFIG_JSON

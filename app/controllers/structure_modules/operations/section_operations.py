@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 
-from app.models import StructureModel
+from app.models import StructureCoordinator
 from app.services.structure_service import StructureService
 
 from ..models.types import (
@@ -48,7 +48,7 @@ class SectionOperations(BaseOperations):
 
     def __init__(
         self,
-        structure_model: StructureModel,
+        structure_coordinator: StructureCoordinator,
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         execute_with_validation: Callable,
@@ -58,14 +58,14 @@ class SectionOperations(BaseOperations):
         Initialize section operations.
 
         Args:
-            structure_model: Model for working with structure data
+            structure_coordinator: Coordinator for working with structure data
             logger: Logger for recording events
             execute_with_error_handling: Error handling function
             execute_with_validation: Validation function
             emit_signal_callback: Signal emission function
         """
         super().__init__(
-            structure_model, logger, execute_with_error_handling, emit_signal_callback
+            structure_coordinator, logger, execute_with_error_handling, emit_signal_callback
         )
         self._execute_with_validation_fn: Callable[..., Optional[int]] = (
             execute_with_validation
@@ -73,7 +73,7 @@ class SectionOperations(BaseOperations):
         # Service layer for transactional operations and reads
         try:
             self._structure_service: Optional[StructureService] = StructureService(
-                structure_model.db
+                structure_coordinator.db
             )
         except Exception:
             # Fallback to direct model (should not be used with normal configuration)
@@ -169,7 +169,7 @@ class SectionOperations(BaseOperations):
             section_data = (
                 self._structure_service.get_section_by_id(section_id)
                 if self._structure_service
-                else self.structure_model.get_section_by_id(section_id)
+                else self.db.sections.get_section_by_id(section_id)
             )
             if not section_data:
                 self._log_section_not_found(section_id)
@@ -235,7 +235,7 @@ class SectionOperations(BaseOperations):
             section_data = (
                 self._structure_service.get_section_by_id(section_id)
                 if self._structure_service
-                else self.structure_model.get_section_by_id(section_id)
+                else self.db.sections.get_section_by_id(section_id)
             )
             if section_data:
                 self._log_section_found(section_id)
@@ -257,7 +257,7 @@ class SectionOperations(BaseOperations):
             sections_data = (
                 self._structure_service.get_sections(sphere_id)
                 if self._structure_service
-                else self.structure_model.get_sections(sphere_id)
+                else self.db.sections.get_sections(sphere_id)
             )
             result = sections_data if sections_data else []
             self._log_sections_loaded(len(result), sphere_id)
@@ -346,7 +346,7 @@ class SectionOperations(BaseOperations):
         Returns:
             tuple[int, int]: Number of categories and links
         """
-        return self.structure_model.count_nested_objects_for_section(section_id)
+        return self.db.sections.count_nested_objects_for_section(section_id)
 
     def _count_nested_objects_for_section(self, section_id: int) -> tuple[int, int]:
         """
@@ -360,7 +360,7 @@ class SectionOperations(BaseOperations):
         Returns:
             tuple[int, int]: Number of categories and links
         """
-        return self.structure_model.count_nested_objects_for_section(section_id)
+        return self.db.sections.count_nested_objects_for_section(section_id)
 
     def _emit_section_deleted_signal(self, section_id: int) -> None:
         """Emit section deletion signal."""

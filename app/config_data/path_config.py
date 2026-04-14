@@ -1,26 +1,24 @@
 """Configuration helpers for file system paths and directories."""
 
+import logging
 import os
-import sys
+import shutil
 from pathlib import Path
 from typing import Optional
 
+from app.core.paths.path_manager import PathManager
+
 from .base_config import BaseConfig
+
+logger = logging.getLogger(__name__)
 
 
 class PathConfig(BaseConfig):
     """Provide strongly typed accessors for application path settings."""
 
     def get_base_path(self) -> Path:
-        """Return the application base path (PyInstaller aware)."""
-        if getattr(sys, "frozen", False):
-            base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
-            app_dir = base / "app"
-            if app_dir.exists():
-                return app_dir
-            return base
-        else:
-            return Path(__file__).parent.parent
+        """Return the application base path."""
+        return PathManager.app_root()
 
     def get_ui_icons_dir(self) -> Path:
         """Return the directory containing UI icons relative to ``base_path``."""
@@ -33,14 +31,9 @@ class PathConfig(BaseConfig):
 
     def __get_appdata_subpath(self, sub: str) -> Path:
         """Compute `%APPDATA%/org_name/app_name/sub` incorporating fallbacks."""
-        org_name = self.get("app.org_name", "Codebdbd")
-        app_name = self.get("app.name", "Aite Commander")
-        appdata_str = os.getenv("APPDATA")
-        if not appdata_str:
-            appdata_path = Path.home() / "AppData" / "Roaming"
-        else:
-            appdata_path = Path(appdata_str)
-        return appdata_path / org_name / app_name / sub
+        org_name = self.get("app.org_name", PathManager.DEFAULT_ORG_NAME)
+        app_name = self.get("app.name", PathManager.DEFAULT_APP_NAME)
+        return PathManager.user_data_root(org_name, app_name) / sub
 
     def get_db_path(self) -> Path:
         """Return the `%APPDATA%/Org/App/links.db` database path."""
@@ -54,6 +47,15 @@ class PathConfig(BaseConfig):
             p = Path(conf)
             return p if p.is_absolute() else self.get_user_data_dir() / p
         return self.__get_appdata_subpath("icons")
+
+    def get_user_themes_dir(self) -> Path:
+        """Return the user themes directory (default `%APPDATA%/Codebdbd/Aite Commander/themes`)."""
+        conf = self.get("paths.user_themes_dir")
+        if conf:
+            expanded = os.path.expandvars(str(conf))
+            p = Path(expanded)
+            return p if p.is_absolute() else self.get_user_data_dir() / p
+        return self.__get_appdata_subpath("themes")
 
     def get_user_data_dir(self) -> Path:
         """Return the root user data directory (the database file's parent)."""
@@ -93,6 +95,48 @@ class PathConfig(BaseConfig):
         self.get_logs_dir().mkdir(parents=True, exist_ok=True)
         self.get_config_dir().mkdir(parents=True, exist_ok=True)
         self.get_link_icons_dir().mkdir(parents=True, exist_ok=True)
+        self._migrate_legacy_user_themes_dir()
+        self.get_user_themes_dir().mkdir(parents=True, exist_ok=True)
+
+    def _get_legacy_user_themes_dir(self) -> Path:
+        """Return the legacy themes directory (%APPDATA%/AiteCommander/themes)."""
+        appdata_str = os.getenv("APPDATA")
+        if not appdata_str:
+            appdata_path = Path.home() / "AppData" / "Roaming"
+        else:
+            appdata_path = Path(appdata_str)
+        return appdata_path / "AiteCommander" / "themes"
+
+    def _migrate_legacy_user_themes_dir(self) -> None:
+        """Move themes from legacy folder into the current profile-based location."""
+        legacy_dir = self._get_legacy_user_themes_dir()
+        new_dir = self.get_user_themes_dir()
+        if legacy_dir.resolve() == new_dir.resolve():
+            return
+        if not legacy_dir.exists() or not legacy_dir.is_dir():
+            return
+        try:
+            new_dir.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            logger.warning("Failed to create themes parent folder: %s", exc)
+            return
+
+        try:
+            if new_dir.exists():
+                for entry in legacy_dir.iterdir():
+                    dest = new_dir / entry.name
+                    if dest.exists():
+                        continue
+                    shutil.move(str(entry), str(dest))
+            else:
+                shutil.move(str(legacy_dir), str(new_dir))
+            try:
+                if legacy_dir.exists():
+                    legacy_dir.rmdir()
+            except OSError:
+                pass
+        except OSError as exc:
+            logger.warning("Failed to migrate legacy themes: %s", exc)
 
     # Application resources (relative paths are resolved against ``base_path``)
 
@@ -113,7 +157,13 @@ class PathConfig(BaseConfig):
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 
-    # Browser profile paths (Windows) — each accessor returns ``Optional[Path]``
+    def get_themes_dir(self) -> Path:
+        """Return the bundled themes directory (theme.json manifests)."""
+        rel = self.get("paths.themes_dir", "resources/themes")
+        p = Path(rel)
+        return p if p.is_absolute() else self.get_base_path() / p
+
+    # Browser profile paths (Windows) - each accessor returns ``Optional[Path]``
 
     # Universal registry of browser profile parameters
     # key: browser name, value: (ENV_VAR, relative path from ENV, config key)

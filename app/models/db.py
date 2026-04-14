@@ -1,15 +1,29 @@
+from __future__ import annotations
+
+import gc
 import logging
 import sqlite3
 import threading
 import time
 import warnings
-from pathlib import Path
-from typing import Any, Callable, ContextManager, Optional, Protocol
+from contextlib import AbstractContextManager
+from typing import Any, Callable, Protocol
 
-from PyQt6.QtCore import QObject, QThread, QThreadPool, pyqtBoundSignal, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QObject,
+    QT_TRANSLATE_NOOP,
+    Qt,
+    QThread,
+    QThreadPool,
+    pyqtBoundSignal,
+    pyqtSignal,
+    pyqtSlot,
+)
 
 from app.config_data import app_config
-from app.utils.db.migrations import MigrationRunner
+from app.core.database_manager import DatabaseManager
+from app.core.paths.path_manager import PathManager
 
 from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
 from .entities.category_model import CategoryModel
@@ -25,10 +39,20 @@ from .types.constants import (
     MAX_IDENTIFIER_LENGTH,
     SLOW_OPERATION_THRESHOLD_MS,
     SQLITE_SAFE_BATCH_SIZE,
-    SQLITE_SAFE_SELECT_CHUNK,
 )
 
 logger = logging.getLogger(__name__)
+_DB_CONTEXT = "DatabaseInit"
+_DB_APPLY_MIGRATIONS = QT_TRANSLATE_NOOP(
+    _DB_CONTEXT, "Applying migrations..."
+)
+_DB_INIT_DEFAULTS = QT_TRANSLATE_NOOP(
+    _DB_CONTEXT, "Initializing default data..."
+)
+
+
+def _tr_db(text: str) -> str:
+    return QCoreApplication.translate(_DB_CONTEXT, text)
 
 
 class FinishedCallback(Protocol):
@@ -45,11 +69,12 @@ class ProgressCallback(Protocol):
     """Callback protocol for progress updates."""
     def __call__(self, current: int, total: int, message: str) -> None: ...
 
-SCHEMA_PATH = Path(__file__).parent / "schema.sql"
-MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+SCHEMA_PATH = PathManager.app_root() / "models" / "schema.sql"
+MIGRATIONS_DIR = PathManager.app_root() / "models" / "migrations"
 PATHS = app_config.paths
-DB_PATH = PATHS.get_db_path()
-BACKUP_DIR = PATHS.get_backups_dir()
+_ORG_NAME = app_config.get("app.org_name", PathManager.DEFAULT_ORG_NAME)
+_APP_NAME = app_config.get("app.name", PathManager.DEFAULT_APP_NAME)
+BACKUP_DIR = PathManager.backups_dir(_ORG_NAME, _APP_NAME)
 
 
 class Database(QObject):
@@ -64,17 +89,15 @@ class Database(QObject):
     operation_finished = pyqtSignal(str, bool)
     warning_occurred = pyqtSignal(str, str)
 
-    def __init__(self, parent: Optional[QObject] = None):
+    def __init__(self, parent: QObject | None = None):
         """Initializes Database. Raises TypeError if parent is not QObject or None."""
         if parent is not None and not isinstance(parent, QObject):
             raise TypeError(f"parent must be QObject or None, got {type(parent).__name__}")
         
         super().__init__(parent)
 
-        self.db_path = str(DB_PATH)
-        self.thread_local = threading.local()
-        self._active_connections = {}  # Track connections by thread ID for cleanup
-        self._connection_lock = threading.Lock()  # Separate lock for connection management
+        self.db_path = str(DatabaseManager.get_db_path())
+        self._backup_lock = threading.Lock()
         self._base = DatabaseBase(self)
         pool = QThreadPool.globalInstance()
         if pool is None:
@@ -98,7 +121,7 @@ class Database(QObject):
     def rollback(self) -> None:
         return self._base.rollback()
 
-    def transaction(self) -> ContextManager[None]:
+    def transaction(self) -> AbstractContextManager[None]:
         return self._base.transaction()
 
     def prepare_dirs(self) -> None:
@@ -115,26 +138,29 @@ class Database(QObject):
             stacklevel=2,
         )
         operation = "initialize_or_migrate"
-        is_new = not DB_PATH.exists()
+        db_path = DatabaseManager.get_db_path()
+        is_new = not db_path.exists()
         
         try:
             self.operation_started.emit(operation, 1)
             
             with db_lock:
-                self.operation_progress.emit(operation, 0, 1, "Applying migrations...")
+                self.operation_progress.emit(
+                    operation, 0, 1, _tr_db(_DB_APPLY_MIGRATIONS)
+                )
                 try:
-                    conn = self.connection
-                    runner = MigrationRunner(conn, MIGRATIONS_DIR)
-                    applied = runner.run_all_pending()
+                    applied = DatabaseManager.ensure_schema()
                     logger.info("Migrations applied: %d", applied)
                 except Exception as migration_err:
                     logger.error("Migration failed: %s", migration_err, exc_info=True)
                     self.operation_finished.emit(operation, False)
                     raise DatabaseError(f"Migration failed: {migration_err}") from migration_err
             
-            if is_new:
+            if is_new or self._is_sphere_empty():
                 try:
-                    self.operation_progress.emit(operation, 1, 1, "Initializing default data...")
+                    self.operation_progress.emit(
+                        operation, 1, 1, _tr_db(_DB_INIT_DEFAULTS)
+                    )
                     with db_lock:
                         self.spheres.initialize_default_spheres()
                 except Exception as init_err:
@@ -146,10 +172,10 @@ class Database(QObject):
             logger.info("Database initialization completed successfully")
         
         except DatabaseError:
-            if is_new and DB_PATH.exists():
+            if is_new and db_path.exists():
                 try:
                     self.close()
-                    DB_PATH.unlink()
+                    db_path.unlink()
                     logger.info("Removed incomplete database file after initialization failure")
                 except Exception as cleanup_err:
                     logger.warning("Failed to remove incomplete database: %s", cleanup_err)
@@ -159,10 +185,10 @@ class Database(QObject):
             self.operation_finished.emit(operation, False)
             logger.error("Unexpected error during initialization: %s", e, exc_info=True)
             
-            if is_new and DB_PATH.exists():
+            if is_new and db_path.exists():
                 try:
                     self.close()
-                    DB_PATH.unlink()
+                    db_path.unlink()
                     logger.info("Removed incomplete database file after unexpected error")
                 except Exception as cleanup_err:
                     logger.warning("Failed to remove incomplete database: %s", cleanup_err)
@@ -177,15 +203,15 @@ class Database(QObject):
 
     def initialize_or_migrate_async(
         self,
-        on_finished: Optional[FinishedCallback] = None,
-        on_error: Optional[ErrorCallback] = None,
-        on_progress: Optional[ProgressCallback] = None,
+        on_finished: FinishedCallback | None = None,
+        on_error: ErrorCallback | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> None:
         """Initializes DB in background thread. Callbacks: on_finished(stats), on_error(e, tb), on_progress(c, t, m)."""
         try:
             from .workers import InitializationWorker
 
-            worker = InitializationWorker(self.db_path, MIGRATIONS_DIR)
+            worker = InitializationWorker(MIGRATIONS_DIR)
             
             def on_worker_finished(stats):
                 self._safe_emit(self.operation_finished, "initialize_or_migrate", True)
@@ -216,6 +242,43 @@ class Database(QObject):
             if on_error:
                 self._safe_callback(on_error, e, "")
 
+    class _CallbackDispatcher(QObject):
+        """Helper QObject to marshal callbacks back to the GUI thread."""
+
+        invoke = pyqtSignal(object, tuple, dict)
+
+        def __init__(self) -> None:
+            parent = QCoreApplication.instance()
+            super().__init__(parent)
+            self.invoke.connect(
+                self._execute, Qt.ConnectionType.QueuedConnection  # type: ignore[arg-type]
+            )
+
+        @pyqtSlot(object, tuple, dict)
+        def _execute(
+            self, callback: Callable[..., Any], args: tuple, kwargs: dict
+        ) -> None:
+            try:
+                callback(*args, **kwargs)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error(
+                    "Error in GUI callback %s: %s",
+                    getattr(callback, "__name__", repr(callback)),
+                    exc,
+                    exc_info=True,
+                )
+
+    _callback_dispatcher: _CallbackDispatcher | None = None
+
+    def _get_callback_dispatcher(self) -> _CallbackDispatcher | None:
+        """Return shared dispatcher if QApplication is running."""
+        app = QCoreApplication.instance()
+        if app is None:
+            return None
+        if Database._callback_dispatcher is None:
+            Database._callback_dispatcher = Database._CallbackDispatcher()
+        return Database._callback_dispatcher
+
     def _safe_emit(self, signal: pyqtBoundSignal, *args: Any) -> None:
         """Emit Qt signal only when QApplication exists. Prevents crashes in tests/CLI."""
         try:
@@ -230,13 +293,31 @@ class Database(QObject):
         except Exception as e:
             logger.warning("Error emitting signal %s: %s", signal.__class__.__name__, e, exc_info=True)
     
-    def _safe_callback(self, callback: Callable, *args: Any) -> None:
-        """Safely invoke user callback with error handling."""
+    def _safe_callback(self, callback: Callable, *args: Any, **kwargs: Any) -> None:
+        """Invoke callbacks on the GUI thread when possible."""
+        dispatcher = self._get_callback_dispatcher()
+        if dispatcher is None:
+            try:
+                callback(*args, **kwargs)
+            except Exception as e:
+                logger.error(
+                    "Error in user callback %s: %s",
+                    getattr(callback, "__name__", repr(callback)),
+                    e,
+                    exc_info=True,
+                )
+                self._safe_emit(self.error_occurred, "Callback error", str(e))
+            return
+
         try:
-            callback(*args)
-        except Exception as e:
-            logger.error("Error in user callback %s: %s", getattr(callback, '__name__', repr(callback)), e, exc_info=True)
-            self._safe_emit(self.error_occurred, "Callback error", str(e))
+            dispatcher.invoke.emit(callback, args, kwargs)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(
+                "Failed to dispatch callback %s: %s",
+                getattr(callback, "__name__", repr(callback)),
+                e,
+                exc_info=True,
+            )
     
     def _ensure_not_gui_thread(self, method_name: str) -> None:
         """Ensures method is not called from GUI thread. Raises RuntimeError if violated."""
@@ -249,7 +330,14 @@ class Database(QObject):
         except ImportError:
             pass
 
-    def __enter__(self) -> "Database":
+    def _is_sphere_empty(self) -> bool:
+        try:
+            row = self.connection.execute("SELECT 1 FROM sphere LIMIT 1").fetchone()
+            return row is None
+        except Exception:
+            return False
+
+    def __enter__(self) -> Database:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -262,72 +350,16 @@ class Database(QObject):
 
     @property
     def connection(self) -> sqlite3.Connection:
-        """Returns thread-local DB connection with optimized liveness check. WARNING: All write operations MUST use db_lock for synchronization."""
-        conn = getattr(self.thread_local, "conn", None)
-        
-        # Быстрый путь: соединение уже есть и недавно использовалось
-        if conn is not None:
-            last_used = getattr(self.thread_local, "last_used", 0)
-            now = time.monotonic()
-            
-            # Если использовалось недавно (< 30 сек) — считаем живым
-            if now - last_used < 30:
-                self.thread_local.last_used = now
-                return conn
-            
-            # Проверяем живость только если давно не использовалось
-            try:
-                conn.execute("SELECT 1").fetchone()
-                self.thread_local.last_used = now
-                return conn
-            except Exception:
-                # Соединение мертво — пересоздаем
-                with self._connection_lock:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
-                    try:
-                        del self.thread_local.conn
-                        del self.thread_local.last_used
-                    except Exception:
-                        pass
-                    thread_id = threading.get_ident()
-                    if thread_id in self._active_connections:
-                        del self._active_connections[thread_id]
-        
-        # Создаем новое соединение (только здесь нужен lock)
-        with self._connection_lock:
-            # Double-check: может другой поток уже создал
-            conn = getattr(self.thread_local, "conn", None)
-            if conn is not None:
-                self.thread_local.last_used = time.monotonic()
-                return conn
-            
-            conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            
-            # Оптимизированные PRAGMA
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")  # Вместо FULL для производительности
-            conn.execute("PRAGMA cache_size = -64000")  # 64MB cache
-            conn.execute("PRAGMA temp_store = MEMORY")  # Temp tables в RAM
-            conn.execute("PRAGMA mmap_size = 268435456")  # 256MB mmap
-            conn.execute("PRAGMA busy_timeout = 5000")
-            
-            self.thread_local.conn = conn
-            self.thread_local.last_used = time.monotonic()
-            thread_id = threading.get_ident()
-            self._active_connections[thread_id] = conn
-            return conn
+        """Return database connection from DatabaseManager."""
+        return DatabaseManager.get_connection()
 
-    def get_section_id_by_category(self, category_id: int) -> Optional[int]:
+
+    def get_section_id_by_category(self, category_id: int) -> int | None:
         """Returns section_id for given category."""
         row = self.categories.get_category_by_id(category_id)
         return row["section_id"] if row else None
 
-    def get_sphere_id_by_section(self, section_id: int) -> Optional[int]:
+    def get_sphere_id_by_section(self, section_id: int) -> int | None:
         """Returns sphere_id for given section."""
         return self.sections.get_sphere_id_by_section(section_id)
 
@@ -353,7 +385,7 @@ class Database(QObject):
                 
                 self._check_ids_exist(table_name, ids)
                 
-                # UPDATE батчами (проверка уже выполнена)
+                # UPDATE ╨▒╨░╤В╤З╨░╨╝╨╕ (╨┐╤А╨╛╨▓╨╡╤А╨║╨░ ╤Г╨╢╨╡ ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜╨░)
                 id_pos_pairs = [(item_id, i) for i, item_id in enumerate(ids)]
                 with self.connection:
                     batches = 0
@@ -413,11 +445,11 @@ class Database(QObject):
         
         safe_table_name = self._escape_identifier(table_name)
         
-        # Адаптивный размер батча на основе SQLITE_MAX_COMPOUND_SELECT
+        # ╨Р╨┤╨░╨┐╤В╨╕╨▓╨╜╤Л╨╣ ╤А╨░╨╖╨╝╨╡╤А ╨▒╨░╤В╤З╨░ ╨╜╨░ ╨╛╤Б╨╜╨╛╨▓╨╡ SQLITE_MAX_COMPOUND_SELECT
         max_batch = min(500, 32766 // 2)
         
         if len(ids) <= max_batch:
-            # Быстрый путь: VALUES для малых/средних списков
+            # ╨С╤Л╤Б╤В╤А╤Л╨╣ ╨┐╤Г╤В╤М: VALUES ╨┤╨╗╤П ╨╝╨░╨╗╤Л╤Е/╤Б╤А╨╡╨┤╨╜╨╕╤Е ╤Б╨┐╨╕╤Б╨║╨╛╨▓
             placeholders = ",".join(f"({id_val})" for id_val in ids)
             
             query = f"""
@@ -436,7 +468,7 @@ class Database(QObject):
                     f"Records with ID not found: {missing_ids} in table {table_name}"
                 )
         else:
-            # Для больших списков: temp table (эффективнее для 10000+ ID)
+            # ╨Ф╨╗╤П ╨▒╨╛╨╗╤М╤И╨╕╤Е ╤Б╨┐╨╕╤Б╨║╨╛╨▓: temp table (╤Н╤Д╤Д╨╡╨║╤В╨╕╨▓╨╜╨╡╨╡ ╨┤╨╗╤П 10000+ ID)
             with self.connection:
                 self.connection.execute(
                     "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id INTEGER PRIMARY KEY)"
@@ -492,9 +524,9 @@ class Database(QObject):
 
     def export_full_structure_async(
         self,
-        on_finished: Optional[FinishedCallback] = None,
-        on_error: Optional[ErrorCallback] = None,
-        on_progress: Optional[ProgressCallback] = None,
+        on_finished: FinishedCallback | None = None,
+        on_error: ErrorCallback | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> None:
         """Exports structure in background thread. Callbacks: on_finished(result), on_error(e, tb), on_progress(c, t, m)."""
         try:
@@ -534,9 +566,9 @@ class Database(QObject):
     def import_full_structure_async(
         self,
         data: list[dict[str, Any]],
-        on_finished: Optional[FinishedCallback] = None,
-        on_error: Optional[ErrorCallback] = None,
-        on_progress: Optional[ProgressCallback] = None,
+        on_finished: FinishedCallback | None = None,
+        on_error: ErrorCallback | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> None:
         """Imports data in background thread. Callbacks: on_finished(stats), on_error(e, tb), on_progress(c, t, m)."""
         if not data:
@@ -556,7 +588,7 @@ class Database(QObject):
         try:
             from .workers import ImportStructureWorker
 
-            worker = ImportStructureWorker(self.db_path, data)
+            worker = ImportStructureWorker(data)
             worker.signals.finished.connect(lambda stats: self.structure_loaded.emit())
             worker.signals.error.connect(lambda e, tb: self.error_occurred.emit("Import error", str(e)))
             
@@ -576,18 +608,35 @@ class Database(QObject):
                 self._safe_callback(on_error, e, "")
 
     def backup(self) -> str:
-        return self.backup_manager.backup(BACKUP_DIR)
+        with self._backup_lock:
+            return self.backup_manager.backup(BACKUP_DIR)
 
     def backup_async(
         self,
-        on_finished: Optional[FinishedCallback] = None,
-        on_error: Optional[ErrorCallback] = None,
-        on_progress: Optional[ProgressCallback] = None,
+        on_finished: FinishedCallback | None = None,
+        on_error: ErrorCallback | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> None:
         """Creates backup in background thread. Callbacks: on_finished(result), on_error(e, tb), on_progress(c, t, m)."""
         from .workers import BackupWorker
 
-        worker = BackupWorker(self.db_path, BACKUP_DIR)
+        if not self._backup_lock.acquire(blocking=False):
+            logger.info("Backup already in progress; skipping async backup request")
+            return
+
+        def _release_backup_lock(*_args):
+            if self._backup_lock.locked():
+                self._backup_lock.release()
+
+        try:
+            worker = BackupWorker(BACKUP_DIR, app_config.settings.get_max_backups())
+        except Exception:
+            _release_backup_lock()
+            raise
+
+        worker.signals.finished.connect(_release_backup_lock)
+        worker.signals.error.connect(_release_backup_lock)
+        worker.signals.cancelled.connect(_release_backup_lock)
         
         if on_finished:
             worker.signals.finished.connect(lambda result: self._safe_callback(on_finished, result))
@@ -595,14 +644,21 @@ class Database(QObject):
             worker.signals.error.connect(lambda e, tb: self._safe_callback(on_error, e, tb))
         if on_progress:
             worker.signals.progress.connect(lambda c, t, m: self._safe_callback(on_progress, c, t, m))
-        self._thread_pool.start(worker)
-        logger.info("Started async backup")
+        try:
+            self._thread_pool.start(worker)
+            logger.info("Started async backup")
+        except Exception:
+            _release_backup_lock()
+            raise
 
     def export_section_tree(self, section_id: int) -> dict[str, Any]:
         return self.import_export_manager.export_section_tree(section_id)
 
     def import_section_tree(self, tree: dict[str, Any]) -> int:
         return self.import_export_manager.import_section_tree(tree)
+
+    def import_section_trees_bulk(self, trees: list[dict[str, Any]]) -> None:
+        return self.import_export_manager.import_section_trees_bulk(trees)
 
     def export_category_tree(self, category_id: int) -> dict[str, Any]:
         return self.import_export_manager.export_category_tree(category_id)
@@ -614,38 +670,27 @@ class Database(QObject):
         return self.import_export_manager.import_category_trees_bulk(trees)
 
     def is_connected(self) -> bool:
-        try:
-            conn = getattr(self.thread_local, "conn", None)
-            if conn is not None:
-                conn.execute("SELECT 1").fetchone()
-                return True
-            return False
-        except Exception:
-            return False
+        return DatabaseManager.is_connected()
+
 
     def close(self) -> None:
+        """Close database connection for current thread."""
         try:
-            thread_id = threading.get_ident()
-            if hasattr(self.thread_local, "conn"):
-                try:
-                    with db_lock:
-                        self.thread_local.conn.execute("PRAGMA wal_checkpoint(FULL)")
-                        self.thread_local.conn.commit()
-                    logger.debug("WAL checkpoint completed before closing")
-                except Exception as checkpoint_err:
-                    logger.warning("Error WAL checkpoint when closing: %s", checkpoint_err, exc_info=True)
-                self.thread_local.conn.close()
-            del self.thread_local.conn
-            
-            if hasattr(self.thread_local, "last_used"):
-                del self.thread_local.last_used
-            
-            with self._connection_lock:
-                if thread_id in self._active_connections:
-                    del self._active_connections[thread_id]
+            DatabaseManager.close()
             logger.debug("Database connection closed")
         except Exception as e:
             logger.error("Error closing connection: %s", e, exc_info=True)
+
+
+    def close_all(self) -> None:
+        """Close ALL database connections from all threads. Required for DB restore."""
+        logger.info("Closing all database connections...")
+        try:
+            DatabaseManager.close_all()
+        finally:
+            gc.collect()
+        logger.info("All database connections closed")
+
 
     def detect_case_insensitive_duplicates(self) -> dict[str, list[dict[str, Any]]]:
         return self.duplicate_resolver.detect_case_insensitive_duplicates()
@@ -667,22 +712,19 @@ class Database(QObject):
                     logger.debug("Waiting for thread pool to finish...")
                     timeout_ms = app_config.get("threading.cleanup_timeout_ms", 5000)
                     if not self._thread_pool.waitForDone(timeout_ms):
-                        logger.warning("Thread pool did not finish within %dms timeout, some workers may still be running. Active threads: %d", timeout_ms, self._thread_pool.activeThreadCount())
+                        logger.warning(
+                            "Thread pool did not finish within %dms timeout, some workers may still be running. Active threads: %d",
+                            timeout_ms,
+                            self._thread_pool.activeThreadCount(),
+                        )
                 except Exception as e:
                     logger.warning("Error waiting for thread pool: %s", e)
+
             try:
-                self.close()
+                DatabaseManager.close_all()
             except Exception as e:
-                logger.warning("Error closing database connection: %s", e)
-            
-            with self._connection_lock:
-                for thread_id, conn in list(self._active_connections.items()):
-                    try:
-                        conn.close()
-                        logger.debug("Closed leaked connection from thread %s", thread_id)
-                    except Exception as e:
-                        logger.warning("Error closing leaked connection: %s", e)
-                self._active_connections.clear()
+                logger.warning("Error closing database connections: %s", e)
+
             for attr in [
                 "spheres",
                 "sections",
@@ -704,3 +746,5 @@ class Database(QObject):
 
         except Exception as exc:
             logger.error("Error during Database cleanup: %s", exc, exc_info=True)
+
+

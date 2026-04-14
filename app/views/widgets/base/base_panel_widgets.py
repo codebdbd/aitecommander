@@ -1,7 +1,7 @@
 """Base classes for top panel widgets."""
 
-import logging
 import copy
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -10,7 +10,12 @@ from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.widgets.link_button_mixin import LinkButtonMixin
-from app.views.widgets.protocols import AppConfigWidgetAdapter, WidgetConfigProtocol
+from app.views.widgets.protocols import (
+    AppConfigWidgetAdapter,
+    UpdateContext,
+    UpdateStatus,
+    WidgetConfigProtocol,
+)
 
 if TYPE_CHECKING:
     from app.views.widgets.base.base_widgets import BasePanelWidget
@@ -19,6 +24,7 @@ else:
     from app.views.widgets.base.base_widgets import BasePanelWidget
 
 logger = logging.getLogger(__name__)
+DEFAULT_PANEL_BATCH_INTERVAL_MS = 16
 
 
 class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
@@ -49,7 +55,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         # IMPROVEMENT: Configuration dependency injection
         if config is None:
             try:
-                from app.config_data import app_config
+                from app.config_data.runtime_config import runtime_app_config as app_config
 
                 config = AppConfigWidgetAdapter(app_config)
             except (ImportError, AttributeError) as e:
@@ -63,7 +69,11 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._create_button_func: Optional[
             Callable[[dict[str, Any]], Optional[QToolButton]]
         ] = None
+        self._populate_version = 0
+        self._scheduled_populate_version = 0
         self._last_items: list[dict[str, Any]] = []
+        self._update_status = UpdateStatus.IDLE
+        self._update_context: Optional[UpdateContext] = None
 
         # FIX: Batched adjust() to avoid multiple layout recalculations during startup
         self._adjust_timer: Optional[QTimer] = None
@@ -78,6 +88,71 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
+
+    def update_data(
+        self,
+        data: list[dict[str, Any]],
+        options: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """Unified lifecycle API: apply data and optionally request refresh."""
+        _ = options
+        try:
+            self._update_status = UpdateStatus.UPDATING
+            self._update_context = UpdateContext(item_count=len(data))
+            self.set_data(data)
+            return True
+        except Exception:
+            self._update_status = UpdateStatus.ERROR
+            if self._update_context is not None:
+                self._update_context.error_count += 1
+            logger.exception("BaseTopPanelWidget: update_data failed")
+            return False
+
+    def get_update_status(self) -> UpdateStatus:
+        """Return current panel update status."""
+        return self._update_status
+
+    def cancel_update(self) -> bool:
+        """Cancel batched population and mark update as cancelled."""
+        cancelled = False
+        self._populate_version += 1
+        self._scheduled_populate_version = self._populate_version
+        if self._populate_timer and self._populate_timer.isActive():
+            self._populate_timer.stop()
+            cancelled = True
+        if self._pending_items:
+            self._pending_items = []
+            cancelled = True
+        self._create_button_func = None
+        if cancelled:
+            self.setUpdatesEnabled(True)
+            self._update_status = UpdateStatus.CANCELLED
+            if self._update_context is not None:
+                self._update_context.is_cancelled = True
+            self._sync_topbar_layout()
+        return cancelled
+
+    def clear_data(self) -> None:
+        """Clear panel data via unified update API."""
+        try:
+            self.cancel_update()
+            self.clear()
+            self._clear_layout()
+            self._update_status = UpdateStatus.IDLE
+            self._sync_topbar_layout()
+        except Exception:
+            self._update_status = UpdateStatus.ERROR
+            logger.exception("BaseTopPanelWidget: clear_data failed")
+
+    def refresh(self) -> bool:
+        """Request external refresh through unified signal."""
+        try:
+            self._emit_refresh_safely({})
+            return True
+        except Exception:
+            self._update_status = UpdateStatus.ERROR
+            logger.exception("BaseTopPanelWidget: refresh failed")
+            return False
 
     def get_items(self) -> list[dict[str, Any]]:
         """Return a deep copy of the last items applied to the panel."""
@@ -186,6 +261,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
         self._content_expected = bool(items)
         self._content_added = False
+        self._update_status = UpdateStatus.UPDATING
+        self._update_context = UpdateContext(item_count=len(items))
 
         # Keep placeholder width enforced while new data is being loaded
         self._ensure_placeholder_width(True)
@@ -249,21 +326,33 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._pending_items = list(items)
         self._create_button_func = create_func
         self.setUpdatesEnabled(False)
+        self._populate_version += 1
+        self._scheduled_populate_version = self._populate_version
 
         # FIX: Create timer with ``self`` as parent to ensure automatic cleanup
         if self._populate_timer is None:
             self._populate_timer = QTimer(self)
             self._populate_timer.setSingleShot(True)
-            self._populate_timer.timeout.connect(self._process_batch)
+            self._populate_timer.timeout.connect(self._process_scheduled_batch)
+        elif self._populate_timer.isActive():
+            self._populate_timer.stop()
 
-        self._process_batch()
+        self._process_batch(self._populate_version)
 
-    def _process_batch(self) -> None:
+    def _process_scheduled_batch(self) -> None:
+        """Run a timer-scheduled batch for the currently scheduled data version."""
+        self._process_batch(self._scheduled_populate_version)
+
+    def _process_batch(self, expected_version: Optional[int] = None) -> None:
         """Process one batch of items.
 
         FIX: Checks ``isVisible()`` before processing to prevent calls after
         ``deleteLater()``.
         """
+        if expected_version is not None and expected_version != self._populate_version:
+            # Ignore outdated callback after a newer set_data() call.
+            return
+
         # CRITICAL: Ensure the widget is still alive and visible
         if not self.isVisible() or not self._pending_items:
             self._finish_populate()
@@ -287,12 +376,17 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                         link.get("name", "Unknown"),
                     )
             except Exception:
+                if self._update_context is not None:
+                    self._update_context.error_count += 1
                 logger.exception("Failed to create button for %s", link.get("name"))
                 continue
 
         # Schedule next batch
         if self._pending_items and self._populate_timer:
-            self._populate_timer.start(0)
+            if self._update_context is not None:
+                self._update_context.batch_count += 1
+            self._scheduled_populate_version = self._populate_version
+            self._populate_timer.start(DEFAULT_PANEL_BATCH_INTERVAL_MS)
         else:
             self._finish_populate()
 
@@ -311,6 +405,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._ensure_placeholder_width(not has_content)
         self._content_expected = False
         self._content_added = False
+        self._update_status = UpdateStatus.COMPLETED
 
     def _has_content_widgets(self) -> bool:
         """Check whether the panel currently holds visible widgets."""
@@ -358,4 +453,6 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         if self._populate_timer and self._populate_timer.isActive():
             self._populate_timer.stop()
             logger.debug("BaseTopPanelWidget: cancelled pending populate batches")
+        if self._adjust_timer and self._adjust_timer.isActive():
+            self._adjust_timer.stop()
         super().closeEvent(event)

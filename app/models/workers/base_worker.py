@@ -6,6 +6,8 @@ from typing import Any
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot
 
+from app.core.database_manager import DatabaseManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,13 +39,8 @@ class DatabaseWorker(QRunnable):
     Подклассы должны реализовать метод `do_work()`.
     """
 
-    def __init__(self, db_path: str):
-        """
-        Args:
-            db_path: Путь к файлу базы данных
-        """
+    def __init__(self):
         super().__init__()
-        self.db_path = db_path
         self.signals = WorkerSignals()
         self._is_cancelled = False
 
@@ -77,19 +74,7 @@ class DatabaseWorker(QRunnable):
         Returns:
             sqlite3.Connection: Соединение с БД
         """
-        import sqlite3
-
-        from ..base.db_base import db_lock
-
-        with db_lock:
-            conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            # Настройки для производительности
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA synchronous=NORMAL")
-            conn.execute("PRAGMA cache_size=-64000")  # 64MB
-            conn.execute("PRAGMA temp_store=MEMORY")
-            return conn
+        return DatabaseManager.get_connection()
 
     def do_work(self, connection) -> Any:
         """Выполняет основную работу. Должен быть переопределен в подклассах.
@@ -137,6 +122,6 @@ class DatabaseWorker(QRunnable):
             # Закрываем соединение
             if connection:
                 try:
-                    connection.close()
+                    DatabaseManager.close()
                 except Exception as close_err:
                     logger.warning("Ошибка закрытия соединения: %s", close_err)

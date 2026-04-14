@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from logging import Logger
 from typing import TYPE_CHECKING, Any
 
@@ -31,26 +32,45 @@ class StructureQueryService:
     # Selection helpers
     # ------------------------------------------------------------------
     def select_section(self, section_id: int) -> None:
-        categories = self._cache_service.get_categories(section_id)
         self._owner.section_selected.emit(section_id)
-        try:
-            count = len(categories) if isinstance(categories, list) else 0
-        except Exception:
-            count = 0
-        self._logger.debug("Section %s selected with %s categories", section_id, count)
+        self._logger.debug("Section %s selected", section_id)
 
     def select_category(self, category_id: int) -> None:
         self._owner.category_selected.emit(category_id)
         self._logger.debug("Category %s selected", category_id)
 
     def on_active_sphere_changed(self) -> None:
+        started_ts = time.perf_counter()
+        sphere_id = getattr(self._owner, "current_sphere_id", None)
+        self._logger.info(
+            "[Trace] on_active_sphere_changed enter sphere=%s",
+            sphere_id,
+        )
         loader_async = getattr(self._owner, "load_structure_async", None)
         if callable(loader_async):
+            self._logger.info(
+                "[Trace] on_active_sphere_changed using async loader sphere=%s",
+                sphere_id,
+            )
             loader_async()
+            self._logger.info(
+                "[Trace] on_active_sphere_changed async loader returned sphere=%s elapsed=%.2f ms",
+                sphere_id,
+                (time.perf_counter() - started_ts) * 1000.0,
+            )
             return
         loader_sync = getattr(self._owner, "load_structure", None)
         if callable(loader_sync):
+            self._logger.info(
+                "[Trace] on_active_sphere_changed using sync loader sphere=%s",
+                sphere_id,
+            )
             loader_sync()
+            self._logger.info(
+                "[Trace] on_active_sphere_changed sync loader returned sphere=%s elapsed=%.2f ms",
+                sphere_id,
+                (time.perf_counter() - started_ts) * 1000.0,
+            )
             return
         self._logger.error(
             "StructureBusinessLogic has no load_structure_async() or load_structure(); skipping reload"

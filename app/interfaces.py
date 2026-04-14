@@ -75,6 +75,12 @@ class TopPanelDataLike(Protocol):
 
     def set_data(self, items: list[Any]) -> None: ...
 
+    def update_data(
+        self, items: list[Any], options: dict[str, Any] | None = None
+    ) -> bool: ...
+
+    def cancel_update(self) -> bool: ...
+
 
 @runtime_checkable
 class FavoritesPanelWithClear(TopPanelDataLike, Protocol):

@@ -1,6 +1,6 @@
 # app/views/tiles/__init__.py
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 
 from .delegate import CategoryTileDelegate
 from .list_view import CategoryListView

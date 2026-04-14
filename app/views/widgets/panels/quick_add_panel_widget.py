@@ -6,7 +6,7 @@ from typing import Any, Optional
 from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
@@ -46,9 +46,18 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
         self._setup_quick_buttons()
 
     def set_data(self, items: list) -> None:
-        """Quick add panel doesn't use external data - buttons are configured from settings."""
-        # Quick add panel is self-contained and doesn't need external data
-        pass
+        """Apply the common panel contract by rebuilding quick buttons."""
+        _ = items  # Contract compatibility: external payload is ignored by design.
+        self.refresh_buttons()
+        self._sync_topbar_layout()
+
+    def refresh_buttons(self) -> None:
+        """Rebuild quick-add buttons (e.g., after theme change)."""
+        try:
+            self._clear_layout()
+            self._setup_quick_buttons()
+        except Exception:
+            logger.debug("QuickAddPanelWidget: failed to refresh buttons", exc_info=True)
 
     def _setup_quick_buttons(self) -> None:
         """Creates quick add buttons based on application configuration."""

@@ -1,11 +1,14 @@
 # app/controllers/link_operations_controller.py
 
 import logging
+import time
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
+from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from app.controllers.ui.undo.commands_links import (
     BatchDeleteLinksCmd,
     BatchSaveLinksCmd,
@@ -13,13 +16,28 @@ from app.controllers.ui.undo.commands_links import (
     SaveLinkCmd,
 )
 from app.controllers.ui.undo.stack import UndoManager
-from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
-# Constants for undo/redo macros
-MACRO_DELETE_LINKS_TEXT = "Deleting {count} links"
-
+_LINK_OPERATIONS_CONTEXT = "LinkOperations"
+_MACRO_DELETE_LINKS_TEXT = QT_TRANSLATE_NOOP(
+    _LINK_OPERATIONS_CONTEXT, "Deleting {count} links"
+)
+_CONFIRM_DELETE_LINKS_TITLE = QT_TRANSLATE_NOOP(
+    _LINK_OPERATIONS_CONTEXT, "Confirm deletion"
+)
+_CONFIRM_DELETE_LINKS_MESSAGE = QT_TRANSLATE_NOOP(
+    _LINK_OPERATIONS_CONTEXT,
+    "{count} selected link(s) will be permanently deleted.\n\n"
+    "Are you sure you want to continue?",
+)
+_CONFIRM_DELETE_LINKS_INFO = QT_TRANSLATE_NOOP(
+    _LINK_OPERATIONS_CONTEXT, "This action is irreversible."
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _tr_link_ops(text: str) -> str:
+    return QCoreApplication.translate(_LINK_OPERATIONS_CONTEXT, text)
 
 
 class LinkOperationsController(QObject):
@@ -83,6 +101,16 @@ class LinkOperationsController(QObject):
         except Exception:
             logger.exception("emit_recents_changed: failed to emit signal")
 
+    def emit_top_panels_changed(self, *, favorites: bool, recents: bool) -> None:
+        """Emit top panel change signals in a single place to reduce duplication."""
+        try:
+            if favorites:
+                self.emit_favorites_changed()
+            if recents:
+                self.emit_recents_changed()
+        except Exception:
+            logger.exception("emit_top_panels_changed: failed to emit signals")
+
     def emit_link_saved(self, payload: dict) -> None:
         try:
             if isinstance(payload, dict):
@@ -101,7 +129,7 @@ class LinkOperationsController(QObject):
     def on_link_opened(self, link_data: dict) -> None:
         """Call after successful link opening (updates recent links and category table)."""
         try:
-            self.emit_recents_changed()
+            self.emit_top_panels_changed(favorites=False, recents=True)
             cat_id = (
                 link_data.get("category_id") if isinstance(link_data, dict) else None
             )
@@ -113,7 +141,7 @@ class LinkOperationsController(QObject):
     def on_favorite_toggled(self, category_id: int | None) -> None:
         """Call after favorite toggle operation completion."""
         try:
-            self.emit_favorites_changed()
+            self.emit_top_panels_changed(favorites=True, recents=False)
             if isinstance(category_id, int) and category_id > 0:
                 self.emit_links_changed(category_id)
         except Exception:
@@ -122,11 +150,11 @@ class LinkOperationsController(QObject):
     def on_link_updated(self, updated_link: dict) -> None:
         """Call after link update (affects recent links and possibly table)."""
         try:
-            self.emit_recents_changed()
+            self.emit_top_panels_changed(favorites=False, recents=True)
             cat_id = (
                 updated_link.get("category_id")
                 if isinstance(updated_link, dict)
-                else None
+            else None
             )
             if isinstance(cat_id, int) and cat_id > 0:
                 self.emit_links_changed(cat_id)
@@ -141,9 +169,11 @@ class LinkOperationsController(QObject):
             if isinstance(cat_id, int) and cat_id > 0:
                 self.emit_links_changed(cat_id)
             # Deletion may affect recent links
-            self.emit_recents_changed()
-            # Emit point deletion events
-            for payload in links or []:
+            self.emit_top_panels_changed(favorites=True, recents=True)
+            # Per-link notifications are too expensive for bulk deletes and
+            # trigger a synchronous UI storm before the DB task even starts.
+            if len(links or []) == 1:
+                payload = links[0]
                 if isinstance(payload, dict):
                     self.emit_link_deleted(payload)
         except Exception:
@@ -227,6 +257,7 @@ class LinkOperationsController(QObject):
 
     def _create_link_dialog(self, link, cat_id):
         """Create and configure link dialog."""
+        from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
         from .link_dialog_controller import LinkDialogController
 
         structure_business = getattr(self.main_window, "structure_business", None)
@@ -269,9 +300,11 @@ class LinkOperationsController(QObject):
             return
 
         try:
+            delay_ms = get_table_selection_restore_delay_ms(100)
             schedule_selection_restore(
                 lambda: self.main_window.links_actions.focus_on_link(link_id),
                 link_id,
+                delay=delay_ms,
             )
         except Exception:
             logger.exception(f"show_link_dialog({context}): schedule focus failed")
@@ -295,6 +328,15 @@ class LinkOperationsController(QObject):
             _old_link_data=None,
             main_window=self.main_window,
         )
+        # Avoid heavy synchronous table reload inside command.redo().
+        # A single centralized reload is emitted by show_link_dialog() below.
+        try:
+            cmd._suppress_ui = True
+        except Exception:
+            logger.debug(
+                "show_link_dialog(batch): failed to set _suppress_ui",
+                exc_info=True,
+            )
         self.undo_stack.push(cmd)
 
         # Handle favorite toggle
@@ -309,9 +351,16 @@ class LinkOperationsController(QObject):
         if first_link_id:
             self._schedule_focus_on_link(first_link_id, "batch")
 
-        # Emit events
-        for payload in links_to_save:
-            self._emit_link_saved(payload)
+        # Avoid signal storms for large batches; table will be reloaded once.
+        emit_limit = 20
+        if len(links_to_save) <= emit_limit:
+            for payload in links_to_save:
+                self._emit_link_saved(payload)
+        else:
+            logger.debug(
+                "show_link_dialog(batch): skipped per-item link_saved emits for %s items",
+                len(links_to_save),
+            )
 
     def _save_single_link(self, data, link):
         """Save single link using regular command."""
@@ -351,8 +400,8 @@ class LinkOperationsController(QObject):
             )
             self._schedule_focus_on_link(link_id, "single")
 
-        # Emit event
-        self._emit_link_saved(data)
+        # SaveLinkCmd emits link_saved after actual DB completion.
+        # Avoid duplicate early emit here (especially for newly created links).
 
     def show_link_dialog(self, link=None, category_id=None):
         """Show link creation/editing dialog."""
@@ -397,12 +446,10 @@ class LinkOperationsController(QObject):
         return result
 
     def delete_links_with_confirmation(self, links):
-        """Delete links WITHOUT confirmation.
+        """Delete links with a batch confirmation dialog.
 
-        Bring behavior to unified scenario: like in context menu —
-        perform immediate deletion. For multiple links use
-        batch command, for single — single command. No confirmation
-        dialogs anymore.
+        Single-link deletion keeps the existing immediate behavior.
+        Batch deletion requires explicit user confirmation.
         """
         if not links:
             return
@@ -427,8 +474,19 @@ class LinkOperationsController(QObject):
                 )
             return
 
-        # Batch deletion — without confirmation, with Undo macro
-        with self.undo_stack.macro(MACRO_DELETE_LINKS_TEXT.format(count=len(links))):
+        message = _tr_link_ops(_CONFIRM_DELETE_LINKS_MESSAGE).format(count=len(links))
+        if not DialogManager.ask_confirmation(
+            self.main_window,
+            message,
+            _tr_link_ops(_CONFIRM_DELETE_LINKS_TITLE),
+            informative_text=_tr_link_ops(_CONFIRM_DELETE_LINKS_INFO),
+            details=f"links={len(links)}",
+        ):
+            return
+
+        # Batch deletion — with confirmation, with Undo macro
+        macro_text = _tr_link_ops(_MACRO_DELETE_LINKS_TEXT).format(count=len(links))
+        with self.undo_stack.macro(macro_text):
             cmd = BatchDeleteLinksCmd(
                 links_to_delete=links, main_window=self.main_window
             )
@@ -438,10 +496,5 @@ class LinkOperationsController(QObject):
             except Exception:
                 pass
             self.undo_stack.push(cmd)
-        # After batch deletion centrally notify listeners
-        try:
-            self.on_links_deleted(links)
-        except Exception:
-            logger.exception(
-                "delete_links_with_confirmation(batch): on_links_deleted failed"
-            )
+        # Batch path defers UI reload to async command completion to avoid
+        # a synchronous UI stall before the delete operation actually starts.

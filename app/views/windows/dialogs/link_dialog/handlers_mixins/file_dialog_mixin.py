@@ -7,7 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QFileDialog
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.models import LinkType
 from app.utils.links.link_parser import parse_lnk
 
@@ -20,39 +20,33 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
 
 
-PROGRAM_FILES = _tr("Programs (*.exe *.bat *.com *.msi *.lnk)")
-SCRIPT_FILES = _tr("Scripts (*.py *.ps1 *.vbs *.js *.cmd)")
-LNK_FILES = _tr("Shortcuts (*.lnk)")
-DOC_FILES = _tr(
+PROGRAM_FILES = QCoreApplication.translate("FileDialogMixin", "Programs (*.exe *.bat *.com *.msi *.lnk)")
+SCRIPT_FILES = QCoreApplication.translate("FileDialogMixin", "Scripts (*.py *.ps1 *.vbs *.js *.cmd)")
+DOC_FILES = QCoreApplication.translate("FileDialogMixin", 
     "Documents (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;All files (*)"
 )
 
 # File dialog configuration per link type
 BROWSE_CONFIG = {
     "program": {
-        "title": _tr("Select program"),
+        "title": QCoreApplication.translate("FileDialogMixin", "Select program"),
         "mode": QFileDialog.FileMode.ExistingFile,
         "filter": PROGRAM_FILES,
     },
     "script": {
-        "title": _tr("Select script"),
+        "title": QCoreApplication.translate("FileDialogMixin", "Select script"),
         "mode": QFileDialog.FileMode.ExistingFile,
         "filter": SCRIPT_FILES,
     },
     "folder": {
-        "title": _tr("Select folder"),
+        "title": QCoreApplication.translate("FileDialogMixin", "Select folder"),
         "mode": QFileDialog.FileMode.Directory,
         "filter": None,
     },
     "file": {
-        "title": _tr("Select file"),
+        "title": QCoreApplication.translate("FileDialogMixin", "Select file"),
         "mode": QFileDialog.FileMode.ExistingFile,
         "filter": DOC_FILES,
-    },
-    "chromeapp": {
-        "title": _tr("Select Chrome App shortcut"),
-        "mode": QFileDialog.FileMode.ExistingFile,
-        "filter": LNK_FILES,
     },
 }
 
@@ -81,7 +75,7 @@ class FileDialogMixin:
         # Create dialog with explicit directory selection
         dialog = QFileDialog(self.dialog.parent())
         cfg = BROWSE_CONFIG.get(lt.value) or {
-            "title": _tr("Select file"),
+            "title": QCoreApplication.translate("FileDialogMixin", "Select file"),
             "mode": QFileDialog.FileMode.ExistingFile,
             "filter": DOC_FILES,
         }
@@ -106,7 +100,8 @@ class FileDialogMixin:
         if path:
             normalized_path = path.replace("/", "\\")
 
-            # For "program" allow resolving `.lnk` shortcuts to actual `.exe`
+            # For "program" keep `.lnk` path as-is to preserve shortcut identity
+            # (name/icon/source). We only prefill args from shortcut metadata.
             if lt == LinkType.PROGRAM and normalized_path.lower().endswith(".lnk"):
                 try:
                     lnk_info = parse_lnk(normalized_path)
@@ -124,9 +119,7 @@ class FileDialogMixin:
                         e,
                     )
                     lnk_info = None
-                if lnk_info and lnk_info.get("path"):
-                    # Use actual `.exe` path instead of shortcut
-                    normalized_path = lnk_info["path"]
+                if lnk_info:
                     # Populate args field when shortcut specifies arguments
                     if (
                         lnk_info.get("args")
@@ -139,9 +132,6 @@ class FileDialogMixin:
             name_widget = self.dialog.ui.get_widget("name_le")
             if not name_widget.text().strip():
                 name = Path(normalized_path).name
-                if lt in (
-                    LinkType.PROGRAM,
-                    LinkType.CHROMEAPP,
-                ) or name.lower().endswith(".lnk"):
+                if lt == LinkType.PROGRAM or name.lower().endswith(".lnk"):
                     name = Path(name).stem
                 name_widget.setText(name)

@@ -20,8 +20,8 @@ class MainWindowWidgets:
     """
 
     tiles_scroll: QScrollArea | None = None
-    tiles: "CategoryTiles | None" = None
-    table: "LinksTableView | None" = None
+    tiles: CategoryTiles | None = None
+    table: LinksTableView | None = None
     table_container: QWidget | None = None
     stack: QStackedLayout | None = None
     splitter: QSplitter | None = None

@@ -1,36 +1,64 @@
-import datetime
 import fnmatch
 import os
-import stat
 from collections.abc import Mapping
-from re import Pattern
-from typing import Any, Optional
+from typing import Any
+
+# Maximum file size for content search (10 MB)
+_MAX_CONTENT_SEARCH_SIZE = 10 * 1024 * 1024
+# Buffer size for reading files (1 MB chunks)
+_READ_BUFFER_SIZE = 1024 * 1024
 
 
 def check_file_content(
     config: Mapping[str, Any],
     filepath: str,
-    content_regex: Optional[Pattern[str]],
 ) -> bool:
     """Check file contents against configuration rules.
 
-    `content_regex` is a compiled regex or ``None`` when a plain substring search is required.
     Returns ``True`` if the file matches the requested content conditions.
+    
+    Files larger than 10MB are skipped to prevent GUI freezing.
+    Files are read in 1MB chunks to avoid loading entire file into memory.
     """
     try:
-        with open(filepath, encoding="utf-8", errors="ignore") as f:
-            content = f.read()
+        # Check file size first to avoid reading huge files
+        file_stat = os.stat(filepath)
+        if file_stat.st_size > _MAX_CONTENT_SEARCH_SIZE:
+            return False
+        
+        # Plain text search - can search chunk by chunk
+        search_text = config["content"]
+        if not isinstance(search_text, str) or not search_text.strip():
+            return False
 
-        if content_regex is not None:
-            return bool(content_regex.search(content))
-        else:
-            search_text = config["content"]
-            if not isinstance(search_text, str) or not search_text.strip():
-                return False
-            if not config.get("case_sensitive"):
-                content = content.lower()
-                search_text = search_text.lower()
-            return search_text in content
+        search_text = search_text.lower()
+
+        # Search in chunks
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
+            # Keep overlap buffer to handle search text spanning chunks
+            overlap_size = len(search_text) - 1 if len(search_text) > 1 else 0
+            previous_chunk_tail = ""
+
+            while True:
+                chunk = f.read(_READ_BUFFER_SIZE)
+                if not chunk:
+                    break
+
+                # Combine with previous chunk tail for overlap
+                search_chunk = previous_chunk_tail + chunk
+
+                if search_text in search_chunk.lower():
+                    return True
+
+                # Save tail for next iteration from ORIGINAL chunk (not lowercased)
+                if len(chunk) >= overlap_size and overlap_size > 0:
+                    previous_chunk_tail = chunk[-overlap_size:]
+                else:
+                    # If chunk is smaller than overlap, keep entire chunk
+                    previous_chunk_tail = chunk if overlap_size > 0 else ""
+
+        return False
+            
     except (OSError, UnicodeDecodeError):
         return False
 
@@ -39,15 +67,15 @@ def matches_criteria(
     config: Mapping[str, Any],
     filepath: str,
     filename: str,
-    name_regex: Optional[Pattern[str]],
-    content_regex: Optional[Pattern[str]],
+    name_regex,
 ) -> bool:
     """Validate file against all criteria defined in ``config``.
 
     Consolidates the logic shared by `FileSearchDialog` and `FileSearchWorker`.
     """
     try:
-        file_stat = os.stat(filepath)
+        # Ensure the file is accessible; no need to keep the stat result
+        os.stat(filepath)
 
         # 1. Filename pattern check
         if not fnmatch.fnmatch(filename, config["pattern"]):
@@ -57,39 +85,9 @@ def matches_criteria(
         if name_regex is not None and not name_regex.search(filename):
             return False
 
-        # 3. File size (KB)
-        size_kb = file_stat.st_size // 1024
-        size_min = config.get("size_min")
-        size_max = config.get("size_max")
-        if size_min is not None and size_kb < size_min:
-            return False
-        if size_max is not None and size_kb > size_max:
-            return False
-
-        # 4. Modified date
-        mtime = datetime.date.fromtimestamp(file_stat.st_mtime)
-        if not (config["date_from"] <= mtime <= config["date_to"]):
-            return False
-
-        # 5. Attributes (hidden/read-only)
-        if config.get("hidden"):
-            if os.name == "posix" and not filename.startswith("."):
-                return False
-            elif os.name == "nt":
-                try:
-                    attrs = os.stat(filepath).st_file_attributes
-                    if not (attrs & stat.FILE_ATTRIBUTE_HIDDEN):
-                        return False
-                except (AttributeError, OSError):
-                    pass
-
-        if config.get("readonly"):
-            if os.access(filepath, os.W_OK):
-                return False
-
-        # 6. Content match
+        # 3. Content match
         if config.get("content"):
-            if not check_file_content(config, filepath, content_regex):
+            if not check_file_content(config, filepath):
                 return False
 
         return True

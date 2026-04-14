@@ -297,13 +297,17 @@ class TaskScheduler(QObject):
         )
 
     def schedule_selection_restore(
-        self, restore_func: Callable, item_id: Optional[Any] = None
+        self,
+        restore_func: Callable,
+        item_id: Optional[Any] = None,
+        delay: Optional[int] = None,
     ) -> str:
         """Convenient method for scheduling selection restoration."""
         operation_id = f"selection_{item_id or id(restore_func)}"
         return self.schedule_operation(
             restore_func,
             TaskType.SELECTION_RESTORE,
+            delay=delay,
             operation_id=operation_id,
             replace_existing=True,
         )
@@ -371,10 +375,12 @@ def schedule_focus(
 
 
 def schedule_selection_restore(
-    restore_func: Callable, item_id: Optional[Any] = None
+    restore_func: Callable,
+    item_id: Optional[Any] = None,
+    delay: Optional[int] = None,
 ) -> str:
     """Global function for scheduling selection restoration."""
-    return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
+    return get_task_scheduler().schedule_selection_restore(restore_func, item_id, delay)
 
 
 def schedule_layout(layout_func: Callable, layout_name: Optional[str] = None) -> str:

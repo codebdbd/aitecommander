@@ -1,9 +1,10 @@
 """Primary entry point that wires together specialized configuration modules."""
 
 import json
-import sys
 from pathlib import Path
 from typing import Any, Optional
+
+from app.core.paths.path_manager import PathManager
 
 from .limits_config import LimitsConfig
 from .path_config import PathConfig
@@ -18,7 +19,7 @@ class AppConfig:
     def __init__(self, config_path: Optional[str] = None):
         """Initialize the loader and read the configuration payload."""
         if config_path is None:
-            self._config_path = Path(__file__).parent / "app_config.json"
+            self._config_path = PathManager.config_data_root() / "app_config.json"
         else:
             self._config_path = Path(config_path)
         self._config = self._load_config()
@@ -80,16 +81,13 @@ class AppConfig:
         except (FileNotFoundError, PermissionError):
             pass
 
-        # 4) If running from a PyInstaller one-file bundle, data may live under _MEIPASS
-        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            candidate = (
-                Path(sys._MEIPASS) / "app" / "config_data" / "app_config.json"  # type: ignore[attr-defined]
-            )
-            try:
-                with candidate.open("r", encoding="utf-8") as handle:
-                    return json.load(handle)
-            except (FileNotFoundError, PermissionError):
-                pass
+        # 4) Bundled fallback (PyInstaller one-file or relocated data)
+        candidate = PathManager.config_data_root() / "app_config.json"
+        try:
+            with candidate.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except (FileNotFoundError, PermissionError):
+            pass
 
         # 5) Fallback to in-memory payload as last resort
         try:

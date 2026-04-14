@@ -63,17 +63,22 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         logger.debug("find_profiles: profiles_dir=%s", self.profiles_dir)
 
         try:
+            local_state_names = self._read_local_state_profile_names()
             for entry in os.listdir(self.profiles_dir):
                 profile_path = str(Path(self.profiles_dir) / entry)
                 if Path(profile_path).is_dir() and (
                     entry.startswith("Profile") or entry == "Default"
                 ):
-                    email = self._extract_email_from_preferences(profile_path)
-                    if email:
+                    email, display_name = self._extract_profile_info_from_preferences(
+                        profile_path, entry
+                    )
+                    if entry in local_state_names:
+                        display_name = local_state_names.get(entry) or display_name
+                    if email or display_name:
                         profiles.append(
                             {
                                 "email": email,
-                                "name": entry,
+                                "name": display_name or entry,
                                 "directory": entry,
                                 "path": profile_path,
                                 "args": f'--profile-directory="{entry}"',
@@ -82,7 +87,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                         logger.debug(
                             "Found profile %s: %s (%s)",
                             self.browser_name,
-                            email,
+                            display_name or email,
                             entry,
                         )
         except Exception as e:
@@ -91,47 +96,152 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         logger.info("Found %s profiles %s", len(profiles), self.browser_name)
         return profiles
 
-    def _extract_email_from_preferences(self, profile_path: str) -> Optional[str]:
-        """Extracts email from Preferences file."""
+    def _read_local_state_profile_names(self) -> dict[str, str]:
+        """Reads profile display names from Local State info_cache."""
+        local_state_path = str(Path(self.profiles_dir) / "Local State")
+        if not Path(local_state_path).exists():
+            return {}
+        try:
+            with open(local_state_path, encoding="utf-8") as f:
+                data = json.load(f)
+            info_cache = data.get("profile", {}).get("info_cache", {})
+            if isinstance(info_cache, dict):
+                names: dict[str, str] = {}
+                for key, val in info_cache.items():
+                    if not isinstance(val, dict):
+                        continue
+                    name = (
+                        val.get("name")
+                        or val.get("gaia_name")
+                        or val.get("gaia_given_name")
+                        or val.get("shortcut_name")
+                    )
+                    user_name = val.get("user_name")
+                    if isinstance(name, str) and name:
+                        if name.startswith("Profile ") or name == "Default":
+                            name = user_name or name
+                    elif isinstance(user_name, str) and user_name:
+                        name = user_name
+                    if isinstance(name, str) and name:
+                        names[key] = name
+                return names
+        except Exception:
+            logger.debug(
+                "Failed to read Local State profile names from %s",
+                local_state_path,
+                exc_info=True,
+            )
+        return {}
+
+    def _extract_profile_info_from_preferences(
+        self, profile_path: str, profile_dir: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Extract profile display name and email from Preferences file.
+
+        The method orchestrates small helpers to keep complexity low.
+        """
         pref_path = str(Path(profile_path) / "Preferences")
         if not Path(pref_path).exists():
-            return None
+            return None, None
 
         try:
-            with open(pref_path, encoding="utf-8") as f:
-                prefs = json.load(f)
+            prefs = self._read_prefs_json(pref_path)
+            if prefs is None:
+                return None, None
 
-            # Try different places where email might be
-            email = None
+            email, display_name = self._extract_from_account_info(prefs)
+            if not email:
+                email2, name2 = self._extract_from_gaia_info(prefs)
+                email = email or email2
+                display_name = display_name or name2
 
-            # Main places to search for email
-            account_info = prefs.get("account_info", [])
-            if (
-                account_info
-                and isinstance(account_info, list)
-                and len(account_info) > 0
-            ):
-                email = account_info[0].get("email")
+            name3, email3 = self._extract_from_profile_info_cache(prefs, profile_dir)
+            display_name = display_name or name3
+            email = email or email3
 
             if not email:
-                gaia_info = prefs.get("gaia_info", {})
-                email = gaia_info.get("email")
+                email = self._fallback_email_from_profile_info_cache(prefs)
 
-            if not email:
-                profile_info = prefs.get("profile", {}).get("info_cache", {})
-                if profile_info:
-                    # info_cache may contain multiple profiles
-                    for _profile_id, profile_data in profile_info.items():
-                        if isinstance(profile_data, dict) and profile_data.get(
-                            "user_name"
-                        ):
-                            email = profile_data["user_name"]
-                            break
-
-            return email
+            return email, display_name
         except Exception as e:
             logger.debug("Failed to extract email from %s: %s", pref_path, e)
+            return None, None
+
+    # --- Helpers to reduce complexity of _extract_profile_info_from_preferences() ---
+    def _read_prefs_json(self, pref_path: str) -> dict | None:
+        """Read Preferences JSON file safely."""
+        try:
+            with open(pref_path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
             return None
+
+    def _extract_from_account_info(self, prefs: dict) -> tuple[Optional[str], Optional[str]]:
+        """Try extracting email and display name from account_info section."""
+        try:
+            account_info = prefs.get("account_info", [])
+            if account_info and isinstance(account_info, list) and len(account_info) > 0:
+                email = account_info[0].get("email")
+                display_name = (
+                    account_info[0].get("full_name")
+                    or account_info[0].get("given_name")
+                )
+                return email, display_name
+        except Exception:
+            pass
+        return None, None
+
+    def _extract_from_gaia_info(self, prefs: dict) -> tuple[Optional[str], Optional[str]]:
+        """Try extracting email and display name from gaia_info section."""
+        try:
+            gaia_info = prefs.get("gaia_info", {})
+            if isinstance(gaia_info, dict):
+                email = gaia_info.get("email")
+                display_name = gaia_info.get("full_name") or gaia_info.get("given_name")
+                return email, display_name
+        except Exception:
+            pass
+        return None, None
+
+    def _extract_from_profile_info_cache(
+        self, prefs: dict, profile_dir: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Extract display name and email from profile.info_cache for specific directory."""
+        try:
+            profile_info = prefs.get("profile", {}).get("info_cache", {})
+            if not profile_info:
+                return None, None
+            profile_data = profile_info.get(profile_dir)
+            if not isinstance(profile_data, dict):
+                for _profile_id, candidate in profile_info.items():
+                    if isinstance(candidate, dict) and candidate.get("directory") == profile_dir:
+                        profile_data = candidate
+                        break
+            if isinstance(profile_data, dict):
+                display_name = (
+                    profile_data.get("name")
+                    or profile_data.get("gaia_name")
+                    or profile_data.get("gaia_given_name")
+                    or profile_data.get("short_name")
+                    or profile_data.get("shortcut_name")
+                )
+                email = profile_data.get("user_name") if profile_data.get("user_name") else None
+                return display_name, email
+        except Exception:
+            pass
+        return None, None
+
+    def _fallback_email_from_profile_info_cache(self, prefs: dict) -> Optional[str]:
+        """Fallback: scan info_cache for any user_name if direct match failed."""
+        try:
+            profile_info = prefs.get("profile", {}).get("info_cache", {})
+            if profile_info:
+                for _profile_id, pdata in profile_info.items():
+                    if isinstance(pdata, dict) and pdata.get("user_name"):
+                        return pdata["user_name"]
+        except Exception:
+            pass
+        return None
 
     def get_browser_name(self) -> str:
         """Returns readable browser name.
@@ -163,7 +273,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                 result = {
                     "directory": directory,
                     "name": directory,
-                    "email": f"{directory} ({self.browser_name})",
+                    "email": None,
                     "args": args,
                     "path": str(Path(self.profiles_dir) / directory)
                     if self.profiles_dir

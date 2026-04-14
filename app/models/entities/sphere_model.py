@@ -2,14 +2,10 @@ import logging
 import sqlite3
 from typing import Any, Optional
 
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-
 from ..base.db_base import DatabaseBase, DatabaseError, row_to_dict
 
 # Logging setup
 logger = logging.getLogger(__name__)
-
-# Centralized icon resolution
 
 
 class SphereModel(DatabaseBase):
@@ -35,8 +31,11 @@ class SphereModel(DatabaseBase):
         assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return row_to_dict(row) if row else None
 
-    def insert_sphere(self, data: dict[str, Any]) -> int:
-        """Inserts new sphere and returns its ID."""
+    def insert_sphere(self, data: dict[str, Any]) -> Optional[int]:
+        """Insert new sphere and return its ID. Returns None if failed.
+        
+        Must be called within transaction context.
+        """
         self._validate_required_fields(data, ["name"], "sphere")
 
         position = self._get_next_position("sphere")
@@ -46,8 +45,9 @@ class SphereModel(DatabaseBase):
         )
         logger.info("Added new sphere: %s", data["name"])
         if isinstance(cursor, sqlite3.Cursor):
-            return cursor.lastrowid or 0
-        return 0
+            lastrowid = cursor.lastrowid
+            return int(lastrowid) if lastrowid else None
+        return None
 
     def update_sphere(self, sphere_id: int, data: dict[str, Any]):
         """Updates existing sphere."""
@@ -55,12 +55,13 @@ class SphereModel(DatabaseBase):
         self._update_entity("sphere", sphere_id, data, valid_keys)
 
     def upsert_sphere(self, sphere_data: dict[str, Any]) -> int:
-        """Inserts or updates sphere."""
-        if "id" in sphere_data and sphere_data["id"]:
-            self.update_sphere(sphere_data["id"], sphere_data)
-            return sphere_data["id"]
-        else:
-            return self.insert_sphere(sphere_data)
+        """Insert or update sphere."""
+        with self.transaction():
+            if "id" in sphere_data and sphere_data["id"]:
+                self.update_sphere(sphere_data["id"], sphere_data)
+                return sphere_data["id"]
+            else:
+                return self.insert_sphere(sphere_data)
 
     def get_sphere_name(self, sphere_id: int) -> str:
         """Returns sphere name by its ID."""
@@ -94,23 +95,12 @@ class SphereModel(DatabaseBase):
                     # Column already exists — not an error
                     pass
 
+                # Default spheres with empty icon_path (icons resolved at UI layer)
                 default = [
-                    ("AI", 0, resolve_icon_for_link({"type": "ai", "icon_path": ""})),
-                    (
-                        "Work",
-                        1,
-                        resolve_icon_for_link({"type": "work", "icon_path": ""}),
-                    ),
-                    (
-                        "Study",
-                        2,
-                        resolve_icon_for_link({"type": "study", "icon_path": ""}),
-                    ),
-                    (
-                        "Personal",
-                        3,
-                        resolve_icon_for_link({"type": "personal", "icon_path": ""}),
-                    ),
+                    ("AI", 0, ""),
+                    ("Work", 1, ""),
+                    ("Study", 2, ""),
+                    ("Personal", 3, ""),
                 ]
                 self._execute_many_with_error_handling(
                     "INSERT INTO sphere(name, position, icon_path) VALUES(?,?,?)",

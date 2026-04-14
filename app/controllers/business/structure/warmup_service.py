@@ -73,11 +73,6 @@ class StructureWarmupService:
         except (RuntimeError, TypeError):  # pragma: no cover - Qt edge cases
             _deferred_warmup()
 
-        try:
-            _deferred_warmup()
-        except Exception as ex:  # pragma: no cover - defensive logging
-            self._logger.debug("Immediate warm cache failed: %s", ex, exc_info=True)
-
     def _schedule_category_preload(
         self, payload: list[dict[str, Any]], sphere_id: int
     ) -> None:

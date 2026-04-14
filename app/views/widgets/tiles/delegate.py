@@ -6,11 +6,13 @@ import logging
 from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QSize, Qt
 from PyQt6.QtGui import (
     QBrush,
+    QColor,
     QFont,
     QFontMetrics,
     QHelpEvent,
     QIcon,
     QPainter,
+    QPalette,
     QPen,
     QTextLayout,
     QTextOption,
@@ -23,7 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 
 logger = logging.getLogger("category_tiles")
 
@@ -38,9 +40,11 @@ class CategoryTileDelegate(QStyledItemDelegate):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.icon_size = icon_size or QSize(48, 48)
-        self.tile_size = tile_size or QSize(120, 100)
-        self.padding = 8
+        icon_w, icon_h = app_config.ui.get_tile_icon_size()
+        tile_w, tile_h = app_config.ui.get_tile_size()
+        self.icon_size = icon_size or QSize(int(icon_w), int(icon_h))
+        self.tile_size = tile_size or QSize(int(tile_w), int(tile_h))
+        self.padding = int(app_config.ui.get_tile_padding())
         self.border_radius = 4
         self._font_diag_logged = False
 
@@ -51,6 +55,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         painter.save()
         rect = option.rect
         icon = index.data(Qt.ItemDataRole.DecorationRole)
+        icon_pending = index.data(Qt.ItemDataRole.UserRole + 1)
         text = index.data(Qt.ItemDataRole.DisplayRole)
         # Tile text font is centralized via ui.fonts.tiles_px (QSS)
 
@@ -73,6 +78,9 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
         if isinstance(icon, QIcon) and not icon.isNull():
             icon.paint(painter, icon_rect)
+        elif icon_pending:
+            # Lazy icon loading: skip placeholder to avoid jank/oversized glyphs.
+            pass
         else:
             mid = option.palette.color(option.palette.ColorRole.Mid)
             dark = option.palette.color(option.palette.ColorRole.Dark)
@@ -138,7 +146,14 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             text_rect.setHeight(y)
 
-            painter.setPen(option.palette.color(option.palette.ColorRole.WindowText))
+            if option.state & QStyle.StateFlag.State_MouseOver:
+                painter.setPen(QPen(QColor("#FFFFFF")))
+            elif option.state & QStyle.StateFlag.State_HasFocus:
+                painter.setPen(QPen(QColor("#FFFFFF")))
+            elif option.state & QStyle.StateFlag.State_Selected:
+                painter.setPen(QPen(QColor("#FFFFFF")))
+            else:
+                painter.setPen(option.palette.color(QPalette.ColorRole.Text))
 
             for idx, line in enumerate(lines):
                 line_text = text[

@@ -7,6 +7,7 @@ Data-compatible with the legacy version (keys = URL, values = dict with icon/tit
 from __future__ import annotations
 
 import atexit
+import dbm
 import os
 import shelve
 import threading
@@ -57,51 +58,31 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
     ``timeout`` takes precedence over config.
     """
     backend = _get_lock_backend()
-    # Effective timeout: function argument overrides config value
-    try:
-        cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", timeout)
-        eff_timeout = float(timeout if timeout is not None else cfg_timeout)
-        if eff_timeout < 0:
-            eff_timeout = 0.0
-    except Exception:
-        eff_timeout = timeout
+    eff_timeout = _compute_effective_lock_timeout(timeout)
 
     # 1) portalocker (if available and allowed)
-    if backend in ("auto", "portalocker"):
+    if _should_try_backend(backend, "portalocker"):
         try:
             import portalocker  # type: ignore
-
-            # Blocking attempt with internal timeout — use context manager
             try:
                 with portalocker.Lock(lock_path, timeout=max(0.0, float(eff_timeout))):
                     yield
                 return
             except Exception as e:
-                # portalocker raises LockException on timeout; log as warning
-                try:
-                    from portalocker import exceptions as _pl_exc  # type: ignore
-
-                    if isinstance(e, getattr(_pl_exc, "LockException", tuple())):
-                        logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
-                        yield
-                        return
-                except Exception:
-                    pass
+                if _is_portalocker_timeout(e):
+                    logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
+                    yield
+                    return
                 logger.debug("portalocker lock error: %s", e, exc_info=True)
-                # Fall through to the next backend
         except Exception:
             if backend == "portalocker":
-                # Selected backend unavailable — proceed without locking
-                logger.warning(
-                    "favicon lock backend unavailable; proceeding without interprocess lock: %s",
-                    lock_path,
-                )
+                _log_no_lock_fallback(lock_path)
                 yield
                 return
-            # auto: continue to filelock
+        # auto: fall through
 
     # 2) filelock (if available/allowed; also for auto when portalocker is missing)
-    if backend in ("auto", "filelock"):
+    if _should_try_backend(backend, "filelock"):
         try:
             from filelock import FileLock  # type: ignore
             from filelock import Timeout as FileLockTimeout
@@ -117,33 +98,151 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                     except Exception:
                         pass
                 return
-            except FileLockTimeout as e:
+            except FileLockTimeout as e:  # type: ignore[name-defined]
                 logger.warning("favicon lock timeout(filelock): %s (%s)", lock_path, e)
                 yield
                 return
             except Exception as e:
                 logger.debug("filelock error: %s", e, exc_info=True)
-                # Do not abort — fall back
         except Exception:
             if backend == "filelock":
-                # Selected backend unavailable — proceed without locking
-                logger.warning(
-                    "favicon lock backend unavailable; proceeding without interprocess lock: %s",
-                    lock_path,
-                )
+                _log_no_lock_fallback(lock_path)
                 yield
                 return
 
     # No available backends — continue without interprocess locking
-    logger.warning(
-        "favicon lock backend unavailable; proceeding without interprocess lock: %s",
-        lock_path,
-    )
+    _log_no_lock_fallback(lock_path)
     yield
 
 
 def _db_path() -> str:
-    return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
+    return str(_cache_db_path())
+
+
+def _cache_dir_path() -> Path:
+    """Directory for favicon cache DB separate from user icons."""
+    user_icons_dir = icon_path_service.get_user_icons_dir()
+    return user_icons_dir.parent / "icon_cache"
+
+
+def _cache_db_path() -> Path:
+    return _cache_dir_path() / "favicon_cache.db"
+
+
+_CACHE_STORAGE_READY = False
+_CACHE_STORAGE_LOCK = threading.Lock()
+
+
+def _ensure_cache_dir() -> None:
+    _cache_dir_path().mkdir(parents=True, exist_ok=True)
+
+
+def _migrate_legacy_cache_files() -> None:
+    """Move legacy cache files from icons dir to icon_cache once."""
+    try:
+        icons_dir = icon_path_service.get_user_icons_dir()
+    except Exception:
+        return
+    legacy_base = icons_dir / "favicon_cache.db"
+    new_base = _cache_db_path()
+    if not legacy_base.exists():
+        return
+    if new_base.exists():
+        return
+    try:
+        _ensure_cache_dir()
+    except Exception:
+        return
+    for suffix in ("", ".bak", ".dat", ".dir", ".lock"):
+        src = Path(str(legacy_base) + suffix)
+        if not src.exists():
+            continue
+        dst = Path(str(new_base) + suffix)
+        try:
+            src.replace(dst)
+        except Exception:
+            logger.debug("favicon_cache: failed to migrate %s -> %s", src, dst, exc_info=True)
+
+
+def _ensure_cache_storage_ready_once() -> None:
+    """Ensure cache dir exists and perform one-time migration per process."""
+    global _CACHE_STORAGE_READY
+    if _CACHE_STORAGE_READY:
+        return
+    with _CACHE_STORAGE_LOCK:
+        if _CACHE_STORAGE_READY:
+            return
+        try:
+            _migrate_legacy_cache_files()
+            _ensure_cache_dir()
+        except Exception:
+            pass
+        _CACHE_STORAGE_READY = True
+
+
+def _compute_effective_lock_timeout(timeout: float | None) -> float:
+    """Compute effective timeout using function argument or app_config fallback."""
+    try:
+        cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", timeout)
+        eff = float(timeout if timeout is not None else cfg_timeout)
+        return max(0.0, eff)
+    except Exception:
+        try:
+            return max(0.0, float(timeout or 0.0))
+        except Exception:
+            return 0.0
+
+
+def _should_try_backend(backend: str, name: str) -> bool:
+    return backend in ("auto", name)
+
+
+def _is_portalocker_timeout(exc: Exception) -> bool:
+    try:
+        from portalocker import exceptions as _pl_exc  # type: ignore
+
+        return isinstance(exc, getattr(_pl_exc, "LockException", tuple()))
+    except Exception:
+        return False
+
+
+def _log_no_lock_fallback(lock_path: str) -> None:
+    logger.warning(
+        "favicon lock backend unavailable; proceeding without interprocess lock: %s",
+        lock_path,
+    )
+
+
+def _remove_cache_storage_files(base_path: str) -> None:
+    """Delete shelve/dbm files for the favicon cache."""
+    base = Path(base_path)
+    candidates = [base, *base.parent.glob(f"{base.name}*")]
+    for candidate in candidates:
+        if candidate.name.endswith(".lock"):
+            continue
+        if candidate.exists():
+            try:
+                candidate.unlink()
+            except Exception:
+                logger.debug(
+                    "favicon_cache: failed to remove cache file %s",
+                    candidate,
+                    exc_info=True,
+                )
+
+
+def _open_shelve_with_recovery(path: str):
+    """Open shelve and recreate cache storage if the DB type is unreadable."""
+    try:
+        return shelve.open(path)
+    except dbm.error as exc:
+        logger.warning(
+            "favicon_cache: unreadable cache db at %s; recreating cache storage (%s)",
+            path,
+            exc,
+        )
+        _remove_cache_storage_files(path)
+        return shelve.open(path, flag="n")
 
 
 class FaviconCache(BaseCache):
@@ -170,8 +269,8 @@ class FaviconCache(BaseCache):
 
     # Shelve handling
     def _get_db_path(self) -> str:
-        # Always compute path from current icon_path_service (important for tests/dynamic usage)
-        return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
+        # Always compute path dynamically (important for tests/dynamic usage)
+        return str(_cache_db_path())
 
     def _open_db(self) -> None:
         current_path = self._get_db_path()
@@ -182,10 +281,10 @@ class FaviconCache(BaseCache):
             try:
                 # Ensure directory exists before opening
                 try:
-                    icon_path_service.ensure_user_icons_dir()
+                    _ensure_cache_storage_ready_once()
                 except Exception:
                     pass
-                self._db = shelve.open(current_path)
+                self._db = _open_shelve_with_recovery(current_path)
                 self._db_path_str = current_path
             except Exception as exc:  # noqa: BLE001
                 self._db = None
@@ -367,12 +466,14 @@ class FaviconCache(BaseCache):
         ttl = self._compute_effective_ttl(item)
         return ttl <= 0 or (self._now() - ts) >= ttl
 
-    def _delete_expired_item(self, db, key):
+    def _delete_expired_item(self, db, key, *, sync: bool = False):
         """Delete expired item from database."""
         try:
             del db[key]
+        except KeyError:
             self._remove_key_from_index(db, key)
-            self._sync_db(db)
+            logger.debug("favicon_cache: expired key already missing: %s", key)
+            return
         except Exception as exc:
             logger.debug(
                 "favicon_cache: failed to delete expired key '%s' in get(): %s",
@@ -380,6 +481,10 @@ class FaviconCache(BaseCache):
                 exc,
                 exc_info=True,
             )
+            return
+        self._remove_key_from_index(db, key)
+        if sync:
+            self._sync_db(db)
 
     def _get_from_persistent(self, key):
         """Get item from persistent cache."""
@@ -398,11 +503,11 @@ class FaviconCache(BaseCache):
     def _get_from_non_persistent(self, key, current_path):
         """Get item from non-persistent cache."""
         try:
-            icon_path_service.ensure_user_icons_dir()
+            _ensure_cache_storage_ready_once()
         except Exception:
             pass
 
-        with closing(shelve.open(current_path)) as db2:
+        with closing(_open_shelve_with_recovery(current_path)) as db2:
             item = db2.get(key)
             if self._is_item_expired(item):
                 self._delete_expired_item(db2, key)
@@ -554,10 +659,10 @@ class FaviconCache(BaseCache):
                 else:
                     # Non-persistent mode: open/close on every operation
                     try:
-                        icon_path_service.ensure_user_icons_dir()
+                        _ensure_cache_storage_ready_once()
                     except Exception:
                         pass
-                    with closing(shelve.open(current_path)) as db:
+                    with closing(_open_shelve_with_recovery(current_path)) as db:
                         self._store_entry_in_db(db, key, value, ttl)
                         # Set last cleanup marker
                         try:
@@ -619,10 +724,10 @@ class FaviconCache(BaseCache):
     def _invalidate_non_persistent_key(self, key, current_path):
         """Invalidate key in non-persistent mode."""
         try:
-            icon_path_service.ensure_user_icons_dir()
+            _ensure_cache_storage_ready_once()
         except Exception:
             pass
-        with closing(shelve.open(current_path)) as db2:
+        with closing(_open_shelve_with_recovery(current_path)) as db2:
             if key in db2:
                 try:
                     del db2[key]

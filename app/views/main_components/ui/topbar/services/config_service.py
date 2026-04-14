@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ....common.constants import Size, Timeout
+from app.config_data.runtime_config import runtime_app_config as app_config
+
+from ....common.constants import Timeout
 from ..models.config_protocol import AppConfigAdapter, TopBarConfigProtocol
 from ..models.topbar_constants import TOPBAR_CONSTANTS as C
 from ..models.types import PanelLabel
@@ -46,16 +48,15 @@ class TopBarConfigService:
 
     def __init__(self, config: TopBarConfigProtocol | None = None) -> None:
         if config is None:
-            from app.config_data import app_config
-
             config = AppConfigAdapter(app_config)
         self._config = config
+        self._ui = app_config.ui
 
     def load(self) -> TopBarSettings:
         throttle_ms = self._config.get_throttle_ms() or Timeout.THROTTLE_RESIZE
         log_info = self._config.get_log_info() if hasattr(self._config, "get_log_info") else self.DEFAULT_LOG_INFO
         min_search_width = self._config.get_search_min_width() or self.DEFAULT_MIN_SEARCH_WIDTH
-        narrow_threshold = Size.NARROW_MODE_THRESHOLD
+        narrow_threshold = self._ui.get_topbar_narrow_threshold()
         button_size = self._config.get_button_size()
         side_spacing = self._config.get_side_spacing()
         data_ready_timeout_ms = Timeout.DATA_READY_FALLBACK
@@ -112,14 +113,14 @@ class TopBarConfigService:
             value=minimum,
             default=default_min,
             min_val=default_min,
-            max_val=Size.MAX_VISIBLE_BUTTONS,
+            max_val=self._ui.get_topbar_max_visible_buttons(),
             config_key=minimum_key,
         )
         max_value = self._validate_config_int(
             value=maximum,
             default=default_max,
             min_val=default_min,
-            max_val=Size.MAX_VISIBLE_BUTTONS,
+            max_val=self._ui.get_topbar_max_visible_buttons(),
             config_key=maximum_key,
         )
 

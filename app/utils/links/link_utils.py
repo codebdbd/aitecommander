@@ -6,7 +6,6 @@ Supports:
 - Files and folders
 - Scripts (.ps1, .py, .bat, .cmd)
 - Programs
-- Chrome apps
 
 Chrome profile usage examples:
 - args: "--profile-directory=Profile 1"
@@ -20,6 +19,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import subprocess
 import webbrowser
 from abc import ABC, abstractmethod
@@ -39,7 +39,6 @@ class LinkType(Enum):
     FOLDER = "folder"
     SCRIPT = "script"
     PROGRAM = "program"
-    CHROMEAPP = "chromeapp"
 
 
 @dataclass
@@ -256,13 +255,20 @@ class BrowserConfig:
 
         config = self._config[browser_key]
         executable = config["executable"]
+        resolved_executable = self._resolve_executable(browser_key, executable)
         template = config["command_template"]
+
+        # On Windows avoid `cmd /c start ...` wrapper because it can silently
+        # fail when browser executable is not on PATH (prints to console only).
+        # Direct browser launch also gives deterministic argument ordering.
+        if platform.system() == "Windows":
+            return [resolved_executable, *args, url]
 
         # Replace placeholders
         command = []
         for part in template:
             if part == "{executable}":
-                command.append(executable)
+                command.append(resolved_executable)
             elif part == "{url}":
                 command.append(url)
             else:
@@ -272,6 +278,96 @@ class BrowserConfig:
         command.extend(args)
 
         return command
+
+    def _resolve_executable(self, browser_key: str, executable: str) -> str:
+        """Resolve browser executable path for current platform."""
+        if platform.system() != "Windows":
+            return executable
+
+        # Fast path: full path from config.
+        expanded = os.path.expandvars(executable)
+        if os.path.isabs(expanded) and Path(expanded).exists():
+            return expanded
+
+        # PATH lookup first.
+        resolved = shutil.which(executable)
+        if resolved:
+            return resolved
+
+        # Common installation locations by browser key.
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        program_files = os.environ.get("PROGRAMFILES", r"C:\Program Files")
+        program_files_x86 = os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")
+        candidates = {
+            "chrome": [
+                os.path.join(program_files, "Google", "Chrome", "Application", "chrome.exe"),
+                os.path.join(
+                    program_files_x86, "Google", "Chrome", "Application", "chrome.exe"
+                ),
+                os.path.join(
+                    local_app_data, "Google", "Chrome", "Application", "chrome.exe"
+                ),
+            ],
+            "edge": [
+                os.path.join(program_files, "Microsoft", "Edge", "Application", "msedge.exe"),
+                os.path.join(
+                    program_files_x86, "Microsoft", "Edge", "Application", "msedge.exe"
+                ),
+                os.path.join(
+                    local_app_data, "Microsoft", "Edge", "Application", "msedge.exe"
+                ),
+            ],
+            "brave": [
+                os.path.join(
+                    program_files, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"
+                ),
+                os.path.join(
+                    program_files_x86,
+                    "BraveSoftware",
+                    "Brave-Browser",
+                    "Application",
+                    "brave.exe",
+                ),
+                os.path.join(
+                    local_app_data,
+                    "BraveSoftware",
+                    "Brave-Browser",
+                    "Application",
+                    "brave.exe",
+                ),
+            ],
+            "vivaldi": [
+                os.path.join(program_files, "Vivaldi", "Application", "vivaldi.exe"),
+                os.path.join(program_files_x86, "Vivaldi", "Application", "vivaldi.exe"),
+                os.path.join(local_app_data, "Vivaldi", "Application", "vivaldi.exe"),
+            ],
+            "opera": [
+                os.path.join(local_app_data, "Programs", "Opera", "opera.exe"),
+                os.path.join(program_files, "Opera", "launcher.exe"),
+                os.path.join(program_files_x86, "Opera", "launcher.exe"),
+            ],
+            "yandex": [
+                os.path.join(
+                    local_app_data, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                ),
+                os.path.join(
+                    program_files, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                ),
+                os.path.join(
+                    program_files_x86, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                ),
+            ],
+            "firefox": [
+                os.path.join(program_files, "Mozilla Firefox", "firefox.exe"),
+                os.path.join(program_files_x86, "Mozilla Firefox", "firefox.exe"),
+            ],
+        }.get(browser_key, [])
+
+        for candidate in candidates:
+            if candidate and Path(candidate).exists():
+                return candidate
+
+        return executable
 
 
 class LinkHandler(ABC):
@@ -330,6 +426,14 @@ class WebLinkHandler(LinkHandler):
             self.logger.info(
                 "Successfully opened URL %s with %s", link_info.path, browser_key
             )
+        except FileNotFoundError as e:
+            self.logger.warning(
+                "Browser executable not found for '%s' (cmd='%s'). Falling back to system browser. Error: %s",
+                browser_key,
+                command[0] if command else "",
+                e,
+            )
+            webbrowser.open(link_info.path)
         except Exception as e:
             self.logger.error("Failed to open URL with %s: %s", browser_key, e)
             # Fallback to system browser
@@ -454,6 +558,12 @@ class ProgramLinkHandler(LinkHandler):
             raise FileNotFoundError(f"Program not found: {link_info.path}")
 
         try:
+            # Windows shortcuts must be launched via shell, not as executables.
+            if platform.system() == "Windows" and link_info.path.lower().endswith(".lnk"):
+                os.startfile(link_info.path)
+                self.logger.info("Successfully launched shortcut: %s", link_info.path)
+                return
+
             # For programs use simple argument splitting without strict Chrome validation
             arg_list = []
             if link_info.args:
@@ -473,22 +583,6 @@ class ProgramLinkHandler(LinkHandler):
             )
         except (OSError, subprocess.SubprocessError) as e:
             self.logger.error("Failed to launch program %s: %s", link_info.path, e)
-            raise
-
-
-class ChromeAppLinkHandler(LinkHandler):
-    """Chrome app handler"""
-
-    def can_handle(self, link_info: LinkInfo) -> bool:
-        return link_info.link_type == LinkType.CHROMEAPP
-
-    def open(self, link_info: LinkInfo) -> None:
-        """Opens Chrome app"""
-        try:
-            webbrowser.open(link_info.path)
-            self.logger.info("Successfully opened Chrome app: %s", link_info.path)
-        except Exception as e:
-            self.logger.error("Failed to open Chrome app %s: %s", link_info.path, e)
             raise
 
 
@@ -512,7 +606,6 @@ class LinkOpener:
             FileLinkHandler(self.logger),
             ScriptLinkHandler(self.logger, powershell_path),
             ProgramLinkHandler(self.logger),
-            ChromeAppLinkHandler(self.logger),
         ]
 
     def _build_chrome_command(self, url: str, args: list[str]) -> list[str]:
@@ -543,11 +636,6 @@ class LinkOpener:
     def _open_program(self, link_info: LinkInfo) -> None:
         """Opens program (for backward compatibility)"""
         handler = ProgramLinkHandler(self.logger)
-        handler.open(link_info)
-
-    def _open_chrome_app(self, link_info: LinkInfo) -> None:
-        """Opens Chrome app (for backward compatibility)"""
-        handler = ChromeAppLinkHandler(self.logger)
         handler.open(link_info)
 
     def open_link(self, link_info) -> None:
@@ -637,11 +725,6 @@ def validate_link_path(path: str, link_type: LinkType) -> bool:
         LinkType.PROGRAM,
     ):
         return SecurityValidator.is_safe_path(path) and Path(path).exists()
-    elif link_type == LinkType.CHROMEAPP:
-        return path.startswith(
-            ("chrome://", "chrome-extension://", "http://", "https://")
-        )
-
     return True
 
 
@@ -665,10 +748,6 @@ def get_link_type_from_path(path: str) -> LinkType:
     # Web links
     if path_lower.startswith(("http://", "https://", "ftp://")):
         return LinkType.WEB
-
-    # Chrome apps
-    if path_lower.startswith(("chrome://", "chrome-extension://")):
-        return LinkType.CHROMEAPP
 
     # File paths
     if Path(path).exists():

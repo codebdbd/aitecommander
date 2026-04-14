@@ -2,9 +2,7 @@
   "app": {
     "name": "Aite Commander",
     "org_name": "Codebdbd",
-    "version": "1.0.0",
-    "about_title": "Aite Commander",
-    "about_text": "Professional link manager\n\nVersion 1.0.0\n\nOrganize your links, files and applications\nin a convenient structure with powerful search.\n\n© 2025 Codebdbd"
+    "version": "1.0.0"
   },
   "threading": {
     "max_db_threads": 4,
@@ -15,7 +13,19 @@
     "comment": "Delay before signaling application readiness"
   },
   "ui": {
+    "window_border": {
+      "enabled": true,
+      "width": 1,
+      "radius": 12,
+      "shadow_enabled": true,
+      "shadow_blur_radius": 20,
+      "shadow_offset": [
+        0,
+        4
+      ]
+    },
     "icon_size": 24,
+    "widget_icon_fallback_size": 16,
     "row_height": 32,
     "col_widths": [
       40,
@@ -23,68 +33,65 @@
       130
     ],
     "fixed_button_width": 100,
-    "links_table_headers": [
-      "♥",
-      "Name",
-      "Last Used",
-      "Notes"
-    ],
     "links_table_columns": {
       "favorite": 0,
       "name": 1,
       "last_used": 2,
       "notes": 3
     },
-    "links_table_messages": {
-      "no_categories": "No categories available. Create a category first.",
-      "select_category": "Select a category to insert the link",
-      "error_saving": "Error saving note",
-      "database_error": "Database error",
-      "validation_error": "Validation error",
-      "warning_title": "Warning",
-      "error_title": "Error"
-    },
     "max_favorites": 10,
     "top_bar_height": 40,
-    "top_panel_container_height": 40,
     "stack_index_tiles": 0,
     "stack_index_table": 1,
     "table_selection_restore_delay": 100,
-    "structure_reload_delay_ms": 200,
+    "selection_restore_delay_ms": 0,
+    "tree_snapshot_icon_warmup": false,
+    "tree_snapshot_suspend_updates": true,
+    "tree_skip_sort_if_sorted": true,
+    "tiles_lazy_icons": true,
+    "tiles_icon_batch_size": 32,
+    "tiles_icon_prefetch_count": 24,
+    "tiles_skip_sort_if_sorted": true,
+    "tiles_layout_batch_size": 100,
+    "fast_tiles_from_cache": true,
+    "structure_reload_delay_ms": 50,
     "structure_reload_immediate_delay_ms": 0,
     "thread_pool_shutdown_timeout": 2000,
-    "delete_confirm_title": "Delete Confirmation",
-    "delete_confirm_text": "Are you sure you want to delete {count} link(s)?",
-    "yes_text": "Yes",
-    "no_text": "No",
-    "quick_add_button_size": 32,
-    "sphere_button_icon_size": 48,
+    "quick_add_button_size": 36,
+    "sphere_button_icon_size": 64,
     "tile_icon_size": 64,
     "tile_width": 128,
     "tile_height": 110,
     "tile_spacing": 6,
-    "tile_padding": 6,
+    "tile_padding": 12,
     "tile_icon_text_gap": 5,
-    
     "debug_show_tile_font_sample": false,
     "tile_text_max_lines": 4,
     "tile_border_radius": 8,
     "tile_border_width": 2,
     "tile_border_margin": 2,
     "spheres_bar_height": 86,
-    "spheres_layout_margins": [8, 8, 8, 8],
+    "spheres_layout_margins": [
+      8,
+      8,
+      8,
+      8
+    ],
     "spheres_bar_margin_left": 8,
     "spheres_bar_margin_right": 8,
     "spheres_bar_spacing": 8,
-    
-    "search_placeholder": "Search… (Ctrl+F)",
-    "central_frame_shape": "StyledPanel",
+    "central_frame_shape": "NoFrame",
     "default_icon_size": 24,
     "application_font": {
       "family": "Segoe UI",
       "point_size": 10
     },
     "bottom_actions": [
+      {
+        "id": "switch_sphere",
+        "handler": "switch_to_next_sphere",
+        "shortcut": "F6"
+      },
       {
         "id": "add_section",
         "handler": "show_section_dialog",
@@ -111,21 +118,79 @@
         "shortcut": "Del"
       }
     ],
-    "main_window_title": "Aite Commander",
-    "db_connected_text": "DB: Connected",
-    "db_disconnected_text": "DB: Disconnected",
-    "links_count_text": "Links: 0",
-    "status_ready_text": "Ready",
     "path_label_min_width": 350,
     "link_dialog_width": 600,
     "link_dialog_height": 520,
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
+    "dialogs": {
+      "control_height": 32,
+      "message_box_max_width": 400,
+      "restore_db": {
+        "width": 500,
+        "height": 300
+      },
+      "import_browser": {
+        "width": 400,
+        "height": 180
+      },
+      "browser_profile": {
+        "min_width": 480,
+        "min_height": 400
+      },
+      "async_operation": {
+        "min_width": 400,
+        "spacing": 15
+      },
+      "icon_refresh": {
+        "min_width": 400,
+        "buttons_spacing": 8
+      },
+      "bad_url_cleanup": {
+        "min_width": 900,
+        "min_height": 400
+      },
+      "file_search": {
+        "width": 900,
+        "height": 700,
+        "root_min_width": 200,
+        "pattern_max_width": 100,
+        "pattern_combo_extra_width": 36,
+        "content_min_width": 200,
+        "size_field_max_width": 60
+      },
+      "entity": {
+        "name_spacing": 6,
+        "fixed_width": 400
+      },
+      "settings": {
+        "width": 420,
+        "height": 280,
+        "margins": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "spacing": 10,
+        "form_horizontal_spacing": 12,
+        "form_vertical_spacing": 8,
+        "actions_spacing": 8
+      },
+      "chrome_profiles": {
+        "base_width": 600,
+        "base_height": 500
+      },
+      "notes": {
+        "width": 400,
+        "height": 300
+      }
+    },
     "tree_icon_size": 24,
     "dialog_icon_size": 24,
     "dropdown_icon_size": 24,
     "menu_shadow_mode": "off",
-    "top_panel_button_size": 36,
+    "top_panel_button_size": 32,
     "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
     "top_panel_search_min_width": 148,
@@ -171,10 +236,16 @@
       "width": 1024,
       "height": 768,
       "min_width": 280,
-      "min_height": 600
+      "min_height": 600,
+      "content_margins": [
+        1,
+        1,
+        1,
+        1
+      ]
     },
-    
-    "menubar_item_height": 24,
+    "menu_item_height": 32,
+    "menubar_item_height": 32,
     "menu_icon_size": 20,
     "menu_indicator_size": 16,
     "scrollbar_width": 12,
@@ -182,7 +253,49 @@
     "tree_item_height": 32,
     "table_item_height": 28,
     "separator_width": 1,
-    "separator_height": 28,
+    "separator_height": 1,
+    "status_bar": {
+      "margins": [
+        6,
+        0,
+        6,
+        0
+      ],
+      "message_margins": [
+        6,
+        0,
+        12,
+        0
+      ],
+      "path_margins": [
+        0,
+        0,
+        12,
+        0
+      ],
+      "db_margins": [
+        12,
+        0,
+        6,
+        0
+      ],
+      "links_margins": [
+        6,
+        0,
+        6,
+        0
+      ],
+      "min_height": 24,
+      "extra_height_padding": 8
+    },
+    "bottom_bar": {
+      "min_width": 200,
+      "button_height": 32
+    },
+    "main_components": {
+      "min_search_width": 50,
+      "max_search_width": 800
+    },
     "fonts": {
       "units": "pt",
       "table_header_px": 10,
@@ -191,7 +304,7 @@
       "table_notes_col_px": 11,
       "notes_editor_px": 13,
       "button_text_px": 10,
-      "bottom_bar_button_px": 10,
+      "bottom_bar_button_px": 11,
       "menubar_px": 11,
       "menu_item_px": 11,
       "context_menu_px": 11,
@@ -200,7 +313,12 @@
       "tiles_px": 10,
       "form_label_px": 10,
       "form_field_px": 10,
-      "table_cols_px": [11, 11, 10, 10],
+      "table_cols_px": [
+        11,
+        11,
+        10,
+        10
+      ],
       "link_type_button_px": 11
     },
     "colors": {
@@ -218,10 +336,30 @@
     "topbar": {
       "throttle_ms": 50,
       "log_info": false,
+      "button_size": 32,
+      "panel_padding": 16,
+      "panel_spacing_adjustment": -1,
+      "separator_spacing": 4,
+      "separator_search_spacing": 4,
+      "separator_hidden_spacing": 0,
+      "layout_spacing_fallback": 6,
+      "favorites_min_visible_threshold": 5,
+      "min_panel_width": 50,
+      "min_search_width_absolute": 148,
+      "max_search_width": 500,
+      "max_widget_width": 16777215,
+      "max_visible_buttons": 20,
+      "narrow_threshold": 380,
+      "hysteresis_threshold": 8,
       "min_visible": {
         "recent": 0,
         "fav": 0,
         "quick": 1
+      },
+      "max_visible": {
+        "recent": 10,
+        "fav": 10,
+        "quick": 6
       }
     },
     "minimize_to_tray": false,
@@ -241,12 +379,17 @@
     "yandex_profiles_dir": "resources/browser_profiles/yandex",
     "ui_icons_dir": "resources/ui_icons",
     "user_icons_dir": "icons",
+    "themes_dir": "resources/themes",
+    "user_themes_dir": "themes",
     "config_dir": "config",
     "logs_dir": "logs"
   },
   "limits": {
     "max_icon_size": 10485760,
     "max_web_icon_size": 2097152,
+    "theme_max_package_size": 52428800,
+    "theme_max_uncompressed_size": 209715200,
+    "theme_max_files": 5000,
     "icon_cache_size": 200,
     "icon_cache_ttl": 120,
     "negative_cache_ttl": 30,
@@ -255,77 +398,11 @@
     "slow_update_positions_threshold_sec": 1.0
   },
   "settings": {
-    "link_types": [
-      [
-        "web",
-        "Web Link"
-      ],
-      [
-        "script",
-        "Script"
-      ],
-      [
-        "file",
-        "File"
-      ],
-      [
-        "program",
-        "Program"
-      ],
-      [
-        "chromeapp",
-        "Chrome App"
-      ],
-      [
-        "folder",
-        "Folder"
-      ]
-    ],
-    "quick_types": [
-      [
-        "web",
-        "web_icon.png",
-        "Web Link"
-      ],
-      [
-        "file",
-        "documents_icon.png",
-        "File"
-      ],
-      [
-        "program",
-        "program_icon.png",
-        "Program"
-      ],
-      [
-        "script",
-        "script_icon.png",
-        "Script"
-      ],
-      [
-        "chromeapp",
-        "chrome_icon.png",
-        "Chrome App"
-      ],
-      [
-        "folder",
-        "folder_icon.png",
-        "Folder"
-      ]
-    ],
-    "quick_type_tooltips": {
-      "web": "Web Link",
-      "file": "File",
-      "program": "Program",
-      "chromeapp": "Chrome App",
-      "folder": ""
-    },
     "default_browse_paths": {
       "file": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
       "folder": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
       "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
-      "script": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
-      "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Chrome Apps"
+      "script": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
     },
     "default_icons": {
       "default": "default.ico",
@@ -334,7 +411,6 @@
       "program": "program_icon.png",
       "script": "script_icon.png",
       "chrome": "chrome_icon.png",
-      "chromeapp": "chrome_icon.png",
       "file": "documents_icon.png",
       "category": "category.png",
       "section": "section.png",
@@ -469,7 +545,11 @@
     ],
     "valid_themes": [
       "light",
-      "dark"
+      "dark",
+      "high_contrast",
+      "violet_pulse",
+      "matrix",
+      "dreamy_room"
     ],
     "mime_types": {
       "link": "application/x-link-id",

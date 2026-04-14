@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
+from .negative_cache import mark_negative, negative_cache
 from .path_service import icon_path_service
 from .validation import is_valid_icon_file
 
@@ -30,31 +31,48 @@ def resolve_icon_path(icon_path: Optional[str]) -> str:
     4) Default icon from config
     Returns string path (may be empty string if nothing found)
     """
-    # 1) Absolute path
-    if icon_path:
+    normalized = (icon_path or "").strip()
+    negative_key = normalized.casefold() if normalized else ""
+    if negative_key and negative_cache.is_negative(negative_key):
         try:
-            p = Path(icon_path)
+            candidate = get_default_icon_path()
+            if candidate.exists() and is_valid_icon_file(str(candidate)):
+                return str(candidate)
+        except Exception:
+            pass
+        return ""
+
+    # 1) Absolute path
+    if normalized:
+        try:
+            p = Path(normalized)
             if p.is_absolute() and p.exists():
+                if negative_key:
+                    negative_cache.invalidate(negative_key)
                 return str(p)
         except Exception:
             pass
 
     # 2) Relative in user icons dir
     try:
-        if icon_path:
+        if normalized:
             user_dir = icon_path_service.get_user_icons_dir()
-            candidate = (user_dir / icon_path).resolve()
+            candidate = user_dir / normalized
             if candidate.exists() and is_valid_icon_file(str(candidate)):
+                if negative_key:
+                    negative_cache.invalidate(negative_key)
                 return str(candidate)
     except Exception:
         pass
 
     # 3) Relative in UI icons dir (system)
     try:
-        if icon_path:
+        if normalized:
             ui_dir = icon_path_service.get_ui_icons_dir()
-            candidate = (ui_dir / icon_path).resolve()
+            candidate = ui_dir / normalized
             if candidate.exists() and is_valid_icon_file(str(candidate)):
+                if negative_key:
+                    negative_cache.invalidate(negative_key)
                 return str(candidate)
     except Exception:
         pass
@@ -66,6 +84,9 @@ def resolve_icon_path(icon_path: Optional[str]) -> str:
             return str(candidate)
     except Exception:
         pass
+
+    if negative_key:
+        mark_negative(negative_key)
 
     return ""
 

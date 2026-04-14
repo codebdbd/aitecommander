@@ -13,7 +13,12 @@ from PyQt6.QtCore import QThreadPool
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
-from app.config_data import app_config
+from app.config_data.runtime_config import (
+    get_shutdown_default_timeout,
+    get_shutdown_max_total_time,
+    get_thread_pool_shutdown_timeout,
+    is_shutdown_parallel_execution,
+)
 from app.utils.cache.topbar_snapshot import TopBarSnapshot, TopBarSnapshotStore
 
 # Module logger
@@ -88,7 +93,7 @@ class ShutdownHandler:
         self.name = name
         self.callback = callback
         self.priority = priority
-        self.timeout = timeout or app_config.get("shutdown.default_timeout", 2000)
+        self.timeout = timeout or get_shutdown_default_timeout(2000)
         self.critical = critical  # If True, error will interrupt shutdown
 
     def run(self, timeout_ms: int) -> bool:
@@ -119,8 +124,8 @@ class AppShutdownController:
         self._register_default_handlers()
 
         # Settings from configuration
-        self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
-        self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
+        self.max_shutdown_time = get_shutdown_max_total_time(10000)
+        self.parallel_execution = is_shutdown_parallel_execution(False)
 
         # ✅ Flag for tracking cleanup
         self._cleaned_up = False
@@ -141,6 +146,11 @@ class AppShutdownController:
                 logger.warning(
                     "Shutdown is already in progress, ignoring duplicate request"
                 )
+                try:
+                    if event is not None:
+                        event.accept()
+                except Exception:
+                    pass
                 return
 
             self.shutdown_in_progress = True
@@ -356,7 +366,7 @@ class AppShutdownController:
         )
         # 2) Thread pool waiting (strict, critical)
         # Align handler timeout with ui.thread_pool_shutdown_timeout config, adding buffer
-        tp_timeout = app_config.ui.get_thread_pool_shutdown_timeout()
+        tp_timeout = get_thread_pool_shutdown_timeout()
         handler_timeout = max(
             tp_timeout + 1000, 3000
         )  # small buffer to avoid false timeouts
@@ -474,7 +484,16 @@ class AppShutdownController:
 
     def _wait_for_thread_pools(self, timeout_ms: int) -> bool:
         """Wait for thread completion - improved version of original."""
-        timeout = app_config.ui.get_thread_pool_shutdown_timeout()
+        configured_timeout = get_thread_pool_shutdown_timeout()
+        try:
+            effective_timeout = min(
+                configured_timeout,
+                int(timeout_ms) if isinstance(timeout_ms, int) and timeout_ms > 0 else configured_timeout,
+            )
+        except Exception:
+            effective_timeout = configured_timeout
+        # Split the budget between global and local pools so total wait is bounded.
+        timeout = max(100, effective_timeout // 2)
 
         # Global thread pool
         try:
@@ -576,7 +595,10 @@ class AppShutdownController:
         return True
 
     def _backup_database(self, timeout_ms: int) -> bool:
-        """Create database backup - improved version of original."""
+        """Create database backup in non-blocking mode.
+
+        During shutdown we must never block the GUI thread on long disk/DB work.
+        """
         try:
             if not hasattr(self.window, "db"):
                 logger.debug("No 'db' attribute found on window, skipping backup")
@@ -587,18 +609,33 @@ class AppShutdownController:
                 logger.debug("Database instance is None, skipping backup")
                 return True
 
-            if not hasattr(db, "backup"):
-                logger.debug("Database has no backup method")
-                return True
+            backup_async = getattr(db, "backup_async", None)
+            if callable(backup_async):
+                try:
+                    logger.info("Scheduling async database backup during shutdown")
+                    backup_async(
+                        on_finished=lambda _result: logger.debug(
+                            "Async shutdown backup completed"
+                        ),
+                        on_error=lambda exc, _tb: logger.warning(
+                            "Async shutdown backup failed: %s", exc
+                        ),
+                        on_progress=None,
+                    )
+                    return True
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to schedule async backup during shutdown: %s",
+                        exc,
+                        exc_info=True,
+                    )
+                    return True
 
-            backup_method = db.backup
-            if not callable(backup_method):
-                logger.debug("Database backup attribute is not callable")
-                return True
-
-            logger.info("Creating database backup...")
-            backup_method()
-            logger.info("Database backup completed successfully")
+            # Do not run synchronous backup in shutdown path to avoid UI hangs.
+            logger.debug(
+                "Database has no async backup API; skipping synchronous backup at shutdown"
+            )
+            return True
 
         except Exception as exc:
             # Backup error is not critical, but we log it

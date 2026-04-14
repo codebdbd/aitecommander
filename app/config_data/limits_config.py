@@ -47,3 +47,23 @@ class LimitsConfig(BaseConfig):
         appear dynamically.
         """
         return self.get("limits.abs_icon_cache_ttl", 30)
+
+    # === Theme package limits ===
+
+    def get_theme_max_package_size(self) -> int:
+        """Return the maximum allowed theme package size in bytes."""
+        return self.get("limits.theme_max_package_size", 50 * 1024 * 1024)
+
+    def get_theme_max_uncompressed_size(self) -> int:
+        """Return the maximum allowed uncompressed size for theme packages in bytes."""
+        return self.get("limits.theme_max_uncompressed_size", 200 * 1024 * 1024)
+
+    def get_theme_max_files(self) -> int:
+        """Return the maximum allowed file count for a theme package."""
+        return self.get("limits.theme_max_files", 5000)
+
+    # === Bulk operation limits ===
+
+    def get_bulk_operation_max_batch_size(self) -> int:
+        """Return the maximum allowed bulk operation batch size."""
+        return self.get("limits.bulk_operation_max_batch_size", 5000)

@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.core.strings import MenuStrings, StatusStrings
+
 from ..models.panel_state import PanelState
 from ..utils.qt_utils import is_deleted
 from .accessibility_manager import AccessibilityManager
@@ -143,13 +145,16 @@ class PanelVisibilityManager:
                     if is_visible:
                         button.setAccessibleDescription(
                             QCoreApplication.translate(
-                                "TopBarPanels",
-                                "Button {idx} of {total} visible buttons",
+                                "MainWindow",
+                                StatusStrings.BUTTON_VISIBLE_TEMPLATE,
                             ).format(idx=index + 1, total=visible)
                         )
                     else:
                         button.setAccessibleDescription(
-                            QCoreApplication.translate("TopBarPanels", "Hidden button")
+                            QCoreApplication.translate(
+                                "MainWindow",
+                                StatusStrings.BUTTON_HIDDEN,
+                            )
                         )
                 except (RuntimeError, AttributeError):
                     pass
@@ -193,10 +198,14 @@ class PanelVisibilityManager:
                 # Translated panel display names
                 panel_name_map = {
                     "recent": QCoreApplication.translate(
-                        "TopBarPanels", "Recent Links"
+                        "MainWindow", MenuStrings.PANEL_RECENT_LINKS
                     ),
-                    "fav": QCoreApplication.translate("TopBarPanels", "Favorites"),
-                    "quick": QCoreApplication.translate("TopBarPanels", "Quick Add"),
+                    "fav": QCoreApplication.translate(
+                        "MainWindow", MenuStrings.PANEL_FAVORITES
+                    ),
+                    "quick": QCoreApplication.translate(
+                        "MainWindow", MenuStrings.PANEL_QUICK_ADD
+                    ),
                 }
                 panel_name = panel_name_map.get(
                     state.definition.label, state.definition.label
@@ -233,9 +242,15 @@ class PanelVisibilityManager:
         """
         try:
             panel_name_map = {
-                "recent": QCoreApplication.translate("TopBarPanels", "Recent Links"),
-                "fav": QCoreApplication.translate("TopBarPanels", "Favorites"),
-                "quick": QCoreApplication.translate("TopBarPanels", "Quick Add"),
+                "recent": QCoreApplication.translate(
+                    "MainWindow", MenuStrings.PANEL_RECENT_LINKS
+                ),
+                "fav": QCoreApplication.translate(
+                    "MainWindow", MenuStrings.PANEL_FAVORITES
+                ),
+                "quick": QCoreApplication.translate(
+                    "MainWindow", MenuStrings.PANEL_QUICK_ADD
+                ),
             }
             shortcut_counter = 1
             for state in panel_states:

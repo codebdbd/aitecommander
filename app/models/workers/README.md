@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
 Каждый worker создает отдельное соединение с настройками для производительности:
 
 ```python
-conn = sqlite3.connect(db_path, check_same_thread=False)
+conn = DatabaseManager.get_connection()
 conn.execute("PRAGMA journal_mode=WAL")
 conn.execute("PRAGMA synchronous=NORMAL")
 conn.execute("PRAGMA cache_size=-64000")  # 64MB
@@ -180,7 +180,7 @@ class CustomWorker(DatabaseWorker):
         return result
 
 # Использование
-worker = CustomWorker(db.db_path)
+worker = CustomWorker()
 worker.signals.finished.connect(my_callback)
 db._thread_pool.start(worker)
 ```

@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 try:
     from PyQt6.QtCore import QTimer
@@ -36,13 +36,17 @@ class IconMetricsRecorder:
         self._metrics_lock = threading.Lock()
         self._report_interval = report_interval
         self._last_report_time: float = 0.0
-        self._timer: Optional[QTimer] = None
+        self._timer: QTimer | None = None
         self._timer_pending = False
         self._use_qtimer = use_qtimer
         
         # Metrics storage (delegates to CacheMetrics internally)
         from .metrics import CacheMetrics
         self._cache_metrics = CacheMetrics()
+        
+        # Track last logged metrics to avoid redundant logging
+        self._last_logged_hits: int = 0
+        self._last_logged_misses: int = 0
         
         # QTimer will be created lazily on first use (when QApplication exists)
         self._ensure_qtimer()
@@ -150,6 +154,8 @@ class IconMetricsRecorder:
         self._cache_metrics.reset()
         with self._metrics_lock:
             self._last_report_time = 0.0
+            self._last_logged_hits = 0
+            self._last_logged_misses = 0
 
     def _setup_qtimer(self) -> None:
         """Setup QTimer for periodic logging (called from GUI thread).
@@ -183,14 +189,25 @@ class IconMetricsRecorder:
             logger.exception("Failed to setup QTimer for metrics logging")
 
     def _on_timer(self) -> None:
-        """Timer callback - log metrics without checking interval."""
+        """Timer callback - log metrics only if they changed."""
         try:
             stats = self.get_stats()
+            current_hits = stats.get("hits", 0)
+            current_misses = stats.get("misses", 0)
+            
+            # Skip logging if metrics haven't changed since last log
+            if current_hits == self._last_logged_hits and current_misses == self._last_logged_misses:
+                return
+            
+            # Update tracking and log
+            self._last_logged_hits = current_hits
+            self._last_logged_misses = current_misses
+            
             logger.info(
                 "Icon metrics (QTimer): hits=%s misses=%s hit_rate=%s disk_loads=%s "
                 "not_found=%s avg_load_time=%s load_count=%s uptime=%s",
-                stats.get("hits"),
-                stats.get("misses"),
+                current_hits,
+                current_misses,
                 stats.get("hit_rate"),
                 stats.get("disk_loads"),
                 stats.get("not_found"),
@@ -215,6 +232,7 @@ class IconMetricsRecorder:
         try:
             from PyQt6.QtCore import QThread
             from PyQt6.QtWidgets import QApplication
+
             from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
 
             app = QApplication.instance()
