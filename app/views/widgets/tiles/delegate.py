@@ -146,14 +146,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             text_rect.setHeight(y)
 
-            if option.state & QStyle.StateFlag.State_MouseOver:
-                painter.setPen(QPen(QColor("#FFFFFF")))
-            elif option.state & QStyle.StateFlag.State_HasFocus:
-                painter.setPen(QPen(QColor("#FFFFFF")))
-            elif option.state & QStyle.StateFlag.State_Selected:
-                painter.setPen(QPen(QColor("#FFFFFF")))
-            else:
-                painter.setPen(option.palette.color(QPalette.ColorRole.Text))
+            # Always use palette-based colors to respect theme (light/dark)
+            painter.setPen(option.palette.color(QPalette.ColorRole.Text))
 
             for idx, line in enumerate(lines):
                 line_text = text[
