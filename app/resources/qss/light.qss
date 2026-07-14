@@ -90,10 +90,6 @@ QMenuBar QMenu {
 background-color: #FFFFFF;
 border-color: #E0E0E0;
 }
-QMainWindow {
-background-color: #F5F5F5;
-color: #222222;
-}
 QWidget#topBarHost {
 background: #F5F5F5;
 }
@@ -231,10 +227,6 @@ QTreeView::item:!selected:hover {
 background-color: #E6E6E6;
 color: palette(text);
 }
-QTreeView::item:!selected:hover {
-background-color: #E6E6E6;
-color: palette(text);
-}
 QTableView::item:!selected:hover,
 QTableWidget::item:!selected:hover {
 }
@@ -302,11 +294,12 @@ border-color: #B3B3B3;
 background-color: #F0F0F0;
 color: #1F2430;
 }
-QDialog QComboBox QAbstractItemView {
-border-color: #B3B3B3;
-background: #F2F4F7;
+QDialog QPushButton:hover,
+QDialog QToolButton:hover {
+background: #E6E6E6;
+border-color: #99CCFF;
+color: #1F2430;
 }
-QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
 QDialog QPlainTextEdit:focus,
 QDialog QComboBox:focus,
@@ -393,6 +386,9 @@ QDialog QToolButton#linkTypeBtn:checked:hover,
 QDialog QToolButton#linkTypeBtn:checked:focus {
 border-color: #99CCFF;
 background: #E6E6E6;
+}
+QDialog QToolButton#linkTypeBtn[_neon_on="true"] {
+border-color: #99CCFF;
 }
 QSplitter::handle { background-color: #B3B3B3; }
 QSplitter::handle:horizontal { background-color: #B3B3B3; }

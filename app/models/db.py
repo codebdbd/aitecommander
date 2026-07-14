@@ -685,10 +685,7 @@ class Database(QObject):
     def close_all(self) -> None:
         """Close ALL database connections from all threads. Required for DB restore."""
         logger.info("Closing all database connections...")
-        try:
-            DatabaseManager.close_all()
-        finally:
-            gc.collect()
+        DatabaseManager.close_all()
         logger.info("All database connections closed")
 
 

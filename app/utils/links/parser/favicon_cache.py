@@ -52,7 +52,6 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
     1) ``portalocker.Lock(..., timeout=timeout)``
     2) ``filelock.FileLock(...).acquire(timeout=timeout)``
     If none of the backends are available, continue without interprocess locking (log a warning).
-
     Semantics preserved: when timeout expires, log a warning and continue without an actual lock.
     Timeout can be configured via ``app_config.FAVICON_LOCK_TIMEOUT`` (seconds). The function argument
     ``timeout`` takes precedence over config.
@@ -577,39 +576,6 @@ class FaviconCache(BaseCache):
             except Exception:
                 pass
 
-    def _fallback_evict_by_scan(self, db, idx: OrderedDict, max_size: int) -> None:
-        """Fallback eviction by scanning DB if index is incomplete."""
-        try:
-            non_service = [k for k in db.keys() if not k.startswith("__")]
-            if len(non_service) <= max_size:
-                return
-
-            items: list[tuple[str, float]] = []
-            for candidate_key in non_service:
-                try:
-                    entry = db.get(candidate_key)
-                    ts_val = (
-                        float(entry.get("timestamp", 0.0))
-                        if isinstance(entry, dict)
-                        else 0.0
-                    )
-                except Exception:
-                    ts_val = 0.0
-                items.append((candidate_key, ts_val))
-
-            items.sort(key=lambda kv: kv[1])
-            for victim_key, _ in items[max_size:]:
-                try:
-                    if victim_key in db:
-                        del db[victim_key]
-                    if victim_key in idx:
-                        idx.pop(victim_key, None)
-                except Exception:
-                    pass
-            db["__ts_index__"] = idx
-        except Exception:
-            pass
-
     def _enforce_size_limit(self, db) -> None:
         """Enforce cache size limit using index-based eviction."""
         try:
@@ -622,9 +588,6 @@ class FaviconCache(BaseCache):
             # Evict by index
             self._evict_by_index(db, idx, max_size)
             db["__ts_index__"] = idx
-
-            # Fallback eviction if needed
-            self._fallback_evict_by_scan(db, idx, max_size)
 
             # Sync changes
             self._sync_db(db)

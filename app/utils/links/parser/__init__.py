@@ -12,16 +12,16 @@ from .fetcher import fetch_web_link_info  # re-export
 from .title_parser import get_title  # convenient alias
 
 
-def shutdown_parser_background_tasks(wait: bool = False) -> None:
+def shutdown_parser_background_tasks(wait: bool = False, cancel_futures: bool = True) -> None:
     """Stop shared parser executors/network helpers to allow fast shutdown."""
     try:
-        from .icon_downloader import shutdown_icon_executor
-        shutdown_icon_executor(wait=wait, cancel_futures=True)
+        from .icon_downloader import _shutdown_icon_executor
+        _shutdown_icon_executor(wait=wait)
     except Exception:
         pass
     try:
         from .icon_candidates import shutdown_manifest_executor
-        shutdown_manifest_executor(wait=wait, cancel_futures=True)
+        shutdown_manifest_executor(wait=wait, cancel_futures=cancel_futures)
     except Exception:
         pass
     try:

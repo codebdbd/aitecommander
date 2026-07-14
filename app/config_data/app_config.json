@@ -546,7 +546,6 @@
     "valid_themes": [
       "light",
       "dark",
-      "high_contrast",
       "violet_pulse",
       "matrix",
       "dreamy_room"

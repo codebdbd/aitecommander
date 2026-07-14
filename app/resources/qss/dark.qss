@@ -249,10 +249,6 @@ QTreeView::item:!selected:hover {
 background-color: #444444;
 color: palette(text);
 }
-QTreeView::item:!selected:hover {
-background-color: #444444;
-color: palette(text);
-}
 QWidget[class="separator"] {
 background-color: #3A3E44;
 }
@@ -315,9 +311,6 @@ QDialog QToolButton:hover {
 background: #2E4066;
 border-color: #0194F0;
 color: #FFFFFF;
-}
-QDialog QComboBox QAbstractItemView {
-border-color: #3A3F47;
 }
 QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,

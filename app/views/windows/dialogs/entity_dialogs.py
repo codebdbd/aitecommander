@@ -43,6 +43,7 @@ from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
+from app.utils.ui.icon.icon_resolver import resolve_section_icon_path, resolve_category_icon_path
 from app.utils.ui.qt.combo_helpers import add_combo_mapping_item, select_combo_data
 from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
@@ -264,11 +265,23 @@ class BaseEntityDialog(BaseDialog):
             logger.debug("BaseEntityDialog._on_return_pressed failed", exc_info=True)
 
     def _get_icon_path(self, icon_filename: str) -> Path:
-        """Return explicit icon path, preferring user icons over bundled ones."""
+        """Return explicit icon path with type-specific fallback."""
+        # Try user icons first
         link_icon_path = icon_path_service.get_user_icons_dir() / icon_filename
         if link_icon_path.exists():
             return link_icon_path
-        return icon_path_service.get_ui_icons_dir() / icon_filename
+        # Try UI icons
+        ui_path = icon_path_service.get_ui_icons_dir() / icon_filename
+        if ui_path.exists():
+            return ui_path
+        # Fallback to type-specific default icon
+        if self.entity_name == "section":
+            fallback = resolve_section_icon_path(icon_filename)
+        elif self.entity_name == "category":
+            fallback = resolve_category_icon_path(icon_filename)
+        else:
+            fallback = ""
+        return Path(fallback) if fallback else ui_path
 
     def _choose_icon(self):
         """Pick an icon with smart copy semantics that avoid duplicates."""
@@ -387,7 +400,7 @@ class SectionDialog(BaseEntityDialog):
         self.name_le.setText(section_data["name"])
         self._set_sphere_selection(section_data["sphere_id"])
 
-        icon = section_data["icon_path"] or f"{self.entity_name}.ico"
+        icon = section_data["icon_path"] or f"{self.entity_name}.png"
         self._icon_filename = icon
         icon_path = self._get_icon_path(icon)
         self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))

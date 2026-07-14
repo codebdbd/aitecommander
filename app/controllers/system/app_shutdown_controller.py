@@ -598,6 +598,9 @@ class AppShutdownController:
         """Create database backup in non-blocking mode.
 
         During shutdown we must never block the GUI thread on long disk/DB work.
+        We start the backup asynchronously and then wait for the thread pool to
+        drain so the worker fully completes (including signal emissions) before
+        Qt objects are destroyed - otherwise Windows reports a crash.
         """
         try:
             if not hasattr(self.window, "db"):
@@ -622,6 +625,17 @@ class AppShutdownController:
                         ),
                         on_progress=None,
                     )
+                    # Wait for the backup thread to finish before returning so
+                    # that Qt objects are not destroyed while the worker is
+                    # still running and emitting signals.
+                    pool = QThreadPool.globalInstance()
+                    if pool is not None:
+                        wait_ms = max(100, timeout_ms)
+                        if not pool.waitForDone(wait_ms):
+                            logger.warning(
+                                "Thread pool did not drain within %d ms during backup shutdown",
+                                wait_ms,
+                            )
                     return True
                 except Exception as exc:
                     logger.warning(
@@ -641,7 +655,6 @@ class AppShutdownController:
             # Backup error is not critical, but we log it
             logger.error("Database backup failed: %s", exc, exc_info=True)
             return False
-        return True
 
     def cleanup(self) -> None:
         """Release controller resources.

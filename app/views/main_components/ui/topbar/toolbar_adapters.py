@@ -9,8 +9,7 @@ from PyQt6.QtCore import QObject, QSize, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QToolBar, QToolButton
 
-from app.config_data import app_config
-from app.config_data.runtime_config import runtime_app_config as runtime_app_config
+from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_for_link
@@ -50,7 +49,7 @@ def _resolve_icon_for_link_fast(link_data: dict[str, Any] | None) -> str:
         link_type = "file"
 
     try:
-        default_icons = app_config.get_default_icons()
+        default_icons = runtime_app_config.get_default_icons()
         icon_name = default_icons.get(link_type, default_icons.get("default", ""))
     except Exception:
         icon_name = ""
@@ -222,10 +221,10 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         separator_controller: ToolbarSeparatorController | None = None,
     ) -> None:
         try:
-            button_size_raw = app_config.ui.get_quick_add_button_size()
+            button_size_raw = runtime_app_config.ui.get_quick_add_button_size()
         except Exception:
-            button_size_raw = app_config.ui.get_top_panel_button_size()
-        icon_size = app_config.ui.get_top_panel_icon_size()
+            button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
+        icon_size = runtime_app_config.ui.get_top_panel_icon_size()
         button_size, icon_size = _button_sizes(button_size_raw, icon_size)
         super().__init__(
             toolbar,
@@ -256,8 +255,8 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
 
     def _build_quick_actions(self) -> None:
         self.clear_actions()
-        quick_types = app_config.settings.get_quick_types()
-        tooltips = app_config.settings.get_quick_type_tooltips()
+        quick_types = runtime_app_config.settings.get_quick_types()
+        tooltips = runtime_app_config.settings.get_quick_type_tooltips()
         fallback_icon = get_default_icon_path()
         for code, icon_name, tooltip in quick_types:
             label = tooltips.get(code, tooltip) or code

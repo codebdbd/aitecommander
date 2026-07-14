@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
+
+
+def _get_version() -> str:
+    """Read version from package metadata (single source of truth in pyproject.toml)."""
+    try:
+        return version("aitecommander")
+    except PackageNotFoundError:
+        return "0.0.0-dev"
+
 
 class AppConstants:
     """Static container for app-wide constants."""
 
     APP_NAME = "Aite Commander"
     ORG_NAME = "Codebdbd"
-    VERSION = "1.0.0"
+    VERSION = _get_version()
 
     LOG_DIR_NAME = "logs"
 
