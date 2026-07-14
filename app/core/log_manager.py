@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
 from app.core.paths.path_manager import PathManager
@@ -11,6 +12,17 @@ _LOG_FILE_NAME = "app.log"
 _LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 _LOG_MAX_BYTES = 5_242_880
 _LOG_BACKUP_COUNT = 5
+
+
+class SafeRotatingFileHandler(RotatingFileHandler):
+    """RotatingFileHandler that ignores permission errors during rollover."""
+
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except (OSError, PermissionError):
+            # Ignore errors during log rotation (common on Windows during shutdown)
+            pass
 
 
 class LogManager:
@@ -35,7 +47,7 @@ class LogManager:
         stream_handler = cls._create_stream_handler(formatter)
 
         root_logger = logging.getLogger()
-        if not cls._has_handler(root_logger, RotatingFileHandler):
+        if not cls._has_handler(root_logger, SafeRotatingFileHandler):
             root_logger.addHandler(file_handler)
         if not cls._has_stream_handler(root_logger):
             root_logger.addHandler(stream_handler)
@@ -85,8 +97,8 @@ class LogManager:
     @staticmethod
     def _create_file_handler(
         log_file, formatter: logging.Formatter
-    ) -> RotatingFileHandler:
-        handler = RotatingFileHandler(
+    ) -> SafeRotatingFileHandler:
+        handler = SafeRotatingFileHandler(
             PathManager.as_str(log_file),
             maxBytes=_LOG_MAX_BYTES,
             backupCount=_LOG_BACKUP_COUNT,
@@ -102,3 +114,20 @@ class LogManager:
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
         return handler
+
+    @classmethod
+    def shutdown(cls) -> None:
+        """Close all logging handlers to prevent errors during interpreter shutdown."""
+        root_logger = logging.getLogger()
+        handlers_to_remove = []
+        for handler in root_logger.handlers:
+            try:
+                handler.close()
+                handlers_to_remove.append(handler)
+            except Exception:
+                pass
+        for handler in handlers_to_remove:
+            try:
+                root_logger.removeHandler(handler)
+            except Exception:
+                pass

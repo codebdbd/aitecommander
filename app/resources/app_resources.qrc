@@ -4,7 +4,6 @@
     <file>qss/common.qss</file>
     <file>qss/dark.qss</file>
     <file>qss/dreamy_room.qss</file>
-    <file>qss/high_contrast.qss</file>
     <file>qss/light.qss</file>
     <file>qss/matrix.qss</file>
     <file>qss/violet_pulse.qss</file>
@@ -142,70 +141,6 @@
     <file>ui_icons/dreamy_room/x.svg</file>
     <file>ui_icons/dreamy_room/zip_ico.svg</file>
     <file>ui_icons/folder_icon.png</file>
-    <file>ui_icons/high_contrast/Settings.png</file>
-    <file>ui_icons/high_contrast/add_bd.svg</file>
-    <file>ui_icons/high_contrast/add_category.svg</file>
-    <file>ui_icons/high_contrast/add_favorites.svg</file>
-    <file>ui_icons/high_contrast/add_ico.svg</file>
-    <file>ui_icons/high_contrast/add_link.svg</file>
-    <file>ui_icons/high_contrast/add_section.svg</file>
-    <file>ui_icons/high_contrast/chevron_down.svg</file>
-    <file>ui_icons/high_contrast/copy.svg</file>
-    <file>ui_icons/high_contrast/cut.svg</file>
-    <file>ui_icons/high_contrast/dark.svg</file>
-    <file>ui_icons/high_contrast/dbrestore.svg</file>
-    <file>ui_icons/high_contrast/delete.svg</file>
-    <file>ui_icons/high_contrast/delete_favorites.svg</file>
-    <file>ui_icons/high_contrast/down.svg</file>
-    <file>ui_icons/high_contrast/edit-copy.svg</file>
-    <file>ui_icons/high_contrast/edit-cut.svg</file>
-    <file>ui_icons/high_contrast/edit-delete.svg</file>
-    <file>ui_icons/high_contrast/edit-paste.svg</file>
-    <file>ui_icons/high_contrast/edit-redo.svg</file>
-    <file>ui_icons/high_contrast/edit-select-all.svg</file>
-    <file>ui_icons/high_contrast/edit-undo.svg</file>
-    <file>ui_icons/high_contrast/edit.svg</file>
-    <file>ui_icons/high_contrast/edit_note.svg</file>
-    <file>ui_icons/high_contrast/email.svg</file>
-    <file>ui_icons/high_contrast/email_client.svg</file>
-    <file>ui_icons/high_contrast/exit.svg</file>
-    <file>ui_icons/high_contrast/expor_section.svg</file>
-    <file>ui_icons/high_contrast/export.svg</file>
-    <file>ui_icons/high_contrast/facebook.svg</file>
-    <file>ui_icons/high_contrast/fav_ok.svg</file>
-    <file>ui_icons/high_contrast/folder_delete.svg</file>
-    <file>ui_icons/high_contrast/gmail.svg</file>
-    <file>ui_icons/high_contrast/help.svg</file>
-    <file>ui_icons/high_contrast/import.svg</file>
-    <file>ui_icons/high_contrast/import_category.svg</file>
-    <file>ui_icons/high_contrast/import_section.svg</file>
-    <file>ui_icons/high_contrast/import_sections.svg</file>
-    <file>ui_icons/high_contrast/left.svg</file>
-    <file>ui_icons/high_contrast/light.svg</file>
-    <file>ui_icons/high_contrast/link_off.svg</file>
-    <file>ui_icons/high_contrast/linkedin.svg</file>
-    <file>ui_icons/high_contrast/more.svg</file>
-    <file>ui_icons/high_contrast/paste.svg</file>
-    <file>ui_icons/high_contrast/pinterest.svg</file>
-    <file>ui_icons/high_contrast/redo.svg</file>
-    <file>ui_icons/high_contrast/refresh.svg</file>
-    <file>ui_icons/high_contrast/right.svg</file>
-    <file>ui_icons/high_contrast/run.svg</file>
-    <file>ui_icons/high_contrast/search.svg</file>
-    <file>ui_icons/high_contrast/search_off.svg</file>
-    <file>ui_icons/high_contrast/select_all.svg</file>
-    <file>ui_icons/high_contrast/settings.svg</file>
-    <file>ui_icons/high_contrast/share.svg</file>
-    <file>ui_icons/high_contrast/sort.svg</file>
-    <file>ui_icons/high_contrast/telegram.svg</file>
-    <file>ui_icons/high_contrast/text_decrease.svg</file>
-    <file>ui_icons/high_contrast/text_increase.svg</file>
-    <file>ui_icons/high_contrast/undo.svg</file>
-    <file>ui_icons/high_contrast/up.svg</file>
-    <file>ui_icons/high_contrast/viber.svg</file>
-    <file>ui_icons/high_contrast/whatsapp.svg</file>
-    <file>ui_icons/high_contrast/x.svg</file>
-    <file>ui_icons/high_contrast/zip_ico.svg</file>
     <file>ui_icons/icon.png</file>
     <file>ui_icons/light/Settings.png</file>
     <file>ui_icons/light/add_bd.svg</file>

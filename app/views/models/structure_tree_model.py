@@ -16,6 +16,7 @@ from PyQt6.QtCore import (
     Qt,
     QThread,
     QThreadPool,
+    QTimer,
     pyqtSignal,
     pyqtSlot,
 )
@@ -27,7 +28,7 @@ from app.config_data.runtime_config import (
     get_tree_section_icon_prewarm_limit,
 )
 from app.utils.ui.icon.loading_service import icon_loading_service
-from app.utils.ui.icon.icon_resolver import resolve_icon_path
+from app.utils.ui.icon.icon_resolver import resolve_icon_path, resolve_section_icon_path
 from app.utils.ui.icon.validation import _validate_icon_name
 
 NodeType = str  # "section" | "category" | "root"
@@ -1031,10 +1032,13 @@ class StructureTreeModel(QAbstractItemModel):
         except Exception:
             section_sync_icon_limit = 6
         for section_row, s in enumerate(sections or []):
+            # Resolve section icon with type-specific fallback (section.png)
+            raw_icon_path = s.get("icon_path") or ""
+            resolved_section_path = resolve_section_icon_path(raw_icon_path) if raw_icon_path else ""
             section_icon, pending_section_path, stored_section_path = (
                 self._prepare_icon_fields(
                     s.get("icon"),
-                    s.get("icon_path"),
+                    resolved_section_path or raw_icon_path,
                 )
             )
             if stored_section_path is not None:

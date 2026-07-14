@@ -19,7 +19,6 @@ import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 
@@ -37,6 +36,14 @@ from requests.exceptions import (
 from app.config_data import app_config
 from app.utils.ui.icon.path_service import icon_path_service
 
+# Set PIL MAX_IMAGE_PIXELS once at import time (avoids per-call lock overhead)
+try:
+    Image.MAX_IMAGE_PIXELS = int(
+        getattr(app_config, "ICON_MAX_IMAGE_PIXELS", 2_000_000) or 2_000_000
+    )
+except Exception:
+    Image.MAX_IMAGE_PIXELS = 2_000_000
+
 from .constants import BS_PARSER, MIN_GOOD_SIZE, TARGET_SIZE, logger
 from .http_client import http_request
 from .icon_candidates import find_favicon_candidates
@@ -51,9 +58,6 @@ from .svg_convert import convert_svg
 
 _ICON_LOCKS: OrderedDict[str, threading.Lock] = OrderedDict()
 _ICON_LOCKS_GUARD = threading.Lock()
-
-# Guard for thread-safe temporary changes to PIL global settings
-_PIL_MAX_PIXELS_GUARD = threading.Lock()
 
 # Shared executor for icon downloads (singleton)
 _ICON_EXECUTOR = None
@@ -147,32 +151,6 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
 
         # Current size is sufficient
         return _ICON_EXECUTOR
-
-
-@contextmanager
-def _pil_max_pixels(limit: int):
-    """Temporarily set PIL Image.MAX_IMAGE_PIXELS in a thread-safe way.
-
-    Ensures that concurrent calls don't step on each other's toes and that the
-    original setting is restored even if exceptions occur.
-    """
-    _PIL_MAX_PIXELS_GUARD.acquire()
-    prev = getattr(Image, "MAX_IMAGE_PIXELS", None)
-    try:
-        Image.MAX_IMAGE_PIXELS = limit
-        yield
-    finally:
-        try:
-            if prev is None:
-                try:
-                    delattr(Image, "MAX_IMAGE_PIXELS")
-                except Exception:
-                    pass
-            else:
-                Image.MAX_IMAGE_PIXELS = prev
-        except Exception:
-            pass
-        _PIL_MAX_PIXELS_GUARD.release()
 
 
 # === Metadata and paths ===
@@ -552,46 +530,39 @@ class IconDownloader:
         """Process and save image data."""
         if _is_cancelled(cancel_event):
             return None
-        try:
-            max_pixels_limit = int(
-                getattr(app_config, "ICON_MAX_IMAGE_PIXELS", 2_000_000) or 2_000_000
+
+        with Image.open(BytesIO(data2)) as _probe:
+            _probe.verify()
+
+        with Image.open(BytesIO(data2)) as _img:
+            if _is_cancelled(cancel_event):
+                return None
+            img = self.select_best_frame(_img)
+            img = img.copy()
+            if not self.validate_image_geometry(img, icon_url):
+                return None
+            if _is_cancelled(cancel_event):
+                return None
+            path, did_save = self.save_png_with_meta(
+                domain, icon_url, resp.headers, img, data2, is_fallback, meta
             )
-        except Exception:
-            max_pixels_limit = 2_000_000
-
-        with _pil_max_pixels(max_pixels_limit):
-            with Image.open(BytesIO(data2)) as _probe:
-                _probe.verify()
-
-            with Image.open(BytesIO(data2)) as _img:
-                if _is_cancelled(cancel_event):
-                    return None
-                img = self.select_best_frame(_img)
-                img = img.copy()
-                if not self.validate_image_geometry(img, icon_url):
-                    return None
-                if _is_cancelled(cancel_event):
-                    return None
-                path, did_save = self.save_png_with_meta(
-                    domain, icon_url, resp.headers, img, data2, is_fallback, meta
+            if did_save:
+                etag = resp.headers.get("ETag")
+                lm = resp.headers.get("Last-Modified")
+                w, h = img.size
+                logger.info(
+                    "[icon] saved path=%s size=%sx%s url=%s status=%s ct=%s len=%s etag=%s lm=%s",
+                    path,
+                    w,
+                    h,
+                    icon_url,
+                    resp.status_code,
+                    ct_dbg,
+                    cl_dbg,
+                    etag,
+                    lm,
                 )
-                if did_save:
-                    etag = resp.headers.get("ETag")
-                    lm = resp.headers.get("Last-Modified")
-                    w, h = img.size
-                    logger.info(
-                        "[icon] saved path=%s size=%sx%s url=%s status=%s ct=%s len=%s etag=%s lm=%s",
-                        path,
-                        w,
-                        h,
-                        icon_url,
-                        resp.status_code,
-                        ct_dbg,
-                        cl_dbg,
-                        etag,
-                        lm,
-                    )
-                return path
+            return path
 
     def _handle_response_status(
         self, resp, domain: str, icon_url: str, force_refresh: bool

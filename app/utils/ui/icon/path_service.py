@@ -435,15 +435,23 @@ class IconPathService:
     def get_indexed_icon(self, theme: str, icon_name: str) -> Path | None:
         norm_theme = validate_theme(theme)
         now = time.time()
+        # Check if refresh needed (fast, under lock)
+        needs_refresh = False
         with self._index_lock:
-            if self._should_refresh_index(norm_theme, now):
-                index = self._build_theme_index(norm_theme)
-                self._theme_index[norm_theme] = index
-                self._theme_index_ts[norm_theme] = now
-                dir_path = self._get_theme_dir(norm_theme)
-                self._theme_dir_mtime[norm_theme] = (
-                    _safe_mtime(dir_path) if dir_path is not None else None
-                )
+            needs_refresh = self._should_refresh_index(norm_theme, now)
+        # Build index outside lock (slow disk I/O)
+        if needs_refresh:
+            new_index = self._build_theme_index(norm_theme)
+            dir_path = self._get_theme_dir(norm_theme)
+            new_mtime = _safe_mtime(dir_path) if dir_path is not None else None
+            # Update cache under lock (fast)
+            with self._index_lock:
+                # Double-check: another thread may have refreshed while we were building
+                if self._should_refresh_index(norm_theme, now):
+                    self._theme_index[norm_theme] = new_index
+                    self._theme_index_ts[norm_theme] = now
+                    self._theme_dir_mtime[norm_theme] = new_mtime
+        with self._index_lock:
             index = self._theme_index.get(norm_theme, {})
             return index.get(icon_name.lower())
 
@@ -605,9 +613,9 @@ class IconPathResolver:
                 logger.warning("Failed to convert QRC SVG %s to PNG", svg_resource)
                 return False
 
-            from app.utils.ui.qt.gui_exec import run_in_gui_thread_sync
-
-            if run_in_gui_thread_sync(_convert_resource):
+            # Run directly in worker thread — set_path() is just a dict+lock,
+            # no GUI thread required. Avoids blocking GUI with disk I/O.
+            if _convert_resource():
                 return str(cached_png)
             return None
 

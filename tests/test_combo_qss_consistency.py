@@ -7,7 +7,6 @@ THEME_FILES = [
     "common.qss",
     "dark.qss",
     "dreamy_room.qss",
-    "high_contrast.qss",
     "light.qss",
     "matrix.qss",
     "violet_pulse.qss",

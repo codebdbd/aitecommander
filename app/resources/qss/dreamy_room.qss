@@ -348,10 +348,6 @@ QDialog QToolButton:disabled {
   border-color: #E7B8CC;
   color: #7B4A5C;
   }
-QDialog QComboBox QAbstractItemView {
-border-color: #E7B8CC;
-background: #FFF1F6;
-}
 QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
 QDialog QPlainTextEdit:focus,

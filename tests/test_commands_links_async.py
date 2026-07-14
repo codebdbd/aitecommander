@@ -166,6 +166,7 @@ class TestBatchDeleteLinksCmdAsync(unittest.TestCase):
             task()
 
 
+@patch("app.controllers.ui.undo.commands_links.QCoreApplication")
 class TestSaveLinkCmdCategoryRecovery(unittest.TestCase):
     def _build_main(self, *, current_category_id: int | None = 77) -> SimpleNamespace:
         links_business = SimpleNamespace(
@@ -184,7 +185,8 @@ class TestSaveLinkCmdCategoryRecovery(unittest.TestCase):
         )
         return main
 
-    def test_redo_backfills_missing_category_id_from_main_window(self) -> None:
+    def test_redo_backfills_missing_category_id_from_main_window(self, qapp_mock: Mock) -> None:
+        qapp_mock.instance.return_value = None
         main = self._build_main(current_category_id=77)
         cmd = SaveLinkCmd(
             new_data={"name": "Example", "url": "https://example.com", "type": "web"},
@@ -201,8 +203,9 @@ class TestSaveLinkCmdCategoryRecovery(unittest.TestCase):
 
     @patch("app.controllers.ui.undo.commands_links.DialogManager.show_error")
     def test_redo_shows_error_and_skips_save_when_category_missing_everywhere(
-        self, show_error_mock: Mock
+        self, show_error_mock: Mock, qapp_mock: Mock
     ) -> None:
+        qapp_mock.instance.return_value = None
         main = self._build_main(current_category_id=None)
         cmd = SaveLinkCmd(
             new_data={"name": "Example", "url": "https://example.com", "type": "web"},

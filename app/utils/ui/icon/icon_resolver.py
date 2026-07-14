@@ -206,20 +206,51 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
         return str(get_default_icon_path())
 
 
+def _is_default_fallback(path: str) -> bool:
+    """Check if resolved path is the global default icon (not a type-specific one)."""
+    try:
+        default = str(get_default_icon_path())
+        return Path(path).resolve() == Path(default).resolve()
+    except Exception:
+        return False
+
+
+def resolve_section_icon_path(icon_path: Optional[str]) -> str:
+    """Resolve section icon path with fallback to configured section/default icon."""
+    if icon_path:
+        p = Path(icon_path)
+        if p.is_absolute():
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+        else:
+            rel = resolve_icon_path(icon_path)
+            if rel and not _is_default_fallback(rel):
+                return rel
+    # fallback to section default
+    try:
+        from app.config_data import app_config
+
+        defaults = app_config.get_default_icons()
+        section_name = defaults.get("section", defaults.get("default", ""))
+        path = resolve_icon_path(section_name)
+        if path and not _is_default_fallback(path):
+            return path
+        return path or str(get_default_icon_path())
+    except Exception:
+        return str(get_default_icon_path())
+
+
 def resolve_category_icon_path(icon_path: Optional[str]) -> str:
     """Resolve category icon path with fallback to configured category/default icon."""
     if icon_path:
         p = Path(icon_path)
         if p.is_absolute():
-            return (
-                str(p)
-                if (p.exists() and is_valid_icon_file(str(p)))
-                else str(get_default_icon_path())
-            )
-        # relative name -> try user/ui
-        rel = resolve_icon_path(icon_path)
-        if rel:
-            return rel
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+        else:
+            rel = resolve_icon_path(icon_path)
+            if rel and not _is_default_fallback(rel):
+                return rel
     # fallback to category default
     try:
         from app.config_data import app_config
@@ -227,6 +258,8 @@ def resolve_category_icon_path(icon_path: Optional[str]) -> str:
         defaults = app_config.get_default_icons()
         category_name = defaults.get("category", defaults.get("default", ""))
         path = resolve_icon_path(category_name)
+        if path and not _is_default_fallback(path):
+            return path
         return path or str(get_default_icon_path())
     except Exception:
         return str(get_default_icon_path())
@@ -237,14 +270,12 @@ def resolve_folder_icon_path(icon_path: Optional[str]) -> str:
     if icon_path:
         p = Path(icon_path)
         if p.is_absolute():
-            return (
-                str(p)
-                if (p.exists() and is_valid_icon_file(str(p)))
-                else str(get_default_icon_path())
-            )
-        rel = resolve_icon_path(icon_path)
-        if rel:
-            return rel
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+        else:
+            rel = resolve_icon_path(icon_path)
+            if rel and not _is_default_fallback(rel):
+                return rel
     # fallback to folder default
     try:
         from app.config_data import app_config
@@ -252,6 +283,34 @@ def resolve_folder_icon_path(icon_path: Optional[str]) -> str:
         defaults = app_config.get_default_icons()
         folder_name = defaults.get("folder", defaults.get("default", ""))
         path = resolve_icon_path(folder_name)
+        if path and not _is_default_fallback(path):
+            return path
+        return path or str(get_default_icon_path())
+    except Exception:
+        return str(get_default_icon_path())
+
+
+def resolve_link_type_icon_path(icon_path: Optional[str], link_type: str) -> str:
+    """Resolve link icon path with fallback to type-specific default."""
+    if icon_path:
+        p = Path(icon_path)
+        if p.is_absolute():
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+        else:
+            rel = resolve_icon_path(icon_path)
+            if rel and not _is_default_fallback(rel):
+                return rel
+    # fallback to type-specific default
+    try:
+        from app.config_data import app_config
+
+        defaults = app_config.get_default_icons()
+        lt = ((link_type or "file").strip() or "file").lower()
+        type_name = defaults.get(lt, defaults.get("default", ""))
+        path = resolve_icon_path(type_name)
+        if path and not _is_default_fallback(path):
+            return path
         return path or str(get_default_icon_path())
     except Exception:
         return str(get_default_icon_path())
