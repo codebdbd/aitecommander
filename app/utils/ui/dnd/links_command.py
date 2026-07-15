@@ -6,6 +6,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
+from app.utils.ui.dnd.command_utils import (
+    _require_main,
+    _require_structure_business,
+    _get_structure_business,
+)
 from app.utils.common import get_value
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 
@@ -17,27 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 error_handler = BulkOperationErrorHandler()
-
-
-def _require_main(main: object | None) -> MainWindowProtocol:
-    if main is None:
-        raise RuntimeError("Command requires an attached main window")
-    return cast("MainWindowProtocol", main)
-
-
-def _require_structure_business(main: object | None) -> StructureBusinessLogic:
-    main_window = _require_main(main)
-    structure_business = getattr(main_window, "structure_business", None)
-    if structure_business is None:
-        raise RuntimeError("Main window is missing structure_business")
-    return cast("StructureBusinessLogic", structure_business)
-
-
-def _get_structure_business(main: object | None) -> StructureBusinessLogic | None:
-    try:
-        return _require_structure_business(main)
-    except RuntimeError:
-        return None
 
 
 def _reload_links_via_controller(main_window, category_ids) -> None:

@@ -6,6 +6,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
+from app.utils.ui.dnd.command_utils import (
+    _require_main,
+    _require_structure_business,
+    _get_structure_business,
+)
 
 if TYPE_CHECKING:
     from app.controllers.business.structure_business import StructureBusinessLogic
@@ -15,27 +20,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 error_handler = BulkOperationErrorHandler()
-
-
-def _require_main(main: object | None) -> MainWindowProtocol:
-    if main is None:
-        raise RuntimeError("Command requires an attached main window")
-    return cast("MainWindowProtocol", main)
-
-
-def _require_structure_business(main: object | None) -> StructureBusinessLogic:
-    main_window = _require_main(main)
-    structure_business = getattr(main_window, "structure_business", None)
-    if structure_business is None:
-        raise RuntimeError("Main window is missing structure_business")
-    return cast("StructureBusinessLogic", structure_business)
-
-
-def _get_structure_business(main: object | None) -> StructureBusinessLogic | None:
-    try:
-        return _require_structure_business(main)
-    except RuntimeError:
-        return None
 
 
 class MoveCategoryCommand(BaseBulkCommand):
