@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="uk_UA">
   <context>
     <name>DialogManager</name>
@@ -487,7 +486,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\controllers\services\bad_url_check_service.py" line="100" />
       <source>Failed to start URL check: {error}</source>
-      <translation type="unfinished" />
+      <translation>Не вдалося запустити перевірку URL: {error}</translation>
     </message>
   </context>
   <context>
@@ -1322,11 +1321,7 @@ Old database restored.</source>
     <message>
       <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="151" />
       <source>Backup integrity check failed: {error}</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <source>Database path not found</source>
-      <translation type="vanished">Шлях до бази даних не знайдено</translation>
+      <translation>Перевірка цілісності резервної копії не вдалася: {error}</translation>
     </message>
   </context>
   <context>
@@ -1792,7 +1787,7 @@ Failed: {3}</source>
     <message>
       <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="179" />
       <source>Delete multiple categories</source>
-      <translation type="unfinished" />
+      <translation>Видалити кілька категорій</translation>
     </message>
   </context>
   <context>
@@ -1848,49 +1843,6 @@ Failed: {3}</source>
     <message>
       <source>The section creation dialog will be opened.</source>
       <translation>Буде відкрито діалог створення розділу.</translation>
-    </message>
-  </context>
-  <context>
-    <name>ItemOperations</name>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Розділ '{section}' містить {categories} категор(ію/ії) та {links} посил(ання/ань).
-
-Усі вкладені категорії та посилання буде безповоротно видалено!
-
-Ви впевнені, що хочете продовжити?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Категорія '{category}' містить {links} посил(ання/ань).
-
-Усі вкладені посилання буде безповоротно видалено!
-
-Ви впевнені, що хочете продовжити?</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Видалити розділ</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Підтвердити видалення</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
     </message>
   </context>
   <context>
@@ -1966,7 +1918,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="568" />
       <source>Profile: {name}</source>
-      <translation type="unfinished" />
+      <translation>Профіль: {name}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="570" />
@@ -1977,10 +1929,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="573" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Профілі: {first}, {second} та ще {rest}</translation>
-    </message>
-    <message>
-      <source>Profile: {email}</source>
-      <translation type="vanished">Профіль: {email}</translation>
     </message>
   </context>
   <context>
@@ -2180,48 +2128,6 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>LinksUI</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Попередження</translation>
-    </message>
-    <message>
-      <source>Error</source>
-      <translation type="vanished">Помилка</translation>
-    </message>
-    <message>
-      <source>Check data correctness and try again.</source>
-      <translation type="vanished">Перевірте правильність даних і спробуйте ще раз.</translation>
-    </message>
-    <message>
-      <source>Try again or contact support.</source>
-      <translation type="vanished">Спробуйте ще раз або зверніться до підтримки.</translation>
-    </message>
-  </context>
-  <context>
-    <name>LinksUIController</name>
-    <message>
-      <source>Открытие ссылок</source>
-      <translation type="vanished">Відкриття посилань</translation>
-    </message>
-    <message>
-      <source>Вы пытаетесь открыть более 10 ссылок одновременно.
-В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
-Если хотите, мы откроем первые 10 выбранных.</source>
-      <translation type="vanished">Ви намагаєтесь відкрити понад 10 посилань одночасно.
-З метою запобігання проблемам ми обмежуємо запуск до 10 посилань.
-Якщо бажаєте, ми відкриємо перші 10 вибраних.</translation>
-    </message>
-    <message>
-      <source>Открыть 10</source>
-      <translation type="vanished">Відкрити 10</translation>
-    </message>
-    <message>
-      <source>Отмена</source>
-      <translation type="vanished">Скасувати</translation>
-    </message>
-  </context>
-  <context>
     <name>MainMenu</name>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="60" />
@@ -2266,40 +2172,32 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\core\strings.py" line="14" />
       <source>Aite Commander</source>
-      <translation type="unfinished" />
+      <translation>Aite Commander</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="86" />
       <source>Button {idx} of {total} visible buttons</source>
-      <translation type="unfinished">Кнопка {idx} з {total} видимих кнопок</translation>
+      <translation>Кнопка {idx} з {total} видимих кнопок</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="87" />
       <source>Hidden button</source>
-      <translation type="unfinished">Прихована кнопка</translation>
+      <translation>Прихована кнопка</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="88" />
       <source>Recent Links</source>
-      <translation type="unfinished">Недавні посилання</translation>
+      <translation>Недавні посилання</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="89" />
       <source>Favorites</source>
-      <translation type="unfinished">Вибране</translation>
+      <translation>Вибране</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="90" />
       <source>Quick Add</source>
-      <translation type="unfinished">Швидке додавання</translation>
-    </message>
-    <message>
-      <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Скасувати</translation>
-    </message>
-    <message>
-      <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Повторити</translation>
+      <translation>Швидке додавання</translation>
     </message>
   </context>
   <context>
@@ -2432,7 +2330,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
       <source>Clear selection</source>
-      <translation type="unfinished">Очистити вибір</translation>
+      <translation>Очистити вибір</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
@@ -2472,7 +2370,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
       <source>Add note</source>
-      <translation type="unfinished" />
+      <translation>Додати примітку</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
@@ -2568,10 +2466,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
       <source>Error: %1</source>
       <translation>Помилка: %1</translation>
-    </message>
-    <message>
-      <source>Sort categories</source>
-      <translation type="vanished">Сортувати категорії</translation>
     </message>
   </context>
   <context>
@@ -2715,26 +2609,6 @@ Are you sure you want to continue?</source>
       <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
       <translation>Виберіть файл зі списку й натисніть «Відновити». Якщо список порожній, перевірте каталог резервних копій.</translation>
     </message>
-    <message>
-      <source>No backups found</source>
-      <translation type="vanished">Резервні копії не знайдено</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} (before attaching new database) ({size} MB)</source>
-      <translation type="vanished">{backup_name} — перед підключенням нової бази даних: {timestamp} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} ({size} MB)</source>
-      <translation type="vanished">{backup_name} — {timestamp} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>{backup_name} ({size} MB)</source>
-      <translation type="vanished">{backup_name} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>Error: {details}</source>
-      <translation type="vanished">Помилка: {details}</translation>
-    </message>
   </context>
   <context>
     <name>SectionDialog</name>
@@ -2788,17 +2662,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="421" />
       <source>Please choose a different name or edit the existing section.</source>
       <translation>Будь ласка, виберіть іншу назву або відредагуйте існуючий розділ.</translation>
-    </message>
-  </context>
-  <context>
-    <name>SelectionHandling</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Попередження</translation>
-    </message>
-    <message>
-      <source>Check the correctness of actions and try again.</source>
-      <translation type="vanished">Перевірте правильність дій і спробуйте ще раз.</translation>
     </message>
   </context>
   <context>
@@ -2948,61 +2811,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\widgets\status_bar.py" line="168" />
       <source>Path: {path}</source>
       <translation>Шлях: {path}</translation>
-    </message>
-  </context>
-  <context>
-    <name>StructureDeletion</name>
-    <message>
-      <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Буде видалено категорій: {categories} та посилань: {links}.
-
-Усі вкладені посилання буде видалено безповоротно!
-
-Продовжити?</translation>
-    </message>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Розділ '{section}' містить категорій: {categories} та посилань: {links}.
-
-Усі вкладені категорії та посилання буде видалено безповоротно!
-
-Продовжити?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Категорія '{category}' містить посилань: {links}.
-
-Усі вкладені посилання буде видалено безповоротно!
-
-Продовжити?</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Підтвердження видалення</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Видалити розділ</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Дію не можна скасувати. Усі вкладені категорії та посилання буде видалено.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Дію не можна скасувати. Усі посилання в категорії буде видалено.</translation>
     </message>
   </context>
   <context>
@@ -3189,40 +2997,6 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>TopBarPanels</name>
-    <message>
-      <source>Button {idx} of {total} visible buttons</source>
-      <translation type="vanished">Кнопка {idx} з {total} видимих кнопок</translation>
-    </message>
-    <message>
-      <source>Hidden button</source>
-      <translation type="vanished">Прихована кнопка</translation>
-    </message>
-    <message>
-      <source>Recent Links</source>
-      <translation type="vanished">Недавні посилання</translation>
-    </message>
-    <message>
-      <source>Favorites</source>
-      <translation type="vanished">Вибране</translation>
-    </message>
-    <message>
-      <source>Quick Add</source>
-      <translation type="vanished">Швидке додавання</translation>
-    </message>
-  </context>
-  <context>
-    <name>UndoCommands</name>
-    <message>
-      <source>Delete canceled</source>
-      <translation type="vanished">Видалення скасовано</translation>
-    </message>
-    <message>
-      <source>Backup failed. Delete canceled to keep undo available.</source>
-      <translation type="vanished">Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість Undo.</translation>
-    </message>
-  </context>
-  <context>
     <name>ValidationMixin</name>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\validation_mixin.py" line="18" />
@@ -3330,25 +3104,6 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>BackupWorker</name>
-    <message>
-      <source>Preparing backup...</source>
-      <translation>Підготовка резервної копії...</translation>
-    </message>
-    <message>
-      <source>Creating backup...</source>
-      <translation>Створення резервної копії...</translation>
-    </message>
-    <message>
-      <source>Cleaning up old backups...</source>
-      <translation>Очищення старих резервних копій...</translation>
-    </message>
-    <message>
-      <source>Backup completed</source>
-      <translation>Резервне копіювання завершено</translation>
-    </message>
-  </context>
-  <context>
     <name>BrowserBookmarksImporter</name>
     <message>
       <source>Import from browser</source>
@@ -3365,47 +3120,6 @@ Are you sure you want to continue?</source>
     <message>
       <source>Categories created: {count}</source>
       <translation>Створено категорій: {count}</translation>
-    </message>
-  </context>
-  <context>
-    <name>BrowserProfiles</name>
-    <message>
-      <source>Loading {browser}</source>
-      <translation>Завантаження {browser}</translation>
-    </message>
-  </context>
-  <context>
-    <name>DatabaseInit</name>
-    <message>
-      <source>Applying migrations...</source>
-      <translation>Застосування міграцій...</translation>
-    </message>
-    <message>
-      <source>Initializing default data...</source>
-      <translation>Ініціалізація даних за замовчуванням...</translation>
-    </message>
-  </context>
-  <context>
-    <name>ImportExportProgress</name>
-    <message>
-      <source>Loading spheres...</source>
-      <translation>Завантаження сфер...</translation>
-    </message>
-    <message>
-      <source>Loading sections...</source>
-      <translation>Завантаження розділів...</translation>
-    </message>
-    <message>
-      <source>Loading categories...</source>
-      <translation>Завантаження категорій...</translation>
-    </message>
-    <message>
-      <source>Loading links...</source>
-      <translation>Завантаження посилань...</translation>
-    </message>
-    <message>
-      <source>Hierarchy assembly completed</source>
-      <translation>Формування ієрархії завершено</translation>
     </message>
   </context>
 </TS>

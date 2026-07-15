@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="ru_RU">
   <context>
     <name>DialogManager</name>
@@ -483,30 +482,11 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>BackupWorker</name>
-    <message>
-      <source>Preparing backup...</source>
-      <translation type="vanished">Подготовка резервной копии...</translation>
-    </message>
-    <message>
-      <source>Creating backup...</source>
-      <translation type="vanished">Создание резервной копии...</translation>
-    </message>
-    <message>
-      <source>Cleaning up old backups...</source>
-      <translation type="vanished">Очистка старых резервных копий...</translation>
-    </message>
-    <message>
-      <source>Backup completed</source>
-      <translation type="vanished">Резервное копирование завершено</translation>
-    </message>
-  </context>
-  <context>
     <name>BadUrlCheckService</name>
     <message>
       <location filename="..\app\controllers\services\bad_url_check_service.py" line="100" />
       <source>Failed to start URL check: {error}</source>
-      <translation type="unfinished" />
+      <translation>Не удалось запустить проверку URL: {error}</translation>
     </message>
   </context>
   <context>
@@ -962,13 +942,6 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>BrowserProfiles</name>
-    <message>
-      <source>Loading {browser}</source>
-      <translation type="vanished">Загрузка {browser}</translation>
-    </message>
-  </context>
-  <context>
     <name>CategoryDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="583" />
@@ -1339,17 +1312,6 @@ Old database restored.</source>
     </message>
   </context>
   <context>
-    <name>DatabaseInit</name>
-    <message>
-      <source>Applying migrations...</source>
-      <translation type="vanished">Применение миграций...</translation>
-    </message>
-    <message>
-      <source>Initializing default data...</source>
-      <translation type="vanished">Инициализация данных по умолчанию...</translation>
-    </message>
-  </context>
-  <context>
     <name>DatabaseInitializer</name>
     <message>
       <location filename="..\app\controllers\system\db_init.py" line="47" />
@@ -1378,11 +1340,7 @@ Old database restored.</source>
     <message>
       <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="151" />
       <source>Backup integrity check failed: {error}</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <source>Database path not found</source>
-      <translation type="vanished">Путь к базе данных не найден</translation>
+      <translation>Проверка целостности резервной копии не удалась: {error}</translation>
     </message>
   </context>
   <context>
@@ -1844,34 +1802,11 @@ Failed: {3}</source>
     </message>
   </context>
   <context>
-    <name>ImportExportProgress</name>
-    <message>
-      <source>Loading spheres...</source>
-      <translation type="vanished">Загрузка сфер...</translation>
-    </message>
-    <message>
-      <source>Loading sections...</source>
-      <translation type="vanished">Загрузка разделов...</translation>
-    </message>
-    <message>
-      <source>Loading categories...</source>
-      <translation type="vanished">Загрузка категорий...</translation>
-    </message>
-    <message>
-      <source>Loading links...</source>
-      <translation type="vanished">Загрузка ссылок...</translation>
-    </message>
-    <message>
-      <source>Hierarchy assembly completed</source>
-      <translation type="vanished">Формирование иерархии завершено</translation>
-    </message>
-  </context>
-  <context>
     <name>ItemDeletionService</name>
     <message>
       <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="179" />
       <source>Delete multiple categories</source>
-      <translation type="unfinished" />
+      <translation>Удалить несколько категорий</translation>
     </message>
   </context>
   <context>
@@ -1927,49 +1862,6 @@ Failed: {3}</source>
     <message>
       <source>The section creation dialog will be opened.</source>
       <translation>Будет открыт диалог создания раздела.</translation>
-    </message>
-  </context>
-  <context>
-    <name>ItemOperations</name>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Раздел '{section}' содержит {categories} категор(ию/ии) и {links} ссыл(ку/ок).
-
-Все вложенные категории и ссылки будут удалены безвозвратно!
-
-Вы уверены, что хотите продолжить?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Категория '{category}' содержит {links} ссыл(ку/ок).
-
-Все вложенные ссылки будут удалены безвозвратно!
-
-Вы уверены, что хотите продолжить?</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Удалить раздел</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Подтвердить удаление</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Это действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Это действие необратимо. Все ссылки в категории будут удалены.</translation>
     </message>
   </context>
   <context>
@@ -2045,7 +1937,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="568" />
       <source>Profile: {name}</source>
-      <translation type="unfinished" />
+      <translation>Профиль: {name}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="570" />
@@ -2056,10 +1948,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="573" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Профили: {first}, {second} и еще {rest}</translation>
-    </message>
-    <message>
-      <source>Profile: {email}</source>
-      <translation type="vanished">Профиль: {email}</translation>
     </message>
   </context>
   <context>
@@ -2259,48 +2147,6 @@ Are you sure you want to continue?</source>
     </message>
   </context>
   <context>
-    <name>LinksUI</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Предупреждение</translation>
-    </message>
-    <message>
-      <source>Error</source>
-      <translation type="vanished">Ошибка</translation>
-    </message>
-    <message>
-      <source>Check data correctness and try again.</source>
-      <translation type="vanished">Проверьте корректность данных и попробуйте снова.</translation>
-    </message>
-    <message>
-      <source>Try again or contact support.</source>
-      <translation type="vanished">Повторите попытку или обратитесь в поддержку.</translation>
-    </message>
-  </context>
-  <context>
-    <name>LinksUIController</name>
-    <message>
-      <source>Открытие ссылок</source>
-      <translation type="vanished">Открытие ссылок</translation>
-    </message>
-    <message>
-      <source>Вы пытаетесь открыть более 10 ссылок одновременно.
-В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
-Если хотите, мы откроем первые 10 выбранных.</source>
-      <translation type="vanished">Вы пытаетесь открыть более 10 ссылок одновременно.
-В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
-Если хотите, мы откроем первые 10 выбранных.</translation>
-    </message>
-    <message>
-      <source>Открыть 10</source>
-      <translation type="vanished">Открыть 10</translation>
-    </message>
-    <message>
-      <source>Отмена</source>
-      <translation type="vanished">Отмена</translation>
-    </message>
-  </context>
-  <context>
     <name>MainMenu</name>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="60" />
@@ -2345,40 +2191,32 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\core\strings.py" line="14" />
       <source>Aite Commander</source>
-      <translation type="unfinished" />
+      <translation>Aite Commander</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="86" />
       <source>Button {idx} of {total} visible buttons</source>
-      <translation type="unfinished">Кнопка {idx} из {total} видимых кнопок</translation>
+      <translation>Кнопка {idx} из {total} видимых кнопок</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="87" />
       <source>Hidden button</source>
-      <translation type="unfinished">Скрытая кнопка</translation>
+      <translation>Скрытая кнопка</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="88" />
       <source>Recent Links</source>
-      <translation type="unfinished">Недавние ссылки</translation>
+      <translation>Недавние ссылки</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="89" />
       <source>Favorites</source>
-      <translation type="unfinished">Избранное</translation>
+      <translation>Избранное</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="90" />
       <source>Quick Add</source>
-      <translation type="unfinished">Быстрое добавление</translation>
-    </message>
-    <message>
-      <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Отменить</translation>
-    </message>
-    <message>
-      <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Повторить</translation>
+      <translation>Быстрое добавление</translation>
     </message>
   </context>
   <context>
@@ -2511,7 +2349,7 @@ Are you sure you want to continue?</source>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
       <source>Clear selection</source>
-      <translation type="unfinished">Очистить выбор</translation>
+      <translation>Очистить выбор</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
@@ -2647,10 +2485,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
       <source>Error: %1</source>
       <translation>Ошибка: %1</translation>
-    </message>
-    <message>
-      <source>Sort categories</source>
-      <translation type="vanished">Сортировать категории</translation>
     </message>
   </context>
   <context>
@@ -2794,26 +2628,6 @@ Are you sure you want to continue?</source>
       <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
       <translation>Выберите файл из списка и нажмите «Восстановить». Если список пуст, проверьте каталог резервных копий.</translation>
     </message>
-    <message>
-      <source>No backups found</source>
-      <translation type="vanished">Резервные копии не найдены</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} (before attaching new database) ({size} MB)</source>
-      <translation type="vanished">{backup_name} — перед присоединением новой базы данных: {timestamp} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} ({size} MB)</source>
-      <translation type="vanished">{backup_name} — {timestamp} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>{backup_name} ({size} MB)</source>
-      <translation type="vanished">{backup_name} ({size} МБ)</translation>
-    </message>
-    <message>
-      <source>Error: {details}</source>
-      <translation type="vanished">Ошибка: {details}</translation>
-    </message>
   </context>
   <context>
     <name>SectionDialog</name>
@@ -2867,17 +2681,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="421" />
       <source>Please choose a different name or edit the existing section.</source>
       <translation>Пожалуйста, выберите другое имя или отредактируйте существующий раздел.</translation>
-    </message>
-  </context>
-  <context>
-    <name>SelectionHandling</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Предупреждение</translation>
-    </message>
-    <message>
-      <source>Check the correctness of actions and try again.</source>
-      <translation type="vanished">Проверьте корректность действий и попробуйте снова.</translation>
     </message>
   </context>
   <context>
@@ -3027,73 +2830,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\views\widgets\status_bar.py" line="168" />
       <source>Path: {path}</source>
       <translation>Путь: {path}</translation>
-    </message>
-  </context>
-  <context>
-    <name>StructureDeletion</name>
-    <message>
-      <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Будут удалены категории: {categories} и ссылки: {links}.
-
-Все вложенные ссылки будут удалены безвозвратно!
-
-Продолжить?</translation>
-    </message>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
-
-Все вложенные категории и ссылки будут удалены безвозвратно!
-
-Продолжить?</translation>
-    </message>
-    <message>
-      <source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Выбранные разделы содержат категорий: {categories} и ссылок: {links}.
-
-Все вложенные категории и ссылки будут удалены безвозвратно!
-
-Продолжить?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Категория '{category}' содержит ссылок: {links}.
-
-Все вложенные ссылки будут удалены безвозвратно!
-
-Продолжить?</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Подтверждение удаления</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Удалить раздел</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Действие необратимо. Все ссылки в категории будут удалены.</translation>
     </message>
   </context>
   <context>
@@ -3277,40 +3013,6 @@ Are you sure you want to continue?</source>
       <location filename="..\app\controllers\ui\theme_controller.py" line="25" />
       <source>Dark</source>
       <translation>Темная</translation>
-    </message>
-  </context>
-  <context>
-    <name>TopBarPanels</name>
-    <message>
-      <source>Button {idx} of {total} visible buttons</source>
-      <translation type="vanished">Кнопка {idx} из {total} видимых кнопок</translation>
-    </message>
-    <message>
-      <source>Hidden button</source>
-      <translation type="vanished">Скрытая кнопка</translation>
-    </message>
-    <message>
-      <source>Recent Links</source>
-      <translation type="vanished">Недавние ссылки</translation>
-    </message>
-    <message>
-      <source>Favorites</source>
-      <translation type="vanished">Избранное</translation>
-    </message>
-    <message>
-      <source>Quick Add</source>
-      <translation type="vanished">Быстрое добавление</translation>
-    </message>
-  </context>
-  <context>
-    <name>UndoCommands</name>
-    <message>
-      <source>Delete canceled</source>
-      <translation type="vanished">Удаление отменено</translation>
-    </message>
-    <message>
-      <source>Backup failed. Delete canceled to keep undo available.</source>
-      <translation type="vanished">Не удалось создать резервную копию. Удаление отменено, чтобы сохранить возможность Undo.</translation>
     </message>
   </context>
   <context>
