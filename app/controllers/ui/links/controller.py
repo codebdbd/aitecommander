@@ -279,17 +279,6 @@ class LinksUIController(QObject):
     def copy_selected_links(self) -> None:
         """Copy selected links."""
         self.clipboard.copy_link()
-    def toggle_favorite(self, link: dict | None = None) -> None:
-        """Toggle favorite status."""
-        self.link_ops._toggle_fav(link)
-
-    def cut_selected_links(self) -> None:
-        """Cut selected links."""
-        self.clipboard.cut_link()
-
-    def copy_selected_links(self) -> None:
-        """Copy selected links."""
-        self.clipboard.copy_link()
 
     def paste_links(self) -> None:
         """Paste links from clipboard."""
