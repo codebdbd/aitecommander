@@ -2108,6 +2108,14 @@ Failed: {3}</source>
       <source>Link not found</source>
       <translation>Посилання не знайдено</translation>
     </message>
+    <message>
+      <source>Invalid link data provided: not a dict</source>
+      <translation>Невірні дані посилання: не dict</translation>
+    </message>
+    <message>
+      <source>Invalid link data provided</source>
+      <translation>Невірні дані посилання</translation>
+    </message>
   </context>
   <context>
     <name>LinksTableModel</name>
