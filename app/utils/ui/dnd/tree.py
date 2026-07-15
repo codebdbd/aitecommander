@@ -607,8 +607,6 @@ class DragDropHandler(TreeHandlerBase):
                 table.table_populated.connect(_on_populated)
         except Exception as e:
             logger.debug("Failed to schedule focus after table update: %s", e)
-        
-        return True
 
     def _extract_link_ids_from_mime(self, mime) -> list[int]:
         """Extracts link IDs from MIME data."""
