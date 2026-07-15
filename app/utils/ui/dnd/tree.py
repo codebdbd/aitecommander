@@ -573,40 +573,8 @@ class DragDropHandler(TreeHandlerBase):
                 "Failed to emit itemsMoved after moving links %s", link_ids, exc_info=True
             )
 
-        # Set focus on first moved link after table is populated
-        if link_ids:
-            first_link_id = link_ids[0] if link_ids else None
-            if first_link_id:
-                self._schedule_focus_after_table_update(first_link_id)
+        # Focus is handled by MoveLinksCommand._refresh_ui
         return True
-    
-    def _schedule_focus_after_table_update(self, link_id: int) -> None:
-        """Schedule focus on link after table_populated signal."""
-        try:
-            main_win = self.tree_widget.window()
-            if not main_win:
-                return
-            
-            # Get the target category from the last drop operation
-            # The category should already be selected by the command execution
-            
-            table = getattr(main_win, 'links_table', None)
-            if table and hasattr(table, 'table_populated'):
-                def _on_populated():
-                    try:
-                        if hasattr(main_win, 'links_actions'):
-                            main_win.links_actions.focus_on_link(link_id)
-                        # Disconnect after first call
-                        try:
-                            table.table_populated.disconnect(_on_populated)
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        logger.debug("Failed to focus on link %s: %s", link_id, e)
-                
-                table.table_populated.connect(_on_populated)
-        except Exception as e:
-            logger.debug("Failed to schedule focus after table update: %s", e)
 
     def _extract_link_ids_from_mime(self, mime) -> list[int]:
         """Extracts link IDs from MIME data."""
