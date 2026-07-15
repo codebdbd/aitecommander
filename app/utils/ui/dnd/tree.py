@@ -548,13 +548,6 @@ class DragDropHandler(TreeHandlerBase):
         new_category_id = ttuple[1]
         if not isinstance(new_category_id, int):
             return False
-
-        # Connect to table_populated BEFORE executing the command,
-        # because the signal may fire synchronously during execute.
-        first_link_id = link_ids[0] if link_ids else None
-        if first_link_id:
-            self._schedule_focus_after_table_update(first_link_id)
-
         try:
             self.tree_widget.move_operations_handler.execute_move_links_command(
                 link_ids, new_category_id
@@ -580,6 +573,11 @@ class DragDropHandler(TreeHandlerBase):
                 "Failed to emit itemsMoved after moving links %s", link_ids, exc_info=True
             )
 
+        # Set focus on first moved link after table is populated
+        if link_ids:
+            first_link_id = link_ids[0] if link_ids else None
+            if first_link_id:
+                self._schedule_focus_after_table_update(first_link_id)
         return True
     
     def _schedule_focus_after_table_update(self, link_id: int) -> None:
