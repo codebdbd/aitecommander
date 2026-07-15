@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="es_ES">
   <context>
     <name>DialogManager</name>
@@ -487,7 +486,7 @@ Todos los enlaces anidados se eliminarán permanentemente.
     <message>
       <location filename="..\app\controllers\services\bad_url_check_service.py" line="100" />
       <source>Failed to start URL check: {error}</source>
-      <translation type="unfinished" />
+      <translation>No se pudo iniciar la comprobación de URL: {error}</translation>
     </message>
   </context>
   <context>
@@ -1321,11 +1320,7 @@ Se restauró la base de datos anterior.</translation>
     <message>
       <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="151" />
       <source>Backup integrity check failed: {error}</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <source>Database path not found</source>
-      <translation type="vanished">Ruta de la base de datos no encontrada</translation>
+      <translation>Error en la verificación de integridad de la copia de seguridad: {error}</translation>
     </message>
   </context>
   <context>
@@ -1791,7 +1786,7 @@ Fallos: {3}</translation>
     <message>
       <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="179" />
       <source>Delete multiple categories</source>
-      <translation type="unfinished" />
+      <translation>Eliminar varias categorías</translation>
     </message>
   </context>
   <context>
@@ -1847,49 +1842,6 @@ Fallos: {3}</translation>
     <message>
       <source>The section creation dialog will be opened.</source>
       <translation>Se abrirá el diálogo de creación de sección.</translation>
-    </message>
-  </context>
-  <context>
-    <name>ItemOperations</name>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">La sección '{section}' contiene {categories} categoría(s) y {links} enlace(s).
-
-Todas las categorías y enlaces anidados se eliminarán de forma permanente.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">La categoría '{category}' contiene {links} enlace(s).
-
-Todos los enlaces anidados se eliminarán de forma permanente.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Eliminar sección</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Confirmar eliminación</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Esta acción es irreversible. Todas las categorías y enlaces anidados se eliminarán.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Esta acción es irreversible. Todos los enlaces de la categoría se eliminarán.</translation>
     </message>
   </context>
   <context>
@@ -1965,7 +1917,7 @@ Todos los enlaces anidados se eliminarán de forma permanente.
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="568" />
       <source>Profile: {name}</source>
-      <translation type="unfinished" />
+      <translation>Perfil: {name}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="570" />
@@ -1976,10 +1928,6 @@ Todos los enlaces anidados se eliminarán de forma permanente.
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="573" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Perfiles: {first}, {second} y {rest} más</translation>
-    </message>
-    <message>
-      <source>Profile: {email}</source>
-      <translation type="vanished">Perfil: {email}</translation>
     </message>
   </context>
   <context>
@@ -2179,48 +2127,6 @@ Todos los enlaces anidados se eliminarán de forma permanente.
     </message>
   </context>
   <context>
-    <name>LinksUI</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Advertencia</translation>
-    </message>
-    <message>
-      <source>Error</source>
-      <translation type="vanished">Error</translation>
-    </message>
-    <message>
-      <source>Check data correctness and try again.</source>
-      <translation type="vanished">Compruebe la corrección de los datos e intente de nuevo.</translation>
-    </message>
-    <message>
-      <source>Try again or contact support.</source>
-      <translation type="vanished">Intente de nuevo o contacte con soporte.</translation>
-    </message>
-  </context>
-  <context>
-    <name>LinksUIController</name>
-    <message>
-      <source>Открытие ссылок</source>
-      <translation type="vanished">Open links</translation>
-    </message>
-    <message>
-      <source>Вы пытаетесь открыть более 10 ссылок одновременно.
-В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
-Если хотите, мы откроем первые 10 выбранных.</source>
-      <translation type="vanished">You are trying to open more than 10 links at once.
-To prevent issues, we limit opening to 10 links.
-If you want, we will open the first 10 selected.</translation>
-    </message>
-    <message>
-      <source>Открыть 10</source>
-      <translation type="vanished">Open 10</translation>
-    </message>
-    <message>
-      <source>Отмена</source>
-      <translation type="vanished">Cancel</translation>
-    </message>
-  </context>
-  <context>
     <name>MainMenu</name>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="60" />
@@ -2265,40 +2171,32 @@ If you want, we will open the first 10 selected.</translation>
     <message>
       <location filename="..\app\core\strings.py" line="14" />
       <source>Aite Commander</source>
-      <translation type="unfinished" />
+      <translation>Aite Commander</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="86" />
       <source>Button {idx} of {total} visible buttons</source>
-      <translation type="unfinished">Botón {idx} de {total} botones visibles</translation>
+      <translation>Botón {idx} de {total} botones visibles</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="87" />
       <source>Hidden button</source>
-      <translation type="unfinished">Botón oculto</translation>
+      <translation>Botón oculto</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="88" />
       <source>Recent Links</source>
-      <translation type="unfinished">Enlaces recientes</translation>
+      <translation>Enlaces recientes</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="89" />
       <source>Favorites</source>
-      <translation type="unfinished">Favoritos</translation>
+      <translation>Favoritos</translation>
     </message>
     <message>
       <location filename="..\app\core\strings.py" line="90" />
       <source>Quick Add</source>
-      <translation type="unfinished">Añadir rápido</translation>
-    </message>
-    <message>
-      <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Deshacer</translation>
-    </message>
-    <message>
-      <source>&amp;Redo</source>
-      <translation type="vanished">Re&amp;hacer</translation>
+      <translation>Añadir rápido</translation>
     </message>
   </context>
   <context>
@@ -2431,7 +2329,7 @@ If you want, we will open the first 10 selected.</translation>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
       <source>Clear selection</source>
-      <translation type="unfinished">Borrar selección</translation>
+      <translation>Borrar selección</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
@@ -2471,7 +2369,7 @@ If you want, we will open the first 10 selected.</translation>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
       <source>Add note</source>
-      <translation type="unfinished" />
+      <translation>Agregar nota</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
@@ -2567,10 +2465,6 @@ If you want, we will open the first 10 selected.</translation>
       <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
       <source>Error: %1</source>
       <translation>Error: %1</translation>
-    </message>
-    <message>
-      <source>Sort categories</source>
-      <translation type="vanished">Ordenar categorías</translation>
     </message>
   </context>
   <context>
@@ -2714,26 +2608,6 @@ If you want, we will open the first 10 selected.</translation>
       <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
       <translation>Seleccione un archivo de la lista y haga clic en «Restaurar». Si la lista está vacía, verifique el directorio de copias de seguridad.</translation>
     </message>
-    <message>
-      <source>No backups found</source>
-      <translation type="vanished">No se encontraron copias de seguridad</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} (before attaching new database) ({size} MB)</source>
-      <translation type="vanished">{timestamp} | {backup_name} (antes de adjuntar la nueva base de datos) ({size} MB)</translation>
-    </message>
-    <message>
-      <source>{timestamp} | {backup_name} ({size} MB)</source>
-      <translation type="vanished">{timestamp} | {backup_name} ({size} MB)</translation>
-    </message>
-    <message>
-      <source>{backup_name} ({size} MB)</source>
-      <translation type="vanished">{backup_name} ({size} MB)</translation>
-    </message>
-    <message>
-      <source>Error: {details}</source>
-      <translation type="vanished">Error: {details}</translation>
-    </message>
   </context>
   <context>
     <name>SectionDialog</name>
@@ -2787,17 +2661,6 @@ If you want, we will open the first 10 selected.</translation>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="421" />
       <source>Please choose a different name or edit the existing section.</source>
       <translation>Elija un nombre diferente o edite la sección existente.</translation>
-    </message>
-  </context>
-  <context>
-    <name>SelectionHandling</name>
-    <message>
-      <source>Warning</source>
-      <translation type="vanished">Advertencia</translation>
-    </message>
-    <message>
-      <source>Check the correctness of actions and try again.</source>
-      <translation type="vanished">Compruebe la corrección de las acciones e intente de nuevo.</translation>
     </message>
   </context>
   <context>
@@ -2947,61 +2810,6 @@ If you want, we will open the first 10 selected.</translation>
       <location filename="..\app\views\widgets\status_bar.py" line="168" />
       <source>Path: {path}</source>
       <translation>Ruta: {path}</translation>
-    </message>
-  </context>
-  <context>
-    <name>StructureDeletion</name>
-    <message>
-      <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">Se eliminarán en total {categories} categorías y {links} enlaces.
-
-Todos los enlaces anidados se eliminarán de forma permanente.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-      <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">La sección '{section}' contiene {categories} categorías y {links} enlaces.
-
-Todas las categorías y enlaces anidados se eliminarán de forma permanente.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-      <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-      <translation type="vanished">La categoría '{category}' contiene {links} enlaces.
-
-Todos los enlaces anidados se eliminarán de forma permanente.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-      <source>Confirm deletion</source>
-      <translation type="vanished">Confirmar eliminación</translation>
-    </message>
-    <message>
-      <source>Delete section</source>
-      <translation type="vanished">Eliminar sección</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All nested categories and links will be deleted.</source>
-      <translation type="vanished">Esta acción es irreversible. Se eliminarán todas las categorías y enlaces anidados.</translation>
-    </message>
-    <message>
-      <source>This action is irreversible. All links in the category will be deleted.</source>
-      <translation type="vanished">Esta acción es irreversible. Se eliminarán todos los enlaces de la categoría.</translation>
     </message>
   </context>
   <context>
@@ -3188,40 +2996,6 @@ Todos los enlaces anidados se eliminarán de forma permanente.
     </message>
   </context>
   <context>
-    <name>TopBarPanels</name>
-    <message>
-      <source>Button {idx} of {total} visible buttons</source>
-      <translation type="vanished">Botón {idx} de {total} botones visibles</translation>
-    </message>
-    <message>
-      <source>Hidden button</source>
-      <translation type="vanished">Botón oculto</translation>
-    </message>
-    <message>
-      <source>Recent Links</source>
-      <translation type="vanished">Enlaces recientes</translation>
-    </message>
-    <message>
-      <source>Favorites</source>
-      <translation type="vanished">Favoritos</translation>
-    </message>
-    <message>
-      <source>Quick Add</source>
-      <translation type="vanished">Añadir rápido</translation>
-    </message>
-  </context>
-  <context>
-    <name>UndoCommands</name>
-    <message>
-      <source>Delete canceled</source>
-      <translation type="vanished">Eliminación cancelada</translation>
-    </message>
-    <message>
-      <source>Backup failed. Delete canceled to keep undo available.</source>
-      <translation type="vanished">La copia de seguridad falló. Eliminación cancelada para mantener disponible Deshacer.</translation>
-    </message>
-  </context>
-  <context>
     <name>ValidationMixin</name>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\validation_mixin.py" line="18" />
@@ -3329,25 +3103,6 @@ Todos los enlaces anidados se eliminarán de forma permanente.
     </message>
   </context>
   <context>
-    <name>BackupWorker</name>
-    <message>
-      <source>Preparing backup...</source>
-      <translation>Preparando copia de seguridad...</translation>
-    </message>
-    <message>
-      <source>Creating backup...</source>
-      <translation>Creando copia de seguridad...</translation>
-    </message>
-    <message>
-      <source>Cleaning up old backups...</source>
-      <translation>Limpiando copias de seguridad antiguas...</translation>
-    </message>
-    <message>
-      <source>Backup completed</source>
-      <translation>Copia de seguridad completada</translation>
-    </message>
-  </context>
-  <context>
     <name>BrowserBookmarksImporter</name>
     <message>
       <source>Import from browser</source>
@@ -3364,47 +3119,6 @@ Todos los enlaces anidados se eliminarán de forma permanente.
     <message>
       <source>Categories created: {count}</source>
       <translation>Categorías creadas: {count}</translation>
-    </message>
-  </context>
-  <context>
-    <name>BrowserProfiles</name>
-    <message>
-      <source>Loading {browser}</source>
-      <translation>Cargando {browser}</translation>
-    </message>
-  </context>
-  <context>
-    <name>DatabaseInit</name>
-    <message>
-      <source>Applying migrations...</source>
-      <translation>Aplicando migraciones...</translation>
-    </message>
-    <message>
-      <source>Initializing default data...</source>
-      <translation>Inicializando datos predeterminados...</translation>
-    </message>
-  </context>
-  <context>
-    <name>ImportExportProgress</name>
-    <message>
-      <source>Loading spheres...</source>
-      <translation>Cargando esferas...</translation>
-    </message>
-    <message>
-      <source>Loading sections...</source>
-      <translation>Cargando secciones...</translation>
-    </message>
-    <message>
-      <source>Loading categories...</source>
-      <translation>Cargando categorías...</translation>
-    </message>
-    <message>
-      <source>Loading links...</source>
-      <translation>Cargando enlaces...</translation>
-    </message>
-    <message>
-      <source>Hierarchy assembly completed</source>
-      <translation>Montaje de la jerarquía completado</translation>
     </message>
   </context>
 </TS>
