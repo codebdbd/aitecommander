@@ -2107,6 +2107,14 @@ Fallos: {3}</translation>
       <source>Link not found</source>
       <translation>Enlace no encontrado</translation>
     </message>
+    <message>
+      <source>Invalid link data provided: not a dict</source>
+      <translation>Datos de enlace inválidos: no es un dict</translation>
+    </message>
+    <message>
+      <source>Invalid link data provided</source>
+      <translation>Datos de enlace inválidos</translation>
+    </message>
   </context>
   <context>
     <name>LinksTableModel</name>

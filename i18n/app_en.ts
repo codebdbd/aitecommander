@@ -2107,6 +2107,14 @@ Failed: {3}</translation>
       <source>Link not found</source>
       <translation>Link not found</translation>
     </message>
+    <message>
+      <source>Invalid link data provided: not a dict</source>
+      <translation>Invalid link data provided: not a dict</translation>
+    </message>
+    <message>
+      <source>Invalid link data provided</source>
+      <translation>Invalid link data provided</translation>
+    </message>
   </context>
   <context>
     <name>LinksTableModel</name>

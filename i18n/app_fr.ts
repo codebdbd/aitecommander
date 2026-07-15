@@ -2107,6 +2107,14 @@ Ignorés : {2}
       <source>Link not found</source>
       <translation>Lien introuvable</translation>
     </message>
+    <message>
+      <source>Invalid link data provided: not a dict</source>
+      <translation>Données de lien invalides : pas un dict</translation>
+    </message>
+    <message>
+      <source>Invalid link data provided</source>
+      <translation>Données de lien invalides</translation>
+    </message>
   </context>
   <context>
     <name>LinksTableModel</name>

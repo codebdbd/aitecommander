@@ -2107,6 +2107,14 @@ Fehlgeschlagen: {3}</translation>
       <source>Link not found</source>
       <translation>Link nicht gefunden</translation>
     </message>
+    <message>
+      <source>Invalid link data provided: not a dict</source>
+      <translation>Ungültige Linkdaten: kein Dict</translation>
+    </message>
+    <message>
+      <source>Invalid link data provided</source>
+      <translation>Ungültige Linkdaten</translation>
+    </message>
   </context>
   <context>
     <name>LinksTableModel</name>
