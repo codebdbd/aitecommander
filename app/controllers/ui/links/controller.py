@@ -279,6 +279,17 @@ class LinksUIController(QObject):
     def copy_selected_links(self) -> None:
         """Copy selected links."""
         self.clipboard.copy_link()
+    def toggle_favorite(self, link: dict | None = None) -> None:
+        """Toggle favorite status."""
+        self.link_ops._toggle_fav(link)
+
+    def cut_selected_links(self) -> None:
+        """Cut selected links."""
+        self.clipboard.cut_link()
+
+    def copy_selected_links(self) -> None:
+        """Copy selected links."""
+        self.clipboard.copy_link()
 
     def paste_links(self) -> None:
         """Paste links from clipboard."""
@@ -290,11 +301,7 @@ class LinksUIController(QObject):
         self.clipboard.delete_links(links)
 
     def focus_on_link(self, link_id: int) -> None:
-        """Focus on link with specified ID.
-
-        Logic moved from MainWindow._restore_table_selection to eliminate duplication
-        and so external calls (see link_operations_controller) work through UI controller.
-        """
+        """Focus on link with specified ID."""
         try:
             # Fast path: use index if available
             row = self._row_by_link_id.get(link_id)
@@ -303,9 +310,59 @@ class LinksUIController(QObject):
                 self.rebuild_row_index()
                 row = self._row_by_link_id.get(link_id)
             if row is not None:
-                self.select_row(row)
-                self.set_current_cell(row, 0)
-                self.scroll_to_row(row)
+                self.focus_on_links([link_id])
+            else:
+                logger.debug(
+                    "focus_on_link: link_id %s not found in current table, saving to pending", link_id
+                )
+                self._pending_focus_link_ids = [link_id]
+        except Exception as e:
+            logger.error("Failed to focus on link %s: %s", link_id, e)
+
+    def focus_on_links(self, link_ids: list[int]) -> None:
+        """Focus on multiple links with specified IDs."""
+        try:
+            if not link_ids:
+                return
+            # Fast path: use index if available
+            rows_to_select = []
+            for link_id in link_ids:
+                row = self._row_by_link_id.get(link_id)
+                if row is None:
+                    # Lazy index rebuild
+                    self.rebuild_row_index()
+                    break
+            
+            for link_id in link_ids:
+                row = self._row_by_link_id.get(link_id)
+                if row is not None:
+                    rows_to_select.append(row)
+                    
+            if rows_to_select:
+                from PyQt6.QtCore import QItemSelection, QItemSelectionModel
+                
+                sel_model = self.table.selectionModel()
+                if sel_model:
+                    model = self.table.model()
+                    selection = QItemSelection()
+                    for row in rows_to_select:
+                        left_idx = model.index(row, 0)
+                        right_idx = model.index(row, model.columnCount() - 1)
+                        selection.select(left_idx, right_idx)
+                        
+                    sel_model.select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
+                    
+                    # Set current index without clearing the selection we just made
+                    first_row = rows_to_select[0]
+                    first_idx = model.index(first_row, 0)
+                    if first_idx.isValid():
+                        sel_model.setCurrentIndex(first_idx, QItemSelectionModel.SelectionFlag.NoUpdate)
+                else:
+                    for row in rows_to_select:
+                        self.select_row(row)
+                        
+                first_row = rows_to_select[0]
+                self.scroll_to_row(first_row)
                 try:
                     manager = get_focus_manager()
                     manager.set_focus(
@@ -317,10 +374,11 @@ class LinksUIController(QObject):
                     pass
             else:
                 logger.debug(
-                    "focus_on_link: link_id %s not found in current table", link_id
+                    "focus_on_links: link_ids %s not found in current table, saving to pending", link_ids
                 )
+                self._pending_focus_link_ids = link_ids
         except Exception as e:
-            logger.error("Failed to focus on link %s: %s", link_id, e)
+            logger.error("Failed to focus on links %s: %s", link_ids, e)
 
     def rebuild_row_index(self) -> None:
         """Rebuild link_id -> row index from current table contents."""
@@ -331,6 +389,13 @@ class LinksUIController(QObject):
                 link = self.get_link_at(row)
                 if link and "id" in link:
                     self._row_by_link_id[link["id"]] = row
+                    
+            if hasattr(self, "_pending_focus_link_ids") and self._pending_focus_link_ids:
+                pending = self._pending_focus_link_ids
+                self._pending_focus_link_ids = None
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: self.focus_on_links(pending))
+                
         except Exception as e:
             logger.debug("rebuild_row_index failed: %s", e)
 

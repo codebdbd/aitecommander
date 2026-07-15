@@ -66,7 +66,8 @@ class DragDropHandler(TreeHandlerBase):
             target_index: QModelIndex = self.tree_widget.indexAt(
                 event.position().toPoint()
             )
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to resolve target index: %s", e, exc_info=True)
             return None
 
         if not target_index or not target_index.isValid():
@@ -99,7 +100,8 @@ class DragDropHandler(TreeHandlerBase):
             target_index: QModelIndex = self.tree_widget.indexAt(
                 event.position().toPoint()
             )
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to update internal drag focus: %s", e, exc_info=True)
             return
 
         if not target_index or not target_index.isValid():
@@ -255,7 +257,8 @@ class DragDropHandler(TreeHandlerBase):
         if selection_model and hasattr(selection_model, "selectedRows"):
             try:
                 selected_indexes = selection_model.selectedRows(0) or []
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to get selected rows: %s", e, exc_info=True)
                 selected_indexes = []
 
         if not selected_indexes:
@@ -457,8 +460,8 @@ class DragDropHandler(TreeHandlerBase):
         if not category_indices:
             try:
                 self.tree_widget.invalidDrop.emit("Only categories can be moved")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to emit invalidDrop signal: %s", e, exc_info=True)
             event.ignore()
             return
 
@@ -488,8 +491,8 @@ class DragDropHandler(TreeHandlerBase):
         else:
             try:
                 self.tree_widget.invalidDrop.emit("Invalid move operation")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to emit invalidDrop signal: %s", e, exc_info=True)
             event.ignore()
 
     def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> bool:
