@@ -424,115 +424,27 @@ class DragDropHandler(TreeHandlerBase):
                 )
         return None
 
-    def _begin_batch_operation(self, structure_business):
-        """Begin batch operation if supported."""
-        if structure_business and hasattr(structure_business, "begin_batch"):
-            try:
-                structure_business.begin_batch()
-                return True
-            except Exception:
-                pass
-        return False
-
-    def _move_single_category(
-        self, cid, section_id, target_row, structure_business, model
-    ):
-        """Move single category using business logic or model."""
-        if structure_business:
-            try:
-                result = structure_business.move_categories_batch(
-                    [int(cid)], int(section_id), target_row
-                )
-                if isinstance(result, list):
-                    return bool(result)
-                elif isinstance(result, tuple) and result:
-                    return True
-            except Exception:
-                pass
-
-        try:
-            return hasattr(model, "move_category") and model.move_category(
-                int(cid), int(section_id), target_row
-            )
-        except Exception:
-            return False
-
-    def _emit_items_moved(self, cid, section_id, target_row):
-        """Emit itemsMoved signal."""
-        try:
-            self.tree_widget.itemsMoved.emit(
-                {
-                    "type": "internal_move",
-                    "source_type": "category",
-                    "category_id": int(cid),
-                    "section_id": int(section_id),
-                    "new_row": target_row,
-                }
-            )
-        except Exception:
-            pass
-
-    def _finalize_batch(self, batch_started, structure_business, touched_sections):
-        """Finalize batch operation."""
-        if batch_started:
-            try:
-                if touched_sections:
-                    structure_business.event_service.replace_touched_sections(
-                        touched_sections
-                    )
-                structure_business.end_batch()
-            except Exception:
-                pass
-        elif structure_business and touched_sections:
-            try:
-                structure_business.event_service.replace_touched_sections(
-                    touched_sections
-                )
-            except Exception:
-                pass
-
     def move_categories(
         self, category_ids: list[int], section_id: int, base_row: int
     ) -> int:
         """Moves list of categories to specified section and position.
 
-        Attempts to use atomic command for multiple items.
-        Returns number of actually moved items. In single path
-        generates itemsMoved signal for each successful move.
+        Uses atomic command for undoable moves. Returns number of
+        actually moved items.
         """
         if not category_ids:
             return 0
 
-        atomic_result = self._try_atomic_move(category_ids, section_id, base_row)
-        if atomic_result is not None:
-            return atomic_result
+        result = self._try_atomic_move(category_ids, section_id, base_row)
+        if result is not None:
+            return result
 
-        model = self.tree_widget.model()
-        main_win = self.tree_widget.window()
-        structure_business = getattr(main_win, "structure_business", None)
-
-        batch_started = self._begin_batch_operation(structure_business)
-        moved_count = 0
-        insert_offset = 0
-        touched_sections: set[int] = set()
-
-        for cid in category_ids:
-            if not isinstance(cid, int):
-                continue
-            target_row = int(base_row + insert_offset)
-
-            moved = self._move_single_category(
-                cid, section_id, target_row, structure_business, model
-            )
-            if moved:
-                moved_count += 1
-                insert_offset += 1
-                touched_sections.add(int(section_id))
-                self._emit_items_moved(cid, section_id, target_row)
-
-        self._finalize_batch(batch_started, structure_business, touched_sections)
-
-        return moved_count
+        logger.warning(
+            "Failed to move categories %s to section %s: command not available or failed",
+            category_ids,
+            section_id,
+        )
+        return 0
 
     def _handle_internal_drop_event_index(self, event) -> None:
         """Internal drop for QTreeView: moving categories between/within sections.
