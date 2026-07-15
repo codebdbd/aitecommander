@@ -94,38 +94,7 @@ class DragDropHandler(TreeHandlerBase):
 
         return None
 
-    def _update_internal_drag_focus(self, event: QDropEvent) -> None:
-        """Ensure target rows are highlighted during internal drags."""
-        try:
-            target_index: QModelIndex = self.tree_widget.indexAt(
-                event.position().toPoint()
-            )
-        except Exception as e:
-            logger.debug("Failed to update internal drag focus: %s", e, exc_info=True)
-            return
 
-        if not target_index or not target_index.isValid():
-            return
-
-        drop_pos = self.tree_widget.dropIndicatorPosition()
-        ttuple = get_tree_tuple(target_index, 0)
-        if not ttuple:
-            return
-
-        target_type, _ = ttuple
-
-        if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-            if target_type == "section":
-                self._focus_target_section_index(target_index)
-            elif target_type == "category":
-                self._focus_target_category_index(target_index)
-            return
-
-        if target_type == "category":
-            parent_index = target_index.parent()
-            parent_tuple = get_tree_tuple(parent_index, 0)
-            if parent_tuple and parent_tuple[0] == "section":
-                self._focus_target_section_index(parent_index)
 
     def handle_drag_leave_event(self, event) -> None:
         """Handle drag leave event."""
