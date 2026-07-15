@@ -359,8 +359,16 @@ class DragDropHandler(TreeHandlerBase):
                 ids.append(int(st[1]))
         return ids
 
-    def _schedule_focus_after_category_drop(self, first_category_id: int | None) -> None:
-        """Schedule focus restoration on the first moved category."""
+    def _schedule_focus_after_category_drop(
+        self, first_category_id: int | None, source: str = "tree"
+    ) -> None:
+        """Schedule focus restoration on the first moved category.
+
+        Args:
+            first_category_id: ID of the category to focus on.
+            source: Origin of the drop operation ("tree" for internal,
+                    "tile" for drops from tiles).
+        """
         if not first_category_id:
             return
         try:
@@ -383,11 +391,19 @@ class DragDropHandler(TreeHandlerBase):
                                 origin="user_action",
                             )
                 except Exception as e:
-                    logger.debug("Failed to restore focus after category drop: %s", e)
+                    logger.debug(
+                        "Failed to restore focus after %s category drop: %s",
+                        source,
+                        e,
+                    )
 
-            schedule_selection_restore(_restore_focus, f"cat_drop_{first_category_id}")
+            schedule_selection_restore(
+                _restore_focus, f"{source}_cat_drop_{first_category_id}"
+            )
         except Exception as e:
-            logger.debug("Failed to schedule focus after category drop: %s", e)
+            logger.debug(
+                "Failed to schedule focus after %s category drop: %s", source, e
+            )
 
     def _try_atomic_move(self, category_ids, section_id, base_row):
         """Try atomic command for undoable moves."""
@@ -597,38 +613,12 @@ class DragDropHandler(TreeHandlerBase):
             moved_count = 0
         if moved_count > 1:
             logger.info("Moved categories: %s to section %s", moved_count, section_id)
-        
+
         # Set focus on first moved category from tiles
         if moved_count > 0 and ids:
-            try:
-                from app.controllers.ui.state.task_scheduler import (
-                    schedule_selection_restore,
-                )
-                
-                first_category_id = ids[0] if isinstance(ids[0], int) else None
-                
-                def _restore_focus():
-                    try:
-                        if first_category_id:
-                            model = self.tree_widget.model()
-                            if model and hasattr(model, 'index_for'):
-                                cat_index = model.index_for('category', first_category_id)
-                                if cat_index and cat_index.isValid():
-                                    self.tree_widget.setCurrentIndex(cat_index)
-                                    from app.utils.ui.focus import get_focus_manager
-                                    manager = get_focus_manager()
-                                    manager.set_focus(
-                                        self.tree_widget,
-                                        widget_name="structure_tree",
-                                        origin="user_action",
-                                    )
-                    except Exception as e:
-                        logger.debug("Failed to restore focus after tile category drop: %s", e)
-                
-                schedule_selection_restore(_restore_focus, f"tile_cat_drop_{first_category_id}")
-            except Exception as e:
-                logger.debug("Failed to schedule focus after tile category drop: %s", e)
-        
+            first_category_id = ids[0] if isinstance(ids[0], int) else None
+            self._schedule_focus_after_category_drop(first_category_id, source="tile")
+
         return moved_count > 0
 
     def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> bool:
