@@ -187,25 +187,33 @@ class MoveLinksCommand(BaseBulkCommand):
                     try:
                         # Load links for new category
                         structure_business.select_category(int(focus_category_id))
-                        
-                        # Set visual selection in tree
-                        struct = getattr(self.main, 'structure', None)
-                        if struct:
-                            tree = getattr(struct, 'tree', None)
-                            if tree and hasattr(tree, 'model'):
-                                model = tree.model()
-                                if model and hasattr(model, 'index_for'):
-                                    cat_index = model.index_for('category', int(focus_category_id))
-                                    if cat_index and cat_index.isValid():
-                                        sel_model = tree.selectionModel()
-                                        if sel_model:
-                                            sel_model.setCurrentIndex(
-                                                cat_index,
-                                                QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
-                                            )
-                                        else:
-                                            tree.setCurrentIndex(cat_index)
-                        
+
+                        # Set visual selection in tree AFTER category is loaded
+                        # Use QTimer to ensure it runs after all signal handlers
+                        def _set_tree_selection():
+                            try:
+                                struct = getattr(self.main, 'structure', None)
+                                if struct:
+                                    tree = getattr(struct, 'tree', None)
+                                    if tree and hasattr(tree, 'model'):
+                                        model = tree.model()
+                                        if model and hasattr(model, 'index_for'):
+                                            cat_index = model.index_for('category', int(focus_category_id))
+                                            if cat_index and cat_index.isValid():
+                                                sel_model = tree.selectionModel()
+                                                if sel_model:
+                                                    sel_model.setCurrentIndex(
+                                                        cat_index,
+                                                        QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                                    )
+                                                else:
+                                                    tree.setCurrentIndex(cat_index)
+                            except Exception as e:
+                                logger.debug("Failed to set tree selection: %s", e)
+
+                        from PyQt6.QtCore import QTimer
+                        QTimer.singleShot(0, _set_tree_selection)
+
                         # Then focus on the moved link in table
                         self._schedule_focus_on_link(first_link_id)
                         return
