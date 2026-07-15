@@ -154,3 +154,26 @@ class MoveCategoryCommand(BaseBulkCommand):
                     self.category_id,
                     e,
                 )
+
+        # Set tree selection to the category for visual focus
+        self._set_tree_selection_to_category(self.category_id)
+
+    def _set_tree_selection_to_category(self, category_id: int) -> None:
+        """Set tree widget selection to the specified category."""
+        try:
+            struct = getattr(self.main, "structure", None)
+            if not struct:
+                return
+            tree = getattr(struct, "tree", None)
+            if not tree:
+                return
+            model = tree.model()
+            if not model or not hasattr(model, "index_for"):
+                return
+            cat_index = model.index_for("category", category_id)
+            if cat_index and cat_index.isValid():
+                tree.setCurrentIndex(cat_index)
+        except Exception as e:
+            logger.debug(
+                "Failed to set tree selection to category %s: %s", category_id, e
+            )
