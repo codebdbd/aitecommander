@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QItemSelectionModel, QTimer
 
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
@@ -461,7 +461,14 @@ class MoveCategoriesCommand(BaseBulkCommand):
                         # First restore section focus immediately (best UX signal).
                         sec_index = model.index_for("section", section_id)
                         if sec_index and sec_index.isValid():
-                            tree.setCurrentIndex(sec_index)
+                            sel_model = tree.selectionModel()
+                            if sel_model:
+                                sel_model.setCurrentIndex(
+                                    sec_index,
+                                    QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                )
+                            else:
+                                tree.setCurrentIndex(sec_index)
                             try:
                                 tree.scrollTo(sec_index)
                             except Exception:
@@ -482,7 +489,14 @@ class MoveCategoriesCommand(BaseBulkCommand):
                         # Then try category focus immediately only if already materialized.
                         cat_index = model.index_for("category", focus_category_id)
                         if cat_index and cat_index.isValid():
-                            tree.setCurrentIndex(cat_index)
+                            sel_model = tree.selectionModel()
+                            if sel_model:
+                                sel_model.setCurrentIndex(
+                                    cat_index,
+                                    QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                )
+                            else:
+                                tree.setCurrentIndex(cat_index)
                             try:
                                 tree.scrollTo(cat_index)
                             except Exception:
@@ -505,7 +519,14 @@ class MoveCategoriesCommand(BaseBulkCommand):
                         if model and hasattr(model, 'index_for'):
                             cat_index = model.index_for('category', focus_category_id)
                             if cat_index and cat_index.isValid():
-                                tree.setCurrentIndex(cat_index)
+                                sel_model = tree.selectionModel()
+                                if sel_model:
+                                    sel_model.setCurrentIndex(
+                                        cat_index,
+                                        QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                    )
+                                else:
+                                    tree.setCurrentIndex(cat_index)
                                 from app.utils.ui.focus import get_focus_manager
                                 manager = get_focus_manager()
                                 manager.set_focus(

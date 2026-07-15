@@ -13,6 +13,7 @@ from app.utils.ui.dnd.command_utils import (
 )
 from app.utils.common import get_value
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
+from PyQt6.QtCore import QItemSelectionModel
 
 if TYPE_CHECKING:
     from app.controllers.business.structure_business import StructureBusinessLogic
@@ -196,7 +197,14 @@ class MoveLinksCommand(BaseBulkCommand):
                                 if model and hasattr(model, 'index_for'):
                                     cat_index = model.index_for('category', int(focus_category_id))
                                     if cat_index and cat_index.isValid():
-                                        tree.setCurrentIndex(cat_index)
+                                        sel_model = tree.selectionModel()
+                                        if sel_model:
+                                            sel_model.setCurrentIndex(
+                                                cat_index,
+                                                QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                            )
+                                        else:
+                                            tree.setCurrentIndex(cat_index)
                         
                         # Then focus on the moved link in table
                         self._schedule_focus_on_link(first_link_id)
