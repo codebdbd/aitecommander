@@ -200,16 +200,15 @@ class MoveLinksCommand(BaseBulkCommand):
                                         sel_model = tree.selectionModel()
                                         if sel_model:
                                             # Clear old selection first, then select new one
-                                            sel_model.clearSelection()
                                             sel_model.setCurrentIndex(
                                                 cat_index,
-                                                QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
+                                                QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,
                                             )
                                         else:
                                             tree.setCurrentIndex(cat_index)
 
                         # Then focus on the moved link in table
-                        self._schedule_focus_on_link(first_link_id)
+                        self._schedule_focus_on_links(self.link_ids)
                         return
                     except Exception as e:
                         logger.debug(
@@ -224,6 +223,30 @@ class MoveLinksCommand(BaseBulkCommand):
             logger.debug(
                 "Failed to refresh links for categories %s: %s", categories_to_update, exc
             )
+
+    def _schedule_focus_on_links(self, link_ids: list[int]) -> None:
+        """Schedule focus on links after category is loaded."""
+        if not link_ids:
+            return
+        
+        if not hasattr(self.main, 'links_actions'):
+            return
+            
+        if hasattr(self.main.links_actions, 'focus_on_links'):
+            try:
+                from app.controllers.ui.state.task_scheduler import (
+                    schedule_selection_restore,
+                )
+                delay_ms = get_table_selection_restore_delay_ms(100)
+                schedule_selection_restore(
+                    lambda: self.main.links_actions.focus_on_links(link_ids),
+                    f"batch_focus_{link_ids[0]}",
+                    delay=delay_ms,
+                )
+            except Exception as e:
+                logger.debug("Failed to schedule focus on links %s: %s", link_ids, e)
+        else:
+            self._schedule_focus_on_link(link_ids[0])
 
     def _schedule_focus_on_link(self, link_id: int) -> None:
         """Schedule focus on link after category is loaded."""
@@ -243,7 +266,7 @@ class MoveLinksCommand(BaseBulkCommand):
             delay_ms = get_table_selection_restore_delay_ms(100)
             schedule_selection_restore(
                 lambda: self.main.links_actions.focus_on_link(link_id),
-                link_id,
+                f"focus_link_{link_id}",
                 delay=delay_ms,
             )
         except Exception as e:

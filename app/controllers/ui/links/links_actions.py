@@ -161,6 +161,21 @@ class LinksActions:
         delay_ms = get_table_selection_restore_delay_ms(100)
         schedule_selection_restore(lambda: self.restore_selection(link_id), key, delay=delay_ms)
 
+    def restore_selection_multiple(self, link_ids: list[int]):
+        if self.links and hasattr(self.links, "focus_on_links"):
+            self.links.focus_on_links(link_ids)
+
+    def focus_on_links(self, link_ids: list[int]):
+        """Alias for compatibility: focus on multiple links by ID."""
+        self.restore_selection_multiple(link_ids)
+
+    def schedule_restore_selection_multiple(self, link_ids: list[int]) -> None:
+        if not link_ids:
+            return
+        key = f"table_selection_batch_{link_ids[0]}"
+        delay_ms = get_table_selection_restore_delay_ms(100)
+        schedule_selection_restore(lambda: self.restore_selection_multiple(link_ids), key, delay=delay_ms)
+
     # --- Access to link widget data / selection ---
     def get_link_at(self, row: int):
         if not self.links:

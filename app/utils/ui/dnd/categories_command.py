@@ -13,6 +13,7 @@ from app.utils.ui.dnd.command_utils import (
     _require_structure_business,
     _get_structure_business,
 )
+from app.core.constants import AppConstants
 
 if TYPE_CHECKING:
     from app.controllers.business.structure_business import StructureBusinessLogic
@@ -30,10 +31,12 @@ class MoveCategoriesCommand(BaseBulkCommand):
     def __init__(self, category_ids, new_section_id, base_row, main_window) -> None:
         super().__init__(f"Moving {len(category_ids)} categories", main_window, "category")
         self.category_ids = list(category_ids or [])
-        self.new_section_id = (
-            int(new_section_id) if isinstance(new_section_id, int) else new_section_id
-        )
-        self.base_row = int(base_row) if isinstance(base_row, int) else 0
+        if not isinstance(new_section_id, int):
+            raise ValueError(f"new_section_id must be int, got {type(new_section_id).__name__}")
+        self.new_section_id = new_section_id
+        if not isinstance(base_row, int):
+            raise ValueError(f"base_row must be int, got {type(base_row).__name__}")
+        self.base_row = base_row
         self._old_states: list[dict[str, Any]] = []  # [{id, name, section_id, position, icon_path}]
         self._new_states: list[dict[str, Any]] = []  # same format but with target section/position
         self._prepared = False
@@ -374,7 +377,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
         selection = getattr(struct, "selection_handler", None)
         tree = getattr(struct, "tree", None)
 
-        large_batch = len(self.category_ids or []) >= 20
+        large_batch = len(self.category_ids or []) >= AppConstants.LARGE_BATCH_THRESHOLD
         if large_batch:
             # Prioritize visible feedback (section/category focus) before expensive per-item tree moves.
             self._maybe_schedule_tree_focus(tree, first_focus_id, target_section_id)
@@ -453,7 +456,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
             if isinstance(target_section_id, int)
             else int(self.new_section_id)
         )
-        if len(self.category_ids or []) >= 20:
+        if len(self.category_ids or []) >= AppConstants.LARGE_BATCH_THRESHOLD:
             try:
                 if tree and hasattr(tree, "model"):
                     model = tree.model()
@@ -545,13 +548,13 @@ class MoveCategoriesCommand(BaseBulkCommand):
         """Pause structure preload to avoid DB/UI contention for large DnD batches."""
         if self._preload_suspended:
             return
-        if len(self.category_ids or []) < 20:
+        if len(self.category_ids or []) < AppConstants.LARGE_BATCH_THRESHOLD:
             return
         sb = _get_structure_business(self.main)
         if sb is None:
             return
         try:
-            sb.suspend_structure_preload(duration_ms=3500, reason="dnd-move-categories")
+            sb.suspend_structure_preload(duration_ms=AppConstants.PRELOAD_SUSPEND_DURATION_MS, reason="dnd-move-categories")
             self._preload_suspended = True
         except Exception:
             logger.debug(
@@ -567,7 +570,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
             self._preload_suspended = False
             return
         try:
-            sb.resume_structure_preload(delay_ms=900, reason="dnd-move-categories")
+            sb.resume_structure_preload(delay_ms=AppConstants.PRELOAD_RESUME_DELAY_MS, reason="dnd-move-categories")
         except Exception:
             logger.debug(
                 "MoveCategoriesCommand: failed to resume structure preload",
