@@ -87,6 +87,37 @@ class CategoryModel(DatabaseBase):
         )
         return row_to_dict(row) if row else None
 
+    def get_categories_by_ids(self, category_ids: list[int]) -> list[CategoryDict]:
+        """Returns categories for multiple IDs in one query, preserving input order."""
+        if not category_ids:
+            return []
+
+        validated_ids = self._validate_and_deduplicate_ids(category_ids, "category")
+        if not validated_ids:
+            return []
+
+        placeholders = build_in_clause_placeholders(len(validated_ids))
+        query = f"""
+            SELECT id, name, section_id, position, icon_path
+            FROM category
+            WHERE id IN ({placeholders})
+        """
+        rows_raw = self._execute_with_error_handling(
+            query, tuple(validated_ids), fetch_method="all"
+        )
+        rows = self._ensure_row_list(rows_raw)
+
+        # Build a map from id to category for quick lookup
+        category_map = {int(row["id"]): row_to_dict(row) for row in rows}
+
+        # Return categories in the order of the original input (preserving duplicates)
+        result = []
+        for cid in category_ids:
+            if cid in category_map:
+                result.append(category_map[cid])
+
+        return result
+
     def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
         """Get category hierarchy (sphere -> section -> category)."""
         result = self._execute_with_error_handling(

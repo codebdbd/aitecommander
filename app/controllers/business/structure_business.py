@@ -1033,6 +1033,11 @@ class StructureBusinessLogic(QObject):
         return self.query_service.get_category_data(category_id)
 
     @handle_exceptions()
+    def get_categories_by_ids(self, category_ids: list[int]) -> list[dict[str, Any]]:
+        """Return categories for multiple IDs in one query."""
+        return self.query_service.get_categories_by_ids(category_ids)
+
+    @handle_exceptions()
     def get_item_for_editing(
         self, item_id: int, item_type: str | Any
     ) -> dict[str, Any] | None:

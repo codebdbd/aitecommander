@@ -58,6 +58,10 @@ class TestDndMoveCommands(unittest.TestCase):
             {"id": 1, "name": "A", "section_id": 10, "position": 0, "icon_path": ""},
             {"id": 2, "name": "B", "section_id": 10, "position": 1, "icon_path": ""},
         ]
+        sb.get_categories_by_ids.return_value = [
+            {"id": 1, "name": "A", "section_id": 10, "position": 0, "icon_path": ""},
+            {"id": 2, "name": "B", "section_id": 10, "position": 1, "icon_path": ""},
+        ]
         sb.has_duplicate_category.return_value = False
         sb.move_categories_batch.return_value = [1, 2]
         main.structure_business = sb

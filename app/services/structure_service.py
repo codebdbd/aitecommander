@@ -53,6 +53,9 @@ class StructureService:
     def get_category_by_id(self, category_id: int) -> StructureRow | None:
         return self.db.categories.get_category_by_id(category_id)
 
+    def get_categories_by_ids(self, category_ids: list[int]) -> StructureList:
+        return self.db.categories.get_categories_by_ids(category_ids) or []
+
     def get_category_hierarchy(self, category_id: int) -> StructureTree | None:
         return self._model.get_category_hierarchy(category_id)
 
