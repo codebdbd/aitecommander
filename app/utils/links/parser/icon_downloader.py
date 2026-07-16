@@ -15,6 +15,8 @@ from __future__ import annotations
 import atexit
 import hashlib
 import json
+import os
+import tempfile
 import threading
 import time
 from collections import OrderedDict
@@ -55,6 +57,62 @@ from .icon_fallback import (
     try_google_favicon_api,
 )
 from .svg_convert import convert_svg
+
+
+# === Atomic file write helpers ===
+def _atomic_write_bytes(target: Path, data: bytes) -> None:
+    """Write *data* to *target* atomically via a temp file + os.replace().
+
+    The temp file is created in the same directory as *target* so that
+    ``os.replace`` is guaranteed to be atomic on the same filesystem.
+    On Windows, retries on PermissionError (file held open by reader).
+    On failure the temp file is cleaned up and the original is untouched.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent,
+    )
+    os.close(fd)
+    tmp = Path(tmp_name)
+    try:
+        tmp.write_bytes(data)
+        _replace_with_retry(tmp, target)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _atomic_write_text(target: Path, text: str) -> None:
+    """Write *text* to *target* atomically via a temp file + os.replace()."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent,
+    )
+    os.close(fd)
+    tmp = Path(tmp_name)
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        _replace_with_retry(tmp, target)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _replace_with_retry(src: Path, dst: Path, *, retries: int = 5, delay: float = 0.01) -> None:
+    """``os.replace`` with retries for Windows PermissionError (file held open)."""
+    for attempt in range(retries):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt < retries - 1:
+                time.sleep(delay * (2 ** attempt))
+            else:
+                raise
 
 _ICON_LOCKS: OrderedDict[str, threading.Lock] = OrderedDict()
 _ICON_LOCKS_GUARD = threading.Lock()
@@ -172,9 +230,9 @@ def read_icon_meta(domain: str) -> dict:
 
 def write_icon_meta(domain: str, meta: dict) -> None:
     try:
-        p = get_icon_meta_path(domain)
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(meta, f, ensure_ascii=False, indent=2)
+        p = Path(get_icon_meta_path(domain))
+        text = json.dumps(meta, ensure_ascii=False, indent=2)
+        _atomic_write_text(p, text)
     except Exception as e:
         logger.debug("Icon meta write failed for %s: %s", domain, e, exc_info=True)
 
@@ -367,7 +425,15 @@ class IconDownloader:
             
             if img.mode != "RGBA":
                 img = img.convert("RGBA")
-            img.save(path, format="PNG")
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            _atomic_write_bytes(path_obj, buf.getvalue())
+            # NOTE: PNG and metadata are replaced atomically *independently*,
+            # not as a single transaction.  Between the two os.replace() calls
+            # a reader may briefly see a new PNG with stale metadata (or vice
+            # versa).  This is acceptable because metadata serves only as an
+            # auxiliary cache (ETag / Last-Modified / source_url) and readers
+            # tolerate stale values.
             try:
                 prev_meta = meta or {}
                 meta_update = {
