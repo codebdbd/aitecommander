@@ -103,6 +103,9 @@ class StructureQueryService:
     def get_category_data(self, category_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_category_data(category_id)
 
+    def get_categories_by_ids(self, category_ids: list[int]) -> list[dict[str, Any]]:
+        return self._validation_facade.get_categories_by_ids(category_ids)
+
     def get_item_for_editing(
         self, item_id: int, item_type: str | Any
     ) -> dict[str, Any] | None:

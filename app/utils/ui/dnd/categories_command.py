@@ -52,10 +52,12 @@ class MoveCategoriesCommand(BaseBulkCommand):
         sb = _require_structure_business(self.main)
 
         # Load original states
+        categories = sb.get_categories_by_ids(self.category_ids)
+        category_map = {int(cat["id"]): cat for cat in categories}
         old_states = []
 
         for cid in self.category_ids:
-            data = sb.get_category_data(cid)
+            data = category_map.get(cid)
 
             if not data:
                 logger.debug("Category %s not found, skipping", cid)
