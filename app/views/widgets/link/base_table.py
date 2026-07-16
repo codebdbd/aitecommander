@@ -399,12 +399,19 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect sortIndicatorChanged", exc_info=True
             )
-        # Rebuild the cache only when the model layout changes (cheaper and correct)
+        # Rebuild the cache when the model layout changes or rows are moved
+        model = self.model()
         try:
-            self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
+            model.layoutChanged.connect(self._rebuild_cache_on_layout)
         except Exception:
             logger.debug(
                 "LinksTableView: failed to connect layoutChanged", exc_info=True
+            )
+        try:
+            model.rowsMoved.connect(self._on_rows_moved)
+        except Exception:
+            logger.debug(
+                "LinksTableView: failed to connect rowsMoved", exc_info=True
             )
 
     def _on_index_entered(self, index: QModelIndex):
@@ -452,6 +459,10 @@ class LinksTableView(
                 logger.debug(
                     "LinksTableView: sortByColumn on header click failed", exc_info=True
                 )
+
+    def _on_rows_moved(self, *_args) -> None:
+        """Handle rows moved signal to rebuild cache."""
+        self._rebuild_cache_on_layout()
 
     def _rebuild_cache_on_layout(self):
         """Rebuild cache after the model layout changes (sorting/reordering)."""
