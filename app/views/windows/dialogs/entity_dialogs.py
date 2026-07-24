@@ -565,7 +565,7 @@ class CategoryDialog(BaseEntityDialog):
                 )
 
         # Set icon from stored data
-        icon = category_data["icon_path"] or f"{self.entity_name}.ico"
+        icon = category_data["icon_path"] or f"{self.entity_name}.png"
         self._icon_filename = icon
         icon_path = self._get_icon_path(icon)
         self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))

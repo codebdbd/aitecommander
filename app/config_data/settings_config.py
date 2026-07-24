@@ -155,7 +155,6 @@ class SettingsConfig(BaseConfig):
             val = self.get(
                 "ui.default_icons",
                 {
-                    "default": "default.ico",
                     "folder": "folder_icon.png",
                     "web": "web_icon.png",
                     "program": "program_icon.png",

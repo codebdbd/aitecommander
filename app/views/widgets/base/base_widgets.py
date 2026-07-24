@@ -140,9 +140,6 @@ class BaseLinksPanelWidget:
         """Return the size policy."""
         return self._delegate.sizePolicy()
         
-    def _get_default_icon_path(self):
-        """Get default icon path."""
-        return self._delegate._get_default_icon_path()
         
     def viewport(self):
         """Return viewport."""
@@ -275,17 +272,16 @@ class BaseLinksPanelWidget:
         This method delegates to the parent but uses the local resolve_icon_path import.
         """
         if not icon_path:
-            return str(self._get_default_icon_path())
+            return ""
         try:
             resolved = resolve_icon_path(icon_path)
-            return resolved or str(self._get_default_icon_path())
+            return resolved or ""
         except (OSError, FileNotFoundError, PermissionError) as e:
             logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
-            return str(self._get_default_icon_path())
+            return ""
         except (AttributeError, ValueError, TypeError) as e:
-            # Catch specific exceptions for different error types
             logger.warning("Error while resolving icon '%s': %s", icon_path, e)
-            return str(self._get_default_icon_path())
+            return ""
 
 
 class BaseDragDropTableWidget(QTableView):

@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
-from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.widgets.link_button_mixin import LinkButtonMixin
 from app.views.widgets.protocols import (
     AppConfigWidgetAdapter,
@@ -50,7 +49,6 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """
         super().__init__()
         self._main_window = main_window
-        self._default_icon_path: Optional[Path] = None
 
         # IMPROVEMENT: Configuration dependency injection
         if config is None:
@@ -218,11 +216,6 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         except Exception as exc:
             logger.error("BaseTopPanelWidget: failed to emit refreshRequested: %s", exc)
 
-    def _get_default_icon_path(self) -> Path:
-        """Returns path to default icon with caching."""
-        if self._default_icon_path is None:
-            self._default_icon_path = get_default_icon_path()
-        return self._default_icon_path
 
     def _clear_layout(self):
         """Safely clears layout of widgets and spacers.

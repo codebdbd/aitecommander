@@ -415,7 +415,7 @@ class ImportExportManager:
                     rec = normalize_link_fields(link, all_fields)
                     rec["category_id"] = int(cat_id)
                     if not rec.get("icon_path"):
-                        rec["icon_path"] = "default.ico"
+                        rec["icon_path"] = ""
                     if isinstance(rec.get("id"), int) and int(rec["id"]) > 0:
                         links_with_id.append(rec)
                     else:
@@ -685,7 +685,7 @@ def _prepare_link_record(link, cat_id):
     rec["category_id"] = cat_id
     # Override icon_path default for import/export (compatibility)
     if not rec.get("icon_path"):
-        rec["icon_path"] = "default.ico"
+        rec["icon_path"] = ""
     return rec
 
 
@@ -721,8 +721,8 @@ def _insert_new_link(rec, all_fields, connection):
             f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
             tuple(values),
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to insert link during import: %s", e)
 
 
 def _extract_cat_and_links(tree: dict) -> tuple[dict | None, list]:

@@ -27,7 +27,6 @@ DEFAULT_QUERY_TIMEOUT = 30  # Default query timeout (seconds)
 SLOW_OPERATION_THRESHOLD_MS = 100.0  # Threshold for logging slow operations (ms)
 
 # Default values
-DEFAULT_ICON_PATH = "default.ico"
 EMPTY_ICON_PATH = ""
 
 # Valid tables for position operations
