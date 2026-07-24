@@ -88,10 +88,15 @@ class BadUrlCheckWorker(QRunnable):
             raise CancelledError()
 
     def _find_all_web_links(self) -> list[dict]:
-        """Find all web links in the database.
+        """Find all web links, deduplicated by URL.
 
         Returns:
-            List of dictionaries with link data
+            List of dicts, one per unique URL.  Each dict has:
+            - ``url``: the URL string
+            - ``link_ids``: list of all DB link IDs sharing this URL
+            - ``link_id``: alias for the first ID (backward compat)
+            - ``name``: name from the first link
+            - ``category_id``: category from the first link
         """
         self._raise_if_cancelled()
         try:
@@ -103,8 +108,29 @@ class BadUrlCheckWorker(QRunnable):
             """
             rows = self.db.connection.execute(query, (LinkType.WEB.value,)).fetchall()
 
-            logger.debug("[bad_url_check] Found %s web links", len(rows))
-            return [dict(row) for row in rows]
+            # Group by URL
+            url_groups: dict[str, dict] = {}
+            for row in rows:
+                data = dict(row)
+                url = data["url"]
+                if url in url_groups:
+                    url_groups[url]["link_ids"].append(data["id"])
+                else:
+                    url_groups[url] = {
+                        "url": url,
+                        "link_ids": [data["id"]],
+                        "link_id": data["id"],
+                        "name": data.get("name", ""),
+                        "category_id": data.get("category_id"),
+                    }
+
+            unique = list(url_groups.values())
+            logger.info(
+                "[bad_url_check] Found %s total links, %s unique URLs",
+                len(rows),
+                len(unique),
+            )
+            return unique
         except Exception as e:
             logger.error("Failed to query web links: %s", e, exc_info=True)
             return []
@@ -403,57 +429,57 @@ class BadUrlCheckWorker(QRunnable):
             logger.debug("Failed to check URL %s: %s", url, e)
             return True, ""
 
-    def _check_link(self, link: dict) -> dict | None:
-        """Check a single link (3 levels of checking).
+    def _check_link(self, link: dict) -> list[dict] | None:
+        """Check a deduplicated URL and emit bad_url_found for every link sharing it.
 
         Args:
-            link: Dictionary with link data
+            link: Dict with ``url``, ``link_ids``, ``name``, ``category_id``
 
         Returns:
-            Dictionary with bad URL data or None if link is reachable
+            List of bad_url_info dicts (one per link ID) or None if reachable.
         """
         if self._cancel_event.is_set():
             raise CancelledError()
 
-        link_id = link["id"]
         url = link["url"]
-        name = link.get("name", "")
-        category_id = link.get("category_id")
+        link_ids = link["link_ids"]
 
         # Check URL (3 levels: DNS, 404, SSL)
         is_reachable, error = self._check_url(url)
 
         if not is_reachable:
             self._raise_if_cancelled()
-            hierarchy = self._get_category_hierarchy(category_id)
-            category_path = hierarchy.get("path", "")
-            
-            # Extract domain
+
+            # Extract domain once
             from urllib.parse import urlparse
             try:
                 domain = urlparse(url).netloc
             except Exception:
                 domain = QCoreApplication.translate("BadUrlCheckWorker", "unknown")
 
-            bad_url_info = {
-                "id": link_id,
-                "url": url,
-                "name": name,
-                "error": error,
-                "category_path": category_path,
-                "category_id": category_id,
-                "domain": domain,
-                "hierarchy": hierarchy,
-            }
+            # Emit one bad_url_found signal per link ID
+            results = []
+            for link_id in link_ids:
+                bad_url_info = {
+                    "id": link_id,
+                    "url": url,
+                    "name": link.get("name", ""),
+                    "error": error,
+                    "category_path": "",
+                    "category_id": link.get("category_id"),
+                    "domain": domain,
+                    "hierarchy": {},
+                }
+                results.append(bad_url_info)
 
             logger.info(
-                "[bad_url_check] Bad URL found: %s (%s) - Category: %s",
+                "[bad_url_check] Bad URL found: %s (%s) — affects %s links",
                 url[:80],
                 error,
-                category_path,
+                len(link_ids),
             )
 
-            return bad_url_info
+            return results
 
         return None
 
@@ -517,10 +543,12 @@ class BadUrlCheckWorker(QRunnable):
 
                 link = future_to_link[future]
                 try:
-                    result = future.result()
-                    if result:
-                        bad_urls.append(result)
-                        self.signals.bad_url_found.emit(result)
+                    results = future.result()
+                    if results:
+                        # results is a list of bad_url_info dicts (one per link ID)
+                        for info in results:
+                            bad_urls.append(info)
+                            self.signals.bad_url_found.emit(info)
                     checked += 1
                     self.signals.progress.emit(
                         checked,
@@ -528,11 +556,11 @@ class BadUrlCheckWorker(QRunnable):
                         QCoreApplication.translate("BadUrlCheckWorker", "Checked {0}/{1} (issues: {2})").format(checked, total, len(bad_urls)),
                     )
                 except CancelledError:
-                    logger.debug("[bad_url_check] Future cancelled for link %s", link.get("id"))
+                    logger.debug("[bad_url_check] Future cancelled for URL %s", link.get("url", "?"))
                     break
                 except Exception as e:
                     logger.warning(
-                        "[bad_url_check] Exception checking link %s: %s", link.get("id"), e
+                        "[bad_url_check] Exception checking URL %s: %s", link.get("url", "?"), e
                     )
                     checked += 1
         finally:

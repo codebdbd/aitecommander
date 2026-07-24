@@ -270,6 +270,16 @@ class BadUrlCleanupDialog(BaseDialog):
             self.cancel_button, QDialogButtonBox.ButtonRole.RejectRole
         )
 
+        # Background button (hide during check)
+        self.background_button = QPushButton(
+            QCoreApplication.translate("BadUrlCleanupDialog", "Background")
+        )
+        self.background_button.clicked.connect(self._on_background_clicked)
+        self.background_button.setVisible(False)
+        self.button_box.addButton(
+            self.background_button, QDialogButtonBox.ButtonRole.ActionRole
+        )
+
         # Delete button (after completion)
         self.delete_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
         self.delete_button.clicked.connect(self._on_delete_clicked)
@@ -350,6 +360,10 @@ class BadUrlCleanupDialog(BaseDialog):
             self.progress_bar.setValue(percentage)
 
         self.status_label.setText(message)
+
+        # Show background button on first progress (check is running)
+        if not self.background_button.isVisible():
+            self.background_button.setVisible(True)
 
     def _on_bad_url_found(self, bad_url_info: dict):
         """Handler for unreachable URL found."""
@@ -770,6 +784,12 @@ class BadUrlCleanupDialog(BaseDialog):
         """Обработчик завершения проверки."""
         self._is_finished = True
         self._bad_urls = bad_urls
+
+        # If dialog was hidden to background, show it now
+        if not self.isVisible():
+            self.show()
+            self.raise_()
+            self.activateWindow()
         
         # Flush any remaining pending updates
         self._flush_pending_table_updates()
@@ -813,8 +833,9 @@ class BadUrlCleanupDialog(BaseDialog):
             # Обновляем информацию о выборе
             self._update_selection_info()
 
-        # Скрываем кнопку отмены, показываем кнопку закрытия
+        # Скрываем кнопку отмены и "В фон", показываем кнопку закрытия
         self.cancel_button.setVisible(False)
+        self.background_button.setVisible(False)
         self.close_button.setVisible(True)
 
         logger.info("[bad_url_cleanup_dialog] Check completed: %s bad URLs", len(bad_urls))
@@ -827,8 +848,9 @@ class BadUrlCleanupDialog(BaseDialog):
         self.status_label.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Error: {0}").format(error_message))
         self.table_widget.setVisible(False)
 
-        # Скрываем кнопку отмены, показываем кнопку закрытия
+        # Скрываем кнопку отмены и "В фон", показываем кнопку закрытия
         self.cancel_button.setVisible(False)
+        self.background_button.setVisible(False)
         self.close_button.setVisible(True)
 
         logger.error("[bad_url_cleanup_dialog] Check error: %s", error_message)
@@ -839,6 +861,25 @@ class BadUrlCleanupDialog(BaseDialog):
             self.service.cancel_check()
             self.status_label.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Cancelling..."))
             self.cancel_button.setEnabled(False)
+
+    def _on_background_clicked(self):
+        """Обработчик нажатия кнопки 'В фон' — скрыть диалог, проверка продолжается."""
+        self.hide()
+        # Show statusbar hint so user can bring dialog back
+        try:
+            main_window = self.parent()
+            if main_window and hasattr(main_window, "statusBar"):
+                status_bar = main_window.statusBar()
+                if status_bar:
+                    status_bar.showMessage(
+                        QCoreApplication.translate(
+                            "BadUrlCleanupDialog",
+                            "Bad URL check running in background \u2014 click to show",
+                        )
+                    )
+        except Exception:
+            pass
+        logger.info("[bad_url_cleanup_dialog] Hidden to background")
     
     def closeEvent(self, event):
         """Обработчик закрытия диалога."""
