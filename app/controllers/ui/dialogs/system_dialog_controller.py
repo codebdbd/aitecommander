@@ -438,6 +438,28 @@ class SystemDialogController:
         except Exception as e:
             logger.debug("Failed to update statusbar: %s", e)
     
+    def _on_bad_url_check_finished(self, dialog) -> None:
+        """Обработчик завершения проверки битых URL — обновить таблицу."""
+        try:
+            # Clear statusbar hint
+            try:
+                status_bar = self.main_window.statusBar()
+                if status_bar:
+                    status_bar.showMessage("", 1)
+            except Exception:
+                pass
+
+            category_id = self.main_window.get_current_category_id()
+            if category_id:
+                try:
+                    if hasattr(self.links_table_controller, "reload"):
+                        self.links_table_controller.reload(category_id)
+                except Exception as e:
+                    logger.debug("Failed to reload links table: %s", e)
+            self.main_window.update_statusbar()
+        except Exception as e:
+            logger.debug("Failed to handle bad URL check finished: %s", e)
+
     def _on_icon_refresh_finished(self, stats: dict):
         """Обработчик завершения обновления иконок."""
         try:
@@ -502,17 +524,23 @@ class SystemDialogController:
             self._icon_refresh_service.show_dialog()
     
     def _on_statusbar_clicked(self, event):
-        """Обработчик клика по statusbar для показа диалога обновления иконок."""
+        """Обработчик клика по statusbar для показа скрытых диалогов."""
+        # Bad URL check in background
+        if self._bad_url_check_service and self._bad_url_check_service.is_running():
+            self._bad_url_check_service.show_dialog()
+            event.accept()
+            return
+        # Icon refresh in background
         if self._icon_refresh_service and self._icon_refresh_service.is_running():
             self.show_icon_refresh_dialog()
             event.accept()
-        else:
-            # Передаём событие дальше если обновление не идёт
-            try:
-                from PyQt6.QtWidgets import QStatusBar
-                QStatusBar.mousePressEvent(self.main_window.statusBar(), event)
-            except Exception:
-                pass
+            return
+        # Default: pass through
+        try:
+            from PyQt6.QtWidgets import QStatusBar
+            QStatusBar.mousePressEvent(self.main_window.statusBar(), event)
+        except Exception:
+            pass
     
     def show_file_search_dialog(self):
         """Show File Search dialog."""
@@ -557,10 +585,19 @@ class SystemDialogController:
 
             db = self._get_structure_db()
             service = self._new_bad_url_check_service(db)
-            
+
             # Создаём диалог
             dialog = BadUrlCleanupDialog(service, db, parent=self.main_window)
             service.set_dialog(dialog)  # Связываем сервис с диалогом
+
+            # Ensure statusbar click handler is connected for background restore
+            try:
+                status_bar = self.main_window.statusBar()
+                if status_bar and not getattr(status_bar, "_icon_refresh_click_connected", False):
+                    status_bar.mousePressEvent = self._on_statusbar_clicked
+                    status_bar._icon_refresh_click_connected = True
+            except Exception:
+                pass
             
             # Показываем диалог сразу (до запуска проверки)
             dialog.show()
@@ -569,27 +606,13 @@ class SystemDialogController:
             from PyQt6.QtWidgets import QApplication
             QApplication.processEvents()
             
-            # Запускаем проверку с параллельной обработкой
-            # max_workers=15 - баланс скорости и безопасности (избегаем rate limiting)
-            # timeout=5s - достаточно времени для медленных сайтов
-            # check_ssl=True - проверяем DNS, 404 и отсутствие SSL
-            if service.start_check(max_workers=15, timeout=5, check_ssl=True):
-                # Ждём закрытия диалога
-                result = dialog.exec()
-                
-                # После закрытия диалога обновляем таблицу ссылок если были удаления
-                if result == dialog.DialogCode.Accepted:
-                    category_id = self.main_window.get_current_category_id()
-                    if category_id:
-                        try:
-                            if hasattr(self.links_table_controller, "reload"):
-                                self.links_table_controller.reload(category_id)
-                        except Exception as e:
-                            logger.debug("Failed to reload links table: %s", e)
-                    self.main_window.update_statusbar()
-                
-                logger.info("Bad URL check completed")
-            else:
+            # Подключаем finished для обновления таблицы после проверки
+            service.finished.connect(
+                lambda _bad_urls: self._on_bad_url_check_finished(dialog)
+            )
+
+            # Запускаем проверку (non-blocking)
+            if not service.start_check(max_workers=15, timeout=5, check_ssl=True):
                 logger.warning("Failed to start bad URL check")
                 dialog.close()
         

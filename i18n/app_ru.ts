@@ -746,6 +746,14 @@ Are you sure you want to continue?</source>
       <source>Failed to delete selected links.</source>
       <translation>Не удалось удалить выбранные ссылки.</translation>
     </message>
+    <message>
+      <source>Background</source>
+      <translation>В фон</translation>
+    </message>
+    <message>
+      <source>Bad URL check running in background \u2014 click to show</source>
+      <translation>Проверка битых URL работает в фоне \u2014 нажмите, чтобы показать</translation>
+    </message>
   </context>
   <context>
     <name>BaseDialog</name>

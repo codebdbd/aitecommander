@@ -746,6 +746,14 @@ Todos los enlaces anidados se eliminarán permanentemente.
       <source>Failed to delete selected links.</source>
       <translation>No se pudieron eliminar los enlaces seleccionados.</translation>
     </message>
+    <message>
+      <source>Background</source>
+      <translation>En segundo plano</translation>
+    </message>
+    <message>
+      <source>Bad URL check running in background — click to show</source>
+      <translation>Verificación de URL en segundo plano — haz clic para mostrar</translation>
+    </message>
   </context>
   <context>
     <name>BaseDialog</name>

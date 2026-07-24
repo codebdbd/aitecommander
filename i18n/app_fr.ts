@@ -746,6 +746,14 @@ Voulez-vous continuer ?</translation>
       <source>Failed to delete selected links.</source>
       <translation>Impossible de supprimer les liens sélectionnés.</translation>
     </message>
+    <message>
+      <source>Background</source>
+      <translation>Arrière-plan</translation>
+    </message>
+    <message>
+      <source>Bad URL check running in background — click to show</source>
+      <translation>Vérification des URL en arrière-plan — cliquez pour afficher</translation>
+    </message>
   </context>
   <context>
     <name>BaseDialog</name>
