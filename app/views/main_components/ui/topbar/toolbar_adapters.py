@@ -12,22 +12,25 @@ from PyQt6.QtWidgets import QToolBar, QToolButton
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_for_link
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.panels.recent_panel_widget import RECENT_LINKS_LIMIT
 
 logger = logging.getLogger(__name__)
 
 
-def _icon_from_path(path: Path, fallback: Path) -> QIcon:
+def _icon_from_path(path: Path, fallback: Path | None = None) -> QIcon:
     try:
         icon = create_icon_from_path(str(path))
         if not icon or getattr(icon, "isNull", lambda: True)():
-            icon = create_icon_from_path(str(fallback))
+            if fallback is not None:
+                icon = create_icon_from_path(str(fallback))
         return icon
     except Exception as exc:
         logger.debug("TopBarToolbar: failed to load icon %s: %s", path, exc)
-        return create_icon_from_path(str(fallback))
+        if fallback is not None:
+            return create_icon_from_path(str(fallback))
+        return QIcon()
 
 
 def _resolve_existing_icon_path_fast(icon_path: str | None) -> str:
@@ -35,9 +38,8 @@ def _resolve_existing_icon_path_fast(icon_path: str | None) -> str:
 
 
 def _resolve_icon_for_link_fast(link_data: dict[str, Any] | None) -> str:
-    fallback = str(get_default_icon_path())
     if not isinstance(link_data, dict):
-        return fallback
+        return ""
 
     explicit = _resolve_existing_icon_path_fast(link_data.get("icon_path"))
     if explicit:
@@ -48,14 +50,7 @@ def _resolve_icon_for_link_fast(link_data: dict[str, Any] | None) -> str:
     except Exception:
         link_type = "file"
 
-    try:
-        default_icons = runtime_app_config.get_default_icons()
-        icon_name = default_icons.get(link_type, default_icons.get("default", ""))
-    except Exception:
-        icon_name = ""
-
-    resolved = _resolve_existing_icon_path_fast(icon_name)
-    return resolved or fallback
+    return resolve_link_type_icon(link_type)
 
 
 def _button_sizes(button_size: int | tuple[int, int], icon_size: tuple[int, int]) -> tuple[QSize, QSize]:
@@ -257,11 +252,10 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         self.clear_actions()
         quick_types = runtime_app_config.settings.get_quick_types()
         tooltips = runtime_app_config.settings.get_quick_type_tooltips()
-        fallback_icon = get_default_icon_path()
         for code, icon_name, tooltip in quick_types:
             label = tooltips.get(code, tooltip) or code
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
-            icon = _icon_from_path(icon_path, fallback_icon)
+            icon = _icon_from_path(icon_path)
             action = QAction(icon, label, self._toolbar)
             action.setToolTip(label)
             action.triggered.connect(lambda _=False, ct=code: self._on_quick_add(ct))
@@ -331,14 +325,13 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
     ) -> None:
         self._last_items = self._normalize_items(items)
         self.clear_actions()
-        fallback_icon = get_default_icon_path()
         for link_data in self._last_items:
             name = link_data.get("name") or "Unknown"
             if fast_icons:
-                icon_path = _resolve_icon_for_link_fast(link_data) or str(fallback_icon)
+                icon_path = _resolve_icon_for_link_fast(link_data)
             else:
-                icon_path = resolve_icon_for_link(link_data) or str(fallback_icon)
-            icon = _icon_from_path(Path(icon_path), fallback_icon)
+                icon_path = resolve_icon_for_link(link_data)
+            icon = _icon_from_path(Path(icon_path)) if icon_path else QIcon()
             action = QAction(icon, name, self._toolbar)
             action.setToolTip(name)
             action.setData(link_data)

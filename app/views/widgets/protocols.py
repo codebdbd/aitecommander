@@ -347,10 +347,6 @@ class IconProviderProtocol(Protocol):
     Used by LinkButtonMixin and similar components.
     """
 
-    def _get_default_icon_path(self) -> Path:
-        """Return the path to the default icon."""
-        ...
-
 
 class TranslatableProtocol(Protocol):
     """Protocol for classes that support Qt translation.

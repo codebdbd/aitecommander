@@ -10,7 +10,6 @@ from typing import Any
 
 from ..base.db_base import ValidationError
 from ..types.constants import (
-    DEFAULT_ICON_PATH,
     MAX_NAME_LENGTH,
     MAX_NOTES_LENGTH,
     MAX_URL_LENGTH,
@@ -75,7 +74,7 @@ def normalize_link_fields(link_data: dict[str, Any], all_fields: list[str]) -> d
     data["url"] = data.get("url", "") or ""
     data["args"] = data.get("args", "") or ""
     data["notes"] = data.get("notes", "") or ""
-    data["icon_path"] = data.get("icon_path", DEFAULT_ICON_PATH) or DEFAULT_ICON_PATH
+    data["icon_path"] = data.get("icon_path") or ""
     
     # Normalize type using LinkType enum
     try:

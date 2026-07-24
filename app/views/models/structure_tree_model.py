@@ -28,7 +28,7 @@ from app.config_data.runtime_config import (
     get_tree_section_icon_prewarm_limit,
 )
 from app.utils.ui.icon.loading_service import icon_loading_service
-from app.utils.ui.icon.icon_resolver import resolve_icon_path, resolve_section_icon_path
+from app.utils.ui.icon.icon_resolver import resolve_category_icon_path, resolve_section_icon_path
 from app.utils.ui.icon.validation import _validate_icon_name
 
 NodeType = str  # "section" | "category" | "root"
@@ -1034,7 +1034,7 @@ class StructureTreeModel(QAbstractItemModel):
         for section_row, s in enumerate(sections or []):
             # Resolve section icon with type-specific fallback (section.png)
             raw_icon_path = s.get("icon_path") or ""
-            resolved_section_path = resolve_section_icon_path(raw_icon_path) if raw_icon_path else ""
+            resolved_section_path = resolve_section_icon_path(raw_icon_path)
             section_icon, pending_section_path, stored_section_path = (
                 self._prepare_icon_fields(
                     s.get("icon"),
@@ -1086,7 +1086,7 @@ class StructureTreeModel(QAbstractItemModel):
             for c in section_categories:
                 category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
                     c.get("icon"),
-                    c.get("icon_path"),
+                    resolve_category_icon_path(c.get("icon_path") or ""),
                 )
                 if stored_cat_path is not None:
                     c["icon_path"] = stored_cat_path
@@ -1152,7 +1152,7 @@ class StructureTreeModel(QAbstractItemModel):
                     continue
                 category_icon, pending_cat_path, stored_cat_path = self._prepare_icon_fields(
                     c.get("icon"),
-                    c.get("icon_path"),
+                    resolve_category_icon_path(c.get("icon_path") or ""),
                 )
                 if stored_cat_path is not None:
                     c["icon_path"] = stored_cat_path

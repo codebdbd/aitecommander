@@ -5,7 +5,6 @@ from typing import Any, Optional
 
 from PyQt6.QtWidgets import QToolButton
 
-from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
 from app.views.widgets.protocols import WidgetConfigProtocol
 
@@ -29,7 +28,6 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
             batch_size: Batch size for async population (0 = synchronous)
         """
         super().__init__(main_window, config=config, batch_size=batch_size)
-        self._default_icon_path = get_default_icon_path()
 
         # Set object names for styling
         self.setObjectName("favoritesPanel")

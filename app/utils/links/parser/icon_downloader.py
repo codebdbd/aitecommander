@@ -929,7 +929,6 @@ def _try_candidates_parallel_impl(
     except Exception as e:
         logger.debug("Parallel wait error: %s", e, exc_info=True)
         return None
-    return None
 
 
 def _submit_candidate_futures(

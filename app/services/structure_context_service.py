@@ -583,7 +583,7 @@ class StructureContextService:
             "type": link.get("type") or "web",
             "notes": link.get("notes") or "",
             "is_favorite": int(link.get("is_favorite") or 0),
-            "icon_path": link.get("icon_path") or "default.ico",
+            "icon_path": link.get("icon_path") or "",
             "args": link.get("args") or "",
         }
         browser_key = link.get("browser_key")
@@ -739,7 +739,7 @@ class StructureContextService:
             ltype = src.get("type") or "web"
             notes = src.get("notes") or ""
             is_favorite = int(src.get("is_favorite") or 0)
-            icon_path = src.get("icon_path") or "default.ico"
+            icon_path = src.get("icon_path") or ""
             args = src.get("args") or ""
             browser_key = src.get("browser_key")
 

@@ -405,7 +405,6 @@
       "script": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
     },
     "default_icons": {
-      "default": "default.ico",
       "folder": "folder_icon.png",
       "web": "web_icon.png",
       "program": "program_icon.png",

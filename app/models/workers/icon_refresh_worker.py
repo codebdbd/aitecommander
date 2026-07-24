@@ -15,6 +15,7 @@ from app.config_data import app_config
 from app.models.base.db_base import db_lock
 from app.models.types.link_type import LinkType
 from app.utils.links.parser.fetcher import fetch_web_link_info
+from app.utils.links.link_parser import _extract_icon_from_exe
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 if TYPE_CHECKING:
@@ -110,52 +111,45 @@ class IconRefreshWorker(QRunnable):
         except Exception:
             return path_str.lower()
 
-    def _find_links_with_default_icons(self, default_icon_path: str) -> list[dict]:
-        """Найти все веб-ссылки с дефолтной иконкой.
-        
+    def _find_links_with_default_icons(
+        self, default_icon_path: str, link_types: list[str] | None = None
+    ) -> list[dict]:
+        """Найти все ссылки указанных типов с дефолтной иконкой.
+
+        Fetches ALL matching links; Python-side ``_is_default_icon`` checks
+        whether the icon file actually exists on disk.
+
+        Args:
+            default_icon_path: resolved path to the global default icon
+            link_types: list of LinkType values to scan (default: web + program)
+
         Returns:
-            Список словарей с полями: id, url, icon_path, category_id
+            Список словарей с полями: id, url, icon_path, category_id, name, type
         """
+        if link_types is None:
+            link_types = [LinkType.WEB.value, LinkType.PROGRAM.value]
         try:
-            default_web_icon = self._get_default_web_icon_name()
-            default_web_like = f"%{default_web_icon}" if default_web_icon else "%web_icon.png"
-            # Ищем веб-ссылки с дефолтной иконкой или пустой
-            # ВАЖНО: Проверяем несколько вариантов дефолтной иконки:
-            # - "default.ico" (значение по умолчанию в БД)
-            # - Полный путь из resolve_icon_for_link()
-            # - Пустая строка или NULL
-            query = """
-                SELECT id, url, icon_path, category_id, name
+            placeholders = ",".join("?" for _ in link_types)
+            query = f"""
+                SELECT id, url, icon_path, category_id, name, type
                 FROM link
-                WHERE type = ?
-                AND (
-                    icon_path = 'default.ico'
-                    OR icon_path = ?
-                    OR icon_path = ?
-                    OR icon_path = ''
-                    OR icon_path IS NULL
-                    OR icon_path LIKE '%default.ico'
-                    OR icon_path LIKE '%web_icon.png'
-                    OR icon_path LIKE ?
-                    OR icon_path LIKE 'web_%'
-                )
+                WHERE type IN ({placeholders})
                 ORDER BY id ASC
             """
-            rows = self.db.connection.execute(
-                query, (LinkType.WEB.value, default_icon_path, default_web_icon, default_web_like)
-            ).fetchall()
-            
+            rows = self.db.connection.execute(query, link_types).fetchall()
+
             logger.debug(
-                "[icon_refresh] Found %s web links with default icons (default_icon_path=%s)",
+                "[icon_refresh] Scanning %s links (types=%s) for missing icons",
                 len(rows),
-                default_icon_path,
+                link_types,
             )
-            
+
             candidates = []
             for row in rows:
                 data = dict(row)
                 icon_path = data.get("icon_path") or ""
-                if self._is_default_icon(icon_path, default_icon_path):
+                link_type = data.get("type", "")
+                if self._is_default_icon(icon_path, default_icon_path, link_type):
                     candidates.append(data)
             return candidates
         except Exception as e:
@@ -214,20 +208,55 @@ class IconRefreshWorker(QRunnable):
             logger.debug("Failed to fetch icon for %s: %s", url, e)
             return None
 
-    def _is_default_icon(self, icon_path: str, default_icon_path: str) -> bool:
-        """Проверить, является ли иконка дефолтной.
-        
-        Логика:
-        - Дефолтная: web_icon.png (общая иконка для всех веб-ссылок)
-        - Скачанная: web_domain_com.png (уникальная иконка домена)
-        
+    def _extract_icon_for_program(self, exe_path: str) -> str | None:
+        """Извлечь иконку из EXE/ lnk файла программы."""
+        self._raise_if_cancelled()
+        try:
+            icons_dir = str(app_config.paths.get_link_icons_dir())
+            return _extract_icon_from_exe(exe_path, icons_dir)
+        except CancelledError:
+            raise
+        except Exception as e:
+            logger.debug("Failed to extract icon for program %s: %s", exe_path, e)
+            return None
+
+    def _is_default_icon(
+        self, icon_path: str, default_icon_path: str, link_type: str = ""
+    ) -> bool:
+        """Проверить, является ли иконка дефолтной (нуждается в обновлении).
+
         Args:
             icon_path: Путь к иконке из БД
-            default_icon_path: Путь к дефолтной иконке (не используется)
-        
+            default_icon_path: Путь к дефолтной иконке
+            link_type: Тип ссылки ('web', 'program', etc.)
+
         Returns:
-            True если иконка дефолтная
+            True если файл иконки отсутствует на диске
         """
+        if not icon_path:
+            return True
+
+        # Проверяем по типу ссылки
+        if link_type == LinkType.PROGRAM.value:
+            return self._is_program_icon_default(icon_path)
+
+        return self._is_web_icon_default(icon_path, default_icon_path)
+
+    def _is_program_icon_default(self, icon_path: str) -> bool:
+        """Проверить, отсутствует ли иконка программы на диске."""
+        if not icon_path:
+            return True
+        icons_dir = app_config.paths.get_link_icons_dir()
+        # Try absolute path first
+        p = Path(icon_path)
+        if p.is_absolute():
+            return not p.exists()
+        # Relative path — check in icons dir
+        candidate = icons_dir / icon_path
+        return not candidate.exists()
+
+    def _is_web_icon_default(self, icon_path: str, default_icon_path: str) -> bool:
+        """Проверить, является ли веб-иконка дефолтной."""
         if not icon_path:
             return True
 
@@ -237,31 +266,24 @@ class IconRefreshWorker(QRunnable):
 
         # Дефолтные значения (включая абсолютные пути)
         if (
-            icon_name in ("default.ico", default_web_name)
+            icon_name in (default_web_name,)
             or "web_icon" in icon_name
-            or "default.ico" in icon_name
             or (default_name and icon_name == default_name)
         ):
             return True
 
-        # Если это web_* - считаем дефолтной, если файл отсутствует или резолвится в дефолт
+        # Если это web_* - считаем дефолтной, если файл отсутствует
         if icon_name.startswith("web_"):
-            try:
-                resolved = resolve_icon_for_link(
-                    {"type": "web", "icon_path": icon_path}
-                )
-            except Exception:
-                resolved = ""
-            if not resolved:
-                return True
-            if default_icon_path:
-                if self._normalize_path(resolved) == self._normalize_path(
-                    default_icon_path
-                ):
-                    return True
-            return False
+            icons_dir = app_config.paths.get_link_icons_dir()
+            # Check absolute path
+            p = Path(icon_path)
+            if p.is_absolute():
+                return not p.exists()
+            # Check relative path in icons dir
+            candidate = icons_dir / icon_path
+            return not candidate.exists()
 
-        # Любая другая иконка считаем кастомной, если она не резолвится в дефолт
+        # Любая другая иконка — проверяем существование файла
         try:
             resolved = resolve_icon_for_link({"type": "web", "icon_path": icon_path})
         except Exception:
@@ -416,9 +438,10 @@ class IconRefreshWorker(QRunnable):
         link_id = link["id"]
         url = link["url"]
         current_icon = link.get("icon_path", "")
-        
-        # Пропускаем если уже не дефолтная иконка
-        is_default = self._is_default_icon(current_icon, default_icon_path)
+        link_type = link.get("type", "")
+
+        # Пропускаем если иконка уже на диске
+        is_default = self._is_default_icon(current_icon, default_icon_path, link_type)
         if not is_default:
             logger.debug(
                 "[icon_refresh] Skipping link %s (already has custom icon: %s)",
@@ -436,7 +459,10 @@ class IconRefreshWorker(QRunnable):
                     link_id,
                     url[:60],
                 )
-            new_icon_path = self._fetch_icon_for_link(url)
+            if link_type == LinkType.PROGRAM.value:
+                new_icon_path = self._extract_icon_for_program(url)
+            else:
+                new_icon_path = self._fetch_icon_for_link(url)
             
             if new_icon_path and new_icon_path != default_icon_path:
                 logger.info(
@@ -470,29 +496,33 @@ class IconRefreshWorker(QRunnable):
     
     def _process_link(self, link: dict, default_icon_path: str, stats: dict) -> None:
         """Обработать одну ссылку.
-        
+
         Args:
-            link: Словарь с данными ссылки
+            link: Словарь с данными ссылки (id, url, icon_path, type, ...)
             default_icon_path: Путь к дефолтной иконке
             stats: Словарь статистики для обновления
         """
         link_id = link["id"]
         url = link["url"]
         current_icon = link.get("icon_path", "")
-        
-        # Пропускаем если уже не дефолтная иконка
-        if not self._is_default_icon(current_icon, default_icon_path):
+        link_type = link.get("type", "")
+
+        # Пропускаем если иконка уже на диске
+        if not self._is_default_icon(current_icon, default_icon_path, link_type):
             stats["skipped"] += 1
             logger.debug(
-                "[icon_refresh] Skipping link %s (already has custom icon: %s)",
+                "[icon_refresh] Skipping link %s (icon exists: %s)",
                 link_id,
                 current_icon,
             )
             return
-        
-        # Пытаемся скачать иконку
+
+        # Пытаемся получить иконку по типу
         try:
-            new_icon_path = self._fetch_icon_for_link(url)
+            if link_type == LinkType.PROGRAM.value:
+                new_icon_path = self._extract_icon_for_program(url)
+            else:
+                new_icon_path = self._fetch_icon_for_link(url)
             
             if new_icon_path and new_icon_path != default_icon_path:
                 # Обновляем в БД

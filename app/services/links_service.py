@@ -105,8 +105,19 @@ class LinksService:
 
     @unit_of_work
     def delete_link(self, link_id: int) -> None:
+        """Удалить ссылку с очисткой осиротевшей иконки."""
         self._validate_positive_int(link_id, "link_id")
+
+        # Получаем данные ссылки перед удалением
+        link = self.repo.get_link_by_id(link_id)
+        icon_path = link.get("icon_path") if link else None
+
+        # Удаляем ссылку
         self.repo.delete_link(link_id)
+
+        # Очищаем осиротевшую иконку
+        if icon_path:
+            self._cleanup_orphaned_icon(icon_path)
 
     @unit_of_work
     def update_last_used(self, link_id: int) -> None:
@@ -173,9 +184,39 @@ class LinksService:
         return self._bulk.move_links_bulk(link_ids, target_category_id)
 
     def batch_delete_links(self, link_ids: list[int]) -> int:
-        """Delete multiple links by IDs in a single transaction."""
+        """Удалить несколько ссылок по IDs с очисткой осиротевших иконок."""
         self._validate_positive_int_list(link_ids, "link_ids")
-        return self._bulk.delete_links_bulk(link_ids)
+
+        # Получаем данные ссылок перед удалением
+        links_to_delete = []
+        for link_id in link_ids:
+            link = self.repo.get_link_by_id(link_id)
+            if link and link.get("icon_path"):
+                links_to_delete.append(link["icon_path"])
+
+        # Удаляем ссылки
+        deleted_count = self._bulk.delete_links_bulk(link_ids)
+
+        # Очищаем осиротевшие иконки
+        for icon_path in links_to_delete:
+            self._cleanup_orphaned_icon(icon_path)
+
+        return deleted_count
+
+    def _cleanup_orphaned_icon(self, icon_path: str) -> None:
+        """Очистить осиротевшую иконку, если она больше не используется."""
+        try:
+            from .icon_reference_service import IconReferenceService
+
+            icon_service = IconReferenceService(self.db)
+            icon_service.cleanup_icon_if_orphaned(icon_path)
+        except Exception as e:
+            # Не позволяем ошибке очистки нарушить основную операцию
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to cleanup orphaned icon %s: %s", icon_path, e
+            )
 
     @staticmethod
     def _validate_positive_int(value: object, field_name: str) -> None:

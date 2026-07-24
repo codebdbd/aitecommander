@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS link (
     notes        TEXT    DEFAULT '',
     is_favorite  INTEGER NOT NULL CHECK(is_favorite IN (0,1)) DEFAULT 0,
     last_used    TEXT    DEFAULT NULL,
-    icon_path    TEXT    NOT NULL DEFAULT 'default.ico',
+    icon_path    TEXT    NOT NULL DEFAULT '',
     args         TEXT    DEFAULT '',
     browser_key  TEXT    DEFAULT NULL,
     position     INTEGER NOT NULL DEFAULT 0,

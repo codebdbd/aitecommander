@@ -8,7 +8,7 @@ from PyQt6.QtGui import QIcon
 
 from app.controllers.ui.types import StructureTreeModelProtocol
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.ui.icon.icon_resolver import resolve_category_icon_path, resolve_icon_for_link, resolve_section_icon_path
 
 
 class IconHandling:
@@ -21,9 +21,12 @@ class IconHandling:
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
         # Centralized resolver: considers both provided icon_name and type
         try:
-            resolved = resolve_icon_for_link(
-                {"type": item_type, "icon_path": icon_name or ""}
-            )
+            if item_type == "section":
+                resolved = resolve_section_icon_path(icon_name)
+            elif item_type == "category":
+                resolved = resolve_category_icon_path(icon_name)
+            else:
+                resolved = resolve_icon_for_link({"type": item_type, "icon_path": icon_name or ""})
             if resolved:
                 return create_icon_from_path(resolved)
         except Exception:
