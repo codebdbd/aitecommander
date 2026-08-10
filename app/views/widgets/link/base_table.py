@@ -247,6 +247,7 @@ class LinksTableView(
 
     # Signal emitted after bulk population/update of the table
     table_populated: pyqtSignal = pyqtSignal()
+    externalLinkDropped: pyqtSignal = pyqtSignal(object)
 
     def update_font_size(self, font_size: int):
         """Apply the local font size to every table cell."""
@@ -413,6 +414,54 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect rowsMoved", exc_info=True
             )
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        if self._has_external_link_targets(event):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # type: ignore[override]
+        if self._has_external_link_targets(event):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        targets = self._external_link_targets_from_event(event)
+        if targets:
+            try:
+                self.externalLinkDropped.emit(
+                    {
+                        "type": "external_link_to_current_category",
+                        "targets": targets,
+                        "urls": targets,
+                    }
+                )
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
+            except Exception:
+                logger.warning("Failed to emit external URL table drop", exc_info=True)
+                event.ignore()
+            return
+        super().dropEvent(event)
+
+    def _has_external_link_targets(self, event) -> bool:
+        return bool(self._external_link_targets_from_event(event))
+
+    def _external_link_targets_from_event(self, event) -> list[str]:
+        try:
+            if self._is_internal_drop(event):
+                return []
+            mime = event.mimeData() if hasattr(event, "mimeData") else None
+            from app.utils.ui.dnd.mime import MimeDataParser
+
+            return MimeDataParser.extract_external_link_targets(mime)
+        except Exception:
+            logger.debug("Failed to extract external URLs from table drop", exc_info=True)
+            return []
 
     def _on_index_entered(self, index: QModelIndex):
         row = index.row()

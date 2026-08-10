@@ -25,6 +25,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.hotkey_manager import HotkeyManager
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.base import get_menu_icon
+from app.utils.ui.qt.combo_helpers import identify_combo_popup_view
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 from app.utils.ui.qt.delegates.list_item_height_delegate import (
     ListItemHeightDelegate,
@@ -237,6 +238,7 @@ class BaseDialog(QDialog, ReTranslatable):
                     if view is None or not isinstance(view, QListView):
                         view = QListView(combo)
                         combo.setView(view)
+                    identify_combo_popup_view(combo)
                     # Apply row height delegate to the combo (popup uses it), DPI-aware 32px logical
                     combo.setItemDelegate(ComboRowHeightDelegate(combo))
                     # Ensure the combo field icon matches popup icon size

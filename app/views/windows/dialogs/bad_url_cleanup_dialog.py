@@ -162,11 +162,11 @@ class BadUrlCleanupDialog(BaseDialog):
         filter_layout = QHBoxLayout()
         
         # Error type filter
-        from PyQt6.QtWidgets import QComboBox
+        from app.utils.ui.qt.combo_helpers import PopupComboBox
         error_label = QLabel(QCoreApplication.translate("BadUrlCleanupDialog", "Error:"))
         filter_layout.addWidget(error_label)
         
-        self.error_filter_combo = QComboBox()
+        self.error_filter_combo = PopupComboBox()
         self.error_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "🟢 All"), "ALL")
         self.error_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "🔴 DNS Failed"), "DNS Resolution Failed")
         self.error_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "🟡 404 Not Found"), "404 Not Found")
@@ -180,7 +180,7 @@ class BadUrlCleanupDialog(BaseDialog):
         sphere_label = QLabel(QCoreApplication.translate("BadUrlCleanupDialog", "Sphere:"))
         filter_layout.addWidget(sphere_label)
         
-        self.sphere_filter_combo = QComboBox()
+        self.sphere_filter_combo = PopupComboBox()
         self.sphere_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.sphere_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.sphere_filter_combo.currentIndexChanged.connect(self._on_sphere_changed)
@@ -190,7 +190,7 @@ class BadUrlCleanupDialog(BaseDialog):
         section_label = QLabel(QCoreApplication.translate("BadUrlCleanupDialog", "Section:"))
         filter_layout.addWidget(section_label)
         
-        self.section_filter_combo = QComboBox()
+        self.section_filter_combo = PopupComboBox()
         self.section_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.section_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.section_filter_combo.currentIndexChanged.connect(self._on_section_changed)
@@ -200,7 +200,7 @@ class BadUrlCleanupDialog(BaseDialog):
         category_label = QLabel(QCoreApplication.translate("BadUrlCleanupDialog", "Category:"))
         filter_layout.addWidget(category_label)
         
-        self.category_filter_combo = QComboBox()
+        self.category_filter_combo = PopupComboBox()
         self.category_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.category_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.category_filter_combo.currentIndexChanged.connect(self._on_filter_changed)

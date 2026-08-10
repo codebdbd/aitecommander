@@ -204,9 +204,9 @@ class FileSearchDialog(BaseDialog):
         pattern_row_layout.addWidget(self.pattern_le)
 
         # --- Common extension dropdown ---
-        from PyQt6.QtWidgets import QComboBox
+        from app.utils.ui.qt.combo_helpers import PopupComboBox
 
-        self.pattern_combo = QComboBox()
+        self.pattern_combo = PopupComboBox()
         self.pattern_combo.setEditable(False)
         common_patterns = [
             "*.cdr",

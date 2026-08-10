@@ -395,7 +395,9 @@ background: #F6CFE0;
 QDialog QCheckBox:focus {
 border-color: #D85A86;
 }
-QDialog QComboBox QAbstractItemView {
+QDialog QComboBox QAbstractItemView,
+QFrame#comboPopupContainer,
+QListView#comboPopupView {
 border-color: #E7B8CC;
 background: #FFF1F6;
 }
@@ -404,12 +406,14 @@ QDialog QComboBox::down-arrow {
 image: url(":/icons/dreamy_room/chevron_down.svg");
 }
 QComboBox QAbstractItemView::item:selected,
-QDialog QComboBox QAbstractItemView::item:selected {
+QDialog QComboBox QAbstractItemView::item:selected,
+QListView#comboPopupView::item:selected {
 background-color: #D85A86;
 color: #FFFFFF;
 }
 QComboBox QAbstractItemView::item:hover,
-QDialog QComboBox QAbstractItemView::item:hover {
+QDialog QComboBox QAbstractItemView::item:hover,
+QListView#comboPopupView::item:hover {
 background-color: #F6CFE0;
 }
 QDialog QPushButton:default:focus,

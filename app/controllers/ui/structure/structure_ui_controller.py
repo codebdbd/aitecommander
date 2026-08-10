@@ -16,6 +16,7 @@ from app.config_data.runtime_config import (
     get_tiles_stack_index,
     get_tree_icon_size,
 )
+from app.utils.links.dropped_web_link import build_dropped_link_payload
 from app.utils.ui.qt.roles import get_tree_tuple
 
 from .icon_handling import IconHandling
@@ -143,6 +144,10 @@ class StructureUIController(QObject):
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
+        try:
+            self.tree.externalLinkDropped.connect(self._on_external_link_dropped)
+        except Exception:
+            logger.debug("Failed to connect externalLinkDropped", exc_info=True)
         # Selection handling for QTreeView via QItemSelectionModel
         sel_model = getattr(self.tree, "selectionModel", None)
         if callable(sel_model):
@@ -182,6 +187,63 @@ class StructureUIController(QObject):
             add_new_section_cb=self.item_ops.add_new_section,
         )
         menu.popup(self.tree.viewport().mapToGlobal(pos))
+
+    def _on_external_link_dropped(self, payload: object) -> None:
+        """Create links when external targets are dropped on a category."""
+        if not isinstance(payload, dict):
+            return
+        category_id = payload.get("category_id")
+        targets = payload.get("targets", payload.get("urls"))
+        if not isinstance(category_id, int) or category_id <= 0:
+            return
+        if not isinstance(targets, list):
+            return
+
+        link_targets = [
+            target for target in targets if isinstance(target, str) and target.strip()
+        ]
+        if not link_targets:
+            return
+
+        undo_stack = getattr(self.main, "undo_stack", None)
+        if undo_stack is None:
+            logger.warning("Cannot add dropped target: undo stack is unavailable")
+            return
+
+        try:
+            structure_business = getattr(self.main, "structure_business", None)
+            if structure_business and hasattr(structure_business, "select_category"):
+                structure_business.select_category(category_id)
+        except Exception:
+            logger.debug(
+                "Failed to select category %s before adding dropped target",
+                category_id,
+                exc_info=True,
+            )
+
+        from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
+
+        links_data = [
+            build_dropped_link_payload(target, category_id) for target in link_targets
+        ]
+
+        if len(links_data) == 1:
+            undo_stack.push(
+                SaveLinkCmd(
+                    new_data=links_data[0],
+                    old_data=None,
+                    main_window=self.main,
+                )
+            )
+            return
+
+        undo_stack.push(
+            BatchSaveLinksCmd(
+                links_data=links_data,
+                _old_link_data=None,
+                main_window=self.main,
+            )
+        )
 
     # Public methods
     def load(self, item_to_select=None) -> None:

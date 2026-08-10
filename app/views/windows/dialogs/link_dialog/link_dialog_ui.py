@@ -30,6 +30,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.ui.qt.combo_helpers import PopupComboBox
 
 logger = logging.getLogger(__name__)
 
@@ -221,9 +222,9 @@ class LinkDialogUI:
 
     def _form_add_hierarchy_section(self) -> None:
         """Add hierarchy combo boxes: Sphere, Section, Category."""
-        self.sphere_cb = QComboBox()
-        self.section_cb = QComboBox()
-        self.category_cb = QComboBox()
+        self.sphere_cb = PopupComboBox()
+        self.section_cb = PopupComboBox()
+        self.category_cb = PopupComboBox()
 
         # Avoid focus stealing on hover — allow focus by click/Tab only
         try:

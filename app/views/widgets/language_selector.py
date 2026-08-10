@@ -2,20 +2,18 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtWidgets import QComboBox
-
-from app.utils.ui.qt.combo_helpers import select_combo_data
+from app.utils.ui.qt.combo_helpers import PopupComboBox, select_combo_data
 from app.views.common.retranslatable import ReTranslatable
 from i18n.language_service import LanguageService
 
 logger = logging.getLogger(__name__)
 
 
-class LanguageSelector(QComboBox, ReTranslatable):
+class LanguageSelector(PopupComboBox, ReTranslatable):
     """Combo box that lists available UI languages and switches them on selection."""
 
     def __init__(self, parent=None) -> None:
-        QComboBox.__init__(self, parent)
+        PopupComboBox.__init__(self, parent)
         self._service = LanguageService.instance()
         self.setObjectName("languageSelector")
         self._populate()

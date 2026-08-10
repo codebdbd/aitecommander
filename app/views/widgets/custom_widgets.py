@@ -244,6 +244,7 @@ class StructureTreeView(QTreeView):
     itemsMoved: pyqtSignal = pyqtSignal(object)
     invalidDrop: pyqtSignal = pyqtSignal(str)
     dragFeedback: pyqtSignal = pyqtSignal(object)
+    externalLinkDropped: pyqtSignal = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)

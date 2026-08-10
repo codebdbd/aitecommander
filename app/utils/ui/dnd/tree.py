@@ -7,7 +7,7 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 
 import logging
 
-from PyQt6.QtCore import QModelIndex
+from PyQt6.QtCore import QModelIndex, Qt
 from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QAbstractItemView
 
@@ -25,8 +25,10 @@ class DragDropHandler(TreeHandlerBase):
 
     def accepts_mime_type(self, mime) -> bool:
         """Checks if widget accepts given MIME type."""
-        return mime.hasFormat(app_config.get_link_mime_type()) or mime.hasFormat(
-            app_config.get_category_mime_type()
+        return (
+            mime.hasFormat(app_config.get_link_mime_type())
+            or mime.hasFormat(app_config.get_category_mime_type())
+            or bool(self._extract_external_link_targets(mime))
         )
 
     def handle_drag_enter_event(self, event) -> None:
@@ -119,6 +121,13 @@ class DragDropHandler(TreeHandlerBase):
                 else:
                     event.ignore()
                 return
+            if self._extract_external_link_targets(mime):
+                if self._handle_external_url_drop_index(mime, target_index):
+                    event.setDropAction(Qt.DropAction.CopyAction)
+                    event.accept()
+                else:
+                    event.ignore()
+                return
             if event.source() == self.tree_widget:
                 self._handle_internal_drop_event_index(event)
                 return
@@ -157,6 +166,13 @@ class DragDropHandler(TreeHandlerBase):
                     event.accept()
                 else:
                     event.ignore()
+            else:
+                event.ignore()
+        elif self._extract_external_link_targets(mime):
+            if target_type == "category":
+                valid_drop = True
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
             else:
                 event.ignore()
         else:
@@ -547,6 +563,41 @@ class DragDropHandler(TreeHandlerBase):
 
         # Focus is handled by MoveLinksCommand._refresh_ui
         return True
+
+    def _handle_external_url_drop_index(self, mime, target_index: QModelIndex) -> bool:
+        """Request creating links in the target category from external drops."""
+        ttuple = get_tree_tuple(target_index, 0)
+        if not (ttuple and ttuple[0] == "category" and isinstance(ttuple[1], int)):
+            return False
+        targets = self._extract_external_link_targets(mime)
+        if not targets:
+            return False
+        try:
+            self.tree_widget.externalLinkDropped.emit(
+                {
+                    "type": "external_link_to_category",
+                    "category_id": int(ttuple[1]),
+                    "targets": targets,
+                    "urls": targets,
+                    "title": target_index.data(),
+                }
+            )
+        except Exception:
+            logger.warning(
+                "Failed to emit external URL drop for category %s",
+                ttuple[1],
+                exc_info=True,
+            )
+            return False
+        return True
+
+    def _extract_external_web_urls(self, mime) -> list[str]:
+        """Extract http(s) URLs from external drag MIME data."""
+        return MimeDataParser.extract_external_web_urls(mime)
+
+    def _extract_external_link_targets(self, mime) -> list[str]:
+        """Extract web URLs and local paths from external drag MIME data."""
+        return MimeDataParser.extract_external_link_targets(mime)
 
     def _extract_link_ids_from_mime(self, mime) -> list[int]:
         """Extracts link IDs from MIME data."""
