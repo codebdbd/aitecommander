@@ -17,6 +17,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.db_tasks import run_db
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.qt.combo_helpers import (
+    PopupComboBox,
     add_combo_mapping_item,
     select_first_combo_item,
 )
@@ -72,12 +73,12 @@ class ImportBrowserDialog(BaseDialog):
         # Form with two rows: sphere and section
         form = QFormLayout()
 
-        self.sphere_cb = QComboBox()
+        self.sphere_cb = PopupComboBox()
         self.sphere_cb.setEnabled(False)
         self.sphere_cb.addItem(self.tr("Loading…"))
         form.addRow(self.tr("Sphere:"), self.sphere_cb)
 
-        self.section_cb = QComboBox()
+        self.section_cb = PopupComboBox()
         self.section_cb.setEnabled(False)
         self.section_cb.addItem(self.tr("Select a sphere first"))
         form.addRow(self.tr("Section:"), self.section_cb)

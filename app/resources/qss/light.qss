@@ -348,7 +348,9 @@ background: #E6E6E6;
 QDialog QCheckBox:focus {
 border-color: #99CCFF;
 }
-QDialog QComboBox QAbstractItemView {
+QDialog QComboBox QAbstractItemView,
+QFrame#comboPopupContainer,
+QListView#comboPopupView {
 border-color: #B3B3B3;
 background: #F2F4F7;
 }
@@ -357,12 +359,14 @@ QDialog QComboBox::down-arrow {
 image: url(":/icons/light/chevron_down.svg");
 }
 QComboBox QAbstractItemView::item:selected,
-QDialog QComboBox QAbstractItemView::item:selected {
+QDialog QComboBox QAbstractItemView::item:selected,
+QListView#comboPopupView::item:selected {
 background-color: #DBDBDB;
 color: #000000;
 }
 QComboBox QAbstractItemView::item:hover,
-QDialog QComboBox QAbstractItemView::item:hover {
+QDialog QComboBox QAbstractItemView::item:hover,
+QListView#comboPopupView::item:hover {
 background-color: #E6E6E6;
 color: #000000;
 }

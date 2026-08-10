@@ -23,7 +23,7 @@ from app.utils.browser.browser_profiles import persistent_cache as _pc
 from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 from app.utils.i18n.common import tr as tr_common
-from app.utils.ui.qt.combo_helpers import select_first_combo_item
+from app.utils.ui.qt.combo_helpers import PopupComboBox, select_first_combo_item
 
 from .base_dialog import BaseDialog
 
@@ -57,7 +57,7 @@ class BrowserProfileDialog(BaseDialog):
         top_layout = QHBoxLayout()
         self.lbl_browsers = QLabel(self.tr("Browsers:"))
         top_layout.addWidget(self.lbl_browsers)
-        self.browser_combo = QComboBox()
+        self.browser_combo = PopupComboBox()
         self.browser_combo.currentIndexChanged.connect(self._populate_profiles)
         top_layout.addWidget(self.browser_combo, 1)
         self.refresh_btn = QPushButton(self.tr("Refresh"))

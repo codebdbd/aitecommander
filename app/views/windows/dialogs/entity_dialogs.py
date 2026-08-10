@@ -44,7 +44,11 @@ from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.icon_resolver import resolve_section_icon_path, resolve_category_icon_path
-from app.utils.ui.qt.combo_helpers import add_combo_mapping_item, select_combo_data
+from app.utils.ui.qt.combo_helpers import (
+    PopupComboBox,
+    add_combo_mapping_item,
+    select_combo_data,
+)
 from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
 
@@ -366,7 +370,7 @@ class SectionDialog(BaseEntityDialog):
         self._init_common_ui(form)
 
         # Sphere selection afterward
-        self.sphere_cb = QComboBox()
+        self.sphere_cb = PopupComboBox()
         self._populate_spheres()
         form.addRow(self.tr("Sphere:"), self.sphere_cb)
 
@@ -487,12 +491,12 @@ class CategoryDialog(BaseEntityDialog):
         self._init_common_ui(form)
 
         # Then sphere and section selectors
-        self.sphere_cb = QComboBox()
+        self.sphere_cb = PopupComboBox()
         self._populate_spheres()
         self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         form.addRow(self.tr("Sphere:"), self.sphere_cb)
 
-        self.section_cb = QComboBox()
+        self.section_cb = PopupComboBox()
         form.addRow(self.tr("Section:"), self.section_cb)
         self._update_sections()
 
@@ -738,7 +742,7 @@ class SettingsDialog(BaseDialog):
         form.addRow(self.tr("Language:"), self.language_selector)
 
         # Theme
-        self.theme_combo = QComboBox()
+        self.theme_combo = PopupComboBox()
         self._refresh_theme_list()
         self.theme_combo.currentIndexChanged.connect(self._on_theme_selection_changed)
         form.addRow(self.tr("Theme:"), self.theme_combo)
@@ -761,7 +765,7 @@ class SettingsDialog(BaseDialog):
         form.addRow(self.tr("Theme actions:"), actions_row)
 
         # Font size
-        self.font_size_combo = QComboBox()
+        self.font_size_combo = PopupComboBox()
         self.font_size_combo.addItems([str(i) for i in range(9, 15)])
         try:
             current_font_size = int(self.settings.get_font_size())
@@ -774,7 +778,7 @@ class SettingsDialog(BaseDialog):
         form.addRow(self.tr("Font size:"), self.font_size_combo)
 
         # Max backups
-        self.max_backups_combo = QComboBox()
+        self.max_backups_combo = PopupComboBox()
         self.max_backups_combo.addItems([str(i) for i in range(1, 21)])
         try:
             current = int(self.settings.get_max_backups())

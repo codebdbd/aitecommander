@@ -7,6 +7,8 @@ from PyQt6.QtCore import QCoreApplication, QObject, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from app.controllers.business.links_business import LinksBusinessLogic
+from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
+from app.utils.links.dropped_web_link import build_dropped_link_payload
 from app.utils.common import safe_call
 from app.utils.ui.focus import get_focus_manager
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
@@ -87,6 +89,11 @@ class LinksUIController(QObject):
                 self.table.table_populated.connect(self.rebuild_row_index)
         except Exception as e:
             logger.debug("Failed to connect table_populated: %s", e)
+        try:
+            if hasattr(self.table, "externalLinkDropped"):
+                self.table.externalLinkDropped.connect(self.on_external_link_dropped)
+        except Exception as e:
+            logger.debug("Failed to connect externalLinkDropped: %s", e)
 
         # CENTRALIZED: initial category load
         self._reload_current_category()
@@ -180,6 +187,62 @@ class LinksUIController(QObject):
     def quick_add_link(self, link_type: str, category_id: int | None = None):
         """Quick add link."""
         self.link_ops.quick_add_link(link_type, category_id)
+
+    def on_external_link_dropped(self, payload: object) -> None:
+        """Create links in the current category from external drops."""
+        if not isinstance(payload, dict):
+            return
+        targets = payload.get("targets", payload.get("urls"))
+        if not isinstance(targets, list):
+            return
+        link_targets = [
+            target for target in targets if isinstance(target, str) and target.strip()
+        ]
+        if not link_targets:
+            return
+
+        category_id = self._get_current_category_id_for_drop()
+        if not isinstance(category_id, int) or category_id <= 0:
+            logger.warning("Cannot add dropped target: no current category selected")
+            return
+
+        undo_stack = getattr(self.main, "undo_stack", None)
+        if undo_stack is None:
+            logger.warning("Cannot add dropped target: undo stack is unavailable")
+            return
+
+        links_data = [
+            build_dropped_link_payload(target, category_id) for target in link_targets
+        ]
+        if len(links_data) == 1:
+            undo_stack.push(
+                SaveLinkCmd(
+                    new_data=links_data[0],
+                    old_data=None,
+                    main_window=self.main,
+                )
+            )
+            return
+
+        undo_stack.push(
+            BatchSaveLinksCmd(
+                links_data=links_data,
+                _old_link_data=None,
+                main_window=self.main,
+            )
+        )
+
+    def _get_current_category_id_for_drop(self) -> int | None:
+        getter = getattr(self.main, "get_current_category_id", None)
+        if callable(getter):
+            try:
+                category_id = getter()
+                if isinstance(category_id, int) and category_id > 0:
+                    return category_id
+            except Exception:
+                logger.debug("Failed to resolve current category for drop", exc_info=True)
+        category_id = getattr(self.main, "current_category_id", None)
+        return category_id if isinstance(category_id, int) and category_id > 0 else None
 
     def show_note_dialog(self, link: dict) -> None:
         """Show note dialog for link."""

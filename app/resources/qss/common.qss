@@ -280,6 +280,16 @@ QComboBox QAbstractItemView::item:hover {
     outline: none;
 }
 
+QListView#comboPopupView,
+QListView#comboPopupView:focus,
+QListView#comboPopupView::item,
+QListView#comboPopupView::item:focus,
+QListView#comboPopupView::item:selected,
+QListView#comboPopupView::item:hover {
+    outline: none;
+    border: none;
+}
+
 QComboBox::drop-down {
     border: none;
     background: transparent;
@@ -417,6 +427,21 @@ QSplitter::handle:vertical {
 
 QAbstractScrollArea {
     border: none;
+}
+
+QFrame#comboPopupContainer {
+    border: 1px solid;
+    border-top: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+QListView#comboPopupView {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
 }
 
 QListWidget#categoryTiles,

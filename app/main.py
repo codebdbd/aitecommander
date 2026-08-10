@@ -2,11 +2,32 @@
 
 from __future__ import annotations
 
+import os
 import sys
-import faulthandler
 
-# Enable C-level traceback for segfaults
-faulthandler.enable()
+# Ensure sys.stdout and sys.stderr are non-None streams in PyInstaller windowed (--noconsole) mode
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+# Add sys._MEIPASS to Windows DLL search directories in PyInstaller frozen mode
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    try:
+        os.add_dll_directory(sys._MEIPASS)
+        pywin_dir = os.path.join(sys._MEIPASS, "pywin32_system32")
+        if os.path.isdir(pywin_dir):
+            os.add_dll_directory(pywin_dir)
+    except Exception:
+        pass
+
+# Enable C-level traceback for segfaults if stderr is available
+try:
+    import faulthandler
+    if sys.stderr is not None:
+        faulthandler.enable()
+except Exception:
+    pass
 
 # Fix for PyQt6 + pywin32 COM uninitialization crash on Windows exit
 sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED
