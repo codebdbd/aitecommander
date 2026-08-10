@@ -21,6 +21,15 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     except Exception:
         pass
 
+# Prevent incomplete brotli/brotlicffi package from causing AttributeError in urllib3
+for _b_mod in ("brotlicffi", "brotli"):
+    try:
+        _m = __import__(_b_mod)
+        if not hasattr(_m, "error"):
+            sys.modules[_b_mod] = None
+    except Exception:
+        sys.modules[_b_mod] = None
+
 # Enable C-level traceback for segfaults if stderr is available
 try:
     import faulthandler

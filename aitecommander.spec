@@ -53,6 +53,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        "brotli",
+        "brotlicffi",
         "tkinter",
         "matplotlib",
         "numpy",
