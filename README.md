@@ -68,6 +68,23 @@ pip install hatchling
 python -m build
 ```
 
+## Building the Windows installer
+
+Install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then build the PyInstaller
+application folder and compile the installer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1
+```
+
+If `dist\AiteCommander` already exists, skip the PyInstaller step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -SkipPyInstaller
+```
+
+The installer is written to `dist\installer\AiteCommanderSetup-1.0.0.exe`.
+
 ## Development
 
 ```bash
