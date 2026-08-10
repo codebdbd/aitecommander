@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Safely wrapped `faulthandler.enable()` in a `try...except` block with a null check.
 - **PyQt6 DLL Loading Failure (`ImportError: DLL load failed while importing QtCore`)**:
   - Registered `sys._MEIPASS` and `pywin32_system32` in Windows DLL search paths via `os.add_dll_directory()` upon frozen application initialization.
+- **PyWin32 `win32ui` Import Crash**:
+  - Made `win32ui` import safe with null checks and added automatic fallback to Qt `QFileIconProvider` when `win32ui` MFC runtime initialization fails in frozen builds.
 - **PyWin32 Build Resolution**:
   - Resolved `pythoncom` and `pywintypes` import resolution issues during PyInstaller analysis.
 

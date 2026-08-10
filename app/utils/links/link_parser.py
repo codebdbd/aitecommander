@@ -9,7 +9,12 @@ import pythoncom
 import win32api
 import win32con
 import win32gui
-import win32ui
+
+try:
+    import win32ui
+except Exception:
+    win32ui = None
+
 from PIL import Image
 from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QFileIconProvider
@@ -47,12 +52,7 @@ def _get_icon_provider():
 
 
 def _validate_exe_path(exe_path: str) -> bool:
-    """Local EXE path validation: existence, file, extension.
-
-    No size limit on the EXE itself - icon extraction via WinAPI stays fast
-    regardless of binary size. Resulting icon validity is checked separately
-    via is_valid_icon_file().
-    """
+    """Local EXE path validation: existence, file, extension."""
     if not exe_path or not isinstance(exe_path, str):
         return False
     exe_path_obj = Path(exe_path)
@@ -60,7 +60,6 @@ def _validate_exe_path(exe_path: str) -> bool:
         return False
     if not exe_path.lower().endswith(".exe"):
         return False
-    # Check read access (simplified - if file exists, assume readable)
     if not exe_path_obj.exists():
         return False
     return True
@@ -98,18 +97,18 @@ def gdi_context():
         if "hdc_compat" in resources:
             try:
                 resources["hdc_compat"].DeleteDC()
-            except (win32ui.error, AttributeError):
+            except Exception:
                 pass
         if "hdc" in resources:
             try:
                 resources["hdc"].DeleteDC()
-            except (win32ui.error, AttributeError):
+            except Exception:
                 pass
         if "icons" in resources:
             for icon in resources["icons"]:
                 try:
                     win32gui.DestroyIcon(icon)
-                except win32gui.error:
+                except Exception:
                     pass
 
 
@@ -124,7 +123,7 @@ def _get_default_icon(icon_type: str, config) -> str:
 
 
 def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
-    """Extracts icon from EXE file with improved error handling"""
+    """Extracts icon from EXE file with improved error handling and Qt fallback."""
     if not _validate_exe_path(exe_path):
         return None
     save_dir_obj = Path(save_dir)
@@ -139,44 +138,41 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     if is_cached_icon_valid(str(save_path), exe_path):
         logger.debug("Using cached EXE icon: %s", save_path)
         return str(save_path)
-    try:
-        with gdi_context() as resources:
-            large, small = win32gui.ExtractIconEx(exe_path, 0)
-            if not large:
-                logger.debug("No icon found in %s", exe_path)
-                return None
-            resources["icons"] = large + small
-            hicon = large[0]
-            ico_x = win32api.GetSystemMetrics(win32con.SM_CXICON)
-            resources["hdc"] = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
-            hbmp = win32ui.CreateBitmap()
-            hbmp.CreateCompatibleBitmap(resources["hdc"], ico_x, ico_x)
-            resources["hdc_compat"] = resources["hdc"].CreateCompatibleDC()
-            resources["hdc_compat"].SelectObject(hbmp)
-            resources["hdc_compat"].DrawIcon((0, 0), hicon)
-            bmpinfo = hbmp.GetInfo()
-            bmpstr = hbmp.GetBitmapBits(True)
-            img = Image.frombuffer(
-                "RGBA",
-                (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
-                bmpstr,
-                "raw",
-                "BGRA",
-                0,
-                1,
-            )
-            if img.mode != "RGBA":
-                img = img.convert("RGBA")
-            img.save(save_path, format="PNG")
-            logger.debug("Extracted EXE icon saved: %s", save_path)
-            return str(save_path)
-    except win32ui.error as e:
-        logger.error("Win32 error extracting icon from %s: %s", exe_path, e)
-    except OSError as e:
-        logger.error("File error extracting icon from %s: %s", exe_path, e)
-    except (RuntimeError, ValueError) as e:
-        logger.error("Error extracting icon from %s: %s", exe_path, e)
-    return None
+
+    if win32ui is not None:
+        try:
+            with gdi_context() as resources:
+                large, small = win32gui.ExtractIconEx(exe_path, 0)
+                if large:
+                    resources["icons"] = large + small
+                    hicon = large[0]
+                    ico_x = win32api.GetSystemMetrics(win32con.SM_CXICON)
+                    resources["hdc"] = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
+                    hbmp = win32ui.CreateBitmap()
+                    hbmp.CreateCompatibleBitmap(resources["hdc"], ico_x, ico_x)
+                    resources["hdc_compat"] = resources["hdc"].CreateCompatibleDC()
+                    resources["hdc_compat"].SelectObject(hbmp)
+                    resources["hdc_compat"].DrawIcon((0, 0), hicon)
+                    bmpinfo = hbmp.GetInfo()
+                    bmpstr = hbmp.GetBitmapBits(True)
+                    img = Image.frombuffer(
+                        "RGBA",
+                        (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
+                        bmpstr,
+                        "raw",
+                        "BGRA",
+                        0,
+                        1,
+                    )
+                    if img.mode != "RGBA":
+                        img = img.convert("RGBA")
+                    img.save(save_path, format="PNG")
+                    logger.debug("Extracted EXE icon saved: %s", save_path)
+                    return str(save_path)
+        except Exception as e:
+            logger.warning("GDI icon extraction failed for %s: %s, falling back to Qt provider", exe_path, e)
+
+    return _handle_file_icon(exe_path, save_dir)
 
 
 def _parse_lnk(lnk_path: str) -> dict[str, str]:
@@ -217,11 +213,7 @@ def _parse_lnk(lnk_path: str) -> dict[str, str]:
 
 
 def parse_lnk(lnk_path: str) -> dict[str, str]:
-    """Public wrapper for parsing .lnk files.
-
-    Stable API for external modules. Delegates to private implementation
-    `_parse_lnk`, allowing future changes to internals without affecting clients.
-    """
+    """Public wrapper for parsing .lnk files."""
     return _parse_lnk(lnk_path)
 
 
@@ -293,7 +285,6 @@ def _handle_program_icon(
 ) -> Optional[str]:
     """Handles program icon"""
     if path.lower().endswith(".lnk"):
-        # Preserve rich icon extraction for PWA-style shortcuts.
         shortcut_app_icon = _handle_shortcut_app_icon(lnk_info, icons_dir)
         if shortcut_app_icon:
             return shortcut_app_icon
@@ -310,10 +301,13 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
         return None
     try:
         ext = Path(path).suffix.lower().replace(".", "")
+        if not ext and path.lower().endswith(".exe"):
+            ext = "exe"
         if not ext:
             return None
         icons_dir_obj = Path(icons_dir)
-        icon_path = icons_dir_obj / f"file_{ext}.png"
+        icon_filename = f"program_{Path(path).stem}.png" if path.lower().endswith(".exe") else f"file_{ext}.png"
+        icon_path = icons_dir_obj / icon_filename
         if is_valid_icon_file(str(icon_path)):
             return str(icon_path)
         icon_path.parent.mkdir(parents=True, exist_ok=True)
@@ -356,7 +350,7 @@ def _get_icon_for_link_type(
     return fallback or ""
 
 
-def parse_local_link(
+def _parse_local_link_impl(
     link_type: str, path: str, config, args: Optional[str] = None
 ) -> dict[str, str]:
     """Parses local link and returns information about it, including name and icon."""
@@ -380,3 +374,9 @@ def parse_local_link(
     result = {"name": name, "icon": icon}
     logger.debug("parse_local_link result: %s", result)
     return result
+
+
+def parse_local_link(
+    link_type: str, path: str, config, args: Optional[str] = None
+) -> dict[str, str]:
+    return _parse_local_link_impl(link_type, path, config, args)
