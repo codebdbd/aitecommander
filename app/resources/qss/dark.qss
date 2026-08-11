@@ -93,20 +93,16 @@ border-bottom-color: #3A3E44;
 }
 QMenuBar::item {
 color: #C9D1DA;
-border-left-color: transparent;
-border-right-color: transparent;
 }
 QMenuBar::item:hover,
 QMenuBar::item:selected {
 background: #252D3A;
 color: #FFFFFF;
-border-left-color: #3A3E44;
-border-right-color: #3A3E44;
+border: none;
 }
 QMenuBar::item:pressed {
 background: #2C2F36;
-border-left-color: #3A3E44;
-border-right-color: #3A3E44;
+border: none;
 }
 QMenuBar QMenu {
 background-color: #2C2F36;

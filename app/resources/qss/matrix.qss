@@ -91,9 +91,11 @@ color: #9EF4A3;
 QMenuBar::item:selected {
 background: #0F3F24;
 color: #C9FFD8;
+border: none;
 }
 QMenuBar::item:pressed {
 background: #135530;
+border: none;
 }
 QMenuBar QMenu {
 background-color: #050C07;

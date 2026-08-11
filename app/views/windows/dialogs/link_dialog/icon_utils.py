@@ -12,6 +12,11 @@ from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon.loading_service import icon_loading_service
+from app.utils.ui.icon.icon_resolver import (
+    resolve_category_icon_path,
+    resolve_icon_path,
+    resolve_section_icon_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,3 +120,26 @@ def get_cached_icon(icon_path_str: str) -> Optional[QIcon]:
         return None
     return icon
 
+
+def get_cached_icon_with_fallback(
+    icon_path_str: str,
+    entity_type: str,
+) -> Optional[QIcon]:
+    """Return an icon for structure comboboxes, falling back to entity defaults."""
+    entity = str(entity_type or "").strip().lower()
+    if entity == "section":
+        resolved = resolve_section_icon_path(icon_path_str)
+    elif entity == "category":
+        resolved = resolve_category_icon_path(icon_path_str)
+    else:
+        resolved = resolve_icon_path(icon_path_str)
+        if not resolved and entity:
+            resolved = resolve_icon_path(f"{entity}.png")
+
+    if not resolved:
+        return None
+
+    icon = icon_loading_service.get_path_icon(resolved)
+    if icon.isNull():
+        return None
+    return icon

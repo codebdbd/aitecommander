@@ -115,28 +115,11 @@ QMenuBar::item {
     padding: 0 10px;
     border-radius: 0;
     margin: 0;
-    border-left: 0px solid;
-    border-right: 0px solid;
-    
+    border: none;
     font-weight: normal;
     background: transparent;
 }
 
-QMenuBar::item:hover,
-QMenuBar::item:selected,
-QMenuBar::item:pressed {
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-left-style: solid;
-    border-right-style: solid;
-}
-
-QMenuBar QMenu {
-    margin-top: 6px; 
-    padding: 0;
-    border-radius: 0;
-    border-top-width: 0px;
-}
 
 QMenuBar QMenu::item {
     padding: 0 24px 0 8px;
@@ -271,7 +254,7 @@ QComboBox QAbstractItemView {
 }
 
 QComboBox QAbstractItemView::item {
-    padding-left: 4px;
+    padding-left: 8px;
 }
 
 QComboBox QAbstractItemView:focus,
@@ -281,13 +264,19 @@ QComboBox QAbstractItemView::item:hover {
 }
 
 QListView#comboPopupView,
-QListView#comboPopupView:focus,
+QListView#comboPopupView:focus {
+    outline: none;
+    border: none;
+}
+
 QListView#comboPopupView::item,
 QListView#comboPopupView::item:focus,
 QListView#comboPopupView::item:selected,
 QListView#comboPopupView::item:hover {
     outline: none;
     border: none;
+    padding: 2px 4px 2px 8px;
+    min-height: 0;
 }
 
 QComboBox::drop-down {

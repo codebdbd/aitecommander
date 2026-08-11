@@ -4,7 +4,7 @@ from typing import Any
 
 from app.utils.ui.qt.combo_helpers import add_combo_item
 
-from ..icon_utils import get_cached_icon
+from ..icon_utils import get_cached_icon_with_fallback
 
 
 class HierarchyMixin:
@@ -36,7 +36,14 @@ class HierarchyMixin:
             sections = self.dialog.dialog_controller.get_sections_for_sphere(sphere_id)
             for sec in sections:
                 icon_path_val = self._extract_icon_path(sec)
-                self._add_item(section_cb, sec["name"], sec["id"], icon_path_val, with_icons)
+                self._add_item(
+                    section_cb,
+                    sec["name"],
+                    sec["id"],
+                    icon_path_val,
+                    with_icons,
+                    entity_type="section",
+                )
 
         self._update_categories(with_icons=with_icons)
 
@@ -54,22 +61,41 @@ class HierarchyMixin:
             )
             for cat in categories:
                 icon_path_val = self._extract_icon_path(cat)
-                self._add_item(category_cb, cat["name"], cat["id"], icon_path_val, with_icons)
+                self._add_item(
+                    category_cb,
+                    cat["name"],
+                    cat["id"],
+                    icon_path_val,
+                    with_icons,
+                    entity_type="category",
+                )
 
     def _add_item(
-        self, combo: Any, name: str, item_id: Any, icon_path_val: str, with_icons: bool
+        self,
+        combo: Any,
+        name: str,
+        item_id: Any,
+        icon_path_val: str,
+        with_icons: bool,
+        *,
+        entity_type: str,
     ) -> None:
         """Add combo item, optionally applying an icon."""
         if not with_icons:
             add_combo_item(combo, name, item_id)
             return
-        self._add_with_optional_icon(combo, name, item_id, icon_path_val)
+        self._add_with_optional_icon(combo, name, item_id, icon_path_val, entity_type)
 
     def _add_with_optional_icon(
-        self, combo: Any, name: str, item_id: Any, icon_path_val: str
+        self,
+        combo: Any,
+        name: str,
+        item_id: Any,
+        icon_path_val: str,
+        entity_type: str,
     ) -> None:
         """Add combo box item with cached icon when available."""
-        icon = get_cached_icon(icon_path_val or "")
+        icon = get_cached_icon_with_fallback(icon_path_val or "", entity_type)
         add_combo_item(combo, name, item_id, icon=icon)
 
     def _extract_icon_path(self, item: Any) -> str:

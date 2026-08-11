@@ -186,11 +186,11 @@ border-color: #D85A86;
 color: #FFFFFF;
 }
 QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit {
-background-color: #FFFFFF;
+background-color: #FFF1F6;
 border-color: #E7B8CC;
 }
 QComboBox QAbstractItemView {
-background-color: #FFFFFF;
+background-color: #FFF1F6;
 selection-background-color: #E46A98;
 border-color: #E7B8CC;
 }
@@ -256,7 +256,7 @@ QTableWidget::item:selected {
 }
 QTreeView::item:!selected:hover {
     background-color: #F6CFE0;
-    color: #4A1F2F;
+    color: #000000;
 }
 QTableView::item:!selected:hover,
 QTableWidget::item:!selected:hover {
@@ -321,7 +321,7 @@ QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
 border-color: #E7B8CC;
-background-color: #FFFFFF;
+background-color: #FFF1F6;
 color: #4A1F2F;
 }
 QDialog QPushButton,

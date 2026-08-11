@@ -268,6 +268,15 @@ class SelectionWorkflowService(QObject):
         assert index is not None
         try:
             self._tree.blockSignals(True)
+            parent_index = index.parent()
+            if parent_index and parent_index.isValid():
+                try:
+                    self._tree.expand(parent_index)
+                except Exception:
+                    logger.debug(
+                        "SelectionWorkflowService.restore_category_selection: expand parent failed",
+                        exc_info=True,
+                    )
             selection_model.setCurrentIndex(
                 index, selection_model.SelectionFlag.ClearAndSelect
             )
