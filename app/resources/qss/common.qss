@@ -27,6 +27,11 @@ QWidget#LeftPanel {
     border-radius: 0;
 }
 
+#spheres_bar QToolButton:pressed,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
+    border-style: inset;
+}
+
 
 QWidget#LeftPanel QToolButton {
     border: none;
@@ -94,9 +99,7 @@ QMenu::indicator:checked {
 
 QToolTip {
     border-radius: 0;
-    border: 1px solid #59F0FF;
-    background: #070B14;
-    color: #DCE6F2;
+    border: 1px solid;
 }
 
 
@@ -118,6 +121,14 @@ QMenuBar::item {
     border: none;
     font-weight: normal;
     background: transparent;
+}
+
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+    border-left: 1px solid;
+    border-top: 1px solid;
+    border-right: 1px solid;
+    border-bottom: none;
 }
 
 

@@ -50,7 +50,6 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
 border-color: #FFFFFF;
 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
 stop: 0 #0C4B78, stop: 1 #1D79B8);
-border-style: inset;
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #1E2633;
@@ -86,6 +85,11 @@ QMenu::indicator:checked {
 background-color: #3A6EFF;
 border-color: #3A6EFF;
 }
+QToolTip {
+border-color: #59F0FF;
+background: #070B14;
+color: #DCE6F2;
+}
 QMenuBar {
 background-color: #1A1F26;
 border-top-color: #3A3E44;
@@ -102,18 +106,12 @@ border: none;
 QMenuBar::item:selected {
 background: #2C2F36;
 color: #D1D6E0;
-border-left: 1px solid #3A3E44;
-border-top: 1px solid #3A3E44;
-border-right: 1px solid #3A3E44;
-border-bottom: none;
+border-color: #3A3E44;
 }
 QMenuBar::item:pressed {
 background: #2C2F36;
 color: #D1D6E0;
-border-left: 1px solid #3A3E44;
-border-top: 1px solid #3A3E44;
-border-right: 1px solid #3A3E44;
-border-bottom: none;
+border-color: #3A3E44;
 }
 QMenuBar QMenu {
 background-color: #2C2F36;

@@ -44,7 +44,6 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
 border-color: #FFFFFF;
 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
 stop: 0 #136B3C, stop: 1 #2DBF6D);
-border-style: inset;
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #001100;
@@ -80,6 +79,11 @@ QMenu::indicator:checked {
 background-color: #3BF989;
 border-color: #3BF989;
 }
+QToolTip {
+border-color: #3BF989;
+background: #001100;
+color: #C9FFD8;
+}
 QMenuBar {
 background-color: #050C07;
 border-top-color: #0F3F24;
@@ -88,21 +92,20 @@ border-bottom-color: #0F3F24;
 QMenuBar::item {
 color: #9EF4A3;
 }
+QMenuBar::item:hover {
+background: #0F3F24;
+color: #C9FFD8;
+border: none;
+}
 QMenuBar::item:selected {
 background: #050C07;
 color: #9EF4A3;
-border-left: 1px solid #0F3F24;
-border-top: 1px solid #0F3F24;
-border-right: 1px solid #0F3F24;
-border-bottom: none;
+border-color: #0F3F24;
 }
 QMenuBar::item:pressed {
 background: #050C07;
 color: #9EF4A3;
-border-left: 1px solid #0F3F24;
-border-top: 1px solid #0F3F24;
-border-right: 1px solid #0F3F24;
-border-bottom: none;
+border-color: #0F3F24;
 }
 QMenuBar QMenu {
 background-color: #050C07;
@@ -117,6 +120,9 @@ background: #000000;
 }
 QWidget#topBarHost {
 background: #000000;
+}
+QWidget#topBarHost QLineEdit {
+border-color: #0F3F24;
 }
 QWidget#topBarHost QLineEdit:hover,
 QWidget#topBarHost QLineEdit:focus {

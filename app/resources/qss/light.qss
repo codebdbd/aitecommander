@@ -6,16 +6,32 @@ QMainWindow > QFrame {
 background: #FDFDFE;
 }
 QWidget#LeftPanel[sphere="1"] {
-background: #F3FBF8;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FDFDFE, stop: 0.95 #FDFDFE,
+stop: 0.95 #F3FBF8, stop: 1 #F3FBF8
+);
 }
 QWidget#LeftPanel[sphere="2"] {
-background: #F4F9FF;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FDFDFE, stop: 0.95 #FDFDFE,
+stop: 0.95 #F4F9FF, stop: 1 #F4F9FF
+);
 }
 QWidget#LeftPanel[sphere="3"] {
-background: #F8F5FF;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FDFDFE, stop: 0.95 #FDFDFE,
+stop: 0.95 #F8F5FF, stop: 1 #F8F5FF
+);
 }
 QWidget#LeftPanel[sphere="4"] {
-background: #FFF7F3;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FDFDFE, stop: 0.95 #FDFDFE,
+stop: 0.95 #FFF7F3, stop: 1 #FFF7F3
+);
 }
 QWidget#spheres_bar QToolButton {
 }
@@ -34,7 +50,6 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
 border-color: #FFFFFF;
 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
 stop: 0 #00427A, stop: 1 #0061B0);
-border-style: inset;
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #E6E6E6;
@@ -71,6 +86,11 @@ QMenu::indicator:checked {
 background-color: #0078D7;
 border-color: #0078D7;
 }
+QToolTip {
+border-color: #0078D7;
+background: #FFFFFF;
+color: #1F2430;
+}
 QMenuBar {
 background-color: #F0F0F0;
 border-top-color: #E0E0E0;
@@ -79,21 +99,20 @@ border-bottom-color: #E0E0E0;
 QMenuBar::item {
 color: #444444;
 }
+QMenuBar::item:hover {
+background: #E6E6E6;
+color: #000000;
+border: none;
+}
 QMenuBar::item:selected {
 background: #FFFFFF;
 color: #333333;
-border-left: 1px solid #E0E0E0;
-border-top: 1px solid #E0E0E0;
-border-right: 1px solid #E0E0E0;
-border-bottom: none;
+border-color: #E0E0E0;
 }
 QMenuBar::item:pressed {
 background: #FFFFFF;
 color: #333333;
-border-left: 1px solid #E0E0E0;
-border-top: 1px solid #E0E0E0;
-border-right: 1px solid #E0E0E0;
-border-bottom: none;
+border-color: #E0E0E0;
 }
 QMenuBar QMenu {
 background-color: #FFFFFF;
@@ -236,9 +255,6 @@ QTreeView::item:!selected:hover {
 background-color: #E6E6E6;
 color: #000000;
 }
-QTableView::item:!selected:hover,
-QTableWidget::item:!selected:hover {
-}
 QWidget[class="separator"] {
 background-color: #B3B3B3;
 }
@@ -306,6 +322,7 @@ background: #E6E6E6;
 border-color: #99CCFF;
 color: #1F2430;
 }
+QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
 QDialog QPlainTextEdit:focus,
 QDialog QComboBox:focus,
@@ -317,10 +334,6 @@ border-color: #99CCFF;
 }
 QDialog QPushButton:focus,
 QDialog QToolButton:focus {
-border-color: #99CCFF;
-}
-QDialog QPushButton:focus:hover,
-QDialog QToolButton:focus:hover {
 border-color: #99CCFF;
 }
 QDialog QPushButton:disabled,
@@ -380,11 +393,7 @@ QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus {
 border-color: #99CCFF;
 }
-QDialog QToolButton#linkTypeBtn {
-border-color: #B3B3B3;
-}
-QDialog QToolButton#linkTypeBtn:hover,
-QDialog QToolButton#linkTypeBtn:focus {
+QDialog QToolButton#linkTypeBtn:hover {
 border-color: #99CCFF;
 background: #E6E6E6;
 }
@@ -392,8 +401,7 @@ QDialog QToolButton#linkTypeBtn:checked {
 background: #E6E6E6;
 border-color: #B3B3B3;
 }
-QDialog QToolButton#linkTypeBtn:checked:hover,
-QDialog QToolButton#linkTypeBtn:checked:focus {
+QDialog QToolButton#linkTypeBtn:checked:hover {
 border-color: #99CCFF;
 background: #E6E6E6;
 }
@@ -404,6 +412,10 @@ QSplitter::handle { background-color: #B3B3B3; }
 QSplitter::handle:horizontal { background-color: #B3B3B3; }
 QSplitter::handle:vertical { background-color: #B3B3B3; }
 #spheres_bar {
+}
+QWidget#favQuickSeparatorBefore,
+QWidget#favQuickSeparatorAfter {
+background-color: #B3B3B3;
 }
 QWidget#topBarHost QToolButton#quickButton,
 QWidget#topBarHost QToolButton#quickButton:hover,
