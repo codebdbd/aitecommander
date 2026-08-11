@@ -29,11 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Improved
 - **Drag & Drop & Tree Management**:
   - Enhanced MIME data handling and link hierarchy tree updates.
+  - Added fast link creation via drag and drop with immediate item insertion into the target category.
+  - Improved move/update behavior so structure refresh and focus restoration work more reliably after edits.
 - **UI & Custom Dialogs**:
   - Refined table widgets, bad URL cleanup dialog, browser profile dialogs, and language selector.
 - **About dialog and localization**:
   - Replaced the legacy message box with a structured About dialog.
   - Added localized About resources for English, Ukrainian, Russian, French, Spanish, and German.
+- **Icon handling**:
+  - Added icon reset and reassignment flow for links.
+  - Improved background icon parsing and fallback behavior for links, files, applications, sections, and categories.
+  - Hardened icon cache/meta writes under concurrent updates on Windows.
 
 ---
 
