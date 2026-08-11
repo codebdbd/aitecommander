@@ -167,6 +167,13 @@ class IconPathService:
         """Full path to user icon."""
         return self.get_user_icons_dir() / filename
 
+    def get_supported_icon_formats(self) -> list[str]:
+        """Return supported icon file extensions from config."""
+        try:
+            return list(self._config.get_supported_icon_formats())
+        except Exception:
+            return [".ico", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".svg", ".webp"]
+
     def get_ui_icons_dir(self) -> Path:
         """Path to UI icons directory (delegates to PathConfig)."""
         if self._ui_icons_dir is None:

@@ -188,6 +188,33 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
         self.assertEqual("bad.example.com", result["title"])
         scheduler_mock.return_value.submit_task.assert_called_once()
 
+    def test_deferred_icon_can_be_owned_by_post_save_service(self) -> None:
+        config = _DummyConfig()
+
+        with (
+            patch("app.utils.links.parser.fetcher.read_cache", return_value=None),
+            patch(
+                "app.utils.links.parser.fetcher.resolve_icon_for_link",
+                return_value="/default/web.png",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._fetch_and_parse_html",
+                return_value=object(),
+            ),
+            patch("app.utils.links.parser.fetcher.get_title", return_value="Title"),
+            patch("app.utils.links.parser.fetcher.get_task_scheduler") as scheduler_mock,
+            patch("app.utils.links.parser.fetcher.write_cache"),
+        ):
+            result = fetcher.fetch_web_link_info(
+                "https://example.com/a",
+                config,
+                defer_icon=True,
+                schedule_deferred_icon=False,
+            )
+
+        self.assertEqual("Title", result["title"])
+        scheduler_mock.return_value.submit_task.assert_not_called()
+
     def test_negative_cache_entry_is_bypassed_and_refetched(self) -> None:
         config = _DummyConfig()
 

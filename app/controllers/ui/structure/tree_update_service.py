@@ -69,8 +69,12 @@ class TreeUpdateService(QObject):
         controller = getattr(self._manager, "controller", None)
         selection_handler = getattr(controller, "selection_handler", None)
         if item_type == "category" and isinstance(item_id, int) and selection_handler:
+            target_section_id = self._coerce_int((data or {}).get("section_id"))
             schedule_selection_restore(
-                lambda: selection_handler._restore_category_selection(item_id),  # noqa: SLF001
+                lambda: selection_handler._restore_category_selection(  # noqa: SLF001
+                    item_id,
+                    target_section_id=target_section_id,
+                ),
                 f"restore_cat_{item_id}",
             )
             # Restore focus to tree after editing category

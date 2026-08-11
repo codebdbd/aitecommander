@@ -2,6 +2,7 @@ import logging
 import re
 import threading
 from contextlib import contextmanager
+from hashlib import sha1
 from pathlib import Path
 from typing import Any, Optional, TypedDict
 
@@ -39,6 +40,17 @@ _provider = None
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+_IMAGE_PREVIEW_EXTENSIONS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".gif",
+    ".webp",
+    ".tif",
+    ".tiff",
+}
 
 
 def _get_icon_provider():
@@ -300,6 +312,24 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
     if not path:
         return None
     try:
+        path_obj = Path(path)
+        suffix = path_obj.suffix.lower()
+        if suffix in _IMAGE_PREVIEW_EXTENSIONS and path_obj.exists():
+            preview_key = sha1(str(path_obj.resolve()).encode("utf-8")).hexdigest()[:12]
+            preview_path = (
+                Path(icons_dir) / f"file_preview_{path_obj.stem}_{preview_key}.png"
+            )
+            if is_cached_icon_valid(str(preview_path), path):
+                return str(preview_path)
+            preview_path.parent.mkdir(parents=True, exist_ok=True)
+            with Image.open(path_obj) as src_img:
+                preview = src_img.convert("RGBA")
+                preview.thumbnail((256, 256), Image.Resampling.LANCZOS)
+                preview.save(preview_path, format="PNG")
+            if is_valid_icon_file(str(preview_path)):
+                logger.debug("Created image preview icon: %s", preview_path)
+                return str(preview_path)
+
         ext = Path(path).suffix.lower().replace(".", "")
         if not ext and path.lower().endswith(".exe"):
             ext = "exe"

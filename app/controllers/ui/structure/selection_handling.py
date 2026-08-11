@@ -236,8 +236,15 @@ class SelectionHandling(QObject):
     def _select_category_without_stack_switch(self, category_id: int) -> None:
         self._actions.reload_links_without_stack_switch(category_id)
 
-    def _restore_category_selection(self, category_id: int) -> None:
-        index = self._workflow.restore_category_selection(category_id)
+    def _restore_category_selection(
+        self,
+        category_id: int,
+        target_section_id: int | None = None,
+    ) -> None:
+        index = self._workflow.restore_category_selection(
+            category_id,
+            target_section_id=target_section_id,
+        )
         if index:
             self._handle_item_selection(index)
 

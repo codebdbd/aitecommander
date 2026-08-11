@@ -47,6 +47,7 @@ except Exception:
     Image.MAX_IMAGE_PIXELS = 2_000_000
 
 from .constants import BS_PARSER, MIN_GOOD_SIZE, TARGET_SIZE, logger
+from .favicon_cache import _file_lock
 from .http_client import http_request
 from .icon_candidates import find_favicon_candidates
 from .icon_fallback import (
@@ -406,53 +407,50 @@ class IconDownloader:
         width, height = img.size
         lock = _get_icon_lock(domain)
         with lock:
-            # RACE CONDITION FIX: Check if fresh icon already exists
-            path_obj = Path(path)
-            if path_obj.exists():
+            with _file_lock(f"{path}.lock"):
+                # RACE CONDITION FIX: Check if fresh icon already exists
+                path_obj = Path(path)
+                if path_obj.exists():
+                    try:
+                        # Skip if file was modified less than 1 hour ago
+                        age_seconds = time.time() - path_obj.stat().st_mtime
+                        if age_seconds < 3600:  # 1 hour
+                            logger.debug(
+                                "[race] Icon already exists and is fresh (age=%.1fs) for %s, skipping save",
+                                age_seconds,
+                                domain,
+                            )
+                            clear_domain_failed(icon_url)
+                            return path, False
+                    except Exception as e:
+                        logger.debug("Failed to check icon age for %s: %s", domain, e)
+
+                if img.mode != "RGBA":
+                    img = img.convert("RGBA")
+                buf = BytesIO()
+                img.save(buf, format="PNG")
+                _atomic_write_bytes(path_obj, buf.getvalue())
+                # NOTE: PNG and metadata are replaced atomically independently,
+                # not as a single transaction. Readers may briefly see stale meta.
                 try:
-                    # Skip if file was modified less than 1 hour ago
-                    age_seconds = time.time() - path_obj.stat().st_mtime
-                    if age_seconds < 3600:  # 1 hour
-                        logger.debug(
-                            "[race] Icon already exists and is fresh (age=%.1fs) for %s, skipping save",
-                            age_seconds,
-                            domain,
-                        )
-                        clear_domain_failed(icon_url)
-                        return path, False
-                except Exception as e:
-                    logger.debug("Failed to check icon age for %s: %s", domain, e)
-            
-            if img.mode != "RGBA":
-                img = img.convert("RGBA")
-            buf = BytesIO()
-            img.save(buf, format="PNG")
-            _atomic_write_bytes(path_obj, buf.getvalue())
-            # NOTE: PNG and metadata are replaced atomically *independently*,
-            # not as a single transaction.  Between the two os.replace() calls
-            # a reader may briefly see a new PNG with stale metadata (or vice
-            # versa).  This is acceptable because metadata serves only as an
-            # auxiliary cache (ETag / Last-Modified / source_url) and readers
-            # tolerate stale values.
-            try:
-                prev_meta = meta or {}
-                meta_update = {
-                    "etag": response_headers.get("ETag") or prev_meta.get("etag"),
-                    "last_modified": response_headers.get("Last-Modified")
-                    or prev_meta.get("last_modified"),
-                    "saved_at": time.time(),
-                    "source_url": icon_url,
-                    "content_hash": hashlib.sha256(data).hexdigest(),
-                    "width": width,
-                    "height": height,
-                    "fallback": bool(is_fallback),
-                }
-                write_icon_meta(domain, meta_update)
-            except Exception as me:
-                logger.debug(
-                    "Icon meta update failed for %s: %s", domain, me, exc_info=True
-                )
-            clear_domain_failed(icon_url)
+                    prev_meta = meta or {}
+                    meta_update = {
+                        "etag": response_headers.get("ETag") or prev_meta.get("etag"),
+                        "last_modified": response_headers.get("Last-Modified")
+                        or prev_meta.get("last_modified"),
+                        "saved_at": time.time(),
+                        "source_url": icon_url,
+                        "content_hash": hashlib.sha256(data).hexdigest(),
+                        "width": width,
+                        "height": height,
+                        "fallback": bool(is_fallback),
+                    }
+                    write_icon_meta(domain, meta_update)
+                except Exception as me:
+                    logger.debug(
+                        "Icon meta update failed for %s: %s", domain, me, exc_info=True
+                    )
+                clear_domain_failed(icon_url)
         return path, True
 
     # === Public method ===

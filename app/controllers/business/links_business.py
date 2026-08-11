@@ -639,7 +639,7 @@ class LinksBusinessLogic(QObject):
             "type": link_type,
             "notes": data.get("notes") or "",
             "is_favorite": int(data.get("is_favorite") or 0),
-            "icon_path": data.get("icon_path") or "",
+            "icon_path": data.get("icon_path") or data.get("icon_name") or "",
             "args": data.get("args") or "",
         }
         browser_key = data.get("browser_key")

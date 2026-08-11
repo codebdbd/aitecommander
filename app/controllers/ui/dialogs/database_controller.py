@@ -18,6 +18,8 @@ from app.core.worker_manager import WorkerManager
 from app.models.db import Database
 from app.services.database_restore_worker import DatabaseRestoreWorker
 from app.utils.ui.db_errors import handle_db_error
+from app.utils.ui.icon.cache_manager import clear_icon_cache
+from app.utils.ui.icon.file_lock import icon_files_lock
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.windows.dialogs.database_dialogs import DatabaseDialogs
 
@@ -240,6 +242,7 @@ class DatabaseController(QObject):
     def _load_icons_archive(self, zip_path: str, icons_dir: str) -> None:
         try:
             icon_count = self._import_icons_archive(zip_path, icons_dir)
+            clear_icon_cache()
             self.icons_imported.emit(icon_count)
             self._emit_success(
                 self.tr("Icons successfully added to: {path}").format(
@@ -257,14 +260,48 @@ class DatabaseController(QObject):
 
     def _export_icons_archive(self, icons_dir: str, save_path: str) -> None:
         """Write all files from icons dir into zip archive."""
-        with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for fname in os.listdir(icons_dir):
-                fpath = Path(icons_dir) / fname
-                if fpath.is_file():
-                    zipf.write(str(fpath), fname)
+        allowed_suffixes = {
+            suffix.lower()
+            for suffix in icon_path_service.get_supported_icon_formats()
+        }
+        with icon_files_lock():
+            with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for fname in os.listdir(icons_dir):
+                    fpath = Path(icons_dir) / fname
+                    if (
+                        fpath.is_file()
+                        and not fname.startswith(".")
+                        and fpath.suffix.lower() in allowed_suffixes
+                    ):
+                        zipf.write(str(fpath), fname)
 
     def _import_icons_archive(self, zip_path: str, icons_dir: str) -> int:
         """Extract icon archive and return extracted entry count."""
-        with zipfile.ZipFile(zip_path, "r") as zipf:
-            zipf.extractall(icons_dir)
-            return len(zipf.namelist())
+        allowed_suffixes = {
+            suffix.lower()
+            for suffix in icon_path_service.get_supported_icon_formats()
+        }
+        target_root = Path(icons_dir).resolve()
+        imported = 0
+        with icon_files_lock():
+            with zipfile.ZipFile(zip_path, "r") as zipf:
+                for member in zipf.infolist():
+                    if member.is_dir():
+                        continue
+                    member_path = Path(member.filename)
+                    if len(member_path.parts) != 1 or member.filename != member_path.name:
+                        continue
+                    member_name = member_path.name
+                    if (
+                        not member_name
+                        or member_name.startswith(".")
+                        or Path(member_name).suffix.lower() not in allowed_suffixes
+                    ):
+                        continue
+                    destination = (target_root / member_name).resolve()
+                    if destination.parent != target_root:
+                        continue
+                    with zipf.open(member, "r") as src, open(destination, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    imported += 1
+        return imported
