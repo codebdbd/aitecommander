@@ -562,6 +562,15 @@ QTimeEdit {
     border-radius: 0;
 }
 
+QTextEdit,
+QPlainTextEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+}
+
 QCheckBox,
 QDialog QCheckBox {
     border: none;

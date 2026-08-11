@@ -94,15 +94,26 @@ border-bottom-color: #3A3E44;
 QMenuBar::item {
 color: #C9D1DA;
 }
-QMenuBar::item:hover,
-QMenuBar::item:selected {
+QMenuBar::item:hover {
 background: #252D3A;
 color: #FFFFFF;
 border: none;
 }
+QMenuBar::item:selected {
+background: #2C2F36;
+color: #D1D6E0;
+border-left: 1px solid #3A3E44;
+border-top: 1px solid #3A3E44;
+border-right: 1px solid #3A3E44;
+border-bottom: none;
+}
 QMenuBar::item:pressed {
 background: #2C2F36;
-border: none;
+color: #D1D6E0;
+border-left: 1px solid #3A3E44;
+border-top: 1px solid #3A3E44;
+border-right: 1px solid #3A3E44;
+border-bottom: none;
 }
 QMenuBar QMenu {
 background-color: #2C2F36;
@@ -356,8 +367,8 @@ border-color: #0194F0;
 QDialog QComboBox QAbstractItemView,
 QFrame#comboPopupContainer,
 QListView#comboPopupView {
-border-color: #2A2F3A;
-background: #151A22;
+border-color: #3A3F47;
+background: #252D3A;
 }
 QComboBox::down-arrow,
 QDialog QComboBox::down-arrow {
@@ -372,7 +383,7 @@ color: #FFFFFF;
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {
-background-color: #252D3A;
+background-color: #2E4066;
 }
 QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus {

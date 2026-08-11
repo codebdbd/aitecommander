@@ -51,10 +51,11 @@ class AppSettings:
     def get_max_backups(self) -> int:
         default_value = app_config.get_max_backups()
         raw = self._qs.value("Backup/MaxCopies", default_value)
-        return self._as_int(raw, default_value, "Backup/MaxCopies")
+        value = self._as_int(raw, default_value, "Backup/MaxCopies")
+        return max(1, min(10, value))
 
     def set_max_backups(self, count: int):
-        self._qs.setValue("Backup/MaxCopies", count)
+        self._qs.setValue("Backup/MaxCopies", max(1, min(10, int(count))))
 
     def get_font_size(self) -> int:
         default_value = app_config.get_default_font_size()

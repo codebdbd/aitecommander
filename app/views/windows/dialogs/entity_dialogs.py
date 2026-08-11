@@ -794,10 +794,10 @@ class SettingsDialog(BaseDialog):
 
         # Max backups
         self.max_backups_combo = PopupComboBox()
-        self.max_backups_combo.addItems([str(i) for i in range(1, 21)])
+        self.max_backups_combo.addItems([str(i) for i in range(1, 11)])
         try:
             current = int(self.settings.get_max_backups())
-            if 1 <= current <= 20:
+            if 1 <= current <= 10:
                 self.max_backups_combo.setCurrentIndex(current - 1)
             else:
                 self.max_backups_combo.setCurrentIndex(9)
