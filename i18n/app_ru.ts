@@ -3138,4 +3138,79 @@ Failed: {3}</source>
       <translation>Поиск… (Ctrl+F)</translation>
     </message>
   </context>
+  <context>
+    <name>AboutDialog</name>
+    <message>
+      <source>About</source>
+      <translation>О программе</translation>
+    </message>
+    <message>
+      <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+      <translation>Иерархический менеджер закладок и ссылок для Windows. Организует ссылки по сферам, разделам и категориям, поддерживает темы, иконки и инструменты импорта и экспорта.</translation>
+    </message>
+    <message>
+      <source>Information</source>
+      <translation>Информация</translation>
+    </message>
+    <message>
+      <source>Version {0}</source>
+      <translation>Версия {0}</translation>
+    </message>
+    <message>
+      <source>Developer: Codebdbd</source>
+      <translation>Разработчик: Codebdbd</translation>
+    </message>
+    <message>
+      <source>License: MIT</source>
+      <translation>Лицензия: MIT</translation>
+    </message>
+    <message>
+      <source>Python 3.12+ · PyQt6 · SQLite</source>
+      <translation>Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+      <source>Application data</source>
+      <translation>Данные приложения</translation>
+    </message>
+    <message>
+      <source>Data folder</source>
+      <translation>Папка данных</translation>
+    </message>
+    <message>
+      <source>Open data folder</source>
+      <translation>Открыть папку данных</translation>
+    </message>
+    <message>
+      <source>Program folder</source>
+      <translation>Папка программы</translation>
+    </message>
+    <message>
+      <source>Open program folder</source>
+      <translation>Открыть папку программы</translation>
+    </message>
+    <message>
+      <source>Resources</source>
+      <translation>Ресурсы</translation>
+    </message>
+    <message>
+      <source>Support the project</source>
+      <translation>Поддержать проект</translation>
+    </message>
+    <message>
+      <source>GitHub repository</source>
+      <translation>Репозиторий GitHub</translation>
+    </message>
+    <message>
+      <source>Open license</source>
+      <translation>Открыть лицензию</translation>
+    </message>
+    <message>
+      <source>Could not open target.</source>
+      <translation>Не удалось открыть объект.</translation>
+    </message>
+    <message>
+      <source>Missing target: {0}</source>
+      <translation>Объект не найден: {0}</translation>
+    </message>
+  </context>
 </TS>

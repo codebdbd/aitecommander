@@ -3137,4 +3137,79 @@ Fehlgeschlagen: {3}</translation>
       <translation>Erstellte Kategorien: {count}</translation>
     </message>
   </context>
+  <context>
+    <name>AboutDialog</name>
+    <message>
+      <source>About</source>
+      <translation>Über das Programm</translation>
+    </message>
+    <message>
+      <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+      <translation>Hierarchischer Lesezeichen- und Link-Manager für Windows. Organisiert Links nach Bereichen, Abschnitten und Kategorien und unterstützt Designs, Symbole sowie Import- und Exportwerkzeuge.</translation>
+    </message>
+    <message>
+      <source>Information</source>
+      <translation>Informationen</translation>
+    </message>
+    <message>
+      <source>Version {0}</source>
+      <translation>Version {0}</translation>
+    </message>
+    <message>
+      <source>Developer: Codebdbd</source>
+      <translation>Entwickler: Codebdbd</translation>
+    </message>
+    <message>
+      <source>License: MIT</source>
+      <translation>Lizenz: MIT</translation>
+    </message>
+    <message>
+      <source>Python 3.12+ · PyQt6 · SQLite</source>
+      <translation>Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+      <source>Application data</source>
+      <translation>Anwendungsdaten</translation>
+    </message>
+    <message>
+      <source>Data folder</source>
+      <translation>Datenordner</translation>
+    </message>
+    <message>
+      <source>Open data folder</source>
+      <translation>Datenordner öffnen</translation>
+    </message>
+    <message>
+      <source>Program folder</source>
+      <translation>Programmordner</translation>
+    </message>
+    <message>
+      <source>Open program folder</source>
+      <translation>Programmordner öffnen</translation>
+    </message>
+    <message>
+      <source>Resources</source>
+      <translation>Ressourcen</translation>
+    </message>
+    <message>
+      <source>Support the project</source>
+      <translation>Projekt unterstützen</translation>
+    </message>
+    <message>
+      <source>GitHub repository</source>
+      <translation>GitHub-Repository</translation>
+    </message>
+    <message>
+      <source>Open license</source>
+      <translation>Lizenz öffnen</translation>
+    </message>
+    <message>
+      <source>Could not open target.</source>
+      <translation>Ziel konnte nicht geöffnet werden.</translation>
+    </message>
+    <message>
+      <source>Missing target: {0}</source>
+      <translation>Ziel nicht gefunden: {0}</translation>
+    </message>
+  </context>
 </TS>

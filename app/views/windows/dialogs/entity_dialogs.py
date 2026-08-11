@@ -919,8 +919,8 @@ class SettingsDialog(BaseDialog):
         theme_id = str(theme_id)
         if not theme_registry.is_user_theme(theme_id):
             return
-        confirm = QMessageBox.question(
-            self,
+        confirm = self.show_custom_dialog(
+            QMessageBox.Icon.Question,
             self.tr("Remove theme"),
             self.tr("Remove theme '%1'?").replace("%1", theme_id),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

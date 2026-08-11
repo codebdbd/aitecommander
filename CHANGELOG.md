@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-08-11
+
 ### Fixed
 - **PyInstaller Windowed Mode Crash (`sys.stderr is None`)**:
   - Redirected `sys.stdout` and `sys.stderr` to `os.devnull` when running in `--noconsole` mode to prevent runtime crashes when streams are accessed.
@@ -20,13 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Inno Setup Installer Support**:
-  - Automated installer creation producing `AiteCommanderSetup-1.0.0.exe` in `dist/installer/`.
+  - Automated installer creation producing `AiteCommanderSetup-1.1.0.exe` in `dist/installer/`.
 
 ### Improved
 - **Drag & Drop & Tree Management**:
   - Enhanced MIME data handling and link hierarchy tree updates.
 - **UI & Custom Dialogs**:
   - Refined table widgets, bad URL cleanup dialog, browser profile dialogs, and language selector.
+- **About dialog and localization**:
+  - Replaced the legacy message box with a structured About dialog.
+  - Added localized About resources for English, Ukrainian, Russian, French, Spanish, and German.
 
 ---
 

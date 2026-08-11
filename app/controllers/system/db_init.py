@@ -6,6 +6,7 @@ from typing import Callable
 from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.core.database_manager import DatabaseManager
 from app.models.base.db_base import db_lock
 from app.models.db import Database
@@ -280,10 +281,10 @@ class DatabaseInitializer:
                     "Main window missing when showing DB initialization error; dialog will be shown without parent"
                 )
 
-            QMessageBox.critical(
+            DialogManager.show_error(
                 self.main_window if self.main_window is not None else None,
-                title,
                 message,
+                title,
             )
         except Exception as e:
             logger.error(

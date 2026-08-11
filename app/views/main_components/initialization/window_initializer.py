@@ -14,6 +14,7 @@ from typing import Any, Callable, TypeAlias
 from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.controllers.system.window_setup.coordinator import WindowControllersSetup
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
@@ -297,8 +298,7 @@ class WindowInitializer:
         """Handle database error notifications."""
         try:
             logger.error(f"Database error: {title} - {message}")
-            # Show an error dialog
-            QMessageBox.critical(self.window, title, message)
+            DialogManager.show_error(self.window, message, title)
         except Exception as e:
             logger.warning("Error handling DB error signal: %s", e, exc_info=True)
 
@@ -604,10 +604,10 @@ class WindowInitializer:
         """Display an error dialog and shut down the app when deferred init fails."""
         try:
             parent = self.window if hasattr(self.window, "isVisible") else None
-            QMessageBox.critical(
+            DialogManager.show_error(
                 parent,
-                "Initialization error",
                 f"An error occurred while initializing the UI:\n{exc}",
+                "Initialization error",
             )
         except Exception:
             logger.exception(

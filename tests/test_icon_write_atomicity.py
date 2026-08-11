@@ -112,8 +112,8 @@ def _atomic_write_text(target: Path, text: str) -> None:
             pass
 
 
-def _replace_with_retry(src: Path, dst: Path, *, retries: int = 3, delay: float = 0.005) -> None:
-    """``os.replace`` with retries for Windows PermissionError (file held open)."""
+def _replace_with_retry(src: Path, dst: Path, *, retries: int = 10, delay: float = 0.02) -> None:
+    """Mirror production retry/backoff for Windows ``os.replace`` races."""
     for attempt in range(retries):
         try:
             os.replace(src, dst)
