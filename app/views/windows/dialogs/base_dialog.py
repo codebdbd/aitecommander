@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
+from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.core.hotkey_manager import HotkeyManager
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.base import get_menu_icon
@@ -311,6 +312,7 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            localize_message_box_buttons(mb)
             apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
@@ -335,6 +337,7 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            localize_message_box_buttons(mb)
             apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
@@ -359,6 +362,7 @@ class BaseDialog(QDialog, ReTranslatable):
             if details:
                 mb.setDetailedText(details)
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            localize_message_box_buttons(mb)
             apply_uniform_height_to_message_box(mb)
             if not silent:
                 mb.exec()
@@ -385,6 +389,7 @@ class BaseDialog(QDialog, ReTranslatable):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
+            localize_message_box_buttons(mb)
             apply_uniform_height_to_message_box(mb)
             return mb.exec() == QMessageBox.StandardButton.Yes
         except (RuntimeError, AttributeError):

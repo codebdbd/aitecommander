@@ -103,8 +103,14 @@ def _atomic_write_text(target: Path, text: str) -> None:
             pass
 
 
-def _replace_with_retry(src: Path, dst: Path, *, retries: int = 5, delay: float = 0.01) -> None:
-    """``os.replace`` with retries for Windows PermissionError (file held open)."""
+def _replace_with_retry(src: Path, dst: Path, *, retries: int = 10, delay: float = 0.02) -> None:
+    """Retry ``os.replace`` long enough to outlive transient Windows file handles.
+
+    Readers may briefly keep the destination file open without delete sharing,
+    which makes ``os.replace`` raise ``PermissionError`` even though the write is
+    otherwise valid. A wider exponential backoff keeps the icon pipeline
+    progressing under concurrent reads instead of spuriously failing.
+    """
     for attempt in range(retries):
         try:
             os.replace(src, dst)

@@ -3138,4 +3138,79 @@ Failed: {3}</source>
       <translation>Створено категорій: {count}</translation>
     </message>
   </context>
+  <context>
+    <name>AboutDialog</name>
+    <message>
+      <source>About</source>
+      <translation>Про програму</translation>
+    </message>
+    <message>
+      <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+      <translation>Ієрархічний менеджер закладок і посилань для Windows. Організовує посилання за сферами, розділами та категоріями, підтримує теми, іконки й інструменти імпорту та експорту.</translation>
+    </message>
+    <message>
+      <source>Information</source>
+      <translation>Інформація</translation>
+    </message>
+    <message>
+      <source>Version {0}</source>
+      <translation>Версія {0}</translation>
+    </message>
+    <message>
+      <source>Developer: Codebdbd</source>
+      <translation>Розробник: Codebdbd</translation>
+    </message>
+    <message>
+      <source>License: MIT</source>
+      <translation>Ліцензія: MIT</translation>
+    </message>
+    <message>
+      <source>Python 3.12+ · PyQt6 · SQLite</source>
+      <translation>Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+      <source>Application data</source>
+      <translation>Дані застосунку</translation>
+    </message>
+    <message>
+      <source>Data folder</source>
+      <translation>Папка даних</translation>
+    </message>
+    <message>
+      <source>Open data folder</source>
+      <translation>Відкрити папку даних</translation>
+    </message>
+    <message>
+      <source>Program folder</source>
+      <translation>Папка програми</translation>
+    </message>
+    <message>
+      <source>Open program folder</source>
+      <translation>Відкрити папку програми</translation>
+    </message>
+    <message>
+      <source>Resources</source>
+      <translation>Ресурси</translation>
+    </message>
+    <message>
+      <source>Support the project</source>
+      <translation>Підтримати проєкт</translation>
+    </message>
+    <message>
+      <source>GitHub repository</source>
+      <translation>Репозиторій GitHub</translation>
+    </message>
+    <message>
+      <source>Open license</source>
+      <translation>Відкрити ліцензію</translation>
+    </message>
+    <message>
+      <source>Could not open target.</source>
+      <translation>Не вдалося відкрити об’єкт.</translation>
+    </message>
+    <message>
+      <source>Missing target: {0}</source>
+      <translation>Об’єкт не знайдено: {0}</translation>
+    </message>
+  </context>
 </TS>

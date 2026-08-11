@@ -66,18 +66,6 @@ _SYS_ICON_REFRESH_FAILED = QT_TRANSLATE_NOOP(
 _SYS_BAD_URL_CHECK_FAILED = QT_TRANSLATE_NOOP(
     _SYS_CONTEXT, "Failed to start bad URL check"
 )
-_SYS_ABOUT_THANK_YOU = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Thank you for using our application!"
-)
-_SYS_ABOUT_TITLE = QT_TRANSLATE_NOOP(_SYS_CONTEXT, "Aite Commander")
-_SYS_ABOUT_TEXT = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT,
-    "Professional link manager\n\n"
-    "Version 1.0.0\n\n"
-    "Organize your links, files and applications\n"
-    "in a convenient structure with powerful search.\n\n"
-    "\u00a9 2025 Codebdbd",
-)
 
 
 def _tr_sys(text: str) -> str:
@@ -203,8 +191,9 @@ class SystemDialogController:
                 f"{detailed_msg}\n\n" if detailed_msg else ""
             ) + "\n".join(question_lines)
 
-            reply = QMessageBox.question(
+            reply = DialogManager.show_custom(
                 self.main_window,
+                QMessageBox.Icon.Question,
                 _tr_sys(_SYS_TITLE_BROWSER_IMPORT),
                 question_text,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -333,27 +322,10 @@ class SystemDialogController:
 
     def show_about_dialog(self):
         """Show About dialog."""
-        # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
         if self._about_dialog is None:
-            from PyQt6.QtCore import Qt
-            from PyQt6.QtWidgets import QMessageBox
+            from app.views.windows.dialogs.about_dialog import AboutDialog
 
-            title = _tr_sys(_SYS_ABOUT_TITLE)
-            text = _tr_sys(_SYS_ABOUT_TEXT)
-
-            self._about_dialog = QMessageBox(self.main_window)
-            self._about_dialog.setIcon(
-                QMessageBox.Icon.NoIcon
-            )  # Без иконки = без звука
-            self._about_dialog.setWindowTitle(title)
-            self._about_dialog.setText(text)
-            self._about_dialog.setTextFormat(
-                Qt.TextFormat.PlainText
-            )  # Важно: правильно обрабатывает \n
-            self._about_dialog.setInformativeText(
-                _tr_sys(_SYS_ABOUT_THANK_YOU)
-            )
-            self._about_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+            self._about_dialog = AboutDialog(self.main_window)
 
         self._about_dialog.exec()
 

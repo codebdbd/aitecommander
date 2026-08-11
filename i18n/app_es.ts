@@ -3137,4 +3137,79 @@ Fallos: {3}</translation>
       <translation>Categorías creadas: {count}</translation>
     </message>
   </context>
+  <context>
+    <name>AboutDialog</name>
+    <message>
+      <source>About</source>
+      <translation>Acerca del programa</translation>
+    </message>
+    <message>
+      <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+      <translation>Gestor jerárquico de marcadores y enlaces para Windows. Organiza enlaces por esferas, secciones y categorías, y admite temas, iconos y herramientas de importación y exportación.</translation>
+    </message>
+    <message>
+      <source>Information</source>
+      <translation>Información</translation>
+    </message>
+    <message>
+      <source>Version {0}</source>
+      <translation>Versión {0}</translation>
+    </message>
+    <message>
+      <source>Developer: Codebdbd</source>
+      <translation>Desarrollador: Codebdbd</translation>
+    </message>
+    <message>
+      <source>License: MIT</source>
+      <translation>Licencia: MIT</translation>
+    </message>
+    <message>
+      <source>Python 3.12+ · PyQt6 · SQLite</source>
+      <translation>Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+      <source>Application data</source>
+      <translation>Datos de la aplicación</translation>
+    </message>
+    <message>
+      <source>Data folder</source>
+      <translation>Carpeta de datos</translation>
+    </message>
+    <message>
+      <source>Open data folder</source>
+      <translation>Abrir carpeta de datos</translation>
+    </message>
+    <message>
+      <source>Program folder</source>
+      <translation>Carpeta del programa</translation>
+    </message>
+    <message>
+      <source>Open program folder</source>
+      <translation>Abrir carpeta del programa</translation>
+    </message>
+    <message>
+      <source>Resources</source>
+      <translation>Recursos</translation>
+    </message>
+    <message>
+      <source>Support the project</source>
+      <translation>Apoyar el proyecto</translation>
+    </message>
+    <message>
+      <source>GitHub repository</source>
+      <translation>Repositorio de GitHub</translation>
+    </message>
+    <message>
+      <source>Open license</source>
+      <translation>Abrir licencia</translation>
+    </message>
+    <message>
+      <source>Could not open target.</source>
+      <translation>No se pudo abrir el destino.</translation>
+    </message>
+    <message>
+      <source>Missing target: {0}</source>
+      <translation>Destino no encontrado: {0}</translation>
+    </message>
+  </context>
 </TS>

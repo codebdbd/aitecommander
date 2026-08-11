@@ -63,22 +63,23 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
     if _should_try_backend(backend, "portalocker"):
         try:
             import portalocker  # type: ignore
-            try:
-                with portalocker.Lock(lock_path, timeout=max(0.0, float(eff_timeout))):
-                    yield
-                return
-            except Exception as e:
-                if _is_portalocker_timeout(e):
-                    logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
-                    yield
-                    return
-                logger.debug("portalocker lock error: %s", e, exc_info=True)
+            lock = portalocker.Lock(lock_path, timeout=max(0.0, float(eff_timeout)))
         except Exception:
             if backend == "portalocker":
                 _log_no_lock_fallback(lock_path)
                 yield
                 return
-        # auto: fall through
+        else:
+            try:
+                with lock:
+                    yield
+                return
+            except Exception as e:
+                if _is_portalocker_timeout(e):
+                    logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
+                else:
+                    raise
+            # timeout: fall through to unlocked execution
 
     # 2) filelock (if available/allowed; also for auto when portalocker is missing)
     if _should_try_backend(backend, "filelock"):
@@ -89,6 +90,9 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
             lock = FileLock(lock_path)
             try:
                 lock.acquire(timeout=max(0.0, float(eff_timeout)))
+            except FileLockTimeout as e:  # type: ignore[name-defined]
+                logger.warning("favicon lock timeout(filelock): %s (%s)", lock_path, e)
+            else:
                 try:
                     yield
                 finally:
@@ -97,12 +101,6 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                     except Exception:
                         pass
                 return
-            except FileLockTimeout as e:  # type: ignore[name-defined]
-                logger.warning("favicon lock timeout(filelock): %s (%s)", lock_path, e)
-                yield
-                return
-            except Exception as e:
-                logger.debug("filelock error: %s", e, exc_info=True)
         except Exception:
             if backend == "filelock":
                 _log_no_lock_fallback(lock_path)

@@ -890,12 +890,16 @@ class BadUrlCleanupDialog(BaseDialog):
             from app.views.windows.dialogs.base_dialog import (
                 apply_uniform_height_to_message_box,
             )
+            from app.controllers.ui.dialogs.dialog_manager import (
+                localize_message_box_buttons,
+            )
 
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Warning)
             msg_box.setWindowTitle(tr_common("Delete Bad URLs"))
             msg_box.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Link deletion is still in progress. Please wait."))
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            localize_message_box_buttons(msg_box)
             apply_uniform_height_to_message_box(msg_box)
             msg_box.exec()
             event.ignore()

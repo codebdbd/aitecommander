@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 from PyQt6.QtWidgets import QMessageBox
 
+from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.controllers.ui.undo.commands import MacroCommand
 from app.utils.ui.db_tasks import run_db
 from app.utils.ui.dnd.base import TreeHandlerBase
@@ -58,6 +59,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         if details:
             msg.setDetailedText(details)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        localize_message_box_buttons(msg)
         msg.exec()
 
     def _show_info(

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aitecommander"
-version = "1.0.0"
+version = "1.1.0"
 description = "Hierarchical bookmark and link manager with 4-level organization, 6 themes, 6 languages, and full import/export support"
 readme = "README.md"
 license = "MIT"
@@ -13,7 +13,7 @@ authors = [
     { name = "Codebdbd" },
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
     "Topic :: Utilities",
-    "Typo :: Desktop Environment",
+    "Topic :: Desktop Environment",
 ]
 dependencies = [
     "beautifulsoup4==4.14.3",
@@ -61,3 +61,6 @@ aitecommander = "app.main:main"
 Homepage = "https://github.com/codebdbd/aitecommander"
 Repository = "https://github.com/codebdbd/aitecommander"
 Issues = "https://github.com/codebdbd/aitecommander/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

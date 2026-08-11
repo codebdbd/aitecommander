@@ -3137,4 +3137,79 @@ Failed: {3}</translation>
       <translation>Categories created: {count}</translation>
     </message>
   </context>
+  <context>
+    <name>AboutDialog</name>
+    <message>
+      <source>About</source>
+      <translation>About</translation>
+    </message>
+    <message>
+      <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+      <translation>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</translation>
+    </message>
+    <message>
+      <source>Information</source>
+      <translation>Information</translation>
+    </message>
+    <message>
+      <source>Version {0}</source>
+      <translation>Version {0}</translation>
+    </message>
+    <message>
+      <source>Developer: Codebdbd</source>
+      <translation>Developer: Codebdbd</translation>
+    </message>
+    <message>
+      <source>License: MIT</source>
+      <translation>License: MIT</translation>
+    </message>
+    <message>
+      <source>Python 3.12+ · PyQt6 · SQLite</source>
+      <translation>Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+      <source>Application data</source>
+      <translation>Application data</translation>
+    </message>
+    <message>
+      <source>Data folder</source>
+      <translation>Data folder</translation>
+    </message>
+    <message>
+      <source>Open data folder</source>
+      <translation>Open data folder</translation>
+    </message>
+    <message>
+      <source>Program folder</source>
+      <translation>Program folder</translation>
+    </message>
+    <message>
+      <source>Open program folder</source>
+      <translation>Open program folder</translation>
+    </message>
+    <message>
+      <source>Resources</source>
+      <translation>Resources</translation>
+    </message>
+    <message>
+      <source>Support the project</source>
+      <translation>Support the project</translation>
+    </message>
+    <message>
+      <source>GitHub repository</source>
+      <translation>GitHub repository</translation>
+    </message>
+    <message>
+      <source>Open license</source>
+      <translation>Open license</translation>
+    </message>
+    <message>
+      <source>Could not open target.</source>
+      <translation>Could not open target.</translation>
+    </message>
+    <message>
+      <source>Missing target: {0}</source>
+      <translation>Missing target: {0}</translation>
+    </message>
+  </context>
 </TS>

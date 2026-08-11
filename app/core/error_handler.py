@@ -7,6 +7,7 @@ import sys
 import traceback
 from types import TracebackType
 
+from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.core.log_manager import LogManager
 from app.core.paths.path_manager import PathManager
 
@@ -67,7 +68,7 @@ class GlobalErrorHandler:
     @staticmethod
     def _safe_show_dialog(exc_value: BaseException, tb_text: str) -> None:
         try:
-            from PyQt6.QtWidgets import QApplication, QMessageBox
+            from PyQt6.QtWidgets import QApplication
         except Exception:
             return
 
@@ -81,12 +82,11 @@ class GlobalErrorHandler:
             pass
 
         try:
-            box = QMessageBox()
-            box.setIcon(QMessageBox.Icon.Critical)
-            box.setWindowTitle("Unexpected Error")
-            box.setText(f"An unexpected error occurred:\n{exc_value!s}")
-            box.setDetailedText(tb_text)
-            box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            box.exec()
+            DialogManager.show_error(
+                None,
+                f"An unexpected error occurred:\n{exc_value!s}",
+                "Unexpected Error",
+                details=tb_text,
+            )
         except Exception:
             pass
