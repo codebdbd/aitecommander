@@ -91,6 +91,78 @@ class TestTreeUpdateServiceBatchDeleteRefresh(unittest.TestCase):
         model.remove_categories.assert_called_once_with([1001, 1002])
 
 
+class TestTreeUpdateServiceCategoryMoveOnEdit(unittest.TestCase):
+    def _build_service(self):
+        business = SimpleNamespace(get_categories=Mock())
+        selection_handler = Mock()
+        manager = SimpleNamespace(
+            controller=SimpleNamespace(
+                business=business,
+                selection_handler=selection_handler,
+            ),
+            refresh_section_tiles=Mock(),
+        )
+        tree = Mock()
+        model = Mock()
+        return TreeUpdateService(manager, tree, model), business, manager, model
+
+    @patch("app.controllers.ui.structure.tree_update_service.get_focus_manager")
+    @patch("app.controllers.ui.structure.tree_update_service.schedule_selection_restore")
+    def test_category_update_with_new_section_replaces_source_and_target_sections(
+        self,
+        schedule_mock: Mock,
+        focus_manager_mock: Mock,
+    ) -> None:
+        svc, business, manager, model = self._build_service()
+        model.section_ids_for_categories.return_value = [10]
+        business.get_categories.side_effect = [
+            [{"id": 1, "section_id": 10, "name": "Old"}],
+            [{"id": 42, "section_id": 20, "name": "Moved"}],
+        ]
+        svc.replace_section_categories = Mock()  # type: ignore[method-assign]
+
+        svc.handle_item_updated(
+            "category",
+            42,
+            {"id": 42, "section_id": 20, "name": "Moved"},
+        )
+
+        model.update_item.assert_not_called()
+        self.assertEqual(business.get_categories.call_args_list[0].args, (10,))
+        self.assertEqual(business.get_categories.call_args_list[1].args, (20,))
+        svc.replace_section_categories.assert_any_call(
+            10, [{"id": 1, "section_id": 10, "name": "Old"}]
+        )
+        svc.replace_section_categories.assert_any_call(
+            20, [{"id": 42, "section_id": 20, "name": "Moved"}]
+        )
+        manager.refresh_section_tiles.assert_any_call(10)
+        manager.refresh_section_tiles.assert_any_call(20)
+        schedule_mock.assert_called_once()
+        focus_manager_mock.return_value.set_focus.assert_called_once()
+
+    @patch("app.controllers.ui.structure.tree_update_service.get_focus_manager")
+    @patch("app.controllers.ui.structure.tree_update_service.schedule_selection_restore")
+    def test_category_update_in_same_section_keeps_in_place_update(
+        self,
+        _schedule_mock: Mock,
+        _focus_manager_mock: Mock,
+    ) -> None:
+        svc, business, _manager, model = self._build_service()
+        model.section_ids_for_categories.return_value = [20]
+
+        svc.handle_item_updated(
+            "category",
+            42,
+            {"id": 42, "section_id": 20, "name": "Renamed"},
+        )
+
+        business.get_categories.assert_not_called()
+        model.update_item.assert_called_once_with(
+            "category", 42, {"id": 42, "section_id": 20, "name": "Renamed"}
+        )
+
+
 class TestTreeUpdateServiceDeletePostUpdates(unittest.TestCase):
     def _build_service(self):
         manager = SimpleNamespace(

@@ -147,6 +147,10 @@ class PopupComboBox(QComboBox):
             return
         self._install_popup_model()
         self._sync_popup_current_index(self.currentIndex())
+        # Sync font so popup items match the combobox text metrics exactly
+        combo_font = self.font()
+        self._popup.setFont(combo_font)
+        self._popup_view.setFont(combo_font)
         self._resize_popup()
         self._popup.move(self._popup_origin())
         self._popup_visible = True
@@ -204,13 +208,15 @@ class PopupComboBox(QComboBox):
         self._popup.resize(content_width, height)
 
     def _popup_row_height(self) -> int:
+        combo_height = self.height()
         if self.count() <= 0:
-            return max(self.height(), 32)
+            return max(combo_height, 24)
         first = self.model().index(0, self.modelColumn(), self.rootModelIndex())
         row_height = self._popup_view.sizeHintForIndex(first).height()
         if row_height <= 0:
-            row_height = max(self.height(), 32)
-        return row_height
+            row_height = max(combo_height, 24)
+        # Clamp to at least the combobox height so row heights feel consistent
+        return max(row_height, combo_height)
 
     def _popup_origin(self) -> QPoint:
         origin = self.mapToGlobal(self.rect().bottomLeft())

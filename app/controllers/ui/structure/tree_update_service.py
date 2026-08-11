@@ -51,15 +51,20 @@ class TreeUpdateService(QObject):
     def handle_item_updated(
         self, item_type: str, item_id: int, data: dict[str, Any]
     ) -> None:
-        try:
-            self._model.update_item(item_type, item_id, data or {})
-        except (ValueError, RuntimeError):
-            logger.exception(
-                "TreeUpdateService.handle_item_updated: model update failed for %s #%s",
-                item_type,
-                item_id,
-            )
-            raise
+        category_moved = False
+        if item_type == "category" and isinstance(item_id, int):
+            category_moved = self._handle_category_section_change(item_id, data or {})
+
+        if not category_moved:
+            try:
+                self._model.update_item(item_type, item_id, data or {})
+            except (ValueError, RuntimeError):
+                logger.exception(
+                    "TreeUpdateService.handle_item_updated: model update failed for %s #%s",
+                    item_type,
+                    item_id,
+                )
+                raise
 
         controller = getattr(self._manager, "controller", None)
         selection_handler = getattr(controller, "selection_handler", None)
@@ -77,6 +82,83 @@ class TreeUpdateService(QObject):
             except Exception:
                 logger.debug(
                     "TreeUpdateService.handle_item_updated: set_focus failed",
+                    exc_info=True,
+                )
+
+    def _handle_category_section_change(
+        self, category_id: int, data: dict[str, Any]
+    ) -> bool:
+        target_section_id = self._coerce_int(data.get("section_id"))
+        if target_section_id is None:
+            return False
+
+        current_section_id = self._current_category_section_id(category_id)
+        if current_section_id is None or current_section_id == target_section_id:
+            return False
+
+        controller = getattr(self._manager, "controller", None)
+        business = getattr(controller, "business", None)
+        if business is None or not hasattr(business, "get_categories"):
+            return False
+
+        replaced_any = False
+        for section_id in dict.fromkeys((current_section_id, target_section_id)):
+            try:
+                categories = business.get_categories(int(section_id)) or []
+                self.replace_section_categories(int(section_id), categories)
+                replaced_any = True
+            except Exception:
+                logger.exception(
+                    "TreeUpdateService._handle_category_section_change: replace failed for section %s",
+                    section_id,
+                )
+        if replaced_any:
+            self._refresh_category_move_tiles(current_section_id, target_section_id)
+        return replaced_any
+
+    def _current_category_section_id(self, category_id: int) -> int | None:
+        section_ids_getter = getattr(self._model, "section_ids_for_categories", None)
+        if callable(section_ids_getter):
+            try:
+                section_ids = section_ids_getter([int(category_id)]) or []
+                if section_ids:
+                    return self._coerce_int(section_ids[0])
+            except Exception:
+                logger.debug(
+                    "TreeUpdateService._current_category_section_id: section_ids lookup failed",
+                    exc_info=True,
+                )
+
+        try:
+            index = self._model.index_for("category", int(category_id))
+            if index and index.isValid():
+                node = index.internalPointer()
+                parent = getattr(node, "parent", None)
+                return self._coerce_int(getattr(parent, "id", None))
+        except Exception:
+            logger.debug(
+                "TreeUpdateService._current_category_section_id: index parent lookup failed",
+                exc_info=True,
+            )
+        return None
+
+    @staticmethod
+    def _coerce_int(value: Any) -> int | None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _refresh_category_move_tiles(
+        self, old_section_id: int, new_section_id: int
+    ) -> None:
+        for section_id in dict.fromkeys((old_section_id, new_section_id)):
+            try:
+                self._manager.refresh_section_tiles(int(section_id))
+            except Exception:
+                logger.debug(
+                    "TreeUpdateService._refresh_category_move_tiles: refresh failed for section %s",
+                    section_id,
                     exc_info=True,
                 )
 

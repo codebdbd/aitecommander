@@ -37,7 +37,7 @@ from app.utils.ui.qt.combo_helpers import (
 )
 
 from ..base_dialog import BaseDialog
-from .icon_utils import get_cached_icon
+from .icon_utils import get_cached_icon_with_fallback
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
 
@@ -486,9 +486,7 @@ class LinkDialog(BaseDialog):
         for idx in range(sphere_cb.count()):
             sphere_id = sphere_cb.itemData(idx)
             icon_path = icons_by_id.get(sphere_id, "")
-            if not icon_path:
-                continue
-            icon = get_cached_icon(icon_path)
+            icon = get_cached_icon_with_fallback(icon_path, "sphere")
             if icon:
                 sphere_cb.setItemIcon(idx, icon)
 
@@ -513,9 +511,7 @@ class LinkDialog(BaseDialog):
             for idx in range(section_cb.count()):
                 section_id = section_cb.itemData(idx)
                 icon_path = section_icons.get(section_id, "")
-                if not icon_path:
-                    continue
-                icon = get_cached_icon(icon_path)
+                icon = get_cached_icon_with_fallback(icon_path, "section")
                 if icon:
                     section_cb.setItemIcon(idx, icon)
 
@@ -530,9 +526,7 @@ class LinkDialog(BaseDialog):
             for idx in range(category_cb.count()):
                 category_id = category_cb.itemData(idx)
                 icon_path = category_icons.get(category_id, "")
-                if not icon_path:
-                    continue
-                icon = get_cached_icon(icon_path)
+                icon = get_cached_icon_with_fallback(icon_path, "category")
                 if icon:
                     category_cb.setItemIcon(idx, icon)
 

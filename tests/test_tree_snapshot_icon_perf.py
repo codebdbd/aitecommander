@@ -18,6 +18,7 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
 from app.views.windows.dialogs.link_dialog.icon_utils import (
     IconErrorKind,
     get_cached_icon as get_dialog_cached_icon,
+    get_cached_icon_with_fallback,
     make_icon_result,
 )
 from app.utils.ui.icon.loading_policy import (
@@ -301,6 +302,25 @@ class TestLinkDialogIconUtils(unittest.TestCase):
             return_value=QIcon(),
         ):
             self.assertIsNone(get_dialog_cached_icon("x.png"))
+
+    def test_get_cached_icon_with_fallback_uses_section_default(self) -> None:
+        fake_icon = unittest.mock.Mock(spec=QIcon)
+        fake_icon.isNull.return_value = False
+        with (
+            patch(
+                "app.views.windows.dialogs.link_dialog.icon_utils.resolve_section_icon_path",
+                return_value="/resolved/section.png",
+            ) as resolve_mock,
+            patch(
+                "app.views.windows.dialogs.link_dialog.icon_utils.icon_loading_service.get_path_icon",
+                return_value=fake_icon,
+            ) as icon_mock,
+        ):
+            icon = get_cached_icon_with_fallback("deleted-custom.png", "section")
+
+        self.assertIs(fake_icon, icon)
+        resolve_mock.assert_called_once_with("deleted-custom.png")
+        icon_mock.assert_called_once_with("/resolved/section.png")
 
 
 class TestIconLoadingPolicy(unittest.TestCase):

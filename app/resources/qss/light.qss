@@ -82,9 +82,12 @@ color: #444444;
 QMenuBar::item:selected {
 background: #E6E6E6;
 color: #000000;
+border: none;
 }
 QMenuBar::item:pressed {
-background: #0F6FD6;
+background: #D0D0D0;
+color: #000000;
+border: none;
 }
 QMenuBar QMenu {
 background-color: #FFFFFF;
@@ -225,7 +228,7 @@ color: #000000;
 }
 QTreeView::item:!selected:hover {
 background-color: #E6E6E6;
-color: palette(text);
+color: #000000;
 }
 QTableView::item:!selected:hover,
 QTableWidget::item:!selected:hover {
@@ -239,10 +242,7 @@ background-color: #B3B3B3;
 QWidget#topBarHost QToolBar::separator {
 background-color: #B3B3B3;
 }
-QWidget#favQuickSeparatorBefore,
-QWidget#favQuickSeparatorAfter {
-background-color: #B3B3B3;
-}
+
 QStatusBar {
 background-color: #F0F0F0;
 border-top-color: #B3B3B3;

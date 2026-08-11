@@ -43,18 +43,28 @@ from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
-from app.utils.ui.icon.icon_resolver import resolve_section_icon_path, resolve_category_icon_path
+from app.utils.ui.icon.icon_resolver import (
+    resolve_category_icon_path,
+    resolve_section_icon_path,
+)
 from app.utils.ui.qt.combo_helpers import (
     PopupComboBox,
     add_combo_mapping_item,
     select_combo_data,
 )
 from app.views.widgets.language_selector import LanguageSelector
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
+from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon_with_fallback
 
 from .base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
+
+
+def _combo_icon_loader(entity_type: str):
+    def _load(icon_path: str):
+        return get_cached_icon_with_fallback(icon_path, entity_type)
+
+    return _load
 
 
 def _populate_spheres_common(
@@ -71,7 +81,7 @@ def _populate_spheres_common(
             sphere_cb,
             sphere,
             icon_key="icon_path",
-            icon_loader=get_cached_icon,
+            icon_loader=_combo_icon_loader("sphere"),
         )
 
 
@@ -520,7 +530,7 @@ class CategoryDialog(BaseEntityDialog):
                     self.section_cb,
                     section,
                     icon_key="icon_path",
-                    icon_loader=get_cached_icon,
+                    icon_loader=_combo_icon_loader("section"),
                 )
         except Exception as e:
             self.show_error(
