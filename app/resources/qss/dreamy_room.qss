@@ -1,18 +1,31 @@
 QWidget { color: #4A1F2F; }
-QFrame#Sidebar {
-background: #FCE8F0;
-}
 QWidget#LeftPanel[sphere="1"] {
-background: #F7D7E7;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FFF5F8, stop: 0.95 #FFF5F8,
+stop: 0.95 #F7D7E7, stop: 1 #F7D7E7
+);
 }
 QWidget#LeftPanel[sphere="2"] {
-background: #DDEBFF;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FFF5F8, stop: 0.95 #FFF5F8,
+stop: 0.95 #DDEBFF, stop: 1 #DDEBFF
+);
 }
 QWidget#LeftPanel[sphere="3"] {
-background: #F9EAD8;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FFF5F8, stop: 0.95 #FFF5F8,
+stop: 0.95 #F9EAD8, stop: 1 #F9EAD8
+);
 }
 QWidget#LeftPanel[sphere="4"] {
-background: #E9E1FA;
+background: qlineargradient(
+x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #FFF5F8, stop: 0.95 #FFF5F8,
+stop: 0.95 #E9E1FA, stop: 1 #E9E1FA
+);
 }
 QWidget#spheres_bar QToolButton {
 }
@@ -31,7 +44,6 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
 border-color: #FFFFFF;
 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
 stop: 0 #C75C86, stop: 1 #EFA6C4);
-border-style: inset;
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #F6CFE0;
@@ -68,6 +80,11 @@ QMenu::indicator:checked {
 background-color: #D85A86;
 border-color: #D85A86;
 }
+QToolTip {
+border-color: #D85A86;
+background: #FFF1F6;
+color: #4A1F2F;
+}
 QMenuBar {
 background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FDE2EC, stop:1 #F6CFE0);
 border-top-color: #E7B8CC;
@@ -76,21 +93,20 @@ border-bottom-color: #E7B8CC;
 QMenuBar::item {
 color: #4A1F2F;
 }
+QMenuBar::item:hover {
+background: #F6CFE0;
+color: #4A1F2F;
+border: none;
+}
 QMenuBar::item:selected {
 background: #FDEAF2;
 color: #4A1F2F;
-border-left: 1px solid #E7B8CC;
-border-top: 1px solid #E7B8CC;
-border-right: 1px solid #E7B8CC;
-border-bottom: none;
+border-color: #E7B8CC;
 }
 QMenuBar::item:pressed {
 background: #FDEAF2;
 color: #4A1F2F;
-border-left: 1px solid #E7B8CC;
-border-top: 1px solid #E7B8CC;
-border-right: 1px solid #E7B8CC;
-border-bottom: none;
+border-color: #E7B8CC;
 }
 QMenuBar QMenu {
 background-color: #FDEAF2;
@@ -166,12 +182,6 @@ background: #D85A86;
 border-color: #D85A86;
 color: #FFFFFF;
 }
-QListWidget#categoryTiles::item:focus,
-QListView#categoryTiles::item:focus {
-background: #D85A86;
-border-color: #D85A86;
-color: #FFFFFF;
-}
 QListWidget#categoryTiles::item:selected:hover,
 QListView#categoryTiles::item:selected:hover {
 background: #D85A86;
@@ -215,12 +225,6 @@ background-color: #FFF4F8;
 border-right-color: #E7B8CC;
 color: #4A1F2F;
 }
-QHeaderView::section:horizontal:first {
-background-color: #FFF4F8;
-}
-QTableView QHeaderView::section:horizontal:first {
-background-color: #FFF4F8;
-}
 QTableView QHeaderView {
 border-bottom-color: #E7B8CC;
 }
@@ -253,10 +257,7 @@ LinksTableView {
 qproperty-openedColColor: #4A1F2F;
 qproperty-notesColColor: #4A1F2F;
 }
-QTreeView::item:selected {
-    background-color: #E46A98;
-    color: #FFFFFF;
-}
+QTreeView::item:selected,
 QTableView::item:selected,
 QTableWidget::item:selected {
     background-color: #E46A98;
@@ -265,10 +266,6 @@ QTableWidget::item:selected {
 QTreeView::item:!selected:hover {
     background-color: #F6CFE0;
     color: #000000;
-}
-QTableView::item:!selected:hover,
-QTableWidget::item:!selected:hover {
-color: inherit;
 }
 QWidget[class="separator"] {
 background-color: #E7B8CC;
@@ -305,10 +302,6 @@ QWidget#bottomBarContainer QPushButton:hover {
 background-color: #F6CFE0;
 color: #4A1F2F;
 }
-QWidget#bottomBarContainer QPushButton:disabled {
-background-color: #F4E3EC;
-color: #BBA3AE;
-}
 QDialog {
 background-color: #FBE9F1;
 color: #4A1F2F;
@@ -341,12 +334,6 @@ QDialog QToolButton {
 QDialog QPushButton:hover,
 QDialog QToolButton:hover {
   background-color: #E46A98;
-  border-color: #D85A86;
-  color: #FFFFFF;
-  }
-QDialog QPushButton:pressed,
-QDialog QToolButton:pressed {
-  background-color: #D85A86;
   border-color: #D85A86;
   color: #FFFFFF;
   }
@@ -417,7 +404,7 @@ QComboBox QAbstractItemView::item:selected,
 QDialog QComboBox QAbstractItemView::item:selected,
 QListView#comboPopupView::item:selected {
 background-color: #D85A86;
-color: #FFFFFF;
+color: #4A1F2F;
 }
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
@@ -431,11 +418,6 @@ border-color: #D85A86;
 QDialog QToolButton#linkTypeBtn:hover {
 border-color: #D85A86;
 background: #F6CFE0;
-color: #4A1F2F;
-}
-QDialog QToolButton#linkTypeBtn {
-background: #FFF1F6;
-border-color: #E7B8CC;
 color: #4A1F2F;
 }
 QDialog QToolButton#linkTypeBtn:checked {
