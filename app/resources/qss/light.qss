@@ -80,14 +80,20 @@ QMenuBar::item {
 color: #444444;
 }
 QMenuBar::item:selected {
-background: #E6E6E6;
-color: #000000;
-border: none;
+background: #FFFFFF;
+color: #333333;
+border-left: 1px solid #E0E0E0;
+border-top: 1px solid #E0E0E0;
+border-right: 1px solid #E0E0E0;
+border-bottom: none;
 }
 QMenuBar::item:pressed {
-background: #D0D0D0;
-color: #000000;
-border: none;
+background: #FFFFFF;
+color: #333333;
+border-left: 1px solid #E0E0E0;
+border-top: 1px solid #E0E0E0;
+border-right: 1px solid #E0E0E0;
+border-bottom: none;
 }
 QMenuBar QMenu {
 background-color: #FFFFFF;

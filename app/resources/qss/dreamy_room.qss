@@ -77,12 +77,20 @@ QMenuBar::item {
 color: #4A1F2F;
 }
 QMenuBar::item:selected {
-background: #F6CFE0;
+background: #FDEAF2;
 color: #4A1F2F;
+border-left: 1px solid #E7B8CC;
+border-top: 1px solid #E7B8CC;
+border-right: 1px solid #E7B8CC;
+border-bottom: none;
 }
 QMenuBar::item:pressed {
-background: #E46A98;
-color: #FFFFFF;
+background: #FDEAF2;
+color: #4A1F2F;
+border-left: 1px solid #E7B8CC;
+border-top: 1px solid #E7B8CC;
+border-right: 1px solid #E7B8CC;
+border-bottom: none;
 }
 QMenuBar QMenu {
 background-color: #FDEAF2;
