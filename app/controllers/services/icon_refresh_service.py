@@ -10,6 +10,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from app.controllers.system.app_shutdown_controller import ShutdownPriority
 from app.core.worker_manager import WorkerManager
 from app.models.workers.icon_refresh_worker import IconRefreshWorker
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 if TYPE_CHECKING:
     from app.controllers.system.app_shutdown_controller import AppShutdownController
@@ -156,6 +157,7 @@ class IconRefreshService(QObject):
         """
         # Можно добавить логику обновления UI здесь, если нужно
         # Например, отправить сигнал для обновления конкретных строк в таблице
+        clear_icon_cache()
         logger.debug("[icon_refresh_service] Batch updated: %s links", len(updated_ids))
 
     def _on_error(self, error_message: str):

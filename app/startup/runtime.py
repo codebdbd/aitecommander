@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 from app.controllers.system.db_init import DatabaseInitializer
+from app.core.constants import AppConstants
 from app.core.database_manager import DatabaseManager
 from app.core.hotkey_manager import HotkeyManager
 from app.core.log_manager import LogManager
@@ -31,6 +32,7 @@ from app.startup.signal_handling import (
     SignalManager,
     should_install_signal_handlers,
 )
+from app.startup.single_instance import SingleInstanceGuard
 from i18n import resources_rc as i18n_resources_rc
 from i18n.language_service import LanguageService
 
@@ -463,6 +465,41 @@ def _register_hotkeys() -> None:
 
     HotkeyManager.detect_conflicts()
 
+def _single_instance_server_name() -> str:
+    raw = AppConstants.APP_NAME.lower()
+    cleaned = "".join(c if c.isalnum() else "_" for c in raw).strip("_")
+    return f"{cleaned}_local_app_server"
+
+
+def _activate_owned_main_window(
+    initializer_ref: list[ApplicationInitializer | None],
+) -> None:
+    """Bring the owned main window to the foreground (called from IPC).
+
+    ``initializer_ref`` is a length-1 list used as a mutable cell, because the
+    ``ApplicationInitializer`` (and its main window) is created *after* the
+    single-instance guard is acquired.
+    """
+    initializer = initializer_ref[0] if initializer_ref else None
+    window = getattr(initializer, "main_window", None) if initializer else None
+    if window is None:
+        logger.warning(
+            "Single-instance activate requested, but main window not ready yet"
+        )
+        return
+
+    try:
+        if window.isMinimized():
+            window.showNormal()
+        else:
+            window.show()
+        window.raise_()
+        window.activateWindow()
+        logger.info("Single-instance guard: main window activated")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Failed to activate main window: %s", exc, exc_info=True)
+
+
 def _log_system_info() -> None:
     """Log system information for debugging."""
     try:
@@ -516,10 +553,20 @@ def run(options: StartupOptions | None = None) -> int:
 
     app: QApplication | QCoreApplication | None = None
     initializer: ApplicationInitializer | None = None
+    initializer_ref: list[ApplicationInitializer | None] = [None]
     signal_manager: SignalManager | None = None
     about_to_quit_cleanup_registered = False
+    single_instance_guard: SingleInstanceGuard | None = None
 
     try:
+        if options.mode == StartupMode.GUI:
+            single_instance_guard = SingleInstanceGuard(
+                _single_instance_server_name(),
+                lambda: _activate_owned_main_window(initializer_ref),
+            )
+            if not single_instance_guard.acquire():
+                return ExitCode.SUCCESS
+
         # Initialize resources
         global _resources_initialized
         if not _resources_initialized:
@@ -533,6 +580,7 @@ def run(options: StartupOptions | None = None) -> int:
             _install_qt_message_filter()
 
         initializer = ApplicationInitializer(mode=options.mode)
+        initializer_ref[0] = initializer
         about_to_quit_cleanup_registered = _register_cleanup_handler(app, initializer)
         signal_manager = _setup_signal_handlers(app, initializer, options)
         _initialize_language_service(app, options.mode)
@@ -562,6 +610,11 @@ def run(options: StartupOptions | None = None) -> int:
         _cleanup_resources(
             initializer, signal_manager, app, about_to_quit_cleanup_registered
         )
+        if single_instance_guard is not None:
+            try:
+                single_instance_guard.close()
+            except Exception as exc:
+                logger.warning("SingleInstanceGuard close failed: %s", exc)
         try:
             WorkerManager.shutdown(timeout_ms=2000)
         except Exception as exc:

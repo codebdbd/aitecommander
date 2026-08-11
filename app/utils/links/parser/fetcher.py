@@ -508,10 +508,11 @@ def fetch_web_link_info(
     force_refresh: bool = False,
     *,
     defer_icon: bool = False,
+    schedule_deferred_icon: bool = True,
     on_icon_ready: Callable[[str], None] | None = None,
     cancel_event: threading.Event | None = None,
 ) -> dict[str, Any]:
-    """Fetch web link information (title, icon) with caching."""
+    """Fetch web metadata, optionally leaving deferred icon work to the caller."""
     perf_t0 = time.perf_counter()
     cache_check_ms = 0.0
     fetch_html_ms = 0.0
@@ -621,7 +622,12 @@ def fetch_web_link_info(
             logger.debug("cache write failed for %s: %s", url, e)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
-        if defer_icon and icon_path is None and not existing_icon_path:
+        if (
+            defer_icon
+            and schedule_deferred_icon
+            and icon_path is None
+            and not existing_icon_path
+        ):
             scheduler = get_task_scheduler()
             task = _create_blocked_icon_resolve_task(
                 url,
@@ -775,12 +781,23 @@ def fetch_web_link_info(
     cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
     # 9) Schedule deferred icon resolution if needed
-    if defer_icon and soup is not None and (icon_path is None):
+    if (
+        defer_icon
+        and schedule_deferred_icon
+        and soup is not None
+        and icon_path is None
+    ):
         scheduler = get_task_scheduler()
         task = _create_icon_resolve_task(soup, url, title, config, on_icon_ready)
         scheduler.submit_task(task)
         deferred_icon_scheduled = True
-    elif defer_icon and soup is None and icon_path is None and not existing_icon_path:
+    elif (
+        defer_icon
+        and schedule_deferred_icon
+        and soup is None
+        and icon_path is None
+        and not existing_icon_path
+    ):
         scheduler = get_task_scheduler()
         task = _create_blocked_icon_resolve_task(
             url,

@@ -54,6 +54,24 @@ class SelectionWorkflowService(QObject):
     def _is_valid_index(index: QModelIndex | None) -> bool:
         return bool(index and index.isValid())
 
+    def _expand_index_path(self, index: QModelIndex | None) -> None:
+        if not self._is_valid_index(index):
+            return
+        chain: list[QModelIndex] = []
+        current = index
+        while self._is_valid_index(current):
+            assert current is not None
+            chain.append(current)
+            current = current.parent()
+        for ancestor in reversed(chain):
+            try:
+                self._tree.expand(ancestor)
+            except Exception:
+                logger.debug(
+                    "SelectionWorkflowService._expand_index_path: expand failed",
+                    exc_info=True,
+                )
+
     # ------------------------------------------------------------------
     # Public API for SelectionHandling
     def select_first_item_if_needed(self) -> None:
@@ -320,11 +338,18 @@ class SelectionWorkflowService(QObject):
             )
         return index
 
-    def restore_category_selection(self, category_id: int) -> QModelIndex | None:
+    def restore_category_selection(
+        self,
+        category_id: int,
+        target_section_id: int | None = None,
+    ) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
         if model is None or selection_model is None:
             return None
         try:
+            section_index = None
+            if isinstance(target_section_id, int):
+                section_index = model.index_for("section", target_section_id)
             index = model.index_for("category", category_id)
         except Exception:
             logger.debug(
@@ -337,6 +362,11 @@ class SelectionWorkflowService(QObject):
         assert index is not None
         try:
             self._tree.blockSignals(True)
+            if self._is_valid_index(section_index):
+                self._expand_index_path(section_index)
+            parent_index = index.parent()
+            if parent_index and parent_index.isValid():
+                self._expand_index_path(parent_index)
             selection_model.setCurrentIndex(
                 index, selection_model.SelectionFlag.ClearAndSelect
             )

@@ -254,6 +254,43 @@ class TestBatchSaveLinksCmdCategoryRecovery(unittest.TestCase):
         self.assertEqual([payload["category_id"] for payload in payloads], [88, 88])
         main.links_table_controller.reload.assert_called_once_with(88)
 
+    @patch("app.controllers.ui.links.icon_enrichment_service.enqueue_link_icon_enrichment")
+    def test_redo_resolves_saved_ids_before_icon_enrichment(
+        self,
+        enqueue_icon_mock: Mock,
+    ) -> None:
+        main = self._build_main(current_category_id=88)
+        main.links_business.links.batch_create_or_update_links.return_value = [42]
+        main.links_business.links.resolve_link_id = Mock(side_effect=[7, 42])
+        cmd = BatchSaveLinksCmd(
+            links_data=[
+                {
+                    "name": "Existing",
+                    "url": "https://one.example",
+                    "type": "web",
+                    "category_id": 88,
+                },
+                {
+                    "name": "New",
+                    "url": "https://two.example",
+                    "type": "web",
+                    "category_id": 88,
+                },
+            ],
+            _old_link_data=None,
+            main_window=main,
+        )
+
+        cmd.redo()
+
+        self.assertEqual(cmd.created_ids, [42])
+        self.assertEqual(cmd.links_data[0]["id"], 7)
+        self.assertEqual(cmd.links_data[1]["id"], 42)
+        first_payload = enqueue_icon_mock.call_args_list[0].args[1]
+        second_payload = enqueue_icon_mock.call_args_list[1].args[1]
+        self.assertEqual(first_payload["id"], 7)
+        self.assertEqual(second_payload["id"], 42)
+
     @patch("app.controllers.ui.undo.commands_links.DialogManager.show_error")
     def test_redo_shows_error_and_skips_batch_when_category_missing_everywhere(
         self, show_error_mock: Mock

@@ -301,6 +301,19 @@ class SaveLinkCmd(BaseCommand):
                 exc_info=True,
             )
 
+    def _schedule_icon_enrichment(self) -> None:
+        try:
+            from app.controllers.ui.links.icon_enrichment_service import (
+                enqueue_link_icon_enrichment,
+            )
+
+            enqueue_link_icon_enrichment(self.main, dict(self.new_data))
+        except Exception:
+            logger.debug(
+                "SaveLinkCmd: failed to schedule favicon enrichment",
+                exc_info=True,
+            )
+
     @log_command
     def redo(self):
         self._merge_old_data()
@@ -329,6 +342,7 @@ class SaveLinkCmd(BaseCommand):
                 self._invalidate_links_cache()
                 self._notify_link_ops_after_save()
                 self._schedule_focus_if_created()
+                self._schedule_icon_enrichment()
             except Exception as exc:
                 logger.warning("SaveLinkCmd.redo sync fallback failed: %s", exc)
                 _show_links_command_error(
@@ -351,6 +365,7 @@ class SaveLinkCmd(BaseCommand):
                 self._invalidate_links_cache()
                 self._notify_link_ops_after_save()
                 self._schedule_focus_if_created()
+                self._schedule_icon_enrichment()
             finally:
                 self._in_flight = False
 
@@ -715,6 +730,26 @@ class BatchSaveLinksCmd(BaseCommand):
                 exc_info=True,
             )
 
+    def _resolve_saved_payload_ids(self) -> None:
+        links_service = getattr(getattr(self.main, "links_business", None), "links", None)
+        if links_service is None:
+            links_service = _links_service_for(self)
+        if not hasattr(links_service, "resolve_link_id"):
+            return
+        for payload in self.links_data:
+            if payload.get("id"):
+                continue
+            try:
+                resolved_id = links_service.resolve_link_id(payload)
+            except Exception:
+                logger.debug(
+                    "BatchSaveLinksCmd: failed to resolve saved link id",
+                    exc_info=True,
+                )
+                continue
+            if isinstance(resolved_id, int) and resolved_id > 0:
+                payload["id"] = resolved_id
+
     @log_command
     def redo(self):
         self.created_ids.clear()
@@ -742,6 +777,7 @@ class BatchSaveLinksCmd(BaseCommand):
                 self.links_data
             )
         self.created_ids.extend(created or [])
+        self._resolve_saved_payload_ids()
         
         # Emit batch update signal
         try:
@@ -765,6 +801,18 @@ class BatchSaveLinksCmd(BaseCommand):
             )
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+        try:
+            from app.controllers.ui.links.icon_enrichment_service import (
+                enqueue_link_icon_enrichment,
+            )
+
+            for payload in self.links_data:
+                enqueue_link_icon_enrichment(self.main, dict(payload))
+        except Exception:
+            logger.debug(
+                "BatchSaveLinksCmd: failed to schedule favicon enrichment",
+                exc_info=True,
+            )
 
     @log_command
     def undo(self):

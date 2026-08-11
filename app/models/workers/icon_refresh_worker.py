@@ -14,6 +14,7 @@ from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal
 from app.config_data import app_config
 from app.models.base.db_base import db_lock
 from app.models.types.link_type import LinkType
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.links.link_parser import _extract_icon_from_exe
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
@@ -301,7 +302,7 @@ class IconRefreshWorker(QRunnable):
         self, batch: list[dict], default_icon_path: str, stats: dict, total: int
     ) -> None:
         """Обработать батч ссылок параллельно."""
-        updates_to_commit: dict[int, str] = {}
+        updates_to_commit: dict[int, tuple[str, str, str]] = {}
         executor = self._ensure_executor()
         future_to_link = self._submit_batch_futures(executor, batch, default_icon_path)
 
@@ -326,7 +327,7 @@ class IconRefreshWorker(QRunnable):
                     stats["failed"] += 1
 
             if updates_to_commit:
-                self._commit_updates(updates_to_commit)
+                self._commit_updates(updates_to_commit, default_icon_path)
         finally:
             if self._is_cancelled:
                 for future in future_to_link:
@@ -353,11 +354,20 @@ class IconRefreshWorker(QRunnable):
         for pending_future in future_to_link:
             pending_future.cancel()
 
-    def _accumulate_result(self, result, updates_to_commit: dict[int, str], stats: dict) -> None:
-        if isinstance(result, tuple) and len(result) == 3:
-            status, link_id, icon_path = result
-            if status == "updated" and link_id and icon_path:
-                updates_to_commit[int(link_id)] = str(icon_path)
+    def _accumulate_result(
+        self,
+        result,
+        updates_to_commit: dict[int, tuple[str, str, str]],
+        stats: dict,
+    ) -> None:
+        if isinstance(result, tuple) and len(result) == 5:
+            status, link_id, icon_path, url, link_type = result
+            if status == "updated" and link_id and icon_path and url:
+                updates_to_commit[int(link_id)] = (
+                    str(icon_path),
+                    str(url),
+                    str(link_type or ""),
+                )
                 stats["updated"] += 1
             elif status == "skipped":
                 stats["skipped"] += 1
@@ -385,21 +395,45 @@ class IconRefreshWorker(QRunnable):
             )
             self._last_progress_time = current_time
 
-    def _commit_updates(self, updates_to_commit: dict[int, str]) -> None:
+    def _commit_updates(
+        self,
+        updates_to_commit: dict[int, tuple[str, str, str]],
+        default_icon_path: str,
+    ) -> None:
         try:
-            update_data = [
-                (icon_path, link_id) for link_id, icon_path in updates_to_commit.items()
-            ]
-            self.db.connection.executemany(
-                "UPDATE link SET icon_path = ? WHERE id = ?",
-                update_data,
-            )
-            self.db.connection.commit()
+            updated_ids: list[int] = []
+            with db_lock:
+                for link_id, update in updates_to_commit.items():
+                    icon_path, expected_url, link_type = update
+                    row = self.db.connection.execute(
+                        "SELECT url, icon_path, type FROM link WHERE id = ?",
+                        (link_id,),
+                    ).fetchone()
+                    if not row:
+                        continue
+                    current_url = str(row["url"] or "")
+                    current_icon = str(row["icon_path"] or "")
+                    current_type = str(row["type"] or link_type or "")
+                    if current_url != expected_url:
+                        continue
+                    if not self._is_default_icon(
+                        current_icon,
+                        default_icon_path,
+                        current_type,
+                    ):
+                        continue
+                    self.db.connection.execute(
+                        "UPDATE link SET icon_path = ? WHERE id = ?",
+                        (Path(icon_path).name, link_id),
+                    )
+                    updated_ids.append(link_id)
+                self.db.connection.commit()
             logger.debug(
-                "[icon_refresh] Batch committed (%s updates)", len(updates_to_commit)
+                "[icon_refresh] Batch committed (%s updates)", len(updated_ids)
             )
-            updated_ids = list(updates_to_commit.keys())
-            self.signals.batch_updated.emit(updated_ids)
+            if updated_ids:
+                clear_icon_cache()
+                self.signals.batch_updated.emit(updated_ids)
         except Exception as e:
             logger.error("[icon_refresh] Failed to commit batch: %s", e)
             try:
@@ -420,7 +454,7 @@ class IconRefreshWorker(QRunnable):
 
     def _fetch_and_update_link(
         self, link: dict, default_icon_path: str
-    ) -> tuple[str, int | None, str | None]:
+    ) -> tuple[str, int | None, str | None, str | None, str | None]:
         """Скачать иконку для одной ссылки (без записи в БД).
         
         Args:
@@ -448,7 +482,7 @@ class IconRefreshWorker(QRunnable):
                 link_id,
                 current_icon,
             )
-            return ("skipped", None, None)
+            return ("skipped", None, None, None, None)
         
         # Пытаемся скачать иконку
         try:
@@ -472,7 +506,7 @@ class IconRefreshWorker(QRunnable):
                     new_icon_path,
                 )
                 # Возвращаем данные для batch UPDATE
-                return ("updated", link_id, new_icon_path)
+                return ("updated", link_id, new_icon_path, url, link_type)
             else:
                 # Log why skipped for first few
                 if link_id <= 5:
@@ -481,7 +515,7 @@ class IconRefreshWorker(QRunnable):
                         link_id,
                         new_icon_path if new_icon_path else "None",
                     )
-                return ("skipped", None, None)
+                return ("skipped", None, None, None, None)
         except CancelledError:
             logger.debug("[icon_refresh] Link %s cancelled during fetch", link_id)
             raise
@@ -492,7 +526,7 @@ class IconRefreshWorker(QRunnable):
                 url[:50],
                 e,
             )
-            return ("failed", None, None)
+            return ("failed", None, None, None, None)
     
     def _process_link(self, link: dict, default_icon_path: str, stats: dict) -> None:
         """Обработать одну ссылку.

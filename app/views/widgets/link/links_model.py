@@ -39,6 +39,11 @@ def _get_icon_cached(icon_path: str) -> QIcon | None:
         return None
 
 
+def clear_links_table_icon_cache() -> None:
+    """Clear table-specific icon cache."""
+    _get_icon_cached.cache_clear()
+
+
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """Data model for the links table.
 

@@ -298,13 +298,18 @@ class BaseEntityDialog(BaseDialog):
         return Path(fallback) if fallback else ui_path
 
     def _choose_icon(self):
-        """Pick an icon with smart copy semantics that avoid duplicates."""
+        """Open icon picker immediately; cancel resets to the default entity icon."""
         try:
             from app.utils.ui.icon.selection import choose_icon_and_copy
 
             user_icons_dir = icon_path_service.get_user_icons_dir()
             fname, icon = choose_icon_and_copy(self, user_icons_dir)
             if not fname or not icon:
+                self._icon_filename = f"{self.entity_name}.png"
+                if self.icon_btn is not None:
+                    self.icon_btn.setIcon(
+                        create_icon_from_path(str(self._get_icon_path(self._icon_filename)))
+                    )
                 return
 
             self.icon_btn.setIcon(icon)

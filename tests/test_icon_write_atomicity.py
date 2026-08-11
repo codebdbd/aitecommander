@@ -26,6 +26,7 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+from app.utils.links.parser.favicon_cache import _file_lock
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -147,11 +148,11 @@ def _writer_proc(
             indent=2,
         )
 
-        # Atomic PNG write
-        _atomic_write_bytes(Path(png_path), png_bytes)
-
-        # Atomic metadata write
-        _atomic_write_text(Path(meta_path), meta)
+        # Mirror production: PNG + metadata are replaced while holding
+        # the same interprocess lock, so concurrent writers serialize.
+        with _file_lock(f"{png_path}.lock"):
+            _atomic_write_bytes(Path(png_path), png_bytes)
+            _atomic_write_text(Path(meta_path), meta)
 
         with write_count.get_lock():
             write_count.value += 1

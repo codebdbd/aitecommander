@@ -101,7 +101,50 @@ class LinksService:
         Business rules (e.g., silent duplicate ignoring) are already implemented in repository.
         """
         self._validate_link_payload(link_data, "link_data", require_id=None)
-        return self.repo.upsert_link(link_data)
+        previous_icon_path = None
+        link_id = link_data.get("id")
+        if isinstance(link_id, int) and link_id > 0:
+            existing = self.repo.get_link_by_id(link_id)
+            if existing:
+                previous_icon_path = existing.get("icon_path")
+
+        saved_id = self.repo.upsert_link(link_data)
+        new_icon_path = link_data.get("icon_path")
+        if previous_icon_path and previous_icon_path != new_icon_path:
+            self._cleanup_orphaned_icon(str(previous_icon_path))
+        return saved_id
+
+    def resolve_link_id(self, link_data: LinkInput) -> int | None:
+        """Resolve persisted link ID by unique fields after batch save."""
+        self._validate_link_payload(link_data, "link_data", require_id=None)
+        link_id = link_data.get("id")
+        if isinstance(link_id, int) and link_id > 0:
+            return link_id
+
+        category_id = int(link_data.get("category_id") or 0)
+        if category_id <= 0:
+            return None
+
+        name = str(link_data.get("name") or "")
+        url = str(link_data.get("url") or "").strip()
+        args = str(link_data.get("args") or "")
+        link_type = str(link_data.get("type") or LinkType.WEB.value)
+        if not url:
+            return None
+
+        existing = self.find_duplicate(category_id, name, url, args)
+        if not existing:
+            existing = self.find_by_unique_fields(
+                category_id,
+                url,
+                args=args,
+                link_type=link_type,
+                name=name,
+            )
+        if not existing:
+            return None
+        resolved = existing.get("id")
+        return int(resolved) if isinstance(resolved, int) and resolved > 0 else None
 
     @unit_of_work
     def delete_link(self, link_id: int) -> None:

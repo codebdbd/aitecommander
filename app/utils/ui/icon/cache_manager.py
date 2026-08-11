@@ -743,6 +743,12 @@ _icon_manager = IconManager()
 def clear_icon_cache() -> None:
     """Clears the icon cache."""
     _icon_manager.clear_cache()
+    try:
+        from app.views.widgets.link.links_model import clear_links_table_icon_cache
+
+        clear_links_table_icon_cache()
+    except Exception:
+        logger.debug("Failed to clear links table icon cache", exc_info=True)
 
 
 def get_icon_cache_stats() -> dict[str, int | float]:
