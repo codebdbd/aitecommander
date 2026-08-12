@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QItemSelection, QItemSelectionModel, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QShowEvent, QUndoStack
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -192,8 +192,60 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def select_all_links(self) -> None:
         """Select all link rows."""
-        if self.table is not None:
-            self.table.selectAll()
+        table = self.table
+        if table is None:
+            return
+        model = table.model() if hasattr(table, "model") else None
+        selection_model = (
+            table.selectionModel() if hasattr(table, "selectionModel") else None
+        )
+        if model is None or selection_model is None:
+            return
+
+        try:
+            rows = int(model.rowCount())
+            columns = int(model.columnCount())
+        except Exception:
+            logger.debug(
+                "MainWindow.select_all_links: failed to inspect model", exc_info=True
+            )
+            table.selectAll()
+            return
+
+        if rows <= 0 or columns <= 0:
+            return
+
+        try:
+            table.setUpdatesEnabled(False)
+            top_left = model.index(0, 0)
+            bottom_right = model.index(rows - 1, columns - 1)
+            selection = QItemSelection(top_left, bottom_right)
+            selection_model.select(
+                selection,
+                QItemSelectionModel.SelectionFlag.ClearAndSelect
+                | QItemSelectionModel.SelectionFlag.Rows,
+            )
+            selection_model.setCurrentIndex(
+                top_left,
+                QItemSelectionModel.SelectionFlag.NoUpdate,
+            )
+        except Exception:
+            logger.debug(
+                "MainWindow.select_all_links: optimized selection failed",
+                exc_info=True,
+            )
+            table.selectAll()
+        finally:
+            try:
+                table.setUpdatesEnabled(True)
+                viewport = table.viewport() if hasattr(table, "viewport") else None
+                if viewport is not None:
+                    viewport.update()
+            except Exception:
+                logger.debug(
+                    "MainWindow.select_all_links: failed to restore updates",
+                    exc_info=True,
+                )
 
     def get_selected_rows(self) -> list[int]:
         """Return indices of selected rows."""

@@ -148,7 +148,9 @@ class LinkProcessingMixin:
                     app_config,
                     force_refresh=False,
                     defer_icon=True,
-                    schedule_deferred_icon=False,
+                    on_icon_ready=lambda icon_path: _emit_if_current(
+                        {"title": "", "icon": icon_path}
+                    ),
                     cancel_event=cancel_event,
                 )
                 fetch_ms = (time.perf_counter() - fetch_t0) * 1000.0

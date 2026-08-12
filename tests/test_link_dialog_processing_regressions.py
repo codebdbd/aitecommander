@@ -41,7 +41,7 @@ class _TimerStub:
 
 class _DialogStub:
     def __init__(self) -> None:
-        self.link_type = "web"
+        self.link_type = "file"
         self.link = {}
         self._is_closing = False
         self._processing_timer = _TimerStub()
@@ -117,3 +117,19 @@ def test_cancel_processing_clears_last_processed_path_and_processing_state():
     assert handlers._last_processed_path == ""
     assert handlers._active_worker is None
     assert worker.cancelled is True
+
+
+def test_cancel_processing_ignores_late_link_info_signal(monkeypatch):
+    handlers = LinkDialogHandlers(_DialogStub())
+    calls: list[dict] = []
+
+    monkeypatch.setattr(
+        handlers,
+        "_on_link_info_fetched",
+        lambda info: calls.append(info),
+    )
+
+    handlers.cancel_processing()
+    handlers.signals.link_info_finished.emit({"title": "late"})
+
+    assert calls == []

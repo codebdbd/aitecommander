@@ -21,6 +21,24 @@ class _FakeDb:
 
 
 class TestStructureServiceBulk(unittest.TestCase):
+    def test_update_section_invalidates_old_and_new_spheres_when_moved(self) -> None:
+        db = _FakeDb()
+        db.sections.get_section_by_id.side_effect = [
+            {"id": 9, "sphere_id": 1, "name": "Old"},
+            {"id": 9, "sphere_id": 2, "name": "Moved"},
+        ]
+        service = StructureService(db)
+        service._model = Mock()
+        service._model.update_section.return_value = True
+
+        result = service.update_section(9, {"id": 9, "name": "Moved", "sphere_id": 2})
+
+        self.assertTrue(result.is_success())
+        self.assertEqual(
+            [(r.scope, r.identifier) for r in result.invalidate_regions],
+            [("sections", 1), ("sections", 2), ("structure", None)],
+        )
+
     def test_delete_sections_bulk_returns_failure_result_on_batch_limit(self) -> None:
         db = _FakeDb()
         db.sections.get_section_by_id.return_value = {"id": 1, "sphere_id": 10}

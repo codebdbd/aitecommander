@@ -39,6 +39,7 @@ def build_dropped_link_payload(target: str, category_id: int) -> dict:
         "url": clean_target,
         "type": link_type,
         "icon_path": "",
+        "_defer_enrichment": True,
         "notes": "",
         "last_used": None,
         "position": 0,

@@ -11,7 +11,7 @@ Key components:
 - DatabaseProtocol: interface for database operations
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 from .bulk_operation_service import BulkOperationService
 from .links_service import LinksService

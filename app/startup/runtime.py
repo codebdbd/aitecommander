@@ -21,6 +21,7 @@ from app.core.constants import AppConstants
 from app.core.database_manager import DatabaseManager
 from app.core.hotkey_manager import HotkeyManager
 from app.core.log_manager import LogManager
+from app.core.paths.path_manager import PathManager
 from app.core.settings_manager import SettingsManager
 from app.core.worker_manager import WorkerManager
 from app.resources import app_resources_rc, icons_rc
@@ -53,6 +54,44 @@ _resources_initialized = False
 
 logger = logging.getLogger(__name__)
 _qt_prev_message_handler = None
+_fault_log_file = None
+
+
+def _install_fault_handler() -> None:
+    """Write Python stack traces for fatal native crashes when possible."""
+    global _fault_log_file
+    if _fault_log_file is not None:
+        return
+    try:
+        import faulthandler
+
+        fault_log_path = PathManager.logs_dir() / "fault.log"
+        fault_log_path.parent.mkdir(parents=True, exist_ok=True)
+        _fault_log_file = open(fault_log_path, "a", encoding="utf-8", buffering=1)
+        faulthandler.enable(file=_fault_log_file, all_threads=True)
+        logger.info("Python fault handler enabled: %s", fault_log_path)
+    except Exception:
+        logger.warning("Failed to enable Python fault handler", exc_info=True)
+
+
+def _disable_fault_handler() -> None:
+    """Disable faulthandler and close its log file during normal shutdown."""
+    global _fault_log_file
+    try:
+        if "faulthandler" in sys.modules:
+            import faulthandler
+
+            if faulthandler.is_enabled():
+                faulthandler.disable()
+    except Exception:
+        logger.debug("Failed to disable Python fault handler", exc_info=True)
+    try:
+        if _fault_log_file is not None:
+            _fault_log_file.close()
+    except Exception:
+        logger.debug("Failed to close Python fault log file", exc_info=True)
+    finally:
+        _fault_log_file = None
 
 
 def _install_qt_message_filter() -> None:
@@ -115,6 +154,7 @@ def _setup_logging_and_args(options: StartupOptions) -> StartupOptions:
         options.mode = StartupMode.HEADLESS
     log_level = determine_log_level(args)
     LogManager.set_level(log_level)
+    _install_fault_handler()
     if options.log_system_details:
         _log_system_info()
     return options
@@ -310,6 +350,7 @@ def _cleanup_resources(
             pass
 
     log_shutdown()
+    _disable_fault_handler()
 
 
 def _register_hotkeys() -> None:

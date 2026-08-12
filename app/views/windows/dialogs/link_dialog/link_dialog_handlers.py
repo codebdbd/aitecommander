@@ -37,13 +37,25 @@ class LinkDialogHandlers(
         self._is_processing = False
         self._worker_task_id = 0
         self._active_worker = None
+        self._pending_processed_path = ""
+        self._callbacks_enabled = True
         # Local signals (replacement for StructureWorkerSignals)
         self.signals = LinkDialogSignals()
         # Connect internal signals
-        self.signals.link_info_finished.connect(
-            lambda info: self._on_link_info_fetched(info)
-        )
-        self.signals.simple_error.connect(lambda error: self._on_link_info_error(error))
+        self.signals.link_info_finished.connect(self._handle_link_info_finished)
+        self.signals.simple_error.connect(self._handle_link_info_error)
+
+    def _handle_link_info_finished(self, info) -> None:
+        if not self._callbacks_enabled:
+            logger.info("LinkDialogHandlers: ignored late link_info_finished callback")
+            return
+        self._on_link_info_fetched(info)
+
+    def _handle_link_info_error(self, error) -> None:
+        if not self._callbacks_enabled:
+            logger.info("LinkDialogHandlers: ignored late link_info_error callback")
+            return
+        self._on_link_info_error(error)
 
     def connect_signals(self) -> None:
         """Wire dialog widgets to handlers."""
@@ -95,9 +107,35 @@ class LinkDialogHandlers(
 
         - Stop the deferred path processing timer
         - Cancel the active worker and disconnect its signals
+        - Disconnect local callback signals
         - Reset internal state flags
         - Increment task id to avoid stale results
         """
+        logger.info(
+            "LinkDialogHandlers.cancel_processing: task_id=%s processing=%s active_worker=%s callbacks_enabled=%s",
+            self._worker_task_id,
+            self._is_processing,
+            bool(self._active_worker),
+            self._callbacks_enabled,
+        )
+        self._callbacks_enabled = False
+
+        try:
+            active_cancel_event = getattr(self, "_active_cancel_event", None)
+            if active_cancel_event is not None:
+                active_cancel_event.set()
+        except Exception:
+            logger.debug("cancel_processing: failed to signal cancel event", exc_info=True)
+
+        try:
+            self.signals.link_info_finished.disconnect(self._handle_link_info_finished)
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            self.signals.simple_error.disconnect(self._handle_link_info_error)
+        except (TypeError, RuntimeError):
+            pass
+
         # Stop timer (if still alive)
         try:
             if getattr(self.dialog, "_processing_timer", None):
@@ -138,3 +176,11 @@ class LinkDialogHandlers(
         # Reset last processed path to avoid stale warnings on close
         self._last_processed_path = ""
         self._worker_task_id += 1
+        try:
+            self._active_cancel_event = None
+        except Exception:
+            pass
+        logger.info(
+            "LinkDialogHandlers.cancel_processing: completed next_task_id=%s",
+            self._worker_task_id,
+        )

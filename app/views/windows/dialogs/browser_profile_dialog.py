@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.browser.profile_selection_state import profile_selection_key
 from app.utils.browser.browser_profiles import async_profile_manager as _apm
 from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles import persistent_cache as _pc
@@ -31,7 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserProfileDialog(BaseDialog):
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        parent=None,
+        initial_selected_profile_keys: set[str] | None = None,
+    ):
         super().__init__(parent)
         self.setObjectName("BrowserProfileDialog")
         self.setWindowTitle(tr_common("Select browser profile"))
@@ -40,6 +45,11 @@ class BrowserProfileDialog(BaseDialog):
         self.manager = get_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
+        self.initial_selected_profile_keys = {
+            str(key).strip().lower()
+            for key in (initial_selected_profile_keys or set())
+            if str(key).strip()
+        }
         self.async_manager = _apm.get_async_profile_manager()
         self.async_manager.browser_profiles_ready.connect(self._on_async_profiles_ready)
         self.async_manager.loading_error.connect(self._on_async_profiles_error)
@@ -245,6 +255,8 @@ class BrowserProfileDialog(BaseDialog):
             text = profile_name
             cb = QCheckBox(text)
             cb.profile_data = profile
+            if profile_selection_key(profile) in self.initial_selected_profile_keys:
+                cb.setChecked(True)
             try:
                 cb.stateChanged.connect(self._update_save_enabled)
             except Exception:

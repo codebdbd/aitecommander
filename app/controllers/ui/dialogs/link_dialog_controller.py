@@ -379,7 +379,7 @@ class LinkDialogController:
         """Prepares regular link."""
         from app.utils.links.link_factory import make_link_record
 
-        return make_link_record(
+        record = make_link_record(
             name=form_data["name"],
             url=form_data["url"],
             link_type=form_data["link_type"],
@@ -392,6 +392,9 @@ class LinkDialogController:
             is_favorite=int(form_data.get("is_favorite", False)),
             link_id=form_data.get("link_id"),
         )
+        if form_data.get("_reparse_icon"):
+            record["_reparse_icon"] = True
+        return record
 
     def get_result_data(self) -> list[dict[str, Any]]:
         """Returns resulting data after saving."""

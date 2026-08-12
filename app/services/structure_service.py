@@ -96,6 +96,7 @@ class StructureService:
     def update_section(
         self, section_id: int, data: StructureRow
     ) -> Result[StructureRow | None]:
+        section_before = self.db.sections.get_section_by_id(section_id) or {}
         try:
             updated = self._model.update_section(section_id, data)
         except Exception as exc:
@@ -103,10 +104,22 @@ class StructureService:
         if not updated:
             return self._failure(RuntimeError("Section update failed"))
         section_data = self.db.sections.get_section_by_id(section_id) or {}
-        sphere_id = (
+        old_sphere_id = (
+            section_before.get("sphere_id")
+            if isinstance(section_before, dict)
+            else None
+        )
+        new_sphere_id = (
             section_data.get("sphere_id") if isinstance(section_data, dict) else None
         )
-        invalidate = self._invalidate_for_section(sphere_id, include_structure=True)
+        invalidate = self._invalidate_for_sections(
+            [
+                sphere_id
+                for sphere_id in (old_sphere_id, new_sphere_id)
+                if isinstance(sphere_id, int)
+            ],
+            include_structure=True,
+        )
         return Result.success(section_data or None, invalidate=invalidate)
 
     @unit_of_work
