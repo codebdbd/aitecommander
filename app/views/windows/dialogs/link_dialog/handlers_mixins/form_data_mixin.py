@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+from app.models import LinkType
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,7 +44,19 @@ class FormDataMixin:
             if self.dialog.link
             else None,
             "position": self.dialog.link.get("position", 0) if self.dialog.link else 0,
+            "_reparse_icon": bool(
+                getattr(self.dialog, "_reparse_icon_requested", False)
+            ),
         }
+
+        handlers = getattr(self.dialog, "handlers", None)
+        is_processing = bool(getattr(handlers, "_is_processing", False))
+        has_active_worker = bool(getattr(handlers, "_active_worker", None))
+        link_type = LinkType.from_value(self.dialog.link_type)
+        if link_type in (LinkType.WEB, LinkType.PROGRAM, LinkType.FILE) and (
+            is_processing or has_active_worker
+        ):
+            form_data["_defer_enrichment"] = True
 
         # Add selected profiles if present
         if hasattr(self.dialog, "selected_profiles"):

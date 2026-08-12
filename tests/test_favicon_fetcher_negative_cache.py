@@ -31,7 +31,43 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
     def tearDown(self) -> None:
         fetcher._HOST_FAILURES.clear()
 
-    def test_repeated_unreachable_host_short_circuits_before_http(self) -> None:
+    def test_repeated_server_failure_short_circuits_before_http(self) -> None:
+        config = _DummyConfig()
+
+        with (
+            self.assertLogs("favicon_parser", level="INFO") as logs_cm,
+            patch(
+                "app.utils.links.parser.fetcher.read_cache",
+                return_value=None,
+            ),
+            patch(
+                "app.utils.links.parser.fetcher.write_cache",
+            ) as write_cache_mock,
+            patch(
+                "app.utils.links.parser.fetcher.resolve_icon_for_link",
+                return_value="/default/web.png",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._fetch_and_parse_html",
+                return_value=(None, 503),
+            ) as fetch_html_mock,
+            patch(
+                "app.utils.links.parser.fetcher._resolve_icon_sync",
+                return_value=None,
+            ),
+        ):
+            first = fetcher.fetch_web_link_info("https://bad.example.com/a", config)
+            second = fetcher.fetch_web_link_info("https://bad.example.com/b", config)
+
+        self.assertEqual("/default/web.png", first["icon"])
+        self.assertEqual("/default/web.png", second["icon"])
+        self.assertEqual(1, fetch_html_mock.call_count)
+        self.assertEqual(2, write_cache_mock.call_count)
+        self.assertTrue(
+            any("[fetch][host_negative] hit host=example.com" in msg for msg in logs_cm.output)
+        )
+
+    def test_opaque_unreachable_html_does_not_poison_host(self) -> None:
         config = _DummyConfig()
 
         with (
@@ -61,10 +97,10 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
 
         self.assertEqual("/default/web.png", first["icon"])
         self.assertEqual("/default/web.png", second["icon"])
-        self.assertEqual(1, http_request_mock.call_count)
+        self.assertEqual(2, http_request_mock.call_count)
         self.assertEqual(2, write_cache_mock.call_count)
         self.assertTrue(
-            any("[fetch][host_negative] hit host=example.com" in msg for msg in logs_cm.output)
+            any("[fetch][host_negative] skip_mark_unknown host=example.com status=None" in msg for msg in logs_cm.output)
         )
 
     def test_successful_fetch_clears_host_failure_marker(self) -> None:
@@ -188,32 +224,29 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
         self.assertEqual("bad.example.com", result["title"])
         scheduler_mock.return_value.submit_task.assert_called_once()
 
-    def test_deferred_icon_can_be_owned_by_post_save_service(self) -> None:
+    def test_unreachable_html_full_icon_pipeline_runs_after_direct_favicon_miss(self) -> None:
         config = _DummyConfig()
 
         with (
-            patch("app.utils.links.parser.fetcher.read_cache", return_value=None),
             patch(
-                "app.utils.links.parser.fetcher.resolve_icon_for_link",
-                return_value="/default/web.png",
-            ),
+                "app.utils.links.parser.fetcher.save_icon",
+                return_value=None,
+            ) as save_icon_mock,
             patch(
-                "app.utils.links.parser.fetcher._fetch_and_parse_html",
-                return_value=object(),
-            ),
-            patch("app.utils.links.parser.fetcher.get_title", return_value="Title"),
-            patch("app.utils.links.parser.fetcher.get_task_scheduler") as scheduler_mock,
-            patch("app.utils.links.parser.fetcher.write_cache"),
+                "app.utils.links.parser.fetcher.pick_icon_parallel",
+                return_value="/icons/google-fallback.png",
+            ) as pick_icon_mock,
         ):
-            result = fetcher.fetch_web_link_info(
-                "https://example.com/a",
+            icon = fetcher._try_direct_favicon_on_block(
+                "https://bad.example.com/a",
+                "example.com",
                 config,
-                defer_icon=True,
-                schedule_deferred_icon=False,
+                force_refresh=False,
             )
 
-        self.assertEqual("Title", result["title"])
-        scheduler_mock.return_value.submit_task.assert_not_called()
+        self.assertEqual("/icons/google-fallback.png", icon)
+        self.assertEqual(3, save_icon_mock.call_count)
+        pick_icon_mock.assert_called_once()
 
     def test_negative_cache_entry_is_bypassed_and_refetched(self) -> None:
         config = _DummyConfig()
@@ -256,7 +289,6 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
         self.assertTrue(
             any("[cache] BYPASS_EMPTY_TITLE https://example.com/a" in msg for msg in logs_cm.output)
         )
-
 
 class TestFaviconCacheLockFallback(unittest.TestCase):
     def test_file_lock_yields_when_portalocker_backend_missing(self) -> None:
@@ -571,14 +603,32 @@ class TestDomainNormalization(unittest.TestCase):
         self.assertEqual("example.co.uk", base_domain("www.example.co.uk"))
 
     def test_failed_domain_cache_is_shared_across_www_variants(self) -> None:
-        mark_domain_failed("https://www.example.com/path", 404)
+        mark_domain_failed("https://www.example.com/path", 403)
         self.assertTrue(is_domain_failed("https://example.com/other"))
         self.assertTrue(is_domain_failed("https://sub.example.com/else"))
 
     def test_clear_failed_domain_removes_shared_cache_entry(self) -> None:
-        mark_domain_failed("https://www.example.com/path", 404)
+        mark_domain_failed("https://www.example.com/path", 403)
         clear_domain_failed("https://example.com/icon.png")
         self.assertFalse(is_domain_failed("https://sub.example.com/else"))
+
+    def test_icon_404_does_not_mark_domain_failed(self) -> None:
+        downloader = IconDownloader(_DummyConfig())
+        clear_domain_failed("https://example.com/seed")
+
+        class _Resp:
+            status_code = 404
+
+        handled, path = downloader._handle_response_status(
+            _Resp(),
+            "example.com",
+            "https://example.com/favicon.ico",
+            False,
+        )
+
+        self.assertTrue(handled)
+        self.assertIsNone(path)
+        self.assertFalse(is_domain_failed("https://example.com/other"))
 
 
 class TestIconDownloaderHttpPolicy(unittest.TestCase):

@@ -12,7 +12,7 @@ No CSV or legacy fallbacks are supported here.
 import json
 import logging
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunsplit
 
 from PyQt6.QtCore import QByteArray, QMimeData, QUrl
 
@@ -116,9 +116,13 @@ class MimeDataParser:
         seen: set[str] = set()
         for candidate in candidates:
             normalized = normalize_external_link_target(candidate)
-            if normalized and normalized not in seen:
-                seen.add(normalized)
-                targets.append(normalized)
+            if not normalized:
+                continue
+            dedup_key = _external_target_dedup_key(normalized)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            targets.append(normalized)
         return targets
 
 
@@ -135,6 +139,35 @@ def normalize_external_web_url(candidate: str) -> str:
     if not parsed.netloc:
         return ""
     return url
+
+
+def _external_target_dedup_key(target: str) -> str:
+    """Return a stable deduplication key for external targets.
+
+    Browsers may expose the same dragged link through multiple MIME
+    representations with insignificant differences, for example
+    `https://site.example` and `https://site.example/`.
+    """
+    web_url = normalize_external_web_url(target)
+    if not web_url:
+        return target
+    try:
+        parsed = urlparse(web_url)
+        path = parsed.path or ""
+        if path == "/":
+            path = ""
+        return urlunsplit(
+            (
+                parsed.scheme.lower(),
+                parsed.netloc.lower(),
+                path,
+                parsed.query,
+                "",
+            )
+        )
+    except Exception:
+        logger.debug("Failed to normalize dedup key for %s", target, exc_info=True)
+        return web_url
 
 
 def normalize_external_link_target(candidate: str) -> str:

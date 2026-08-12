@@ -20,6 +20,7 @@ from app.models.db import Database
 from app.services.links_service import LinksService
 from app.services.structure_context_service import StructureContextService
 from app.services.structure_service import StructureService
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.db_tasks import run_db
 
@@ -723,6 +724,101 @@ class SaveSectionCmd(BaseCommand):
                 exc_info=True,
             )
 
+    def _target_sphere_changed(self, payload: dict[str, Any] | None = None) -> bool:
+        if self.is_new or not isinstance(self.old_data, dict):
+            return False
+        data = payload if isinstance(payload, dict) else self.new_data
+        old_sphere_id = self.old_data.get("sphere_id")
+        new_sphere_id = data.get("sphere_id")
+        return (
+            isinstance(old_sphere_id, int)
+            and isinstance(new_sphere_id, int)
+            and old_sphere_id != new_sphere_id
+        )
+
+    def _fill_missing_update_fields(self) -> None:
+        if self.is_new or not isinstance(self.old_data, dict):
+            return
+        for key in ("name", "sphere_id", "position"):
+            if key not in self.new_data and key in self.old_data:
+                self.new_data[key] = self.old_data[key]
+
+    def _schedule_focus_after_sphere_switch(
+        self,
+        section_id: int,
+        *,
+        after_structure_loaded: bool = False,
+    ) -> None:
+        structure = getattr(self.main, "structure", None)
+        selection_handler = getattr(structure, "selection_handler", None)
+        restore = getattr(selection_handler, "_restore_selection_after_load", None)
+        if not callable(restore):
+            return
+        try:
+            schedule_selection_restore(
+                lambda: restore("section", section_id),
+                f"section_move_sphere_{section_id}",
+                delay=0 if after_structure_loaded else None,
+            )
+        except Exception:
+            logger.debug(
+                "SaveSectionCmd: failed to schedule moved section focus",
+                exc_info=True,
+            )
+
+    def _schedule_focus_when_structure_loaded(self, section_id: int) -> bool:
+        business = self._resolve_business()
+        signal = getattr(business, "structure_loaded", None)
+        if not hasattr(signal, "connect"):
+            return False
+
+        def _on_loaded(*_args: Any) -> None:
+            try:
+                if hasattr(signal, "disconnect"):
+                    signal.disconnect(_on_loaded)
+            except Exception:
+                logger.debug(
+                    "SaveSectionCmd: failed to disconnect structure_loaded focus hook",
+                    exc_info=True,
+                )
+            self._schedule_focus_after_sphere_switch(
+                section_id,
+                after_structure_loaded=True,
+            )
+
+        try:
+            signal.connect(_on_loaded)
+            return True
+        except Exception:
+            logger.debug(
+                "SaveSectionCmd: failed to connect structure_loaded focus hook",
+                exc_info=True,
+            )
+            return False
+
+    def _switch_to_target_sphere_and_focus(
+        self,
+        section_id: int,
+        sphere_id: int,
+    ) -> bool:
+        structure = getattr(self.main, "structure", None)
+        switch_sphere = getattr(structure, "switch_sphere", None)
+        if not callable(switch_sphere):
+            return False
+        try:
+            connected_focus_hook = self._schedule_focus_when_structure_loaded(section_id)
+            switch_sphere(int(sphere_id))
+            if not connected_focus_hook:
+                self._schedule_focus_after_sphere_switch(section_id)
+            return True
+        except Exception:
+            logger.debug(
+                "SaveSectionCmd: failed to switch to target sphere %s",
+                sphere_id,
+                exc_info=True,
+            )
+            return False
+
     @log_command
     def redo(self) -> None:
         try:
@@ -737,6 +833,7 @@ class SaveSectionCmd(BaseCommand):
         if self.is_new:
             result = self.structure_service.create_section(self.new_data)
         else:
+            self._fill_missing_update_fields()
             section_id = self.new_id if isinstance(self.new_id, int) else self.new_data.get("id")
             result = self.structure_service.update_section(int(section_id), self.new_data)
 
@@ -749,11 +846,22 @@ class SaveSectionCmd(BaseCommand):
                 self.new_id = new_id
             business = self._resolve_business()
             if business is not None and isinstance(self.new_id, int) and not was_new:
-                try:
-                    business.section_selected.emit(self.new_id)
-                except Exception as exc:
-                    logger.warning("SaveSectionCmd.redo: section_selected failed: %s", exc)
-            self._emit_reload(payload)
+                data = payload if isinstance(payload, dict) else self.new_data
+                target_sphere_id = data.get("sphere_id")
+                moved_to_other_sphere = self._target_sphere_changed(payload)
+                switched = False
+                if moved_to_other_sphere and isinstance(target_sphere_id, int):
+                    switched = self._switch_to_target_sphere_and_focus(
+                        int(self.new_id),
+                        int(target_sphere_id),
+                    )
+                if not switched:
+                    try:
+                        business.section_selected.emit(self.new_id)
+                    except Exception as exc:
+                        logger.warning("SaveSectionCmd.redo: section_selected failed: %s", exc)
+            if not self._target_sphere_changed(payload):
+                self._emit_reload(payload)
             self.is_new = False
             self._store_snapshot(
                 _snapshot_from_result(result, payload=payload or self.new_data)
@@ -797,21 +905,37 @@ class SaveSectionCmd(BaseCommand):
         result = self.structure_service.update_section(
             int(self.old_data["id"]), self.old_data
         )
+        previous_data = dict(self.new_data) if isinstance(self.new_data, dict) else {}
 
         def _on_restore_success(payload: dict[str, Any] | None) -> None:
             restored = dict(payload) if isinstance(payload, dict) else dict(self.old_data)
             self.new_data = restored
             self.new_id = restored.get("id", self.new_id)
             business = self._resolve_business()
+            switched = False
             if business is not None:
-                try:
-                    business.section_selected.emit(int(restored["id"]))
-                except Exception as exc:
-                    logger.warning(
-                        "SaveSectionCmd.undo: select_section failed: %s",
-                        exc,
+                previous_sphere_id = previous_data.get("sphere_id")
+                target_sphere_id = restored.get("sphere_id")
+                if (
+                    isinstance(previous_sphere_id, int)
+                    and isinstance(target_sphere_id, int)
+                    and previous_sphere_id != target_sphere_id
+                    and isinstance(restored.get("id"), int)
+                ):
+                    switched = self._switch_to_target_sphere_and_focus(
+                        int(restored["id"]),
+                        int(target_sphere_id),
                     )
-            self._emit_reload(restored)
+                if not switched:
+                    try:
+                        business.section_selected.emit(int(restored["id"]))
+                    except Exception as exc:
+                        logger.warning(
+                            "SaveSectionCmd.undo: select_section failed: %s",
+                            exc,
+                        )
+            if not switched:
+                self._emit_reload(restored)
             self._store_snapshot(
                 _snapshot_from_result(result, payload=restored)
             )

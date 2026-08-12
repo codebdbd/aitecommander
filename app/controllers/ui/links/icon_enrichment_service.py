@@ -13,6 +13,7 @@ from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal, pyqtS
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models import LinkType
+from app.utils.links.dropped_web_link import derive_dropped_web_link_name
 from app.utils.links.link_parser import parse_local_link
 from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.ui.db_tasks import run_db
@@ -45,6 +46,19 @@ def _can_replace_icon(link: dict[str, Any]) -> bool:
     )
 
 
+def _can_replace_name(link: dict[str, Any], resolved_name: str) -> bool:
+    """Return whether an auto-resolved name may replace the current one."""
+    if not resolved_name:
+        return False
+    current = str(link.get("name") or "").strip()
+    if not current:
+        return True
+    url = str(link.get("url") or "").strip()
+    fallback = derive_dropped_web_link_name(url) if url else ""
+    current_norm = current.casefold()
+    return current_norm in {fallback.casefold(), url.casefold()}
+
+
 class _FetchIconTask(QRunnable):
     def __init__(
         self,
@@ -53,6 +67,7 @@ class _FetchIconTask(QRunnable):
         url: str,
         link_type: str,
         generation: int,
+        force_refresh: bool,
     ) -> None:
         super().__init__()
         self._service_ref = weakref.ref(service)
@@ -60,19 +75,22 @@ class _FetchIconTask(QRunnable):
         self._url = url
         self._link_type = link_type
         self._generation = generation
+        self._force_refresh = force_refresh
 
     def run(self) -> None:
         icon_path = ""
+        title = ""
         try:
             if self._link_type == LinkType.WEB.value:
                 info = fetch_web_link_info(
                     self._url,
                     app_config,
-                    force_refresh=True,
+                    force_refresh=self._force_refresh,
                     defer_icon=False,
                 )
             else:
                 info = parse_local_link(self._link_type, self._url, app_config)
+            title = str(info.get("title") or info.get("name") or "").strip()
             candidate = str(info.get("icon") or "").strip()
             if (
                 candidate
@@ -97,6 +115,7 @@ class _FetchIconTask(QRunnable):
                     "url": self._url,
                     "link_type": self._link_type,
                     "generation": self._generation,
+                    "title": title,
                     "icon_path": icon_path,
                 }
             )
@@ -118,20 +137,32 @@ class LinkIconEnrichmentService(QObject):
         link_id = link.get("id")
         url = str(link.get("url") or "").strip()
         link_type = str(link.get("type") or link.get("link_type") or "").lower()
+        can_replace_icon = _can_replace_icon(link)
+        can_replace_name = (
+            link_type == LinkType.WEB.value and _can_replace_name(link, "resolved")
+        )
+        force_refresh = bool(link.get("_reparse_icon"))
         if (
             not isinstance(link_id, int)
             or link_id <= 0
             or link_type
             not in {LinkType.WEB.value, LinkType.PROGRAM.value, LinkType.FILE.value}
             or not url
-            or not _can_replace_icon(link)
+            or (not can_replace_icon and not can_replace_name)
         ):
             return False
 
         generation = self._generation_by_link.get(link_id, 0) + 1
         self._generation_by_link[link_id] = generation
         get_task_scheduler().submit_task(
-            _FetchIconTask(self, link_id, url, link_type, generation)
+            _FetchIconTask(
+                self,
+                link_id,
+                url,
+                link_type,
+                generation,
+                force_refresh,
+            )
         )
         return True
 
@@ -143,10 +174,11 @@ class LinkIconEnrichmentService(QObject):
         generation = result.get("generation")
         url = str(result.get("url") or "")
         link_type = str(result.get("link_type") or "")
+        title = str(result.get("title") or "").strip()
         icon_path = str(result.get("icon_path") or "")
         if not isinstance(link_id, int) or self._generation_by_link.get(link_id) != generation:
             return
-        if not icon_path or not Path(icon_path).exists():
+        if (not icon_path or not Path(icon_path).exists()) and not title:
             self._generation_by_link.pop(link_id, None)
             return
 
@@ -166,9 +198,16 @@ class LinkIconEnrichmentService(QObject):
                 or str(current.get("type") or "") != link_type
             ):
                 return None
-            if not _can_replace_icon(current):
+            can_replace_icon = bool(icon_path) and _can_replace_icon(current)
+            can_replace_name = (
+                link_type == LinkType.WEB.value and _can_replace_name(current, title)
+            )
+            if not can_replace_icon and not can_replace_name:
                 return None
-            current["icon_path"] = Path(icon_path).name
+            if can_replace_icon:
+                current["icon_path"] = Path(icon_path).name
+            if can_replace_name:
+                current["name"] = title
             links_service.create_or_update_link(current)
             refreshed = links_service.get_link_by_id(link_id)
             return dict(refreshed) if refreshed else current

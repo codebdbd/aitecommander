@@ -23,12 +23,14 @@ class IconsMixin:
             self._reset_icon_to_default()
             return
 
+        self.dialog._reparse_icon_requested = False
         self.dialog.icon_name = fname
         btn = self.dialog._get_icon_btn()
         btn.setIcon(icon if icon else QIcon())
 
     def _reset_icon_to_default(self) -> None:
         """Reset to the default icon for the current link type."""
+        self.dialog._reparse_icon_requested = True
         self.dialog.icon_name = ""
         link_type = LinkType.from_value(self.dialog.link_type)
         try:

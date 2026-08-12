@@ -120,6 +120,25 @@ def _build_negative_result(url: str, title: str, default_icon: str, config) -> d
     }
 
 
+def _should_mark_host_negative(
+    *,
+    soup: BeautifulSoup | None,
+    html_status: int | None,
+    host: str,
+) -> bool:
+    """Return True only for failures that plausibly indicate a host-wide outage.
+
+    We must not poison the whole host after a path-specific 404, an anti-bot
+    silent drop, or an opaque transport failure where we don't know what
+    actually happened. Those cases should be retried on the next attempt.
+    """
+    if soup is not None or not host:
+        return False
+    if html_status is None:
+        return False
+    return html_status >= 500
+
+
 def _fallback_title_from_url(url: str, host: str) -> str:
     try:
         p = urlparse(url)
@@ -186,6 +205,22 @@ def _try_direct_favicon_on_block(
                 return saved
         except Exception:
             logger.debug("direct favicon fallback failed url=%s", icon_url, exc_info=True)
+    try:
+        try:
+            soup = BeautifulSoup("", BS_PARSER)
+        except Exception:
+            soup = BeautifulSoup("", "html.parser")
+        logger.debug("[fetch] direct favicon fallback exhausted, trying full icon pipeline for host=%s", host)
+        return pick_icon_parallel(
+            soup,
+            url,
+            host,
+            config,
+            force_refresh=force_refresh,
+            cancel_event=cancel_event,
+        )
+    except Exception:
+        logger.debug("full icon pipeline fallback failed for %s", url, exc_info=True)
     return None
 
 
@@ -508,11 +543,10 @@ def fetch_web_link_info(
     force_refresh: bool = False,
     *,
     defer_icon: bool = False,
-    schedule_deferred_icon: bool = True,
     on_icon_ready: Callable[[str], None] | None = None,
     cancel_event: threading.Event | None = None,
 ) -> dict[str, Any]:
-    """Fetch web metadata, optionally leaving deferred icon work to the caller."""
+    """Fetch web link information (title, icon) with caching."""
     perf_t0 = time.perf_counter()
     cache_check_ms = 0.0
     fetch_html_ms = 0.0
@@ -622,12 +656,7 @@ def fetch_web_link_info(
             logger.debug("cache write failed for %s: %s", url, e)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
-        if (
-            defer_icon
-            and schedule_deferred_icon
-            and icon_path is None
-            and not existing_icon_path
-        ):
+        if defer_icon and icon_path is None and not existing_icon_path:
             scheduler = get_task_scheduler()
             task = _create_blocked_icon_resolve_task(
                 url,
@@ -692,9 +721,26 @@ def fetch_web_link_info(
                 url,
             )
             _clear_host_temporary_failure(host)
-        else:
-            logger.info("[fetch][host_negative] mark host=%s url=%s", host, url)
+        elif _should_mark_host_negative(
+            soup=soup,
+            html_status=html_status,
+            host=host,
+        ):
+            logger.info(
+                "[fetch][host_negative] mark host=%s status=%s url=%s",
+                host,
+                html_status,
+                url,
+            )
             _mark_host_temporarily_unreachable(host)
+        else:
+            logger.info(
+                "[fetch][host_negative] skip_mark_unknown host=%s status=%s url=%s",
+                host,
+                html_status,
+                url,
+            )
+            _clear_host_temporary_failure(host)
     else:
         logger.debug("[fetch][host_negative] clear host=%s url=%s", host, url)
         _clear_host_temporary_failure(host)
@@ -781,23 +827,12 @@ def fetch_web_link_info(
     cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
     # 9) Schedule deferred icon resolution if needed
-    if (
-        defer_icon
-        and schedule_deferred_icon
-        and soup is not None
-        and icon_path is None
-    ):
+    if defer_icon and soup is not None and (icon_path is None):
         scheduler = get_task_scheduler()
         task = _create_icon_resolve_task(soup, url, title, config, on_icon_ready)
         scheduler.submit_task(task)
         deferred_icon_scheduled = True
-    elif (
-        defer_icon
-        and schedule_deferred_icon
-        and soup is None
-        and icon_path is None
-        and not existing_icon_path
-    ):
+    elif defer_icon and soup is None and icon_path is None and not existing_icon_path:
         scheduler = get_task_scheduler()
         task = _create_blocked_icon_resolve_task(
             url,

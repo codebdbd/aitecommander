@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from app.controllers.ui.undo.commands_structure import (
     PasteCategoriesCmd,
@@ -15,6 +15,24 @@ from app.core.results import Result
 
 def _signal() -> SimpleNamespace:
     return SimpleNamespace(emit=Mock())
+
+
+class _ConnectableSignal:
+    def __init__(self) -> None:
+        self._callbacks = []
+        self.connect = Mock(side_effect=self._connect)
+        self.disconnect = Mock(side_effect=self._disconnect)
+
+    def _connect(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def _disconnect(self, callback) -> None:
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
+
+    def emit(self, *args) -> None:
+        for callback in list(self._callbacks):
+            callback(*args)
 
 
 class TestSaveSectionCmdSignals(unittest.TestCase):
@@ -66,6 +84,145 @@ class TestSaveSectionCmdSignals(unittest.TestCase):
         business.section_selected.emit.assert_called_once_with(9)
         business.item_updated.emit.assert_called_once_with("section", 9, payload)
         business.item_added.emit.assert_not_called()
+
+    def test_redo_update_preserves_position_from_old_data(self) -> None:
+        payload = {
+            "id": 9,
+            "name": "Moved",
+            "sphere_id": 2,
+            "position": 7,
+            "icon_path": "",
+        }
+        service = Mock()
+        service.update_section.return_value = Result.success(payload)
+        business = self._build_business(service)
+
+        cmd = SaveSectionCmd(
+            new_data={"id": 9, "name": "Moved", "sphere_id": 2, "icon_path": ""},
+            old_data={
+                "id": 9,
+                "name": "Old",
+                "sphere_id": 1,
+                "position": 7,
+                "icon_path": "custom.png",
+            },
+            main_window=self._main_window(),
+            business=business,
+        )
+        cmd.redo()
+
+        service.update_section.assert_called_once()
+        sent_payload = service.update_section.call_args.args[1]
+        self.assertEqual(sent_payload["position"], 7)
+        self.assertEqual(sent_payload["icon_path"], "")
+
+    @patch("app.controllers.ui.undo.commands_structure.schedule_selection_restore")
+    def test_redo_update_moved_section_switches_sphere_and_schedules_focus(
+        self,
+        schedule_restore: Mock,
+    ) -> None:
+        payload = {"id": 9, "name": "Moved", "sphere_id": 2, "position": 1}
+        service = Mock()
+        service.update_section.return_value = Result.success(payload)
+        business = self._build_business(service)
+        selection_handler = SimpleNamespace(_restore_selection_after_load=Mock())
+        main = SimpleNamespace(
+            _suppress_deletes=False,
+            structure=SimpleNamespace(
+                switch_sphere=Mock(),
+                selection_handler=selection_handler,
+            ),
+        )
+
+        cmd = SaveSectionCmd(
+            new_data={"id": 9, "name": "Moved", "sphere_id": 2},
+            old_data={"id": 9, "name": "Old", "sphere_id": 1},
+            main_window=main,
+            business=business,
+        )
+        cmd.redo()
+
+        main.structure.switch_sphere.assert_called_once_with(2)
+        schedule_restore.assert_called_once()
+        restore_callback = schedule_restore.call_args.args[0]
+        self.assertEqual(schedule_restore.call_args.args[1], "section_move_sphere_9")
+
+        restore_callback()
+
+        selection_handler._restore_selection_after_load.assert_called_once_with(
+            "section", 9
+        )
+        business.section_selected.emit.assert_not_called()
+        business.item_updated.emit.assert_not_called()
+        business.item_added.emit.assert_not_called()
+
+    @patch("app.controllers.ui.undo.commands_structure.schedule_selection_restore")
+    def test_redo_update_moved_section_waits_for_structure_loaded_before_focus(
+        self,
+        schedule_restore: Mock,
+    ) -> None:
+        payload = {"id": 9, "name": "Moved", "sphere_id": 2, "position": 1}
+        service = Mock()
+        service.update_section.return_value = Result.success(payload)
+        business = self._build_business(service)
+        business.structure_loaded = _ConnectableSignal()
+        selection_handler = SimpleNamespace(_restore_selection_after_load=Mock())
+        main = SimpleNamespace(
+            _suppress_deletes=False,
+            structure=SimpleNamespace(
+                switch_sphere=Mock(),
+                selection_handler=selection_handler,
+            ),
+        )
+
+        cmd = SaveSectionCmd(
+            new_data={"id": 9, "name": "Moved", "sphere_id": 2},
+            old_data={"id": 9, "name": "Old", "sphere_id": 1},
+            main_window=main,
+            business=business,
+        )
+        cmd.redo()
+
+        main.structure.switch_sphere.assert_called_once_with(2)
+        business.structure_loaded.connect.assert_called_once()
+        schedule_restore.assert_not_called()
+
+        business.structure_loaded.emit([])
+
+        business.structure_loaded.disconnect.assert_called_once()
+        schedule_restore.assert_called_once()
+        self.assertEqual(schedule_restore.call_args.kwargs, {"delay": 0})
+
+    @patch("app.controllers.ui.undo.commands_structure.schedule_selection_restore")
+    def test_undo_moved_section_switches_back_and_schedules_focus(
+        self,
+        schedule_restore: Mock,
+    ) -> None:
+        restored = {"id": 9, "name": "Old", "sphere_id": 1, "position": 1}
+        service = Mock()
+        service.update_section.return_value = Result.success(restored)
+        business = self._build_business(service)
+        selection_handler = SimpleNamespace(_restore_selection_after_load=Mock())
+        main = SimpleNamespace(
+            _suppress_deletes=False,
+            structure=SimpleNamespace(
+                switch_sphere=Mock(),
+                selection_handler=selection_handler,
+            ),
+        )
+
+        cmd = SaveSectionCmd(
+            new_data={"id": 9, "name": "Moved", "sphere_id": 2},
+            old_data=restored,
+            main_window=main,
+            business=business,
+        )
+        cmd.undo()
+
+        main.structure.switch_sphere.assert_called_once_with(1)
+        schedule_restore.assert_called_once()
+        business.section_selected.emit.assert_not_called()
+        business.item_updated.emit.assert_not_called()
 
 
 class TestSaveCategoryCmdSignals(unittest.TestCase):

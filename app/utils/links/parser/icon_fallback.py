@@ -14,7 +14,7 @@ from .domain import base_domain
 if TYPE_CHECKING:
     pass
 
-# Thread-safe cache for failed domains (403/404/SSL errors)
+# Thread-safe cache for failed domains when the host likely blocks icon fetches
 _FAILED_DOMAINS_CACHE: OrderedDict[str, tuple[int, float]] = OrderedDict()
 _FAILED_CACHE_LOCK = threading.Lock()
 _FAILED_CACHE_MAX_SIZE = 1000
@@ -37,7 +37,7 @@ def is_domain_failed(url: str) -> bool:
         url: URL to check
         
     Returns:
-        True if domain recently failed with 403/404/SSL error
+        True if domain recently failed with a host-level icon access error
     """
     domain = _normalize_domain(url)
     if not domain:
@@ -62,7 +62,7 @@ def mark_domain_failed(url: str, status_code: int) -> None:
     
     Args:
         url: URL that failed
-        status_code: HTTP status code (403, 404, etc.)
+        status_code: HTTP status code indicating a host-level icon failure
     """
     domain = _normalize_domain(url)
     if not domain:

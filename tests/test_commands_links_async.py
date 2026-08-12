@@ -170,11 +170,26 @@ class TestBatchDeleteLinksCmdAsync(unittest.TestCase):
 class TestSaveLinkCmdCategoryRecovery(unittest.TestCase):
     def _build_main(self, *, current_category_id: int | None = 77) -> SimpleNamespace:
         links_business = SimpleNamespace(
-            links=SimpleNamespace(create_or_update_link=Mock(return_value=123)),
+            links=SimpleNamespace(
+                create_or_update_link=Mock(return_value=123),
+                get_link_by_id=Mock(
+                    return_value={
+                        "id": 123,
+                        "category_id": 77,
+                        "name": "Saved",
+                        "url": "https://example.com",
+                        "type": "web",
+                        "icon_path": "parsed.ico",
+                    }
+                ),
+            ),
             link_updated=SimpleNamespace(emit=Mock()),
             invalidate_cache=Mock(),
         )
-        link_operations = SimpleNamespace(emit_top_panels_changed=Mock())
+        link_operations = SimpleNamespace(
+            emit_top_panels_changed=Mock(),
+            emit_link_saved=Mock(),
+        )
         links_table_controller = SimpleNamespace(reload=Mock())
         main = SimpleNamespace(
             database_controller=SimpleNamespace(db=Mock()),
@@ -200,6 +215,70 @@ class TestSaveLinkCmdCategoryRecovery(unittest.TestCase):
         self.assertEqual(payload["category_id"], 77)
         self.assertEqual(cmd.new_data["category_id"], 77)
         main.links_table_controller.reload.assert_called_once_with(77)
+
+    @patch("app.controllers.ui.undo.commands_links._enqueue_link_enrichment")
+    def test_redo_does_not_enqueue_post_save_enrichment_for_regular_save(
+        self, enqueue_mock: Mock, qapp_mock: Mock
+    ) -> None:
+        qapp_mock.instance.return_value = None
+        main = self._build_main(current_category_id=77)
+        cmd = SaveLinkCmd(
+            new_data={"name": "Example", "url": "https://example.com", "type": "web"},
+            old_data=None,
+            main_window=main,
+        )
+
+        cmd.redo()
+
+        enqueue_mock.assert_not_called()
+
+    @patch("app.controllers.ui.undo.commands_links._enqueue_link_enrichment")
+    def test_redo_enqueues_post_save_enrichment_for_explicit_reparse(
+        self, enqueue_mock: Mock, qapp_mock: Mock
+    ) -> None:
+        qapp_mock.instance.return_value = None
+        main = self._build_main(current_category_id=77)
+        cmd = SaveLinkCmd(
+            new_data={
+                "name": "Example",
+                "url": "https://example.com",
+                "type": "web",
+                "_reparse_icon": True,
+            },
+            old_data=None,
+            main_window=main,
+        )
+
+        cmd.redo()
+
+        enqueue_mock.assert_called_once()
+        payload = enqueue_mock.call_args.args[1]
+        self.assertEqual(payload["id"], 123)
+        self.assertTrue(payload["_reparse_icon"])
+
+    def test_redo_refreshes_saved_payload_before_ui_notifications(
+        self, qapp_mock: Mock
+    ) -> None:
+        qapp_mock.instance.return_value = None
+        main = self._build_main(current_category_id=77)
+        cmd = SaveLinkCmd(
+            new_data={
+                "name": "Draft",
+                "url": "https://example.com",
+                "type": "web",
+                "icon_path": "",
+            },
+            old_data=None,
+            main_window=main,
+        )
+
+        cmd.redo()
+
+        emitted = main.links_business.link_updated.emit.call_args.args[0]
+        saved = main.link_operations.emit_link_saved.call_args.args[0]
+        self.assertEqual(emitted["icon_path"], "parsed.ico")
+        self.assertEqual(saved["icon_path"], "parsed.ico")
+        self.assertEqual(cmd.new_data["icon_path"], "parsed.ico")
 
     @patch("app.controllers.ui.undo.commands_links.DialogManager.show_error")
     def test_redo_shows_error_and_skips_save_when_category_missing_everywhere(
@@ -254,28 +333,20 @@ class TestBatchSaveLinksCmdCategoryRecovery(unittest.TestCase):
         self.assertEqual([payload["category_id"] for payload in payloads], [88, 88])
         main.links_table_controller.reload.assert_called_once_with(88)
 
-    @patch("app.controllers.ui.links.icon_enrichment_service.enqueue_link_icon_enrichment")
-    def test_redo_resolves_saved_ids_before_icon_enrichment(
-        self,
-        enqueue_icon_mock: Mock,
+    @patch("app.controllers.ui.undo.commands_links._enqueue_link_enrichment")
+    def test_redo_enqueues_post_save_enrichment_only_for_explicit_batch_flags(
+        self, enqueue_mock: Mock
     ) -> None:
         main = self._build_main(current_category_id=88)
-        main.links_business.links.batch_create_or_update_links.return_value = [42]
-        main.links_business.links.resolve_link_id = Mock(side_effect=[7, 42])
         cmd = BatchSaveLinksCmd(
             links_data=[
                 {
-                    "name": "Existing",
+                    "name": "One",
                     "url": "https://one.example",
                     "type": "web",
-                    "category_id": 88,
+                    "_defer_enrichment": True,
                 },
-                {
-                    "name": "New",
-                    "url": "https://two.example",
-                    "type": "web",
-                    "category_id": 88,
-                },
+                {"name": "Two", "url": "https://two.example", "type": "web"},
             ],
             _old_link_data=None,
             main_window=main,
@@ -283,13 +354,10 @@ class TestBatchSaveLinksCmdCategoryRecovery(unittest.TestCase):
 
         cmd.redo()
 
-        self.assertEqual(cmd.created_ids, [42])
-        self.assertEqual(cmd.links_data[0]["id"], 7)
-        self.assertEqual(cmd.links_data[1]["id"], 42)
-        first_payload = enqueue_icon_mock.call_args_list[0].args[1]
-        second_payload = enqueue_icon_mock.call_args_list[1].args[1]
-        self.assertEqual(first_payload["id"], 7)
-        self.assertEqual(second_payload["id"], 42)
+        self.assertEqual(enqueue_mock.call_count, 1)
+        first_payload = enqueue_mock.call_args_list[0].args[1]
+        self.assertEqual(first_payload["id"], 1)
+        self.assertTrue(first_payload["_defer_enrichment"])
 
     @patch("app.controllers.ui.undo.commands_links.DialogManager.show_error")
     def test_redo_shows_error_and_skips_batch_when_category_missing_everywhere(

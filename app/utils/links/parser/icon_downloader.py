@@ -640,7 +640,8 @@ class IconDownloader:
         """Handle HTTP status codes; return (handled, path_or_none).
 
         - 304 returns existing path (unless force_refresh)
-        - 4xx/5xx returns (True, None) and marks domain failed on 403/404
+        - 4xx/5xx returns (True, None) and marks domain failed only for
+          statuses that plausibly indicate a host-wide icon block
         - otherwise returns (False, None) to continue processing
         """
         status = getattr(resp, "status_code", 0)
@@ -661,7 +662,7 @@ class IconDownloader:
             logger.info(
                 "[icon] skip reason=bad_status status=%s url=%s", status, icon_url
             )
-            if status in (403, 404):
+            if status in (403, 429) or status >= 500:
                 mark_domain_failed(icon_url, status)
             return True, None
         return False, None

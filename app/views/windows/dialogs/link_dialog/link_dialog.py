@@ -206,6 +206,7 @@ class LinkDialog(BaseDialog):
         self.icon_name = self.link.get("icon_path", "")
         self.selected_profiles: list[dict] = []
         self._profiles_explicitly_changed = False
+        self._processing_cleanup_done = False
 
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
@@ -592,6 +593,49 @@ class LinkDialog(BaseDialog):
             first=profile_names[0], second=profile_names[1], rest=len(profile_names) - 2
         )
 
+    def _cleanup_processing(self) -> None:
+        """Stop delayed/background link processing before dialog teardown."""
+        if self._processing_cleanup_done:
+            return
+        self._processing_cleanup_done = True
+        logger.info(
+            "LinkDialog cleanup: processing=%s active_worker=%s link_type=%s url=%s",
+            getattr(getattr(self, "handlers", None), "_is_processing", None),
+            bool(getattr(getattr(self, "handlers", None), "_active_worker", None)),
+            getattr(self, "link_type", None),
+            self._safe_current_url_for_log(),
+        )
+        try:
+            self.handlers.cancel_processing()
+        except (AttributeError, RuntimeError):
+            logger.debug("LinkDialog: failed to cancel processing", exc_info=True)
+        try:
+            if getattr(self, "_processing_timer", None):
+                self._processing_timer.stop()
+                self._processing_timer.deleteLater()
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(
+                "LinkDialog: failed to stop processing timer during cleanup: %s", e
+            )
+
+    def done(self, result: int) -> None:  # type: ignore[override]
+        """Handle accept/reject paths that may bypass closeEvent cleanup."""
+        logger.info(
+            "LinkDialog done: result=%s link_type=%s url=%s",
+            result,
+            getattr(self, "link_type", None),
+            self._safe_current_url_for_log(),
+        )
+        self._is_closing = True
+        self._cleanup_processing()
+        super().done(result)
+
+    def _safe_current_url_for_log(self) -> str:
+        try:
+            return self._get_url_le().text().strip()
+        except (AttributeError, RuntimeError):
+            return ""
+
     def closeEvent(self, event) -> None:
         """Handle dialog close event.
 
@@ -607,15 +651,7 @@ class LinkDialog(BaseDialog):
                 event.ignore()
                 return
 
-        self.handlers.cancel_processing()
-        try:
-            if getattr(self, "_processing_timer", None):
-                self._processing_timer.stop()
-                self._processing_timer.deleteLater()
-        except (AttributeError, RuntimeError) as e:
-            logger.debug(
-                "LinkDialog: failed to stop processing timer during close: %s", e
-            )
+        self._cleanup_processing()
         super().closeEvent(event)
 
     def showEvent(self, event: QEvent) -> None:  # type: ignore[override]
