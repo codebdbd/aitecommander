@@ -32,6 +32,17 @@ _HOST_FAILURE_LOCK = threading.RLock()
 _HOST_FAILURES: dict[str, float] = {}
 
 
+def _normalized_icon_host(netloc: str) -> str:
+    host = str(netloc or "").strip().lower()
+    if not host:
+        return ""
+    if "@" in host:
+        host = host.rsplit("@", 1)[-1]
+    if ":" in host:
+        host = host.split(":", 1)[0]
+    return host.rstrip(".")
+
+
 def _sanitize_url(u: str) -> str:
     """Sanitize URL by removing view-source prefix and trailing question marks."""
     if not u:
@@ -77,6 +88,26 @@ def _get_existing_icon_path(host: str) -> str | None:
         icon_path_service.get_user_icons_dir() / f"web_{host.replace('.', '_')}.png"
     )
     return cand if Path(cand).exists() else None
+
+
+def _is_mismatched_downloaded_icon_path(
+    cached_icon: str,
+    icon_host: str,
+    default_icon_path: str,
+) -> bool:
+    if not cached_icon or not icon_host:
+        return False
+    if default_icon_path and cached_icon == default_icon_path:
+        return False
+    try:
+        icon_path = Path(cached_icon)
+    except Exception:
+        return False
+    name = icon_path.name.lower()
+    if not name.startswith("web_"):
+        return False
+    expected = f"web_{icon_host.replace('.', '_')}.png"
+    return name != expected.lower()
 
 
 def _is_host_temporarily_unreachable(host: str) -> bool:
@@ -256,7 +287,11 @@ def _create_blocked_icon_resolve_task(
 
 
 def _check_cache(
-    url: str, config, force_refresh: bool, existing_icon_path: str | None
+    url: str,
+    config,
+    force_refresh: bool,
+    existing_icon_path: str | None,
+    icon_host: str,
 ) -> dict[str, Any] | None:
     """Check cache for existing entry."""
     if force_refresh:
@@ -288,17 +323,44 @@ def _check_cache(
         logger.info("[cache] BYPASS_EMPTY_TITLE %s", url)
         return None
 
-    # Weak cached entries (fallback title == host + default icon) should be retried.
-    # This prevents "stuck forever on default icon" behavior.
+    # A cached custom icon path can become stale after orphan cleanup or manual
+    # deletion. Treat such entry as incomplete and refetch metadata.
+    if cached_icon and cached_icon != default_icon_path:
+        try:
+            if not Path(cached_icon).exists():
+                logger.info("[cache] BYPASS_MISSING_CACHED_ICON %s icon=%s", url, cached_icon)
+                return None
+        except Exception:
+            logger.info("[cache] BYPASS_INVALID_CACHED_ICON %s icon=%s", url, cached_icon)
+            return None
+
+    # Cached default-icon entries without a local downloaded icon are incomplete.
+    # They must be retried, otherwise a title-only cached result can block
+    # future icon parsing indefinitely.
     if (
         not existing_icon_path
         and cached_icon
+        and default_icon_path
+        and cached_icon == default_icon_path
+    ):
+        logger.info("[cache] BYPASS_DEFAULT_ICON_NO_FILE %s", url)
+        return None
+
+    # Legacy fallback title == host + default icon is also explicitly weak.
+    if (
+        cached_icon
         and default_icon_path
         and cached_icon == default_icon_path
         and url_host
         and cached_title.lower() == url_host.lower()
     ):
         logger.info("[cache] BYPASS_WEAK_DEFAULT_ICON %s", url)
+        return None
+
+    # Legacy shared-domain icon cache (e.g. gemini.google.com -> web_google_com.png)
+    # must be bypassed so exact-host icons can be resolved and stored separately.
+    if _is_mismatched_downloaded_icon_path(cached_icon, icon_host, default_icon_path):
+        logger.info("[cache] BYPASS_MISMATCHED_ICON_HOST %s icon=%s host=%s", url, cached_icon, icon_host)
         return None
 
     if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
@@ -498,10 +560,12 @@ def _create_icon_resolve_task(
 
     def _resolve_icon_async(html_soup: BeautifulSoup | None) -> None:
         try:
-            host = base_domain(urlparse(url).netloc)
+            failure_host = base_domain(urlparse(url).netloc)
+            icon_host = _normalized_icon_host(urlparse(url).netloc)
         except Exception:
-            host = ""
-        if host and _is_host_temporarily_unreachable(host):
+            failure_host = ""
+            icon_host = ""
+        if failure_host and _is_host_temporarily_unreachable(failure_host):
             return
         # Re-fetch HTML if soup is missing
         if html_soup is None:
@@ -514,7 +578,7 @@ def _create_icon_resolve_task(
         resolved = None
         try:
             resolved = pick_icon_parallel(
-                html_soup, url, host, config, force_refresh=False
+                html_soup, url, icon_host, config, force_refresh=False
             )
         except Exception as ex:
             logger.debug("pick_icon (async) failed for %s: %s", url, ex)
@@ -562,15 +626,18 @@ def fetch_web_link_info(
     # 1) Sanitize URL and get host
     url = _sanitize_url(url)
     try:
-        host = base_domain(urlparse(url).netloc)
+        parsed = urlparse(url)
+        icon_host = _normalized_icon_host(parsed.netloc)
+        failure_host = base_domain(parsed.netloc)
     except Exception:
-        host = ""
+        icon_host = ""
+        failure_host = ""
 
-    existing_icon_path = _get_existing_icon_path(host)
+    existing_icon_path = _get_existing_icon_path(icon_host)
 
     # 2) Check cache
     t_cache0 = time.perf_counter()
-    cached = _check_cache(url, config, force_refresh, existing_icon_path)
+    cached = _check_cache(url, config, force_refresh, existing_icon_path, icon_host)
     cache_check_ms = (time.perf_counter() - t_cache0) * 1000.0
     if cached:
         result_source = "cache"
@@ -600,12 +667,12 @@ def fetch_web_link_info(
 
     if (
         not force_refresh
-        and host
+        and failure_host
         and not existing_icon_path
-        and _is_host_temporarily_unreachable(host)
+        and _is_host_temporarily_unreachable(failure_host)
     ):
         host_negative = True
-        logger.info("[fetch][host_negative] hit host=%s url=%s", host, url)
+        logger.info("[fetch][host_negative] hit host=%s url=%s", failure_host, url)
         result = _build_negative_result(url, "", default_icon, config)
         t_cache_write0 = time.perf_counter()
         try:
@@ -634,7 +701,7 @@ def fetch_web_link_info(
             t_icon0 = time.perf_counter()
             icon_path = _try_direct_favicon_on_block(
                 url,
-                host,
+                icon_host,
                 config,
                 force_refresh,
                 cancel_event=cancel_event,
@@ -660,7 +727,7 @@ def fetch_web_link_info(
             scheduler = get_task_scheduler()
             task = _create_blocked_icon_resolve_task(
                 url,
-                host,
+                icon_host,
                 fast_provider_title,
                 config,
                 force_refresh,
@@ -716,34 +783,34 @@ def fetch_web_link_info(
         if blocked_status in (403, 429):
             logger.info(
                 "[fetch][host_negative] skip_mark_blocked host=%s status=%s url=%s",
-                host,
+                failure_host,
                 blocked_status,
                 url,
             )
-            _clear_host_temporary_failure(host)
+            _clear_host_temporary_failure(failure_host)
         elif _should_mark_host_negative(
             soup=soup,
             html_status=html_status,
-            host=host,
+            host=failure_host,
         ):
             logger.info(
                 "[fetch][host_negative] mark host=%s status=%s url=%s",
-                host,
+                failure_host,
                 html_status,
                 url,
             )
-            _mark_host_temporarily_unreachable(host)
+            _mark_host_temporarily_unreachable(failure_host)
         else:
             logger.info(
                 "[fetch][host_negative] skip_mark_unknown host=%s status=%s url=%s",
-                host,
+                failure_host,
                 html_status,
                 url,
             )
-            _clear_host_temporary_failure(host)
+            _clear_host_temporary_failure(failure_host)
     else:
-        logger.debug("[fetch][host_negative] clear host=%s url=%s", host, url)
-        _clear_host_temporary_failure(host)
+        logger.debug("[fetch][host_negative] clear host=%s url=%s", failure_host, url)
+        _clear_host_temporary_failure(failure_host)
     _raise_if_cancelled(cancel_event)
 
     # 4) Extract title (skip if site is unreachable)
@@ -753,11 +820,11 @@ def fetch_web_link_info(
             title = get_title_for_blocked_status(
                 url,
                 config,
-                _fallback_title_from_url(url, host),
+                _fallback_title_from_url(url, failure_host),
             )
         else:
             # Site is unreachable — keep stable fallback title from URL/host.
-            title = _fallback_title_from_url(url, host)
+            title = _fallback_title_from_url(url, failure_host)
     else:
         t_title0 = time.perf_counter()
         title = get_title(url, config, soup)
@@ -776,7 +843,7 @@ def fetch_web_link_info(
         if soup is None:
             icon_path = _try_direct_favicon_on_block(
                 url,
-                host,
+                icon_host,
                 config,
                 force_refresh,
                 cancel_event=cancel_event,
@@ -785,7 +852,7 @@ def fetch_web_link_info(
             icon_path = _resolve_icon_sync(
                 soup,
                 url,
-                host,
+                icon_host,
                 config,
                 force_refresh,
                 existing_icon_path,
@@ -804,7 +871,7 @@ def fetch_web_link_info(
         "icon": icon_path or default_icon,
         "timestamp": __import__("time").time(),
         "ttl": apply_jitter(
-            SHORT_NEGATIVE_TTL if soup is None and icon_path is None else CACHE_TTL,
+            SHORT_NEGATIVE_TTL if icon_path is None and not existing_icon_path else CACHE_TTL,
             config,
         ),
     }
@@ -813,7 +880,7 @@ def fetch_web_link_info(
         logger.debug(
             "[fetch] icon=%s for host=%s",
             "custom" if icon_path else "default",
-            host,
+            icon_host,
         )
     except Exception:
         pass
@@ -836,7 +903,7 @@ def fetch_web_link_info(
         scheduler = get_task_scheduler()
         task = _create_blocked_icon_resolve_task(
             url,
-            host,
+            icon_host,
             title,
             config,
             force_refresh,

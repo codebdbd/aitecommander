@@ -13,6 +13,7 @@ def test_runtime_config_alias_and_accessors_smoke() -> None:
     assert isinstance(runtime_config.get_table_stack_index(), int)
     assert isinstance(runtime_config.get_tiles_stack_index(), int)
     assert isinstance(runtime_config.get_tree_icon_size(), tuple)
+    assert isinstance(runtime_config.get_tree_indentation(), int)
     assert isinstance(runtime_config.get_tree_section_icon_prewarm_limit(), int)
     assert isinstance(runtime_config.get_structure_reload_delay_ms(), int)
     assert isinstance(runtime_config.get_structure_reload_immediate_delay_ms(), int)

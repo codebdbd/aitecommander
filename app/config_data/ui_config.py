@@ -961,6 +961,13 @@ class UIConfig(BaseConfig):
         """Return tree view item height."""
         return self.get("ui.tree_item_height", 32)
 
+    def get_tree_indentation(self) -> int:
+        """Return tree view child indentation in pixels."""
+        try:
+            return max(0, int(self.get("ui.tree_indentation", 20)))
+        except (TypeError, ValueError):
+            return 20
+
     def get_table_item_height(self) -> int:
         """Return table view item height."""
         return self.get("ui.table_item_height", 28)

@@ -50,7 +50,6 @@ def _convert_svg_impl(svg_data: bytes, target_size: int) -> bytes | None:
     if not painter.begin(image):
         return None
     try:
-        # Render quality
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         # Render into rectangle of required size while preserving proportions

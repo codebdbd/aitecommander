@@ -319,6 +319,8 @@ class StructureTreeView(QTreeView):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(False)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.setAutoScroll(True)
+        self.setAutoScrollMargin(24)
 
         # High-quality delegate (icons, row height)
         try:
@@ -339,6 +341,15 @@ class StructureTreeView(QTreeView):
                 "StructureTreeView._setup_tree_view: setUniformRowHeights not available: %s",
                 e,
             )
+
+        try:
+            self.setIndentation(int(app_config.ui.get_tree_indentation()))
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning(
+                "StructureTreeView._setup_tree_view: invalid tree_indentation in config, fallback to 20: %s",
+                e,
+            )
+            self.setIndentation(20)
 
         # Hover behavior similar to the previous version
         self.setMouseTracking(True)
@@ -392,7 +403,8 @@ class StructureTreeView(QTreeView):
                             icon = open_ic if is_open else closed_ic
                             if not icon.isNull():
                                 rect = option.rect
-                                pm = icon.pixmap(rect.size())
+                                render_side = max(20, min(20, rect.height()))
+                                pm = icon.pixmap(QSize(render_side, render_side))
                                 x = rect.x() + max(0, (rect.width() - pm.width()) // 2)
                                 y = rect.y() + max(
                                     0, (rect.height() - pm.height()) // 2
@@ -590,8 +602,7 @@ class StructureTreeView(QTreeView):
 
     def dragMoveEvent(self, event):
         self.drag_drop_handler.handle_drag_move_event(event)
-        if not event.isAccepted():
-            super().dragMoveEvent(event)
+        super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event):
         self.drag_drop_handler.handle_drag_leave_event(event)

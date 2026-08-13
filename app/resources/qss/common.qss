@@ -318,7 +318,6 @@ QDialog QComboBox::down-arrow {
 
 
 QHeaderView {
-    font-size: ;
     font-weight: normal;
 }
 
@@ -329,7 +328,6 @@ QHeaderView::section {
 
 QTableView QHeaderView,
 QTreeView QHeaderView {
-    font-size: ;
     font-weight: normal;
 }
 
