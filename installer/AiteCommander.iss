@@ -1,6 +1,6 @@
-#define MyAppName "Aite Commander"
+#define MyAppName "AiteCommander"
 #define MyAppExeName "AiteCommander.exe"
-#define MyAppVersion "1.1.2"
+#define MyAppVersion "1.1.3"
 #define MyAppPublisher "Codebdbd"
 #define MyAppURL "https://github.com/codebdbd/aitecommander"
 #define MyAppDistDir "..\dist\AiteCommander"
@@ -9,6 +9,7 @@
 AppId={{3D53DB6C-9E14-48D8-BAF7-2C5F1BC016DA}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -18,9 +19,14 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 OutputDir=..\dist\installer
-OutputBaseFilename=AiteCommanderSetup-{#MyAppVersion}
+OutputBaseFilename=AiteCommander-Setup-{#MyAppVersion}
 SetupIconFile=..\app\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Installer
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -29,6 +35,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 CloseApplications=yes
 RestartApplications=no
+
+[Languages]
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

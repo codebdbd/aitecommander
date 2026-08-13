@@ -11,7 +11,7 @@ _TR_MAIN_WINDOW = "MainWindow"
 class WindowStrings:
     """Window-level UI strings."""
 
-    WINDOW_TITLE = QT_TRANSLATE_NOOP("MainWindow", "Aite Commander")
+    WINDOW_TITLE = QT_TRANSLATE_NOOP("MainWindow", "AiteCommander")
     SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP(
         "WindowUISetup", "Search\u2026 (Ctrl+F)"
     )

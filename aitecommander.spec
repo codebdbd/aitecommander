@@ -8,6 +8,9 @@ ROOT = Path(SPECPATH)
 
 # ── Resources to bundle ──────────────────────────────────────────────
 datas = [
+    # Database schema and migrations
+    (str(ROOT / "app" / "models" / "schema.sql"), "app/models"),
+    (str(ROOT / "app" / "models" / "migrations"), "app/models/migrations"),
     # Themes (theme.json manifests)
     (str(ROOT / "app" / "resources" / "themes"), "app/resources/themes"),
     # QSS stylesheets

@@ -83,7 +83,7 @@ If `dist\AiteCommander` already exists, skip the PyInstaller step:
 powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -SkipPyInstaller
 ```
 
-The installer is written to `dist\installer\AiteCommanderSetup-1.1.2.exe`.
+The installer is written to `dist\installer\AiteCommander-Setup-1.1.3.exe`.
 
 ## Development
 

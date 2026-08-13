@@ -16,7 +16,7 @@ def _get_version() -> str:
 class AppConstants:
     """Static container for app-wide constants."""
 
-    APP_NAME = "Aite Commander"
+    APP_NAME = "AiteCommander"
     ORG_NAME = "Codebdbd"
     VERSION = _get_version()
 
