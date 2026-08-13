@@ -10,9 +10,10 @@ from PyQt6.QtCore import (
     QObject,
     QPoint,
     Qt,
+    pyqtProperty,
     pyqtSignal,
 )
-from PyQt6.QtGui import QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
+from PyQt6.QtGui import QColor, QContextMenuEvent, QDrag, QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import QApplication, QListView, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -32,7 +33,24 @@ class CategoryListView(QListView):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._press_pos: QPoint | None = None
+        self._selected_text_color = QColor()
         self._normalize_scrollbars()
+
+    def _get_selected_text_color(self) -> QColor:
+        return QColor(self._selected_text_color)
+
+    def _set_selected_text_color(self, value) -> None:
+        color = value if isinstance(value, QColor) else QColor(str(value))
+        self._selected_text_color = color if color.isValid() else QColor()
+        viewport = self.viewport()
+        if viewport is not None:
+            viewport.update()
+
+    selectedTextColor = pyqtProperty(
+        QColor,
+        fget=_get_selected_text_color,
+        fset=_set_selected_text_color,
+    )
 
     def _normalize_scrollbars(self) -> None:
         """Configure scrollbar policies without forcing inversion."""

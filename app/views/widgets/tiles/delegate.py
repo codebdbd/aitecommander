@@ -48,6 +48,43 @@ class CategoryTileDelegate(QStyledItemDelegate):
         self.border_radius = 4
         self._font_diag_logged = False
 
+    @staticmethod
+    def _relative_luminance(color: QColor) -> float:
+        def channel(value: float) -> float:
+            return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+
+        return (
+            0.2126 * channel(color.redF())
+            + 0.7152 * channel(color.greenF())
+            + 0.0722 * channel(color.blueF())
+        )
+
+    @classmethod
+    def _contrast_ratio(cls, foreground: QColor, background: QColor) -> float:
+        fg_lum = cls._relative_luminance(foreground)
+        bg_lum = cls._relative_luminance(background)
+        lighter = max(fg_lum, bg_lum)
+        darker = min(fg_lum, bg_lum)
+        return (lighter + 0.05) / (darker + 0.05)
+
+    @classmethod
+    def _tile_text_color(cls, option: QStyleOptionViewItem) -> QColor:
+        text_color = option.palette.color(QPalette.ColorRole.Text)
+        if not option.state & QStyle.StateFlag.State_Selected:
+            return text_color
+
+        widget = option.widget
+        if widget is not None:
+            selected_prop = widget.property("selectedTextColor")
+            if isinstance(selected_prop, QColor) and selected_prop.isValid():
+                return selected_prop
+
+        selected_text = option.palette.color(QPalette.ColorRole.HighlightedText)
+        selected_bg = option.palette.color(QPalette.ColorRole.Highlight)
+        if cls._contrast_ratio(selected_text, selected_bg) >= 4.5:
+            return selected_text
+        return text_color
+
     def paint(  # type: ignore[override]
         self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
     ) -> None:
@@ -146,8 +183,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             text_rect.setHeight(y)
 
-            # Always use palette-based colors to respect theme (light/dark)
-            painter.setPen(option.palette.color(QPalette.ColorRole.Text))
+            painter.setPen(self._tile_text_color(option))
 
             for idx, line in enumerate(lines):
                 line_text = text[

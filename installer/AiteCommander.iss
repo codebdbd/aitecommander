@@ -1,4 +1,4 @@
-#define MyAppName "AiteCommander"
+#define MyAppName "Aite Commander"
 #define MyAppExeName "AiteCommander.exe"
 #define MyAppVersion "1.1.3"
 #define MyAppPublisher "Codebdbd"
@@ -44,6 +44,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: files; Name: "{app}\_internal\app\resources\qss\high_contrast.qss"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\high_contrast"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\high_contrast"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

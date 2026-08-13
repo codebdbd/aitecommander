@@ -111,8 +111,12 @@ class TableDelegate(QStyledItemDelegate):
         is_hovered_row = self.hovered_row == index.row()
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if is_hovered_row and not is_selected:
+            view = self.parent() if hasattr(self, "parent") else None
+            hover_color = getattr(view, "hoverRowColor", self.hover_color)
+            if not isinstance(hover_color, QColor) or not hover_color.isValid():
+                hover_color = self.hover_color
             painter.save()
-            painter.fillRect(option.rect, self.hover_color)
+            painter.fillRect(option.rect, hover_color)
             painter.restore()
 
     def _apply_column_font_size(self, opt, col):
@@ -243,6 +247,29 @@ class LinksTableView(
 
     notesColColor = pyqtProperty(
         QColor, fget=_get_notes_col_color, fset=_set_notes_col_color
+    )
+
+    # qproperty: full-row hover color (QSS: ``qproperty-hoverRowColor``)
+    def _get_hover_row_color(self) -> QColor:
+        try:
+            return getattr(self, "_hover_row_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_hover_row_color(self, value) -> None:
+        try:
+            if isinstance(value, QColor):
+                self._hover_row_color = value
+            else:
+                self._hover_row_color = QColor(str(value))
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
+        except Exception:
+            pass
+
+    hoverRowColor = pyqtProperty(
+        QColor, fget=_get_hover_row_color, fset=_set_hover_row_color
     )
 
     # Signal emitted after bulk population/update of the table
@@ -467,10 +494,16 @@ class LinksTableView(
         row = index.row()
         if self.delegate.hovered_row != row:
             self.delegate.hovered_row = row
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
 
     def _on_leave_event(self, event):
         if self.delegate.hovered_row != -1:
             self.delegate.hovered_row = -1
+            viewport = self.viewport()
+            if viewport is not None:
+                viewport.update()
         event.accept()
 
     # Override abstract methods from ``BaseDragDropTableWidget``
