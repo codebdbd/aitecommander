@@ -7,7 +7,7 @@ Direction:
 - deep graphite foundation
 - cool steel and aqua interaction accents
 - restrained plum and teal structure markers
-- soft high-contrast text without harsh neon saturation
+- soft readable text without harsh neon saturation
 
 Contents:
 
