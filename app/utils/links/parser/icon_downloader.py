@@ -23,6 +23,7 @@ from collections import OrderedDict
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -772,6 +773,41 @@ class IconDownloader:
             resp, domain, icon_url, force_refresh
         )
         if handled:
+            if (
+                getattr(resp, "status_code", 0) == 304
+                and maybe_path is None
+                and not force_refresh
+            ):
+                try:
+                    resp.close()
+                except Exception:
+                    pass
+                logger.info(
+                    "[conditional] 304 missing local file, retrying without validators for %s",
+                    icon_url,
+                )
+                retry_resp = self._fetch_icon_response(
+                    icon_url,
+                    domain,
+                    meta or {},
+                    True,
+                    cancel_event=cancel_event,
+                )
+                if retry_resp is None:
+                    return None, None
+                handled, maybe_path = self._handle_response_status(
+                    retry_resp,
+                    domain,
+                    icon_url,
+                    True,
+                )
+                if handled:
+                    try:
+                        retry_resp.close()
+                    except Exception:
+                        pass
+                    return None, maybe_path
+                return retry_resp, None
             try:
                 resp.close()
             except Exception:
@@ -1113,6 +1149,84 @@ def _phase3_try_www_variant(
         return None
 
 
+def _phase3_try_homepage_root(
+    page_url: str,
+    domain: str,
+    config,
+    finish_by: float,
+    force_refresh: bool,
+    cancel_event=None,
+) -> str | None:
+    """Try homepage/root HTML when the current page is SPA-like or head-poor."""
+    if _is_cancelled(cancel_event):
+        return None
+    try:
+        parsed = urlparse(page_url)
+        scheme = parsed.scheme or "https"
+        netloc = (parsed.netloc or "").strip()
+    except Exception:
+        return None
+    if not netloc:
+        return None
+
+    root_url = f"{scheme}://{netloc}/"
+    normalized_path = (parsed.path or "").strip()
+    if root_url == page_url and normalized_path in {"", "/"}:
+        return None
+
+    logger.debug("[phase3] Trying homepage root for %s via %s", page_url, root_url)
+    try:
+        resp = http_request(
+            root_url,
+            config,
+            allow_non_2xx=True,
+            timeout_override=(5, 8),
+            retries=int(getattr(config, "HTTP_RETRIES", 2) or 2),
+            method="GET",
+            stream=False,
+            allow_redirects=True,
+        )
+        if not resp or getattr(resp, "status_code", 0) >= 400:
+            try:
+                if resp is not None:
+                    resp.close()
+            except Exception:
+                pass
+            return None
+        try:
+            homepage_html = getattr(resp, "text", "") or ""
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
+        if not homepage_html.strip():
+            return None
+        try:
+            homepage_soup = BeautifulSoup(homepage_html, BS_PARSER)
+        except Exception:
+            homepage_soup = BeautifulSoup(homepage_html, "html.parser")
+        homepage_candidates = find_favicon_candidates(
+            homepage_soup,
+            root_url,
+            config,
+            use_external=False,
+            cancel_event=cancel_event,
+        )[:8]
+        return _try_candidates_parallel_impl(
+            homepage_candidates,
+            domain,
+            config,
+            True,
+            force_refresh,
+            finish_by,
+            cancel_event=cancel_event,
+        )
+    except Exception as e:  # noqa: BLE001 - best-effort fallback
+        logger.debug("[phase3] homepage-root fetch failed: %s", e)
+        return None
+
+
 def _phase4_google_api(
     domain: str,
     config,
@@ -1225,22 +1339,34 @@ def pick_icon_parallel(
     if saved_path:
         return saved_path
 
-    # PHASE 3: Try www/non-www variant if original failed
+    # PHASE 3: Try homepage/root HTML for SPA/login-shell pages
+    saved_path = _phase3_try_homepage_root(
+        page_url, domain, config, finish_by, force_refresh, cancel_event
+    )
+    if saved_path:
+        logger.info(
+            "[phase3] Successfully saved icon from homepage root %s for domain %s",
+            saved_path,
+            domain,
+        )
+        return saved_path
+
+    # PHASE 4: Try www/non-www variant if original failed
     saved_path = _phase3_try_www_variant(
         soup, page_url, domain, config, finish_by, force_refresh, cancel_event
     )
     if saved_path:
         logger.info(
-            "[phase3] Successfully saved icon from www-variant %s for domain %s",
+            "[phase4] Successfully saved icon from www-variant %s for domain %s",
             saved_path, domain
         )
         return saved_path
 
-    # PHASE 4: Google Favicon API as absolute last resort
+    # PHASE 5: Google Favicon API as absolute last resort
     saved_path = _phase4_google_api(domain, config, force_refresh, cancel_event)
     if saved_path:
         logger.info(
-            "[phase4] Successfully saved icon from Google API %s for domain %s",
+            "[phase5] Successfully saved icon from Google API %s for domain %s",
             saved_path, domain
         )
         return saved_path

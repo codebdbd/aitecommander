@@ -57,6 +57,10 @@ def get_tree_icon_size() -> tuple[int, int]:
     return int(w), int(h)
 
 
+def get_tree_indentation() -> int:
+    return int(app_config.ui.get_tree_indentation())
+
+
 def is_tree_alphabetical_sort_enabled(default: bool = False) -> bool:
     return bool(app_config.ui.get("ui.tree_alphabetical_sort_enabled", default))
 

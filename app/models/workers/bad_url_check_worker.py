@@ -44,6 +44,7 @@ class BadUrlCheckWorker(QRunnable):
     ERROR_DNS_FAILED = "DNS Resolution Failed"
     ERROR_404 = "404 Not Found"
     ERROR_NO_SSL = "No SSL (HTTP only)"
+    ERROR_UNREACHABLE = "Connection Failed"
 
     def __init__(
         self,
@@ -320,19 +321,21 @@ class BadUrlCheckWorker(QRunnable):
                 return True, ""
                 
             except (URLError, socket.timeout):
-                # Retry on connection errors
+                # Retry on connection errors; repeated failures mean the URL is unreachable
                 if attempt == 0:
                     continue
-                return True, ""
+                logger.info("[bad_url_check] GET connection failed for %s", url)
+                return False, self.ERROR_UNREACHABLE
                 
             except Exception:
                 # Unknown error - retry once
                 if attempt == 0:
                     continue
-                return True, ""
+                logger.info("[bad_url_check] GET failed for %s", url)
+                return False, self.ERROR_UNREACHABLE
         
         # All attempts failed
-        return True, ""
+        return False, self.ERROR_UNREACHABLE
     
     def _parse_url(self, url: str):
         """Parse URL and return ParseResult or None on invalid input."""
@@ -392,14 +395,14 @@ class BadUrlCheckWorker(QRunnable):
         except (URLError, socket.timeout):
             # Connection failed - try GET before giving up
             get_result = self._verify_404_with_get(url)
-            if get_result[0] or get_result[1]:  # Success OR specific error (404)
+            if not get_result[0]:
                 return get_result
             if url.startswith("https://") and self.check_ssl:
                 return False, self.ERROR_NO_SSL
             return True, ""
         except Exception:
-            # Unknown error - skip (not critical)
-            return True, ""
+            logger.debug("[bad_url_check] HEAD failed for %s", url, exc_info=True)
+            return False, self.ERROR_UNREACHABLE
 
     def _check_url(self, url: str) -> tuple[bool, str]:
         """Check URL availability (3 levels of checking).

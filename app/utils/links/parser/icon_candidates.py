@@ -580,6 +580,7 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
 
     fallback_paths = [
         "/favicon.ico",
+        "/favicon.svg",
         "/favicon.png",
         "/apple-touch-icon.png",
         "/apple-touch-icon-precomposed.png",
@@ -600,6 +601,30 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
                     kind="fallback",
                 )
             )
+
+
+def _add_manifest_fallback_urls(base_url: str, manifest_urls: list[str]) -> None:
+    """Adds common root manifest locations for main and www/non-www host variants."""
+    p = urlparse(base_url)
+    host = p.netloc
+    if not host:
+        return
+
+    hosts = {host}
+    if host.startswith("www."):
+        hosts.add(host[4:])
+    elif host.count(".") == 1:
+        hosts.add("www." + host)
+
+    manifest_paths = [
+        "/site.webmanifest",
+        "/manifest.webmanifest",
+        "/manifest.json",
+    ]
+    for h in hosts:
+        base = f"{p.scheme}://{h}"
+        for path in manifest_paths:
+            manifest_urls.append(urljoin(base + "/", path.lstrip("/")))
 
 
 def _add_external_services(
@@ -704,6 +729,7 @@ def find_favicon_candidates(
     if _is_cancelled(cancel_event):
         return []
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
+    _add_manifest_fallback_urls(base_url, manifest_urls)
     _handle_manifests(
         manifest_urls,
         base_url,

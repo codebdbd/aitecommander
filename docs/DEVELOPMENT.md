@@ -578,6 +578,10 @@ pyinstaller --name AiteCommander --windowed --onedir app/main.py
 | Режим | `--onedir` (папка), `console=False` |
 | Иконка | `app/resources/app_icon.ico` |
 | Ресурсы | themes/, qss/, ui_icons/, logo/, .qm переводы, config_data/ |
+
+Additional reference:
+
+- [THEMES.md](D:/01_Codebdbd/01_projects/aitecommander/docs/THEMES.md) - how theme import works and how to create additional themes
 | Hidden imports | PyQt6.*, win32api, cloudscraper, cachetools, PIL |
 | Исключения | tkinter, matplotlib, numpy, scipy, pandas, pytest |
 

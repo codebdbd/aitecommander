@@ -290,6 +290,162 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
             any("[cache] BYPASS_EMPTY_TITLE https://example.com/a" in msg for msg in logs_cm.output)
         )
 
+    def test_cached_default_icon_without_local_file_is_bypassed_and_refetched(self) -> None:
+        config = _DummyConfig()
+
+        with (
+            self.assertLogs("favicon_parser", level="INFO") as logs_cm,
+            patch(
+                "app.utils.links.parser.fetcher.read_cache",
+                return_value={
+                    "url": "https://gemini.google.com/",
+                    "title": "Google Gemini",
+                    "icon": "/default/web.png",
+                },
+            ),
+            patch(
+                "app.utils.links.parser.fetcher.resolve_icon_for_link",
+                return_value="/default/web.png",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._get_existing_icon_path",
+                return_value=None,
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._fetch_and_parse_html",
+                return_value=object(),
+            ) as fetch_html_mock,
+            patch(
+                "app.utils.links.parser.fetcher.get_title",
+                return_value="Google Gemini",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._resolve_icon_sync",
+                return_value="/icons/web_gemini_google_com.png",
+            ),
+            patch("app.utils.links.parser.fetcher.write_cache"),
+        ):
+            result = fetcher.fetch_web_link_info(
+                "https://gemini.google.com/",
+                config,
+            )
+
+        self.assertEqual("Google Gemini", result["title"])
+        self.assertEqual("/icons/web_gemini_google_com.png", result["icon"])
+        fetch_html_mock.assert_called_once()
+        self.assertTrue(
+            any(
+                "[cache] BYPASS_DEFAULT_ICON_NO_FILE https://gemini.google.com/" in msg
+                for msg in logs_cm.output
+            )
+        )
+
+    def test_cached_missing_custom_icon_is_bypassed_and_refetched(self) -> None:
+        config = _DummyConfig()
+        missing_icon = (
+            "C:\\Users\\ostee\\AppData\\Roaming\\Codebdbd\\Aite Commander\\icons\\web_gemini_google_com.png"
+        )
+
+        with (
+            self.assertLogs("favicon_parser", level="INFO") as logs_cm,
+            patch(
+                "app.utils.links.parser.fetcher.read_cache",
+                return_value={
+                    "url": "https://gemini.google.com/",
+                    "title": "Google Gemini",
+                    "icon": missing_icon,
+                },
+            ),
+            patch(
+                "app.utils.links.parser.fetcher.resolve_icon_for_link",
+                return_value="/default/web.png",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher.Path.exists",
+                return_value=False,
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._fetch_and_parse_html",
+                return_value=object(),
+            ) as fetch_html_mock,
+            patch(
+                "app.utils.links.parser.fetcher.get_title",
+                return_value="Google Gemini",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._resolve_icon_sync",
+                return_value="/icons/web_gemini_google_com.png",
+            ),
+            patch("app.utils.links.parser.fetcher.write_cache"),
+        ):
+            result = fetcher.fetch_web_link_info(
+                "https://gemini.google.com/",
+                config,
+            )
+
+        self.assertEqual("Google Gemini", result["title"])
+        self.assertEqual("/icons/web_gemini_google_com.png", result["icon"])
+        fetch_html_mock.assert_called_once()
+        self.assertTrue(
+            any(
+                "[cache] BYPASS_MISSING_CACHED_ICON https://gemini.google.com/" in msg
+                for msg in logs_cm.output
+            )
+        )
+
+    def test_shared_base_domain_icon_cache_is_bypassed_for_subdomain_specific_icon(self) -> None:
+        config = _DummyConfig()
+        stale_icon = (
+            "C:\\Users\\ostee\\AppData\\Roaming\\Codebdbd\\Aite Commander\\icons\\web_google_com.png"
+        )
+
+        with (
+            self.assertLogs("favicon_parser", level="INFO") as logs_cm,
+            patch(
+                "app.utils.links.parser.fetcher.read_cache",
+                return_value={
+                    "url": "https://gemini.google.com/",
+                    "title": "\u200eGoogle Gemini",
+                    "icon": stale_icon,
+                },
+            ),
+            patch(
+                "app.utils.links.parser.fetcher.resolve_icon_for_link",
+                return_value="/default/web.png",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._get_existing_icon_path",
+                return_value=None,
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._fetch_and_parse_html",
+                return_value=object(),
+            ) as fetch_html_mock,
+            patch(
+                "app.utils.links.parser.fetcher.get_title",
+                return_value="Google Gemini",
+            ),
+            patch(
+                "app.utils.links.parser.fetcher._resolve_icon_sync",
+                return_value="/icons/web_gemini_google_com.png",
+            ),
+            patch("app.utils.links.parser.fetcher.write_cache"),
+        ):
+            result = fetcher.fetch_web_link_info(
+                "https://gemini.google.com/",
+                config,
+            )
+
+        self.assertEqual("/icons/web_gemini_google_com.png", result["icon"])
+        fetch_html_mock.assert_called_once()
+        self.assertTrue(
+            any(
+                "[cache] BYPASS_MISMATCHED_ICON_HOST https://gemini.google.com/"
+                in msg
+                for msg in logs_cm.output
+            )
+        )
+
 class TestFaviconCacheLockFallback(unittest.TestCase):
     def test_file_lock_yields_when_portalocker_backend_missing(self) -> None:
         import builtins
@@ -655,6 +811,44 @@ class TestIconDownloaderHttpPolicy(unittest.TestCase):
         _, kwargs = http_request_mock.call_args
         self.assertEqual(0, kwargs["retries"])
         self.assertFalse(kwargs["prefer_cloudscraper_primary"])
+
+    def test_304_without_local_icon_retries_unconditional_fetch(self) -> None:
+        downloader = IconDownloader(_DummyConfig())
+
+        class _Resp304:
+            status_code = 304
+            headers = {}
+
+            def close(self):
+                return None
+
+        class _Resp200:
+            status_code = 200
+            headers = {}
+
+            def close(self):
+                return None
+
+        with patch.object(
+            downloader,
+            "_fetch_icon_response",
+            side_effect=[_Resp304(), _Resp200()],
+        ) as fetch_mock, patch(
+            "app.utils.links.parser.icon_downloader.Path.exists",
+            return_value=False,
+        ):
+            resp, maybe_path = downloader._fetch_and_validate_response(
+                "https://example.com/favicon.png",
+                "example.com",
+                False,
+                meta={},
+            )
+
+        self.assertIsInstance(resp, _Resp200)
+        self.assertIsNone(maybe_path)
+        self.assertEqual(2, fetch_mock.call_count)
+        self.assertFalse(fetch_mock.call_args_list[0].args[3])
+        self.assertTrue(fetch_mock.call_args_list[1].args[3])
 
 
 if __name__ == "__main__":
