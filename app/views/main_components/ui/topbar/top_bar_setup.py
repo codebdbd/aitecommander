@@ -5,9 +5,9 @@ import logging
 from time import perf_counter
 from typing import Any
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.views.main_components.ui.topbar.toolbar_adapters import (
@@ -17,6 +17,47 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _ExtButtonAligner(QObject):
+    """Vertically centres the QToolBar extension button.
+
+    ``QToolBarLayout`` positions the extension button via a separate
+    code-path that does not centre it like regular action widgets.
+    This event filter fires after each layout pass and adjusts the
+    button's geometry so it aligns with the other toolbar buttons.
+    """
+
+    def __init__(self, toolbar: QToolBar, button_height: int) -> None:
+        super().__init__(toolbar)
+        self._toolbar = toolbar
+        self._button_height = button_height
+        self._pending = False
+
+    # -- QObject overrides --------------------------------------------------
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        etype = event.type()
+        if etype in (QEvent.Type.LayoutRequest, QEvent.Type.Resize):
+            if not self._pending:
+                self._pending = True
+                QTimer.singleShot(0, self._centre)
+        return False
+
+    # -- internal -----------------------------------------------------------
+
+    def _centre(self) -> None:
+        self._pending = False
+        try:
+            btn = self._toolbar.findChild(QToolButton, "qt_toolbar_ext_button")
+        except RuntimeError:
+            return
+        if btn is None or not btn.isVisible():
+            return
+        geo = btn.geometry()
+        target_y = max(0, (self._toolbar.height() - self._button_height) // 2)
+        if geo.y() != target_y or geo.height() != self._button_height:
+            btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
 
 
 class TopBarBuilder:
@@ -236,3 +277,12 @@ class TopBarBuilder:
             toolbar.setContentsMargins(0, 0, effective_spacing, 0)
         except Exception:
             logger.debug("TopPanel: failed to set toolbar right margin", exc_info=True)
+
+        # Centre the Qt extension button (three-dot overflow) vertically.
+        # QToolBarLayout positions it via a separate code-path that does
+        # not centre it like regular action widgets.
+        try:
+            aligner = _ExtButtonAligner(toolbar, button_size)
+            toolbar.installEventFilter(aligner)
+        except Exception:
+            logger.debug("TopPanel: failed to install ext-button aligner", exc_info=True)
