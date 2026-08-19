@@ -4,13 +4,58 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol, runtime_checkable
 
-from PyQt6.QtCore import QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.strings import DialogStrings, MenuStrings, StatusStrings
 
 logger = logging.getLogger(__name__)
+
+
+class BottomBarContainer(QWidget):
+    """Bottom action bar that hides itself entirely when buttons don't fit.
+
+    On every resize of its parent, the widget computes the total minimum
+    width required by all child QPushButton widgets. If the parent's width
+    is smaller than that threshold, the whole container is hidden so that
+    unreadable button labels are never shown.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._parent = parent
+        if self._parent:
+            self._parent.installEventFilter(self)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if self._parent and obj is self._parent and event.type() == QEvent.Type.Resize:
+            self._update_visibility(event.size().width())  # type: ignore[attr-defined]
+        return super().eventFilter(obj, event)
+
+    def _update_visibility(self, available_width: int) -> None:
+        required = self._required_width()
+        if required <= 0:
+            return
+        visible = available_width >= required
+        self.setVisible(visible)
+
+        # Synchronize theme selector and separator visibility with bottom toolbar
+        main_win = self.window()
+        if main_win:
+            theme_sel = getattr(main_win, "theme_selector", None)
+            if theme_sel:
+                theme_sel.setVisible(visible)
+            theme_sep = getattr(main_win, "theme_selector_separator", None)
+            if theme_sep:
+                theme_sep.setVisible(visible)
+
+    def _required_width(self) -> int:
+        """Sum of sizeHint().width() for every QPushButton child."""
+        total = 0
+        for child in self.findChildren(QPushButton):
+            total += child.sizeHint().width()
+        return total
 
 
 def _label_for_action(action_id: str) -> str:
@@ -272,7 +317,7 @@ class BottomPanelBuilder:
             getattr(self.main_layout, "parentWidget", lambda: None)()
             or self.window.centralWidget()  # type: ignore[attr-defined]
         )
-        bottom_bar_container = QWidget(container_parent)
+        bottom_bar_container = BottomBarContainer(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bottom_layout)
         # Store the widget on the window for further focus configuration
@@ -289,11 +334,6 @@ class BottomPanelBuilder:
             bottom_bar_container.setSizePolicy(
                 QSizePolicy.Policy.Expanding,
                 QSizePolicy.Policy.Fixed,
-            )
-            
-            # Prevent excessive shrinking that causes jitter
-            bottom_bar_container.setMinimumWidth(
-                app_config.ui.get_bottom_bar_min_width()
             )
         except (RuntimeError, TypeError) as e:
             logger.debug(

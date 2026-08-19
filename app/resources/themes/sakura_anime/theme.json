@@ -1,0 +1,8 @@
+{
+  "id": "sakura_anime",
+  "name": "Sakura Anime",
+  "version": "1.0.0",
+  "is_dark": true,
+  "qss": "resources/qss/sakura_anime.qss",
+  "icons_dir": "resources/ui_icons/sakura_anime"
+}

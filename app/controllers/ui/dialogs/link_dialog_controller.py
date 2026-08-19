@@ -265,7 +265,7 @@ class LinkDialogController:
         if not selected_profiles:
             return []
 
-        manager = self.profile_manager
+        manager = self._get_profile_manager()
         profiles_by_browser = self._group_profiles_by_browser(
             selected_profiles, manager
         )
@@ -353,7 +353,7 @@ class LinkDialogController:
 
         # For editing: compare with auto-generated arguments
         try:
-            manager = self.profile_manager
+            manager = self._get_profile_manager()
             finder = manager.finders.get(browser_key)
 
             if not finder or not selected_profiles:
@@ -379,6 +379,22 @@ class LinkDialogController:
         """Prepares regular link."""
         from app.utils.links.link_factory import make_link_record
 
+        args = form_data.get("args", "") or ""
+
+        # If it's a WEB link and has selected profiles, combine the profile argument with the user arguments
+        if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
+            try:
+                profile = form_data["selected_profiles"][0]
+                manager = self._get_profile_manager()
+                browser_key = profile.get("browser_key") or manager.detect_browser_from_args(args) or "chrome"
+                finder = manager.finders.get(browser_key)
+                if finder:
+                    profile_arg = finder.get_profile_argument(profile)
+                    if profile_arg and profile_arg not in args:
+                        args = f"{profile_arg} {args}".strip()
+            except Exception as e:
+                logger.debug("Failed to combine profile arg in _prepare_regular_link: %s", e)
+
         record = make_link_record(
             name=form_data["name"],
             url=form_data["url"],
@@ -388,7 +404,7 @@ class LinkDialogController:
             last_used=form_data.get("last_used"),
             position=form_data.get("position", 0),
             category_id=form_data["category_id"],
-            args=form_data.get("args", ""),
+            args=args,
             is_favorite=int(form_data.get("is_favorite", False)),
             link_id=form_data.get("link_id"),
         )

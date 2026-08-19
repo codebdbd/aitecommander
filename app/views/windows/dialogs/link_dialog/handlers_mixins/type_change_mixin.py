@@ -76,14 +76,20 @@ class TypeChangeMixin:
             )
         )
 
-        # Arguments field only for supported types
+        # Arguments: combo for Web (stack index 0), plain field for Program/Script (index 1)
         args_supported_types = (
             LinkType.SCRIPT,
             LinkType.WEB,
             LinkType.PROGRAM,
         )
         show_args = lt in args_supported_types
-        args_le.setVisible(show_args)
+        args_stack = self.dialog.ui.widgets.get("args_stack")
+        if args_stack is not None:
+            args_stack.setVisible(show_args)
+            if show_args:
+                args_stack.setCurrentIndex(0 if lt == LinkType.WEB else 1)
+        else:
+            args_le.setVisible(show_args)
         args_label.setVisible(show_args)
 
         # Focus depending on type: WEB -> URL field, otherwise -> "Browse" button

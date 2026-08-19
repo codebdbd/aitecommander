@@ -1,0 +1,8 @@
+{
+  "id": "crimson_noir",
+  "name": "Crimson Noir",
+  "version": "3.0.0",
+  "is_dark": true,
+  "qss": "resources/qss/crimson_noir.qss",
+  "icons_dir": "resources/ui_icons/crimson_noir"
+}

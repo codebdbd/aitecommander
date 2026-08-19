@@ -1,0 +1,8 @@
+{
+  "id": "rasta_royale",
+  "name": "Rasta Royale",
+  "version": "1.0.0",
+  "is_dark": true,
+  "qss": "resources/qss/rasta_royale.qss",
+  "icons_dir": "resources/ui_icons/rasta_royale"
+}

@@ -762,6 +762,13 @@ class WindowUISetup:
             logger.debug("WindowUISetup: failed to update search placeholder", exc_info=True)
 
         try:
+            theme_selector = getattr(self.window, "theme_selector", None)
+            if theme_selector is not None and hasattr(theme_selector, "retranslateUi"):
+                theme_selector.retranslateUi()
+        except Exception:
+            logger.debug("WindowUISetup: failed to retranslate theme selector", exc_info=True)
+
+        try:
             retranslate_cb = getattr(self.window, "_retranslate_status_bar", None)
             if callable(retranslate_cb):
                 retranslate_cb()
@@ -1084,7 +1091,8 @@ class WindowUISetup:
                 continue
 
             w = it.widget()
-            stretch = 1 if w is search_widget else 0
+            is_spacer = it.spacerItem() is not None
+            stretch = 1 if (w is search_widget or is_spacer) else 0
             try:
                 top_bar.setStretch(i, stretch)
             except Exception:

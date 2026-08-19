@@ -37,6 +37,7 @@ hiddenimports = [
     "win32com.client",
     "pywintypes",
     "pythoncom",
+    "win32timezone",
     "cloudscraper",
     "cachetools",
     "pyparsing",

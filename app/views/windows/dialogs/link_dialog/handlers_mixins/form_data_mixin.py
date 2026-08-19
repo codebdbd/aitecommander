@@ -16,7 +16,20 @@ class FormDataMixin:
     def _collect_form_data(self) -> dict[str, Any]:
         """Collect data from the form widgets."""
         collected_name = self.dialog._get_name_le().text().strip()
-        collected_args = self.dialog._get_args_le().text().strip()
+        try:
+            from app.models import LinkType as _LT
+            if _LT.from_value(self.dialog.link_type) == _LT.WEB:
+                _cb = self.dialog.ui.widgets.get("args_cb")
+                if _cb is not None:
+                    data = _cb.currentData()
+                    collected_args = str(data) if data is not None else _cb.currentText().strip()
+                else:
+                    collected_args = ""
+            else:
+                collected_args = self.dialog._get_args_le().text().strip()
+        except Exception:
+            collected_args = self.dialog._get_args_le().text().strip()
+
         collected_link_id = self.dialog.link.get("id") if self.dialog.link else None
 
         logger.debug("_collect_form_data: collected name from UI='%s'", collected_name)

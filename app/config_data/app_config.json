@@ -548,7 +548,19 @@
       "dark",
       "violet_pulse",
       "matrix",
-      "dreamy_room"
+      "dreamy_room",
+      "crimson_noir",
+      "cyberpunk_neon",
+      "ghost_terminal",
+      "industrial_yellow",
+      "love",
+      "nord_light",
+      "obsidian_luxe",
+      "pastel_bloom",
+      "pearl_gray",
+      "rasta_royale",
+      "sage_light",
+      "sakura_anime"
     ],
     "mime_types": {
       "link": "application/x-link-id",

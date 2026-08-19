@@ -235,6 +235,32 @@ class TopBarBuilder:
         self.ui.setup_search_widget(top_bar)
         search_ms = (perf_counter() - search_start) * 1000.0
 
+        # Add vertical separator before Theme Selector
+        try:
+            if hasattr(top_bar, "addSpacing"):
+                top_bar.addSpacing(4)
+            theme_separator = self.ui._create_vertical_separator()
+            top_bar.addWidget(theme_separator)
+            self.window.theme_selector_separator = theme_separator
+            if hasattr(top_bar, "addSpacing"):
+                top_bar.addSpacing(4)
+        except Exception:
+            logger.debug("TopPanel: failed to insert theme selector separator", exc_info=True)
+
+        # Add Theme Selector combobox
+        try:
+            from app.views.widgets.theme_selector import ThemeSelector
+            theme_selector = ThemeSelector(self.window.theme_ctrl, top_bar_host)
+            theme_selector.setFixedWidth(120)
+            try:
+                theme_selector.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
+            except Exception:
+                pass
+            top_bar.addWidget(theme_selector)
+            self.window.theme_selector = theme_selector
+        except Exception:
+            logger.exception("TopPanel: failed to add ThemeSelector")
+
         # Schedule top panels refresh (toolbar does overflow on its own)
         schedule_start = perf_counter()
         self.ui._init_and_schedule_topbar_manager()

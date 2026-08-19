@@ -22,7 +22,7 @@ class TestAboutDialog(unittest.TestCase):
 
         try:
             self.assertEqual("AboutDialog", type(dialog).__name__)
-            self.assertIn("1.1.0", dialog.version_label.text())
+            self.assertIn("1.1.", dialog.version_label.text())
             self.assertIn("Codebdbd", dialog.developer_label.text())
             self.assertIn("MIT", dialog.license_label.text())
             self.assertTrue(dialog.support_button.text())

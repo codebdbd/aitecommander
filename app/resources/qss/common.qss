@@ -157,6 +157,11 @@ QWidget#topBarHost > QWidget {
     padding: 0;
 }
 
+QWidget#topBarHost QComboBox#themeSelector {
+    padding-left: 8px;
+    padding-right: 22px;
+}
+
 QWidget#topBarHost QToolBar {
     background: transparent;
     border: none;
