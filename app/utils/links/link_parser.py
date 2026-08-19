@@ -16,6 +16,11 @@ try:
 except Exception:
     win32ui = None
 
+try:
+    import win32timezone  # noqa: F401 – Required for pywin32 shell datetime parsing in packaged exe
+except ImportError:
+    pass
+
 from PIL import Image
 from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QFileIconProvider

@@ -191,6 +191,8 @@ class IconPathService:
     def _use_qrc_for_theme(self, theme: str) -> bool:
         if not _QRC_AVAILABLE or not USE_QRC_ICONS:
             return False
+        if theme not in ("light", "dark", "dreamy_room", "matrix", "violet_pulse"):
+            return False
         info = self._get_theme_definition(theme)
         return bool(info and info.source == "bundled")
 

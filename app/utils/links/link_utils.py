@@ -103,7 +103,7 @@ class SecurityValidator:
     """Enhanced security validation"""
 
     # More strict patterns for different argument types
-    CHROME_ARG_PATTERN = re.compile(r'^--[\w-]+(=[\w\s\-_./:\\"]+)?$')
+    CHROME_ARG_PATTERN = re.compile(r'^--[\w-]+(=[\w\s\-_./:\\"{}?&=]+)?$')
     PATH_PATTERN = re.compile(r"^[a-zA-Z]:[\\\/][\w\s\-_./\\:()]+$|^[\w\s\-_./()]+$")
     URL_PATTERN = re.compile(r'^https?://[^\s<>"{}|\\^`\[\]]+$')
 
@@ -118,7 +118,7 @@ class SecurityValidator:
         "--window-size",
         "--window-position",
         "--start-maximized",
-        "--start-fullscreen",
+        "--guest",
     }
 
     # Blacklist of dangerous characters (removed '&' to support valid URLs)
@@ -196,8 +196,9 @@ class SecurityValidator:
             return []
 
         validated = []
-        has_incognito = False
+        needs_new_window = False
         has_new_window = False
+        new_window_triggers = {"--incognito", "--guest"}
 
         for arg in parsed:
             # Check argument format
@@ -211,16 +212,54 @@ class SecurityValidator:
             # Check whitelist
             if arg_name in cls.ALLOWED_CHROME_ARGS:
                 validated.append(arg)
-                if arg_name == "--incognito":
-                    has_incognito = True
-                elif arg_name == "--new-window":
+                if arg_name in new_window_triggers:
+                    needs_new_window = True
+                if arg_name == "--new-window":
                     has_new_window = True
             else:
                 logger.warning("Argument not in whitelist: %s", arg_name)
 
-        # If --incognito but no --new-window, add --new-window for forced new window creation
-        if has_incognito and not has_new_window:
+        # If --incognito, --guest, or --start-fullscreen but no --new-window, add --new-window for forced new window creation
+        if needs_new_window and not has_new_window:
             validated.insert(0, "--new-window")  # Add to beginning for correct order
+
+        return validated
+
+    @classmethod
+    def validate_firefox_args(cls, args: str) -> list[str]:
+        """Validates and translates arguments for Firefox."""
+        if not args:
+            return []
+
+        try:
+            parsed = shlex.split(args)
+        except ValueError:
+            logger.warning("Failed to parse arguments: %s", args)
+            return []
+
+        validated = []
+        i = 0
+        while i < len(parsed):
+            arg = parsed[i]
+            # Chrome to Firefox translation
+            if arg.startswith("--"):
+                arg_name = arg.split("=")[0]
+                if arg_name == "--incognito":
+                    validated.append("-private-window")
+                elif arg_name == "--new-window":
+                    validated.append("-new-window")
+                elif arg_name == "--app":
+                    validated.append("-kiosk")
+            # Firefox native profile flag handling
+            elif arg == "-P" and i + 1 < len(parsed):
+                validated.extend(["-P", parsed[i+1]])
+                i += 1
+            # Firefox native flags
+            elif arg in ["-private-window", "-new-window"]:
+                validated.append(arg)
+            else:
+                logger.warning("Argument not in Firefox whitelist or not translatable: %s", arg)
+            i += 1
 
         return validated
 
@@ -258,24 +297,33 @@ class BrowserConfig:
         resolved_executable = self._resolve_executable(browser_key, executable)
         template = config["command_template"]
 
+        # Process {url} placeholder in arguments
+        processed_args = [arg.replace("{url}", url) for arg in args]
+        has_app_arg = any(arg.startswith("--app=") for arg in processed_args)
+
         # On Windows avoid `cmd /c start ...` wrapper because it can silently
         # fail when browser executable is not on PATH (prints to console only).
         # Direct browser launch also gives deterministic argument ordering.
         if platform.system() == "Windows":
-            return [resolved_executable, *args, url]
+            # If the URL was already passed via --app=URL, don't pass it again at the end
+            if has_app_arg:
+                return [resolved_executable, *processed_args]
+            return [resolved_executable, *processed_args, url]
 
-        # Replace placeholders
+        # Replace placeholders for other platforms
         command = []
         for part in template:
             if part == "{executable}":
                 command.append(resolved_executable)
             elif part == "{url}":
-                command.append(url)
+                # Only add URL here if it wasn't already consumed by --app
+                if not has_app_arg:
+                    command.append(url)
             else:
                 command.append(part)
 
         # Add arguments
-        command.extend(args)
+        command.extend(processed_args)
 
         return command
 
@@ -413,12 +461,22 @@ class WebLinkHandler(LinkHandler):
         )
 
         # Validate arguments
-        validated_args = SecurityValidator.validate_chrome_args(link_info.args)
+        if browser_key == "firefox":
+            validated_args = SecurityValidator.validate_firefox_args(link_info.args)
+        else:
+            validated_args = SecurityValidator.validate_chrome_args(link_info.args)
 
         # Create command
         command = self.browser_config.get_browser_command(
             browser_key, link_info.path, validated_args
         )
+
+        self.logger.info("================================================")
+        self.logger.info("BROWSER LAUNCH DIAGNOSTICS:")
+        self.logger.info("Raw input args: '%s'", link_info.args)
+        self.logger.info("Validated args: %s", validated_args)
+        self.logger.info("Final exact command: %s", command)
+        self.logger.info("================================================")
 
         try:
             # Use shell=False for security

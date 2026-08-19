@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QStackedWidget,
     QTextEdit,
     QToolButton,
     QVBoxLayout,
@@ -49,6 +50,14 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Application")
     QCoreApplication.translate("LinkDialogUI", "Script")
     QCoreApplication.translate("LinkDialogUI", "Folder")
+
+# lupdate hint for Web argument preset labels
+if False:  # pragma: no cover
+    QCoreApplication.translate("LinkDialogUI", "Default")
+    QCoreApplication.translate("LinkDialogUI", "As application")
+    QCoreApplication.translate("LinkDialogUI", "Incognito")
+    QCoreApplication.translate("LinkDialogUI", "New window")
+    QCoreApplication.translate("LinkDialogUI", "Guest mode")
 
 
 class LinkDialogUI:
@@ -211,14 +220,49 @@ class LinkDialogUI:
         self.form.addRow(tr_common("Name:"), hl_name)
         self.widgets.update({"name_le": self.name_le, "icon_btn": self.icon_btn})
 
+    # Predefined browser launch flags for Web links.
+    # Stored as (translation_key, flag_value). Empty flag = open normally.
+    _WEB_ARG_PRESETS = [
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Default"),            ""),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "As application"),     "--app={url}"),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Incognito"),          "--incognito"),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "New window"),         "--new-window"),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Guest mode"),         "--guest"),
+    ]
+
     def _form_add_args_row(self) -> None:
-        """Add row for launch arguments."""
-        self.args_le = QLineEdit()
+        """Add row for launch arguments.
+
+        Uses a QStackedWidget with two pages:
+        - index 0: editable QComboBox with browser flag presets (Web links)
+        - index 1: plain QLineEdit (Program / Script links)
+        """
         self.args_label = QLabel(
             QCoreApplication.translate("LinkDialogUI", "Arguments:")
         )
-        self.form.addRow(self.args_label, self.args_le)
-        self.widgets.update({"args_le": self.args_le, "args_label": self.args_label})
+
+        # Web: non-editable PopupComboBox dropdown with preset flags
+        self.args_cb = PopupComboBox()
+        self.args_cb.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        for label, value in self._WEB_ARG_PRESETS:
+            translated = QCoreApplication.translate("LinkDialogUI", label)
+            self.args_cb.addItem(translated, userData=value)
+
+        # Program / Script: plain text
+        self.args_le = QLineEdit()
+
+        self.args_stack = QStackedWidget()
+        self.args_stack.addWidget(self.args_cb)   # index 0 → Web
+        self.args_stack.addWidget(self.args_le)   # index 1 → Program/Script
+
+        self.form.addRow(self.args_label, self.args_stack)
+        self.widgets.update({
+            "args_le":    self.args_le,
+            "args_cb":    self.args_cb,
+            "args_stack": self.args_stack,
+            "args_label": self.args_label,
+        })
+
 
     def _form_add_hierarchy_section(self) -> None:
         """Add hierarchy combo boxes: Sphere, Section, Category."""

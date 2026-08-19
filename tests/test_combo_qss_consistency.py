@@ -10,6 +10,18 @@ THEME_FILES = [
     "light.qss",
     "matrix.qss",
     "violet_pulse.qss",
+    "crimson_noir.qss",
+    "cyberpunk_neon.qss",
+    "ghost_terminal.qss",
+    "industrial_yellow.qss",
+    "love.qss",
+    "nord_light.qss",
+    "obsidian_luxe.qss",
+    "pastel_bloom.qss",
+    "pearl_gray.qss",
+    "rasta_royale.qss",
+    "sage_light.qss",
+    "sakura_anime.qss",
 ]
 
 

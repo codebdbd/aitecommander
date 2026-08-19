@@ -402,17 +402,17 @@ class UniversalProfileProcessor:
 
         logger.debug("Formatted profile name: %s", prof_name)
 
-        if user_args is not None:
-
-            prof_args = user_args
-
-            logger.debug("Using user-provided args: '%s'", prof_args)
-
+        profile_arg = finder.get_profile_argument(profile)
+        if user_args:
+            # Prepend/combine profile argument with user-specified arguments
+            if profile_arg not in user_args:
+                prof_args = f"{profile_arg} {user_args}".strip()
+            else:
+                prof_args = user_args
+            logger.debug("Combined profile and user args: '%s'", prof_args)
         else:
-
-            prof_args = finder.get_profile_argument(profile)
-
-            logger.debug("Using auto-generated args: '%s'", prof_args)
+            prof_args = profile_arg
+            logger.debug("Using profile arg only: '%s'", prof_args)
 
     
 

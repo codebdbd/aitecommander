@@ -122,6 +122,10 @@ class LinkDialog(BaseDialog):
         """Return the arguments line edit (`QLineEdit`)."""
         return self.ui.get_widget("args_le")
 
+    def _get_args_cb(self) -> QComboBox:
+        """Return the web arguments combo box (`QComboBox`)."""
+        return self.ui.get_widget("args_cb")
+
     def _get_args_label(self) -> QLabel:
         """Return the arguments label (`QLabel`)."""
         return self.ui.get_widget("args_label")
@@ -293,6 +297,56 @@ class LinkDialog(BaseDialog):
             app_config.ui.get_link_dialog_height(),
         )
 
+    def _extract_profile_and_user_args(self) -> tuple[list[dict], str]:
+        """Parses `self.link.get("args")` to detect selected profiles
+        and extract the remaining user launch arguments.
+        
+        Returns:
+            (selected_profiles, clean_user_args)
+        """
+        args = self.link.get("args", "") or ""
+        selected_profiles = []
+        clean_user_args = args
+
+        # Only process for WEB links
+        try:
+            if LinkType.from_value(self.link_type) != LinkType.WEB:
+                return selected_profiles, clean_user_args
+        except Exception:
+            return selected_profiles, clean_user_args
+
+        try:
+            from app.utils.browser.browser_profiles import get_profile_manager
+            manager = get_profile_manager()
+            browser_key = self.link.get("browser_key") or manager.detect_browser_from_args(args)
+            if browser_key:
+                finder = manager.finders.get(browser_key)
+                if finder:
+                    profile_data = finder.parse_profile_from_args(args)
+                    if profile_data:
+                        # Find the actual matching profile from browser to get correct display name/email
+                        actual_profiles = manager.get_browser_profiles(browser_key)
+                        matched_profile = None
+                        for p in actual_profiles:
+                            if p.get("directory") == profile_data.get("directory"):
+                                matched_profile = p
+                                break
+                        if not matched_profile:
+                            matched_profile = profile_data
+                        
+                        matched_profile["browser_key"] = browser_key
+                        selected_profiles = [matched_profile]
+
+                        # Strip profile argument from the user args
+                        profile_arg = finder.get_profile_argument(matched_profile)
+                        clean_user_args = args.replace(profile_arg, "").strip()
+                        # Clean up extra/duplicate spaces
+                        clean_user_args = " ".join(clean_user_args.split())
+        except Exception as e:
+            logger.debug("Failed to extract profile and args: %s", e)
+
+        return selected_profiles, clean_user_args
+
     def _load_initial(self) -> None:
         """Load initial data into the form."""
         logger.debug(
@@ -310,11 +364,16 @@ class LinkDialog(BaseDialog):
                 btn.setChecked(True)
                 break
 
+        # Extract profiles and user args
+        detected_profiles, user_args = self._extract_profile_and_user_args()
+        if detected_profiles:
+            self.selected_profiles = detected_profiles
+
         # Prepare form data
         form_data = {
             "url_le": self.link.get("url", ""),
             "name_le": self.link.get("name", ""),
-            "args_le": self.link.get("args", ""),
+            "args_le": user_args,
             "notes_te": self.link.get("notes", ""),
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }
@@ -324,10 +383,25 @@ class LinkDialog(BaseDialog):
         self._suspend_auto_processing = True
         try:
             self.ui.set_form_data(form_data)
+            # For Web links populate the args combo with the saved value
+            if LinkType.from_value(self.link_type) == LinkType.WEB:
+                saved_args = user_args or ""
+                cb = self._get_args_cb()
+                if cb is not None:
+                    matched = False
+                    for i in range(cb.count()):
+                        if cb.itemData(i) == saved_args:
+                            cb.setCurrentIndex(i)
+                            matched = True
+                            break
+                    if not matched and saved_args:
+                        cb.addItem(saved_args, userData=saved_args)
+                        cb.setCurrentIndex(cb.count() - 1)
         finally:
             self._suspend_auto_processing = False
 
         logger.debug("Initial values applied to UI; continuing with icon setup")
+
 
         # Initial icon is applied after the first paint to avoid blocking dialog open.
 
@@ -337,11 +411,14 @@ class LinkDialog(BaseDialog):
         # Load migrated profiles if present
         if self.link and self.link.get("migrated_profiles"):
             self.selected_profiles = self.link["migrated_profiles"]
+            
+        if self.selected_profiles:
             profile_btn = self._get_profile_btn()
             profile_btn.setText(self._format_profile_text(self.selected_profiles))
 
         # Update UI state
         self.handlers._update_ui_state()
+
 
         # Set focus depending on link type:
         #  - WEB: focus URL/path field
