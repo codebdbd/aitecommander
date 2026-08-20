@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  release:
+    types:
+      - published
+      - released
+      - prereleased
+      - edited
   workflow_dispatch:
     inputs:
       release_tag:
@@ -33,9 +39,11 @@ jobs:
       - name: Show workflow source revision
         shell: pwsh
         run: |
+          Write-Host "github.event_name=${{ github.event_name }}"
           Write-Host "github.ref=${{ github.ref }}"
           Write-Host "github.sha=${{ github.sha }}"
           Write-Host "input.release_tag=${{ github.event.inputs.release_tag }}"
+          Write-Host "release.tag_name=${{ github.event.release.tag_name }}"
           git rev-parse HEAD
           git log -1 --oneline
 
@@ -62,9 +70,9 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release asset
-        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != ''
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != '' || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+          tag_name: ${{ github.event.inputs.release_tag || github.event.release.tag_name || github.ref_name }}
           files: dist/installer/AiteCommander-Setup-*.exe
           generate_release_notes: true
