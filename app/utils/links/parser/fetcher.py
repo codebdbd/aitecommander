@@ -323,17 +323,6 @@ def _check_cache(
         logger.info("[cache] BYPASS_EMPTY_TITLE %s", url)
         return None
 
-    # A cached custom icon path can become stale after orphan cleanup or manual
-    # deletion. Treat such entry as incomplete and refetch metadata.
-    if cached_icon and cached_icon != default_icon_path:
-        try:
-            if not Path(cached_icon).exists():
-                logger.info("[cache] BYPASS_MISSING_CACHED_ICON %s icon=%s", url, cached_icon)
-                return None
-        except Exception:
-            logger.info("[cache] BYPASS_INVALID_CACHED_ICON %s icon=%s", url, cached_icon)
-            return None
-
     # Cached default-icon entries without a local downloaded icon are incomplete.
     # They must be retried, otherwise a title-only cached result can block
     # future icon parsing indefinitely.
@@ -362,6 +351,17 @@ def _check_cache(
     if _is_mismatched_downloaded_icon_path(cached_icon, icon_host, default_icon_path):
         logger.info("[cache] BYPASS_MISMATCHED_ICON_HOST %s icon=%s host=%s", url, cached_icon, icon_host)
         return None
+
+    # A cached custom icon path can become stale after orphan cleanup or manual
+    # deletion. Treat such entry as incomplete and refetch metadata.
+    if cached_icon and cached_icon != default_icon_path:
+        try:
+            if not Path(cached_icon).exists():
+                logger.info("[cache] BYPASS_MISSING_CACHED_ICON %s icon=%s", url, cached_icon)
+                return None
+        except Exception:
+            logger.info("[cache] BYPASS_INVALID_CACHED_ICON %s icon=%s", url, cached_icon)
+            return None
 
     if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
         if existing_icon_path:
