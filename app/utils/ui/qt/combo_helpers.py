@@ -91,6 +91,8 @@ class PopupComboBox(QComboBox):
         self._popup_view.activated.connect(self._activate_popup_index)
         self.currentIndexChanged.connect(self._sync_popup_current_index)
         self._install_popup_model()
+        from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
+        self.setItemDelegate(ComboRowHeightDelegate(self))
 
     def view(self) -> QListView:  # type: ignore[override]
         return self._popup_view
@@ -201,10 +203,25 @@ class PopupComboBox(QComboBox):
         self.setFocus(Qt.FocusReason.MouseFocusReason)
 
     def _resize_popup(self) -> None:
-        content_width = self.width()
+        fm = self._popup_view.fontMetrics()
+        max_item_width = 0
+        model = self.model()
+        if model is not None:
+            for i in range(self.count()):
+                idx = model.index(i, self.modelColumn(), self.rootModelIndex())
+                text = idx.data(0) if idx.isValid() else self.itemText(i)
+                width = fm.horizontalAdvance(str(text))
+                if width > max_item_width:
+                    max_item_width = width
+        icon_w = self.iconSize().width() + 4 if self.iconSize().width() > 0 else 0
+        item_padding = 16
+        view_extra = max_item_width + icon_w + item_padding
+        popup_border_w = 2
+        content_width = max(self.width(), view_extra + popup_border_w)
+
         visible_rows = min(max(1, self.maxVisibleItems()), self.count())
         row_height = self._popup_row_height()
-        height = (visible_rows * row_height) + 2
+        height = (visible_rows * row_height) + popup_border_w
         self._popup.resize(content_width, height)
 
     def _popup_row_height(self) -> int:
@@ -220,7 +237,6 @@ class PopupComboBox(QComboBox):
 
     def _popup_origin(self) -> QPoint:
         origin = self.mapToGlobal(self.rect().bottomLeft())
-        origin.setY(origin.y() - 1)
         screen = QGuiApplication.screenAt(origin) or self.screen()
         if screen is None:
             return origin
@@ -232,7 +248,7 @@ class PopupComboBox(QComboBox):
             popup_rect.moveLeft(available.left())
         if popup_rect.bottom() > available.bottom():
             above = self.mapToGlobal(self.rect().topLeft())
-            popup_rect.moveTop(max(available.top(), above.y() - self._popup.height()))
+            popup_rect.moveBottom(above.y())
         return popup_rect.topLeft()
 
 

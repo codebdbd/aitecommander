@@ -251,7 +251,6 @@ class TopBarBuilder:
         try:
             from app.views.widgets.theme_selector import ThemeSelector
             theme_selector = ThemeSelector(self.window.theme_ctrl, top_bar_host)
-            theme_selector.setFixedWidth(120)
             try:
                 theme_selector.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
             except Exception:

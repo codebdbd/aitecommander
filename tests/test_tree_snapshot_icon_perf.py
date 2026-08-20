@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import tempfile
+import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -26,6 +26,7 @@ from app.utils.ui.icon.loading_policy import (
     get_tree_icon_loading_policy,
 )
 from app.views.models.structure_tree_model import IconLoader, StructureTreeModel, TreeNode
+from tests.conftest import build_test_temp_path
 
 
 class TestTreeSnapshotIconPathMemo(unittest.TestCase):
@@ -71,8 +72,11 @@ class TestIconValidationCache(unittest.TestCase):
         icon_validation._valid_icon_file_cache.clear()
 
     def test_is_valid_icon_file_caches_successful_validation(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            icon_path = Path(tmp_dir) / "sample.png"
+        tmp_dir = build_test_temp_path("tree_snapshot_icon_perf", "validation_cache")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            icon_path = tmp_dir / "sample.png"
             Image.new("RGBA", (1, 1), (255, 0, 0, 255)).save(icon_path)
 
             real_open = Image.open
@@ -88,6 +92,8 @@ class TestIconValidationCache(unittest.TestCase):
             self.assertTrue(icon_validation.is_valid_icon_file(icon_path))
 
             self.assertEqual(1, open_calls)
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 class TestIconLoadingService(unittest.TestCase):
@@ -138,9 +144,12 @@ class TestIconLoadingService(unittest.TestCase):
 
     def test_resolve_existing_path_returns_only_real_existing_icon(self) -> None:
         service = IconLoadingService()
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            user_dir = Path(tmp_dir) / "user"
-            ui_dir = Path(tmp_dir) / "ui"
+        tmp_dir = build_test_temp_path("tree_snapshot_icon_perf", "existing_icon")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            user_dir = tmp_dir / "user"
+            ui_dir = tmp_dir / "ui"
             user_dir.mkdir()
             ui_dir.mkdir()
             icon_file = ui_dir / "ok.png"
@@ -165,12 +174,17 @@ class TestIconLoadingService(unittest.TestCase):
                     service.resolve_existing_path("ok.png"),
                 )
                 self.assertEqual("", service.resolve_existing_path("missing.png"))
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
     def test_resolve_existing_path_memoizes_hits_and_misses(self) -> None:
         service = IconLoadingService()
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            user_dir = Path(tmp_dir) / "user"
-            ui_dir = Path(tmp_dir) / "ui"
+        tmp_dir = build_test_temp_path("tree_snapshot_icon_perf", "memoized_existing_icon")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            user_dir = tmp_dir / "user"
+            ui_dir = tmp_dir / "ui"
             user_dir.mkdir()
             ui_dir.mkdir()
             icon_file = ui_dir / "ok.png"
@@ -194,6 +208,8 @@ class TestIconLoadingService(unittest.TestCase):
                 self.assertEqual(str(icon_file), service.resolve_existing_path("ok.png"))
                 self.assertEqual("", service.resolve_existing_path("missing.png"))
                 self.assertEqual("", service.resolve_existing_path("missing.png"))
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
         self.assertEqual(1, valid_mock.call_count)
 

@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="es_ES">
   <context>
@@ -1925,7 +1925,7 @@ Fallos: {3}</translation>
     <message>
         <location filename="..\app\core\strings.py" line="14" />
         <source>AiteCommander</source>
-        <translation type="unfinished" />
+        <translation>AiteCommander</translation>
     </message>
     <message>
         <location filename="..\app\core\strings.py" line="86" />
@@ -2638,6 +2638,18 @@ Fallos: {3}</translation>
         <location filename="..\app\controllers\ui\theme_controller.py" line="25" />
         <source>Dark</source>
         <translation>Oscuro</translation>
+    </message>
+</context><context>
+    <name>ThemeSelector</name>
+    <message>
+        <location filename="..\app\views\widgets\theme_selector.py" line="62" />
+        <source>Change application theme</source>
+        <translation>Cambiar el tema de la aplicación</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\theme_selector.py" line="63" />
+        <source>Theme Selector</source>
+        <translation>Selector de tema</translation>
     </message>
 </context><context>
     <name>ValidationMixin</name>

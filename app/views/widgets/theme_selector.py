@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QComboBox
 from app.utils.ui.qt.combo_helpers import PopupComboBox, select_combo_data
 from app.views.common.retranslatable import ReTranslatable
 from app.core.settings_manager import SettingsManager
@@ -17,6 +17,7 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
         self._theme_ctrl = theme_ctrl
         PopupComboBox.__init__(self, parent)
         self.setObjectName("themeSelector")
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         logger.debug("ThemeSelector: connecting currentIndexChanged signal")
         self.currentIndexChanged.connect(self._on_index_changed)
         ReTranslatable.__init__(self)
@@ -38,6 +39,22 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
             fallback_to_first=True,
         )
         self.blockSignals(False)
+        self._resize_to_contents()
+
+    def _resize_to_contents(self) -> None:
+        fm = self.fontMetrics()
+        max_width = 0
+        for i in range(self.count()):
+            width = fm.horizontalAdvance(self.itemText(i))
+            if width > max_width:
+                max_width = width
+        arrow_width = max(self.iconSize().width(), 16) + 12
+        frame = 2
+        padding = 24
+        total = max_width + arrow_width + frame * 2 + padding
+        self.setMinimumWidth(total)
+        self.setMaximumWidth(total)
+        self.adjustSize()
 
     def retranslateUi(self) -> None:
         self.setToolTip(self.tr("Change application theme"))

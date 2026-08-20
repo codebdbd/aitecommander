@@ -17,6 +17,7 @@ from app.utils.links.parser.icon_fallback import (
 )
 from app.utils.links.parser.http_client import _is_fatal_exception, http_request
 from app.utils.links.parser.icon_downloader import IconDownloader
+from tests.conftest import build_test_temp_path
 
 
 class _DummyConfig:
@@ -545,7 +546,7 @@ class TestFaviconCacheLockFallback(unittest.TestCase):
 
 class TestFaviconCacheRecovery(unittest.TestCase):
     def test_open_shelve_recreates_unreadable_db(self) -> None:
-        tmpdir = os.path.join(os.getcwd(), "tests", "_tmp_favicon_cache")
+        tmpdir = str(build_test_temp_path("favicon_cache_recovery"))
         shutil.rmtree(tmpdir, ignore_errors=True)
         os.makedirs(tmpdir, exist_ok=True)
         try:

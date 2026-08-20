@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="uk_UA">
   <context>
@@ -1926,7 +1926,7 @@ Failed: {3}</source>
     <message>
         <location filename="..\app\core\strings.py" line="14" />
         <source>AiteCommander</source>
-        <translation type="unfinished" />
+        <translation>AiteCommander</translation>
     </message>
     <message>
         <location filename="..\app\core\strings.py" line="86" />
@@ -2639,6 +2639,18 @@ Failed: {3}</source>
         <location filename="..\app\controllers\ui\theme_controller.py" line="25" />
         <source>Dark</source>
         <translation>Темна</translation>
+    </message>
+</context><context>
+    <name>ThemeSelector</name>
+    <message>
+        <location filename="..\app\views\widgets\theme_selector.py" line="62" />
+        <source>Change application theme</source>
+        <translation>Змінити тему застосунку</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\theme_selector.py" line="63" />
+        <source>Theme Selector</source>
+        <translation>Перемикач теми</translation>
     </message>
 </context><context>
     <name>ValidationMixin</name>

@@ -10,7 +10,7 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Full-text search** — Search by name, URL, notes, and arguments
 - **Undo/Redo** — Full undo stack for all operations
 - **Drag & Drop** — Move items between categories and reorder within the tree
-- **5 themes** — Light, Dark, Dreamy Room, Matrix, Violet Pulse
+- **6 themes** — Light, Dark, Dreamy Room, Matrix, Violet Pulse, and more bundled presets
 - **6 languages** — English, Ukrainian, Russian, French, Spanish, German
 - **40+ keyboard shortcuts** — Fully customizable hotkeys
 - **Browser import** — Import bookmarks from Chrome, Edge, Firefox HTML exports
