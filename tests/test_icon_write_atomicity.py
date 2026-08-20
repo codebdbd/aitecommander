@@ -27,6 +27,7 @@ from pathlib import Path
 
 from PIL import Image
 from app.utils.links.parser.favicon_cache import _file_lock
+from tests.conftest import build_test_temp_path
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -240,7 +241,14 @@ class TestAtomicPngWrite(unittest.TestCase):
         num_readers: int = 4,
         duration: float = 5.0,
     ):
-        with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = build_test_temp_path(
+            "icon_write_atomicity",
+            f"writers_{num_writers}_readers_{num_readers}",
+        )
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        try:
             png_path = os.path.join(tmpdir, "test_icon.png")
             meta_path = os.path.join(tmpdir, "test_icon.meta.json")
 
@@ -249,7 +257,7 @@ class TestAtomicPngWrite(unittest.TestCase):
             read_count = multiprocessing.Value("i", 0)
             corruption_count = multiprocessing.Value("i", 0)
             empty_read_count = multiprocessing.Value("i", 0)
-            diagnostic_queue = multiprocessing.Queue()
+            diagnostic_queue = None
 
             writers = []
             for _ in range(num_writers):
@@ -289,11 +297,6 @@ class TestAtomicPngWrite(unittest.TestCase):
             tmp_files = glob.glob(os.path.join(tmpdir, "*.tmp"))
 
             diagnostics = []
-            while not diagnostic_queue.empty():
-                try:
-                    diagnostics.append(diagnostic_queue.get_nowait())
-                except Exception:
-                    break
 
             print(f"\n  writers={num_writers}  readers={num_readers}")
             print(f"  writes={writes}  reads={reads}")
@@ -303,6 +306,8 @@ class TestAtomicPngWrite(unittest.TestCase):
                 print(f"  diagnostics: {diagnostics[:3]}")
 
             return writes, reads, corruptions, empty_reads, tmp_files
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     def test_single_writer_four_readers(self):
         """1 writer, 4 readers: zero corruption, zero empty reads, no .tmp leftovers."""

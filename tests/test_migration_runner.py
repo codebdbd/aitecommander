@@ -8,6 +8,7 @@ import uuid
 import pytest
 
 from app.utils.db.migrations import MigrationError, MigrationRunner
+from tests.conftest import build_test_temp_path
 
 
 def _conn() -> sqlite3.Connection:
@@ -17,9 +18,7 @@ def _conn() -> sqlite3.Connection:
 
 
 def _workspace_temp_dir() -> Path:
-    root = Path("tests") / ".tmp_pytest"
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / f"migrations_{uuid.uuid4().hex}"
+    path = build_test_temp_path("migrations", f"migrations_{uuid.uuid4().hex}")
     path.mkdir(parents=True, exist_ok=False)
     return path
 

@@ -194,12 +194,12 @@ border-color: #0F3F24;
 }
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit {
 background-color: #001100;
-border-color: #002200;
+border-color: #0F3F24;
 }
 QComboBox QAbstractItemView {
 background-color: #001100;
 selection-background-color: #0F3F24;
-border-color: #002200;
+border-color: #0F3F24;
 }
 QHeaderView::section {
 background-color: #020d08;

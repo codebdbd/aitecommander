@@ -431,7 +431,6 @@ QAbstractScrollArea {
 
 QFrame#comboPopupContainer {
     border: 1px solid;
-    border-top: none;
     border-radius: 0;
     padding: 0;
     margin: 0;
