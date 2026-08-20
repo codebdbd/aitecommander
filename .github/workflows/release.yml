@@ -30,6 +30,15 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
+      - name: Show workflow source revision
+        shell: pwsh
+        run: |
+          Write-Host "github.ref=${{ github.ref }}"
+          Write-Host "github.sha=${{ github.sha }}"
+          Write-Host "input.release_tag=${{ github.event.inputs.release_tag }}"
+          git rev-parse HEAD
+          git log -1 --oneline
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
