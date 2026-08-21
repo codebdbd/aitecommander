@@ -1,7 +1,7 @@
 {
   "id": "dark",
   "name": "Dark",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "is_dark": true,
   "qss": "resources/qss/dark.qss",
   "icons_dir": "resources/ui_icons/dark"

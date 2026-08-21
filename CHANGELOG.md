@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.4] - 2026-08-20
+## [1.1.5] - 2026-08-21
 
 ### Fixed
 - Uniform ComboBox row height across all dialogs.
-- Updated installer to version 1.1.4.
+- Updated installer to version 1.1.5.
 
 ### Added
 - (No additional features in this release)
