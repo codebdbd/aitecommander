@@ -83,9 +83,9 @@ If `dist\AiteCommander` already exists, skip the PyInstaller step:
 powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -SkipPyInstaller
 ```
 
-The installer is written to `dist\installer\AiteCommander-Setup-1.1.4.exe`.
+The installer is written to `dist\installer\AiteCommander-Setup-1.1.5.exe`.
 
-Pushing a release tag such as `v1.1.4` also triggers the GitHub Actions workflow in
+Pushing a release tag such as `v1.1.5` also triggers the GitHub Actions workflow in
 `.github/workflows/release.yml`, which runs tests, builds the Windows installer, and
 uploads the generated `.exe` to the corresponding GitHub Release.
 
