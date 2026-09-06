@@ -953,6 +953,9 @@ class StructureTreeModel(QAbstractItemModel):
                     cat_node = self._category_by_id.get(int(category_id))
         if not cat_node or not dst_parent:
             return False
+        if not dst_parent.children_populated:
+            dst_idx = self.createIndex(dst_parent.row(), 0, dst_parent)
+            self._populate_section_categories(dst_parent, dst_idx)
         src_parent = cat_node.parent
         if not src_parent:
             return False

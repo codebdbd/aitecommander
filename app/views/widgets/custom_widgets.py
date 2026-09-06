@@ -317,7 +317,7 @@ class StructureTreeView(QTreeView):
         # DnD is enabled at the view level (handlers encapsulate logic)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDropIndicatorShown(False)
+        self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setAutoScroll(True)
         self.setAutoScrollMargin(24)
@@ -391,6 +391,9 @@ class StructureTreeView(QTreeView):
                     super().__init__(base_style)
 
                 def drawPrimitive(self, element, option, painter, widget=None):  # noqa: N802
+                    # Suppress default Qt drop indicator line (delegate custom highlight is used)
+                    if element == QStyle.PrimitiveElement.PE_IndicatorItemViewItemDrop:
+                        return
                     if element == QStyle.PrimitiveElement.PE_IndicatorBranch:
                         try:
                             # Show indicator only for nodes with children (sections).
@@ -602,7 +605,8 @@ class StructureTreeView(QTreeView):
 
     def dragMoveEvent(self, event):
         self.drag_drop_handler.handle_drag_move_event(event)
-        super().dragMoveEvent(event)
+        if not event.isAccepted():
+            super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event):
         self.drag_drop_handler.handle_drag_leave_event(event)
