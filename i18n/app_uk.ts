@@ -2757,4 +2757,249 @@ Failed: {3}</source>
         <source>Search… (Ctrl+F)</source>
         <translation>Пошук… (Ctrl+F)</translation>
     </message>
-</context></TS>
+</context><context><name>AboutDialog</name>
+<message><source>About</source><translation>Про програму</translation></message>
+<message><source>Application data</source><translation>Дані програми</translation></message>
+<message><source>Could not open target.</source><translation>Не вдалося відкрити об’єкт.</translation></message>
+<message><source>Data folder</source><translation>Папка даних</translation></message>
+<message><source>Developer: Codebdbd</source><translation>Розробник: Codebdbd</translation></message>
+<message><source>GitHub repository</source><translation>Репозиторій GitHub</translation></message>
+<message><source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source><translation>Ієрархічний менеджер закладок і посилань для Windows. Упорядковує посилання за сферами, розділами та категоріями, підтримує теми, іконки та засоби імпорту й експорту.</translation></message>
+<message><source>Information</source><translation>Інформація</translation></message>
+<message><source>License: MIT</source><translation>Ліцензія: MIT</translation></message>
+<message><source>Missing target: {0}</source><translation>Об’єкт відсутній: {0}</translation></message>
+<message><source>Open data folder</source><translation>Відкрити папку даних</translation></message>
+<message><source>Open license</source><translation>Відкрити ліцензію</translation></message>
+<message><source>Open program folder</source><translation>Відкрити папку програми</translation></message>
+<message><source>Program folder</source><translation>Папка програми</translation></message>
+<message><source>Python 3.12+ · PyQt6 · SQLite</source><translation>Python 3.12+ · PyQt6 · SQLite</translation></message>
+<message><source>Resources</source><translation>Ресурси</translation></message>
+<message><source>Support the project</source><translation>Підтримати проєкт</translation></message>
+<message><source>Version {0}</source><translation>Версія {0}</translation></message>
+</context>
+<context><name>BackupWorker</name>
+<message><source>Backup completed</source><translation>Резервне копіювання завершено</translation></message>
+<message><source>Cleaning up old backups...</source><translation>Очищення старих резервних копій...</translation></message>
+<message><source>Creating backup...</source><translation>Створення резервної копії...</translation></message>
+<message><source>Preparing backup...</source><translation>Підготовка резервної копії...</translation></message>
+</context>
+<context><name>BrowserBookmarksImporter</name>
+<message><source>Added links: {count}</source><translation>Додано посилань: {count}</translation></message>
+<message><source>Categories created: {count}</source><translation>Створено категорій: {count}</translation></message>
+<message><source>HTML Files (*.html *.htm)</source><translation>Файли HTML (*.html *.htm)</translation></message>
+<message><source>Import from browser</source><translation>Імпорт з браузера</translation></message>
+</context>
+<context><name>BrowserProfiles</name>
+<message><source>Loading {browser}</source><translation>Завантаження {browser}</translation></message>
+</context>
+<context><name>DatabaseInit</name>
+<message><source>Applying migrations...</source><translation>Застосування міграцій...</translation></message>
+<message><source>Initializing default data...</source><translation>Ініціалізація початкових даних...</translation></message>
+</context>
+<context><name>DateUtils</name>
+<message><source>Just now</source><translation>Щойно</translation></message>
+<message><source>Never</source><translation>Ніколи</translation></message>
+<message><source>Unknown</source><translation>Невідомо</translation></message>
+<message><source>day</source><translation>дн.</translation></message>
+<message><source>days</source><translation>дн.</translation></message>
+<message><source>hr</source><translation>год</translation></message>
+<message><source>min</source><translation>хв</translation></message>
+<message><source>week</source><translation>тиж.</translation></message>
+<message><source>weeks</source><translation>тиж.</translation></message>
+<message><source>{0} {1} ago</source><translation>{0} {1} тому</translation></message>
+</context>
+<context><name>DialogManager</name>
+<message><source>Cancel</source><translation>Скасувати</translation></message>
+<message><source>Confirmation</source><translation>Підтвердження</translation></message>
+<message><source>Error</source><translation>Помилка</translation></message>
+<message><source>Information</source><translation>Інформація</translation></message>
+<message><source>No</source><translation>Ні</translation></message>
+<message><source>OK</source><translation>Гаразд</translation></message>
+<message><source>Warning</source><translation>Попередження</translation></message>
+<message><source>Yes</source><translation>Так</translation></message>
+</context>
+<context><name>DialogMixin</name>
+<message><source>Confirmation</source><translation>Підтвердження</translation></message>
+<message><source>Error</source><translation>Помилка</translation></message>
+<message><source>Information</source><translation>Інформація</translation></message>
+<message><source>Warning</source><translation>Попередження</translation></message>
+</context>
+<context><name>FileSearchResultsModel</name>
+<message><source>Path</source><translation>Шлях</translation></message>
+</context>
+<context><name>ImportExportProgress</name>
+<message><source>Hierarchy assembly completed</source><translation>Побудову ієрархії завершено</translation></message>
+<message><source>Loading categories...</source><translation>Завантаження категорій...</translation></message>
+<message><source>Loading links...</source><translation>Завантаження посилань...</translation></message>
+<message><source>Loading sections...</source><translation>Завантаження розділів...</translation></message>
+<message><source>Loading spheres...</source><translation>Завантаження сфер...</translation></message>
+</context>
+<context><name>ItemDialogService</name>
+<message><source>Category addition error</source><translation>Помилка додавання категорії</translation></message>
+<message><source>Category edit error</source><translation>Помилка редагування категорії</translation></message>
+<message><source>Check the entered data and try again.</source><translation>Перевірте введені дані та спробуйте знову.</translation></message>
+<message><source>Failed to add category.</source><translation>Не вдалося додати категорію.</translation></message>
+<message><source>Failed to add section.</source><translation>Не вдалося додати розділ.</translation></message>
+<message><source>Failed to edit category.</source><translation>Не вдалося відредагувати категорію.</translation></message>
+<message><source>Failed to edit section.</source><translation>Не вдалося відредагувати розділ.</translation></message>
+<message><source>No sections</source><translation>Немає розділів</translation></message>
+<message><source>No sections in the current sphere. Create a new section?</source><translation>У поточній сфері немає розділів. Створити новий розділ?</translation></message>
+<message><source>Section addition error</source><translation>Помилка додавання розділу</translation></message>
+<message><source>Section edit error</source><translation>Помилка редагування розділу</translation></message>
+<message><source>The section creation dialog will be opened.</source><translation>Буде відкрито діалог створення розділу.</translation></message>
+<message><source>Try again or contact support.</source><translation>Спробуйте знову або зверніться до служби підтримки.</translation></message>
+</context>
+<context><name>ItemOperations</name>
+<message><source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
+<message><source>Delete section</source><translation>Видалити розділ</translation></message>
+<message><source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+<message><source>This action is irreversible. All links in the category will be deleted.</source><translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation></message>
+<message><source>This action is irreversible. All nested categories and links will be deleted.</source><translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation></message>
+</context>
+<context><name>LinkDialogIconUtils</name>
+<message><source>Icon not found: {path}</source><translation>Іконку не знайдено: {path}</translation></message>
+<message><source>Icon path is empty</source><translation>Шлях до іконки порожній</translation></message>
+<message><source>Unexpected error: {error}</source><translation>Неочікувана помилка: {error}</translation></message>
+</context>
+<context><name>LinkOperations</name>
+<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
+<message><source>Deleting {count} links</source><translation>Видалення {count} посилань</translation></message>
+<message><source>This action is irreversible.</source><translation>Ця дія незворотна.</translation></message>
+<message><source>{count} selected link(s) will be permanently deleted.
+
+Are you sure you want to continue?</source><translation>Вибрані посилання ({count}) буде видалено назавжди.
+
+Продовжити?</translation></message>
+</context>
+<context><name>LinksUI</name>
+<message><source>Check data correctness and try again.</source><translation>Перевірте правильність даних і спробуйте знову.</translation></message>
+<message><source>Check the link address or edit it.</source><translation>Перевірте адресу посилання або відредагуйте її.</translation></message>
+<message><source>Database error</source><translation>Помилка бази даних</translation></message>
+<message><source>Error</source><translation>Помилка</translation></message>
+<message><source>Error saving note</source><translation>Помилка збереження нотатки</translation></message>
+<message><source>No categories available. Create a category first.</source><translation>Немає доступних категорій. Спочатку створіть категорію.</translation></message>
+<message><source>Select a category to insert the link</source><translation>Виберіть категорію для вставлення посилання</translation></message>
+<message><source>This link cannot be opened for security reasons.</source><translation>Це посилання неможливо відкрити з міркувань безпеки.</translation></message>
+<message><source>Try again or contact support.</source><translation>Спробуйте знову або зверніться до служби підтримки.</translation></message>
+<message><source>Validation error</source><translation>Помилка перевірки даних</translation></message>
+<message><source>Warning</source><translation>Попередження</translation></message>
+</context>
+<context><name>LinksUIController</name>
+<message><source>Вы пытаетесь открыть более 10 ссылок одновременно.
+В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
+Если хотите, мы откроем первые 10 выбранных.</source><translation>Ви намагаєтеся відкрити понад 10 посилань одночасно.
+Щоб уникнути проблем, відкриття обмежено 10 посиланнями.
+За бажанням можна відкрити перші 10 вибраних.</translation></message>
+<message><source>Открытие ссылок</source><translation>Відкриття посилань</translation></message>
+<message><source>Открыть 10</source><translation>Відкрити 10</translation></message>
+<message><source>Отмена</source><translation>Скасувати</translation></message>
+</context>
+<context><name>MessageHandler</name>
+<message><source>Operation completed successfully.</source><translation>Операцію успішно завершено.</translation></message>
+<message><source>Try repeating the action or contact support.</source><translation>Спробуйте повторити дію або зверніться до служби підтримки.</translation></message>
+</context>
+<context><name>SelectionHandling</name>
+<message><source>Check the correctness of actions and try again.</source><translation>Перевірте правильність дій і спробуйте знову.</translation></message>
+<message><source>Warning</source><translation>Попередження</translation></message>
+</context>
+<context><name>SettingsConfig</name>
+<message><source>About</source><translation>Про програму</translation></message>
+<message><source>File</source><translation>Файл</translation></message>
+<message><source>Folder</source><translation>Папка</translation></message>
+<message><source>Link Manager
+Version 1.0
+© MyCompany</source><translation>Менеджер посилань
+Версія 1.0
+© MyCompany</translation></message>
+<message><source>Program</source><translation>Програма</translation></message>
+<message><source>Script</source><translation>Скрипт</translation></message>
+<message><source>Web Link</source><translation>Вебпосилання</translation></message>
+</context>
+<context><name>StructureDeletion</name>
+<message><source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
+<message><source>Delete section</source><translation>Видалити розділ</translation></message>
+<message><source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+<message><source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Вибрані розділи загалом містять {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+<message><source>This action is irreversible. All links in the category will be deleted.</source><translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation></message>
+<message><source>This action is irreversible. All nested categories and links will be deleted.</source><translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation></message>
+<message><source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source><translation>Загалом буде видалено {categories} категорій і {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation></message>
+</context>
+<context><name>SystemDialogController</name>
+<message><source>Auto-save</source><translation>Автозбереження</translation></message>
+<message><source>Bad URL Check</source><translation>Перевірка URL</translation></message>
+<message><source>Browser Import</source><translation>Імпорт із браузера</translation></message>
+<message><source>Check file integrity and access rights.</source><translation>Перевірте цілісність файлу та права доступу.</translation></message>
+<message><source>Error reading HTML file.</source><translation>Помилка читання HTML-файлу.</translation></message>
+<message><source>Export bookmarks from browser in HTML format and select correct file.</source><translation>Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation></message>
+<message><source>Failed to create auto-save before check.</source><translation>Не вдалося виконати автозбереження перед перевіркою.</translation></message>
+<message><source>Failed to create auto-save before import.</source><translation>Не вдалося виконати автозбереження перед імпортом.</translation></message>
+<message><source>Failed to start bad URL check</source><translation>Не вдалося почати перевірку URL</translation></message>
+<message><source>Failed to start icon refresh</source><translation>Не вдалося почати оновлення іконок</translation></message>
+<message><source>HTTP links: {count}</source><translation>Посилання HTTP: {count}</translation></message>
+<message><source>HTTPS links: {count}</source><translation>Посилання HTTPS: {count}</translation></message>
+<message><source>Icon Refresh</source><translation>Оновлення іконок</translation></message>
+<message><source>Import completed with error</source><translation>Імпорт завершено з помилкою</translation></message>
+<message><source>No links found in file.</source><translation>У файлі не знайдено посилань.</translation></message>
+<message><source>No section selected for import.</source><translation>Секцію не вибрано для імпорту.</translation></message>
+<message><source>Protocol statistics:</source><translation>Статистика протоколів:</translation></message>
+<message><source>Select section where categories and links will be added.</source><translation>Виберіть розділ, до якого буде додано категорії та посилання.</translation></message>
+<message><source>This will verify which HTTP links can be upgraded to HTTPS.</source><translation>Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation></message>
+<message><source>Would you like to check URLs for HTTPS availability?</source><translation>Перевірити доступність URL через HTTPS?</translation></message>
+</context>
+<context><name>UndoCommands</name>
+<message><source>Backup failed. Delete canceled to keep undo available.</source><translation>Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation></message>
+<message><source>Delete canceled</source><translation>Видалення скасовано</translation></message>
+</context>
+<context><name>SpheresBarController</name><message><source>AI</source><translation>ШІ</translation></message><message><source>Work</source><translation>Робота</translation></message><message><source>Study</source><translation>Навчання</translation></message><message><source>Personal</source><translation>Особисте</translation></message></context>
+<context><name>BadUrlCleanupDialog</name><message><source>Double-click to open or copy</source><translation>Двічі клацніть, щоб відкрити або скопіювати</translation></message></context>
+</TS>

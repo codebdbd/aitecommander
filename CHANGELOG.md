@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.6] - 2026-09-06
+
+### Fixed
+- Restore sphere button icons on clean installations and when saved icons are missing.
+- Complete missing Ukrainian translations in controllers, confirmations, dates, and the About dialog.
+- Translate default sphere tooltips and the URL table hint.
+- Add release regression checks for relocated bundled icons, translation coverage, compiled catalogs, and placeholders.
+
 ## [1.1.5] - 2026-08-21
 
 ### Fixed

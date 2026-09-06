@@ -412,6 +412,12 @@ class MainWindow(QMainWindow, ReTranslatable):
     # --- Overrides -----------------------------------------------------------
 
     def retranslateUi(self) -> None:
+        from PyQt6.QtCore import QCoreApplication
+
+        for button in getattr(self, "sphere_buttons", {}).values():
+            name = button.property("sphereName")
+            if name in ("AI", "Work", "Study", "Personal"):
+                button.setToolTip(QCoreApplication.translate("SpheresBarController", name))
         undo_action = getattr(self, "undo_action", None)
         if undo_action is not None:
             from app.utils.ui.menu_builders.menu_actions import MenuTexts

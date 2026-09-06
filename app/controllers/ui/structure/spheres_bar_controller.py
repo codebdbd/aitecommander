@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QObject, QSize, Qt, pyqtSlot
+from PyQt6.QtCore import QCoreApplication, QObject, QSize, Qt, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QToolButton
 
@@ -101,15 +101,21 @@ class SpheresBarController(QObject):
         sphere_id = sphere["id"]
         btn.setCheckable(True)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        icons_dir = icon_path_service.get_ui_icons_dir()
         icon_name = sphere.get("icon_path")
+        icon = QIcon()
         if icon_name:
-            icon_path = icon_path_service.get_ui_icons_dir() / icon_name
-            if icon_path.exists():
-                btn.setIcon(create_icon_from_path(str(icon_path)))
-            else:
-                btn.setIcon(QIcon())
-        else:
-            btn.setIcon(QIcon())
+            icon = create_icon_from_path(str(icons_dir / icon_name))
+        if icon.isNull():
+            # New databases and older installations have empty icon paths.
+            default_icons = {
+                "AI": "ai_icon.png", "Work": "work_icon.png",
+                "Study": "study_icon.png", "Personal": "personal_icon.png",
+            }
+            icon = create_icon_from_path(str(
+                icons_dir / default_icons.get(sphere["name"], "section.png")
+            ))
+        btn.setIcon(icon)
         # Use icon size from config for both icon and button to avoid inner padding
         icon_w, icon_h = get_sphere_button_icon_size()
         btn.setFixedSize(icon_w, icon_h)
@@ -120,7 +126,14 @@ class SpheresBarController(QObject):
             pass
         # Icon size from UI config; matching button size removes inner padding
         btn.setIconSize(QSize(icon_w, icon_h))
-        btn.setToolTip(sphere["name"])
+        default_names = {
+            "AI": QCoreApplication.translate("SpheresBarController", "AI"),
+            "Work": QCoreApplication.translate("SpheresBarController", "Work"),
+            "Study": QCoreApplication.translate("SpheresBarController", "Study"),
+            "Personal": QCoreApplication.translate("SpheresBarController", "Personal"),
+        }
+        btn.setToolTip(default_names.get(sphere["name"], sphere["name"]))
+        btn.setProperty("sphereName", sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(partial(self._on_button_clicked, sphere_id))
         # Ensure there are no graphics effects (neon, etc.) on the button
