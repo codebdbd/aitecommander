@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.7] - 2026-09-07
+
+### Fixed
+- Fixed category drag and drop between sections in the structure tree view.
+- Re-enabled drop indicator calculations while cleanly suppressing the default Qt drop line via proxy style.
+- Allowed category drops onto cross-section targets and categories.
+- Ensure target section child nodes are populated when moving categories into collapsed sections.
+
 ## [1.1.6] - 2026-09-06
 
 ### Fixed

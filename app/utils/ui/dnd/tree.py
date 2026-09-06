@@ -156,16 +156,9 @@ class DragDropHandler(TreeHandlerBase):
             else:
                 event.ignore()
         elif mime.hasFormat(app_config.get_category_mime_type()):
-            if target_type == "section":
-                if drop_pos in (
-                    QAbstractItemView.DropIndicatorPosition.OnItem,
-                    QAbstractItemView.DropIndicatorPosition.AboveItem,
-                    QAbstractItemView.DropIndicatorPosition.BelowItem,
-                ):
-                    valid_drop = True
-                    event.accept()
-                else:
-                    event.ignore()
+            if target_type in ("section", "category"):
+                valid_drop = True
+                event.accept()
             else:
                 event.ignore()
         elif self._extract_external_link_targets(mime):
@@ -281,10 +274,9 @@ class DragDropHandler(TreeHandlerBase):
             base_row = tgt_row
         elif drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
             base_row = tgt_row + 1
-        elif drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-            base_row = model.rowCount(parent_index)
         else:
-            raise ValueError("invalid target")
+            # OnItem or OnViewport fallback: append to section
+            base_row = model.rowCount(parent_index)
         parent_for_count = parent_index
         return new_section_id, base_row, parent_for_count
 
@@ -305,11 +297,7 @@ class DragDropHandler(TreeHandlerBase):
 
         model = self.tree_widget.model()
 
-        if target_type == "section" and drop_pos in (
-            QAbstractItemView.DropIndicatorPosition.OnItem,
-            QAbstractItemView.DropIndicatorPosition.AboveItem,
-            QAbstractItemView.DropIndicatorPosition.BelowItem,
-        ):
+        if target_type == "section":
             new_section_id, base_row, parent_for_count = self._determine_for_section_target(
                 target_index, model, drop_pos
             )
@@ -491,15 +479,29 @@ class DragDropHandler(TreeHandlerBase):
             logger.warning("Failed to extract category ID from MIME data")
             return False
         ttuple = get_tree_tuple(target_index, 0)
-        if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
+        if not ttuple:
             return False
-        section_id = int(ttuple[1])
         model = getattr(self.tree_widget, "model", lambda: None)()
-        base_row = (
-            model.rowCount(target_index)
-            if model and target_index and target_index.isValid()
-            else 0
-        )
+        if ttuple[0] == "section" and isinstance(ttuple[1], int):
+            section_id = int(ttuple[1])
+            base_row = (
+                model.rowCount(target_index)
+                if model and target_index and target_index.isValid()
+                else 0
+            )
+        elif ttuple[0] == "category":
+            parent_index = target_index.parent()
+            parent_tuple = get_tree_tuple(parent_index, 0)
+            if not (parent_tuple and parent_tuple[0] == "section" and isinstance(parent_tuple[1], int)):
+                return False
+            section_id = int(parent_tuple[1])
+            base_row = (
+                model.rowCount(parent_index)
+                if model and parent_index and parent_index.isValid()
+                else 0
+            )
+        else:
+            return False
         try:
             moved_count = self.move_categories(
                 [int(cid) for cid in ids if isinstance(cid, int)],
@@ -626,17 +628,7 @@ class DragDropHandler(TreeHandlerBase):
             if not ttuple:
                 return False
             target_type, _ = ttuple
-            if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-                return target_type in ("section", "category")
-            if target_type == "section" and drop_pos in (
-                QAbstractItemView.DropIndicatorPosition.AboveItem,
-                QAbstractItemView.DropIndicatorPosition.BelowItem,
-            ):
+            if target_type in ("section", "category"):
                 return True
-            else:
-                # Between elements only allowed between categories of same section
-                if target_type != "category":
-                    return False
-                # Same parent
-                return source_index.parent() == target_index.parent()
+            return False
         return False
