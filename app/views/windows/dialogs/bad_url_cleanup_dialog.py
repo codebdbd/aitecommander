@@ -684,7 +684,7 @@ class BadUrlCleanupDialog(BaseDialog):
         # URL (with tooltip)
         url_item = QTableWidgetItem(bad_url_info["url"])
         url_item.setData(Qt.ItemDataRole.UserRole, bad_url_info["id"])
-        url_item.setToolTip("Double-click to open or copy")
+        url_item.setToolTip(QCoreApplication.translate("BadUrlCleanupDialog", "Double-click to open or copy"))
         self.table_widget.setItem(row, 2, url_item)
 
         # Error
