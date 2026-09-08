@@ -1,6 +1,5 @@
 import logging
 import re
-import threading
 from contextlib import contextmanager
 from hashlib import sha1
 from pathlib import Path
@@ -40,9 +39,6 @@ from app.utils.validators import (
     validate_path,
 )
 
-_provider_lock = threading.Lock()
-_provider = None
-
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -57,15 +53,46 @@ _IMAGE_PREVIEW_EXTENSIONS = {
     ".tiff",
 }
 
+# Minimum size (bytes) for a cached icon to be considered a real system icon.
+# Qt's default "unknown file" icon saved as PNG is typically < 2 KB.
+_MIN_REAL_ICON_SIZE = 2048
 
-def _get_icon_provider():
-    """Gets thread-safe QFileIconProvider instance"""
-    global _provider
-    if _provider is None:
-        with _provider_lock:
-            if _provider is None:
-                _provider = QFileIconProvider()
-    return _provider
+
+def _get_file_icon_with_com(path: str, save_path: Path) -> Optional[str]:
+    """Obtain and persist a file-type icon using QFileIconProvider.
+
+    On Windows, QFileIconProvider relies on Windows Shell API (SHGetFileInfo)
+    which requires COM to be initialised in STA mode for the calling thread.
+    Background threads spawned by Qt's thread pool do NOT do this automatically,
+    so we initialise COM explicitly here and uninitialise it afterwards.
+    """
+    _com_inited = False
+    try:
+        pythoncom.CoInitializeEx(pythoncom.COINIT_APARTMENTTHREADED)
+        _com_inited = True
+    except pythoncom.com_error:
+        # Already initialised (possibly in MTA) — proceed and hope for the best.
+        pass
+
+    try:
+        provider = QFileIconProvider()
+        q_icon = provider.icon(QFileInfo(path))
+        if not q_icon.isNull():
+            pixmap = q_icon.pixmap(256, 256)
+            if not pixmap.isNull() and pixmap.save(str(save_path), "PNG"):
+                logger.debug("Extracted file icon via Shell: %s", save_path)
+                return str(save_path)
+    except Exception as exc:
+        logger.warning(
+            "_get_file_icon_with_com failed for path=%s: %s", path, exc
+        )
+    finally:
+        if _com_inited:
+            try:
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+    return None
 
 
 def _validate_exe_path(exe_path: str) -> bool:
@@ -313,7 +340,15 @@ def _handle_program_icon(
 
 
 def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
-    """Handles file icon"""
+    """Handles file icon.
+
+    For image files a thumbnail preview is generated directly from the file.
+    For all other file types the Windows Shell icon is obtained via
+    QFileIconProvider (wrapped in a COM STA context so it works correctly
+    inside Qt background threads).  The result is cached per file extension
+    (e.g. ``file_docx.png``).  Cached entries that are suspiciously small
+    (< _MIN_REAL_ICON_SIZE bytes) are treated as stale/broken and regenerated.
+    """
     if not path:
         return None
     try:
@@ -335,24 +370,39 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
                 logger.debug("Created image preview icon: %s", preview_path)
                 return str(preview_path)
 
-        ext = Path(path).suffix.lower().replace(".", "")
+        ext = path_obj.suffix.lower().lstrip(".")
         if not ext and path.lower().endswith(".exe"):
             ext = "exe"
         if not ext:
             return None
         icons_dir_obj = Path(icons_dir)
-        icon_filename = f"program_{Path(path).stem}.png" if path.lower().endswith(".exe") else f"file_{ext}.png"
+        icon_filename = (
+            f"program_{path_obj.stem}.png"
+            if path.lower().endswith(".exe")
+            else f"file_{ext}.png"
+        )
         icon_path = icons_dir_obj / icon_filename
+
+        # Validate existing cache entry.  Icons that are smaller than
+        # _MIN_REAL_ICON_SIZE are likely the default Qt "unknown file" icon
+        # that was cached by a previous call without proper COM initialisation.
+        # Delete them so they are regenerated correctly.
         if is_valid_icon_file(str(icon_path)):
-            return str(icon_path)
-        icon_path.parent.mkdir(parents=True, exist_ok=True)
-        provider = _get_icon_provider()
-        q_icon = provider.icon(QFileInfo(path))
-        if not q_icon.isNull():
-            pixmap = q_icon.pixmap(256, 256)
-            if pixmap.save(str(icon_path), "PNG"):
-                logger.debug("Extracted file icon: %s", icon_path)
+            try:
+                if icon_path.stat().st_size >= _MIN_REAL_ICON_SIZE:
+                    return str(icon_path)
+                logger.debug(
+                    "Cached icon too small (%d B), regenerating: %s",
+                    icon_path.stat().st_size,
+                    icon_path,
+                )
+                icon_path.unlink(missing_ok=True)
+            except OSError:
+                # Cannot stat/delete — use whatever is there.
                 return str(icon_path)
+
+        icon_path.parent.mkdir(parents=True, exist_ok=True)
+        return _get_file_icon_with_com(path, icon_path)
     except (OSError, RuntimeError, AttributeError, ValueError) as e:
         logger.error("Failed to extract file icon for path=%s: %s", path, e)
     return None

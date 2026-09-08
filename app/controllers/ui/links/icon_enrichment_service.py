@@ -8,6 +8,8 @@ import weakref
 from pathlib import Path
 from typing import Any
 
+import pythoncom
+
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal, pyqtSlot
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -78,6 +80,16 @@ class _FetchIconTask(QRunnable):
         self._force_refresh = force_refresh
 
     def run(self) -> None:
+        # Windows Shell API (used by QFileIconProvider inside parse_local_link)
+        # requires COM to be initialised in STA mode for the calling thread.
+        # Qt thread pool threads do not do this automatically.
+        _com_inited = False
+        try:
+            pythoncom.CoInitializeEx(pythoncom.COINIT_APARTMENTTHREADED)
+            _com_inited = True
+        except pythoncom.com_error:
+            pass  # Already initialised — proceed
+
         icon_path = ""
         title = ""
         try:
@@ -106,6 +118,12 @@ class _FetchIconTask(QRunnable):
                 self._url,
                 self._link_type,
             )
+        finally:
+            if _com_inited:
+                try:
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
 
         service = self._service_ref()
         if service is not None:

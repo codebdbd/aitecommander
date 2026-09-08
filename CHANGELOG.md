@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.8] - 2026-09-08
+
+### Fixed
+- Fixed tree branch indicator (expansion toggle) vertical alignment on HiDPI displays (e.g. 125% scale).
+- Centered branch toggle strictly along the row and folder icon axis using device-pixel-ratio aware sizing.
+- Ensured COM STA initialisation when extracting Windows Shell file icons in background worker threads.
+- Prevented default Qt file-type placeholders from being cached when system icons are available.
+
 ## [1.1.7] - 2026-09-07
 
 ### Fixed

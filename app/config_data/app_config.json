@@ -2,7 +2,7 @@
   "app": {
     "name": "Aite Commander",
     "org_name": "Codebdbd",
-    "version": "1.1.7"
+    "version": "1.1.8"
   },
   "threading": {
     "max_db_threads": 4,
