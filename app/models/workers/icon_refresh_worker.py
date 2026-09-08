@@ -16,8 +16,11 @@ from app.models.base.db_base import db_lock
 from app.models.types.link_type import LinkType
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.links.parser.fetcher import fetch_web_link_info
-from app.utils.links.link_parser import _extract_icon_from_exe
+from app.utils.links.link_parser import _extract_icon_from_exe, parse_local_link
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+
+# Icons smaller than this are treated as default/placeholder icons
+_MIN_REAL_FILE_ICON_SIZE = 2048
 
 if TYPE_CHECKING:
     from app.models.database import Database
@@ -128,7 +131,11 @@ class IconRefreshWorker(QRunnable):
             Список словарей с полями: id, url, icon_path, category_id, name, type
         """
         if link_types is None:
-            link_types = [LinkType.WEB.value, LinkType.PROGRAM.value]
+            link_types = [
+                LinkType.WEB.value,
+                LinkType.PROGRAM.value,
+                LinkType.FILE.value,
+            ]
         try:
             placeholders = ",".join("?" for _ in link_types)
             query = f"""
@@ -221,6 +228,27 @@ class IconRefreshWorker(QRunnable):
             logger.debug("Failed to extract icon for program %s: %s", exe_path, e)
             return None
 
+    def _fetch_icon_for_file(self, file_path: str) -> str | None:
+        """Получить системную иконку для файла."""
+        self._raise_if_cancelled()
+        try:
+            info = parse_local_link(LinkType.FILE.value, file_path, app_config)
+            self._raise_if_cancelled()
+            icon = str(info.get("icon") or "").strip()
+            if not icon:
+                return None
+            p = Path(icon)
+            if not p.is_absolute():
+                p = app_config.paths.get_link_icons_dir() / icon
+            if p.exists() and p.stat().st_size >= _MIN_REAL_FILE_ICON_SIZE:
+                return icon
+            return None
+        except CancelledError:
+            raise
+        except Exception as e:
+            logger.debug("Failed to fetch icon for file %s: %s", file_path, e)
+            return None
+
     def _is_default_icon(
         self, icon_path: str, default_icon_path: str, link_type: str = ""
     ) -> bool:
@@ -232,7 +260,7 @@ class IconRefreshWorker(QRunnable):
             link_type: Тип ссылки ('web', 'program', etc.)
 
         Returns:
-            True если файл иконки отсутствует на диске
+            True если файл иконки отсутствует на диске или является дефолтной заглушкой
         """
         if not icon_path:
             return True
@@ -240,6 +268,9 @@ class IconRefreshWorker(QRunnable):
         # Проверяем по типу ссылки
         if link_type == LinkType.PROGRAM.value:
             return self._is_program_icon_default(icon_path)
+
+        if link_type == LinkType.FILE.value:
+            return self._is_file_icon_default(icon_path)
 
         return self._is_web_icon_default(icon_path, default_icon_path)
 
@@ -255,6 +286,26 @@ class IconRefreshWorker(QRunnable):
         # Relative path — check in icons dir
         candidate = icons_dir / icon_path
         return not candidate.exists()
+
+    def _is_file_icon_default(self, icon_path: str) -> bool:
+        """Проверить, нуждается ли иконка файла в обновлении.
+
+        Иконка считается дефолтной/битой если:
+        - файл отсутствует на диске, или
+        - размер < _MIN_REAL_FILE_ICON_SIZE (дефолтная заглушка).
+        """
+        if not icon_path:
+            return True
+        icons_dir = app_config.paths.get_link_icons_dir()
+        p = Path(icon_path)
+        if not p.is_absolute():
+            p = icons_dir / icon_path
+        try:
+            if not p.exists():
+                return True
+            return p.stat().st_size < _MIN_REAL_FILE_ICON_SIZE
+        except OSError:
+            return True
 
     def _is_web_icon_default(self, icon_path: str, default_icon_path: str) -> bool:
         """Проверить, является ли веб-иконка дефолтной."""
@@ -495,6 +546,8 @@ class IconRefreshWorker(QRunnable):
                 )
             if link_type == LinkType.PROGRAM.value:
                 new_icon_path = self._extract_icon_for_program(url)
+            elif link_type == LinkType.FILE.value:
+                new_icon_path = self._fetch_icon_for_file(url)
             else:
                 new_icon_path = self._fetch_icon_for_link(url)
             
@@ -555,6 +608,8 @@ class IconRefreshWorker(QRunnable):
         try:
             if link_type == LinkType.PROGRAM.value:
                 new_icon_path = self._extract_icon_for_program(url)
+            elif link_type == LinkType.FILE.value:
+                new_icon_path = self._fetch_icon_for_file(url)
             else:
                 new_icon_path = self._fetch_icon_for_link(url)
             

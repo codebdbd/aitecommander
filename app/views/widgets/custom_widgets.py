@@ -387,8 +387,16 @@ class StructureTreeView(QTreeView):
                 return closed_ic, open_ic
 
             class _BranchStyle(QProxyStyle):
-                def __init__(self, base_style):
-                    super().__init__(base_style)
+                def __init__(self, base_style=None):
+                    # In PyQt6, QProxyStyle(base_style) can crash on some platforms if base_style
+                    # is already a complex style; super().__init__() is safest and wraps current style.
+                    try:
+                        if base_style is not None:
+                            super().__init__(base_style)
+                        else:
+                            super().__init__()
+                    except Exception:
+                        super().__init__()
 
                 def drawPrimitive(self, element, option, painter, widget=None):  # noqa: N802
                     # Suppress default Qt drop indicator line (delegate custom highlight is used)
@@ -406,12 +414,23 @@ class StructureTreeView(QTreeView):
                             icon = open_ic if is_open else closed_ic
                             if not icon.isNull():
                                 rect = option.rect
-                                render_side = max(20, min(20, rect.height()))
-                                pm = icon.pixmap(QSize(render_side, render_side))
-                                x = rect.x() + max(0, (rect.width() - pm.width()) // 2)
-                                y = rect.y() + max(
-                                    0, (rect.height() - pm.height()) // 2
-                                )
+                                target_widget = widget or option.widget
+                                dpr = 1.0
+                                if target_widget is not None and hasattr(target_widget, "devicePixelRatioF"):
+                                    dpr = float(target_widget.devicePixelRatioF())
+                                elif hasattr(painter, "device") and painter.device() is not None and hasattr(painter.device(), "devicePixelRatioF"):
+                                    dpr = float(painter.device().devicePixelRatioF())
+
+                                # Logical indicator size: 16px fits standard row heights (e.g. 32px)
+                                # and aligns with the 20px branch column.
+                                side_logical = 16
+                                side_physical = max(1, int(round(side_logical * dpr)))
+                                pm = icon.pixmap(QSize(side_physical, side_physical))
+                                pm.setDevicePixelRatio(dpr)
+
+                                # Perfectly center horizontally and vertically within option.rect
+                                x = int(round(rect.center().x() - (side_logical / 2.0)))
+                                y = int(round(rect.center().y() - (side_logical / 2.0)))
                                 painter.drawPixmap(x, y, pm)
                                 return
                         except Exception:
