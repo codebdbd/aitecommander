@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -23,6 +24,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QTableView,
     QVBoxLayout,
     QWidget,
@@ -51,6 +53,14 @@ def _tr_model(text: str, disambiguation: str | None = None) -> str:
 
 def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate(_DIALOG_TR_CONTEXT, text, disambiguation)
+
+
+def _tr_custom(text: str, default: str | None = None) -> str:
+    """Translate string if translated, otherwise return default or text."""
+    res = QCoreApplication.translate(_DIALOG_TR_CONTEXT, text)
+    if res and res != text:
+        return res
+    return default if default is not None else text
 
 
 class _SearchResultsModel(QAbstractTableModel):
@@ -136,6 +146,11 @@ class FileSearchDialog(BaseDialog):
         self.lbl_name_regex = None
         self.lbl_pattern = None
         self.lbl_content = None
+        self.encoding_combo = None
+        self.advanced_group = None
+        self.lbl_max_depth = None
+        self.lbl_allowed_exts = None
+        self.lbl_max_size = None
 
         super().__init__(parent)
         self.setWindowTitle(tr_common("File search"))
@@ -277,9 +292,58 @@ class FileSearchDialog(BaseDialog):
         )
         pattern_row_layout.addWidget(self.content_le, 1)
 
+        from app.utils.ui.qt.combo_helpers import PopupComboBox
+
+        self.encoding_combo = PopupComboBox()
+        self.encoding_combo.setEditable(False)
+        self.encoding_combo.addItem(_tr_custom("Auto (detect)", "Автовизначення"), "auto")
+        self.encoding_combo.addItem("UTF-8", "utf-8")
+        self.encoding_combo.addItem(_tr_custom("Windows-1251 (Cyrillic)", "Windows-1251 (кирилиця)"), "cp1251")
+        self.encoding_combo.addItem(_tr_custom("CP866 (DOS Cyrillic)", "CP866 (кирилиця DOS)"), "cp866")
+        self.encoding_combo.addItem("KOI8-R", "koi8-r")
+        self.encoding_combo.addItem(_tr_custom("Latin-1 (Western Europe)", "Latin-1 (Західна Європа)"), "latin-1")
+        self.encoding_combo.addItem("UTF-16 LE", "utf-16-le")
+        self.encoding_combo.addItem("UTF-16 BE", "utf-16-be")
+        self.encoding_combo.setFixedWidth(170)
+        pattern_row_layout.addWidget(self.encoding_combo)
+
         form.addRow(self.lbl_pattern, pattern_row)
 
         layout.addLayout(form)
+
+        # --- Advanced options section (collapsible) ---
+        self.advanced_group = QGroupBox(_tr_custom("Advanced search options", "Додаткові параметри пошуку"))
+        self.advanced_group.setCheckable(True)
+        self.advanced_group.setChecked(False)
+
+        adv_form = QFormLayout(self.advanced_group)
+        adv_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # Max depth (-1 = unlimited)
+        self.lbl_max_depth = QLabel(_tr_custom("Max folder depth:", "Макс. глибина папок:"))
+        self.max_depth_sb = QSpinBox()
+        self.max_depth_sb.setRange(-1, 1000)
+        self.max_depth_sb.setValue(-1)
+        self.max_depth_sb.setSpecialValueText(_tr_custom("No limit (-1)", "Без обмежень (-1)"))
+        self.max_depth_sb.setFixedWidth(140)
+        adv_form.addRow(self.lbl_max_depth, self.max_depth_sb)
+
+        # Allowed extensions
+        self.lbl_allowed_exts = QLabel(_tr_custom("Only extensions (comma-separated):", "Лише розширення (через кому):"))
+        self.allowed_exts_le = QLineEdit()
+        self.allowed_exts_le.setPlaceholderText("e.g. txt, docx, pdf")
+        adv_form.addRow(self.lbl_allowed_exts, self.allowed_exts_le)
+
+        # Max file size in MB (0 = unlimited)
+        self.lbl_max_size = QLabel(_tr_custom("Max file size (MB):", "Макс. розмір файлу (МБ):"))
+        self.max_size_sb = QSpinBox()
+        self.max_size_sb.setRange(0, 10000)
+        self.max_size_sb.setValue(0)
+        self.max_size_sb.setSpecialValueText(_tr_custom("No limit (0)", "Без обмежень (0)"))
+        self.max_size_sb.setFixedWidth(140)
+        adv_form.addRow(self.lbl_max_size, self.max_size_sb)
+
+        layout.addWidget(self.advanced_group)
 
         # --- Progress bar ---
         self.progress_bar = QProgressBar()
@@ -350,6 +414,18 @@ class FileSearchDialog(BaseDialog):
             self.lbl_pattern.setText(self.tr("Extension:"))
         if self.lbl_content is not None:
             self.lbl_content.setText(self.tr("With text:"))
+        if hasattr(self, "advanced_group") and self.advanced_group is not None:
+            self.advanced_group.setTitle(_tr_custom("Advanced search options", "Додаткові параметри пошуку"))
+        if hasattr(self, "lbl_max_depth") and self.lbl_max_depth is not None:
+            self.lbl_max_depth.setText(_tr_custom("Max folder depth:", "Макс. глибина папок:"))
+        if hasattr(self, "max_depth_sb") and self.max_depth_sb is not None:
+            self.max_depth_sb.setSpecialValueText(_tr_custom("No limit (-1)", "Без обмежень (-1)"))
+        if hasattr(self, "lbl_allowed_exts") and self.lbl_allowed_exts is not None:
+            self.lbl_allowed_exts.setText(_tr_custom("Only extensions (comma-separated):", "Лише розширення (через кому):"))
+        if hasattr(self, "lbl_max_size") and self.lbl_max_size is not None:
+            self.lbl_max_size.setText(_tr_custom("Max file size (MB):", "Макс. розмір файлу (МБ):"))
+        if hasattr(self, "max_size_sb") and self.max_size_sb is not None:
+            self.max_size_sb.setSpecialValueText(_tr_custom("No limit (0)", "Без обмежень (0)"))
 
     def _translate_buttons(self):
         """Translate button texts and tooltips."""
@@ -579,6 +655,18 @@ class FileSearchDialog(BaseDialog):
                 )
                 return False
 
+        # Validate allowed extensions if specified
+        if hasattr(self, "allowed_exts_le") and self.allowed_exts_le is not None:
+            exts_raw = self.allowed_exts_le.text().strip()
+            if exts_raw and not re.match(r"^[a-zA-Z0-9,*._\s]+$", exts_raw):
+                self.show_warning(
+                    _tr_custom(
+                        "Invalid characters in allowed extensions list.",
+                        "Неприпустимі символи у списку розширень.",
+                    )
+                )
+                return False
+
         return True
 
     def _start_search(self):
@@ -606,6 +694,7 @@ class FileSearchDialog(BaseDialog):
         self.search_worker = FileSearchWorker(config)
         self.search_worker.signals.results_batch.connect(self._on_results_batch)
         self.search_worker.signals.progress_update.connect(self._on_progress_update)
+        self.search_worker.signals.skipped_updated.connect(self._on_skipped_update)
         self.search_worker.signals.search_finished.connect(self._on_search_finished)
         self.search_worker.signals.error_occurred.connect(self._on_search_error)
 
@@ -619,12 +708,51 @@ class FileSearchDialog(BaseDialog):
 
     def _create_search_config(self):
         """Create configuration dictionary for the worker."""
-        return {
+        config = {
             "root": self.root_le.text().strip(),
             "pattern": self.pattern_le.text().strip() or "*.*",
             "regex_name": self.regex_le.text().strip(),
             "content": self.content_le.text().strip(),
         }
+
+        # Encoding override
+        if hasattr(self, "encoding_combo") and self.encoding_combo is not None:
+            enc_data = self.encoding_combo.currentData()
+            config["content_encoding_override"] = (
+                None if enc_data in (None, "auto") else str(enc_data)
+            )
+
+        # Advanced constraints
+        if (
+            hasattr(self, "advanced_group")
+            and self.advanced_group is not None
+            and self.advanced_group.isChecked()
+        ):
+            # Max depth: -1 means no limit
+            if hasattr(self, "max_depth_sb") and self.max_depth_sb is not None:
+                val = self.max_depth_sb.value()
+                config["max_depth"] = val if val >= 0 else None
+
+            # Allowed extensions
+            if hasattr(self, "allowed_exts_le") and self.allowed_exts_le is not None:
+                exts_raw = self.allowed_exts_le.text().strip()
+                if exts_raw:
+                    config["allowed_exts"] = [
+                        e.strip().lower().lstrip(".")
+                        for e in exts_raw.split(",")
+                        if e.strip()
+                    ]
+
+            # Max file size MB: 0 means no limit
+            if hasattr(self, "max_size_sb") and self.max_size_sb is not None:
+                val = self.max_size_sb.value()
+                config["max_file_size_mb"] = val if val > 0 else None
+        else:
+            config["max_depth"] = None
+            config["allowed_exts"] = None
+            config["max_file_size_mb"] = None
+
+        return config
 
     def _on_results_batch(self, batch: list):
         """Handle batch of results from worker.
@@ -665,6 +793,30 @@ class FileSearchDialog(BaseDialog):
         self.status_label.setText(
             self.tr("Searching… Files: {files}, Directories: {dirs}").format(
                 files=files_processed, dirs=dirs_processed
+            )
+        )
+
+    def _on_skipped_update(self, s_big: int, s_bin: int, s_perm: int):
+        """Update status label with skipped counts if any files were skipped."""
+        if not self.is_searching:
+            return
+        total_skipped = s_big + s_bin + s_perm
+        if total_skipped == 0:
+            return
+        base_text = self.status_label.text()
+        if " | " in base_text:
+            base_text = base_text.split(" | ")[0]
+        skip_fmt = _tr_custom(
+            "Skipped: {count} ({big} big, {bin} binary, {perm} access)",
+            "Пропущено: {count} ({big} великих, {bin} бінарних, {perm} без доступу)",
+        )
+        self.status_label.setText(
+            f"{base_text} | "
+            + skip_fmt.format(
+                count=total_skipped,
+                big=s_big,
+                bin=s_bin,
+                perm=s_perm,
             )
         )
 
