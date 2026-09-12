@@ -80,6 +80,7 @@ color: #FFFFFF;
 }
 QMenu::item:pressed {
 background-color: #6E4C18;
+color: #FFE27A;
 }
 QMenu::indicator:checked {
 background-color: #E1B72E;

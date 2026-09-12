@@ -28,26 +28,29 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 
 ## Installation
 
-```bash
+```powershell
 # Clone the repository
 git clone https://github.com/codebdbd/aitecommander.git
 cd aitecommander
 
-# Create and activate virtual environment
-python -m venv .venv
-.venv\Scripts\activate
+# Create an isolated Python 3.12 environment
+py -3.12 -m venv .venv
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies using the project's interpreter
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+Use the project's interpreter explicitly to avoid installing or running in another
+environment on `PATH`. If you use uv, `uv sync --locked` creates and synchronizes
+`.venv` from `uv.lock`; add `--extra dev` to include development tools.
 
 ## Running
 
-```bash
-python -m app.main
+```powershell
+.\.venv\Scripts\python.exe -m app.main
 ```
 
-Or double-click `aitecommander.bat`.
+Or run `.\.venv\Scripts\python.exe main.py`, or double-click `aitecommander.bat`.
 
 ### Command-line options
 
@@ -91,21 +94,21 @@ uploads the generated `.exe` to the corresponding GitHub Release.
 
 ## Development
 
-```bash
+```powershell
 # Install dev dependencies
-pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 
 # Run linter
-ruff check app/
+.\.venv\Scripts\python.exe -m ruff check app/
 
 # Run formatter
-ruff format app/
+.\.venv\Scripts\python.exe -m ruff format app/
 
 # Run type checker
-mypy app/
+.\.venv\Scripts\python.exe -m mypy app/
 
 # Run tests
-pytest
+.\.venv\Scripts\python.exe -m pytest
 ```
 
 ## Project structure

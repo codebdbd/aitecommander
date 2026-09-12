@@ -49,6 +49,9 @@ Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Type: files; Name: "{app}\_internal\app\resources\qss\high_contrast.qss"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\high_contrast"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\high_contrast"
+Type: files; Name: "{app}\_internal\app\resources\qss\pink_pop.qss"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\pink_pop"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\pink_pop"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

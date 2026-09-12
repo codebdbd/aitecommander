@@ -154,7 +154,6 @@
     <file>ui_icons/light/dark.svg</file>
     <file>ui_icons/light/dbrestore.svg</file>
     <file>ui_icons/light/delete.svg</file>
-    <file>ui_icons/light/delete_favorites.png</file>
     <file>ui_icons/light/delete_favorites.svg</file>
     <file>ui_icons/light/down.svg</file>
     <file>ui_icons/light/edit-copy.svg</file>
@@ -165,7 +164,6 @@
     <file>ui_icons/light/edit-select-all.svg</file>
     <file>ui_icons/light/edit-undo.svg</file>
     <file>ui_icons/light/edit.svg</file>
-    <file>ui_icons/light/edit_note.png</file>
     <file>ui_icons/light/edit_note.svg</file>
     <file>ui_icons/light/email.svg</file>
     <file>ui_icons/light/email_client.svg</file>

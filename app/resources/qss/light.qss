@@ -56,7 +56,6 @@ background: #E6E6E6;
 }
 #spheres_bar QPushButton:hover {
 border-color: #0078D7;
-background: #E0E0E0;
 }
 QMenu {
 color: #333333;
@@ -81,6 +80,7 @@ color: #000000;
 }
 QMenu::item:pressed {
 background-color: #D0D0D0;
+color: #000000;
 }
 QMenu::indicator:checked {
 background-color: #0078D7;
@@ -266,7 +266,10 @@ background-color: #B3B3B3;
 QWidget#topBarHost QToolBar::separator {
 background-color: #B3B3B3;
 }
-
+QWidget#favQuickSeparatorBefore,
+QWidget#favQuickSeparatorAfter {
+background-color: #B3B3B3;
+}
 QStatusBar {
 background-color: #F0F0F0;
 border-top-color: #B3B3B3;
@@ -280,14 +283,11 @@ QWidget#bottomBarContainer {
 background-color: #F0F2FA;
 }
 QWidget#bottomBarContainer QPushButton {
-background-color: #F2F4F7;
 color: #1F2430;
 border-right-color: #B3B3B3;
 }
 QWidget#bottomBarContainer QPushButton:hover {
-    border-color: transparent;
-    border-right-color: #B3B3B3;
-    background-color: #E6E6E6;
+background-color: #E6E6E6;
 }
 QDialog {
 background-color: #FFFFFF;
@@ -309,14 +309,10 @@ QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
 border-color: #B3B3B3;
-background-color: #F2F4F7;
-color: #1F2430;
 }
 QDialog QPushButton,
 QDialog QToolButton {
 border-color: #B3B3B3;
-background-color: #F0F0F0;
-color: #1F2430;
 }
 QDialog QPushButton:hover,
 QDialog QToolButton:hover {
@@ -389,7 +385,6 @@ QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {
 background-color: #E6E6E6;
-color: #000000;
 }
 QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus {
@@ -405,7 +400,6 @@ border-color: #B3B3B3;
 }
 QDialog QToolButton#linkTypeBtn:checked:hover {
 border-color: #99CCFF;
-background: #E6E6E6;
 }
 QDialog QToolButton#linkTypeBtn[_neon_on="true"] {
 border-color: #99CCFF;
@@ -414,10 +408,6 @@ QSplitter::handle { background-color: #B3B3B3; }
 QSplitter::handle:horizontal { background-color: #B3B3B3; }
 QSplitter::handle:vertical { background-color: #B3B3B3; }
 #spheres_bar {
-}
-QWidget#favQuickSeparatorBefore,
-QWidget#favQuickSeparatorAfter {
-background-color: #B3B3B3;
 }
 QWidget#topBarHost QToolButton#quickButton,
 QWidget#topBarHost QToolButton#quickButton:hover,
