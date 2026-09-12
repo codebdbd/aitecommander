@@ -43,11 +43,12 @@ class Worker(QRunnable):
         try:
             result = self.func(*self.args, **self.kwargs)
             self.signals.result.emit(result)
-            self.signals.finished.emit()
         except Exception:
             tb_str = traceback.format_exc()
             logger.error("Worker error:\n%s", tb_str)
             self.signals.error.emit(tb_str)
+        finally:
+            self.signals.finished.emit()
 
 
 class WorkerManager:

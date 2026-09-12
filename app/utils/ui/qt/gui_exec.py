@@ -17,10 +17,13 @@ from PyQt6.QtWidgets import QApplication
 T = TypeVar("T")
 
 __all__ = [
+    "DEFAULT_GUI_TIMEOUT",
     "is_gui_thread",
     "run_in_gui_thread_sync",
     "run_in_gui_thread_async",
 ]
+
+DEFAULT_GUI_TIMEOUT = 5.0
 
 
 def is_gui_thread() -> bool:
@@ -33,13 +36,19 @@ def is_gui_thread() -> bool:
         return False
 
 
-def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
-    """Execute a function in the GUI thread and return its result (blocking).
-    
-    Note:
-        Uses threading.Event for synchronization (not asyncio.Event) to avoid
-        blocking the event loop and to work correctly when called from threads
-        without a running event loop.
+def run_in_gui_thread_sync(
+    func: Callable[[], T],
+    timeout: float | None = DEFAULT_GUI_TIMEOUT,
+) -> T:
+    """Execute a function in the GUI thread and return its result (blocking with timeout).
+
+    Args:
+        func: Callable to execute in the GUI thread.
+        timeout: Maximum seconds to wait for execution to finish. Defaults to 5.0s.
+            Pass None for unlimited wait.
+
+    Raises:
+        TimeoutError: If GUI thread does not finish execution within the timeout.
     """
     if is_gui_thread():
         return func()
@@ -61,8 +70,12 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
             done.set()
 
     QTimer.singleShot(0, _runner)
-    # Blocking wait (does not block event loop)
-    done.wait()
+    # Blocking wait with timeout to avoid deadlocks
+    if not done.wait(timeout=timeout):
+        func_name = getattr(func, "__qualname__", getattr(func, "__name__", repr(func)))
+        raise TimeoutError(
+            f"Timed out waiting for GUI thread to execute {func_name} (timeout={timeout}s)"
+        )
 
     if "exc" in result_container:
         raise result_container["exc"]
