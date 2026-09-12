@@ -919,6 +919,11 @@ class UIConfig(BaseConfig):
         """Return the configured PowerShell executable path."""
         return self.get("ui.powershell_path", "pwsh.exe")
 
+    def get_python_path(self) -> str | None:
+        """Return the configured Python executable path, or None for auto-detection."""
+        val = self.get("ui.python_path")
+        return str(val) if val else None
+
     def get_favorite_icon_size(self) -> int:
         """Return the icon size used for favorites."""
         return self.get("ui.favorite_icon_size", 24)

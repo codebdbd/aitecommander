@@ -21,6 +21,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import webbrowser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -121,8 +122,12 @@ class SecurityValidator:
         "--guest",
     }
 
-    # Blacklist of dangerous characters (removed '&' to support valid URLs)
-    DANGEROUS_CHARS = {"|", ";", "\u003e", "\u003c", "`", "$", "(", ")", "{", "}"}
+    # Blacklist of dangerous characters for shell commands and system paths
+    DANGEROUS_CHARS = {"|", ";", ">", "<", "`", "$", "{", "}"}
+
+    # Characters considered dangerous specifically in URLs (control characters, unencoded injection tokens).
+    # RFC 3986 sub-delimiters such as '(', ')', '$', ';', '&' are explicitly allowed (e.g. Wikipedia links).
+    DANGEROUS_URL_CHARS = {"\r", "\n", "\0", "<", ">", '"', "`", "|", "{", "}"}
 
     @classmethod
     def sanitize_url(cls, url: str) -> str:
@@ -149,12 +154,12 @@ class SecurityValidator:
 
     @classmethod
     def is_safe_url(cls, url: str) -> bool:
-        """Checks URL safety"""
+        """Checks URL safety (RFC 3986 compliant, allows parentheses, e.g. Wikipedia)."""
         if not url:
             return False
 
-        # Check for dangerous characters
-        if any(char in url for char in cls.DANGEROUS_CHARS):
+        # Check for dangerous characters in URLs
+        if any(char in url for char in cls.DANGEROUS_URL_CHARS):
             return False
 
         # Check URL pattern match
@@ -538,9 +543,15 @@ class FileLinkHandler(LinkHandler):
 class ScriptLinkHandler(LinkHandler):
     """Script handler"""
 
-    def __init__(self, logger: logging.Logger, powershell_path: Optional[str] = None):
+    def __init__(
+        self,
+        logger: logging.Logger,
+        powershell_path: Optional[str] = None,
+        python_path: Optional[str] = None,
+    ):
         super().__init__(logger)
         self.powershell_path = powershell_path or self._get_powershell_path()
+        self.python_path = python_path or self._get_python_path()
 
     def _get_powershell_path(self) -> str:
         """Gets PowerShell path"""
@@ -548,8 +559,20 @@ class ScriptLinkHandler(LinkHandler):
             from app.config_data import app_config
 
             return app_config.get_powershell_path()
-        except ImportError:
+        except Exception:
             return "powershell.exe"
+
+    def _get_python_path(self) -> Optional[str]:
+        """Gets configured Python path, if any"""
+        try:
+            from app.config_data import app_config
+
+            if hasattr(app_config, "get_python_path"):
+                return app_config.get_python_path()
+            val = app_config.get("ui.python_path")
+            return str(val) if val else None
+        except Exception:
+            return None
 
     def can_handle(self, link_info: LinkInfo) -> bool:
         return link_info.link_type == LinkType.SCRIPT
@@ -569,6 +592,7 @@ class ScriptLinkHandler(LinkHandler):
         script_handlers = {
             ".ps1": self._create_powershell_command,
             ".py": self._create_python_command,
+            ".pyw": self._create_python_command,
             ".bat": self._create_batch_command,
             ".cmd": self._create_batch_command,
         }
@@ -576,8 +600,11 @@ class ScriptLinkHandler(LinkHandler):
         handler = script_handlers.get(ext)
         if handler:
             cmd = handler(link_info.path, arg_list)
-            flags = 0 if ext in (".bat", ".cmd") else subprocess.CREATE_NEW_CONSOLE
-            subprocess.Popen(cmd, creationflags=flags)
+            if not cmd:
+                # Command handled directly (e.g. via os.startfile fallback)
+                return
+            flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
+            subprocess.Popen(cmd, creationflags=flags, cwd=str(path.parent.resolve()))
         else:
             # For unknown extensions use system handler
             if platform.system() == "Windows":
@@ -587,14 +614,101 @@ class ScriptLinkHandler(LinkHandler):
 
     def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
         """Creates PowerShell script command"""
-        cmd_args = ["-ExecutionPolicy", "Bypass", "-Command", f'& "{path}"']
+        cmd_args = ["-ExecutionPolicy", "Bypass", "-File", path]
         if args:
             cmd_args.extend(args)
         return [self.powershell_path] + cmd_args
 
+    def _resolve_python_executable(self, script_path: str) -> Optional[str]:
+        """Resolves the best Python executable for the script automatically.
+
+        Zero-config cascade resolution order:
+        1. Explicitly configured path in settings (self.python_path).
+        2. Local virtualenv near the script (.venv, venv, env, .env).
+        3. Windows Python Launcher (py.exe).
+        4. Current running Python interpreter (if running from source / virtualenv).
+        5. System PATH python (python / python3), ignoring 0-byte WindowsApps stubs.
+        """
+        # 1. Configured path
+        if self.python_path:
+            p = Path(self.python_path)
+            if p.is_file():
+                self.logger.info("Using configured Python path: %s", self.python_path)
+                return str(p)
+
+        # 2. Local virtual environment near script
+        try:
+            script_file = Path(script_path).resolve()
+            search_dirs = [script_file.parent, script_file.parent.parent]
+            for parent_dir in search_dirs:
+                if not parent_dir.is_dir():
+                    continue
+                for venv_name in (".venv", "venv", "env", ".env"):
+                    venv_dir = parent_dir / venv_name
+                    if not venv_dir.is_dir():
+                        continue
+                    if platform.system() == "Windows":
+                        candidate = venv_dir / "Scripts" / "python.exe"
+                    else:
+                        candidate = venv_dir / "bin" / "python"
+                    if candidate.is_file():
+                        self.logger.info(
+                            "Found local virtualenv Python for %s: %s", script_path, candidate
+                        )
+                        return str(candidate)
+        except Exception as e:
+            self.logger.debug("Error checking local virtualenv for %s: %s", script_path, e)
+
+        # 3. Windows Python Launcher (py.exe)
+        if platform.system() == "Windows":
+            py_launcher = shutil.which("py")
+            if not py_launcher:
+                win_py = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "py.exe"
+                if win_py.is_file():
+                    py_launcher = str(win_py)
+            if py_launcher:
+                self.logger.info("Using Windows Python Launcher (py.exe) for %s", script_path)
+                return py_launcher
+
+        # 4. Running Python interpreter (if running from source / virtualenv, not PyInstaller frozen)
+        if not getattr(sys, "frozen", False) and sys.executable:
+            exec_path = Path(sys.executable)
+            if exec_path.is_file():
+                return str(exec_path)
+
+        # 5. System PATH python / python3
+        for cmd_name in ("python", "python3"):
+            found = shutil.which(cmd_name)
+            if found:
+                if platform.system() == "Windows" and "WindowsApps" in found:
+                    try:
+                        if Path(found).stat().st_size == 0:
+                            continue
+                    except OSError:
+                        continue
+                return found
+
+        return None
+
     def _create_python_command(self, path: str, args: list[str]) -> list[str]:
-        """Creates Python script command"""
-        return ["python", path] + args
+        """Creates Python script command with zero-config cascade resolution."""
+        python_exe = self._resolve_python_executable(path)
+        if python_exe:
+            return [python_exe, path] + args
+
+        # Fallback: on Windows without extra arguments, let the shell open via file association
+        if platform.system() == "Windows" and not args:
+            try:
+                self.logger.info("No Python executable found; launching via Windows shell: %s", path)
+                os.startfile(path)
+                return []
+            except OSError as e:
+                self.logger.warning("os.startfile failed for %s: %s", path, e)
+
+        raise FileNotFoundError(
+            f"Python interpreter not found to run '{path}'. "
+            "Please install Python (https://www.python.org/) or configure python_path in settings."
+        )
 
     def _create_batch_command(self, path: str, args: list[str]) -> list[str]:
         """Creates batch file command"""
@@ -651,6 +765,7 @@ class LinkOpener:
         self,
         powershell_path: Optional[str] = None,
         logger_obj: Optional[logging.Logger] = None,
+        python_path: Optional[str] = None,
     ):
         # Use module logger by default with DI support
         self.logger = (
@@ -662,7 +777,7 @@ class LinkOpener:
         self.handlers: list[LinkHandler] = [
             WebLinkHandler(self.logger, self.browser_config),
             FileLinkHandler(self.logger),
-            ScriptLinkHandler(self.logger, powershell_path),
+            ScriptLinkHandler(self.logger, powershell_path, python_path),
             ProgramLinkHandler(self.logger),
         ]
 
@@ -735,13 +850,18 @@ class LinkOpener:
 
 
 # Утилитарные функции для удобства использования (обратная совместимость)
-def create_link_opener(powershell_path: Optional[str] = None) -> LinkOpener:
+def create_link_opener(
+    powershell_path: Optional[str] = None,
+    python_path: Optional[str] = None,
+) -> LinkOpener:
     """Creates LinkOpener instance with default settings."""
-    return LinkOpener(powershell_path)
+    return LinkOpener(powershell_path=powershell_path, python_path=python_path)
 
 
 def open_link_from_dict(
-    link_dict: dict[str, Any], powershell_path: Optional[str] = None
+    link_dict: dict[str, Any],
+    powershell_path: Optional[str] = None,
+    python_path: Optional[str] = None,
 ) -> None:
     """
     Opens link from dictionary data.
@@ -749,9 +869,10 @@ def open_link_from_dict(
     Args:
         link_dict: Dictionary with link data
         powershell_path: PowerShell path (optional)
+        python_path: Python path (optional)
     """
     link_info = LinkInfo.from_dict(link_dict)
-    opener = LinkOpener(powershell_path)
+    opener = LinkOpener(powershell_path=powershell_path, python_path=python_path)
     opener.open_link(link_info)
 
 
