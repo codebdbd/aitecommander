@@ -143,7 +143,6 @@
         <file alias="light/dark.svg">ui_icons\light\dark.svg</file>
         <file alias="light/dbrestore.svg">ui_icons\light\dbrestore.svg</file>
         <file alias="light/delete.svg">ui_icons\light\delete.svg</file>
-        <file alias="light/delete_favorites.png">ui_icons\light\delete_favorites.png</file>
         <file alias="light/delete_favorites.svg">ui_icons\light\delete_favorites.svg</file>
         <file alias="light/down.svg">ui_icons\light\down.svg</file>
         <file alias="light/edit-copy.svg">ui_icons\light\edit-copy.svg</file>
@@ -154,7 +153,6 @@
         <file alias="light/edit-select-all.svg">ui_icons\light\edit-select-all.svg</file>
         <file alias="light/edit-undo.svg">ui_icons\light\edit-undo.svg</file>
         <file alias="light/edit.svg">ui_icons\light\edit.svg</file>
-        <file alias="light/edit_note.png">ui_icons\light\edit_note.png</file>
         <file alias="light/edit_note.svg">ui_icons\light\edit_note.svg</file>
         <file alias="light/email.svg">ui_icons\light\email.svg</file>
         <file alias="light/email_client.svg">ui_icons\light\email_client.svg</file>

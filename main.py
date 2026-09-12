@@ -1,6 +1,7 @@
-def main():
-    print("Hello from aitecommander!")
+"""Launch Aite Commander from the repository root."""
+
+from app.main import main
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

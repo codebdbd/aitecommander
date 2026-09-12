@@ -1,4 +1,10 @@
 QWidget { color: #9EF4A3; }
+QMainWindow {
+background: #000000;
+}
+QMainWindow > QFrame {
+background: #000000;
+}
 QWidget#LeftPanel[sphere="1"] {
 background: qlineargradient(
 x1: 0, y1: 0, x2: 0, y2: 1,
@@ -74,6 +80,7 @@ color: #C9FFD8;
 }
 QMenu::item:pressed {
 background-color: #135530;
+color: #C9FFD8;
 }
 QMenu::indicator:checked {
 background-color: #3BF989;
@@ -109,13 +116,6 @@ border-color: #35F26D;
 QMenuBar QMenu {
 background-color: #0A1B10;
 border-color: #0F3F24;
-}
-QMainWindow {
-background-color: #000000;
-color: #9EF4A3;
-}
-QMainWindow > QFrame {
-background: #000000;
 }
 QWidget#topBarHost {
 background: #000000;
@@ -309,18 +309,14 @@ QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
 border-color: #0F3F24;
-background-color: #001100;
-color: #C9FFD8;
 }
 QDialog QPushButton,
 QDialog QToolButton {
 border-color: #0F3F24;
-background-color: #04160B;
-color: #C9FFD8;
 }
 QDialog QPushButton:hover,
 QDialog QToolButton:hover {
-background-color: #072615;
+background: #072615;
 border-color: #3BF989;
 color: #C9FFD8;
 }
