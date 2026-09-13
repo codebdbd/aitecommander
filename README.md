@@ -10,7 +10,7 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Full-text search** — Search by name, URL, notes, and arguments
 - **Undo/Redo** — Full undo stack for all operations
 - **Drag & Drop** — Move items between categories and reorder within the tree
-- **6 themes** — Light, Dark, Dreamy Room, Matrix, Violet Pulse, and more bundled presets
+- **16 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, and 11 more bundled presets
 - **6 languages** — English, Ukrainian, Russian, French, Spanish, German
 - **40+ keyboard shortcuts** — Fully customizable hotkeys
 - **Browser import** — Import bookmarks from Chrome, Edge, Firefox HTML exports
@@ -20,6 +20,13 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Database backup/restore** — Automatic backups with configurable limits
 - **Import/Export** — Full structure, section-level, or category-level as ZIP archives
 - **HiDPI support** — High DPI scaling
+
+## Documentation
+
+- [User Guide (Russian)](docs/USER_GUIDE_RU.md) — подробное практическое руководство пользователя
+- [Architecture & Capabilities](CAPABILITIES.md) — техническое описание возможностей и архитектуры
+- [Theme Customization](docs/THEMES.md) — руководство по созданию и установке тем
+- [Development Guide](docs/DEVELOPMENT.md) — руководство для разработчиков
 
 ## Requirements
 
@@ -86,9 +93,9 @@ If `dist\AiteCommander` already exists, skip the PyInstaller step:
 powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -SkipPyInstaller
 ```
 
-The installer is written to `dist\installer\AiteCommander-Setup-1.1.6.exe`.
+The installer is written to `dist\installer\AiteCommander-Setup-1.1.8.exe`.
 
-Pushing a release tag such as `v1.1.6` also triggers the GitHub Actions workflow in
+Pushing a release tag such as `v1.1.8` also triggers the GitHub Actions workflow in
 `.github/workflows/release.yml`, which runs tests, builds the Windows installer, and
 uploads the generated `.exe` to the corresponding GitHub Release.
 

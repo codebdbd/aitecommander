@@ -86,6 +86,7 @@ aitecommander/
 │   │   │       ├── icon_refresh_dialog.py
 │   │   │       ├── bad_url_cleanup_dialog.py
 │   │   │       ├── async_operation_dialog.py
+│   │   │       ├── about_dialog.py
 │   │   │       ├── link_dialog/       # link_dialog, link_dialog_ui,
 │   │   │       │                      #   link_dialog_signals, link_dialog_handlers,
 │   │   │       │                      #   icon_utils, handlers_mixins/ (8 миксинов)
@@ -155,13 +156,12 @@ aitecommander/
 │   │   └── share_paths.py
 │   ├── resources/                    # Ресурсы
 │   │   ├── app_resources.qrc         # Основной .qrc-манифест
-│   │   ├── icons.qrc                 # Манифест иконок
 │   │   ├── app_resources_rc.py       # Скомпилированные ресурсы
-│   │   ├── icons_rc.py               # Скомпилированные иконки
 │   │   ├── app_icon.ico              # Иконка приложения
-│   │   ├── ui_icons/                 # Иконки по темам (dark/, violet_pulse/)
-│   │   ├── qss.rar                   # Архив QSS-тем
-│   │   └── (themes/, qss/, logo/)    # Темы и стили
+│   │   ├── ui_icons/                 # Иконки по всем 17 темам (загрузка с диска + RAM-кэш)
+│   │   ├── themes/                   # 17 бандлированных пакетов тем (theme.json, qss, icons)
+│   │   ├── qss/                      # 17 QSS-файлов тем + common.qss
+│   │   └── logo/                     # Графические логотипы приложения
 │   └── startup/                      # Инициализация приложения
 │       ├── runtime.py                # Основной цикл запуска Qt (run())
 │       ├── initializer.py            # ApplicationInitializer
@@ -183,15 +183,18 @@ aitecommander/
 │   ├── fix_ts_file.py                # Утилита исправления .ts файлов
 │   ├── app.pro                       # Проект lupdate/lrelease
 │   └── __init__.py
-├── tests/                            # Тестовый набор (30+ файлов)
+├── tests/                            # Тестовый набор (73 файла)
 │   ├── conftest.py                   # Bootstrap для импортов (sys.path)
 │   └── test_*.py                     # Тесты: database, structure, commands,
 │                                     #   bulk, theme, migration, dialog, etc.
-├── docs/                             # Документация
+├── docs/                             # Документация (USER_GUIDE_RU, THEMES, DEVELOPMENT и др.)
 ├── scripts/                          # Утилитарные скрипты
 │   ├── build.py                      # Скрипт сборки
+│   ├── build_installer.ps1           # Скрипт сборки инсталлятора Inno Setup
 │   ├── migrate_icons_ico_to_png.py   # Миграция иконок
-│   └── arch_diag_generate.py         # Генерация арх. диаграмм
+│   ├── arch_diag_generate.py         # Генерация арх. диаграмм
+│   ├── audit_translations.py         # Аудит полноты переводов
+│   └── update_ts.py                  # Синхронизация файлов переводов
 ├── aitecommander.spec                # PyInstaller .spec
 ├── aitecommander.bat                 # Windows-лаунчер
 ├── pyproject.toml                    # Метаданные проекта и зависимости (hatchling)
@@ -433,19 +436,17 @@ class MyWidget(QWidget):
 ### Ресурсы (иконки, стили)
 
 **Структура ресурсов:**
-- `app/resources/` — .qrc-манифесты, скомпилированные ресурсы, иконки, темы
-- `app/resources/ui_icons/` — иконки по темам (dark/, violet_pulse/)
-- `app/resources/qss.rar` — архив QSS-тем
-- `i18n/` — файлы переводов (.ts/.qm)
+- `app/resources/` — `.qrc`-манифест, скомпилированные ресурсы, иконка приложения
+- `app/resources/themes/` — 17 встроенных пакетов тем (`theme.json`, стили, иконки)
+- `app/resources/ui_icons/` — наборы SVG-иконок для всех 17 тем (загружаются динамически с диска с LRU/RAM кэшированием)
+- `app/resources/qss/` — таблицы стилей тем (`common.qss` + 17 `.qss`-файлов)
+- `i18n/` — файлы переводов (`.ts`/`.qm`)
 
 **Компиляция ресурсов:**
 
 ```bash
-# Компиляция основных ресурсов
+# Компиляция основных ресурсов (QSS, шрифты, базовые ассеты)
 pyrcc6 app/resources/app_resources.qrc -o app/resources/app_resources_rc.py
-
-# Компиляция иконок
-pyrcc6 app/resources/icons.qrc -o app/resources/icons_rc.py
 
 # Компиляция переводов
 pyrcc6 i18n/i18n.qrc -o i18n/resources_rc.py
@@ -454,12 +455,11 @@ pyrcc6 i18n/i18n.qrc -o i18n/resources_rc.py
 **Инициализация ресурсов** в `app/startup/runtime.py`:
 
 ```python
-from app.resources import app_resources_rc, icons_rc
+from app.resources import app_resources_rc
 from i18n import resources_rc as i18n_resources_rc
 
 def qInitResources() -> None:
     app_resources_rc.qInitResources()
-    icons_rc.qInitResources()
     i18n_resources_rc.qInitResources()
 ```
 
