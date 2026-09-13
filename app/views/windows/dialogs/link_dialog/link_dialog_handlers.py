@@ -5,6 +5,7 @@ Contains logic for processing user actions.
 
 import logging
 
+from .handlers_mixins.apps_picker_mixin import AppsPickerMixin
 from .handlers_mixins.file_dialog_mixin import FileDialogMixin
 from .handlers_mixins.form_data_mixin import FormDataMixin
 from .handlers_mixins.hierarchy_mixin import HierarchyMixin
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 class LinkDialogHandlers(
     TypeChangeMixin,
     FileDialogMixin,
+    AppsPickerMixin,
     IconsMixin,
     ProfilesMixin,
     HierarchyMixin,
@@ -79,6 +81,9 @@ class LinkDialogHandlers(
 
         # Buttons
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
+        apps_btn = self.dialog._get_apps_btn()
+        if apps_btn is not None:
+            apps_btn.clicked.connect(self._on_apps_picker)
         self.dialog._get_profile_btn().clicked.connect(self._on_profile)
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
 

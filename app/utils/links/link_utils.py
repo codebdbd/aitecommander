@@ -171,6 +171,10 @@ class SecurityValidator:
         if not path:
             return False
 
+        if platform.system() == "Windows" and path.lower().startswith("shell:appsfolder\\"):
+            forbidden = {"|", ";", ">", "<", "`", "$", "\r", "\n", "\0", "&"}
+            return not any(char in path for char in forbidden)
+
         # Check for dangerous characters (except allowed for paths)
         dangerous_for_paths = cls.DANGEROUS_CHARS - {"(", ")"}
         if any(char in path for char in dangerous_for_paths):
@@ -733,12 +737,23 @@ class ProgramLinkHandler(LinkHandler):
     """Program handler"""
 
     def can_handle(self, link_info: LinkInfo) -> bool:
-        return link_info.link_type == LinkType.PROGRAM
+        val = getattr(link_info.link_type, "value", link_info.link_type)
+        return val == "program" or link_info.link_type == LinkType.PROGRAM
 
     def open(self, link_info: LinkInfo) -> None:
         """Opens program"""
         if not SecurityValidator.is_safe_path(link_info.path):
             raise ValueError(f"Unsafe program path: {link_info.path}")
+
+        # Windows AppsFolder virtual applications
+        if platform.system() == "Windows" and link_info.path.lower().startswith("shell:appsfolder\\"):
+            try:
+                os.startfile(link_info.path)
+                self.logger.info("Successfully launched shell app: %s", link_info.path)
+                return
+            except OSError as e:
+                self.logger.error("Failed to launch shell app %s: %s", link_info.path, e)
+                raise
 
         if not Path(link_info.path).exists():
             raise FileNotFoundError(f"Program not found: {link_info.path}")

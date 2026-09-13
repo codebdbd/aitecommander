@@ -185,6 +185,13 @@ class LinkDialogUI:
         self.browse_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.browse_btn)
 
+        self.apps_btn = QPushButton(
+            QCoreApplication.translate("LinkDialogUI", "Apps")
+        )
+        self.apps_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        self.apps_btn.setVisible(False)
+        hl_path.addWidget(self.apps_btn)
+
         self.profile_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Profile")
         )
@@ -198,6 +205,7 @@ class LinkDialogUI:
             {
                 "url_le": self.url_le,
                 "browse_btn": self.browse_btn,
+                "apps_btn": self.apps_btn,
                 "profile_btn": self.profile_btn,
             }
         )
@@ -410,6 +418,10 @@ class LinkDialogUI:
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
                 self.browse_btn.setText(
                     QCoreApplication.translate("LinkDialogUI", "Browse...")
+                )
+            if hasattr(self, "apps_btn") and self.apps_btn is not None:
+                self.apps_btn.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Apps")
                 )
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
                 if not self.profile_btn.text() or self.profile_btn.text() == (

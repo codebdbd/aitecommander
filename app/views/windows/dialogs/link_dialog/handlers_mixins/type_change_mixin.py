@@ -58,12 +58,16 @@ class TypeChangeMixin:
         """Update UI state according to link type."""
         lt = LinkType.from_value(self.dialog.link_type)
         is_web = lt == LinkType.WEB
+        is_program = lt == LinkType.PROGRAM
         profile_btn = self.dialog._get_profile_btn()
         browse_btn = self.dialog._get_browse_btn()
+        apps_btn = self.dialog._get_apps_btn()
         args_le = self.dialog._get_args_le()
         args_label = self.dialog._get_args_label()
 
         profile_btn.setVisible(is_web)
+        if apps_btn is not None:
+            apps_btn.setVisible(is_program)
 
         # "Browse" button is shown only for specific types
         browse_btn.setVisible(
