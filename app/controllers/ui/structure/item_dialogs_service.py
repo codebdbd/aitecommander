@@ -12,44 +12,31 @@ from app.views.windows.dialogs.entity_dialogs import CategoryDialog, SectionDial
 logger = logging.getLogger(__name__)
 
 _ITEM_DIALOGS_CONTEXT = "ItemDialogService"
-_IDS_SECTION_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Section addition error"
+_IDS_SECTION_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP("ItemDialogService", "Section addition error"
 )
-_IDS_SECTION_ADD_FAILED = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Failed to add section."
+_IDS_SECTION_ADD_FAILED = QT_TRANSLATE_NOOP("ItemDialogService", "Failed to add section."
 )
-_IDS_SECTION_ADD_INFO = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Check the entered data and try again."
+_IDS_SECTION_ADD_INFO = QT_TRANSLATE_NOOP("ItemDialogService", "Check the entered data and try again."
 )
-_IDS_CATEGORY_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Category addition error"
+_IDS_CATEGORY_ADD_ERROR_TITLE = QT_TRANSLATE_NOOP("ItemDialogService", "Category addition error"
 )
-_IDS_CATEGORY_ADD_FAILED = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Failed to add category."
+_IDS_CATEGORY_ADD_FAILED = QT_TRANSLATE_NOOP("ItemDialogService", "Failed to add category."
 )
-_IDS_SECTION_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Section edit error"
+_IDS_SECTION_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP("ItemDialogService", "Section edit error"
 )
-_IDS_SECTION_EDIT_FAILED = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Failed to edit section."
+_IDS_SECTION_EDIT_FAILED = QT_TRANSLATE_NOOP("ItemDialogService", "Failed to edit section."
 )
-_IDS_TRY_AGAIN_SUPPORT = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Try again or contact support."
+_IDS_TRY_AGAIN_SUPPORT = QT_TRANSLATE_NOOP("ItemDialogService", "Try again or contact support."
 )
-_IDS_CATEGORY_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Category edit error"
+_IDS_CATEGORY_EDIT_ERROR_TITLE = QT_TRANSLATE_NOOP("ItemDialogService", "Category edit error"
 )
-_IDS_CATEGORY_EDIT_FAILED = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "Failed to edit category."
+_IDS_CATEGORY_EDIT_FAILED = QT_TRANSLATE_NOOP("ItemDialogService", "Failed to edit category."
 )
-_IDS_NO_SECTIONS_MSG = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "No sections in the current sphere. Create a new section?"
+_IDS_NO_SECTIONS_MSG = QT_TRANSLATE_NOOP("ItemDialogService", "No sections in the current sphere. Create a new section?"
 )
-_IDS_NO_SECTIONS_TITLE = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "No sections"
+_IDS_NO_SECTIONS_TITLE = QT_TRANSLATE_NOOP("ItemDialogService", "No sections"
 )
-_IDS_NO_SECTIONS_INFO = QT_TRANSLATE_NOOP(
-    _ITEM_DIALOGS_CONTEXT, "The section creation dialog will be opened."
+_IDS_NO_SECTIONS_INFO = QT_TRANSLATE_NOOP("ItemDialogService", "The section creation dialog will be opened."
 )
 
 

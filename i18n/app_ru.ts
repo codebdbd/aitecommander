@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="ru_RU">
   <context>
     <name>AboutDialog</name>
@@ -436,6 +435,28 @@
         <translation>Не удалось подсчитать элементы: {error}</translation>
     </message>
 </context><context>
+    <name>BackupWorker</name>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="21" />
+        <source>Preparing backup...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="22" />
+        <source>Creating backup...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="23" />
+        <source>Cleaning up old backups...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="25" />
+        <source>Backup completed</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>BadUrlCheckService</name>
     <message>
         <location filename="..\app\controllers\services\bad_url_check_service.py" line="100" />
@@ -753,87 +774,104 @@
 </context><context>
     <name>BottomPanel</name>
     <message>
-        <location filename="..\app\core\strings.py" line="69" />
+        <location filename="..\app\core\strings.py" line="64" />
+        <location filename="..\app\core\strings.py" line="23" />
         <source>Add Section</source>
         <translation>Добавить раздел</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="70" />
+        <location filename="..\app\core\strings.py" line="65" />
+        <location filename="..\app\core\strings.py" line="24" />
         <source>Add Category</source>
         <translation>Добавить категорию</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="71" />
+        <location filename="..\app\core\strings.py" line="66" />
+        <location filename="..\app\core\strings.py" line="25" />
         <source>Add Link</source>
         <translation>Добавить ссылку</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="72" />
+        <location filename="..\app\core\strings.py" line="67" />
+        <location filename="..\app\core\strings.py" line="26" />
         <source>Edit</source>
         <translation>Редактировать</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="73" />
+        <location filename="..\app\core\strings.py" line="68" />
+        <location filename="..\app\core\strings.py" line="27" />
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="74" />
+        <location filename="..\app\core\strings.py" line="69" />
+        <location filename="..\app\core\strings.py" line="28" />
         <source>Sphere</source>
         <translation>Сфера</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="75" />
+        <location filename="..\app\core\strings.py" line="70" />
+        <location filename="..\app\core\strings.py" line="38" />
         <source>Create a new section.</source>
         <translation>Создать новый раздел.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="76" />
+        <location filename="..\app\core\strings.py" line="71" />
+        <location filename="..\app\core\strings.py" line="40" />
         <source>Create a new category in the selected section.</source>
         <translation>Создать новую категорию в выбранном разделе.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="79" />
+        <location filename="..\app\core\strings.py" line="74" />
+        <location filename="..\app\core\strings.py" line="42" />
         <source>Create a new link.</source>
         <translation>Создать новую ссылку.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="80" />
+        <location filename="..\app\core\strings.py" line="75" />
+        <location filename="..\app\core\strings.py" line="43" />
         <source>Edit the selected item.</source>
         <translation>Редактировать выбранный элемент.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="81" />
+        <location filename="..\app\core\strings.py" line="76" />
+        <location filename="..\app\core\strings.py" line="44" />
         <source>Delete the selected item.</source>
         <translation>Удалить выбранный элемент.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="82" />
+        <location filename="..\app\core\strings.py" line="77" />
+        <location filename="..\app\core\strings.py" line="45" />
         <source>Switch to next available sphere</source>
         <translation>Переключить на следующую доступную сферу</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="85" />
+        <location filename="..\app\core\strings.py" line="80" />
+        <location filename="..\app\core\strings.py" line="52" />
         <source>Action button: {label}</source>
         <translation>Кнопка действия: {label}</translation>
     </message>
 </context><context>
     <name>BrowserBookmarksImporter</name>
     <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="19" />
         <source>Import from browser</source>
-        <translation type="vanished">Импорт из браузера</translation>
+        <translation>Импорт из браузера</translation>
     </message>
     <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="20" />
         <source>HTML Files (*.html *.htm)</source>
-        <translation type="vanished">HTML файлы (*.html *.htm)</translation>
+        <translation>HTML файлы (*.html *.htm)</translation>
     </message>
     <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="22" />
         <source>Added links: {count}</source>
-        <translation type="vanished">Добавлено ссылок: {count}</translation>
+        <translation>Добавлено ссылок: {count}</translation>
     </message>
     <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="24" />
         <source>Categories created: {count}</source>
-        <translation type="vanished">Создано категорий: {count}</translation>
+        <translation>Создано категорий: {count}</translation>
     </message>
 </context><context>
     <name>BrowserProfileDialog</name>
@@ -907,6 +945,13 @@
         <translation type="vanished">Профиль {profile} ({browser})</translation>
     </message>
 </context><context>
+    <name>BrowserProfiles</name>
+    <message>
+        <location filename="..\app\utils\browser\browser_profiles\async_profile_manager.py" line="23" />
+        <source>Loading {browser}</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>CategoryDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="617" />
@@ -968,38 +1013,38 @@
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1165" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1172" />
         <source>Choose a Chrome profile:</source>
         <translation>Выберите профиль Chrome:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1167" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1174" />
         <source>Select all</source>
         <translation>Выделить все</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1169" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1176" />
         <source>Deselect all</source>
         <translation>Снять выделение</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1187" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1171" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1194" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1178" />
         <source>Refresh profiles</source>
         <translation>Обновить профили</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1185" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1192" />
         <source>Loading...</source>
         <translation>Загрузка...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
         <source>Chrome profiles not found</source>
         <translation>Профили Chrome не найдены</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1223" />
         <source>(no email)</source>
         <translation>(без email)</translation>
     </message>
@@ -1261,6 +1306,18 @@ Old database restored.</source>
         <translation>Выберите архив иконок для импорта</translation>
     </message>
 </context><context>
+    <name>DatabaseInit</name>
+    <message>
+        <location filename="..\app\models\db.py" line="46" />
+        <source>Applying migrations...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\db.py" line="48" />
+        <source>Initializing default data...</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>DatabaseInitializer</name>
     <message>
         <location filename="..\app\controllers\system\db_init.py" line="50" />
@@ -1293,28 +1350,66 @@ Old database restored.</source>
 </context><context>
     <name>DialogManager</name>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="22" />
         <source>Error</source>
-        <translation type="vanished">Ошибка</translation>
+        <translation>Ошибка</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="23" />
         <source>Warning</source>
-        <translation type="vanished">Предупреждение</translation>
+        <translation>Предупреждение</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="24" />
         <source>Information</source>
-        <translation type="vanished">Информация</translation>
+        <translation>Информация</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="25" />
         <source>Confirmation</source>
-        <translation type="vanished">Подтверждение</translation>
+        <translation>Подтверждение</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="26" />
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="27" />
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="28" />
         <source>Yes</source>
-        <translation type="vanished">Да</translation>
+        <translation>Да</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="29" />
         <source>No</source>
-        <translation type="vanished">Нет</translation>
+        <translation>Нет</translation>
+    </message>
+</context><context>
+    <name>DialogMixin</name>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="32" />
+        <source>Error</source>
+        <translation type="unfinished">Ошибка</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="33" />
+        <source>Warning</source>
+        <translation type="unfinished">Предупреждение</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="34" />
+        <source>Information</source>
+        <translation type="unfinished">Информация</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="35" />
+        <source>Confirmation</source>
+        <translation type="unfinished">Подтверждение</translation>
     </message>
 </context><context>
     <name>DialogProvider</name>
@@ -1512,6 +1607,13 @@ Old database restored.</source>
         <translation>Поиск завершен. Найдено файлов: {count}</translation>
     </message>
 </context><context>
+    <name>FileSearchResultsModel</name>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="46" />
+        <source>Path</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>IconRefreshDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\icon_refresh_dialog.py" line="272" />
@@ -1604,22 +1706,22 @@ Failed: {3}</source>
 </context><context>
     <name>IconRefreshStatus</name>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="393" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="377" />
         <source>Icon refresh: {0}/{1}</source>
         <translation>Обновление иконок: {0}/{1}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="402" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="386" />
         <source>(click to show)</source>
         <translation>(нажмите, чтобы показать)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="459" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="443" />
         <source>Icon refresh completed: {0} updated</source>
         <translation>Обновление иконок завершено: обновлено {0}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="482" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="466" />
         <source>Icon refresh error: {0}</source>
         <translation>Ошибка обновления иконок: {0}</translation>
     </message>
@@ -1766,6 +1868,33 @@ Failed: {3}</source>
         <translation>Попробуйте выбрать раздел снова или обновить список разделов.</translation>
     </message>
 </context><context>
+    <name>ImportExportProgress</name>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="15" />
+        <source>Loading spheres...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="17" />
+        <source>Loading sections...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="19" />
+        <source>Loading categories...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="21" />
+        <source>Loading links...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="23" />
+        <source>Hierarchy assembly completed</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>ItemDeletionService</name>
     <message>
         <source>Delete multiple categories</source>
@@ -1774,56 +1903,117 @@ Failed: {3}</source>
 </context><context>
     <name>ItemDialogService</name>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="15" />
         <source>Section addition error</source>
-        <translation type="vanished">Ошибка добавления раздела</translation>
+        <translation>Ошибка добавления раздела</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="17" />
         <source>Failed to add section.</source>
-        <translation type="vanished">Не удалось добавить раздел.</translation>
+        <translation>Не удалось добавить раздел.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="19" />
         <source>Check the entered data and try again.</source>
-        <translation type="vanished">Проверьте введенные данные и попробуйте снова.</translation>
+        <translation>Проверьте введенные данные и попробуйте снова.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="21" />
         <source>Category addition error</source>
-        <translation type="vanished">Ошибка добавления категории</translation>
+        <translation>Ошибка добавления категории</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="23" />
         <source>Failed to add category.</source>
-        <translation type="vanished">Не удалось добавить категорию.</translation>
+        <translation>Не удалось добавить категорию.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="25" />
         <source>Section edit error</source>
-        <translation type="vanished">Ошибка редактирования раздела</translation>
+        <translation>Ошибка редактирования раздела</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="27" />
         <source>Failed to edit section.</source>
-        <translation type="vanished">Не удалось изменить раздел.</translation>
+        <translation>Не удалось изменить раздел.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="29" />
         <source>Try again or contact support.</source>
-        <translation type="vanished">Повторите попытку или обратитесь в поддержку.</translation>
+        <translation>Повторите попытку или обратитесь в поддержку.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="31" />
         <source>Category edit error</source>
-        <translation type="vanished">Ошибка редактирования категории</translation>
+        <translation>Ошибка редактирования категории</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="33" />
         <source>Failed to edit category.</source>
-        <translation type="vanished">Не удалось изменить категорию.</translation>
+        <translation>Не удалось изменить категорию.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="35" />
         <source>No sections in the current sphere. Create a new section?</source>
-        <translation type="vanished">В текущей сфере нет разделов. Создать новый раздел?</translation>
+        <translation>В текущей сфере нет разделов. Создать новый раздел?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="37" />
         <source>No sections</source>
-        <translation type="vanished">Нет разделов</translation>
+        <translation>Нет разделов</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="39" />
         <source>The section creation dialog will be opened.</source>
-        <translation type="vanished">Будет открыт диалог создания раздела.</translation>
+        <translation>Будет открыт диалог создания раздела.</translation>
+    </message>
+</context><context>
+    <name>ItemOperations</name>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="18" />
+        <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="unfinished">Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
+
+Все вложенные категории и ссылки будут удалены безвозвратно!
+
+Продолжить?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="23" />
+        <source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="unfinished">Категория '{category}' содержит ссылок: {links}.
+
+Все вложенные ссылки будут удалены безвозвратно!
+
+Продолжить?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="28" />
+        <source>Delete section</source>
+        <translation type="unfinished">Удалить раздел</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="30" />
+        <source>Confirm deletion</source>
+        <translation type="unfinished">Подтверждение удаления</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="32" />
+        <source>This action is irreversible. All nested categories and links will be deleted.</source>
+        <translation type="unfinished">Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="35" />
+        <source>This action is irreversible. All links in the category will be deleted.</source>
+        <translation type="unfinished">Действие необратимо. Все ссылки в категории будут удалены.</translation>
     </message>
 </context><context>
     <name>LanguageSelector</name>
@@ -2071,24 +2261,28 @@ Failed: {3}</source>
 </context><context>
     <name>LinkOperations</name>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="21" />
         <source>Deleting {count} links</source>
-        <translation type="vanished">Удаление {count} ссылок</translation>
+        <translation>Удаление {count} ссылок</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="23" />
         <source>Confirm deletion</source>
-        <translation type="vanished">Подтверждение удаления</translation>
+        <translation>Подтверждение удаления</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="25" />
         <source>{count} selected link(s) will be permanently deleted.
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">{count} выбранных ссылок будет удалено безвозвратно.
+        <translation>{count} выбранных ссылок будет удалено безвозвратно.
 
 Продолжить?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="29" />
         <source>This action is irreversible.</source>
-        <translation type="vanished">Это действие необратимо.</translation>
+        <translation>Это действие необратимо.</translation>
     </message>
 </context><context>
     <name>LinkProcessingMixin</name>
@@ -2150,6 +2344,63 @@ Are you sure you want to continue?</source>
         <translation>Заметки</translation>
     </message>
 </context><context>
+    <name>LinksUI</name>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="15" />
+        <source>Warning</source>
+        <translation type="unfinished">Предупреждение</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="16" />
+        <source>Error</source>
+        <translation type="unfinished">Ошибка</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="17" />
+        <source>Check data correctness and try again.</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="19" />
+        <source>Try again or contact support.</source>
+        <translation type="unfinished">Повторите попытку или обратитесь в поддержку.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="22" />
+        <source>No categories available. Create a category first.</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="24" />
+        <source>Select a category to insert the link</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="26" />
+        <source>Error saving note</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="27" />
+        <source>Database error</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="28" />
+        <source>Validation error</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="31" />
+        <source>This link cannot be opened for security reasons.</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="33" />
+        <source>Check the link address or edit it.</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
     <name>MainMenu</name>
     <message>
         <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="257" />
@@ -2179,13 +2430,13 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="435" />
+        <location filename="..\app\views\windows\main_window.py" line="441" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="22" />
         <source>Switch Sphere (F6)</source>
         <translation>Переключить сферу (F6)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="436" />
+        <location filename="..\app\views\windows\main_window.py" line="442" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="23" />
         <source>Switch to next available sphere</source>
         <translation>Переключить на следующую доступную сферу</translation>
@@ -2196,29 +2447,34 @@ Are you sure you want to continue?</source>
         <translation>AiteCommander</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="86" />
-        <source>Button {idx} of {total} visible buttons</source>
-        <translation>Кнопка {idx} из {total} видимых кнопок</translation>
-    </message>
-    <message>
-        <location filename="..\app\core\strings.py" line="87" />
-        <source>Hidden button</source>
-        <translation>Скрытая кнопка</translation>
-    </message>
-    <message>
-        <location filename="..\app\core\strings.py" line="88" />
+        <location filename="..\app\core\strings.py" line="83" />
+        <location filename="..\app\core\strings.py" line="30" />
         <source>Recent Links</source>
         <translation>Недавние ссылки</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="89" />
+        <location filename="..\app\core\strings.py" line="84" />
+        <location filename="..\app\core\strings.py" line="31" />
         <source>Favorites</source>
         <translation>Избранное</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="90" />
+        <location filename="..\app\core\strings.py" line="85" />
+        <location filename="..\app\core\strings.py" line="32" />
         <source>Quick Add</source>
         <translation>Быстрое добавление</translation>
+    </message>
+    <message>
+        <location filename="..\app\core\strings.py" line="81" />
+        <location filename="..\app\core\strings.py" line="54" />
+        <source>Button {idx} of {total} visible buttons</source>
+        <translation>Кнопка {idx} из {total} видимых кнопок</translation>
+    </message>
+    <message>
+        <location filename="..\app\core\strings.py" line="82" />
+        <location filename="..\app\core\strings.py" line="56" />
+        <source>Hidden button</source>
+        <translation>Скрытая кнопка</translation>
     </message>
     <message>
         <source>Aite Commander</source>
@@ -2228,261 +2484,319 @@ Are you sure you want to continue?</source>
     <name>MenuActions</name>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
         <source>Add section</source>
         <translation>Добавить раздел</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
         <source>Add category</source>
         <translation>Добавить категорию</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
         <source>Add link</source>
         <translation>Добавить ссылку</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
         <source>Clear favorites</source>
         <translation>Очистить избранное</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
         <source>Export Database</source>
         <translation>Экспорт базы данных</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
         <source>Restore Database</source>
         <translation>Восстановить базу данных</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
         <source>Import Database</source>
         <translation>Импорт базы данных</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>Import Bookmarks</source>
         <translation>Импорт закладок</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
         <source>Export icons</source>
         <translation>Экспорт иконок</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
         <source>Import icons</source>
         <translation>Импорт иконок</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
         <source>Search files</source>
         <translation>Поиск файлов</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
         <source>About</source>
         <translation>О приложении</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
         <source>Edit section</source>
         <translation>Редактировать раздел</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
         <source>Edit category</source>
         <translation>Редактировать категорию</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
         <source>Paste</source>
         <translation>Вставить</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
         <source>Paste section</source>
         <translation>Вставить раздел</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
         <source>Delete section</source>
         <translation>Удалить раздел</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
         <source>Copy category</source>
         <translation>Копировать категорию</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
         <source>Copy section</source>
         <translation>Копировать раздел</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
         <source>Cut</source>
         <translation>Вырезать</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="117" />
         <source>Delete category</source>
         <translation>Удалить категорию</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="118" />
         <source>Delete selected</source>
         <translation>Удалить выбранное</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="119" />
         <source>Select all</source>
         <translation>Выделить всё</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="133" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="120" />
         <source>Clear selection</source>
         <translation>Очистить выбор</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="122" />
         <source>&amp;Undo</source>
         <translation>&amp;Отменить</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>&amp;Redo</source>
         <translation>&amp;Повторить</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <source>Open</source>
         <translation>Открыть</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
         <source>Edit</source>
         <translation>Редактировать</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
         <source>Copy</source>
         <translation>Копировать</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="134" />
         <source>Edit note</source>
         <translation>Редактировать примечание</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
         <source>Add note</source>
         <translation>Добавить заметку</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="137" />
         <source>Add to favorites</source>
         <translation>Добавить в избранное</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
         <source>Remove from favorites</source>
         <translation>Удалить из избранного</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
         <source>Share</source>
         <translation>Поделиться</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
         <source>Email</source>
         <translation>Почта</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
         <source>Telegram</source>
         <translation>Телеграм</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
         <source>WhatsApp</source>
         <translation>Ватсап</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
         <source>Viber</source>
         <translation>Вайбер</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
         <source>X (Twitter)</source>
         <translation>X (Твиттер)</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
         <source>Facebook</source>
         <translation>Фейсбук</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
         <source>LinkedIn</source>
         <translation>Линкедин</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
         <source>Pinterest</source>
         <translation>Пинтерест</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
         <source>Via Gmail</source>
         <translation>Через Gmail</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
         <source>Via default client (mailto)</source>
         <translation>Через почтовый клиент (mailto)</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
         <source>Copy as email message</source>
         <translation>Скопировать как письмо</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="152" />
         <source>Share category</source>
         <translation>Поделиться категорией</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="153" />
         <source>Share section</source>
         <translation>Поделиться разделом</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
         <source>Import category</source>
         <translation>Импорт категории</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="155" />
         <source>Import section</source>
         <translation>Импорт раздела</translation>
     </message>
@@ -2494,12 +2808,14 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>MessageHandler</name>
     <message>
+        <location filename="..\app\controllers\system\window_setup\wiring.py" line="24" />
         <source>Operation completed successfully.</source>
-        <translation type="vanished">Операция успешно завершена.</translation>
+        <translation>Операция успешно завершена.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\system\window_setup\wiring.py" line="26" />
         <source>Try repeating the action or contact support.</source>
-        <translation type="vanished">Повторите действие или обратитесь в поддержку.</translation>
+        <translation>Повторите действие или обратитесь в поддержку.</translation>
     </message>
 </context><context>
     <name>MoveOperationsHandler</name>
@@ -2682,6 +2998,67 @@ Are you sure you want to continue?</source>
         <translation>Пожалуйста, выберите другое имя или отредактируйте существующий раздел.</translation>
     </message>
 </context><context>
+    <name>SelectionHandling</name>
+    <message>
+        <location filename="..\app\controllers\ui\structure\selection_handling.py" line="29" />
+        <source>Warning</source>
+        <translation type="unfinished">Предупреждение</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\selection_handling.py" line="30" />
+        <source>Check the correctness of actions and try again.</source>
+        <translation type="unfinished" />
+    </message>
+</context><context>
+    <name>SettingsConfig</name>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="19" />
+        <source>About</source>
+        <translation type="unfinished">О приложении</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="20" />
+        <source>Link Manager
+Version 1.0
+© MyCompany</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="37" />
+        <location filename="..\app\config_data\settings_config.py" line="30" />
+        <location filename="..\app\config_data\settings_config.py" line="23" />
+        <source>Web Link</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="39" />
+        <location filename="..\app\config_data\settings_config.py" line="32" />
+        <location filename="..\app\config_data\settings_config.py" line="24" />
+        <source>File</source>
+        <translation type="unfinished">Файл</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="40" />
+        <location filename="..\app\config_data\settings_config.py" line="33" />
+        <location filename="..\app\config_data\settings_config.py" line="25" />
+        <source>Program</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="38" />
+        <location filename="..\app\config_data\settings_config.py" line="31" />
+        <location filename="..\app\config_data\settings_config.py" line="26" />
+        <source>Script</source>
+        <translation type="unfinished">Скрипт</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="41" />
+        <location filename="..\app\config_data\settings_config.py" line="34" />
+        <location filename="..\app\config_data\settings_config.py" line="27" />
+        <source>Folder</source>
+        <translation type="unfinished">Папка</translation>
+    </message>
+</context><context>
     <name>SettingsDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="954" />
@@ -2775,17 +3152,17 @@ Are you sure you want to continue?</source>
         <translation>Импортировать тему...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1025" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1032" />
         <source>Failed to save settings.</source>
         <translation>Не удалось сохранить настройки.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1026" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1033" />
         <source>Settings save error</source>
         <translation>Ошибка сохранения настроек</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1027" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1034" />
         <source>Check the values and try again.</source>
         <translation>Проверьте значения и попробуйте снова.</translation>
     </message>
@@ -2841,7 +3218,7 @@ Are you sure you want to continue?</source>
         <translation>Выбрать иконку</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1311" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1318" />
         <source>Rename Sphere</source>
         <translation>Переименовать сферу</translation>
     </message>
@@ -2891,227 +3268,255 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>StructureDeletion</name>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="20" />
         <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
 
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Будут удалены категории: {categories} и ссылки: {links}.
+        <translation>Будут удалены категории: {categories} и ссылки: {links}.
 
 Все вложенные ссылки будут удалены безвозвратно!
 
 Продолжить?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="25" />
         <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
 
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
+        <translation>Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
 
 Все вложенные категории и ссылки будут удалены безвозвратно!
 
 Продолжить?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="30" />
         <source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
 
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Выбранные разделы содержат категорий: {categories} и ссылок: {links}.
+        <translation>Выбранные разделы содержат категорий: {categories} и ссылок: {links}.
 
 Все вложенные категории и ссылки будут удалены безвозвратно!
 
 Продолжить?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="35" />
         <source>Category '{category}' contains {links} link(s).
 
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Категория '{category}' содержит ссылок: {links}.
+        <translation>Категория '{category}' содержит ссылок: {links}.
 
 Все вложенные ссылки будут удалены безвозвратно!
 
 Продолжить?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="40" />
         <source>Confirm deletion</source>
-        <translation type="vanished">Подтверждение удаления</translation>
+        <translation>Подтверждение удаления</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="41" />
         <source>Delete section</source>
-        <translation type="vanished">Удалить раздел</translation>
+        <translation>Удалить раздел</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="42" />
         <source>This action is irreversible. All nested categories and links will be deleted.</source>
-        <translation type="vanished">Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
+        <translation>Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="45" />
         <source>This action is irreversible. All links in the category will be deleted.</source>
-        <translation type="vanished">Действие необратимо. Все ссылки в категории будут удалены.</translation>
+        <translation>Действие необратимо. Все ссылки в категории будут удалены.</translation>
     </message>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="518" />
+        <location filename="..\app\views\windows\main_window.py" line="524" />
         <source>Sphere not selected.</source>
         <translation>Сфера не выбрана.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="521" />
+        <location filename="..\app\views\windows\main_window.py" line="527" />
         <source>Select a sphere and try again.</source>
         <translation>Выберите сферу и попробуйте снова.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="563" />
-        <location filename="..\app\views\windows\main_window.py" line="535" />
+        <location filename="..\app\views\windows\main_window.py" line="569" />
+        <location filename="..\app\views\windows\main_window.py" line="541" />
         <source>Export error</source>
         <translation>Ошибка экспорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="560" />
+        <location filename="..\app\views\windows\main_window.py" line="566" />
         <source>Failed to export archive: {error}</source>
         <translation>Не удалось экспортировать архив: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="575" />
+        <location filename="..\app\views\windows\main_window.py" line="581" />
         <source>Archive saved to:
 {path}</source>
         <translation>Архив сохранен в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="578" />
+        <location filename="..\app\views\windows\main_window.py" line="584" />
         <source>Export complete</source>
         <translation>Экспорт завершен</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="598" />
+        <location filename="..\app\views\windows\main_window.py" line="604" />
         <source>Choose where to save the archive</source>
         <translation>Выберите место для сохранения архива</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="636" />
-        <location filename="..\app\views\windows\main_window.py" line="601" />
+        <location filename="..\app\views\windows\main_window.py" line="642" />
+        <location filename="..\app\views\windows\main_window.py" line="607" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP архив (*.zip);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="660" />
-        <location filename="..\app\views\windows\main_window.py" line="621" />
+        <location filename="..\app\views\windows\main_window.py" line="666" />
+        <location filename="..\app\views\windows\main_window.py" line="627" />
         <source>Import error</source>
         <translation>Ошибка импорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="633" />
+        <location filename="..\app\views\windows\main_window.py" line="639" />
         <source>Select an archive to import</source>
         <translation>Выберите архив для импорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="657" />
+        <location filename="..\app\views\windows\main_window.py" line="663" />
         <source>Failed to import archive: {error}</source>
         <translation>Не удалось импортировать архив: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="669" />
+        <location filename="..\app\views\windows\main_window.py" line="675" />
         <source>Import completed.</source>
         <translation>Импорт завершен.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="670" />
+        <location filename="..\app\views\windows\main_window.py" line="676" />
         <source>Import complete</source>
         <translation>Импорт завершен</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="753" />
+        <location filename="..\app\views\windows\main_window.py" line="759" />
         <source>Structure service unavailable.</source>
         <translation>Сервис структуры недоступен.</translation>
     </message>
 </context><context>
     <name>SystemDialogController</name>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="14" />
         <source>Browser Import</source>
-        <translation type="vanished">Импорт из браузера</translation>
+        <translation>Импорт из браузера</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="15" />
         <source>Auto-save</source>
-        <translation type="vanished">Автосохранение</translation>
+        <translation>Автосохранение</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="16" />
         <source>Icon Refresh</source>
-        <translation type="vanished">Обновление иконок</translation>
+        <translation>Обновление иконок</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="17" />
         <source>Bad URL Check</source>
-        <translation type="vanished">Проверка недоступных URL</translation>
+        <translation>Проверка недоступных URL</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="19" />
         <source>Error reading HTML file.</source>
-        <translation type="vanished">Ошибка чтения HTML файла.</translation>
+        <translation>Ошибка чтения HTML файла.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="21" />
         <source>Check file integrity and access rights.</source>
-        <translation type="vanished">Проверьте целостность файла и права доступа.</translation>
+        <translation>Проверьте целостность файла и права доступа.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="23" />
         <source>No links found in file.</source>
-        <translation type="vanished">В файле не найдено ссылок.</translation>
+        <translation>В файле не найдено ссылок.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="25" />
         <source>Export bookmarks from browser in HTML format and select correct file.</source>
-        <translation type="vanished">Экспортируйте закладки из браузера в формате HTML и выберите правильный файл.</translation>
+        <translation>Экспортируйте закладки из браузера в формате HTML и выберите правильный файл.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="28" />
         <source>No section selected for import.</source>
-        <translation type="vanished">Не выбран раздел для импорта.</translation>
+        <translation>Не выбран раздел для импорта.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="30" />
         <source>Select section where categories and links will be added.</source>
-        <translation type="vanished">Выберите раздел, куда будут добавлены категории и ссылки.</translation>
+        <translation>Выберите раздел, куда будут добавлены категории и ссылки.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="32" />
         <source>Failed to create auto-save before import.</source>
-        <translation type="vanished">Не удалось создать автосохранение перед импортом.</translation>
+        <translation>Не удалось создать автосохранение перед импортом.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="34" />
         <source>Failed to create auto-save before check.</source>
-        <translation type="vanished">Не удалось создать автосохранение перед проверкой.</translation>
+        <translation>Не удалось создать автосохранение перед проверкой.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="36" />
         <source>Import completed with error</source>
-        <translation type="vanished">Импорт завершен с ошибкой</translation>
+        <translation>Импорт завершен с ошибкой</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="38" />
         <source>Protocol statistics:</source>
-        <translation type="vanished">Статистика протоколов:</translation>
+        <translation>Статистика протоколов:</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="40" />
         <source>HTTPS links: {count}</source>
-        <translation type="vanished">HTTPS ссылки: {count}</translation>
+        <translation>HTTPS ссылки: {count}</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="42" />
         <source>HTTP links: {count}</source>
-        <translation type="vanished">HTTP ссылки: {count}</translation>
+        <translation>HTTP ссылки: {count}</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="44" />
         <source>Would you like to check URLs for HTTPS availability?</source>
-        <translation type="vanished">Хотите проверить доступность HTTPS для URL?</translation>
+        <translation>Хотите проверить доступность HTTPS для URL?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="46" />
         <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
-        <translation type="vanished">Будет проверено, какие HTTP ссылки можно заменить на HTTPS.</translation>
+        <translation>Будет проверено, какие HTTP ссылки можно заменить на HTTPS.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="49" />
         <source>Failed to start icon refresh</source>
-        <translation type="vanished">Не удалось запустить обновление иконок</translation>
+        <translation>Не удалось запустить обновление иконок</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="51" />
         <source>Failed to start bad URL check</source>
-        <translation type="vanished">Не удалось запустить проверку недоступных URL</translation>
+        <translation>Не удалось запустить проверку недоступных URL</translation>
     </message>
     <message>
         <source>Thank you for using our application!</source>
@@ -3120,15 +3525,15 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>ThemeController</name>
     <message>
-        <location filename="..\app\controllers\ui\theme_controller.py" line="170" />
-        <location filename="..\app\controllers\ui\theme_controller.py" line="144" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="174" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="148" />
         <location filename="..\app\controllers\ui\theme_controller.py" line="24" />
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\theme_controller.py" line="178" />
-        <location filename="..\app\controllers\ui\theme_controller.py" line="146" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="182" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="150" />
         <location filename="..\app\controllers\ui\theme_controller.py" line="25" />
         <source>Dark</source>
         <translation>Темная</translation>
@@ -3136,14 +3541,26 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>ThemeSelector</name>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="60" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="68" />
         <source>Change application theme</source>
         <translation>Изменить тему приложения</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="61" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="69" />
         <source>Theme Selector</source>
         <translation>Переключатель темы</translation>
+    </message>
+</context><context>
+    <name>UndoCommands</name>
+    <message>
+        <location filename="..\app\controllers\ui\undo\commands_structure.py" line="30" />
+        <source>Delete canceled</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\undo\commands_structure.py" line="31" />
+        <source>Backup failed. Delete canceled to keep undo available.</source>
+        <translation type="unfinished" />
     </message>
 </context><context>
     <name>ValidationMixin</name>
@@ -3245,7 +3662,7 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>WindowUISetup</name>
     <message>
-        <location filename="..\app\core\strings.py" line="68" />
+        <location filename="..\app\core\strings.py" line="63" />
         <location filename="..\app\core\strings.py" line="15" />
         <source>Search… (Ctrl+F)</source>
         <translation>Поиск… (Ctrl+F)</translation>

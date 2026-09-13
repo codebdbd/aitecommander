@@ -16,30 +16,29 @@ def _tr(text: str) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text)
 
 
-_DEFAULT_ABOUT_TITLE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "About")
-_DEFAULT_ABOUT_TEXT = QT_TRANSLATE_NOOP(
-    _TR_CONTEXT, "Link Manager\nVersion 1.0\n\u00a9 MyCompany"
+_DEFAULT_ABOUT_TITLE = QT_TRANSLATE_NOOP("SettingsConfig", "About")
+_DEFAULT_ABOUT_TEXT = QT_TRANSLATE_NOOP("SettingsConfig", "Link Manager\nVersion 1.0\n\u00a9 MyCompany"
 )
 _DEFAULT_LINK_TYPES = [
-    ["web", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link")],
-    ["file", QT_TRANSLATE_NOOP(_TR_CONTEXT, "File")],
-    ["program", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program")],
-    ["script", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script")],
-    ["folder", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder")],
+    ["web", QT_TRANSLATE_NOOP("SettingsConfig", "Web Link")],
+    ["file", QT_TRANSLATE_NOOP("SettingsConfig", "File")],
+    ["program", QT_TRANSLATE_NOOP("SettingsConfig", "Program")],
+    ["script", QT_TRANSLATE_NOOP("SettingsConfig", "Script")],
+    ["folder", QT_TRANSLATE_NOOP("SettingsConfig", "Folder")],
 ]
 _DEFAULT_QUICK_TYPES = [
-    ["web", "web_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link")],
-    ["script", "script_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script")],
-    ["file", "documents_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "File")],
-    ["program", "program_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program")],
-    ["folder", "folder_icon.png", QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder")],
+    ["web", "web_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Web Link")],
+    ["script", "script_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Script")],
+    ["file", "documents_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "File")],
+    ["program", "program_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Program")],
+    ["folder", "folder_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Folder")],
 ]
 _DEFAULT_QUICK_TYPE_TOOLTIPS = {
-    "web": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Web Link"),
-    "script": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Script"),
-    "file": QT_TRANSLATE_NOOP(_TR_CONTEXT, "File"),
-    "program": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Program"),
-    "folder": QT_TRANSLATE_NOOP(_TR_CONTEXT, "Folder"),
+    "web": QT_TRANSLATE_NOOP("SettingsConfig", "Web Link"),
+    "script": QT_TRANSLATE_NOOP("SettingsConfig", "Script"),
+    "file": QT_TRANSLATE_NOOP("SettingsConfig", "File"),
+    "program": QT_TRANSLATE_NOOP("SettingsConfig", "Program"),
+    "folder": QT_TRANSLATE_NOOP("SettingsConfig", "Folder"),
 }
 
 

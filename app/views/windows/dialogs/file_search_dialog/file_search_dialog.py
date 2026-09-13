@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 _MODEL_TR_CONTEXT = "FileSearchResultsModel"
 _DIALOG_TR_CONTEXT = "FileSearchDialog"
 _HEADER_TRANSLATABLE = [
-    QT_TRANSLATE_NOOP(_MODEL_TR_CONTEXT, "Path"),
+    QT_TRANSLATE_NOOP("FileSearchResultsModel", "Path"),
 ]
 
 

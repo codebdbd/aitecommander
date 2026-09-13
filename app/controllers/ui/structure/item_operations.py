@@ -15,30 +15,24 @@ from app.utils.ui.focus import get_focus_manager
 logger = logging.getLogger(__name__)
 
 _ITEM_OPS_CONTEXT = "ItemOperations"
-_IO_DELETE_SECTION_MSG = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT,
+_IO_DELETE_SECTION_MSG = QT_TRANSLATE_NOOP("ItemOperations",
     "Section '{section}' contains {categories} categor(y/ies) and {links} link(s).\n\n"
     "All nested categories and links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_IO_DELETE_CATEGORY_MSG = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT,
+_IO_DELETE_CATEGORY_MSG = QT_TRANSLATE_NOOP("ItemOperations",
     "Category '{category}' contains {links} link(s).\n\n"
     "All nested links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_IO_TITLE_DELETE_SECTION = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT, "Delete section"
+_IO_TITLE_DELETE_SECTION = QT_TRANSLATE_NOOP("ItemOperations", "Delete section"
 )
-_IO_TITLE_CONFIRM_DELETE = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT, "Confirm deletion"
+_IO_TITLE_CONFIRM_DELETE = QT_TRANSLATE_NOOP("ItemOperations", "Confirm deletion"
 )
-_IO_INFO_DELETE_SECTION = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT,
+_IO_INFO_DELETE_SECTION = QT_TRANSLATE_NOOP("ItemOperations",
     "This action is irreversible. All nested categories and links will be deleted.",
 )
-_IO_INFO_DELETE_CATEGORY = QT_TRANSLATE_NOOP(
-    _ITEM_OPS_CONTEXT,
+_IO_INFO_DELETE_CATEGORY = QT_TRANSLATE_NOOP("ItemOperations",
     "This action is irreversible. All links in the category will be deleted.",
 )
 

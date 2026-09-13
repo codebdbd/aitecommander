@@ -21,11 +21,9 @@ from .types import DatabaseProtocol, SetupError, WindowProtocol
 logger = logging.getLogger(__name__)
 
 _MESSAGE_CONTEXT = "MessageHandler"
-_MSG_SUCCESS_INFO = QT_TRANSLATE_NOOP(
-    _MESSAGE_CONTEXT, "Operation completed successfully."
+_MSG_SUCCESS_INFO = QT_TRANSLATE_NOOP("MessageHandler", "Operation completed successfully."
 )
-_MSG_ERROR_INFO = QT_TRANSLATE_NOOP(
-    _MESSAGE_CONTEXT, "Try repeating the action or contact support."
+_MSG_ERROR_INFO = QT_TRANSLATE_NOOP("MessageHandler", "Try repeating the action or contact support."
 )
 _TOP_PANELS_REFRESH_ON_STRUCTURE = str(
     os.getenv("APP_TOP_PANELS_REFRESH_ON_STRUCTURE", "")

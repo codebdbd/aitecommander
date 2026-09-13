@@ -12,31 +12,25 @@ from .exceptions import DatabaseError
 logger = logging.getLogger(__name__)
 
 _LINKS_CONTEXT = "LinksUI"
-_LINKS_WARNING_TITLE = QT_TRANSLATE_NOOP(_LINKS_CONTEXT, "Warning")
-_LINKS_ERROR_TITLE = QT_TRANSLATE_NOOP(_LINKS_CONTEXT, "Error")
-_LINKS_WARN_INFO = QT_TRANSLATE_NOOP(
-    _LINKS_CONTEXT, "Check data correctness and try again."
+_LINKS_WARNING_TITLE = QT_TRANSLATE_NOOP("LinksUI", "Warning")
+_LINKS_ERROR_TITLE = QT_TRANSLATE_NOOP("LinksUI", "Error")
+_LINKS_WARN_INFO = QT_TRANSLATE_NOOP("LinksUI", "Check data correctness and try again."
 )
-_LINKS_ERROR_INFO = QT_TRANSLATE_NOOP(
-    _LINKS_CONTEXT, "Try again or contact support."
+_LINKS_ERROR_INFO = QT_TRANSLATE_NOOP("LinksUI", "Try again or contact support."
 )
 _LINKS_MESSAGES = {
-    "no_categories": QT_TRANSLATE_NOOP(
-        _LINKS_CONTEXT, "No categories available. Create a category first."
+    "no_categories": QT_TRANSLATE_NOOP("LinksUI", "No categories available. Create a category first."
     ),
-    "select_category": QT_TRANSLATE_NOOP(
-        _LINKS_CONTEXT, "Select a category to insert the link"
+    "select_category": QT_TRANSLATE_NOOP("LinksUI", "Select a category to insert the link"
     ),
-    "error_saving": QT_TRANSLATE_NOOP(_LINKS_CONTEXT, "Error saving note"),
-    "database_error": QT_TRANSLATE_NOOP(_LINKS_CONTEXT, "Database error"),
-    "validation_error": QT_TRANSLATE_NOOP(_LINKS_CONTEXT, "Validation error"),
+    "error_saving": QT_TRANSLATE_NOOP("LinksUI", "Error saving note"),
+    "database_error": QT_TRANSLATE_NOOP("LinksUI", "Database error"),
+    "validation_error": QT_TRANSLATE_NOOP("LinksUI", "Validation error"),
     "warning_title": _LINKS_WARNING_TITLE,
     "error_title": _LINKS_ERROR_TITLE,
-    "unsafe_url_info": QT_TRANSLATE_NOOP(
-        _LINKS_CONTEXT, "This link cannot be opened for security reasons."
+    "unsafe_url_info": QT_TRANSLATE_NOOP("LinksUI", "This link cannot be opened for security reasons."
     ),
-    "unsafe_url_hint": QT_TRANSLATE_NOOP(
-        _LINKS_CONTEXT, "Check the link address or edit it."
+    "unsafe_url_hint": QT_TRANSLATE_NOOP("LinksUI", "Check the link address or edit it."
     ),
 }
 

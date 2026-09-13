@@ -20,45 +20,40 @@ class WindowStrings:
 class MenuStrings:
     """Menu UI strings."""
 
-    ACTION_ADD_SECTION = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Add Section")
-    ACTION_ADD_CATEGORY = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Add Category")
-    ACTION_ADD_LINK = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Add Link")
-    ACTION_EDIT = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Edit")
-    ACTION_DELETE = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Delete")
-    ACTION_SPHERE = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Sphere")
+    ACTION_ADD_SECTION = QT_TRANSLATE_NOOP("BottomPanel", "Add Section")
+    ACTION_ADD_CATEGORY = QT_TRANSLATE_NOOP("BottomPanel", "Add Category")
+    ACTION_ADD_LINK = QT_TRANSLATE_NOOP("BottomPanel", "Add Link")
+    ACTION_EDIT = QT_TRANSLATE_NOOP("BottomPanel", "Edit")
+    ACTION_DELETE = QT_TRANSLATE_NOOP("BottomPanel", "Delete")
+    ACTION_SPHERE = QT_TRANSLATE_NOOP("BottomPanel", "Sphere")
 
-    PANEL_RECENT_LINKS = QT_TRANSLATE_NOOP(_TR_MAIN_WINDOW, "Recent Links")
-    PANEL_FAVORITES = QT_TRANSLATE_NOOP(_TR_MAIN_WINDOW, "Favorites")
-    PANEL_QUICK_ADD = QT_TRANSLATE_NOOP(_TR_MAIN_WINDOW, "Quick Add")
+    PANEL_RECENT_LINKS = QT_TRANSLATE_NOOP("MainWindow", "Recent Links")
+    PANEL_FAVORITES = QT_TRANSLATE_NOOP("MainWindow", "Favorites")
+    PANEL_QUICK_ADD = QT_TRANSLATE_NOOP("MainWindow", "Quick Add")
 
 
 class DialogStrings:
     """Dialog UI strings."""
 
-    TOOLTIP_ADD_SECTION = QT_TRANSLATE_NOOP(
-        _TR_BOTTOM_PANEL, "Create a new section."
+    TOOLTIP_ADD_SECTION = QT_TRANSLATE_NOOP("BottomPanel", "Create a new section."
     )
-    TOOLTIP_ADD_CATEGORY = QT_TRANSLATE_NOOP(
-        _TR_BOTTOM_PANEL, "Create a new category in the selected section."
+    TOOLTIP_ADD_CATEGORY = QT_TRANSLATE_NOOP("BottomPanel", "Create a new category in the selected section."
     )
-    TOOLTIP_ADD_LINK = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Create a new link.")
-    TOOLTIP_EDIT = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Edit the selected item.")
-    TOOLTIP_DELETE = QT_TRANSLATE_NOOP(_TR_BOTTOM_PANEL, "Delete the selected item.")
-    TOOLTIP_SWITCH_SPHERE = QT_TRANSLATE_NOOP(
-        _TR_BOTTOM_PANEL, "Switch to next available sphere"
+    TOOLTIP_ADD_LINK = QT_TRANSLATE_NOOP("BottomPanel", "Create a new link.")
+    TOOLTIP_EDIT = QT_TRANSLATE_NOOP("BottomPanel", "Edit the selected item.")
+    TOOLTIP_DELETE = QT_TRANSLATE_NOOP("BottomPanel", "Delete the selected item.")
+    TOOLTIP_SWITCH_SPHERE = QT_TRANSLATE_NOOP("BottomPanel", "Switch to next available sphere"
     )
 
 
 class StatusStrings:
     """Status UI strings."""
 
-    ACCESSIBLE_ACTION_TEMPLATE = QT_TRANSLATE_NOOP(
-        _TR_BOTTOM_PANEL, "Action button: {label}"
+    ACCESSIBLE_ACTION_TEMPLATE = QT_TRANSLATE_NOOP("BottomPanel", "Action button: {label}"
     )
-    BUTTON_VISIBLE_TEMPLATE = QT_TRANSLATE_NOOP(
-        _TR_MAIN_WINDOW, "Button {idx} of {total} visible buttons"
+    BUTTON_VISIBLE_TEMPLATE = QT_TRANSLATE_NOOP("MainWindow", "Button {idx} of {total} visible buttons"
     )
-    BUTTON_HIDDEN = QT_TRANSLATE_NOOP(_TR_MAIN_WINDOW, "Hidden button")
+    BUTTON_HIDDEN = QT_TRANSLATE_NOOP("MainWindow", "Hidden button")
 
 
 # NOTE: This block is never executed. It exists to help pylupdate6 extract strings.

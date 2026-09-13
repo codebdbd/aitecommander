@@ -18,12 +18,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 _BACKUP_CONTEXT = "BackupWorker"
-_PREPARING_BACKUP = QT_TRANSLATE_NOOP(_BACKUP_CONTEXT, "Preparing backup...")
-_CREATING_BACKUP = QT_TRANSLATE_NOOP(_BACKUP_CONTEXT, "Creating backup...")
-_CLEANUP_BACKUPS = QT_TRANSLATE_NOOP(
-    _BACKUP_CONTEXT, "Cleaning up old backups..."
+_PREPARING_BACKUP = QT_TRANSLATE_NOOP("BackupWorker", "Preparing backup...")
+_CREATING_BACKUP = QT_TRANSLATE_NOOP("BackupWorker", "Creating backup...")
+_CLEANUP_BACKUPS = QT_TRANSLATE_NOOP("BackupWorker", "Cleaning up old backups..."
 )
-_BACKUP_COMPLETED = QT_TRANSLATE_NOOP(_BACKUP_CONTEXT, "Backup completed")
+_BACKUP_COMPLETED = QT_TRANSLATE_NOOP("BackupWorker", "Backup completed")
 
 
 def _tr_backup(text: str) -> str:
