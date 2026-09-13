@@ -348,6 +348,13 @@ def _cleanup_resources(
         except Exception:
             pass
 
+    if app is not None and isinstance(app, QApplication):
+        try:
+            app.closeAllWindows()
+            app.processEvents()
+        except Exception:
+            pass
+
     log_shutdown()
     _disable_fault_handler()
 
