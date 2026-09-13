@@ -288,6 +288,13 @@ class CategoryTiles(QWidget):
             bool(categories and sort_enabled),
         )
 
+    def update_category(self, category_data: dict) -> bool:
+        """Update a category in-place if present in the model."""
+        model = getattr(self, "_model", None)
+        if model is not None and hasattr(model, "update_category"):
+            return bool(model.update_category(category_data))
+        return False
+
     @staticmethod
     def _is_sorted_by_name(categories: list[dict]) -> bool:
         """Return True if categories are already sorted by name (casefold)."""

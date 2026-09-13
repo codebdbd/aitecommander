@@ -56,7 +56,7 @@ class TestSettingsDialogThemeCombo(unittest.TestCase):
             return_value=[
                 ("dark", "Dark theme"),
                 ("light", "Light theme"),
-                ("dreamy_room", "Dreamy room"),
+                ("matrix", "Matrix"),
             ],
         ):
             dialog = SettingsDialog(settings, theme_ctrl, parent=parent)
@@ -79,14 +79,14 @@ class TestSettingsDialogThemeCombo(unittest.TestCase):
             return_value=[
                 ("dark", "Dark theme"),
                 ("light", "Light theme"),
-                ("dreamy_room", "Dreamy room"),
+                ("matrix", "Matrix"),
             ],
         ):
             dialog = SettingsDialog(settings, theme_ctrl, parent=parent)
 
         try:
-            dreamy_index = dialog.theme_combo.findData("dreamy_room")
-            dialog.theme_combo.setCurrentIndex(dreamy_index)
+            matrix_index = dialog.theme_combo.findData("matrix")
+            dialog.theme_combo.setCurrentIndex(matrix_index)
 
             with patch.object(
                 SettingsDialog,
@@ -94,13 +94,47 @@ class TestSettingsDialogThemeCombo(unittest.TestCase):
                 return_value=[
                     ("dark", "Темная тема"),
                     ("light", "Светлая тема"),
-                    ("dreamy_room", "Комната мечты"),
+                    ("matrix", "Матрица"),
                 ],
             ):
                 dialog._refresh_theme_list(keep_selection=True)
 
-            self.assertEqual("dreamy_room", dialog.theme_combo.currentData())
-            self.assertEqual("Комната мечты", dialog.theme_combo.currentText())
+            self.assertEqual("matrix", dialog.theme_combo.currentData())
+            self.assertEqual("Матрица", dialog.theme_combo.currentText())
+        finally:
+            dialog.close()
+            parent.close()
+
+    def test_theme_sync_when_settings_change(self) -> None:
+        settings = _DummySettings("light")
+        theme_ctrl = _DummyThemeController()
+        parent = QWidget()
+
+        with patch.object(
+            SettingsDialog,
+            "_get_available_themes",
+            return_value=[
+                ("dark", "Dark theme"),
+                ("light", "Light theme"),
+                ("matrix", "Matrix"),
+            ],
+        ):
+            dialog = SettingsDialog(settings, theme_ctrl, parent=parent)
+
+        try:
+            self.assertEqual("light", dialog.theme_combo.currentData())
+
+            # Change theme in settings (as would happen via MainWindow / ThemeSelector)
+            settings.set_theme("dark")
+
+            # Verify update_theme_selection updates combo
+            dialog.update_theme_selection()
+            self.assertEqual("dark", dialog.theme_combo.currentData())
+
+            # Verify showEvent also synchronizes selection
+            settings.set_theme("matrix")
+            dialog.show()
+            self.assertEqual("matrix", dialog.theme_combo.currentData())
         finally:
             dialog.close()
             parent.close()

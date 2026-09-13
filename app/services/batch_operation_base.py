@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import nullcontext
 import uuid
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, TypeVar
@@ -129,22 +130,32 @@ class BaseBatchOperation:
 
         start = time.perf_counter()
         results: list[R] = []
-        for idx, chunk in enumerate(chunks, start=1):
+        db_obj = getattr(self, "db", None)
+        tx_ctx = nullcontext()
+        if db_obj is not None and hasattr(db_obj, "transaction") and callable(getattr(db_obj, "transaction")):
             try:
-                results.append(process_chunk(chunk))
-            except BulkOperationValidationError:
-                raise
-            except Exception as exc:
-                self._logger.exception(
-                    "[Batch] op=%s id=%s chunk=%s/%s failed",
-                    context.operation,
-                    context.operation_id,
-                    idx,
-                    context.chunks,
-                )
-                raise BulkOperationRepositoryError(
-                    error_message or f"{operation} failed"
-                ) from exc
+                cand = db_obj.transaction()
+                if hasattr(cand, "__enter__") and hasattr(cand, "__exit__"):
+                    tx_ctx = cand
+            except Exception:
+                tx_ctx = nullcontext()
+        with tx_ctx:
+            for idx, chunk in enumerate(chunks, start=1):
+                try:
+                    results.append(process_chunk(chunk))
+                except BulkOperationValidationError:
+                    raise
+                except Exception as exc:
+                    self._logger.exception(
+                        "[Batch] op=%s id=%s chunk=%s/%s failed",
+                        context.operation,
+                        context.operation_id,
+                        idx,
+                        context.chunks,
+                    )
+                    raise BulkOperationRepositoryError(
+                        error_message or f"{operation} failed"
+                    ) from exc
         duration_ms = self._duration_ms(start)
         self._logger.info(
             "[Batch] op=%s id=%s items=%s chunks=%s skipped=%s ms=%.2f",

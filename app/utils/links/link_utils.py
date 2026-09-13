@@ -189,6 +189,19 @@ class SecurityValidator:
         return bool(cls.PATH_PATTERN.match(path))
 
     @classmethod
+    def sanitize_cmd_arg(cls, arg: str) -> str:
+        """Sanitizes argument for safe execution in Windows cmd.exe /c start.
+
+        Prevents shell command injection, argument breakout, and newline injection
+        by stripping newlines, escaping quotes, and escaping shell metacharacters (&, |, <, >, ^, %).
+        """
+        if not arg:
+            return ""
+        clean = arg.replace("\r", "").replace("\n", "")
+        clean = clean.replace('"', '\\"')
+        return re.sub(r'([&|<>\^%])', r'^\1', clean)
+
+    @classmethod
     def validate_chrome_args(cls, args: str) -> list[str]:
         """Validates Chrome arguments"""
         if not args:
@@ -711,8 +724,9 @@ class ScriptLinkHandler(LinkHandler):
         )
 
     def _create_batch_command(self, path: str, args: list[str]) -> list[str]:
-        """Creates batch file command"""
-        return ["cmd.exe", "/c", "start", '""', path] + args
+        """Creates batch file command with sanitized arguments to prevent shell injection"""
+        sanitized_args = [SecurityValidator.sanitize_cmd_arg(arg) for arg in args]
+        return ["cmd.exe", "/c", "start", '""', path] + sanitized_args
 
 
 class ProgramLinkHandler(LinkHandler):

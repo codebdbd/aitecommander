@@ -49,6 +49,81 @@ class TestCategoriesListModelSyncPrefetch(unittest.TestCase):
         self.assertFalse(model._items[1]["_icon_pending"])
         self.assertTrue(model._items[2]["_icon_pending"])
 
+    def test_set_categories_detects_icon_path_change(self) -> None:
+        model = CategoriesListModel()
+        model.set_categories([{"id": 1, "name": "A", "icon_path": "old.png"}])
+        self.assertEqual(model._items[0]["icon_path"], "old.png")
+
+        # Calling with different icon_path should not be skipped by signature check
+        model.set_categories([{"id": 1, "name": "A", "icon_path": "new.png"}])
+        self.assertEqual(model._items[0]["icon_path"], "new.png")
+
+    def test_set_categories_skips_when_signature_identical(self) -> None:
+        model = CategoriesListModel()
+        model.set_categories([{"id": 1, "name": "A", "icon_path": "same.png"}])
+        items_before = model._items
+
+        # Calling with identical (id, name, icon_path) should take fast-path
+        model.set_categories([{"id": 1, "name": "A", "icon_path": "same.png"}])
+        self.assertIs(model._items, items_before)
+
+    def test_update_category_in_place_and_emits_datachanged(self) -> None:
+        model = CategoriesListModel([
+            {"id": 1, "name": "A", "icon_path": "a.png"},
+            {"id": 2, "name": "B", "icon_path": "b.png"},
+        ])
+
+        changed_indices: list[tuple[int, int]] = []
+        model.dataChanged.connect(
+            lambda top, bottom, roles: changed_indices.append((top.row(), bottom.row()))
+        )
+
+        with (
+            patch(
+                "app.views.models.categories_list_model.icon_loading_service.get_path_icon",
+                return_value=QIcon(),
+            ),
+        ):
+            res = model.update_category({
+                "id": 2,
+                "name": "B Renamed",
+                "icon_path": "b_updated.png",
+            })
+
+        self.assertTrue(res)
+        self.assertEqual(model._items[1]["name"], "B Renamed")
+        self.assertEqual(model._items[1]["icon_path"], "b_updated.png")
+        self.assertEqual(changed_indices, [(1, 1)])
+
+    def test_update_category_returns_false_for_missing_or_invalid_id(self) -> None:
+        model = CategoriesListModel([{"id": 1, "name": "A", "icon_path": "a.png"}])
+        self.assertFalse(model.update_category({"id": 999, "name": "NonExistent"}))
+        self.assertFalse(model.update_category({"name": "NoId"}))
+        self.assertFalse(model.update_category({"id": "invalid", "name": "BadId"}))
+
+    def test_update_category_no_change_returns_false(self) -> None:
+        model = CategoriesListModel([{"id": 1, "name": "A", "icon_path": "a.png"}])
+        # Ensure _icon is populated so it doesn't trigger "is None" check
+        model._items[0]["_icon"] = QIcon()
+        res = model.update_category({"id": 1, "name": "A", "icon_path": "a.png"})
+        self.assertFalse(res)
+
+    def test_category_tiles_widget_update_category(self) -> None:
+        from app.views.widgets.tiles.widget import CategoryTiles
+
+        tiles = CategoryTiles()
+        tiles.set_categories([{"id": 1, "name": "Cat 1", "icon_path": "old.png"}])
+
+        with patch(
+            "app.views.models.categories_list_model.icon_loading_service.get_path_icon",
+            return_value=QIcon(),
+        ):
+            res = tiles.update_category({"id": 1, "name": "Cat 1 Updated", "icon_path": "new.png"})
+
+        self.assertTrue(res)
+        self.assertEqual(tiles._model._items[0]["name"], "Cat 1 Updated")
+        self.assertEqual(tiles._model._items[0]["icon_path"], "new.png")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,6 @@ from pathlib import Path
 THEME_FILES = [
     "common.qss",
     "dark.qss",
-    "dreamy_room.qss",
     "light.qss",
     "matrix.qss",
     "violet_pulse.qss",

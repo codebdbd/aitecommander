@@ -485,7 +485,13 @@ class ApplicationInitializer:
         self._register_if_cleanable(self.main_window, "main_window")
 
         if self.main_window:
-            self._shutdown_controller = AppShutdownController(self.main_window)
+            existing_shutdown = getattr(self.main_window, "app_shutdown", None)
+            if existing_shutdown is not None and isinstance(existing_shutdown, AppShutdownController):
+                self._shutdown_controller = existing_shutdown
+            else:
+                self._shutdown_controller = AppShutdownController(self.main_window)
+                self.main_window.app_shutdown = self._shutdown_controller
+
             self._shutdown_controller.add_shutdown_handler(
                 "application_initializer_cleanup",
                 self._cleanup_via_shutdown_controller,

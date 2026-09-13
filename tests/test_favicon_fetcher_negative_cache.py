@@ -740,6 +740,7 @@ class TestHttpClientFatalDns(unittest.TestCase):
                 return None
 
         config = _DummyConfig()
+        config.HTTP_ALLOW_INSECURE_SSL_FALLBACK = True
 
         with patch(
             "app.utils.links.parser.http_client.requests.Session",
@@ -753,6 +754,47 @@ class TestHttpClientFatalDns(unittest.TestCase):
             )
 
         self.assertIsNotNone(resp)
+
+    def test_ssl_error_does_not_retry_by_default(self) -> None:
+        import requests
+
+        class _Resp:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+        class _Session:
+            def __init__(self):
+                self.calls = []
+
+            def request(self, method, url, **kwargs):
+                self.calls.append(kwargs)
+                if kwargs.get("verify", True) is False:
+                    return _Resp()
+                raise requests.exceptions.SSLError("certificate verify failed")
+
+            def close(self):
+                return None
+
+            def mount(self, *args, **kwargs):
+                return None
+
+        config = _DummyConfig()
+        # Default: HTTP_ALLOW_INSECURE_SSL_FALLBACK is False
+
+        with patch(
+            "app.utils.links.parser.http_client.requests.Session",
+            side_effect=lambda: _Session(),
+        ):
+            resp = http_request(
+                "https://example.com/ssl",
+                config,
+                retries=0,
+                prefer_cloudscraper_primary=False,
+            )
+
+        self.assertIsNone(resp)
 
 
 class TestDomainNormalization(unittest.TestCase):

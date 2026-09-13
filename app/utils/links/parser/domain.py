@@ -3,16 +3,33 @@
 from __future__ import annotations
 
 import random
+import re
 from typing import Any
 
 from .constants import DEFAULT_JITTER_PCT
 
 
+def sanitize_domain_for_filename(domain: str) -> str:
+    """Convert domain or host string into a filesystem-safe filename token.
+    
+    Replaces Windows-forbidden and URL characters (:, *, ?, ", <, >, |, \\, /, .)
+    with underscores.
+    """
+    d = (domain or "").strip().lower()
+    return re.sub(r'[:*?"<>|\\/.]', '_', d)
+
+
 def base_domain(host: str) -> str:
-    """Return registrable base domain (eTLD+1) for a host.
+    """Return registrable base domain (eTLD+1) for a host or URL.
     Uses tldextract if available; otherwise falls back to smart domain extraction.
     """
     h = (host or "").strip().lower()
+    if "://" in h:
+        h = h.split("://", 1)[1]
+    if "/" in h:
+        h = h.split("/", 1)[0]
+    if ":" in h:
+        h = h.split(":", 1)[0]
     if h.startswith("www."):
         h = h[4:]
     try:
@@ -31,6 +48,10 @@ def base_domain(host: str) -> str:
     # Smart fallback for common second-level TLDs
     parts = [p for p in h.split(".") if p]
     if len(parts) < 2:
+        return h
+    
+    # IPv4 address check (e.g. 192.168.1.1)
+    if all(p.isdigit() for p in parts):
         return h
     
     # Common second-level TLDs (e.g., .com.ua, .co.uk, .gov.au)
@@ -67,4 +88,4 @@ def apply_jitter(ttl: int, config: Any) -> int:
     return max(1, int(ttl + random.uniform(-delta, delta)))
 
 
-__all__ = ["base_domain", "cfg_ttl", "apply_jitter"]
+__all__ = ["base_domain", "cfg_ttl", "apply_jitter", "sanitize_domain_for_filename"]

@@ -538,6 +538,11 @@
         <translation>URL kopieren</translation>
     </message>
     <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="687" />
+        <source>Double-click to open or copy</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="802" />
         <source>All links are accessible!</source>
         <translation>Alle Links sind erreichbar!</translation>
@@ -862,38 +867,38 @@
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1144" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1165" />
         <source>Choose a Chrome profile:</source>
         <translation>Chrome-Profil auswählen:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1146" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1167" />
         <source>Select all</source>
         <translation>Alles auswählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1148" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1169" />
         <source>Deselect all</source>
         <translation>Alle abwählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1166" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1150" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1187" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1171" />
         <source>Refresh profiles</source>
         <translation>Profile aktualisieren</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1164" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1185" />
         <source>Loading...</source>
         <translation>Wird geladen...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1188" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
         <source>Chrome profiles not found</source>
         <translation>Keine Chrome-Profile gefunden</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1195" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
         <source>(no email)</source>
         <translation>(keine E-Mail)</translation>
     </message>
@@ -1237,137 +1242,137 @@ Alte Datenbank wiederhergestellt.</translation>
 </context><context>
     <name>FileSearchDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="348" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="166" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="412" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="181" />
         <source>Search files:</source>
         <translation>Dateien suchen:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="359" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="175" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="435" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="190" />
         <source>Search</source>
         <translation>Suchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="361" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="177" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="437" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="192" />
         <source>Stop</source>
         <translation>Stopp</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="346" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="185" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="410" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="200" />
         <source>Search in:</source>
         <translation>Suchen in:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="191" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="206" />
         <source>Browse</source>
         <translation>Durchsuchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="350" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="198" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="414" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="213" />
         <source>Extension:</source>
         <translation>Erweiterung:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="357" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="261" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="433" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="276" />
         <source>Quickly apply an extension mask</source>
         <translation>Dateierweiterungsmaske schnell anwenden</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="352" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="271" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="286" />
         <source>With text:</source>
         <translation>Mit Text:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="374" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="308" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="450" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="372" />
         <source>Ready to search</source>
         <translation>Bereit zum Suchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="363" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="313" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="439" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="377" />
         <source>Add as link</source>
         <translation>Als Link hinzufügen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="365" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="317" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="441" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="381" />
         <source>Open in file explorer</source>
         <translation>Im Datei-Explorer öffnen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="321" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="385" />
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="453" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
         <source>File not found: {path}</source>
         <translation>Datei nicht gefunden: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="520" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="596" />
         <source>Failed to open file in explorer: {error}</source>
         <translation>Datei konnte im Explorer nicht geöffnet werden: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="524" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="600" />
         <source>Opening the file explorer timed out: {error}</source>
         <translation>Zeitüberschreitung beim Öffnen des Datei-Explorers: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="605" />
         <source>Unexpected error: {error}</source>
         <translation>Unerwarteter Fehler: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="542" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="618" />
         <source>Select folder for search</source>
         <translation>Ordner für die Suche auswählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="551" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="627" />
         <source>Specify a folder to search.</source>
         <translation>Geben Sie einen Ordner für die Suche an.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="557" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="633" />
         <source>The folder does not exist: {path}</source>
         <translation>Der Ordner existiert nicht: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="563" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="639" />
         <source>The specified path is not a folder: {path}</source>
         <translation>Der angegebene Pfad ist kein Ordner: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="576" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="652" />
         <source>Invalid regular expression for name: {error}</source>
         <translation>Ungültiger regulärer Ausdruck für Namen: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="600" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="688" />
         <source>Searching…</source>
         <translation>Suche läuft…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="666" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="794" />
         <source>Searching… Files: {files}, Directories: {dirs}</source>
         <translation>Suche… Dateien: {files}, Ordner: {dirs}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="674" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="826" />
         <source>Search error</source>
         <translation>Suchfehler</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="694" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="846" />
         <source>Search finished. Files found: {count}</source>
         <translation>Suche abgeschlossen. Gefundene Dateien: {count}</translation>
     </message>
@@ -1486,17 +1491,17 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>IconRefreshWorker</name>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="392" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="443" />
         <source>Processed {0}/{1} (updated: {2})</source>
         <translation>Verarbeitet {0}/{1} (aktualisiert: {2})</translation>
     </message>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="611" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="666" />
         <source>Found {0} links to refresh</source>
         <translation>Gefunden: {0} Links zum Aktualisieren</translation>
     </message>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="668" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="723" />
         <source>Error: {0}</source>
         <translation>Fehler: {0}</translation>
     </message>
@@ -1911,13 +1916,13 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="429" />
+        <location filename="..\app\views\windows\main_window.py" line="435" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="22" />
         <source>Switch Sphere (F6)</source>
         <translation>Sphäre wechseln (F6)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="430" />
+        <location filename="..\app\views\windows\main_window.py" line="436" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="23" />
         <source>Switch to next available sphere</source>
         <translation>Zur nächsten verfügbaren Sphäre wechseln</translation>
@@ -2508,6 +2513,66 @@ Fehlgeschlagen: {3}</translation>
         <translation>Überprüfen Sie die Werte und versuchen Sie es erneut.</translation>
     </message>
 </context><context>
+    <name>SpheresBarController</name>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="240" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="203" />
+        <source>AI</source>
+        <translation>KI</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="241" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="204" />
+        <source>Work</source>
+        <translation>Arbeit</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="242" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="205" />
+        <source>Study</source>
+        <translation>Studium</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="243" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="206" />
+        <source>Personal</source>
+        <translation>Persönlich</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="274" />
+        <source>Rename Sphere...</source>
+        <translation>Bereich umbenennen...</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="281" />
+        <source>Reset to Default Name</source>
+        <translation>Standardnamen wiederherstellen</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="295" />
+        <source>Change Icon...</source>
+        <translation>Symbol ändern...</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="302" />
+        <source>Reset to Default Icon</source>
+        <translation>Standardsymbol wiederherstellen</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="385" />
+        <source>Select Icon</source>
+        <translation>Symbol auswählen</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1311" />
+        <source>Rename Sphere</source>
+        <translation>Bereich umbenennen</translation>
+    </message>
+    <message>
+        <source>Enter sphere name:</source>
+        <translation type="vanished">Bereichsnamen eingeben:</translation>
+    </message>
+</context><context>
     <name>StatusBar</name>
     <message>
         <location filename="..\app\views\widgets\status_bar.py" line="40" />
@@ -2549,77 +2614,77 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="512" />
+        <location filename="..\app\views\windows\main_window.py" line="518" />
         <source>Sphere not selected.</source>
         <translation>Sphare nicht ausgewahlt.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="515" />
+        <location filename="..\app\views\windows\main_window.py" line="521" />
         <source>Select a sphere and try again.</source>
         <translation>Wahlen Sie eine Sphare und versuchen Sie es erneut.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="557" />
-        <location filename="..\app\views\windows\main_window.py" line="529" />
+        <location filename="..\app\views\windows\main_window.py" line="563" />
+        <location filename="..\app\views\windows\main_window.py" line="535" />
         <source>Export error</source>
         <translation>Exportfehler</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="554" />
+        <location filename="..\app\views\windows\main_window.py" line="560" />
         <source>Failed to export archive: {error}</source>
         <translation>Export des Archivs fehlgeschlagen: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="569" />
+        <location filename="..\app\views\windows\main_window.py" line="575" />
         <source>Archive saved to:
 {path}</source>
         <translation>Archiv gespeichert unter:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="572" />
+        <location filename="..\app\views\windows\main_window.py" line="578" />
         <source>Export complete</source>
         <translation>Export abgeschlossen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="592" />
+        <location filename="..\app\views\windows\main_window.py" line="598" />
         <source>Choose where to save the archive</source>
         <translation>Ort zum Speichern des Archivs wahlen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="630" />
-        <location filename="..\app\views\windows\main_window.py" line="595" />
+        <location filename="..\app\views\windows\main_window.py" line="636" />
+        <location filename="..\app\views\windows\main_window.py" line="601" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP-Archiv (*.zip);;Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="654" />
-        <location filename="..\app\views\windows\main_window.py" line="615" />
+        <location filename="..\app\views\windows\main_window.py" line="660" />
+        <location filename="..\app\views\windows\main_window.py" line="621" />
         <source>Import error</source>
         <translation>Importfehler</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="627" />
+        <location filename="..\app\views\windows\main_window.py" line="633" />
         <source>Select an archive to import</source>
         <translation>Archiv zum Import auswahlen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="651" />
+        <location filename="..\app\views\windows\main_window.py" line="657" />
         <source>Failed to import archive: {error}</source>
         <translation>Import des Archivs fehlgeschlagen: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="663" />
+        <location filename="..\app\views\windows\main_window.py" line="669" />
         <source>Import completed.</source>
         <translation>Import abgeschlossen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="664" />
+        <location filename="..\app\views\windows\main_window.py" line="670" />
         <source>Import complete</source>
         <translation>Import abgeschlossen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="747" />
+        <location filename="..\app\views\windows\main_window.py" line="753" />
         <source>Structure service unavailable.</source>
         <translation>Strukturdienst nicht verfugbar.</translation>
     </message>
@@ -2642,12 +2707,12 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>ThemeSelector</name>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="62" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="60" />
         <source>Change application theme</source>
         <translation>Anwendungsthema ändern</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="63" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="61" />
         <source>Theme Selector</source>
         <translation>Themenauswahl</translation>
     </message>

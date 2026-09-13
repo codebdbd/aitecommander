@@ -20,8 +20,15 @@ except ImportError:  # pragma: no cover - optional at runtime
     QDir = None
     QDirIterator = None
 
-# First-party imports
+import re
+
 from app.config_data import app_config
+
+
+def _sanitize_domain_for_filename(domain: str) -> str:
+    """Sanitize domain string for filesystem safety on Windows/Linux."""
+    d = (domain or "").strip().lower()
+    return re.sub(r'[:*?"<>|\\/.]', '_', d)
 
 from .cache_manager import get_path, set_path
 from .metrics_recorder import IconMetricsRecorder
@@ -32,14 +39,9 @@ from .validation import (
     validate_theme,
 )
 
-# Import QRC resources if available (for packaged apps)
-try:
-    import app.resources.icons_rc  # noqa: F401
-    _QRC_AVAILABLE = True
-except ImportError:
-    _QRC_AVAILABLE = False
-
-USE_QRC_ICONS = True
+# QRC icons disabled: all 17 themes load uniformly from ui_icons on disk with RAM caching.
+_QRC_AVAILABLE = False
+USE_QRC_ICONS = False
 
 logger = logging.getLogger(__name__)
 
@@ -189,12 +191,8 @@ class IconPathService:
             return None
 
     def _use_qrc_for_theme(self, theme: str) -> bool:
-        if not _QRC_AVAILABLE or not USE_QRC_ICONS:
-            return False
-        if theme not in ("light", "dark", "dreamy_room", "matrix", "violet_pulse"):
-            return False
-        info = self._get_theme_definition(theme)
-        return bool(info and info.source == "bundled")
+        """QRC icon bundling is decommissioned in favor of uniform disk+RAM caching for all 17 themes."""
+        return False
 
     def _get_icons_dir_for_theme(self, theme: str) -> Path:
         info = self._get_theme_definition(theme)
@@ -224,7 +222,8 @@ class IconPathService:
 
     def get_web_icon_path(self, domain: str) -> Path:
         """Path to user website icon (favicon cache)."""
-        filename = f"web_{domain.replace('.', '_')}.png"
+        safe_domain = _sanitize_domain_for_filename(domain)
+        filename = f"web_{safe_domain}.png"
         return self.get_user_icon_path(filename)
 
     def get_favicon_cache_path(self) -> Path:

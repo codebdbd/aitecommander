@@ -24,7 +24,7 @@ from app.core.log_manager import LogManager
 from app.core.paths.path_manager import PathManager
 from app.core.settings_manager import SettingsManager
 from app.core.worker_manager import WorkerManager
-from app.resources import app_resources_rc, icons_rc
+from app.resources import app_resources_rc
 from app.startup.app_factory import create_application
 from app.startup.argument_parser import determine_log_level, parse_arguments
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
@@ -40,13 +40,11 @@ from i18n.language_service import LanguageService
 
 def qInitResources() -> None:
     app_resources_rc.qInitResources()
-    icons_rc.qInitResources()
     i18n_resources_rc.qInitResources()
 
 
 def qCleanupResources() -> None:
     app_resources_rc.qCleanupResources()
-    icons_rc.qCleanupResources()
     i18n_resources_rc.qCleanupResources()
 
 
@@ -145,6 +143,7 @@ class StartupOptions:
     log_system_details: bool = True
     auto_quit: bool = False
     quit_after_ms: int = 0
+    exit_on_finish: bool = True
 
 
 def _setup_logging_and_args(options: StartupOptions) -> StartupOptions:
@@ -598,16 +597,9 @@ def run(options: StartupOptions | None = None) -> int:
     signal_manager: SignalManager | None = None
     about_to_quit_cleanup_registered = False
     single_instance_guard: SingleInstanceGuard | None = None
+    resolved_exit: int | ExitCode = ExitCode.SUCCESS
 
     try:
-        if options.mode == StartupMode.GUI:
-            single_instance_guard = SingleInstanceGuard(
-                _single_instance_server_name(),
-                lambda: _activate_owned_main_window(initializer_ref),
-            )
-            if not single_instance_guard.acquire():
-                return ExitCode.SUCCESS
-
         # Initialize resources
         global _resources_initialized
         if not _resources_initialized:
@@ -616,9 +608,19 @@ def run(options: StartupOptions | None = None) -> int:
 
         app = _create_qt_application(options.mode)
         if app is None:
-            return ExitCode.INITIALIZATION_FAILURE
+            resolved_exit = ExitCode.INITIALIZATION_FAILURE
+            return resolved_exit
         if options.mode == StartupMode.GUI:
             _install_qt_message_filter()
+
+        if options.mode == StartupMode.GUI:
+            single_instance_guard = SingleInstanceGuard(
+                _single_instance_server_name(),
+                lambda: _activate_owned_main_window(initializer_ref),
+            )
+            if not single_instance_guard.acquire():
+                resolved_exit = ExitCode.SUCCESS
+                return resolved_exit
 
         initializer = ApplicationInitializer(mode=options.mode)
         initializer_ref[0] = initializer
@@ -633,13 +635,15 @@ def run(options: StartupOptions | None = None) -> int:
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
             app.quit()
-            return ExitCode.INITIALIZATION_FAILURE
+            resolved_exit = ExitCode.INITIALIZATION_FAILURE
+            return resolved_exit
 
         _initialize_database_and_profiles(initializer)
         _schedule_auto_quit(app, options)
 
         exit_code = app.exec()
-        return _handle_exit_code(exit_code)
+        resolved_exit = _handle_exit_code(exit_code)
+        return resolved_exit
 
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application interrupted by user")
@@ -668,6 +672,28 @@ def run(options: StartupOptions | None = None) -> int:
         if _resources_initialized:
             qCleanupResources()
             _resources_initialized = False
+
+        target_code = resolved_exit
+        if (
+            options.exit_on_finish
+            and options.mode == StartupMode.GUI
+            and not getattr(sys, "_running_tests", False)
+            and "PYTEST_CURRENT_TEST" not in os.environ
+        ):
+            try:
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except Exception:
+                pass
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+
+                    ctypes.windll.kernel32.ExitProcess(int(target_code))
+                except Exception:
+                    os._exit(int(target_code))
+            else:
+                os._exit(int(target_code))
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]

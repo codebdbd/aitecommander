@@ -63,4 +63,18 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    code = main()
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
+        pass
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.ExitProcess(int(code))
+        except Exception:
+            os._exit(code)
+    else:
+        os._exit(code)

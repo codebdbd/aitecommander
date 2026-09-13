@@ -83,11 +83,11 @@ class TestComboHelpers(unittest.TestCase):
         combo = QComboBox()
         icon = QIcon(QPixmap(16, 16))
 
-        add_combo_item(combo, "Dreamy", "dreamy_room", icon=icon)
+        add_combo_item(combo, "Matrix", "matrix", icon=icon)
 
         self.assertEqual(1, combo.count())
-        self.assertEqual("Dreamy", combo.itemText(0))
-        self.assertEqual("dreamy_room", combo.itemData(0))
+        self.assertEqual("Matrix", combo.itemText(0))
+        self.assertEqual("matrix", combo.itemData(0))
         self.assertFalse(combo.itemIcon(0).isNull())
 
     def test_add_combo_mapping_item_uses_mapping_keys_and_icon_loader(self) -> None:

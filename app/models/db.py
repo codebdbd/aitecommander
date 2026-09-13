@@ -109,6 +109,12 @@ class Database(QObject):
         self.sections = SectionModel(self)
         self.categories = CategoryModel(self)
         self.links = LinkModel(self)
+        # Ensure all models share the exact same transaction state as DatabaseBase
+        shared_tx = self._base._transaction_state
+        self.spheres._transaction_state = shared_tx
+        self.sections._transaction_state = shared_tx
+        self.categories._transaction_state = shared_tx
+        self.links._transaction_state = shared_tx
         self.backup_manager = BackupManager(self)
         self.import_export_manager = ImportExportManager(self)
         self.duplicate_resolver = DuplicateResolver(self)

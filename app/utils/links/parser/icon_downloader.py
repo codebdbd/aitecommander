@@ -48,6 +48,7 @@ except Exception:
     Image.MAX_IMAGE_PIXELS = 2_000_000
 
 from .constants import BS_PARSER, MIN_GOOD_SIZE, TARGET_SIZE, logger
+from .domain import sanitize_domain_for_filename
 from .favicon_cache import _file_lock
 from .http_client import http_request
 from .icon_candidates import find_favicon_candidates
@@ -221,7 +222,7 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
 
 # === Metadata and paths ===
 def get_icon_meta_path(domain: str) -> str:
-    d = (domain or "").replace(".", "_")
+    d = sanitize_domain_for_filename(domain)
     return str(icon_path_service.get_user_icons_dir() / f"web_{d}.meta.json")
 
 
@@ -409,7 +410,7 @@ class IconDownloader:
     ) -> tuple[str | None, bool]:
         path = str(
             icon_path_service.get_user_icons_dir()
-            / f"web_{domain.replace('.', '_')}.png"
+            / f"web_{sanitize_domain_for_filename(domain)}.png"
         )
         width, height = img.size
         lock = _get_icon_lock(domain)
@@ -506,7 +507,7 @@ class IconDownloader:
         if force_refresh:
             return None
         logger.info("[conditional] 304 Not Modified for %s", icon_url)
-        icon_filename = f"web_{domain.replace('.', '_')}.png"
+        icon_filename = f"web_{sanitize_domain_for_filename(domain)}.png"
         path = str(icon_path_service.get_user_icons_dir() / icon_filename)
         if Path(path).exists():
             meta2 = read_icon_meta(domain)
@@ -650,7 +651,7 @@ class IconDownloader:
             if force_refresh:
                 return True, None
             logger.info("[conditional] 304 Not Modified for %s", icon_url)
-            icon_filename = f"web_{domain.replace('.', '_')}.png"
+            icon_filename = f"web_{sanitize_domain_for_filename(domain)}.png"
             path = str(icon_path_service.get_user_icons_dir() / icon_filename)
             if Path(path).exists():
                 meta2 = read_icon_meta(domain)

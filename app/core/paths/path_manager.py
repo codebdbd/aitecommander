@@ -143,6 +143,15 @@ class PathManager:
         return cls._resolve_user_subdir(_USER_LOGS_SUBDIR, org_name, app_name)
 
     @classmethod
+    def get_logs_dir(
+        cls,
+        org_name: str | None = None,
+        app_name: str | None = None,
+    ) -> Path:
+        """Return logs directory (alias for logs_dir)."""
+        return cls.logs_dir(org_name, app_name)
+
+    @classmethod
     def backups_dir(
         cls,
         org_name: str | None = None,

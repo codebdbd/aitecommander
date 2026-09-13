@@ -22,7 +22,7 @@ from app.utils.ui.icon.path_service import icon_path_service
 
 from .cache import read_cache, write_cache
 from .constants import BS_PARSER, CACHE_TTL, SHORT_NEGATIVE_TTL, logger
-from .domain import apply_jitter, base_domain
+from .domain import apply_jitter, base_domain, sanitize_domain_for_filename
 from .http_client import http_request
 from .icon_downloader import pick_icon_parallel, save_icon
 from .title_parser import get_provider_title_fast, get_title, get_title_for_blocked_status
@@ -84,8 +84,9 @@ def _get_existing_icon_path(host: str) -> str | None:
     """Get path to existing domain icon if it exists."""
     if not host:
         return None
+    safe_host = sanitize_domain_for_filename(host)
     cand = str(
-        icon_path_service.get_user_icons_dir() / f"web_{host.replace('.', '_')}.png"
+        icon_path_service.get_user_icons_dir() / f"web_{safe_host}.png"
     )
     return cand if Path(cand).exists() else None
 
@@ -106,7 +107,8 @@ def _is_mismatched_downloaded_icon_path(
     name = icon_path.name.lower()
     if not name.startswith("web_"):
         return False
-    expected = f"web_{icon_host.replace('.', '_')}.png"
+    safe_host = sanitize_domain_for_filename(icon_host)
+    expected = f"web_{safe_host}.png"
     return name != expected.lower()
 
 

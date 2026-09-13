@@ -16,6 +16,7 @@ USER_AGENT = (
 TIMEOUT = 8.0  # Increased timeout for slow sites (was 3.0)
 HTTP_RETRIES = 3  # Number of retry attempts for temporary errors
 HTTP_RETRY_BACKOFF = 0.5  # Exponential backoff factor (0.5s, 1s, 2s)
+HTTP_ALLOW_INSECURE_SSL_FALLBACK = False  # Secure SSL verification by default
 CACHE_TTL = 7 * 24 * 3600
 SHORT_NEGATIVE_TTL = 3600  # 1 hour for negative cache (timeouts, 5xx)
 MEDIUM_NEGATIVE_TTL = 4 * 3600  # 4 hours for 4xx
@@ -45,6 +46,7 @@ __all__ = [
     "TIMEOUT",
     "HTTP_RETRIES",
     "HTTP_RETRY_BACKOFF",
+    "HTTP_ALLOW_INSECURE_SSL_FALLBACK",
     "CACHE_TTL",
     "SHORT_NEGATIVE_TTL",
     "MEDIUM_NEGATIVE_TTL",
