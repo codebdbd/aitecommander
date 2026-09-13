@@ -56,6 +56,7 @@ class StructureBusinessLogic(QObject):
 
     error_occurred = pyqtSignal(str, str, name="errorOccurred")
     spheres_loaded = pyqtSignal(list, name="spheresLoaded")
+    sphere_updated = pyqtSignal(int, dict, name="sphereUpdated")
     _STRUCTURE_PRELOAD_IDLE_DELAY_MS = 750
     _STRUCTURE_PRELOAD_STARTUP_DELAY_MS = 2500
     _STRUCTURE_PRELOAD_MIN_INTERVAL_MS = 2000
@@ -655,6 +656,7 @@ class StructureBusinessLogic(QObject):
     def _handle_structure_mutation(self, *args, **kwargs) -> None:
         preserved_section_id: int | None = None
         preserved_categories: list[dict[str, Any]] | None = None
+        preserved_spheres: list[dict[str, Any]] | None = None
         try:
             item_type = str(args[0]) if args else ""
         except Exception:
@@ -683,6 +685,18 @@ class StructureBusinessLogic(QObject):
                             ]
                 except Exception:
                     preserved_categories = None
+        elif item_type == "sphere" and len(args) >= 3 and isinstance(args[2], dict):
+            try:
+                sphere_id = int(args[1])
+                sphere_patch = dict(args[2])
+                if self._cached_spheres:
+                    preserved_spheres = [dict(s) for s in self._cached_spheres]
+                    for sp in preserved_spheres:
+                        if sp.get("id") == sphere_id:
+                            sp.update(sphere_patch)
+                            break
+            except Exception:
+                preserved_spheres = None
 
         self._structure_mutation_generation += 1
         self._structure_cache_ready = False
@@ -690,6 +704,8 @@ class StructureBusinessLogic(QObject):
         self._cached_spheres.clear()
         self._cached_sections.clear()
         self._cached_categories.clear()
+        if preserved_spheres is not None:
+            self._cached_spheres.extend(preserved_spheres)
         try:
             self.cache_manager.invalidate()
         except Exception:
@@ -1243,6 +1259,12 @@ class StructureBusinessLogic(QObject):
                     if sp.get("id") == sphere_id:
                         sp["icon_path"] = icon_path
                         break
+                try:
+                    from app.utils.ui.icon.loading_service import icon_loading_service
+                    icon_loading_service.clear()
+                except Exception:
+                    pass
+                self.sphere_updated.emit(int(sphere_id), {"icon_path": icon_path})
             return bool(success)
         except Exception as e:
             self.logger.error(
@@ -1267,6 +1289,7 @@ class StructureBusinessLogic(QObject):
                     if sp.get("id") == sphere_id:
                         sp["name"] = clean_name
                         break
+                self.sphere_updated.emit(int(sphere_id), {"name": clean_name})
             return bool(success)
         except Exception as e:
             self.logger.error(

@@ -11,9 +11,6 @@ class SearchSignals(QObject):
     
     # Progress signal: (files_processed, directories_processed)
     progress_update = pyqtSignal(int, int)
-
-    # Skipped files signal: (skipped_big, skipped_binary, skipped_permission)
-    skipped_updated = pyqtSignal(int, int, int)
     
     search_finished = pyqtSignal()
     error_occurred = pyqtSignal(str)

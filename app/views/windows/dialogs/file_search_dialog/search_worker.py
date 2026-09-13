@@ -5,7 +5,6 @@ from pathlib import Path
 
 from PyQt6.QtCore import QCoreApplication, QRunnable
 
-from .common import is_probably_binary
 from .common import matches_criteria as _matches_common
 from .search_signals import SearchSignals
 
@@ -28,9 +27,6 @@ class FileSearchWorker(QRunnable):
         self._results_batch = []  # Accumulator for batch sending
         self._files_processed = 0
         self._dirs_processed = 0
-        self._s_big = 0
-        self._s_bin = 0
-        self._s_perm = 0
         self._last_progress_time = 0.0
 
     def stop(self):
@@ -130,15 +126,12 @@ class FileSearchWorker(QRunnable):
         current_time = time.time()
         if force or (current_time - self._last_progress_time) >= _PROGRESS_UPDATE_INTERVAL:
             self.signals.progress_update.emit(self._files_processed, self._dirs_processed)
-            self.signals.skipped_updated.emit(self._s_big, self._s_bin, self._s_perm)
             self._last_progress_time = current_time
     
     def _process_files(
         self, root, files, name_regex, allowed_exts, max_file_size_bytes
     ):
         """Process files in directory."""
-        has_content_filter = bool(self.config.get("content"))
-
         for filename in files:
             if self._stop_requested:
                 break
@@ -152,21 +145,15 @@ class FileSearchWorker(QRunnable):
             if max_file_size_bytes is not None:
                 try:
                     if filepath.stat().st_size > max_file_size_bytes:
-                        self._s_big += 1
                         continue
                 except OSError:
-                    self._s_perm += 1
                     continue
-
-            if has_content_filter and is_probably_binary(str(filepath)):
-                self._s_bin += 1
-                continue
 
             try:
                 if _matches_common(self.config, str(filepath), filename, name_regex):
                     self._add_result(filepath)
             except OSError:
-                self._s_perm += 1
+                pass
             
             # Update progress periodically
             if self._files_processed % 100 == 0:

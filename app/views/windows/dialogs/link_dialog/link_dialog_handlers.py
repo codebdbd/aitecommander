@@ -93,9 +93,22 @@ class LinkDialogHandlers(
             self._update_categories
         )
 
+        # Real-time structure updates (e.g. sphere icon changed)
+        dc = getattr(self.dialog, "dialog_controller", None)
+        sb = getattr(dc, "structure_business", None) if dc else None
+        if sb and hasattr(sb, "sphere_updated"):
+            try:
+                sb.sphere_updated.connect(self._on_sphere_updated)
+            except Exception:
+                pass
+
         # Dialog buttons
         self.dialog._get_button_box().accepted.connect(self._on_accept)
         self.dialog._get_button_box().rejected.connect(self.dialog.reject)
+
+    def _on_sphere_updated(self, sphere_id: int, data: dict) -> None:
+        if "icon_path" in data and hasattr(self.dialog, "update_sphere_icon_in_combo"):
+            self.dialog.update_sphere_icon_in_combo(sphere_id, str(data["icon_path"]))
 
     def _on_accept(self) -> None:
         """Confirm handler orchestrating validation and save logic."""

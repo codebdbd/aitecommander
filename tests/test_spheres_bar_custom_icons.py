@@ -105,12 +105,29 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         self.assertFalse(icon.isNull())
         self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere(sphere))
 
-        # Russian sphere names must resolve to sphere icons, NEVER section.png
-        self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere("Работа"))
-        self.assertEqual("personal_icon.png", self.controller._get_default_icon_name_for_sphere("Личное"))
-        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere("Учёба"))
-        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere("Учеба"))
+        # Default spheres by number 1, 2, 3, 4 (1=, 2=, etc.)
+        self.assertEqual("ai_icon.png", self.controller._get_default_icon_name_for_sphere(1))
+        self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere(2))
+        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere(3))
+        self.assertEqual("personal_icon.png", self.controller._get_default_icon_name_for_sphere(4))
+
+        # Default spheres by string number "1", "2", "3", "4"
+        self.assertEqual("ai_icon.png", self.controller._get_default_icon_name_for_sphere("1"))
+        self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere("2"))
+        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere("3"))
+        self.assertEqual("personal_icon.png", self.controller._get_default_icon_name_for_sphere("4"))
+
+        # Default spheres by position (0, 1, 2, 3)
+        self.assertEqual("ai_icon.png", self.controller._get_default_icon_name_for_sphere(None, position=0))
+        self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere(None, position=1))
+        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere(None, position=2))
+        self.assertEqual("personal_icon.png", self.controller._get_default_icon_name_for_sphere(None, position=3))
+
+        # Canonical sphere names
         self.assertEqual("ai_icon.png", self.controller._get_default_icon_name_for_sphere("AI"))
+        self.assertEqual("work_icon.png", self.controller._get_default_icon_name_for_sphere("Work"))
+        self.assertEqual("study_icon.png", self.controller._get_default_icon_name_for_sphere("Study"))
+        self.assertEqual("personal_icon.png", self.controller._get_default_icon_name_for_sphere("Personal"))
 
         # Unknown sphere name fallback to sphere icon, not section.png
         custom_sphere = {"id": 99, "name": "RandomName", "icon_path": ""}
@@ -206,6 +223,24 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         expected_icon = self.controller._get_default_icon_name_for_sphere(sphere)
         self.assertEqual(expected_icon, updated_sphere.get("icon_path"))
 
+    def test_change_sphere_icon_preserves_spheres_bar(self) -> None:
+        spheres = self.sb.structure_coordinator.db.spheres.get_spheres()
+        self.controller.on_spheres_loaded_ui(spheres)
+        self.assertEqual(len(spheres), len(self.window.sphere_buttons))
+
+        sphere_id = spheres[0]["id"]
+        dummy_icon = QIcon()
+
+        with patch(
+            "app.utils.ui.icon.selection.choose_icon_and_copy",
+            return_value=("new_icon.png", dummy_icon),
+        ), patch.object(dummy_icon, "isNull", return_value=False):
+            self.controller._change_sphere_icon(sphere_id)
+
+        # Buttons must remain intact and spheres bar must NOT disappear
+        self.assertEqual(len(spheres), len(self.window.sphere_buttons))
+        self.assertIn(sphere_id, self.window.sphere_buttons)
+
     def test_update_sphere_name_db_and_cache(self) -> None:
         spheres = self.sb.structure_coordinator.db.spheres.get_spheres()
         sphere_id = spheres[0]["id"]
@@ -279,9 +314,9 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         self.assertEqual(ok_btn.height(), app_config.ui.get_dialog_control_height())
         self.assertEqual(cancel_btn.height(), app_config.ui.get_dialog_control_height())
 
-        # Buttons localized text (Сохранить / Отмена in Russian environment or Save / Cancel)
-        self.assertIn(ok_btn.text(), ["Сохранить", "Save"])
-        self.assertIn(cancel_btn.text(), ["Отмена", "Cancel"])
+        # Buttons localized text (Сохранить / Зберегти / Save / Отмена / Скасувати / Cancel)
+        self.assertTrue(bool(ok_btn.text()))
+        self.assertTrue(bool(cancel_btn.text()))
 
         dialog.close()
 

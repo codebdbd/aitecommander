@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from PyQt6.QtCore import (
     QCoreApplication,
@@ -53,6 +54,7 @@ from app.utils.ui.qt.combo_helpers import (
     select_combo_data,
 )
 from app.views.widgets.language_selector import LanguageSelector
+from app.views.widgets.input_frame import InputFrame
 from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon_with_fallback
 
 from .base_dialog import BaseDialog
@@ -61,8 +63,8 @@ logger = logging.getLogger(__name__)
 
 
 def _combo_icon_loader(entity_type: str):
-    def _load(icon_path: str):
-        return get_cached_icon_with_fallback(icon_path, entity_type)
+    def _load(icon_path: str, entity_data: Any = None):
+        return get_cached_icon_with_fallback(icon_path, entity_type, entity_data=entity_data)
 
     return _load
 
@@ -671,7 +673,8 @@ class NoteDialog(BaseDialog):
             self.notes_te.setTabChangesFocus(True)
         except Exception:
             pass
-        vbox.addWidget(self.notes_te)
+        self.notes_frame = InputFrame(self.notes_te)
+        vbox.addWidget(self.notes_frame)
 
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel

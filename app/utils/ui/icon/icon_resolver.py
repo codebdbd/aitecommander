@@ -1,5 +1,8 @@
+import re
 from pathlib import Path
 from typing import Optional
+
+from PyQt6.QtCore import QCoreApplication
 
 from .path_service import icon_path_service
 from .validation import is_valid_icon_file
@@ -16,8 +19,10 @@ def _resolve_filesystem(icon_name: str) -> str:
     # 1) Absolute path
     try:
         p = Path(normalized)
-        if p.is_absolute() and p.exists() and is_valid_icon_file(str(p)):
-            return str(p)
+        if p.is_absolute():
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+            normalized = p.name
     except Exception:
         pass
 
@@ -170,3 +175,107 @@ def resolve_link_type_icon_path(icon_path: Optional[str], link_type: str) -> str
             if rel:
                 return rel
     return _type_default_path(((link_type or "file").strip() or "file").lower())
+
+
+DEFAULT_SPHERE_ICONS_BY_NUMBER: dict[int, str] = {
+    1: "ai_icon.png",
+    2: "work_icon.png",
+    3: "study_icon.png",
+    4: "personal_icon.png",
+}
+
+DEFAULT_SPHERE_NAMES_BY_NUMBER: dict[int, str] = {
+    1: "AI",
+    2: "Work",
+    3: "Study",
+    4: "Personal",
+}
+
+
+def get_default_sphere_icon_name(
+    sphere: dict | str | int | None = None, position: int | None = None
+) -> str:
+    """Return default icon filename for a sphere mapped by number (1=, 2=, 3=, 4=...)."""
+    num: int | None = None
+
+    # 1. Direct position argument (in DB/UI, position is 0-indexed: 0 -> sphere 1, 1 -> sphere 2, ...)
+    if position is not None and isinstance(position, int):
+        num = position + 1 if position >= 0 else None
+
+    # 2. Integer sphere argument
+    if num is None and isinstance(sphere, int):
+        num = sphere if sphere > 0 else 1
+
+    # 3. String or dict sphere argument
+    name = ""
+    if isinstance(sphere, str):
+        name = sphere.strip()
+    elif isinstance(sphere, dict):
+        name = str(sphere.get("name") or "").strip()
+        if num is None:
+            if sphere.get("position") is not None and isinstance(sphere["position"], int):
+                num = int(sphere["position"]) + 1
+            elif sphere.get("id") is not None and isinstance(sphere["id"], int):
+                num = int(sphere["id"])
+            elif sphere.get("number") is not None and isinstance(sphere["number"], int):
+                num = int(sphere["number"])
+
+    # 4. Check name if available
+    if name:
+        name_clean = name.lower()
+        # Direct digit check (e.g. "1", "1=", "2", "3", "4", "Sphere 1")
+        match = re.search(r"\b([1-9]\d*)\b", name)
+        if match:
+            num = int(match.group(1))
+        else:
+            canonical_keys = {"ai": 1, "work": 2, "study": 3, "personal": 4}
+            if name_clean in canonical_keys:
+                num = canonical_keys[name_clean]
+            else:
+                # Dynamically resolve using Qt translation engine (no hardcoded language dicts)
+                for n, eng_name in DEFAULT_SPHERE_NAMES_BY_NUMBER.items():
+                    try:
+                        translated = (
+                            QCoreApplication.translate("SpheresBarController", eng_name)
+                            .strip()
+                            .lower()
+                        )
+                        if translated and (name_clean == translated or translated in name_clean):
+                            num = n
+                            break
+                    except Exception:
+                        pass
+
+    if num is not None and num > 0:
+        if num in DEFAULT_SPHERE_ICONS_BY_NUMBER:
+            return DEFAULT_SPHERE_ICONS_BY_NUMBER[num]
+        cycled = ((num - 1) % len(DEFAULT_SPHERE_ICONS_BY_NUMBER)) + 1
+        return DEFAULT_SPHERE_ICONS_BY_NUMBER[cycled]
+
+    return DEFAULT_SPHERE_ICONS_BY_NUMBER[1]
+
+
+def resolve_sphere_icon_path(
+    icon_path: Optional[str],
+    sphere: dict | str | None = None,
+    position: int | None = None,
+) -> str:
+    """Resolve sphere icon path with fallback to default sphere icon."""
+    if icon_path:
+        p = Path(icon_path)
+        if p.is_absolute():
+            if p.exists() and is_valid_icon_file(str(p)):
+                return str(p)
+            rel = _resolve_filesystem(p.name)
+            if rel:
+                return rel
+        else:
+            rel = _resolve_filesystem(icon_path)
+            if rel:
+                return rel
+    default_name = get_default_sphere_icon_name(sphere, position)
+    if default_name:
+        resolved = _resolve_filesystem(default_name)
+        if resolved:
+            return resolved
+    return _type_default_path("sphere")

@@ -135,6 +135,8 @@ class ThemeStylesheetService:
         combined_qss = (
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
         )
+        combined_qss = self._adapt_qss_for_input_frames(combined_qss)
+        combined_qss = self._resolve_icon_urls(combined_qss)
 
         # FIX: Use cached overrides
         try:
@@ -205,6 +207,8 @@ class ThemeStylesheetService:
         combined_qss = (
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
         )
+        combined_qss = self._adapt_qss_for_input_frames(combined_qss)
+        combined_qss = self._resolve_icon_urls(combined_qss)
 
         try:
             overrides = self._get_cached_overrides()
@@ -230,6 +234,37 @@ class ThemeStylesheetService:
         return combined_qss
 
     # ---------------------- Internal methods ----------------------
+    @staticmethod
+    def _adapt_qss_for_input_frames(qss: str) -> str:
+        """Ensure `QFrame[input_frame="true"]` automatically inherits input styles
+        (borders, background, focus) across all themes without altering theme files.
+        """
+        # Normal state
+        qss = qss.replace(
+            "QDialog QTextEdit,",
+            'QDialog QTextEdit, QDialog QFrame[input_frame="true"],',
+        )
+        qss = qss.replace(
+            "QTextEdit,",
+            'QTextEdit, QFrame[input_frame="true"],',
+        )
+        # Focus state
+        qss = qss.replace(
+            "QDialog QTextEdit:focus,",
+            'QDialog QTextEdit:focus, QDialog QFrame[input_frame="true"][focused="true"], QDialog QFrame[input_frame="true"]:focus,',
+        )
+        qss = qss.replace(
+            "QTextEdit:focus,",
+            'QTextEdit:focus, QFrame[input_frame="true"][focused="true"], QFrame[input_frame="true"]:focus,',
+        )
+        return qss
+
+    @staticmethod
+    def _resolve_icon_urls(qss: str) -> str:
+        """Resolve Qt resource icon paths (':/icons/') to absolute disk paths."""
+        ui_icons_dir = PathManager.ui_icons_dir().as_posix()
+        return qss.replace(":/icons/", f"{ui_icons_dir}/")
+
     def _get_from_cache(self, theme_name: str) -> str | None:
         with self._cache_lock:
             if theme_name in self._qss_cache:

@@ -1,10 +1,13 @@
 import fnmatch
 import os
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
-# Maximum file size for content search (10 MB)
-_MAX_CONTENT_SEARCH_SIZE = 10 * 1024 * 1024
+from .text_extractors import extract_text_by_format
+
+# Maximum file size for content search (20 MB)
+_MAX_CONTENT_SEARCH_SIZE = 20 * 1024 * 1024
 # Buffer size for reading files (1 MB chunks)
 _READ_BUFFER_SIZE = 1024 * 1024
 
@@ -22,6 +25,48 @@ _BINARY_EXT = {
     "pak",
     "dat",
 }
+
+# Obvious non-document media/archive/executable formats to skip in content search
+_SKIP_CONTENT_EXT = {
+    "exe",
+    "dll",
+    "so",
+    "dylib",
+    "bin",
+    "img",
+    "iso",
+    "class",
+    "pyc",
+    "mp3",
+    "wav",
+    "flac",
+    "ogg",
+    "aac",
+    "mp4",
+    "avi",
+    "mkv",
+    "mov",
+    "webm",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "ico",
+    "webp",
+    "tiff",
+    "bmp",
+    "psd",
+    "ai",
+    "raw",
+    "nef",
+    "dng",
+    "zip",
+    "rar",
+    "7z",
+    "tar",
+    "gz",
+}
+
 _SAMPLE_BYTES = 4096
 _NULL_THRESHOLD = 2
 
@@ -55,26 +100,35 @@ def detect_and_read_text(filepath: str, encoding_override: str | None = None) ->
         except (OSError, LookupError):
             pass
 
-    raw_bytes: bytes | None = None
+    try:
+        with open(filepath, "rb") as f:
+            raw_bytes = f.read(_MAX_CONTENT_SEARCH_SIZE)
+    except OSError:
+        return ""
+
+    if not raw_bytes:
+        return ""
+
+    # Check BOM indicators
+    if raw_bytes.startswith(b"\xff\xfe"):
+        return raw_bytes.decode("utf-16-le", errors="replace")
+    if raw_bytes.startswith(b"\xfe\xff"):
+        return raw_bytes.decode("utf-16-be", errors="replace")
+    if raw_bytes.startswith(b"\xef\xbb\xbf"):
+        return raw_bytes.decode("utf-8-sig", errors="replace")
+
+    # Charset detection via charset-normalizer if available
     try:
         from charset_normalizer import from_bytes
 
-        with open(filepath, "rb") as f:
-            raw_bytes = f.read()
         res = from_bytes(raw_bytes).best()
         if res is not None:
             return str(res)
-    except (ImportError, OSError):
+    except (ImportError, Exception):
         pass
 
-    if raw_bytes is None:
-        try:
-            with open(filepath, "rb") as f:
-                raw_bytes = f.read()
-        except OSError:
-            return ""
-
-    for enc in ("utf-8", "cp1251", "cp866", "koi8-r", "latin-1"):
+    # Standard fallback encodings
+    for enc in ("utf-8", "cp1251", "cp866", "utf-16-le", "koi8-r", "latin-1"):
         try:
             return raw_bytes.decode(enc)
         except UnicodeDecodeError:
@@ -86,11 +140,11 @@ def check_file_content(
     config: Mapping[str, Any],
     filepath: str,
 ) -> bool:
-    """Check file contents against configuration rules.
+    """Check file contents against configuration rules with automatic format detection.
 
     Returns ``True`` if the file matches the requested content conditions.
-    Files larger than 10MB are skipped to prevent GUI freezing.
-    Files are read in chunks or decoded safely.
+    Supports Office (.docx, .xlsx, .pptx, .odt, .ods, .odp, .doc, .xls, .ppt),
+    Ebooks (.fb2), PDF, RTF, and plain text files with automatic encoding detection.
     """
     try:
         file_stat = os.stat(filepath)
@@ -102,50 +156,59 @@ def check_file_content(
             return False
 
         search_text = search_text.lower()
+        suffix = Path(filepath).suffix.lower().lstrip(".")
 
-        # If file is binary and not a known text format, skip
+        # Skip known non-document media and archives (e.g. mp4, jpg, exe)
+        if suffix in _SKIP_CONTENT_EXT:
+            return False
+
+        # 1. Automatic format detection (Word, Excel, PPT, PDF, ODT, FB2, RTF, OLE)
+        extracted = extract_text_by_format(filepath)
+        if extracted is not None:
+            return search_text in extracted.lower()
+
+        # If it's another binary format not recognized as a document, skip
         if is_probably_binary(filepath):
             return False
 
+        # 2. Plain text chunked search (UTF-8 stream)
         encoding_override = config.get("content_encoding_override")
-        # If encoding override is specified or auto-detect needed for non-utf8
-        # For standard UTF-8 stream search, chunked reading avoids huge RAM usage:
         if encoding_override and encoding_override.lower() not in ("auto", "utf-8"):
             text = detect_and_read_text(filepath, encoding_override=encoding_override)
             return search_text in text.lower()
 
-        # Try chunked reading with UTF-8 first
         overlap_size = len(search_text) - 1 if len(search_text) > 1 else 0
         previous_chunk_tail = ""
-        encoding_tried = "utf-8"
 
-        with open(filepath, encoding=encoding_tried, errors="replace") as f:
-            while True:
-                chunk = f.read(_READ_BUFFER_SIZE)
-                if not chunk:
-                    break
+        try:
+            with open(filepath, encoding="utf-8", errors="strict") as f:
+                while True:
+                    chunk = f.read(_READ_BUFFER_SIZE)
+                    if not chunk:
+                        break
 
-                chunk_lower = chunk.lower()
-                search_chunk = previous_chunk_tail + chunk_lower
+                    chunk_lower = chunk.lower()
+                    search_chunk = previous_chunk_tail + chunk_lower
 
-                if search_text in search_chunk:
-                    return True
+                    if search_text in search_chunk:
+                        return True
 
-                if len(chunk_lower) >= overlap_size and overlap_size > 0:
-                    previous_chunk_tail = chunk_lower[-overlap_size:]
-                else:
-                    previous_chunk_tail = chunk_lower if overlap_size > 0 else ""
+                    if len(chunk_lower) >= overlap_size and overlap_size > 0:
+                        previous_chunk_tail = chunk_lower[-overlap_size:]
+                    else:
+                        previous_chunk_tail = chunk_lower if overlap_size > 0 else ""
+        except (UnicodeDecodeError, OSError):
+            # Not valid strict UTF-8; fall through to encoding auto-detection
+            pass
 
-        # Fallback to auto-detection (e.g. CP1251 / CP866) if UTF-8 chunk search found nothing
-        # and file is smaller than 2MB
-        if file_stat.st_size <= 2 * 1024 * 1024:
-            detected_text = detect_and_read_text(filepath, encoding_override=None)
-            if detected_text and search_text in detected_text.lower():
-                return True
+        # 3. Fallback to encoding auto-detection (e.g. CP1251, CP866, UTF-16)
+        detected_text = detect_and_read_text(filepath, encoding_override=None)
+        if detected_text and search_text in detected_text.lower():
+            return True
 
         return False
 
-    except (OSError, UnicodeDecodeError):
+    except (OSError, Exception):
         return False
 
 
@@ -155,17 +218,15 @@ def matches_criteria(
     filename: str,
     name_regex,
 ) -> bool:
-    """Validate file against all criteria defined in ``config``.
-
-    Consolidates the logic shared by `FileSearchDialog` and `FileSearchWorker`.
-    """
+    """Validate file against all criteria defined in ``config``."""
     try:
         os.stat(filepath)
 
         # 1. Filename pattern check
         pattern = config.get("pattern", "*.*")
-        if pattern and not fnmatch.fnmatch(filename, pattern):
-            return False
+        if pattern and pattern not in ("*.*", "*"):
+            if not fnmatch.fnmatch(filename, pattern):
+                return False
 
         # 2. Filename regex check
         if name_regex is not None and not name_regex.search(filename):

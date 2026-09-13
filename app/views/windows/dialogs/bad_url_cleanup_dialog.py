@@ -29,7 +29,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.worker_manager import WorkerManager
 from app.utils.i18n.common import tr as tr_common
 from app.views.windows.dialogs.base_dialog import BaseDialog
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
+from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon, get_cached_icon_with_fallback
 
 if TYPE_CHECKING:
     from app.controllers.services.bad_url_check_service import BadUrlCheckService
@@ -446,7 +446,10 @@ class BadUrlCleanupDialog(BaseDialog):
         """Populate filter combos from hierarchy after check is finished."""
         # Add all spheres
         for sphere in sorted(self._hierarchy.keys()):
-            icon = get_cached_icon(self._sphere_icon_paths.get(sphere, ""))
+            icon_path = self._sphere_icon_paths.get(sphere, "")
+            icon = get_cached_icon_with_fallback(
+                icon_path, "sphere", entity_data={"name": sphere, "icon_path": icon_path}
+            )
             if icon:
                 self.sphere_filter_combo.addItem(icon, sphere, sphere)
             else:

@@ -540,7 +540,7 @@ class LinkDialog(BaseDialog):
                         self._select_first_if_unset(category_cb)
 
     def _populate_spheres(self) -> None:
-        """Populate the sphere list from `initialization_data` without icons."""
+        """Populate the sphere list from `initialization_data` with icons."""
         sphere_cb = self._get_sphere_cb()
         sphere_cb.clear()
         for sp in self.initialization_data.get("spheres", []):
@@ -550,7 +550,9 @@ class LinkDialog(BaseDialog):
             sphere_id = sp.get("id")
             if name is None or sphere_id is None:
                 continue
-            add_combo_item(sphere_cb, name, sphere_id)
+            icon_path = str(sp.get("icon_path", ""))
+            icon = get_cached_icon_with_fallback(icon_path, "sphere", entity_data=sp)
+            add_combo_item(sphere_cb, name, sphere_id, icon=icon)
 
     def _apply_sphere_icons(self) -> None:
         """Apply sphere icons after the dialog becomes visible."""
@@ -560,17 +562,31 @@ class LinkDialog(BaseDialog):
 
         sphere_cb = self._get_sphere_cb()
         spheres = self.initialization_data.get("spheres", [])
-        icons_by_id = {
-            sp.get("id"): str(sp.get("icon_path", ""))
+        spheres_by_id = {
+            sp.get("id"): sp
             for sp in spheres
             if isinstance(sp, dict) and sp.get("id") is not None
         }
         for idx in range(sphere_cb.count()):
             sphere_id = sphere_cb.itemData(idx)
-            icon_path = icons_by_id.get(sphere_id, "")
-            icon = get_cached_icon_with_fallback(icon_path, "sphere")
+            sp = spheres_by_id.get(sphere_id) or {}
+            icon_path = str(sp.get("icon_path", ""))
+            icon = get_cached_icon_with_fallback(icon_path, "sphere", entity_data=sp)
             if icon:
                 sphere_cb.setItemIcon(idx, icon)
+
+    def update_sphere_icon_in_combo(self, sphere_id: int, icon_path: str = "") -> None:
+        """Update the icon for a specific sphere in the combo box immediately."""
+        sphere_cb = self._get_sphere_cb()
+        for idx in range(sphere_cb.count()):
+            if sphere_cb.itemData(idx) == sphere_id:
+                sp_name = sphere_cb.itemText(idx)
+                icon = get_cached_icon_with_fallback(
+                    icon_path, "sphere", entity_data={"id": sphere_id, "name": sp_name, "icon_path": icon_path}
+                )
+                if icon:
+                    sphere_cb.setItemIcon(idx, icon)
+                break
 
     def _apply_current_hierarchy_icons(self) -> None:
         """Apply section/category icons after the first paint."""
