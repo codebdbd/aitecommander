@@ -69,3 +69,6 @@ scripts/*.png
 # Trace and debug scripts
 scripts/trace*.txt
 scripts/test_*.py
+
+# Documentation folder
+docs/
