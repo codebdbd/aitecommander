@@ -12,20 +12,15 @@ from ...utils.db.sql_helpers import build_in_clause_placeholders
 
 logger = logging.getLogger(__name__)
 _IMPORT_EXPORT_CONTEXT = "ImportExportProgress"
-_LOADING_SPHERES = QT_TRANSLATE_NOOP(
-    _IMPORT_EXPORT_CONTEXT, "Loading spheres..."
+_LOADING_SPHERES = QT_TRANSLATE_NOOP("ImportExportProgress", "Loading spheres..."
 )
-_LOADING_SECTIONS = QT_TRANSLATE_NOOP(
-    _IMPORT_EXPORT_CONTEXT, "Loading sections..."
+_LOADING_SECTIONS = QT_TRANSLATE_NOOP("ImportExportProgress", "Loading sections..."
 )
-_LOADING_CATEGORIES = QT_TRANSLATE_NOOP(
-    _IMPORT_EXPORT_CONTEXT, "Loading categories..."
+_LOADING_CATEGORIES = QT_TRANSLATE_NOOP("ImportExportProgress", "Loading categories..."
 )
-_LOADING_LINKS = QT_TRANSLATE_NOOP(
-    _IMPORT_EXPORT_CONTEXT, "Loading links..."
+_LOADING_LINKS = QT_TRANSLATE_NOOP("ImportExportProgress", "Loading links..."
 )
-_HIERARCHY_COMPLETED = QT_TRANSLATE_NOOP(
-    _IMPORT_EXPORT_CONTEXT, "Hierarchy assembly completed"
+_HIERARCHY_COMPLETED = QT_TRANSLATE_NOOP("ImportExportProgress", "Hierarchy assembly completed"
 )
 
 

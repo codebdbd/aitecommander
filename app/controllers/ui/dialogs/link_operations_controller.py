@@ -18,19 +18,15 @@ from app.controllers.ui.undo.commands_links import (
 from app.controllers.ui.undo.stack import UndoManager
 
 _LINK_OPERATIONS_CONTEXT = "LinkOperations"
-_MACRO_DELETE_LINKS_TEXT = QT_TRANSLATE_NOOP(
-    _LINK_OPERATIONS_CONTEXT, "Deleting {count} links"
+_MACRO_DELETE_LINKS_TEXT = QT_TRANSLATE_NOOP("LinkOperations", "Deleting {count} links"
 )
-_CONFIRM_DELETE_LINKS_TITLE = QT_TRANSLATE_NOOP(
-    _LINK_OPERATIONS_CONTEXT, "Confirm deletion"
+_CONFIRM_DELETE_LINKS_TITLE = QT_TRANSLATE_NOOP("LinkOperations", "Confirm deletion"
 )
-_CONFIRM_DELETE_LINKS_MESSAGE = QT_TRANSLATE_NOOP(
-    _LINK_OPERATIONS_CONTEXT,
+_CONFIRM_DELETE_LINKS_MESSAGE = QT_TRANSLATE_NOOP("LinkOperations",
     "{count} selected link(s) will be permanently deleted.\n\n"
     "Are you sure you want to continue?",
 )
-_CONFIRM_DELETE_LINKS_INFO = QT_TRANSLATE_NOOP(
-    _LINK_OPERATIONS_CONTEXT, "This action is irreversible."
+_CONFIRM_DELETE_LINKS_INFO = QT_TRANSLATE_NOOP("LinkOperations", "This action is irreversible."
 )
 
 logger = logging.getLogger(__name__)

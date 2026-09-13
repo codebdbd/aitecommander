@@ -11,60 +11,44 @@ logger = logging.getLogger(__name__)
 _ICON_STATUS_CONTEXT = "IconRefreshStatus"
 _SYS_CONTEXT = "SystemDialogController"
 
-_SYS_TITLE_BROWSER_IMPORT = QT_TRANSLATE_NOOP(_SYS_CONTEXT, "Browser Import")
-_SYS_TITLE_AUTO_SAVE = QT_TRANSLATE_NOOP(_SYS_CONTEXT, "Auto-save")
-_SYS_TITLE_ICON_REFRESH = QT_TRANSLATE_NOOP(_SYS_CONTEXT, "Icon Refresh")
-_SYS_TITLE_BAD_URL_CHECK = QT_TRANSLATE_NOOP(_SYS_CONTEXT, "Bad URL Check")
+_SYS_TITLE_BROWSER_IMPORT = QT_TRANSLATE_NOOP("SystemDialogController", "Browser Import")
+_SYS_TITLE_AUTO_SAVE = QT_TRANSLATE_NOOP("SystemDialogController", "Auto-save")
+_SYS_TITLE_ICON_REFRESH = QT_TRANSLATE_NOOP("SystemDialogController", "Icon Refresh")
+_SYS_TITLE_BAD_URL_CHECK = QT_TRANSLATE_NOOP("SystemDialogController", "Bad URL Check")
 
-_SYS_ERROR_READ_HTML = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Error reading HTML file."
+_SYS_ERROR_READ_HTML = QT_TRANSLATE_NOOP("SystemDialogController", "Error reading HTML file."
 )
-_SYS_INFO_CHECK_FILE = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Check file integrity and access rights."
+_SYS_INFO_CHECK_FILE = QT_TRANSLATE_NOOP("SystemDialogController", "Check file integrity and access rights."
 )
-_SYS_WARN_NO_LINKS = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "No links found in file."
+_SYS_WARN_NO_LINKS = QT_TRANSLATE_NOOP("SystemDialogController", "No links found in file."
 )
-_SYS_INFO_EXPORT_HTML = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT,
+_SYS_INFO_EXPORT_HTML = QT_TRANSLATE_NOOP("SystemDialogController",
     "Export bookmarks from browser in HTML format and select correct file.",
 )
-_SYS_WARN_NO_SECTION = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "No section selected for import."
+_SYS_WARN_NO_SECTION = QT_TRANSLATE_NOOP("SystemDialogController", "No section selected for import."
 )
-_SYS_INFO_SELECT_SECTION = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Select section where categories and links will be added."
+_SYS_INFO_SELECT_SECTION = QT_TRANSLATE_NOOP("SystemDialogController", "Select section where categories and links will be added."
 )
-_SYS_AUTO_SAVE_FAILED_IMPORT = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Failed to create auto-save before import."
+_SYS_AUTO_SAVE_FAILED_IMPORT = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to create auto-save before import."
 )
-_SYS_AUTO_SAVE_FAILED_CHECK = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Failed to create auto-save before check."
+_SYS_AUTO_SAVE_FAILED_CHECK = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to create auto-save before check."
 )
-_SYS_IMPORT_COMPLETED_ERROR = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Import completed with error"
+_SYS_IMPORT_COMPLETED_ERROR = QT_TRANSLATE_NOOP("SystemDialogController", "Import completed with error"
 )
-_SYS_PROTOCOL_STATS = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Protocol statistics:"
+_SYS_PROTOCOL_STATS = QT_TRANSLATE_NOOP("SystemDialogController", "Protocol statistics:"
 )
-_SYS_HTTPS_COUNT = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "HTTPS links: {count}"
+_SYS_HTTPS_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTPS links: {count}"
 )
-_SYS_HTTP_COUNT = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "HTTP links: {count}"
+_SYS_HTTP_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTP links: {count}"
 )
-_SYS_HTTPS_QUESTION = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Would you like to check URLs for HTTPS availability?"
+_SYS_HTTPS_QUESTION = QT_TRANSLATE_NOOP("SystemDialogController", "Would you like to check URLs for HTTPS availability?"
 )
-_SYS_HTTPS_QUESTION_INFO = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT,
+_SYS_HTTPS_QUESTION_INFO = QT_TRANSLATE_NOOP("SystemDialogController",
     "This will verify which HTTP links can be upgraded to HTTPS.",
 )
-_SYS_ICON_REFRESH_FAILED = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Failed to start icon refresh"
+_SYS_ICON_REFRESH_FAILED = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to start icon refresh"
 )
-_SYS_BAD_URL_CHECK_FAILED = QT_TRANSLATE_NOOP(
-    _SYS_CONTEXT, "Failed to start bad URL check"
+_SYS_BAD_URL_CHECK_FAILED = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to start bad URL check"
 )
 
 

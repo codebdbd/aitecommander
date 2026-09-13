@@ -27,9 +27,8 @@ from app.utils.ui.db_tasks import run_db
 logger = logging.getLogger(__name__)
 
 _UNDO_DIALOG_CONTEXT = "UndoCommands"
-_UNDO_DELETE_CANCELED_TITLE = QT_TRANSLATE_NOOP(_UNDO_DIALOG_CONTEXT, "Delete canceled")
-_UNDO_BACKUP_FAILED_MESSAGE = QT_TRANSLATE_NOOP(
-    _UNDO_DIALOG_CONTEXT,
+_UNDO_DELETE_CANCELED_TITLE = QT_TRANSLATE_NOOP("UndoCommands", "Delete canceled")
+_UNDO_BACKUP_FAILED_MESSAGE = QT_TRANSLATE_NOOP("UndoCommands",
     "Backup failed. Delete canceled to keep undo available.",
 )
 

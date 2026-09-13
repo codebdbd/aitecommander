@@ -43,11 +43,9 @@ from .types.constants import (
 
 logger = logging.getLogger(__name__)
 _DB_CONTEXT = "DatabaseInit"
-_DB_APPLY_MIGRATIONS = QT_TRANSLATE_NOOP(
-    _DB_CONTEXT, "Applying migrations..."
+_DB_APPLY_MIGRATIONS = QT_TRANSLATE_NOOP("DatabaseInit", "Applying migrations..."
 )
-_DB_INIT_DEFAULTS = QT_TRANSLATE_NOOP(
-    _DB_CONTEXT, "Initializing default data..."
+_DB_INIT_DEFAULTS = QT_TRANSLATE_NOOP("DatabaseInit", "Initializing default data..."
 )
 
 

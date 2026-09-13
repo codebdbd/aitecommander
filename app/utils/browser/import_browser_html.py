@@ -16,15 +16,12 @@ from app.utils.validators.link_validators import validate_link_form_data
 
 logger = logging.getLogger(__name__)
 _BROWSER_IMPORT_CONTEXT = "BrowserBookmarksImporter"
-_IMPORT_TITLE = QT_TRANSLATE_NOOP(_BROWSER_IMPORT_CONTEXT, "Import from browser")
-_HTML_FILTER = QT_TRANSLATE_NOOP(
-    _BROWSER_IMPORT_CONTEXT, "HTML Files (*.html *.htm)"
+_IMPORT_TITLE = QT_TRANSLATE_NOOP("BrowserBookmarksImporter", "Import from browser")
+_HTML_FILTER = QT_TRANSLATE_NOOP("BrowserBookmarksImporter", "HTML Files (*.html *.htm)"
 )
-_IMPORT_ADDED = QT_TRANSLATE_NOOP(
-    _BROWSER_IMPORT_CONTEXT, "Added links: {count}"
+_IMPORT_ADDED = QT_TRANSLATE_NOOP("BrowserBookmarksImporter", "Added links: {count}"
 )
-_IMPORT_CATEGORIES = QT_TRANSLATE_NOOP(
-    _BROWSER_IMPORT_CONTEXT, "Categories created: {count}"
+_IMPORT_CATEGORIES = QT_TRANSLATE_NOOP("BrowserBookmarksImporter", "Categories created: {count}"
 )
 
 

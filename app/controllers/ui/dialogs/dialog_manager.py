@@ -19,20 +19,20 @@ from app.config_data.runtime_config import (
 logger = logging.getLogger(__name__)
 
 _DIALOG_MANAGER_CONTEXT = "DialogManager"
-_DM_TITLE_ERROR = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Error")
-_DM_TITLE_WARNING = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Warning")
-_DM_TITLE_INFO = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Information")
-_DM_TITLE_CONFIRM = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Confirmation")
-_DM_BUTTON_OK = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "OK")
-_DM_BUTTON_CANCEL = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Cancel")
-_DM_BUTTON_YES = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "Yes")
-_DM_BUTTON_NO = QT_TRANSLATE_NOOP(_DIALOG_MANAGER_CONTEXT, "No")
+_DM_TITLE_ERROR = QT_TRANSLATE_NOOP("DialogManager", "Error")
+_DM_TITLE_WARNING = QT_TRANSLATE_NOOP("DialogManager", "Warning")
+_DM_TITLE_INFO = QT_TRANSLATE_NOOP("DialogManager", "Information")
+_DM_TITLE_CONFIRM = QT_TRANSLATE_NOOP("DialogManager", "Confirmation")
+_DM_BUTTON_OK = QT_TRANSLATE_NOOP("DialogManager", "OK")
+_DM_BUTTON_CANCEL = QT_TRANSLATE_NOOP("DialogManager", "Cancel")
+_DM_BUTTON_YES = QT_TRANSLATE_NOOP("DialogManager", "Yes")
+_DM_BUTTON_NO = QT_TRANSLATE_NOOP("DialogManager", "No")
 
 _DIALOG_MIXIN_CONTEXT = "DialogMixin"
-_TITLE_ERROR = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Error")
-_TITLE_WARNING = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Warning")
-_TITLE_INFO = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Information")
-_TITLE_CONFIRM = QT_TRANSLATE_NOOP(_DIALOG_MIXIN_CONTEXT, "Confirmation")
+_TITLE_ERROR = QT_TRANSLATE_NOOP("DialogMixin", "Error")
+_TITLE_WARNING = QT_TRANSLATE_NOOP("DialogMixin", "Warning")
+_TITLE_INFO = QT_TRANSLATE_NOOP("DialogMixin", "Information")
+_TITLE_CONFIRM = QT_TRANSLATE_NOOP("DialogMixin", "Confirmation")
 
 
 def _dm_tr(text: str) -> str:
@@ -44,7 +44,11 @@ def _mix_tr(text: str) -> str:
 
 
 def localize_message_box_buttons(msg_box: QMessageBox) -> None:
-    """Apply translated captions to standard QMessageBox buttons if present."""
+    """Apply translated captions and uniform height to standard QMessageBox buttons if present."""
+    from app.views.windows.dialogs.base_dialog import (
+        apply_uniform_height_to_message_box,
+    )
+
     mapping = {
         QMessageBox.StandardButton.Ok: _dm_tr(_DM_BUTTON_OK),
         QMessageBox.StandardButton.Cancel: _dm_tr(_DM_BUTTON_CANCEL),
@@ -55,6 +59,7 @@ def localize_message_box_buttons(msg_box: QMessageBox) -> None:
         button = msg_box.button(button_id)
         if button is not None:
             button.setText(text)
+    apply_uniform_height_to_message_box(msg_box)
 
 
 class DialogManager:
@@ -242,7 +247,6 @@ class DialogManager:
         msg_box.setStandardButtons(buttons)
         msg_box.setDefaultButton(default_button)
         localize_message_box_buttons(msg_box)
-        apply_uniform_height_to_message_box(msg_box)
 
         result = msg_box.exec()
         logger.debug("Custom dialog result: %s", result)

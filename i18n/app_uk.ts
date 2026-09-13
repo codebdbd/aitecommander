@@ -438,20 +438,24 @@
 </context><context>
     <name>BackupWorker</name>
     <message>
-        <source>Backup completed</source>
-        <translation type="vanished">Резервне копіювання завершено</translation>
-    </message>
-    <message>
-        <source>Cleaning up old backups...</source>
-        <translation type="vanished">Очищення старих резервних копій...</translation>
-    </message>
-    <message>
-        <source>Creating backup...</source>
-        <translation type="vanished">Створення резервної копії...</translation>
-    </message>
-    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="21" />
         <source>Preparing backup...</source>
-        <translation type="vanished">Підготовка резервної копії...</translation>
+        <translation>Підготовка резервної копії...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="22" />
+        <source>Creating backup...</source>
+        <translation>Створення резервної копії...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="23" />
+        <source>Cleaning up old backups...</source>
+        <translation>Очищення старих резервних копій...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\workers\backup_worker.py" line="25" />
+        <source>Backup completed</source>
+        <translation>Резервне копіювання завершено</translation>
     </message>
 </context><context>
     <name>BadUrlCheckService</name>
@@ -767,87 +771,104 @@
 </context><context>
     <name>BottomPanel</name>
     <message>
-        <location filename="..\app\core\strings.py" line="69" />
+        <location filename="..\app\core\strings.py" line="64" />
+        <location filename="..\app\core\strings.py" line="23" />
         <source>Add Section</source>
         <translation>Додати розділ</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="70" />
+        <location filename="..\app\core\strings.py" line="65" />
+        <location filename="..\app\core\strings.py" line="24" />
         <source>Add Category</source>
         <translation>Додати категорію</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="71" />
+        <location filename="..\app\core\strings.py" line="66" />
+        <location filename="..\app\core\strings.py" line="25" />
         <source>Add Link</source>
         <translation>Додати посилання</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="72" />
+        <location filename="..\app\core\strings.py" line="67" />
+        <location filename="..\app\core\strings.py" line="26" />
         <source>Edit</source>
         <translation>Редагувати</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="73" />
+        <location filename="..\app\core\strings.py" line="68" />
+        <location filename="..\app\core\strings.py" line="27" />
         <source>Delete</source>
         <translation>Видалити</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="74" />
+        <location filename="..\app\core\strings.py" line="69" />
+        <location filename="..\app\core\strings.py" line="28" />
         <source>Sphere</source>
         <translation>Сфера</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="75" />
+        <location filename="..\app\core\strings.py" line="70" />
+        <location filename="..\app\core\strings.py" line="38" />
         <source>Create a new section.</source>
         <translation>Створити новий розділ.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="76" />
+        <location filename="..\app\core\strings.py" line="71" />
+        <location filename="..\app\core\strings.py" line="40" />
         <source>Create a new category in the selected section.</source>
         <translation>Створити нову категорію у вибраному розділі.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="79" />
+        <location filename="..\app\core\strings.py" line="74" />
+        <location filename="..\app\core\strings.py" line="42" />
         <source>Create a new link.</source>
         <translation>Створити нове посилання.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="80" />
+        <location filename="..\app\core\strings.py" line="75" />
+        <location filename="..\app\core\strings.py" line="43" />
         <source>Edit the selected item.</source>
         <translation>Редагувати вибраний елемент.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="81" />
+        <location filename="..\app\core\strings.py" line="76" />
+        <location filename="..\app\core\strings.py" line="44" />
         <source>Delete the selected item.</source>
         <translation>Видалити вибраний елемент.</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="82" />
+        <location filename="..\app\core\strings.py" line="77" />
+        <location filename="..\app\core\strings.py" line="45" />
         <source>Switch to next available sphere</source>
         <translation>Перемкнути на наступну доступну сферу</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="85" />
+        <location filename="..\app\core\strings.py" line="80" />
+        <location filename="..\app\core\strings.py" line="52" />
         <source>Action button: {label}</source>
         <translation>Кнопка дії: {label}</translation>
     </message>
 </context><context>
     <name>BrowserBookmarksImporter</name>
     <message>
-        <source>Added links: {count}</source>
-        <translation type="vanished">Додано посилань: {count}</translation>
-    </message>
-    <message>
-        <source>Categories created: {count}</source>
-        <translation type="vanished">Створено категорій: {count}</translation>
-    </message>
-    <message>
-        <source>HTML Files (*.html *.htm)</source>
-        <translation type="vanished">Файли HTML (*.html *.htm)</translation>
-    </message>
-    <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="19" />
         <source>Import from browser</source>
-        <translation type="vanished">Імпорт з браузера</translation>
+        <translation>Імпорт з браузера</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="20" />
+        <source>HTML Files (*.html *.htm)</source>
+        <translation>Файли HTML (*.html *.htm)</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="22" />
+        <source>Added links: {count}</source>
+        <translation>Додано посилань: {count}</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\browser\import_browser_html.py" line="24" />
+        <source>Categories created: {count}</source>
+        <translation>Створено категорій: {count}</translation>
     </message>
 </context><context>
     <name>BrowserProfileDialog</name>
@@ -919,8 +940,9 @@
 </context><context>
     <name>BrowserProfiles</name>
     <message>
+        <location filename="..\app\utils\browser\browser_profiles\async_profile_manager.py" line="23" />
         <source>Loading {browser}</source>
-        <translation type="vanished">Завантаження {browser}</translation>
+        <translation>Завантаження {browser}</translation>
     </message>
 </context><context>
     <name>CategoryDialog</name>
@@ -984,38 +1006,38 @@
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1165" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1172" />
         <source>Choose a Chrome profile:</source>
         <translation>Виберіть профіль Chrome:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1167" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1174" />
         <source>Select all</source>
         <translation>Вибрати всі</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1169" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1176" />
         <source>Deselect all</source>
         <translation>Зняти вибір з усіх</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1187" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1171" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1194" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1178" />
         <source>Refresh profiles</source>
         <translation>Оновити профілі</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1185" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1192" />
         <source>Loading...</source>
         <translation>Завантаження...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
         <source>Chrome profiles not found</source>
         <translation>Профілі Chrome не знайдено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1223" />
         <source>(no email)</source>
         <translation>(без email)</translation>
     </message>
@@ -1279,12 +1301,14 @@ Old database restored.</source>
 </context><context>
     <name>DatabaseInit</name>
     <message>
+        <location filename="..\app\models\db.py" line="46" />
         <source>Applying migrations...</source>
-        <translation type="vanished">Застосування міграцій...</translation>
+        <translation>Застосування міграцій...</translation>
     </message>
     <message>
+        <location filename="..\app\models\db.py" line="48" />
         <source>Initializing default data...</source>
-        <translation type="vanished">Ініціалізація початкових даних...</translation>
+        <translation>Ініціалізація початкових даних...</translation>
     </message>
 </context><context>
     <name>DatabaseInitializer</name>
@@ -1361,54 +1385,66 @@ Old database restored.</source>
 </context><context>
     <name>DialogManager</name>
     <message>
-        <source>Cancel</source>
-        <translation type="vanished">Скасувати</translation>
-    </message>
-    <message>
-        <source>Confirmation</source>
-        <translation type="vanished">Підтвердження</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="22" />
         <source>Error</source>
-        <translation type="vanished">Помилка</translation>
+        <translation>Помилка</translation>
     </message>
     <message>
-        <source>Information</source>
-        <translation type="vanished">Інформація</translation>
-    </message>
-    <message>
-        <source>No</source>
-        <translation type="vanished">Ні</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="vanished">Гаразд</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="23" />
         <source>Warning</source>
-        <translation type="vanished">Попередження</translation>
+        <translation>Попередження</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="24" />
+        <source>Information</source>
+        <translation>Інформація</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="25" />
+        <source>Confirmation</source>
+        <translation>Підтвердження</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="26" />
+        <source>OK</source>
+        <translation>Гаразд</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="27" />
+        <source>Cancel</source>
+        <translation>Скасувати</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="28" />
         <source>Yes</source>
-        <translation type="vanished">Так</translation>
+        <translation>Так</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="29" />
+        <source>No</source>
+        <translation>Ні</translation>
     </message>
 </context><context>
     <name>DialogMixin</name>
     <message>
-        <source>Confirmation</source>
-        <translation type="vanished">Підтвердження</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="32" />
         <source>Error</source>
-        <translation type="vanished">Помилка</translation>
+        <translation>Помилка</translation>
     </message>
     <message>
-        <source>Information</source>
-        <translation type="vanished">Інформація</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="33" />
         <source>Warning</source>
-        <translation type="vanished">Попередження</translation>
+        <translation>Попередження</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="34" />
+        <source>Information</source>
+        <translation>Інформація</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="35" />
+        <source>Confirmation</source>
+        <translation>Підтвердження</translation>
     </message>
 </context><context>
     <name>DialogProvider</name>
@@ -1600,8 +1636,9 @@ Old database restored.</source>
 </context><context>
     <name>FileSearchResultsModel</name>
     <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="46" />
         <source>Path</source>
-        <translation type="vanished">Шлях</translation>
+        <translation>Шлях</translation>
     </message>
 </context><context>
     <name>IconRefreshDialog</name>
@@ -1696,22 +1733,22 @@ Failed: {3}</source>
 </context><context>
     <name>IconRefreshStatus</name>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="393" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="377" />
         <source>Icon refresh: {0}/{1}</source>
         <translation>Оновлення іконок: {0}/{1}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="402" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="386" />
         <source>(click to show)</source>
         <translation>(натисніть, щоб показати)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="459" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="443" />
         <source>Icon refresh completed: {0} updated</source>
         <translation>Оновлення іконок завершено: оновлено {0}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="482" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="466" />
         <source>Icon refresh error: {0}</source>
         <translation>Помилка оновлення іконок: {0}</translation>
     </message>
@@ -1860,120 +1897,144 @@ Failed: {3}</source>
 </context><context>
     <name>ImportExportProgress</name>
     <message>
-        <source>Hierarchy assembly completed</source>
-        <translation type="vanished">Побудову ієрархії завершено</translation>
-    </message>
-    <message>
-        <source>Loading categories...</source>
-        <translation type="vanished">Завантаження категорій...</translation>
-    </message>
-    <message>
-        <source>Loading links...</source>
-        <translation type="vanished">Завантаження посилань...</translation>
-    </message>
-    <message>
-        <source>Loading sections...</source>
-        <translation type="vanished">Завантаження розділів...</translation>
-    </message>
-    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="15" />
         <source>Loading spheres...</source>
-        <translation type="vanished">Завантаження сфер...</translation>
+        <translation>Завантаження сфер...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="17" />
+        <source>Loading sections...</source>
+        <translation>Завантаження розділів...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="19" />
+        <source>Loading categories...</source>
+        <translation>Завантаження категорій...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="21" />
+        <source>Loading links...</source>
+        <translation>Завантаження посилань...</translation>
+    </message>
+    <message>
+        <location filename="..\app\models\managers\import_export_manager.py" line="23" />
+        <source>Hierarchy assembly completed</source>
+        <translation>Побудову ієрархії завершено</translation>
     </message>
 </context><context>
     <name>ItemDialogService</name>
     <message>
-        <source>Category addition error</source>
-        <translation type="vanished">Помилка додавання категорії</translation>
-    </message>
-    <message>
-        <source>Category edit error</source>
-        <translation type="vanished">Помилка редагування категорії</translation>
-    </message>
-    <message>
-        <source>Check the entered data and try again.</source>
-        <translation type="vanished">Перевірте введені дані та спробуйте знову.</translation>
-    </message>
-    <message>
-        <source>Failed to add category.</source>
-        <translation type="vanished">Не вдалося додати категорію.</translation>
-    </message>
-    <message>
-        <source>Failed to add section.</source>
-        <translation type="vanished">Не вдалося додати розділ.</translation>
-    </message>
-    <message>
-        <source>Failed to edit category.</source>
-        <translation type="vanished">Не вдалося відредагувати категорію.</translation>
-    </message>
-    <message>
-        <source>Failed to edit section.</source>
-        <translation type="vanished">Не вдалося відредагувати розділ.</translation>
-    </message>
-    <message>
-        <source>No sections</source>
-        <translation type="vanished">Немає розділів</translation>
-    </message>
-    <message>
-        <source>No sections in the current sphere. Create a new section?</source>
-        <translation type="vanished">У поточній сфері немає розділів. Створити новий розділ?</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="15" />
         <source>Section addition error</source>
-        <translation type="vanished">Помилка додавання розділу</translation>
+        <translation>Помилка додавання розділу</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="17" />
+        <source>Failed to add section.</source>
+        <translation>Не вдалося додати розділ.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="19" />
+        <source>Check the entered data and try again.</source>
+        <translation>Перевірте введені дані та спробуйте знову.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="21" />
+        <source>Category addition error</source>
+        <translation>Помилка додавання категорії</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="23" />
+        <source>Failed to add category.</source>
+        <translation>Не вдалося додати категорію.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="25" />
         <source>Section edit error</source>
-        <translation type="vanished">Помилка редагування розділу</translation>
+        <translation>Помилка редагування розділу</translation>
     </message>
     <message>
-        <source>The section creation dialog will be opened.</source>
-        <translation type="vanished">Буде відкрито діалог створення розділу.</translation>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="27" />
+        <source>Failed to edit section.</source>
+        <translation>Не вдалося відредагувати розділ.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="29" />
         <source>Try again or contact support.</source>
-        <translation type="vanished">Спробуйте знову або зверніться до служби підтримки.</translation>
+        <translation>Спробуйте знову або зверніться до служби підтримки.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="31" />
+        <source>Category edit error</source>
+        <translation>Помилка редагування категорії</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="33" />
+        <source>Failed to edit category.</source>
+        <translation>Не вдалося відредагувати категорію.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="35" />
+        <source>No sections in the current sphere. Create a new section?</source>
+        <translation>У поточній сфері немає розділів. Створити новий розділ?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="37" />
+        <source>No sections</source>
+        <translation>Немає розділів</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="39" />
+        <source>The section creation dialog will be opened.</source>
+        <translation>Буде відкрито діалог створення розділу.</translation>
     </message>
 </context><context>
     <name>ItemOperations</name>
     <message>
-        <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-        <translation type="vanished">Категорія «{category}» містить {links} посилань.
-
-Усі вкладені посилання буде видалено назавжди!
-
-Продовжити?</translation>
-    </message>
-    <message>
-        <source>Confirm deletion</source>
-        <translation type="vanished">Підтвердження видалення</translation>
-    </message>
-    <message>
-        <source>Delete section</source>
-        <translation type="vanished">Видалити розділ</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="18" />
         <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
 
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Розділ «{section}» містить {categories} категорій і {links} посилань.
+        <translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
 
 Усі вкладені категорії та посилання буде видалено назавжди!
 
 Продовжити?</translation>
     </message>
     <message>
-        <source>This action is irreversible. All links in the category will be deleted.</source>
-        <translation type="vanished">Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="23" />
+        <source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation>Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="28" />
+        <source>Delete section</source>
+        <translation>Видалити розділ</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="30" />
+        <source>Confirm deletion</source>
+        <translation>Підтвердження видалення</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="32" />
         <source>This action is irreversible. All nested categories and links will be deleted.</source>
-        <translation type="vanished">Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+        <translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_operations.py" line="35" />
+        <source>This action is irreversible. All links in the category will be deleted.</source>
+        <translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
     </message>
 </context><context>
     <name>LanguageSelector</name>
@@ -2197,24 +2258,28 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinkOperations</name>
     <message>
-        <source>Confirm deletion</source>
-        <translation type="vanished">Підтвердження видалення</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="21" />
         <source>Deleting {count} links</source>
-        <translation type="vanished">Видалення {count} посилань</translation>
+        <translation>Видалення {count} посилань</translation>
     </message>
     <message>
-        <source>This action is irreversible.</source>
-        <translation type="vanished">Ця дія незворотна.</translation>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="23" />
+        <source>Confirm deletion</source>
+        <translation>Підтвердження видалення</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="25" />
         <source>{count} selected link(s) will be permanently deleted.
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Вибрані посилання ({count}) буде видалено назавжди.
+        <translation>Вибрані посилання ({count}) буде видалено назавжди.
 
 Продовжити?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\link_operations_controller.py" line="29" />
+        <source>This action is irreversible.</source>
+        <translation>Ця дія незворотна.</translation>
     </message>
 </context><context>
     <name>LinkProcessingMixin</name>
@@ -2270,48 +2335,59 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinksUI</name>
     <message>
-        <source>Check data correctness and try again.</source>
-        <translation type="vanished">Перевірте правильність даних і спробуйте знову.</translation>
-    </message>
-    <message>
-        <source>Check the link address or edit it.</source>
-        <translation type="vanished">Перевірте адресу посилання або відредагуйте її.</translation>
-    </message>
-    <message>
-        <source>Database error</source>
-        <translation type="vanished">Помилка бази даних</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation type="vanished">Помилка</translation>
-    </message>
-    <message>
-        <source>Error saving note</source>
-        <translation type="vanished">Помилка збереження нотатки</translation>
-    </message>
-    <message>
-        <source>No categories available. Create a category first.</source>
-        <translation type="vanished">Немає доступних категорій. Спочатку створіть категорію.</translation>
-    </message>
-    <message>
-        <source>Select a category to insert the link</source>
-        <translation type="vanished">Виберіть категорію для вставлення посилання</translation>
-    </message>
-    <message>
-        <source>This link cannot be opened for security reasons.</source>
-        <translation type="vanished">Це посилання неможливо відкрити з міркувань безпеки.</translation>
-    </message>
-    <message>
-        <source>Try again or contact support.</source>
-        <translation type="vanished">Спробуйте знову або зверніться до служби підтримки.</translation>
-    </message>
-    <message>
-        <source>Validation error</source>
-        <translation type="vanished">Помилка перевірки даних</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="15" />
         <source>Warning</source>
-        <translation type="vanished">Попередження</translation>
+        <translation>Попередження</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="16" />
+        <source>Error</source>
+        <translation>Помилка</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="17" />
+        <source>Check data correctness and try again.</source>
+        <translation>Перевірте правильність даних і спробуйте знову.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="19" />
+        <source>Try again or contact support.</source>
+        <translation>Спробуйте знову або зверніться до служби підтримки.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="22" />
+        <source>No categories available. Create a category first.</source>
+        <translation>Немає доступних категорій. Спочатку створіть категорію.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="24" />
+        <source>Select a category to insert the link</source>
+        <translation>Виберіть категорію для вставлення посилання</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="26" />
+        <source>Error saving note</source>
+        <translation>Помилка збереження нотатки</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="27" />
+        <source>Database error</source>
+        <translation>Помилка бази даних</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="28" />
+        <source>Validation error</source>
+        <translation>Помилка перевірки даних</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="31" />
+        <source>This link cannot be opened for security reasons.</source>
+        <translation>Це посилання неможливо відкрити з міркувань безпеки.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\base_component.py" line="33" />
+        <source>Check the link address or edit it.</source>
+        <translation>Перевірте адресу посилання або відредагуйте її.</translation>
     </message>
 </context><context>
     <name>LinksUIController</name>
@@ -2365,13 +2441,13 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="435" />
+        <location filename="..\app\views\windows\main_window.py" line="441" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="22" />
         <source>Switch Sphere (F6)</source>
         <translation>Перемкнути сферу (F6)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="436" />
+        <location filename="..\app\views\windows\main_window.py" line="442" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="23" />
         <source>Switch to next available sphere</source>
         <translation>Перемкнути на наступну доступну сферу</translation>
@@ -2382,289 +2458,352 @@ Are you sure you want to continue?</source>
         <translation>AiteCommander</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="86" />
-        <source>Button {idx} of {total} visible buttons</source>
-        <translation>Кнопка {idx} з {total} видимих кнопок</translation>
-    </message>
-    <message>
-        <location filename="..\app\core\strings.py" line="87" />
-        <source>Hidden button</source>
-        <translation>Прихована кнопка</translation>
-    </message>
-    <message>
-        <location filename="..\app\core\strings.py" line="88" />
+        <location filename="..\app\core\strings.py" line="83" />
+        <location filename="..\app\core\strings.py" line="30" />
         <source>Recent Links</source>
         <translation>Недавні посилання</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="89" />
+        <location filename="..\app\core\strings.py" line="84" />
+        <location filename="..\app\core\strings.py" line="31" />
         <source>Favorites</source>
         <translation>Вибране</translation>
     </message>
     <message>
-        <location filename="..\app\core\strings.py" line="90" />
+        <location filename="..\app\core\strings.py" line="85" />
+        <location filename="..\app\core\strings.py" line="32" />
         <source>Quick Add</source>
         <translation>Швидке додавання</translation>
+    </message>
+    <message>
+        <location filename="..\app\core\strings.py" line="81" />
+        <location filename="..\app\core\strings.py" line="54" />
+        <source>Button {idx} of {total} visible buttons</source>
+        <translation>Кнопка {idx} з {total} видимих кнопок</translation>
+    </message>
+    <message>
+        <location filename="..\app\core\strings.py" line="82" />
+        <location filename="..\app\core\strings.py" line="56" />
+        <source>Hidden button</source>
+        <translation>Прихована кнопка</translation>
     </message>
 </context><context>
     <name>MenuActions</name>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
         <source>Add section</source>
         <translation>Додати розділ</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
         <source>Add category</source>
         <translation>Додати категорію</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
         <source>Add link</source>
         <translation>Додати посилання</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
         <source>Clear favorites</source>
         <translation>Очистити обране</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Exit</source>
         <translation>Вихід</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
         <source>Settings</source>
         <translation>Налаштування</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
         <source>Export Database</source>
         <translation>Експорт бази даних</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
         <source>Restore Database</source>
         <translation>Відновити базу даних</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
         <source>Import Database</source>
         <translation>Імпорт бази даних</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>Import Bookmarks</source>
         <translation>Імпорт закладок</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
         <source>Export icons</source>
         <translation>Експортувати іконки</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
         <source>Import icons</source>
         <translation>Імпортувати іконки</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
         <source>Search files</source>
         <translation>Пошук файлів</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
         <source>About</source>
         <translation>Про програму</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
         <source>Edit section</source>
         <translation>Редагувати розділ</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
         <source>Edit category</source>
         <translation>Редагувати категорію</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
         <source>Paste</source>
         <translation>Вставити</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
         <source>Paste section</source>
         <translation>Вставити розділ</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
         <source>Delete section</source>
         <translation>Видалити розділ</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
         <source>Copy category</source>
         <translation>Скопіювати категорію</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
         <source>Copy section</source>
         <translation>Копіювати розділ</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
         <source>Cut</source>
         <translation>Вирізати</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="117" />
         <source>Delete category</source>
         <translation>Видалити категорію</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="118" />
         <source>Delete selected</source>
         <translation>Видалити вибране</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="119" />
         <source>Select all</source>
         <translation>Виділити все</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="133" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="120" />
         <source>Clear selection</source>
         <translation>Очистити вибір</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="122" />
         <source>&amp;Undo</source>
         <translation>&amp;Скасувати</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>&amp;Redo</source>
         <translation>&amp;Повторити</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <source>Open</source>
         <translation>Відкрити</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
         <source>Edit</source>
         <translation>Редагувати</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
         <source>Delete</source>
         <translation>Видалити</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
         <source>Copy</source>
         <translation>Копіювати</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="134" />
         <source>Edit note</source>
         <translation>Редагувати примітку</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
         <source>Add note</source>
         <translation>Додати примітку</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="137" />
         <source>Add to favorites</source>
         <translation>Додати в обране</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
         <source>Remove from favorites</source>
         <translation>Вилучити з вибраного</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
         <source>Share</source>
         <translation>Поділитися</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
         <source>Email</source>
         <translation>Електронна пошта</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
         <source>Telegram</source>
         <translation>Telegram</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
         <source>WhatsApp</source>
         <translation>WhatsApp</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
         <source>Viber</source>
         <translation>Viber</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
         <source>X (Twitter)</source>
         <translation>X (Twitter)</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
         <source>Facebook</source>
         <translation>Facebook</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
         <source>LinkedIn</source>
         <translation>LinkedIn</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
         <source>Pinterest</source>
         <translation>Pinterest</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
         <source>Via Gmail</source>
         <translation>Через Gmail</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
         <source>Via default client (mailto)</source>
         <translation>Через поштовий клієнт (mailto)</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
         <source>Copy as email message</source>
         <translation>Скопіювати як лист</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="152" />
         <source>Share category</source>
         <translation>Поділитися категорією</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="153" />
         <source>Share section</source>
         <translation>Поділитися розділом</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
         <source>Import category</source>
         <translation>Імпорт категорії</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="155" />
         <source>Import section</source>
         <translation>Імпорт розділу</translation>
     </message>
@@ -2676,12 +2815,14 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>MessageHandler</name>
     <message>
+        <location filename="..\app\controllers\system\window_setup\wiring.py" line="24" />
         <source>Operation completed successfully.</source>
-        <translation type="vanished">Операцію успішно завершено.</translation>
+        <translation>Операцію успішно завершено.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\system\window_setup\wiring.py" line="26" />
         <source>Try repeating the action or contact support.</source>
-        <translation type="vanished">Спробуйте повторити дію або зверніться до служби підтримки.</translation>
+        <translation>Спробуйте повторити дію або зверніться до служби підтримки.</translation>
     </message>
 </context><context>
     <name>MoveOperationsHandler</name>
@@ -2866,46 +3007,65 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>SelectionHandling</name>
     <message>
-        <source>Check the correctness of actions and try again.</source>
-        <translation type="vanished">Перевірте правильність дій і спробуйте знову.</translation>
+        <location filename="..\app\controllers\ui\structure\selection_handling.py" line="29" />
+        <source>Warning</source>
+        <translation>Попередження</translation>
     </message>
     <message>
-        <source>Warning</source>
-        <translation type="vanished">Попередження</translation>
+        <location filename="..\app\controllers\ui\structure\selection_handling.py" line="30" />
+        <source>Check the correctness of actions and try again.</source>
+        <translation>Перевірте правильність дій і спробуйте знову.</translation>
     </message>
 </context><context>
     <name>SettingsConfig</name>
     <message>
+        <location filename="..\app\config_data\settings_config.py" line="19" />
         <source>About</source>
-        <translation type="vanished">Про програму</translation>
+        <translation>Про програму</translation>
     </message>
     <message>
-        <source>File</source>
-        <translation type="vanished">Файл</translation>
-    </message>
-    <message>
-        <source>Folder</source>
-        <translation type="vanished">Папка</translation>
-    </message>
-    <message>
+        <location filename="..\app\config_data\settings_config.py" line="20" />
         <source>Link Manager
 Version 1.0
 © MyCompany</source>
-        <translation type="vanished">Менеджер посилань
+        <translation>Менеджер посилань
 Версія 1.0
 © MyCompany</translation>
     </message>
     <message>
-        <source>Program</source>
-        <translation type="vanished">Програма</translation>
-    </message>
-    <message>
-        <source>Script</source>
-        <translation type="vanished">Скрипт</translation>
-    </message>
-    <message>
+        <location filename="..\app\config_data\settings_config.py" line="37" />
+        <location filename="..\app\config_data\settings_config.py" line="30" />
+        <location filename="..\app\config_data\settings_config.py" line="23" />
         <source>Web Link</source>
-        <translation type="vanished">Вебпосилання</translation>
+        <translation>Вебпосилання</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="39" />
+        <location filename="..\app\config_data\settings_config.py" line="32" />
+        <location filename="..\app\config_data\settings_config.py" line="24" />
+        <source>File</source>
+        <translation>Файл</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="40" />
+        <location filename="..\app\config_data\settings_config.py" line="33" />
+        <location filename="..\app\config_data\settings_config.py" line="25" />
+        <source>Program</source>
+        <translation>Програма</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="38" />
+        <location filename="..\app\config_data\settings_config.py" line="31" />
+        <location filename="..\app\config_data\settings_config.py" line="26" />
+        <source>Script</source>
+        <translation>Скрипт</translation>
+    </message>
+    <message>
+        <location filename="..\app\config_data\settings_config.py" line="41" />
+        <location filename="..\app\config_data\settings_config.py" line="34" />
+        <location filename="..\app\config_data\settings_config.py" line="27" />
+        <source>Folder</source>
+        <translation>Папка</translation>
     </message>
 </context><context>
     <name>SettingsDialog</name>
@@ -3001,17 +3161,17 @@ Version 1.0
         <translation>Імпортувати тему...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1025" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1032" />
         <source>Failed to save settings.</source>
         <translation>Не вдалося зберегти налаштування.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1026" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1033" />
         <source>Settings save error</source>
         <translation>Помилка збереження налаштувань</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1027" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1034" />
         <source>Check the values and try again.</source>
         <translation>Перевірте значення та спробуйте знову.</translation>
     </message>
@@ -3067,7 +3227,7 @@ Version 1.0
         <translation>Вибір іконки</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1311" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1318" />
         <source>Rename Sphere</source>
         <translation>Перейменувати сферу</translation>
     </message>
@@ -3117,240 +3277,268 @@ Version 1.0
 </context><context>
     <name>StructureDeletion</name>
     <message>
-        <source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-        <translation type="vanished">Категорія «{category}» містить {links} посилань.
-
-Усі вкладені посилання буде видалено назавжди!
-
-Продовжити?</translation>
-    </message>
-    <message>
-        <source>Confirm deletion</source>
-        <translation type="vanished">Підтвердження видалення</translation>
-    </message>
-    <message>
-        <source>Delete section</source>
-        <translation type="vanished">Видалити розділ</translation>
-    </message>
-    <message>
-        <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-        <translation type="vanished">Розділ «{section}» містить {categories} категорій і {links} посилань.
-
-Усі вкладені категорії та посилання буде видалено назавжди!
-
-Продовжити?</translation>
-    </message>
-    <message>
-        <source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source>
-        <translation type="vanished">Вибрані розділи загалом містять {categories} категорій і {links} посилань.
-
-Усі вкладені категорії та посилання буде видалено назавжди!
-
-Продовжити?</translation>
-    </message>
-    <message>
-        <source>This action is irreversible. All links in the category will be deleted.</source>
-        <translation type="vanished">Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
-    </message>
-    <message>
-        <source>This action is irreversible. All nested categories and links will be deleted.</source>
-        <translation type="vanished">Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="20" />
         <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
 
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-        <translation type="vanished">Загалом буде видалено {categories} категорій і {links} посилань.
+        <translation>Загалом буде видалено {categories} категорій і {links} посилань.
 
 Усі вкладені посилання буде видалено назавжди!
 
 Продовжити?</translation>
     </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="25" />
+        <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="30" />
+        <source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation>Вибрані розділи загалом містять {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="35" />
+        <source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation>Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="40" />
+        <source>Confirm deletion</source>
+        <translation>Підтвердження видалення</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="41" />
+        <source>Delete section</source>
+        <translation>Видалити розділ</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="42" />
+        <source>This action is irreversible. All nested categories and links will be deleted.</source>
+        <translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="45" />
+        <source>This action is irreversible. All links in the category will be deleted.</source>
+        <translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+    </message>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="518" />
+        <location filename="..\app\views\windows\main_window.py" line="524" />
         <source>Sphere not selected.</source>
         <translation>Сферу не вибрано.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="521" />
+        <location filename="..\app\views\windows\main_window.py" line="527" />
         <source>Select a sphere and try again.</source>
         <translation>Виберіть сферу і спробуйте ще раз.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="563" />
-        <location filename="..\app\views\windows\main_window.py" line="535" />
+        <location filename="..\app\views\windows\main_window.py" line="569" />
+        <location filename="..\app\views\windows\main_window.py" line="541" />
         <source>Export error</source>
         <translation>Помилка експорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="560" />
+        <location filename="..\app\views\windows\main_window.py" line="566" />
         <source>Failed to export archive: {error}</source>
         <translation>Не вдалося експортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="575" />
+        <location filename="..\app\views\windows\main_window.py" line="581" />
         <source>Archive saved to:
 {path}</source>
         <translation>Архів збережено в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="578" />
+        <location filename="..\app\views\windows\main_window.py" line="584" />
         <source>Export complete</source>
         <translation>Експорт завершено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="598" />
+        <location filename="..\app\views\windows\main_window.py" line="604" />
         <source>Choose where to save the archive</source>
         <translation>Виберіть місце для збереження архіву</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="636" />
-        <location filename="..\app\views\windows\main_window.py" line="601" />
+        <location filename="..\app\views\windows\main_window.py" line="642" />
+        <location filename="..\app\views\windows\main_window.py" line="607" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP архів (*.zip);;Усі файли (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="660" />
-        <location filename="..\app\views\windows\main_window.py" line="621" />
+        <location filename="..\app\views\windows\main_window.py" line="666" />
+        <location filename="..\app\views\windows\main_window.py" line="627" />
         <source>Import error</source>
         <translation>Помилка імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="633" />
+        <location filename="..\app\views\windows\main_window.py" line="639" />
         <source>Select an archive to import</source>
         <translation>Виберіть архів для імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="657" />
+        <location filename="..\app\views\windows\main_window.py" line="663" />
         <source>Failed to import archive: {error}</source>
         <translation>Не вдалося імпортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="669" />
+        <location filename="..\app\views\windows\main_window.py" line="675" />
         <source>Import completed.</source>
         <translation>Імпорт завершено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="670" />
+        <location filename="..\app\views\windows\main_window.py" line="676" />
         <source>Import complete</source>
         <translation>Імпорт завершено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="753" />
+        <location filename="..\app\views\windows\main_window.py" line="759" />
         <source>Structure service unavailable.</source>
         <translation>Сервіс структури недоступний.</translation>
     </message>
 </context><context>
     <name>SystemDialogController</name>
     <message>
-        <source>Auto-save</source>
-        <translation type="vanished">Автозбереження</translation>
-    </message>
-    <message>
-        <source>Bad URL Check</source>
-        <translation type="vanished">Перевірка URL</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="14" />
         <source>Browser Import</source>
-        <translation type="vanished">Імпорт із браузера</translation>
+        <translation>Імпорт із браузера</translation>
     </message>
     <message>
-        <source>Check file integrity and access rights.</source>
-        <translation type="vanished">Перевірте цілісність файлу та права доступу.</translation>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="15" />
+        <source>Auto-save</source>
+        <translation>Автозбереження</translation>
     </message>
     <message>
-        <source>Error reading HTML file.</source>
-        <translation type="vanished">Помилка читання HTML-файлу.</translation>
-    </message>
-    <message>
-        <source>Export bookmarks from browser in HTML format and select correct file.</source>
-        <translation type="vanished">Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation>
-    </message>
-    <message>
-        <source>Failed to create auto-save before check.</source>
-        <translation type="vanished">Не вдалося виконати автозбереження перед перевіркою.</translation>
-    </message>
-    <message>
-        <source>Failed to create auto-save before import.</source>
-        <translation type="vanished">Не вдалося виконати автозбереження перед імпортом.</translation>
-    </message>
-    <message>
-        <source>Failed to start bad URL check</source>
-        <translation type="vanished">Не вдалося почати перевірку URL</translation>
-    </message>
-    <message>
-        <source>Failed to start icon refresh</source>
-        <translation type="vanished">Не вдалося почати оновлення іконок</translation>
-    </message>
-    <message>
-        <source>HTTP links: {count}</source>
-        <translation type="vanished">Посилання HTTP: {count}</translation>
-    </message>
-    <message>
-        <source>HTTPS links: {count}</source>
-        <translation type="vanished">Посилання HTTPS: {count}</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="16" />
         <source>Icon Refresh</source>
-        <translation type="vanished">Оновлення іконок</translation>
+        <translation>Оновлення іконок</translation>
     </message>
     <message>
-        <source>Import completed with error</source>
-        <translation type="vanished">Імпорт завершено з помилкою</translation>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="17" />
+        <source>Bad URL Check</source>
+        <translation>Перевірка URL</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="19" />
+        <source>Error reading HTML file.</source>
+        <translation>Помилка читання HTML-файлу.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="21" />
+        <source>Check file integrity and access rights.</source>
+        <translation>Перевірте цілісність файлу та права доступу.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="23" />
         <source>No links found in file.</source>
-        <translation type="vanished">У файлі не знайдено посилань.</translation>
+        <translation>У файлі не знайдено посилань.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="25" />
+        <source>Export bookmarks from browser in HTML format and select correct file.</source>
+        <translation>Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="28" />
         <source>No section selected for import.</source>
-        <translation type="vanished">Секцію не вибрано для імпорту.</translation>
+        <translation>Секцію не вибрано для імпорту.</translation>
     </message>
     <message>
-        <source>Protocol statistics:</source>
-        <translation type="vanished">Статистика протоколів:</translation>
-    </message>
-    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="30" />
         <source>Select section where categories and links will be added.</source>
-        <translation type="vanished">Виберіть розділ, до якого буде додано категорії та посилання.</translation>
+        <translation>Виберіть розділ, до якого буде додано категорії та посилання.</translation>
     </message>
     <message>
-        <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
-        <translation type="vanished">Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="32" />
+        <source>Failed to create auto-save before import.</source>
+        <translation>Не вдалося виконати автозбереження перед імпортом.</translation>
     </message>
     <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="34" />
+        <source>Failed to create auto-save before check.</source>
+        <translation>Не вдалося виконати автозбереження перед перевіркою.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="36" />
+        <source>Import completed with error</source>
+        <translation>Імпорт завершено з помилкою</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="38" />
+        <source>Protocol statistics:</source>
+        <translation>Статистика протоколів:</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="40" />
+        <source>HTTPS links: {count}</source>
+        <translation>Посилання HTTPS: {count}</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="42" />
+        <source>HTTP links: {count}</source>
+        <translation>Посилання HTTP: {count}</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="44" />
         <source>Would you like to check URLs for HTTPS availability?</source>
-        <translation type="vanished">Перевірити доступність URL через HTTPS?</translation>
+        <translation>Перевірити доступність URL через HTTPS?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="46" />
+        <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
+        <translation>Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="49" />
+        <source>Failed to start icon refresh</source>
+        <translation>Не вдалося почати оновлення іконок</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="51" />
+        <source>Failed to start bad URL check</source>
+        <translation>Не вдалося почати перевірку URL</translation>
     </message>
 </context><context>
     <name>ThemeController</name>
     <message>
-        <location filename="..\app\controllers\ui\theme_controller.py" line="170" />
-        <location filename="..\app\controllers\ui\theme_controller.py" line="144" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="174" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="148" />
         <location filename="..\app\controllers\ui\theme_controller.py" line="24" />
         <source>Light</source>
         <translation>Світла</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\theme_controller.py" line="178" />
-        <location filename="..\app\controllers\ui\theme_controller.py" line="146" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="182" />
+        <location filename="..\app\controllers\ui\theme_controller.py" line="150" />
         <location filename="..\app\controllers\ui\theme_controller.py" line="25" />
         <source>Dark</source>
         <translation>Темна</translation>
@@ -3358,24 +3546,26 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>ThemeSelector</name>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="60" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="68" />
         <source>Change application theme</source>
         <translation>Змінити тему застосунку</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="61" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="69" />
         <source>Theme Selector</source>
         <translation>Перемикач теми</translation>
     </message>
 </context><context>
     <name>UndoCommands</name>
     <message>
-        <source>Backup failed. Delete canceled to keep undo available.</source>
-        <translation type="vanished">Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation>
+        <location filename="..\app\controllers\ui\undo\commands_structure.py" line="30" />
+        <source>Delete canceled</source>
+        <translation>Видалення скасовано</translation>
     </message>
     <message>
-        <source>Delete canceled</source>
-        <translation type="vanished">Видалення скасовано</translation>
+        <location filename="..\app\controllers\ui\undo\commands_structure.py" line="31" />
+        <source>Backup failed. Delete canceled to keep undo available.</source>
+        <translation>Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation>
     </message>
 </context><context>
     <name>ValidationMixin</name>
@@ -3477,7 +3667,7 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>WindowUISetup</name>
     <message>
-        <location filename="..\app\core\strings.py" line="68" />
+        <location filename="..\app\core\strings.py" line="63" />
         <location filename="..\app\core\strings.py" line="15" />
         <source>Search… (Ctrl+F)</source>
         <translation>Пошук… (Ctrl+F)</translation>

@@ -26,9 +26,8 @@ from .selection_workflow_service import SelectionWorkflowService
 logger = logging.getLogger(__name__)
 
 _SELECTION_CONTEXT = "SelectionHandling"
-_SELECTION_WARNING_TITLE = QT_TRANSLATE_NOOP(_SELECTION_CONTEXT, "Warning")
-_SELECTION_WARN_INFO = QT_TRANSLATE_NOOP(
-    _SELECTION_CONTEXT, "Check the correctness of actions and try again."
+_SELECTION_WARNING_TITLE = QT_TRANSLATE_NOOP("SelectionHandling", "Warning")
+_SELECTION_WARN_INFO = QT_TRANSLATE_NOOP("SelectionHandling", "Check the correctness of actions and try again."
 )
 
 

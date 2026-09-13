@@ -20,7 +20,7 @@ from .profile_manager import BrowserProfileManager, get_profile_manager
 
 logger = logging.getLogger(__name__)
 _PROFILE_CONTEXT = "BrowserProfiles"
-_PROFILE_LOADING = QT_TRANSLATE_NOOP(_PROFILE_CONTEXT, "Loading {browser}")
+_PROFILE_LOADING = QT_TRANSLATE_NOOP("BrowserProfiles", "Loading {browser}")
 
 
 def _tr_profiles(text: str) -> str:

@@ -17,38 +17,32 @@ from app.utils.ui.qt.roles import get_tree_tuple
 logger = logging.getLogger(__name__)
 
 _DELETION_CONTEXT = "StructureDeletion"
-_BATCH_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_BATCH_DELETE_MESSAGE = QT_TRANSLATE_NOOP("StructureDeletion",
     "{categories} categor(y/ies) and {links} link(s) will be deleted in total.\n\n"
     "All nested links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_SECTION_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_SECTION_DELETE_MESSAGE = QT_TRANSLATE_NOOP("StructureDeletion",
     "Section '{section}' contains {categories} categor(y/ies) and {links} link(s).\n\n"
     "All nested categories and links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_SECTIONS_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_SECTIONS_DELETE_MESSAGE = QT_TRANSLATE_NOOP("StructureDeletion",
     "Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.\n\n"
     "All nested categories and links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_CATEGORY_DELETE_MESSAGE = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_CATEGORY_DELETE_MESSAGE = QT_TRANSLATE_NOOP("StructureDeletion",
     "Category '{category}' contains {links} link(s).\n\n"
     "All nested links will be permanently deleted!\n\n"
     "Are you sure you want to continue?",
 )
-_CONFIRM_DELETION_TITLE = QT_TRANSLATE_NOOP(_DELETION_CONTEXT, "Confirm deletion")
-_DELETE_SECTION_TITLE = QT_TRANSLATE_NOOP(_DELETION_CONTEXT, "Delete section")
-_DELETE_SECTION_INFO = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_CONFIRM_DELETION_TITLE = QT_TRANSLATE_NOOP("StructureDeletion", "Confirm deletion")
+_DELETE_SECTION_TITLE = QT_TRANSLATE_NOOP("StructureDeletion", "Delete section")
+_DELETE_SECTION_INFO = QT_TRANSLATE_NOOP("StructureDeletion",
     "This action is irreversible. All nested categories and links will be deleted.",
 )
-_DELETE_CATEGORY_INFO = QT_TRANSLATE_NOOP(
-    _DELETION_CONTEXT,
+_DELETE_CATEGORY_INFO = QT_TRANSLATE_NOOP("StructureDeletion",
     "This action is irreversible. All links in the category will be deleted.",
 )
 
