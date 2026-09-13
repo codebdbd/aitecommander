@@ -28,8 +28,30 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_url_for_logging(url: str) -> str:
+    """Strip query parameters, fragments, and credentials from URLs for safe logging."""
+    if not url:
+        return ""
+    try:
+        if "://" not in url:
+            return url
+        parsed = urlsplit(url)
+        if not parsed.scheme or not parsed.netloc:
+            return url
+        netloc = parsed.hostname or ""
+        if parsed.port:
+            netloc = f"{netloc}:{parsed.port}"
+        base = urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+        if parsed.query:
+            return f"{base}?"
+        return base
+    except Exception:
+        return "<redacted-url>"
 
 
 class LinkType(Enum):
@@ -206,13 +228,54 @@ class SecurityValidator:
         return re.sub(r'([&|<>\^%])', r'^\1', clean)
 
     @classmethod
+    def split_cmdline(cls, cmdline: str) -> list[str]:
+        """Parse command-line arguments using native Windows conventions or POSIX.
+
+        On Windows, preserves backslashes (e.g. C:\\path\\to\\file) and follows
+        MSDN Command-Line Parsing rules via CommandLineToArgvW.
+        Raises ValueError if quotation marks are unclosed.
+        """
+        if not cmdline or not cmdline.strip():
+            return []
+
+        if platform.system() == "Windows":
+            if cmdline.count('"') % 2 != 0:
+                raise ValueError(f"Unclosed quotation mark in arguments: {cmdline}")
+
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                shell32 = ctypes.windll.shell32
+                kernel32 = ctypes.windll.kernel32
+                CommandLineToArgvW = shell32.CommandLineToArgvW
+                CommandLineToArgvW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+                CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+
+                num_args = ctypes.c_int()
+                ptr = CommandLineToArgvW("dummy.exe " + cmdline, ctypes.byref(num_args))
+                if not ptr:
+                    raise ValueError(f"Failed to parse arguments: {cmdline}")
+                try:
+                    return [ptr[i] for i in range(1, num_args.value)]
+                finally:
+                    kernel32.LocalFree(ptr)
+            except Exception as e:
+                if isinstance(e, ValueError):
+                    raise
+                # Fallback to posix=False shlex if win32 API fails
+                return [t.strip('"') for t in shlex.split(cmdline, posix=False)]
+        else:
+            return shlex.split(cmdline)
+
+    @classmethod
     def validate_chrome_args(cls, args: str) -> list[str]:
         """Validates Chrome arguments"""
         if not args:
             return []
 
         try:
-            parsed = shlex.split(args)
+            parsed = cls.split_cmdline(args)
         except ValueError:
             logger.warning("Failed to parse arguments: %s", args)
             return []
@@ -254,7 +317,7 @@ class SecurityValidator:
             return []
 
         try:
-            parsed = shlex.split(args)
+            parsed = cls.split_cmdline(args)
         except ValueError:
             logger.warning("Failed to parse arguments: %s", args)
             return []
@@ -287,15 +350,11 @@ class SecurityValidator:
 
     @classmethod
     def validate_args(cls, args: str) -> list[str]:
-        """Universal argument validation (for backward compatibility)"""
+        """Universal argument validation (preserves Windows paths/backslashes)."""
         if not args:
             return []
 
-        try:
-            return shlex.split(args)
-        except ValueError:
-            logger.warning("Failed to parse arguments: %s", args)
-            return []
+        return cls.split_cmdline(args)
 
 
 class BrowserConfig:
@@ -493,18 +552,20 @@ class WebLinkHandler(LinkHandler):
             browser_key, link_info.path, validated_args
         )
 
-        self.logger.info("================================================")
-        self.logger.info("BROWSER LAUNCH DIAGNOSTICS:")
-        self.logger.info("Raw input args: '%s'", link_info.args)
-        self.logger.info("Validated args: %s", validated_args)
-        self.logger.info("Final exact command: %s", command)
-        self.logger.info("================================================")
+        self.logger.debug("================================================")
+        self.logger.debug("BROWSER LAUNCH DIAGNOSTICS:")
+        self.logger.debug("Raw input args: '%s'", link_info.args)
+        self.logger.debug("Validated args: %s", validated_args)
+        self.logger.debug("Final exact command: %s", command)
+        self.logger.debug("================================================")
+
+        safe_url = sanitize_url_for_logging(link_info.path)
 
         try:
             # Use shell=False for security
             subprocess.Popen(command, shell=False)
             self.logger.info(
-                "Successfully opened URL %s with %s", link_info.path, browser_key
+                "Successfully opened URL %s with %s", safe_url, browser_key
             )
         except FileNotFoundError as e:
             self.logger.warning(
@@ -515,7 +576,7 @@ class WebLinkHandler(LinkHandler):
             )
             webbrowser.open(link_info.path)
         except Exception as e:
-            self.logger.error("Failed to open URL with %s: %s", browser_key, e)
+            self.logger.error("Failed to open URL %s with %s: %s", safe_url, browser_key, e)
             # Fallback to system browser
             webbrowser.open(link_info.path)
 
@@ -604,7 +665,13 @@ class ScriptLinkHandler(LinkHandler):
 
         path = Path(link_info.path)
         ext = path.suffix.lower()
-        arg_list = SecurityValidator.validate_args(link_info.args)
+        try:
+            arg_list = SecurityValidator.validate_args(link_info.args)
+        except ValueError as e:
+            self.logger.error(
+                "Failed to parse script arguments for '%s': %s", link_info.path, e
+            )
+            raise ValueError(f"Invalid script arguments: {e}") from e
 
         script_handlers = {
             ".ps1": self._create_powershell_command,
@@ -765,20 +832,24 @@ class ProgramLinkHandler(LinkHandler):
                 self.logger.info("Successfully launched shortcut: %s", link_info.path)
                 return
 
-            # For programs use simple argument splitting without strict Chrome validation
+            # For programs use Windows argument splitting without strict Chrome validation
             arg_list = []
             if link_info.args:
                 try:
-                    arg_list = shlex.split(link_info.args)
-                except ValueError:
-                    self.logger.warning(
-                        "Failed to parse program arguments: %s", link_info.args
+                    arg_list = SecurityValidator.split_cmdline(link_info.args)
+                except ValueError as e:
+                    self.logger.error(
+                        "Failed to parse program arguments for '%s': %s", link_info.path, e
                     )
-                    arg_list = []
+                    raise ValueError(f"Invalid program arguments: {e}") from e
 
             subprocess.Popen([link_info.path] + arg_list)
             self.logger.info(
-                "Successfully launched program: %s with args: %s",
+                "Successfully launched program: %s",
+                link_info.path,
+            )
+            self.logger.debug(
+                "Program arguments for %s: %s",
                 link_info.path,
                 arg_list,
             )

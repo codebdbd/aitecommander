@@ -603,10 +603,11 @@ class IconDownloader:
         if _is_cancelled(cancel_event):
             return None
 
-        with Image.open(BytesIO(data2)) as _probe:
+        _ALLOWED_IMAGE_FORMATS = ("PNG", "ICO", "JPEG", "BMP", "GIF", "WEBP")
+        with Image.open(BytesIO(data2), formats=_ALLOWED_IMAGE_FORMATS) as _probe:
             _probe.verify()
 
-        with Image.open(BytesIO(data2)) as _img:
+        with Image.open(BytesIO(data2), formats=_ALLOWED_IMAGE_FORMATS) as _img:
             if _is_cancelled(cancel_event):
                 return None
             img = self.select_best_frame(_img)

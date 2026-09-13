@@ -25,10 +25,45 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Determine target reference
+        id: target
+        shell: pwsh
+        run: |
+          $inputTag = "${{ github.event.inputs.release_tag }}".Trim()
+          $releaseTag = "${{ github.event.release.tag_name }}".Trim()
+          $ref = "${{ github.ref }}".Trim()
+          $refName = "${{ github.ref_name }}".Trim()
+
+          $targetRef = ""
+          $targetTag = ""
+
+          if ($inputTag) {
+              $targetRef = $inputTag
+              $targetTag = $inputTag
+          } elseif ($releaseTag) {
+              $targetRef = $releaseTag
+              $targetTag = $releaseTag
+          } elseif ($ref -like "refs/tags/*") {
+              $targetRef = $ref
+              $targetTag = $refName
+          } elseif ($ref) {
+              $targetRef = $ref
+              $targetTag = ""
+          } else {
+              $targetRef = "main"
+              $targetTag = ""
+          }
+
+          Write-Host "Target ref for checkout: $targetRef"
+          Write-Host "Target tag for release:  $targetTag"
+
+          "ref=$targetRef" >> $env:GITHUB_OUTPUT
+          "tag=$targetTag" >> $env:GITHUB_OUTPUT
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ startsWith(github.ref, 'refs/tags/') && github.ref || 'main' }}
+          ref: ${{ steps.target.outputs.ref }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -44,6 +79,8 @@ jobs:
           Write-Host "github.sha=${{ github.sha }}"
           Write-Host "input.release_tag=${{ github.event.inputs.release_tag }}"
           Write-Host "release.tag_name=${{ github.event.release.tag_name }}"
+          Write-Host "target.outputs.ref=${{ steps.target.outputs.ref }}"
+          Write-Host "target.outputs.tag=${{ steps.target.outputs.tag }}"
           git rev-parse HEAD
           git log -1 --oneline
 
@@ -70,9 +107,9 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release asset
-        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != '' || github.event_name == 'release'
+        if: steps.target.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag || github.event.release.tag_name || github.ref_name }}
+          tag_name: ${{ steps.target.outputs.tag }}
           files: dist/installer/AiteCommander-Setup-*.exe
           generate_release_notes: true

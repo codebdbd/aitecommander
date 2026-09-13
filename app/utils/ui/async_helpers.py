@@ -148,7 +148,9 @@ def run_async_export(
 
     # Start asynchronous export
     db.export_full_structure_async(
-        on_error=on_error, on_progress=dialog.update_progress
+        on_finished=on_finished,
+        on_error=on_error,
+        on_progress=dialog.update_progress,
     )
 
     dialog.exec()

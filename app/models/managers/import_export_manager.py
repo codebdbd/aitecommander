@@ -717,7 +717,11 @@ def _insert_new_link(rec, all_fields, connection):
             tuple(values),
         )
     except Exception as e:
-        logger.warning("Failed to insert link during import: %s", e)
+        link_name = rec.get("name", "<unnamed>")
+        logger.error("Failed to insert link '%s' during import: %s", link_name, e)
+        raise DatabaseError(
+            f"Failed to insert link '{link_name}': {e}"
+        ) from e
 
 
 def _extract_cat_and_links(tree: dict) -> tuple[dict | None, list]:

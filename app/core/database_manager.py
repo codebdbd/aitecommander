@@ -30,6 +30,24 @@ class DatabaseManager:
     _active_connections: dict[int, sqlite3.Connection] = {}
     _connection_lock = threading.Lock()
     _global_pragmas_applied_path: Path | None = None
+    _maintenance_mode: bool = False
+    _maintenance_lock = threading.RLock()
+
+    @classmethod
+    def is_in_maintenance(cls) -> bool:
+        return cls._maintenance_mode
+
+    @classmethod
+    @contextmanager
+    def maintenance_scope(cls) -> Iterator[None]:
+        """Enter exclusive maintenance mode: closes connections and prevents new connections."""
+        with cls._maintenance_lock:
+            cls._maintenance_mode = True
+            try:
+                cls.close_all()
+                yield
+            finally:
+                cls._maintenance_mode = False
 
     @classmethod
     def configure(cls, db_path: Path | None = None) -> None:
@@ -47,6 +65,11 @@ class DatabaseManager:
 
     @classmethod
     def get_connection(cls) -> sqlite3.Connection:
+        if cls._maintenance_mode:
+            raise RuntimeError(
+                "Database is currently in maintenance mode (restore/rebuild in progress). "
+                "New operations are temporarily blocked."
+            )
         start_total = time.perf_counter()
         conn = getattr(cls._thread_local, "conn", None)
         if conn is not None:

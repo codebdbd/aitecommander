@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 
+MAX_ARCHIVE_ENTRIES = 2000
+MAX_MANIFEST_SIZE = 1 * 1024 * 1024  # 1 MB
+MAX_DATA_JSON_SIZE = 20 * 1024 * 1024  # 20 MB
+MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
+MAX_TOTAL_UNCOMPRESSED_SIZE = 50 * 1024 * 1024  # 50 MB total for archive
+
 
 class StructureShareService:
     """Export/import section/category trees to shareable archives."""
@@ -134,22 +140,80 @@ class StructureShareService:
             rel = str(Path("files") / "icons" / src.name)
             files.setdefault(rel, src)
         return files
+
+    def _safe_read_entry(
+        self, zf: zipfile.ZipFile, name: str, max_size: int
+    ) -> bytes:
+        total_read = 0
+        chunks: list[bytes] = []
+        with zf.open(name, "r") as stream:
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                total_read += len(chunk)
+                if total_read > max_size:
+                    raise ValueError(
+                        f"Entry '{name}' exceeds maximum allowed size ({max_size} bytes)"
+                    )
+                chunks.append(chunk)
+        return b"".join(chunks)
+
     def _read_archive(
         self, path: Path
     ) -> tuple[dict[str, Any], dict[str, Any], dict[str, bytes]]:
         with zipfile.ZipFile(path, "r") as zf:
-            manifest_raw = zf.read("manifest.json")
-            data_raw = zf.read("data.json")
+            infos = zf.infolist()
+            if len(infos) > MAX_ARCHIVE_ENTRIES:
+                raise ValueError(
+                    f"Archive has too many entries ({len(infos)} > {MAX_ARCHIVE_ENTRIES})"
+                )
+
+            total_declared_uncompressed = 0
+            for info in infos:
+                total_declared_uncompressed += info.file_size
+                if info.filename == "manifest.json" and info.file_size > MAX_MANIFEST_SIZE:
+                    raise ValueError(
+                        f"manifest.json declared size ({info.file_size}) exceeds limit ({MAX_MANIFEST_SIZE})"
+                    )
+                if info.filename == "data.json" and info.file_size > MAX_DATA_JSON_SIZE:
+                    raise ValueError(
+                        f"data.json declared size ({info.file_size}) exceeds limit ({MAX_DATA_JSON_SIZE})"
+                    )
+                if info.filename.startswith("files/icons/") and info.file_size > MAX_ICON_FILE_SIZE:
+                    raise ValueError(
+                        f"Icon {info.filename} declared size ({info.file_size}) exceeds limit ({MAX_ICON_FILE_SIZE})"
+                    )
+
+            if total_declared_uncompressed > MAX_TOTAL_UNCOMPRESSED_SIZE:
+                raise ValueError(
+                    f"Archive total declared uncompressed size ({total_declared_uncompressed}) exceeds limit ({MAX_TOTAL_UNCOMPRESSED_SIZE})"
+                )
+
+            manifest_raw = self._safe_read_entry(zf, "manifest.json", MAX_MANIFEST_SIZE)
+            data_raw = self._safe_read_entry(zf, "data.json", MAX_DATA_JSON_SIZE)
+            cumulative_size = len(manifest_raw) + len(data_raw)
+            if cumulative_size > MAX_TOTAL_UNCOMPRESSED_SIZE:
+                raise ValueError("Total uncompressed size exceeds archive limit")
+
             manifest = json.loads(manifest_raw.decode("utf-8"))
             data = json.loads(data_raw.decode("utf-8"))
-            self._validate_checksums(manifest, data_raw, zf)
+
             icon_entries: dict[str, bytes] = {}
-            for name in zf.namelist():
+            for info in infos:
+                name = info.filename
                 if not name.startswith("files/icons/"):
                     continue
                 if ".." in Path(name).parts:
                     continue
-                icon_entries[Path(name).name] = zf.read(name)
+                icon_blob = self._safe_read_entry(zf, name, MAX_ICON_FILE_SIZE)
+                cumulative_size += len(icon_blob)
+                if cumulative_size > MAX_TOTAL_UNCOMPRESSED_SIZE:
+                    raise ValueError("Total uncompressed size exceeds archive limit")
+                icon_entries[Path(name).name] = icon_blob
+
+            self._validate_checksums(manifest, data_raw, zf, icon_entries)
+
         if not isinstance(manifest, dict) or not isinstance(data, dict):
             raise ValueError("Invalid package format")
         return manifest, data, icon_entries
@@ -161,7 +225,11 @@ class StructureShareService:
             raise ValueError("Unexpected package type")
 
     def _validate_checksums(
-        self, manifest: dict[str, Any], data_raw: bytes, zf: zipfile.ZipFile
+        self,
+        manifest: dict[str, Any],
+        data_raw: bytes,
+        zf: zipfile.ZipFile,
+        icon_entries: dict[str, bytes] | None = None,
     ) -> None:
         checksums = manifest.get("checksums") or {}
         expected_data = (checksums.get("data.json") or "").strip()
@@ -175,11 +243,15 @@ class StructureShareService:
                 continue
             if not isinstance(rel_path, str):
                 continue
-            try:
-                content = zf.read(rel_path)
-            except KeyError:
-                logger.warning("Missing file in archive (ignored): %s", rel_path)
-                continue
+            icon_filename = Path(rel_path).name
+            if icon_entries is not None and icon_filename in icon_entries:
+                content = icon_entries[icon_filename]
+            else:
+                try:
+                    content = self._safe_read_entry(zf, rel_path, MAX_ICON_FILE_SIZE)
+                except (KeyError, ValueError):
+                    logger.warning("Missing or oversized file in archive (ignored): %s", rel_path)
+                    continue
             actual = _sha256_bytes(content)
             if actual != expected_hash:
                 logger.warning("Checksum mismatch for %s (ignored)", rel_path)

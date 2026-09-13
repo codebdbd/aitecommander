@@ -61,17 +61,18 @@ class _AppsLoaderThread(QThread):
 
     def cancel(self) -> None:
         self._is_cancelled = True
+        self.requestInterruption()
 
     def run(self) -> None:
         try:
             apps = get_installed_apps()
-            if self._is_cancelled:
+            if self._is_cancelled or self.isInterruptionRequested():
                 return
             self.apps_ready.emit(apps)
 
             # Progressive icon extraction in background (works for UWP and clean .exe)
             for idx, app in enumerate(apps):
-                if self._is_cancelled:
+                if self._is_cancelled or self.isInterruptionRequested():
                     return
                 try:
                     target_src = (
@@ -81,14 +82,18 @@ class _AppsLoaderThread(QThread):
                     )
                     img = extract_shell_icon_image(target_src)
                     if img is not None and not img.isNull():
+                        if self._is_cancelled or self.isInterruptionRequested():
+                            return
                         self.icon_ready.emit(idx, img)
                 except Exception:
                     pass
         except Exception as e:
             logger.error("Failed to load installed apps: %s", e)
-            self.apps_ready.emit([])
+            if not (self._is_cancelled or self.isInterruptionRequested()):
+                self.apps_ready.emit([])
         finally:
-            self.all_done.emit()
+            if not (self._is_cancelled or self.isInterruptionRequested()):
+                self.all_done.emit()
 
 
 class InstalledAppsDialog(BaseDialog):
@@ -261,16 +266,25 @@ class InstalledAppsDialog(BaseDialog):
         if self._selected_app is not None:
             self.accept()
 
+    def _stop_loader_thread(self, timeout_ms: int = 1500) -> None:
+        """Cooperatively cancel and wait for the background loader thread."""
+        thread = getattr(self, "loader_thread", None)
+        if thread is not None and thread.isRunning():
+            thread.cancel()
+            thread.quit()
+            if not thread.wait(timeout_ms):
+                logger.warning("Installed apps loader thread did not terminate within %d ms", timeout_ms)
+
+    def accept(self) -> None:
+        self._stop_loader_thread()
+        super().accept()
+
     def closeEvent(self, event) -> None:
-        if hasattr(self, "loader_thread") and self.loader_thread.isRunning():
-            self.loader_thread.quit()
-            self.loader_thread.wait(500)
+        self._stop_loader_thread()
         super().closeEvent(event)
 
     def reject(self) -> None:
-        if hasattr(self, "loader_thread") and self.loader_thread.isRunning():
-            self.loader_thread.quit()
-            self.loader_thread.wait(500)
+        self._stop_loader_thread()
         super().reject()
 
     def get_selected_app(self) -> Optional[InstalledAppInfo]:

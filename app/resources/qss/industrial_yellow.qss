@@ -36,14 +36,11 @@ stop: 0.95 #285C58, stop: 1 #285C58
 QWidget#spheres_bar QToolButton {
 }
 QWidget#spheres_bar QToolButton:hover,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
-border-color: #FFCD11;
-background: transparent;
-}
 QWidget#spheres_bar QToolButton:checked,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
 border-color: #FFCD11;
-background: #FFCD11;
+background: transparent;
 }
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
