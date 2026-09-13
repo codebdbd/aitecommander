@@ -65,6 +65,18 @@ class TreeUpdateService(QObject):
                     item_id,
                 )
                 raise
+            if item_type == "category" and isinstance(item_id, int):
+                try:
+                    tiles_ctrl = getattr(self._manager, "tiles_controller", None)
+                    if tiles_ctrl is not None and hasattr(tiles_ctrl, "update_category"):
+                        updated_data = dict(data or {})
+                        updated_data["id"] = item_id
+                        tiles_ctrl.update_category(updated_data)
+                except Exception:
+                    logger.debug(
+                        "TreeUpdateService.handle_item_updated: tiles update failed",
+                        exc_info=True,
+                    )
 
         controller = getattr(self._manager, "controller", None)
         selection_handler = getattr(controller, "selection_handler", None)

@@ -593,6 +593,14 @@ class DatabaseEventHandler:
             DatabaseManager.get_connection()
         except Exception as exc:
             logger.warning("handle_database_restored: failed to refresh DB connection: %s", exc)
+
+        undo_stack = getattr(window, "undo_stack", None)
+        if undo_stack is not None and hasattr(undo_stack, "clear"):
+            logger.info("handle_database_restored: Clearing undo stack")
+            try:
+                undo_stack.clear()
+            except Exception as exc:
+                logger.warning("handle_database_restored: failed to clear undo stack: %s", exc)
         
         logger.info("Updating controllers with new DB")
         links_actions = getattr(window, "links_actions", None)
@@ -632,6 +640,15 @@ class DatabaseEventHandler:
             DatabaseManager.get_connection()
         except Exception as exc:
             logger.warning("handle_database_connected: failed to refresh DB connection: %s", exc)
+
+        undo_stack = getattr(window, "undo_stack", None)
+        if undo_stack is not None and hasattr(undo_stack, "clear"):
+            logger.info("handle_database_connected: Clearing undo stack")
+            try:
+                undo_stack.clear()
+            except Exception as exc:
+                logger.warning("handle_database_connected: failed to clear undo stack: %s", exc)
+
         links_actions = getattr(window, "links_actions", None)
         DatabaseEventHandler._update_controllers_with_new_db(
             window, new_db, links_actions=links_actions
@@ -861,10 +878,13 @@ class DatabaseEventHandler:
         if hasattr(sb, "structure_service"):
             logger.info("_update_business_logic: Updating structure_service.db")
             sb.structure_service.db = new_db
-            # StructureService also has internal _model (StructureCoordinator)
+            # StructureService also has internal _model (StructureCoordinator) and _bulk (BulkOperationService)
             if hasattr(sb.structure_service, "_model"):
                 logger.info("_update_business_logic: Updating structure_service._model.db")
                 sb.structure_service._model.db = new_db
+            if hasattr(sb.structure_service, "_bulk"):
+                logger.info("_update_business_logic: Updating structure_service._bulk.db")
+                sb.structure_service._bulk.db = new_db
         
         # Update async_service and its nested AsyncOperations
         if hasattr(sb, "async_service") and hasattr(sb.async_service, "async_operations"):

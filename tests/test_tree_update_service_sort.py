@@ -193,6 +193,30 @@ class TestTreeUpdateServiceDeletePostUpdates(unittest.TestCase):
         manager.clear_tiles.assert_called_once()
         manager.refresh_tiles_for_current_selection.assert_not_called()
 
+    def test_handle_item_updated_notifies_tiles_controller_for_category(self) -> None:
+        svc, manager, model = self._build_service()
+        tiles_ctrl = Mock()
+        manager.tiles_controller = tiles_ctrl
+        svc._handle_category_section_change = Mock(return_value=False)  # type: ignore[method-assign]
+
+        svc.handle_item_updated("category", 42, {"name": "Test", "icon_path": "cat.png"})
+
+        model.update_item.assert_called_once_with(
+            "category", 42, {"name": "Test", "icon_path": "cat.png"}
+        )
+        tiles_ctrl.update_category.assert_called_once_with(
+            {"name": "Test", "icon_path": "cat.png", "id": 42}
+        )
+
+    def test_handle_item_updated_safe_without_tiles_controller(self) -> None:
+        svc, manager, model = self._build_service()
+        # manager has no tiles_controller
+        svc._handle_category_section_change = Mock(return_value=False)  # type: ignore[method-assign]
+
+        # Should not raise
+        svc.handle_item_updated("category", 42, {"name": "Test", "icon_path": "cat.png"})
+        model.update_item.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

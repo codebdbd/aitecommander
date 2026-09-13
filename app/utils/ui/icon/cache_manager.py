@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6.QtGui import QIcon, QPixmap, QPixmapCache
+from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 
@@ -749,6 +750,12 @@ def clear_icon_cache() -> None:
         clear_links_table_icon_cache()
     except Exception:
         logger.debug("Failed to clear links table icon cache", exc_info=True)
+    try:
+        from .loading_service import icon_loading_service
+
+        icon_loading_service.clear()
+    except Exception:
+        logger.debug("Failed to clear icon loading service cache", exc_info=True)
 
 
 def get_icon_cache_stats() -> dict[str, int | float]:

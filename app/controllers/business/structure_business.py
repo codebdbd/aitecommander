@@ -1229,6 +1229,53 @@ class StructureBusinessLogic(QObject):
         """Return sphere data by identifier."""
         return self.query_service.get_sphere_by_id(sphere_id)
 
+    @handle_exceptions(default_return=False)
+    def update_sphere_icon(self, sphere_id: int, icon_path: str) -> bool:
+        """Update sphere icon path in database and cache."""
+        try:
+            success = self.structure_coordinator.update_sphere(
+                int(sphere_id), {"icon_path": icon_path}
+            )
+            if success:
+                if hasattr(self, "cache_manager") and self.cache_manager:
+                    self.cache_manager.invalidate("all_spheres")
+                for sp in getattr(self, "_cached_spheres", []):
+                    if sp.get("id") == sphere_id:
+                        sp["icon_path"] = icon_path
+                        break
+            return bool(success)
+        except Exception as e:
+            self.logger.error(
+                "Failed to update sphere icon for %s: %s", sphere_id, e, exc_info=True
+            )
+            return False
+
+    @handle_exceptions(default_return=False)
+    def update_sphere_name(self, sphere_id: int, name: str) -> bool:
+        """Update sphere name in database and cache."""
+        try:
+            clean_name = str(name).strip()
+            if not clean_name:
+                return False
+            success = self.structure_coordinator.update_sphere(
+                int(sphere_id), {"name": clean_name}
+            )
+            if success:
+                if hasattr(self, "cache_manager") and self.cache_manager:
+                    self.cache_manager.invalidate("all_spheres")
+                for sp in getattr(self, "_cached_spheres", []):
+                    if sp.get("id") == sphere_id:
+                        sp["name"] = clean_name
+                        break
+            return bool(success)
+        except Exception as e:
+            self.logger.error(
+                "Failed to update sphere name for %s: %s", sphere_id, e, exc_info=True
+            )
+            return False
+
+
+
     @handle_exceptions()
     def get_next_sphere_id(self) -> int | None:
         """Return the next sphere ID in a cyclical manner."""

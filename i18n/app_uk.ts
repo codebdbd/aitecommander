@@ -2,6 +2,80 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="uk_UA">
   <context>
+    <name>AboutDialog</name>
+    <message>
+        <source>About</source>
+        <translation type="vanished">Про програму</translation>
+    </message>
+    <message>
+        <source>Application data</source>
+        <translation type="vanished">Дані програми</translation>
+    </message>
+    <message>
+        <source>Could not open target.</source>
+        <translation type="vanished">Не вдалося відкрити об’єкт.</translation>
+    </message>
+    <message>
+        <source>Data folder</source>
+        <translation type="vanished">Папка даних</translation>
+    </message>
+    <message>
+        <source>Developer: Codebdbd</source>
+        <translation type="vanished">Розробник: Codebdbd</translation>
+    </message>
+    <message>
+        <source>GitHub repository</source>
+        <translation type="vanished">Репозиторій GitHub</translation>
+    </message>
+    <message>
+        <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
+        <translation type="vanished">Ієрархічний менеджер закладок і посилань для Windows. Упорядковує посилання за сферами, розділами та категоріями, підтримує теми, іконки та засоби імпорту й експорту.</translation>
+    </message>
+    <message>
+        <source>Information</source>
+        <translation type="vanished">Інформація</translation>
+    </message>
+    <message>
+        <source>License: MIT</source>
+        <translation type="vanished">Ліцензія: MIT</translation>
+    </message>
+    <message>
+        <source>Missing target: {0}</source>
+        <translation type="vanished">Об’єкт відсутній: {0}</translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation type="vanished">Відкрити папку даних</translation>
+    </message>
+    <message>
+        <source>Open license</source>
+        <translation type="vanished">Відкрити ліцензію</translation>
+    </message>
+    <message>
+        <source>Open program folder</source>
+        <translation type="vanished">Відкрити папку програми</translation>
+    </message>
+    <message>
+        <source>Program folder</source>
+        <translation type="vanished">Папка програми</translation>
+    </message>
+    <message>
+        <source>Python 3.12+ · PyQt6 · SQLite</source>
+        <translation type="vanished">Python 3.12+ · PyQt6 · SQLite</translation>
+    </message>
+    <message>
+        <source>Resources</source>
+        <translation type="vanished">Ресурси</translation>
+    </message>
+    <message>
+        <source>Support the project</source>
+        <translation type="vanished">Підтримати проєкт</translation>
+    </message>
+    <message>
+        <source>Version {0}</source>
+        <translation type="vanished">Версія {0}</translation>
+    </message>
+</context><context>
     <name>AccessibilityManager</name>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\services\accessibility_manager.py" line="55" />
@@ -362,6 +436,24 @@
         <translation>Не вдалося підрахувати елементи: {error}</translation>
     </message>
 </context><context>
+    <name>BackupWorker</name>
+    <message>
+        <source>Backup completed</source>
+        <translation type="vanished">Резервне копіювання завершено</translation>
+    </message>
+    <message>
+        <source>Cleaning up old backups...</source>
+        <translation type="vanished">Очищення старих резервних копій...</translation>
+    </message>
+    <message>
+        <source>Creating backup...</source>
+        <translation type="vanished">Створення резервної копії...</translation>
+    </message>
+    <message>
+        <source>Preparing backup...</source>
+        <translation type="vanished">Підготовка резервної копії...</translation>
+    </message>
+</context><context>
     <name>BadUrlCheckService</name>
     <message>
         <location filename="..\app\controllers\services\bad_url_check_service.py" line="100" />
@@ -416,37 +508,37 @@
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1153" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="158" />
         <source>Checking web links for availability...</source>
-        <translation>Перевірка доступності веб-посилань...</translation>
+        <translation type="unfinished">Перевірка доступності веб-посилань...</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="167" />
         <source>Error:</source>
-        <translation>Помилка:</translation>
+        <translation type="unfinished">Помилка:</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="171" />
         <source>🟢 All</source>
-        <translation>🟢 Усі</translation>
+        <translation type="unfinished">🟢 Усі</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="172" />
         <source>🔴 DNS Failed</source>
-        <translation>🔴 DNS не знайдено</translation>
+        <translation type="unfinished">🔴 DNS не знайдено</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="173" />
         <source>🟡 404 Not Found</source>
-        <translation>🟡 404 Не знайдено</translation>
+        <translation type="unfinished">🟡 404 Не знайдено</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="174" />
         <source>🔵 No SSL</source>
-        <translation>🔵 Немає SSL</translation>
+        <translation type="unfinished">🔵 Немає SSL</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="181" />
         <source>Sphere:</source>
-        <translation>Сфера:</translation>
+        <translation type="unfinished">Сфера:</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="532" />
@@ -456,183 +548,188 @@
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="195" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="185" />
         <source>All</source>
-        <translation>Усі</translation>
+        <translation type="unfinished">Усі</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="191" />
         <source>Section:</source>
-        <translation>Розділ:</translation>
+        <translation type="unfinished">Розділ:</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="201" />
         <source>Category:</source>
-        <translation>Категорія:</translation>
+        <translation type="unfinished">Категорія:</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1158" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="217" />
         <source>Select</source>
-        <translation>Вибрати</translation>
+        <translation type="unfinished">Вибрати</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1159" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="218" />
         <source>Domain</source>
-        <translation>Домен</translation>
+        <translation type="unfinished">Домен</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1160" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="219" />
         <source>URL</source>
-        <translation>URL</translation>
+        <translation type="unfinished">URL</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1161" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="220" />
         <source>Error</source>
-        <translation>Помилка</translation>
+        <translation type="unfinished">Помилка</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1162" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="221" />
         <source>Category</source>
-        <translation>Категорія</translation>
+        <translation type="unfinished">Категорія</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1166" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="246" />
         <source>Select All</source>
-        <translation>Вибрати всі</translation>
+        <translation type="unfinished">Вибрати всі</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1167" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="251" />
         <source>Select None</source>
-        <translation>Зняти виділення</translation>
+        <translation type="unfinished">Зняти виділення</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="276" />
         <source>Background</source>
-        <translation>В фон</translation>
+        <translation type="unfinished">В фон</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1169" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="285" />
         <source>Delete Selected</source>
-        <translation>Видалити вибрані</translation>
+        <translation type="unfinished">Видалити вибрані</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1170" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="293" />
         <source>Close</source>
-        <translation>Закрити</translation>
+        <translation type="unfinished">Закрити</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="347" />
         <source>Open in Browser</source>
-        <translation>Відкрити у браузері</translation>
+        <translation type="unfinished">Відкрити у браузері</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="351" />
         <source>Copy URL</source>
-        <translation>Копіювати URL</translation>
+        <translation type="unfinished">Копіювати URL</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="687" />
+        <source>Double-click to open or copy</source>
+        <translation>Двічі клацніть, щоб відкрити або скопіювати</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="802" />
         <source>All links are accessible!</source>
-        <translation>Усі посилання доступні!</translation>
+        <translation type="unfinished">Усі посилання доступні!</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="807" />
         <source>Found {0} unreachable links in {1} domains</source>
-        <translation>Знайдено {0} недоступних посилань у {1} доменах</translation>
+        <translation type="unfinished">Знайдено {0} недоступних посилань у {1} доменах</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="849" />
         <source>Error: {0}</source>
-        <translation>Помилка: {0}</translation>
+        <translation type="unfinished">Помилка: {0}</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="863" />
         <source>Cancelling...</source>
-        <translation>Скасування...</translation>
+        <translation type="unfinished">Скасування...</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="876" />
         <source>Bad URL check running in background — click to show</source>
-        <translation>Перевірка битих URL працює у фоновому режимі — натисніть, щоб показати</translation>
+        <translation type="unfinished">Перевірка битих URL працює у фоновому режимі — натисніть, щоб показати</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="900" />
         <source>Link deletion is still in progress. Please wait.</source>
-        <translation>Видалення посилань ще триває. Будь ласка, зачекайте.</translation>
+        <translation type="unfinished">Видалення посилань ще триває. Будь ласка, зачекайте.</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="917" />
         <source>Cancel Check</source>
-        <translation>Скасувати перевірку</translation>
+        <translation type="unfinished">Скасувати перевірку</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="918" />
         <source>URL check is still running. Cancel it?</source>
-        <translation>Перевірка URL ще триває. Скасувати?</translation>
+        <translation type="unfinished">Перевірка URL ще триває. Скасувати?</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="963" />
         <source>Selected: {0} of {1}</source>
-        <translation>Вибрано: {0} з {1}</translation>
+        <translation type="unfinished">Вибрано: {0} з {1}</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1122" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1005" />
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="989" />
         <source>Delete Bad URLs</source>
-        <translation>Видалити погані URL</translation>
+        <translation type="unfinished">Видалити погані URL</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="990" />
         <source>No links selected for deletion.</source>
-        <translation>Не вибрано посилань для видалення.</translation>
+        <translation type="unfinished">Не вибрано посилань для видалення.</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="999" />
         <source>Delete {0} selected links?</source>
-        <translation>Видалити {0} вибраних посилань?</translation>
+        <translation type="unfinished">Видалити {0} вибраних посилань?</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1000" />
         <source>This action cannot be undone.</source>
-        <translation>Цю дію неможливо скасувати.</translation>
+        <translation type="unfinished">Цю дію неможливо скасувати.</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1029" />
         <source>Deleting selected links... ({0})</source>
-        <translation>Видалення вибраних посилань... ({0})</translation>
+        <translation type="unfinished">Видалення вибраних посилань... ({0})</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1049" />
         <source>Deleting selected links... {0}/{1}</source>
-        <translation>Видалення вибраних посилань... {0}/{1}</translation>
+        <translation type="unfinished">Видалення вибраних посилань... {0}/{1}</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1092" />
         <source>All links deleted!</source>
-        <translation>Усі посилання видалено!</translation>
+        <translation type="unfinished">Усі посилання видалено!</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1104" />
         <source>Deleted {0} links. {1} total remaining ({2} visible).</source>
-        <translation>Видалено {0} посилань. Залишилося {1} всього ({2} видимих).</translation>
+        <translation type="unfinished">Видалено {0} посилань. Залишилося {1} всього ({2} видимих).</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1123" />
         <source>Failed to delete links.</source>
-        <translation>Не вдалося видалити посилання.</translation>
+        <translation type="unfinished">Не вдалося видалити посилання.</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1127" />
         <source>Failed to delete selected links.</source>
-        <translation>Не вдалося видалити вибрані посилання.</translation>
+        <translation type="unfinished">Не вдалося видалити вибрані посилання.</translation>
     </message>
 </context><context>
     <name>BaseDialog</name>
@@ -735,6 +832,24 @@
         <translation>Кнопка дії: {label}</translation>
     </message>
 </context><context>
+    <name>BrowserBookmarksImporter</name>
+    <message>
+        <source>Added links: {count}</source>
+        <translation type="vanished">Додано посилань: {count}</translation>
+    </message>
+    <message>
+        <source>Categories created: {count}</source>
+        <translation type="vanished">Створено категорій: {count}</translation>
+    </message>
+    <message>
+        <source>HTML Files (*.html *.htm)</source>
+        <translation type="vanished">Файли HTML (*.html *.htm)</translation>
+    </message>
+    <message>
+        <source>Import from browser</source>
+        <translation type="vanished">Імпорт з браузера</translation>
+    </message>
+</context><context>
     <name>BrowserProfileDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="149" />
@@ -802,6 +917,12 @@
         <translation>{operation} ({current} із {total})…</translation>
     </message>
 </context><context>
+    <name>BrowserProfiles</name>
+    <message>
+        <source>Loading {browser}</source>
+        <translation type="vanished">Завантаження {browser}</translation>
+    </message>
+</context><context>
     <name>CategoryDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="617" />
@@ -863,38 +984,38 @@
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1144" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1165" />
         <source>Choose a Chrome profile:</source>
         <translation>Виберіть профіль Chrome:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1146" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1167" />
         <source>Select all</source>
         <translation>Вибрати всі</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1148" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1169" />
         <source>Deselect all</source>
         <translation>Зняти вибір з усіх</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1166" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1150" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1187" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1171" />
         <source>Refresh profiles</source>
         <translation>Оновити профілі</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1164" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1185" />
         <source>Loading...</source>
         <translation>Завантаження...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1188" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
         <source>Chrome profiles not found</source>
         <translation>Профілі Chrome не знайдено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1195" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1216" />
         <source>(no email)</source>
         <translation>(без email)</translation>
     </message>
@@ -1156,6 +1277,16 @@ Old database restored.</source>
         <translation>Виберіть архів іконок для імпорту</translation>
     </message>
 </context><context>
+    <name>DatabaseInit</name>
+    <message>
+        <source>Applying migrations...</source>
+        <translation type="vanished">Застосування міграцій...</translation>
+    </message>
+    <message>
+        <source>Initializing default data...</source>
+        <translation type="vanished">Ініціалізація початкових даних...</translation>
+    </message>
+</context><context>
     <name>DatabaseInitializer</name>
     <message>
         <location filename="..\app\controllers\system\db_init.py" line="50" />
@@ -1184,6 +1315,100 @@ Old database restored.</source>
         <location filename="..\app\services\database_restore_worker.py" line="162" />
         <source>Backup integrity check failed: {error}</source>
         <translation>Перевірка цілісності резервної копії не вдалася: {error}</translation>
+    </message>
+</context><context>
+    <name>DateUtils</name>
+    <message>
+        <source>Just now</source>
+        <translation type="vanished">Щойно</translation>
+    </message>
+    <message>
+        <source>Never</source>
+        <translation type="vanished">Ніколи</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="vanished">Невідомо</translation>
+    </message>
+    <message>
+        <source>day</source>
+        <translation type="vanished">дн.</translation>
+    </message>
+    <message>
+        <source>days</source>
+        <translation type="vanished">дн.</translation>
+    </message>
+    <message>
+        <source>hr</source>
+        <translation type="vanished">год</translation>
+    </message>
+    <message>
+        <source>min</source>
+        <translation type="vanished">хв</translation>
+    </message>
+    <message>
+        <source>week</source>
+        <translation type="vanished">тиж.</translation>
+    </message>
+    <message>
+        <source>weeks</source>
+        <translation type="vanished">тиж.</translation>
+    </message>
+    <message>
+        <source>{0} {1} ago</source>
+        <translation type="vanished">{0} {1} тому</translation>
+    </message>
+</context><context>
+    <name>DialogManager</name>
+    <message>
+        <source>Cancel</source>
+        <translation type="vanished">Скасувати</translation>
+    </message>
+    <message>
+        <source>Confirmation</source>
+        <translation type="vanished">Підтвердження</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="vanished">Помилка</translation>
+    </message>
+    <message>
+        <source>Information</source>
+        <translation type="vanished">Інформація</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation type="vanished">Ні</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="vanished">Гаразд</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="vanished">Попередження</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation type="vanished">Так</translation>
+    </message>
+</context><context>
+    <name>DialogMixin</name>
+    <message>
+        <source>Confirmation</source>
+        <translation type="vanished">Підтвердження</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="vanished">Помилка</translation>
+    </message>
+    <message>
+        <source>Information</source>
+        <translation type="vanished">Інформація</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="vanished">Попередження</translation>
     </message>
 </context><context>
     <name>DialogProvider</name>
@@ -1238,139 +1463,145 @@ Old database restored.</source>
 </context><context>
     <name>FileSearchDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="348" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="166" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="412" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="181" />
         <source>Search files:</source>
         <translation>Шукати файли:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="359" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="175" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="435" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="190" />
         <source>Search</source>
         <translation>Пошук</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="361" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="177" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="437" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="192" />
         <source>Stop</source>
         <translation>Зупинити</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="346" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="185" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="410" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="200" />
         <source>Search in:</source>
         <translation>Шукати в:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="191" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="206" />
         <source>Browse</source>
         <translation>Оглянути</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="350" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="198" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="414" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="213" />
         <source>Extension:</source>
         <translation>Розширення:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="357" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="261" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="433" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="276" />
         <source>Quickly apply an extension mask</source>
         <translation>Швидко застосувати маску розширень</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="352" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="271" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="286" />
         <source>With text:</source>
         <translation>З текстом:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="374" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="308" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="450" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="372" />
         <source>Ready to search</source>
         <translation>Готово до пошуку</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="363" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="313" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="439" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="377" />
         <source>Add as link</source>
         <translation>Додати як посилання</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="365" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="317" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="441" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="381" />
         <source>Open in file explorer</source>
         <translation>Відкрити у провіднику</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="321" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="385" />
         <source>Close</source>
         <translation>Закрити</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="453" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
         <source>File not found: {path}</source>
         <translation>Файл не знайдено: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="520" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="596" />
         <source>Failed to open file in explorer: {error}</source>
         <translation>Не вдалося відкрити файл у провіднику: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="524" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="600" />
         <source>Opening the file explorer timed out: {error}</source>
         <translation>Перевищено час очікування відкриття провідника: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="605" />
         <source>Unexpected error: {error}</source>
         <translation>Неочікувана помилка: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="542" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="618" />
         <source>Select folder for search</source>
         <translation>Виберіть теку для пошуку</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="551" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="627" />
         <source>Specify a folder to search.</source>
         <translation>Вкажіть теку для пошуку.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="557" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="633" />
         <source>The folder does not exist: {path}</source>
         <translation>Теки не існує: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="563" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="639" />
         <source>The specified path is not a folder: {path}</source>
         <translation>Зазначений шлях не є текою: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="576" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="652" />
         <source>Invalid regular expression for name: {error}</source>
         <translation>Некоректний регулярний вираз для назви: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="600" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="688" />
         <source>Searching…</source>
         <translation>Пошук…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="666" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="794" />
         <source>Searching… Files: {files}, Directories: {dirs}</source>
         <translation>Пошук… Файли: {files}, Каталоги: {dirs}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="674" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="826" />
         <source>Search error</source>
         <translation>Помилка пошуку</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="694" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="846" />
         <source>Search finished. Files found: {count}</source>
         <translation>Пошук завершено. Знайдено файлів: {count}</translation>
+    </message>
+</context><context>
+    <name>FileSearchResultsModel</name>
+    <message>
+        <source>Path</source>
+        <translation type="vanished">Шлях</translation>
     </message>
 </context><context>
     <name>IconRefreshDialog</name>
@@ -1487,17 +1718,17 @@ Failed: {3}</source>
 </context><context>
     <name>IconRefreshWorker</name>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="392" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="443" />
         <source>Processed {0}/{1} (updated: {2})</source>
         <translation>Оброблено {0}/{1} (оновлено: {2})</translation>
     </message>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="611" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="666" />
         <source>Found {0} links to refresh</source>
         <translation>Знайдено {0} посилань для оновлення</translation>
     </message>
     <message>
-        <location filename="..\app\models\workers\icon_refresh_worker.py" line="668" />
+        <location filename="..\app\models\workers\icon_refresh_worker.py" line="723" />
         <source>Error: {0}</source>
         <translation>Помилка: {0}</translation>
     </message>
@@ -1627,6 +1858,124 @@ Failed: {3}</source>
         <translation>Спробуйте вибрати секцію знову або оновити список секцій.</translation>
     </message>
 </context><context>
+    <name>ImportExportProgress</name>
+    <message>
+        <source>Hierarchy assembly completed</source>
+        <translation type="vanished">Побудову ієрархії завершено</translation>
+    </message>
+    <message>
+        <source>Loading categories...</source>
+        <translation type="vanished">Завантаження категорій...</translation>
+    </message>
+    <message>
+        <source>Loading links...</source>
+        <translation type="vanished">Завантаження посилань...</translation>
+    </message>
+    <message>
+        <source>Loading sections...</source>
+        <translation type="vanished">Завантаження розділів...</translation>
+    </message>
+    <message>
+        <source>Loading spheres...</source>
+        <translation type="vanished">Завантаження сфер...</translation>
+    </message>
+</context><context>
+    <name>ItemDialogService</name>
+    <message>
+        <source>Category addition error</source>
+        <translation type="vanished">Помилка додавання категорії</translation>
+    </message>
+    <message>
+        <source>Category edit error</source>
+        <translation type="vanished">Помилка редагування категорії</translation>
+    </message>
+    <message>
+        <source>Check the entered data and try again.</source>
+        <translation type="vanished">Перевірте введені дані та спробуйте знову.</translation>
+    </message>
+    <message>
+        <source>Failed to add category.</source>
+        <translation type="vanished">Не вдалося додати категорію.</translation>
+    </message>
+    <message>
+        <source>Failed to add section.</source>
+        <translation type="vanished">Не вдалося додати розділ.</translation>
+    </message>
+    <message>
+        <source>Failed to edit category.</source>
+        <translation type="vanished">Не вдалося відредагувати категорію.</translation>
+    </message>
+    <message>
+        <source>Failed to edit section.</source>
+        <translation type="vanished">Не вдалося відредагувати розділ.</translation>
+    </message>
+    <message>
+        <source>No sections</source>
+        <translation type="vanished">Немає розділів</translation>
+    </message>
+    <message>
+        <source>No sections in the current sphere. Create a new section?</source>
+        <translation type="vanished">У поточній сфері немає розділів. Створити новий розділ?</translation>
+    </message>
+    <message>
+        <source>Section addition error</source>
+        <translation type="vanished">Помилка додавання розділу</translation>
+    </message>
+    <message>
+        <source>Section edit error</source>
+        <translation type="vanished">Помилка редагування розділу</translation>
+    </message>
+    <message>
+        <source>The section creation dialog will be opened.</source>
+        <translation type="vanished">Буде відкрито діалог створення розділу.</translation>
+    </message>
+    <message>
+        <source>Try again or contact support.</source>
+        <translation type="vanished">Спробуйте знову або зверніться до служби підтримки.</translation>
+    </message>
+</context><context>
+    <name>ItemOperations</name>
+    <message>
+        <source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <source>Confirm deletion</source>
+        <translation type="vanished">Підтвердження видалення</translation>
+    </message>
+    <message>
+        <source>Delete section</source>
+        <translation type="vanished">Видалити розділ</translation>
+    </message>
+    <message>
+        <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Розділ «{section}» містить {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <source>This action is irreversible. All links in the category will be deleted.</source>
+        <translation type="vanished">Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+    </message>
+    <message>
+        <source>This action is irreversible. All nested categories and links will be deleted.</source>
+        <translation type="vanished">Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+    </message>
+</context><context>
     <name>LanguageSelector</name>
     <message>
         <location filename="..\app\views\widgets\language_selector.py" line="41" />
@@ -1708,6 +2057,20 @@ Failed: {3}</source>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="669" />
         <source>Profiles: {first}, {second} and {rest} more</source>
         <translation>Профілі: {first}, {second} та ще {rest}</translation>
+    </message>
+</context><context>
+    <name>LinkDialogIconUtils</name>
+    <message>
+        <source>Icon not found: {path}</source>
+        <translation type="vanished">Іконку не знайдено: {path}</translation>
+    </message>
+    <message>
+        <source>Icon path is empty</source>
+        <translation type="vanished">Шлях до іконки порожній</translation>
+    </message>
+    <message>
+        <source>Unexpected error: {error}</source>
+        <translation type="vanished">Неочікувана помилка: {error}</translation>
     </message>
 </context><context>
     <name>LinkDialogUI</name>
@@ -1832,6 +2195,28 @@ Failed: {3}</source>
         <translation>Додати в обране</translation>
     </message>
 </context><context>
+    <name>LinkOperations</name>
+    <message>
+        <source>Confirm deletion</source>
+        <translation type="vanished">Підтвердження видалення</translation>
+    </message>
+    <message>
+        <source>Deleting {count} links</source>
+        <translation type="vanished">Видалення {count} посилань</translation>
+    </message>
+    <message>
+        <source>This action is irreversible.</source>
+        <translation type="vanished">Ця дія незворотна.</translation>
+    </message>
+    <message>
+        <source>{count} selected link(s) will be permanently deleted.
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Вибрані посилання ({count}) буде видалено назавжди.
+
+Продовжити?</translation>
+    </message>
+</context><context>
     <name>LinkProcessingMixin</name>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="289" />
@@ -1883,6 +2268,74 @@ Failed: {3}</source>
         <translation>Нотатки</translation>
     </message>
 </context><context>
+    <name>LinksUI</name>
+    <message>
+        <source>Check data correctness and try again.</source>
+        <translation type="vanished">Перевірте правильність даних і спробуйте знову.</translation>
+    </message>
+    <message>
+        <source>Check the link address or edit it.</source>
+        <translation type="vanished">Перевірте адресу посилання або відредагуйте її.</translation>
+    </message>
+    <message>
+        <source>Database error</source>
+        <translation type="vanished">Помилка бази даних</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="vanished">Помилка</translation>
+    </message>
+    <message>
+        <source>Error saving note</source>
+        <translation type="vanished">Помилка збереження нотатки</translation>
+    </message>
+    <message>
+        <source>No categories available. Create a category first.</source>
+        <translation type="vanished">Немає доступних категорій. Спочатку створіть категорію.</translation>
+    </message>
+    <message>
+        <source>Select a category to insert the link</source>
+        <translation type="vanished">Виберіть категорію для вставлення посилання</translation>
+    </message>
+    <message>
+        <source>This link cannot be opened for security reasons.</source>
+        <translation type="vanished">Це посилання неможливо відкрити з міркувань безпеки.</translation>
+    </message>
+    <message>
+        <source>Try again or contact support.</source>
+        <translation type="vanished">Спробуйте знову або зверніться до служби підтримки.</translation>
+    </message>
+    <message>
+        <source>Validation error</source>
+        <translation type="vanished">Помилка перевірки даних</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="vanished">Попередження</translation>
+    </message>
+</context><context>
+    <name>LinksUIController</name>
+    <message>
+        <source>Вы пытаетесь открыть более 10 ссылок одновременно.
+В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
+Если хотите, мы откроем первые 10 выбранных.</source>
+        <translation type="vanished">Ви намагаєтеся відкрити понад 10 посилань одночасно.
+Щоб уникнути проблем, відкриття обмежено 10 посиланнями.
+За бажанням можна відкрити перші 10 вибраних.</translation>
+    </message>
+    <message>
+        <source>Открытие ссылок</source>
+        <translation type="vanished">Відкриття посилань</translation>
+    </message>
+    <message>
+        <source>Открыть 10</source>
+        <translation type="vanished">Відкрити 10</translation>
+    </message>
+    <message>
+        <source>Отмена</source>
+        <translation type="vanished">Скасувати</translation>
+    </message>
+</context><context>
     <name>MainMenu</name>
     <message>
         <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="257" />
@@ -1912,13 +2365,13 @@ Failed: {3}</source>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="429" />
+        <location filename="..\app\views\windows\main_window.py" line="435" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="22" />
         <source>Switch Sphere (F6)</source>
         <translation>Перемкнути сферу (F6)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="430" />
+        <location filename="..\app\views\windows\main_window.py" line="436" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="23" />
         <source>Switch to next available sphere</source>
         <translation>Перемкнути на наступну доступну сферу</translation>
@@ -2221,6 +2674,16 @@ Failed: {3}</source>
         <translation>Помилка: %1</translation>
     </message>
 </context><context>
+    <name>MessageHandler</name>
+    <message>
+        <source>Operation completed successfully.</source>
+        <translation type="vanished">Операцію успішно завершено.</translation>
+    </message>
+    <message>
+        <source>Try repeating the action or contact support.</source>
+        <translation type="vanished">Спробуйте повторити дію або зверніться до служби підтримки.</translation>
+    </message>
+</context><context>
     <name>MoveOperationsHandler</name>
     <message>
         <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="110" />
@@ -2401,6 +2864,50 @@ Failed: {3}</source>
         <translation>Будь ласка, виберіть іншу назву або відредагуйте існуючий розділ.</translation>
     </message>
 </context><context>
+    <name>SelectionHandling</name>
+    <message>
+        <source>Check the correctness of actions and try again.</source>
+        <translation type="vanished">Перевірте правильність дій і спробуйте знову.</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="vanished">Попередження</translation>
+    </message>
+</context><context>
+    <name>SettingsConfig</name>
+    <message>
+        <source>About</source>
+        <translation type="vanished">Про програму</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="vanished">Файл</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation type="vanished">Папка</translation>
+    </message>
+    <message>
+        <source>Link Manager
+Version 1.0
+© MyCompany</source>
+        <translation type="vanished">Менеджер посилань
+Версія 1.0
+© MyCompany</translation>
+    </message>
+    <message>
+        <source>Program</source>
+        <translation type="vanished">Програма</translation>
+    </message>
+    <message>
+        <source>Script</source>
+        <translation type="vanished">Скрипт</translation>
+    </message>
+    <message>
+        <source>Web Link</source>
+        <translation type="vanished">Вебпосилання</translation>
+    </message>
+</context><context>
     <name>SettingsDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="954" />
@@ -2509,6 +3016,66 @@ Failed: {3}</source>
         <translation>Перевірте значення та спробуйте знову.</translation>
     </message>
 </context><context>
+    <name>SpheresBarController</name>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="240" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="203" />
+        <source>AI</source>
+        <translation>ШІ</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="241" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="204" />
+        <source>Work</source>
+        <translation>Робота</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="242" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="205" />
+        <source>Study</source>
+        <translation>Навчання</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="243" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="206" />
+        <source>Personal</source>
+        <translation>Особисте</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="274" />
+        <source>Rename Sphere...</source>
+        <translation>Перейменувати сферу...</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="281" />
+        <source>Reset to Default Name</source>
+        <translation>Скинути назву за замовчуванням</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="295" />
+        <source>Change Icon...</source>
+        <translation>Змінити іконку...</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="302" />
+        <source>Reset to Default Icon</source>
+        <translation>Скинути іконку за замовчуванням</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="385" />
+        <source>Select Icon</source>
+        <translation>Вибір іконки</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1311" />
+        <source>Rename Sphere</source>
+        <translation>Перейменувати сферу</translation>
+    </message>
+    <message>
+        <source>Enter sphere name:</source>
+        <translation type="vanished">Введіть назву сфери:</translation>
+    </message>
+</context><context>
     <name>StatusBar</name>
     <message>
         <location filename="..\app\views\widgets\status_bar.py" line="40" />
@@ -2548,81 +3115,229 @@ Failed: {3}</source>
         <translation>Шлях: {path}</translation>
     </message>
 </context><context>
+    <name>StructureDeletion</name>
+    <message>
+        <source>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Категорія «{category}» містить {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <source>Confirm deletion</source>
+        <translation type="vanished">Підтвердження видалення</translation>
+    </message>
+    <message>
+        <source>Delete section</source>
+        <translation type="vanished">Видалити розділ</translation>
+    </message>
+    <message>
+        <source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Розділ «{section}» містить {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Вибрані розділи загалом містять {categories} категорій і {links} посилань.
+
+Усі вкладені категорії та посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+    <message>
+        <source>This action is irreversible. All links in the category will be deleted.</source>
+        <translation type="vanished">Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+    </message>
+    <message>
+        <source>This action is irreversible. All nested categories and links will be deleted.</source>
+        <translation type="vanished">Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+    </message>
+    <message>
+        <source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</source>
+        <translation type="vanished">Загалом буде видалено {categories} категорій і {links} посилань.
+
+Усі вкладені посилання буде видалено назавжди!
+
+Продовжити?</translation>
+    </message>
+</context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="512" />
+        <location filename="..\app\views\windows\main_window.py" line="518" />
         <source>Sphere not selected.</source>
         <translation>Сферу не вибрано.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="515" />
+        <location filename="..\app\views\windows\main_window.py" line="521" />
         <source>Select a sphere and try again.</source>
         <translation>Виберіть сферу і спробуйте ще раз.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="557" />
-        <location filename="..\app\views\windows\main_window.py" line="529" />
+        <location filename="..\app\views\windows\main_window.py" line="563" />
+        <location filename="..\app\views\windows\main_window.py" line="535" />
         <source>Export error</source>
         <translation>Помилка експорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="554" />
+        <location filename="..\app\views\windows\main_window.py" line="560" />
         <source>Failed to export archive: {error}</source>
         <translation>Не вдалося експортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="569" />
+        <location filename="..\app\views\windows\main_window.py" line="575" />
         <source>Archive saved to:
 {path}</source>
         <translation>Архів збережено в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="572" />
+        <location filename="..\app\views\windows\main_window.py" line="578" />
         <source>Export complete</source>
         <translation>Експорт завершено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="592" />
+        <location filename="..\app\views\windows\main_window.py" line="598" />
         <source>Choose where to save the archive</source>
         <translation>Виберіть місце для збереження архіву</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="630" />
-        <location filename="..\app\views\windows\main_window.py" line="595" />
+        <location filename="..\app\views\windows\main_window.py" line="636" />
+        <location filename="..\app\views\windows\main_window.py" line="601" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP архів (*.zip);;Усі файли (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="654" />
-        <location filename="..\app\views\windows\main_window.py" line="615" />
+        <location filename="..\app\views\windows\main_window.py" line="660" />
+        <location filename="..\app\views\windows\main_window.py" line="621" />
         <source>Import error</source>
         <translation>Помилка імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="627" />
+        <location filename="..\app\views\windows\main_window.py" line="633" />
         <source>Select an archive to import</source>
         <translation>Виберіть архів для імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="651" />
+        <location filename="..\app\views\windows\main_window.py" line="657" />
         <source>Failed to import archive: {error}</source>
         <translation>Не вдалося імпортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="663" />
+        <location filename="..\app\views\windows\main_window.py" line="669" />
         <source>Import completed.</source>
         <translation>Імпорт завершено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="664" />
+        <location filename="..\app\views\windows\main_window.py" line="670" />
         <source>Import complete</source>
         <translation>Імпорт завершено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="747" />
+        <location filename="..\app\views\windows\main_window.py" line="753" />
         <source>Structure service unavailable.</source>
         <translation>Сервіс структури недоступний.</translation>
+    </message>
+</context><context>
+    <name>SystemDialogController</name>
+    <message>
+        <source>Auto-save</source>
+        <translation type="vanished">Автозбереження</translation>
+    </message>
+    <message>
+        <source>Bad URL Check</source>
+        <translation type="vanished">Перевірка URL</translation>
+    </message>
+    <message>
+        <source>Browser Import</source>
+        <translation type="vanished">Імпорт із браузера</translation>
+    </message>
+    <message>
+        <source>Check file integrity and access rights.</source>
+        <translation type="vanished">Перевірте цілісність файлу та права доступу.</translation>
+    </message>
+    <message>
+        <source>Error reading HTML file.</source>
+        <translation type="vanished">Помилка читання HTML-файлу.</translation>
+    </message>
+    <message>
+        <source>Export bookmarks from browser in HTML format and select correct file.</source>
+        <translation type="vanished">Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation>
+    </message>
+    <message>
+        <source>Failed to create auto-save before check.</source>
+        <translation type="vanished">Не вдалося виконати автозбереження перед перевіркою.</translation>
+    </message>
+    <message>
+        <source>Failed to create auto-save before import.</source>
+        <translation type="vanished">Не вдалося виконати автозбереження перед імпортом.</translation>
+    </message>
+    <message>
+        <source>Failed to start bad URL check</source>
+        <translation type="vanished">Не вдалося почати перевірку URL</translation>
+    </message>
+    <message>
+        <source>Failed to start icon refresh</source>
+        <translation type="vanished">Не вдалося почати оновлення іконок</translation>
+    </message>
+    <message>
+        <source>HTTP links: {count}</source>
+        <translation type="vanished">Посилання HTTP: {count}</translation>
+    </message>
+    <message>
+        <source>HTTPS links: {count}</source>
+        <translation type="vanished">Посилання HTTPS: {count}</translation>
+    </message>
+    <message>
+        <source>Icon Refresh</source>
+        <translation type="vanished">Оновлення іконок</translation>
+    </message>
+    <message>
+        <source>Import completed with error</source>
+        <translation type="vanished">Імпорт завершено з помилкою</translation>
+    </message>
+    <message>
+        <source>No links found in file.</source>
+        <translation type="vanished">У файлі не знайдено посилань.</translation>
+    </message>
+    <message>
+        <source>No section selected for import.</source>
+        <translation type="vanished">Секцію не вибрано для імпорту.</translation>
+    </message>
+    <message>
+        <source>Protocol statistics:</source>
+        <translation type="vanished">Статистика протоколів:</translation>
+    </message>
+    <message>
+        <source>Select section where categories and links will be added.</source>
+        <translation type="vanished">Виберіть розділ, до якого буде додано категорії та посилання.</translation>
+    </message>
+    <message>
+        <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
+        <translation type="vanished">Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation>
+    </message>
+    <message>
+        <source>Would you like to check URLs for HTTPS availability?</source>
+        <translation type="vanished">Перевірити доступність URL через HTTPS?</translation>
     </message>
 </context><context>
     <name>ThemeController</name>
@@ -2643,14 +3358,24 @@ Failed: {3}</source>
 </context><context>
     <name>ThemeSelector</name>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="62" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="60" />
         <source>Change application theme</source>
         <translation>Змінити тему застосунку</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\theme_selector.py" line="63" />
+        <location filename="..\app\views\widgets\theme_selector.py" line="61" />
         <source>Theme Selector</source>
         <translation>Перемикач теми</translation>
+    </message>
+</context><context>
+    <name>UndoCommands</name>
+    <message>
+        <source>Backup failed. Delete canceled to keep undo available.</source>
+        <translation type="vanished">Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation>
+    </message>
+    <message>
+        <source>Delete canceled</source>
+        <translation type="vanished">Видалення скасовано</translation>
     </message>
 </context><context>
     <name>ValidationMixin</name>
@@ -2757,249 +3482,4 @@ Failed: {3}</source>
         <source>Search… (Ctrl+F)</source>
         <translation>Пошук… (Ctrl+F)</translation>
     </message>
-</context><context><name>AboutDialog</name>
-<message><source>About</source><translation>Про програму</translation></message>
-<message><source>Application data</source><translation>Дані програми</translation></message>
-<message><source>Could not open target.</source><translation>Не вдалося відкрити об’єкт.</translation></message>
-<message><source>Data folder</source><translation>Папка даних</translation></message>
-<message><source>Developer: Codebdbd</source><translation>Розробник: Codebdbd</translation></message>
-<message><source>GitHub repository</source><translation>Репозиторій GitHub</translation></message>
-<message><source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source><translation>Ієрархічний менеджер закладок і посилань для Windows. Упорядковує посилання за сферами, розділами та категоріями, підтримує теми, іконки та засоби імпорту й експорту.</translation></message>
-<message><source>Information</source><translation>Інформація</translation></message>
-<message><source>License: MIT</source><translation>Ліцензія: MIT</translation></message>
-<message><source>Missing target: {0}</source><translation>Об’єкт відсутній: {0}</translation></message>
-<message><source>Open data folder</source><translation>Відкрити папку даних</translation></message>
-<message><source>Open license</source><translation>Відкрити ліцензію</translation></message>
-<message><source>Open program folder</source><translation>Відкрити папку програми</translation></message>
-<message><source>Program folder</source><translation>Папка програми</translation></message>
-<message><source>Python 3.12+ · PyQt6 · SQLite</source><translation>Python 3.12+ · PyQt6 · SQLite</translation></message>
-<message><source>Resources</source><translation>Ресурси</translation></message>
-<message><source>Support the project</source><translation>Підтримати проєкт</translation></message>
-<message><source>Version {0}</source><translation>Версія {0}</translation></message>
-</context>
-<context><name>BackupWorker</name>
-<message><source>Backup completed</source><translation>Резервне копіювання завершено</translation></message>
-<message><source>Cleaning up old backups...</source><translation>Очищення старих резервних копій...</translation></message>
-<message><source>Creating backup...</source><translation>Створення резервної копії...</translation></message>
-<message><source>Preparing backup...</source><translation>Підготовка резервної копії...</translation></message>
-</context>
-<context><name>BrowserBookmarksImporter</name>
-<message><source>Added links: {count}</source><translation>Додано посилань: {count}</translation></message>
-<message><source>Categories created: {count}</source><translation>Створено категорій: {count}</translation></message>
-<message><source>HTML Files (*.html *.htm)</source><translation>Файли HTML (*.html *.htm)</translation></message>
-<message><source>Import from browser</source><translation>Імпорт з браузера</translation></message>
-</context>
-<context><name>BrowserProfiles</name>
-<message><source>Loading {browser}</source><translation>Завантаження {browser}</translation></message>
-</context>
-<context><name>DatabaseInit</name>
-<message><source>Applying migrations...</source><translation>Застосування міграцій...</translation></message>
-<message><source>Initializing default data...</source><translation>Ініціалізація початкових даних...</translation></message>
-</context>
-<context><name>DateUtils</name>
-<message><source>Just now</source><translation>Щойно</translation></message>
-<message><source>Never</source><translation>Ніколи</translation></message>
-<message><source>Unknown</source><translation>Невідомо</translation></message>
-<message><source>day</source><translation>дн.</translation></message>
-<message><source>days</source><translation>дн.</translation></message>
-<message><source>hr</source><translation>год</translation></message>
-<message><source>min</source><translation>хв</translation></message>
-<message><source>week</source><translation>тиж.</translation></message>
-<message><source>weeks</source><translation>тиж.</translation></message>
-<message><source>{0} {1} ago</source><translation>{0} {1} тому</translation></message>
-</context>
-<context><name>DialogManager</name>
-<message><source>Cancel</source><translation>Скасувати</translation></message>
-<message><source>Confirmation</source><translation>Підтвердження</translation></message>
-<message><source>Error</source><translation>Помилка</translation></message>
-<message><source>Information</source><translation>Інформація</translation></message>
-<message><source>No</source><translation>Ні</translation></message>
-<message><source>OK</source><translation>Гаразд</translation></message>
-<message><source>Warning</source><translation>Попередження</translation></message>
-<message><source>Yes</source><translation>Так</translation></message>
-</context>
-<context><name>DialogMixin</name>
-<message><source>Confirmation</source><translation>Підтвердження</translation></message>
-<message><source>Error</source><translation>Помилка</translation></message>
-<message><source>Information</source><translation>Інформація</translation></message>
-<message><source>Warning</source><translation>Попередження</translation></message>
-</context>
-<context><name>FileSearchResultsModel</name>
-<message><source>Path</source><translation>Шлях</translation></message>
-</context>
-<context><name>ImportExportProgress</name>
-<message><source>Hierarchy assembly completed</source><translation>Побудову ієрархії завершено</translation></message>
-<message><source>Loading categories...</source><translation>Завантаження категорій...</translation></message>
-<message><source>Loading links...</source><translation>Завантаження посилань...</translation></message>
-<message><source>Loading sections...</source><translation>Завантаження розділів...</translation></message>
-<message><source>Loading spheres...</source><translation>Завантаження сфер...</translation></message>
-</context>
-<context><name>ItemDialogService</name>
-<message><source>Category addition error</source><translation>Помилка додавання категорії</translation></message>
-<message><source>Category edit error</source><translation>Помилка редагування категорії</translation></message>
-<message><source>Check the entered data and try again.</source><translation>Перевірте введені дані та спробуйте знову.</translation></message>
-<message><source>Failed to add category.</source><translation>Не вдалося додати категорію.</translation></message>
-<message><source>Failed to add section.</source><translation>Не вдалося додати розділ.</translation></message>
-<message><source>Failed to edit category.</source><translation>Не вдалося відредагувати категорію.</translation></message>
-<message><source>Failed to edit section.</source><translation>Не вдалося відредагувати розділ.</translation></message>
-<message><source>No sections</source><translation>Немає розділів</translation></message>
-<message><source>No sections in the current sphere. Create a new section?</source><translation>У поточній сфері немає розділів. Створити новий розділ?</translation></message>
-<message><source>Section addition error</source><translation>Помилка додавання розділу</translation></message>
-<message><source>Section edit error</source><translation>Помилка редагування розділу</translation></message>
-<message><source>The section creation dialog will be opened.</source><translation>Буде відкрито діалог створення розділу.</translation></message>
-<message><source>Try again or contact support.</source><translation>Спробуйте знову або зверніться до служби підтримки.</translation></message>
-</context>
-<context><name>ItemOperations</name>
-<message><source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Категорія «{category}» містить {links} посилань.
-
-Усі вкладені посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
-<message><source>Delete section</source><translation>Видалити розділ</translation></message>
-<message><source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
-
-Усі вкладені категорії та посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-<message><source>This action is irreversible. All links in the category will be deleted.</source><translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation></message>
-<message><source>This action is irreversible. All nested categories and links will be deleted.</source><translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation></message>
-</context>
-<context><name>LinkDialogIconUtils</name>
-<message><source>Icon not found: {path}</source><translation>Іконку не знайдено: {path}</translation></message>
-<message><source>Icon path is empty</source><translation>Шлях до іконки порожній</translation></message>
-<message><source>Unexpected error: {error}</source><translation>Неочікувана помилка: {error}</translation></message>
-</context>
-<context><name>LinkOperations</name>
-<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
-<message><source>Deleting {count} links</source><translation>Видалення {count} посилань</translation></message>
-<message><source>This action is irreversible.</source><translation>Ця дія незворотна.</translation></message>
-<message><source>{count} selected link(s) will be permanently deleted.
-
-Are you sure you want to continue?</source><translation>Вибрані посилання ({count}) буде видалено назавжди.
-
-Продовжити?</translation></message>
-</context>
-<context><name>LinksUI</name>
-<message><source>Check data correctness and try again.</source><translation>Перевірте правильність даних і спробуйте знову.</translation></message>
-<message><source>Check the link address or edit it.</source><translation>Перевірте адресу посилання або відредагуйте її.</translation></message>
-<message><source>Database error</source><translation>Помилка бази даних</translation></message>
-<message><source>Error</source><translation>Помилка</translation></message>
-<message><source>Error saving note</source><translation>Помилка збереження нотатки</translation></message>
-<message><source>No categories available. Create a category first.</source><translation>Немає доступних категорій. Спочатку створіть категорію.</translation></message>
-<message><source>Select a category to insert the link</source><translation>Виберіть категорію для вставлення посилання</translation></message>
-<message><source>This link cannot be opened for security reasons.</source><translation>Це посилання неможливо відкрити з міркувань безпеки.</translation></message>
-<message><source>Try again or contact support.</source><translation>Спробуйте знову або зверніться до служби підтримки.</translation></message>
-<message><source>Validation error</source><translation>Помилка перевірки даних</translation></message>
-<message><source>Warning</source><translation>Попередження</translation></message>
-</context>
-<context><name>LinksUIController</name>
-<message><source>Вы пытаетесь открыть более 10 ссылок одновременно.
-В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.
-Если хотите, мы откроем первые 10 выбранных.</source><translation>Ви намагаєтеся відкрити понад 10 посилань одночасно.
-Щоб уникнути проблем, відкриття обмежено 10 посиланнями.
-За бажанням можна відкрити перші 10 вибраних.</translation></message>
-<message><source>Открытие ссылок</source><translation>Відкриття посилань</translation></message>
-<message><source>Открыть 10</source><translation>Відкрити 10</translation></message>
-<message><source>Отмена</source><translation>Скасувати</translation></message>
-</context>
-<context><name>MessageHandler</name>
-<message><source>Operation completed successfully.</source><translation>Операцію успішно завершено.</translation></message>
-<message><source>Try repeating the action or contact support.</source><translation>Спробуйте повторити дію або зверніться до служби підтримки.</translation></message>
-</context>
-<context><name>SelectionHandling</name>
-<message><source>Check the correctness of actions and try again.</source><translation>Перевірте правильність дій і спробуйте знову.</translation></message>
-<message><source>Warning</source><translation>Попередження</translation></message>
-</context>
-<context><name>SettingsConfig</name>
-<message><source>About</source><translation>Про програму</translation></message>
-<message><source>File</source><translation>Файл</translation></message>
-<message><source>Folder</source><translation>Папка</translation></message>
-<message><source>Link Manager
-Version 1.0
-© MyCompany</source><translation>Менеджер посилань
-Версія 1.0
-© MyCompany</translation></message>
-<message><source>Program</source><translation>Програма</translation></message>
-<message><source>Script</source><translation>Скрипт</translation></message>
-<message><source>Web Link</source><translation>Вебпосилання</translation></message>
-</context>
-<context><name>StructureDeletion</name>
-<message><source>Category '{category}' contains {links} link(s).
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Категорія «{category}» містить {links} посилань.
-
-Усі вкладені посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-<message><source>Confirm deletion</source><translation>Підтвердження видалення</translation></message>
-<message><source>Delete section</source><translation>Видалити розділ</translation></message>
-<message><source>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
-
-Усі вкладені категорії та посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-<message><source>Selected sections contain {categories} categor(y/ies) and {links} link(s) in total.
-
-All nested categories and links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Вибрані розділи загалом містять {categories} категорій і {links} посилань.
-
-Усі вкладені категорії та посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-<message><source>This action is irreversible. All links in the category will be deleted.</source><translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation></message>
-<message><source>This action is irreversible. All nested categories and links will be deleted.</source><translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation></message>
-<message><source>{categories} categor(y/ies) and {links} link(s) will be deleted in total.
-
-All nested links will be permanently deleted!
-
-Are you sure you want to continue?</source><translation>Загалом буде видалено {categories} категорій і {links} посилань.
-
-Усі вкладені посилання буде видалено назавжди!
-
-Продовжити?</translation></message>
-</context>
-<context><name>SystemDialogController</name>
-<message><source>Auto-save</source><translation>Автозбереження</translation></message>
-<message><source>Bad URL Check</source><translation>Перевірка URL</translation></message>
-<message><source>Browser Import</source><translation>Імпорт із браузера</translation></message>
-<message><source>Check file integrity and access rights.</source><translation>Перевірте цілісність файлу та права доступу.</translation></message>
-<message><source>Error reading HTML file.</source><translation>Помилка читання HTML-файлу.</translation></message>
-<message><source>Export bookmarks from browser in HTML format and select correct file.</source><translation>Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation></message>
-<message><source>Failed to create auto-save before check.</source><translation>Не вдалося виконати автозбереження перед перевіркою.</translation></message>
-<message><source>Failed to create auto-save before import.</source><translation>Не вдалося виконати автозбереження перед імпортом.</translation></message>
-<message><source>Failed to start bad URL check</source><translation>Не вдалося почати перевірку URL</translation></message>
-<message><source>Failed to start icon refresh</source><translation>Не вдалося почати оновлення іконок</translation></message>
-<message><source>HTTP links: {count}</source><translation>Посилання HTTP: {count}</translation></message>
-<message><source>HTTPS links: {count}</source><translation>Посилання HTTPS: {count}</translation></message>
-<message><source>Icon Refresh</source><translation>Оновлення іконок</translation></message>
-<message><source>Import completed with error</source><translation>Імпорт завершено з помилкою</translation></message>
-<message><source>No links found in file.</source><translation>У файлі не знайдено посилань.</translation></message>
-<message><source>No section selected for import.</source><translation>Секцію не вибрано для імпорту.</translation></message>
-<message><source>Protocol statistics:</source><translation>Статистика протоколів:</translation></message>
-<message><source>Select section where categories and links will be added.</source><translation>Виберіть розділ, до якого буде додано категорії та посилання.</translation></message>
-<message><source>This will verify which HTTP links can be upgraded to HTTPS.</source><translation>Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation></message>
-<message><source>Would you like to check URLs for HTTPS availability?</source><translation>Перевірити доступність URL через HTTPS?</translation></message>
-</context>
-<context><name>UndoCommands</name>
-<message><source>Backup failed. Delete canceled to keep undo available.</source><translation>Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation></message>
-<message><source>Delete canceled</source><translation>Видалення скасовано</translation></message>
-</context>
-<context><name>SpheresBarController</name><message><source>AI</source><translation>ШІ</translation></message><message><source>Work</source><translation>Робота</translation></message><message><source>Study</source><translation>Навчання</translation></message><message><source>Personal</source><translation>Особисте</translation></message></context>
-<context><name>BadUrlCleanupDialog</name><message><source>Double-click to open or copy</source><translation>Двічі клацніть, щоб відкрити або скопіювати</translation></message></context>
-</TS>
+</context></TS>

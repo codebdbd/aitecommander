@@ -171,24 +171,18 @@ class LinksService:
     def clear_favorites(self) -> None:
         self.repo.clear_favorites()
 
+    @unit_of_work
     def reorder(self, link_ids: list[int]) -> bool:
-        """Reorder links in a category by IDs.
-
-        Note: repository manages its own transaction to avoid nested ones.
-        """
-        # IMPORTANT: update_link_order in repository manages transaction itself via self.transaction()
-        # Wrapping in UnitOfWork will lead to nested transaction (SQLite: cannot start a transaction within a transaction)
+        """Reorder links in a category by IDs."""
         self._validate_positive_int_list(link_ids, "link_ids")
         return self.repo.update_link_order(link_ids)
 
+    @unit_of_work
     def batch_update(self, links_data: list[LinkInput]) -> bool:
         """Bulk update links.
 
         Note: empty input is a no-op and returns True.
         """
-        # IMPORTANT: batch_update_links inside repository already manages transaction
-        # via self.transaction(). Cannot wrap in UnitOfWork - this will lead
-        # to nested transaction (SQLite: "cannot start a transaction within a transaction").
         self._validate_list_payload(links_data, "links_data")
         self._validate_link_payload_list(
             links_data, "links_data", require_id=True

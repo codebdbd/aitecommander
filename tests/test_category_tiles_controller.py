@@ -42,3 +42,20 @@ def test_refresh_logs_db_source_when_force_fresh_bypasses_cache(caplog):
         controller.refresh(513)
 
     assert "source=db" in caplog.text
+
+
+def test_update_category_delegates_to_tiles():
+    controller, _business = _make_controller(cache_value=[])
+    tiles_mock = Mock()
+    tiles_mock.update_category.return_value = True
+    controller.attach_tiles_widget(tiles_mock)
+
+    res = controller.update_category({"id": 10, "icon_path": "ico.png"})
+    assert res is True
+    tiles_mock.update_category.assert_called_once_with({"id": 10, "icon_path": "ico.png"})
+
+
+def test_update_category_without_tiles_returns_false():
+    controller, _business = _make_controller(cache_value=[])
+    res = controller.update_category({"id": 10, "icon_path": "ico.png"})
+    assert res is False

@@ -22,11 +22,19 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
         self.currentIndexChanged.connect(self._on_index_changed)
         ReTranslatable.__init__(self)
 
+    def _get_current_theme(self) -> str:
+        current = None
+        if self._theme_ctrl and hasattr(self._theme_ctrl, "settings") and hasattr(self._theme_ctrl.settings, "get_theme"):
+            current = self._theme_ctrl.settings.get_theme()
+        if not current:
+            current = SettingsManager.get("theme.name")
+        return current or "light"
+
     def _populate(self) -> None:
         if self._theme_ctrl is None:
             return
         themes = self._theme_ctrl.available()  # returns list of (name, translated_name)
-        current = SettingsManager.get("theme.name") or "light"
+        current = self._get_current_theme()
 
         self.blockSignals(True)
         self.clear()
@@ -61,18 +69,41 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
         self.setAccessibleName(self.tr("Theme Selector"))
         self._populate()
 
+    def update_theme_selection(self, theme_id: str | None = None) -> None:
+        """Update selected theme in combo without firing index changed signals."""
+        if self._theme_ctrl is None:
+            return
+        target = theme_id or self._get_current_theme()
+        # If theme is not in combo (e.g. newly imported), reload list
+        if self.findData(target) == -1:
+            self._populate()
+            return
+
+        self.blockSignals(True)
+        select_combo_data(
+            self,
+            current_data=target,
+            fallback_to_first=True,
+        )
+        self.blockSignals(False)
+        self._resize_to_contents()
+
+    def refresh_themes(self) -> None:
+        """Reload available themes and update selection."""
+        self._populate()
+
     def _on_index_changed(self, index: int) -> None:
         theme_id: str | None = self.itemData(index)
         if not theme_id:
             return
-        current = SettingsManager.get("theme.name") or "light"
+        current = self._get_current_theme()
         if theme_id == current:
             return
         logger.debug("ThemeSelector: applying theme %s", theme_id)
         self._theme_ctrl.apply(theme_id)
 
         # After switching theme, refresh selection to reflect any normalization.
-        normalized = SettingsManager.get("theme.name") or theme_id
+        normalized = self._get_current_theme()
         if self.count() > 0:
             self.blockSignals(True)
             select_combo_data(

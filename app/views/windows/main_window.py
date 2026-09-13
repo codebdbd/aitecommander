@@ -362,6 +362,12 @@ class MainWindow(QMainWindow, ReTranslatable):
                 )
         self.settings = settings
         self.theme_ctrl = theme_ctrl
+        if self.theme_ctrl is not None:
+            if hasattr(self.theme_ctrl, "set_main_window"):
+                self.theme_ctrl.set_main_window(self)
+            else:
+                self.theme_ctrl.main_window = self
+        self.theme_selector = None
         self._widgets = MainWindowWidgets()
         # Dependencies are injected after construction; initialize placeholders to avoid attribute errors.
         self.facade: Optional[WindowFacade] = facade
@@ -788,6 +794,24 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Apply the current theme and refresh the UI."""
         if self.facade:
             self.facade.update_theme()
+        elif self.theme_ctrl and hasattr(self.theme_ctrl, "apply_and_refresh_ui"):
+            self.theme_ctrl.apply_and_refresh_ui()
+
+        theme_selector = getattr(self, "theme_selector", None)
+        if theme_selector is not None:
+            try:
+                if hasattr(theme_selector, "update_theme_selection"):
+                    theme_selector.update_theme_selection()
+                elif hasattr(theme_selector, "retranslateUi"):
+                    theme_selector.retranslateUi()
+            except Exception as e:
+                logger.debug("MainWindow.update_theme: failed to update theme selector: %s", e)
+
+        if self.system_dialogs and getattr(self.system_dialogs, "_settings_dialog", None):
+            try:
+                self.system_dialogs._settings_dialog.update_theme_selection()
+            except Exception as e:
+                logger.debug("MainWindow.update_theme: failed to update settings dialog theme: %s", e)
 
     def apply_font_size_to_content(self, fs: int) -> None:
         """Apply font size to tree and table widgets."""

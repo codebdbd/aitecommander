@@ -3,7 +3,6 @@
     <file>logo/logo.png</file>
     <file>qss/common.qss</file>
     <file>qss/dark.qss</file>
-    <file>qss/dreamy_room.qss</file>
     <file>qss/light.qss</file>
     <file>qss/matrix.qss</file>
     <file>qss/violet_pulse.qss</file>
@@ -75,70 +74,6 @@
     <file>ui_icons/dark/x.svg</file>
     <file>ui_icons/dark/zip_ico.svg</file>
     <file>ui_icons/documents_icon.png</file>
-    <file>ui_icons/dreamy_room/Settings.png</file>
-    <file>ui_icons/dreamy_room/add_bd.svg</file>
-    <file>ui_icons/dreamy_room/add_category.svg</file>
-    <file>ui_icons/dreamy_room/add_favorites.svg</file>
-    <file>ui_icons/dreamy_room/add_ico.svg</file>
-    <file>ui_icons/dreamy_room/add_link.svg</file>
-    <file>ui_icons/dreamy_room/add_section.svg</file>
-    <file>ui_icons/dreamy_room/chevron_down.svg</file>
-    <file>ui_icons/dreamy_room/copy.svg</file>
-    <file>ui_icons/dreamy_room/cut.svg</file>
-    <file>ui_icons/dreamy_room/dark.svg</file>
-    <file>ui_icons/dreamy_room/dbrestore.svg</file>
-    <file>ui_icons/dreamy_room/delete.svg</file>
-    <file>ui_icons/dreamy_room/delete_favorites.svg</file>
-    <file>ui_icons/dreamy_room/down.svg</file>
-    <file>ui_icons/dreamy_room/edit-copy.svg</file>
-    <file>ui_icons/dreamy_room/edit-cut.svg</file>
-    <file>ui_icons/dreamy_room/edit-delete.svg</file>
-    <file>ui_icons/dreamy_room/edit-paste.svg</file>
-    <file>ui_icons/dreamy_room/edit-redo.svg</file>
-    <file>ui_icons/dreamy_room/edit-select-all.svg</file>
-    <file>ui_icons/dreamy_room/edit-undo.svg</file>
-    <file>ui_icons/dreamy_room/edit.svg</file>
-    <file>ui_icons/dreamy_room/edit_note.svg</file>
-    <file>ui_icons/dreamy_room/email.svg</file>
-    <file>ui_icons/dreamy_room/email_client.svg</file>
-    <file>ui_icons/dreamy_room/exit.svg</file>
-    <file>ui_icons/dreamy_room/expor_section.svg</file>
-    <file>ui_icons/dreamy_room/export.svg</file>
-    <file>ui_icons/dreamy_room/facebook.svg</file>
-    <file>ui_icons/dreamy_room/fav_ok.svg</file>
-    <file>ui_icons/dreamy_room/folder_delete.svg</file>
-    <file>ui_icons/dreamy_room/gmail.svg</file>
-    <file>ui_icons/dreamy_room/help.svg</file>
-    <file>ui_icons/dreamy_room/import.svg</file>
-    <file>ui_icons/dreamy_room/import_category.svg</file>
-    <file>ui_icons/dreamy_room/import_section.svg</file>
-    <file>ui_icons/dreamy_room/import_sections.svg</file>
-    <file>ui_icons/dreamy_room/left.svg</file>
-    <file>ui_icons/dreamy_room/light.svg</file>
-    <file>ui_icons/dreamy_room/link_off.svg</file>
-    <file>ui_icons/dreamy_room/linkedin.svg</file>
-    <file>ui_icons/dreamy_room/more.svg</file>
-    <file>ui_icons/dreamy_room/paste.svg</file>
-    <file>ui_icons/dreamy_room/pinterest.svg</file>
-    <file>ui_icons/dreamy_room/redo.svg</file>
-    <file>ui_icons/dreamy_room/refresh.svg</file>
-    <file>ui_icons/dreamy_room/right.svg</file>
-    <file>ui_icons/dreamy_room/run.svg</file>
-    <file>ui_icons/dreamy_room/search.svg</file>
-    <file>ui_icons/dreamy_room/search_off.svg</file>
-    <file>ui_icons/dreamy_room/select_all.svg</file>
-    <file>ui_icons/dreamy_room/settings.svg</file>
-    <file>ui_icons/dreamy_room/share.svg</file>
-    <file>ui_icons/dreamy_room/sort.svg</file>
-    <file>ui_icons/dreamy_room/telegram.svg</file>
-    <file>ui_icons/dreamy_room/text_decrease.svg</file>
-    <file>ui_icons/dreamy_room/text_increase.svg</file>
-    <file>ui_icons/dreamy_room/undo.svg</file>
-    <file>ui_icons/dreamy_room/up.svg</file>
-    <file>ui_icons/dreamy_room/viber.svg</file>
-    <file>ui_icons/dreamy_room/whatsapp.svg</file>
-    <file>ui_icons/dreamy_room/x.svg</file>
-    <file>ui_icons/dreamy_room/zip_ico.svg</file>
     <file>ui_icons/folder_icon.png</file>
     <file>ui_icons/icon.png</file>
     <file>ui_icons/light/Settings.png</file>

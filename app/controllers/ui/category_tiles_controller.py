@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class CategoryTilesLike(Protocol):
     def set_categories(self, categories: list[dict]) -> None: ...
+    def update_category(self, category_data: dict) -> bool: ...
 
 
 class CategoryTilesController:
@@ -36,6 +37,12 @@ class CategoryTilesController:
     def attach_tiles_widget(self, tiles_widget: CategoryTilesLike) -> None:
         """Optionally set tiles widget for direct update operations."""
         self._tiles = tiles_widget
+
+    def update_category(self, category_data: dict) -> bool:
+        """Update a category in tiles view in place if currently displayed."""
+        if self._tiles is not None and hasattr(self._tiles, "update_category"):
+            return bool(self._tiles.update_category(category_data))
+        return False
 
     def refresh(self, section_id: int, *, switch_view: bool = True) -> None:
         """Refresh tiles for the specified section."""

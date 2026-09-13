@@ -18,6 +18,7 @@ __all__ = [
     "NoteDialog",
     "SettingsDialog",
     "ChromeProfileDialog",
+    "SphereRenameDialog",
     "BrowserProfileDialog",
     "LinkDialog",
     "ImportBrowserDialog",
@@ -40,6 +41,7 @@ def __getattr__(name: str) -> Any:
         "NoteDialog": ".entity_dialogs",
         "SettingsDialog": ".entity_dialogs",
         "ChromeProfileDialog": ".entity_dialogs",
+        "SphereRenameDialog": ".entity_dialogs",
     }
 
     target = module_map.get(name)

@@ -997,8 +997,15 @@ class SettingsDialog(BaseDialog):
                 if theme_id and theme_id != self.settings.get_theme():
                     self.settings.set_theme(theme_id)
                     if self.theme_ctrl:
+                        if not getattr(self.theme_ctrl, "main_window", None) and self.parent():
+                            self.theme_ctrl.main_window = self.parent()
                         self.theme_ctrl.clear_cache()
                         self.theme_ctrl.apply(theme_id)
+                    if self.parent() and hasattr(self.parent(), "update_theme"):
+                        try:
+                            self.parent().update_theme()
+                        except Exception as e:
+                            logger.debug("Failed to update parent theme: %s", e)
             
             if self.font_size_combo is not None:
                 font_size = int(self.font_size_combo.currentText())
@@ -1027,6 +1034,27 @@ class SettingsDialog(BaseDialog):
                 informative_text=self.tr("Check the values and try again."),
                 details=str(e),
             )
+
+    def showEvent(self, event):
+        """Synchronize settings dialog with the current active settings upon showing."""
+        super().showEvent(event)
+        self.update_theme_selection()
+
+    def update_theme_selection(self, theme_id: str | None = None) -> None:
+        """Update theme combo selection to match current theme."""
+        if self.theme_combo is None:
+            return
+        active_theme = theme_id or (self.settings.get_theme() if hasattr(self, "settings") else None)
+        if active_theme:
+            self.theme_combo.blockSignals(True)
+            select_combo_data(
+                self.theme_combo,
+                current_data=active_theme,
+                preferred_data=active_theme,
+                fallback_to_first=False,
+            )
+            self.theme_combo.blockSignals(False)
+            self._update_remove_button_state()
 
 
 class ChromeProfilesWorker(QRunnable):
@@ -1225,3 +1253,105 @@ class ChromeProfileDialog(BaseDialog):
     def get_selected_profiles(self):
         """Return the list of selected profiles."""
         return getattr(self, '_selected_profiles', [])
+
+
+class SphereRenameDialog(BaseDialog):
+    """Dialog for renaming a sphere with standard uniform height and localized buttons."""
+
+    _TR_CONTEXT = "SphereRenameDialog"
+
+    def __init__(self, current_name: str = "", parent=None):
+        self._button_box: QDialogButtonBox | None = None
+        self._name_label: QLabel | None = None
+        self.name_le: QLineEdit | None = None
+
+        super().__init__(parent)
+        self.setFixedWidth(app_config.ui.get_entity_dialog_fixed_width())
+
+        self._init_ui(current_name)
+        self.retranslateUi()
+
+    def _init_ui(self, current_name: str) -> None:
+        vbox = QVBoxLayout(self)
+
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.name_le = QLineEdit(current_name)
+        self.name_le.selectAll()
+        self.name_le.returnPressed.connect(self._on_return_pressed)
+
+        self._name_label = QLabel()
+        form.addRow(self._name_label, self.name_le)
+        vbox.addLayout(form)
+
+        bb = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        self._button_box = bb
+
+        ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_btn is not None:
+            ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+            ok_btn.setDefault(False)
+            ok_btn.setAutoDefault(False)
+            ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            ok_btn.setEnabled(bool(current_name.strip()))
+
+        cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+            cancel_btn.setDefault(False)
+            cancel_btn.setAutoDefault(False)
+            cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+
+        self.name_le.textChanged.connect(
+            lambda t: ok_btn.setEnabled(bool(t.strip())) if ok_btn is not None else None
+        )
+
+        bb.accepted.connect(self._on_accept)
+        bb.rejected.connect(self.reject)
+        vbox.addWidget(bb)
+
+    def retranslateUi(self) -> None:
+        self.setWindowTitle(
+            QCoreApplication.translate("SpheresBarController", "Rename Sphere")
+        )
+        if self._name_label is not None:
+            self._name_label.setText(tr_common("Name:"))
+
+        if self._button_box is not None:
+            ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
+            cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
+            if ok_btn is not None:
+                ok_btn.setText(tr_common("Save"))
+            if cancel_btn is not None:
+                cancel_btn.setText(tr_common("Cancel"))
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        try:
+            if self.name_le is not None:
+                self.name_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        except Exception:
+            logger.debug("SphereRenameDialog.showEvent: setFocus failed", exc_info=True)
+        try:
+            self.adjustSize()
+        except Exception:
+            logger.debug("SphereRenameDialog.showEvent: adjustSize failed", exc_info=True)
+
+    def _on_return_pressed(self) -> None:
+        if self.name_le is not None and self.name_le.text().strip():
+            self._on_accept()
+
+    def _on_accept(self) -> None:
+        if self.name_le is None:
+            return
+        name = self.name_le.text().strip()
+        if not name:
+            return
+        self.accept()
+
+    def get_name(self) -> str:
+        return self.name_le.text().strip() if self.name_le else ""
+

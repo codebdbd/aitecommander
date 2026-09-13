@@ -48,8 +48,14 @@ class DatabaseBase:
     def __init__(self, connection_manager: ConnectionManagerProtocol):
         """Initializes base class with connection manager (Database)."""
         self.connection_manager = connection_manager
-        # Используем threading.local для автоматической очистки при завершении потока
-        self._transaction_state = threading.local()
+        # Use shared transaction state from connection_manager if available
+        base = getattr(connection_manager, "_base", None)
+        if base is not None and hasattr(base, "_transaction_state"):
+            self._transaction_state = base._transaction_state
+        elif hasattr(connection_manager, "_transaction_state"):
+            self._transaction_state = connection_manager._transaction_state
+        else:
+            self._transaction_state = threading.local()
 
     @property
     def connection(self):

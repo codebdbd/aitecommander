@@ -55,6 +55,8 @@ class CategoryTilesControllerProtocol(Protocol):
 
     def clear(self) -> None: ...
 
+    def update_category(self, category_data: dict) -> bool: ...
+
 
 @runtime_checkable
 class LinksTableControllerProtocol(Protocol):

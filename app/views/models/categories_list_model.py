@@ -95,15 +95,24 @@ class CategoriesListModel(QAbstractListModel):
         t_prefetch_done = t0
         # Normalize input data and prepare icons
         items: list[dict[str, Any]] = []
-        # Fast path: if ids+names match current, skip full reset
+        # Fast path: if ids+names+icon_paths match current, skip full reset
         try:
             new_signature = [
-                (int(cat.get("id")), str(cat.get("name", "")))
+                (
+                    int(cat.get("id")),
+                    str(cat.get("name", "")),
+                    str(cat.get("icon_path", "") or ""),
+                )
                 for cat in categories
                 if cat.get("id") is not None
             ]
             old_signature = [
-                (int(it.get("id")), str(it.get("name", ""))) for it in self._items
+                (
+                    int(it.get("id")),
+                    str(it.get("name", "")),
+                    str(it.get("icon_path", "") or ""),
+                )
+                for it in self._items
             ]
             if new_signature == old_signature:
                 logger.debug(
@@ -218,6 +227,60 @@ class CategoriesListModel(QAbstractListModel):
     def find_row_by_id(self, category_id: int) -> int:
         # Use cache for O(1) lookup
         return self._row_by_id.get(category_id, -1)
+
+    def update_category(self, category_data: dict[str, Any]) -> bool:
+        """Update an existing category item in place if present in this model.
+
+        Returns True if item was found and updated, False otherwise.
+        """
+        raw_id = category_data.get("id")
+        if raw_id is None:
+            return False
+        try:
+            cid = int(raw_id)
+        except (ValueError, TypeError):
+            return False
+
+        row = self.find_row_by_id(cid)
+        if row < 0 or row >= len(self._items):
+            return False
+
+        item = self._items[row]
+        changed = False
+
+        if "name" in category_data:
+            new_name = str(category_data.get("name", ""))
+            if new_name != item.get("name"):
+                item["name"] = new_name
+                changed = True
+
+        if "icon_path" in category_data or "icon" in category_data:
+            new_icon_path = str(category_data.get("icon_path", "") or "")
+            if new_icon_path != item.get("icon_path") or item.get("_icon") is None:
+                item["icon_path"] = new_icon_path
+                icon = icon_loading_service.get_path_icon(new_icon_path, category=True)
+                item["_icon"] = icon if not icon.isNull() else DEFAULT_ICON
+                item["_icon_pending"] = False
+                changed = True
+
+        if changed:
+            idx = self.index(row, 0)
+            self.dataChanged.emit(
+                idx,
+                idx,
+                [
+                    Qt.ItemDataRole.DisplayRole,
+                    Qt.ItemDataRole.DecorationRole,
+                    Qt.ItemDataRole.ToolTipRole,
+                    Qt.ItemDataRole.UserRole + 1,
+                ],
+            )
+            logger.debug(
+                "CategoriesListModel.update_category: updated category #%s at row %s",
+                cid,
+                row,
+            )
+        return changed
 
     def _schedule_icon_loads_for_visible(self) -> None:
         if not self._lazy_icons_enabled:

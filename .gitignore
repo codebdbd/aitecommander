@@ -53,9 +53,19 @@ Thumbs.db
 _py_files.txt
 scripts/*.png
 
-# Backup files
+# Backup files and archives
 *_backup.py
 *.bak
+*.rar
+*.zip
+*.7z
 
 # AI tools
 .mimocode/
+
+# Executables and build outputs
+*.exe
+
+# Trace and debug scripts
+scripts/trace*.txt
+scripts/test_*.py

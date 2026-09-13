@@ -72,6 +72,10 @@ class SettingsConfig(BaseConfig):
         """Return the logging level name."""
         return self.get("application.log_level", "INFO")
 
+    def get_allow_insecure_ssl(self) -> bool:
+        """Return whether insecure SSL fallback is allowed."""
+        return bool(self.get("network.allow_insecure_ssl", False))
+
     def get_about_title(self) -> str:
         """Return the title for the About dialog."""
         title = self.get("app.about_title")

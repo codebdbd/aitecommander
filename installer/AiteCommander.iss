@@ -32,7 +32,8 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
 CloseApplications=yes
 RestartApplications=no
 
@@ -52,11 +53,14 @@ Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\high_contras
 Type: files; Name: "{app}\_internal\app\resources\qss\pink_pop.qss"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\pink_pop"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\pink_pop"
+Type: files; Name: "{app}\_internal\app\resources\qss\dreamy_room.qss"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\dreamy_room"
+Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\dreamy_room"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autogroup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autogroup}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

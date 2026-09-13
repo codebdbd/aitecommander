@@ -6,7 +6,7 @@ from typing import Any, Callable, Optional
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QThread
 from PyQt6.QtWidgets import QApplication
 
-from app.config_data.runtime_config import get_runtime_app_config
+from app.config_data.runtime_config import get_runtime_app_config, runtime_app_config as app_config
 from app.core.paths.path_manager import PathManager
 from app.core.settings_manager import SettingsManager
 from app.core.style_manager import StyleManager
@@ -63,6 +63,10 @@ class ThemeController:
         self._load_available_themes()
 
     # Custom shadows for QMenu removed; no event filters applied
+
+    def set_main_window(self, main_window) -> None:
+        """Set main window reference."""
+        self.main_window = main_window
 
     def set_top_panels_controller(self, top_panels_controller) -> None:
         """Inject TopPanelsController dependency.
@@ -375,6 +379,13 @@ class ThemeController:
         """Reload themes from registry (e.g., after import/remove)."""
         self._theme_registry.invalidate()
         self._load_available_themes()
+        if self.main_window and hasattr(self.main_window, "theme_selector"):
+            theme_sel = getattr(self.main_window, "theme_selector", None)
+            if theme_sel and hasattr(theme_sel, "refresh_themes"):
+                try:
+                    theme_sel.refresh_themes()
+                except Exception as exc:
+                    logger.debug("Failed to refresh main window theme selector: %s", exc)
 
     def _clear_icon_cache_safe(self) -> None:
         """Clear icon cache with error handling."""

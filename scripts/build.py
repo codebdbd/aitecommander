@@ -1,8 +1,10 @@
 """Build script for Aite Commander.
 
+Produces a one-folder (onedir) distribution bundle using aitecommander.spec,
+ready for packaging with Inno Setup (installer/AiteCommander.iss).
+
 Usage:
-    python scripts/build.py          # one-folder build (faster, debuggable)
-    python scripts/build.py --onefile # single .exe (slower build, portable)
+    python scripts/build.py
 """
 
 from __future__ import annotations
@@ -17,19 +19,42 @@ DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 
 
+import stat
+import time
+
+
+def _remove_dir_robust(path: Path) -> None:
+    if not path.exists():
+        return
+    for _ in range(5):
+        try:
+            for p in path.glob("**/*"):
+                try:
+                    p.chmod(stat.S_IWRITE)
+                except Exception:
+                    pass
+            shutil.rmtree(path, ignore_errors=False)
+            break
+        except Exception:
+            time.sleep(0.5)
+
+
 def clean() -> None:
-    for d in (DIST, BUILD):
+    targets = [BUILD, DIST / "AiteCommander", DIST / "AiteCommander.exe"]
+    for d in targets:
         if d.exists():
-            shutil.rmtree(d)
+            if d.is_dir():
+                _remove_dir_robust(d)
+            else:
+                d.unlink(missing_ok=True)
             print(f"  removed {d}")
 
 
 def build(onefile: bool = False) -> None:
-    # When using a .spec file, only --noconfirm --clean are valid
+    # When using a .spec file, only --noconfirm is needed (--clean conflicts with Windows async directory deletion)
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
-        "--clean",
         str(ROOT / "aitecommander.spec"),
     ]
 
@@ -39,19 +64,14 @@ def build(onefile: bool = False) -> None:
         print(f"\nBuild FAILED (exit code {result.returncode})")
         sys.exit(result.returncode)
 
-    if onefile:
-        exe = DIST / "AiteCommander.exe"
-        print(f"\nBuild OK: {exe}")
-    else:
-        folder = DIST / "AiteCommander"
-        print(f"\nBuild OK: {folder}")
+    folder = DIST / "AiteCommander"
+    print(f"\nBuild OK: {folder}")
 
 
 def main() -> None:
-    onefile = "--onefile" in sys.argv
-    print(f"Building Aite Commander ({'one-file' if onefile else 'one-folder'})...")
+    print("Building Aite Commander (one-folder distribution for installer)...")
     clean()
-    build(onefile=onefile)
+    build()
 
 
 if __name__ == "__main__":

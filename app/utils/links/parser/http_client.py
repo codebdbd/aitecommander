@@ -12,7 +12,14 @@ from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 from urllib3.exceptions import InsecureRequestWarning
 
-from .constants import HTTP_RETRIES, HTTP_RETRY_BACKOFF, TIMEOUT, USER_AGENT, logger
+from .constants import (
+    HTTP_ALLOW_INSECURE_SSL_FALLBACK,
+    HTTP_RETRIES,
+    HTTP_RETRY_BACKOFF,
+    TIMEOUT,
+    USER_AGENT,
+    logger,
+)
 
 try:
     import cloudscraper  # type: ignore
@@ -401,9 +408,14 @@ def _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_n
 
 def _allow_insecure_ssl_fallback(config) -> bool:
     try:
-        return bool(getattr(config, "HTTP_ALLOW_INSECURE_SSL_FALLBACK", True))
+        val = getattr(config, "HTTP_ALLOW_INSECURE_SSL_FALLBACK", None)
+        if val is not None:
+            return bool(val)
+        from app.config_data import app_config
+
+        return bool(app_config.settings.get_allow_insecure_ssl())
     except Exception:
-        return True
+        return False
 
 
 def _is_ssl_error(exc: Exception) -> bool:
