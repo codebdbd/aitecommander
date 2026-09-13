@@ -13,7 +13,11 @@ from PyQt6.QtWidgets import QDialog, QMenu, QToolButton, QWidget
 from app.config_data.runtime_config import get_sphere_button_icon_size
 from app.utils.ui.db_sync import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_icon_path
+from app.utils.ui.icon.icon_resolver import (
+    get_default_sphere_icon_name,
+    resolve_icon_path,
+    resolve_sphere_icon_path,
+)
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.menu_builders.base import get_menu_icon
 from app.utils.ui.updates import suspend_updates
@@ -57,9 +61,11 @@ class SpheresBarController(QObject):
             raise AttributeError("Window must expose structure_business")
         try:
             sb.spheres_loaded.connect(self.on_spheres_loaded_ui)
+            if hasattr(sb, "sphere_updated"):
+                sb.sphere_updated.connect(self._on_sphere_updated)
         except Exception:
             logger.exception(
-                "SpheresBarController.init: failed to connect spheres_loaded"
+                "SpheresBarController.init: failed to connect spheres signals"
             )
             raise
         sb.load_spheres_async()
@@ -99,71 +105,11 @@ class SpheresBarController(QObject):
             raise
         group.setExclusive(True)
 
-    @staticmethod
+    @classmethod
     def _get_default_icon_name_for_sphere(
-        sphere: dict[str, Any] | str, position: int | None = None
+        cls, sphere: dict[str, Any] | str, position: int | None = None
     ) -> str:
-        name = (
-            sphere
-            if isinstance(sphere, str)
-            else str(sphere.get("name", "") if isinstance(sphere, dict) else "")
-        )
-        name_clean = name.strip().lower()
-
-        mapping = {
-            # AI
-            "ai": "ai_icon.png",
-            "ia": "ai_icon.png",
-            "ki": "ai_icon.png",
-            "ші": "ai_icon.png",
-            # Work
-            "work": "work_icon.png",
-            "работа": "work_icon.png",
-            "робота": "work_icon.png",
-            "arbeit": "work_icon.png",
-            "trabajo": "work_icon.png",
-            "travail": "work_icon.png",
-            # Study
-            "study": "study_icon.png",
-            "учёба": "study_icon.png",
-            "учеба": "study_icon.png",
-            "навчання": "study_icon.png",
-            "studium": "study_icon.png",
-            "estudio": "study_icon.png",
-            "étude": "study_icon.png",
-            "etude": "study_icon.png",
-            # Personal
-            "personal": "personal_icon.png",
-            "личное": "personal_icon.png",
-            "особисте": "personal_icon.png",
-            "persönlich": "personal_icon.png",
-            "personlich": "personal_icon.png",
-            "personnel": "personal_icon.png",
-        }
-
-        if name_clean in mapping:
-            return mapping[name_clean]
-
-        for key, icon in mapping.items():
-            if key in name_clean:
-                return icon
-
-        pos = position
-        if pos is None and isinstance(sphere, dict):
-            pos = sphere.get("position")
-            if pos is None and isinstance(sphere.get("id"), int):
-                pos = sphere["id"] - 1
-
-        position_icons = [
-            "work_icon.png",
-            "personal_icon.png",
-            "study_icon.png",
-            "ai_icon.png",
-        ]
-        if pos is not None and 0 <= int(pos) < len(position_icons):
-            return position_icons[int(pos)]
-
-        return "work_icon.png"
+        return get_default_sphere_icon_name(sphere, position)
 
     def _get_default_icon_for_sphere(
         self, sphere: dict[str, Any] | str, position: int | None = None
@@ -174,14 +120,14 @@ class SpheresBarController(QObject):
 
     def _resolve_sphere_icon(self, sphere: dict[str, Any]) -> QIcon:
         icon_name = sphere.get("icon_path")
-        icon = QIcon()
         if icon_name:
             resolved = resolve_icon_path(icon_name)
             if resolved:
                 icon = create_icon_from_path(resolved)
-        if icon.isNull():
-            icon = self._get_default_icon_for_sphere(sphere)
-        return icon
+                if not icon.isNull():
+                    return icon
+        # Fallback to default icon
+        return self._get_default_icon_for_sphere(sphere)
 
     def _build_button(self, sphere: dict[str, Any]) -> QToolButton:
         btn = QToolButton()
@@ -430,9 +376,29 @@ class SpheresBarController(QObject):
             logger.exception("SpheresBarController._reset_sphere_icon failed: %s", e)
 
 
+    @pyqtSlot(int, dict)
+    def _on_sphere_updated(self, sphere_id: int, data: dict[str, Any]) -> None:
+        """Handle individual sphere update without clearing the entire bar."""
+        button = self.w.sphere_buttons.get(sphere_id)
+        if not button:
+            return
+        if "icon_path" in data:
+            name = str(button.property("sphereName") or "")
+            icon = self._resolve_sphere_icon({"id": sphere_id, "icon_path": data["icon_path"], "name": name})
+            button.setIcon(icon)
+        if "name" in data:
+            button.setProperty("sphereName", data["name"])
+            button.setToolTip(self._get_localized_sphere_name(data["name"]))
+
     @pyqtSlot(list)
     def on_spheres_loaded_ui(self, spheres: list[dict[str, Any]]):
         """Build sphere buttons in the bar."""
+        if not spheres:
+            logger.warning(
+                "SpheresBarController.on_spheres_loaded_ui: ignoring empty spheres payload"
+            )
+            return
+
         with suspend_updates(self.w.spheres_bar):
             self._clear_spheres_bar()
             s_layout = self.w.spheres_bar.layout()
@@ -441,10 +407,6 @@ class SpheresBarController(QObject):
                 s_layout.addWidget(btn)
             # Explicit update after batch operations
             self.w.spheres_bar.update()
-
-        # Set visual state and/or active sphere
-        if not spheres:
-            return
 
         try:
             sb = getattr(self.w, "structure_business", None)

@@ -182,12 +182,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         orientation: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:  # type: ignore[override]
-        if (
-            orientation == Qt.Orientation.Horizontal
-            and role == Qt.ItemDataRole.DisplayRole
-        ):
-            if 0 <= section < len(self._headers):
-                return self._headers[section]
+        if orientation == Qt.Orientation.Horizontal:
+            if role == Qt.ItemDataRole.DisplayRole:
+                if 0 <= section < len(self._headers):
+                    return self._headers[section]
+            elif role == Qt.ItemDataRole.TextAlignmentRole:
+                if section in (0, 2):
+                    return int(Qt.AlignmentFlag.AlignCenter)
         return super().headerData(section, orientation, role)
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # type: ignore[override]

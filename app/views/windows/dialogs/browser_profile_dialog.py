@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -247,7 +247,7 @@ class BrowserProfileDialog(BaseDialog):
             return
 
         working_profiles.sort(
-            key=lambda p: str(p.get("name") or p.get("email") or "").lower()
+            key=lambda p: str(p.get("email") or p.get("name") or "").lower()
         )
 
         for profile in working_profiles:
@@ -270,9 +270,13 @@ class BrowserProfileDialog(BaseDialog):
         self.profile_layout.addStretch()
         self._update_save_enabled()
 
-    def _format_profile_display_name(self, profile: dict) -> str:
-        """Return a compact display name for the profile list."""
-        raw_name = profile.get("name") or profile.get("email") or self.tr("Unnamed")
+    @staticmethod
+    def _format_profile_display_name(profile: dict) -> str:
+        """Return a compact display name for the profile list, prioritizing email."""
+        email = str(profile.get("email") or "").strip()
+        if email:
+            return email
+        raw_name = profile.get("name") or QCoreApplication.translate("BrowserProfileDialog", "Unnamed")
         profile_name = str(raw_name).strip()
         profile_name = re.sub(
             r"^(?:Profile|Профиль|Профіль)\s+",
@@ -280,7 +284,7 @@ class BrowserProfileDialog(BaseDialog):
             profile_name,
             flags=re.IGNORECASE,
         ).strip()
-        return profile_name or self.tr("Unnamed")
+        return profile_name or QCoreApplication.translate("BrowserProfileDialog", "Unnamed")
 
     def _on_async_profiles_ready(self, browser_key: str, profiles: list[dict]) -> None:
         current_key = self.browser_combo.currentData()

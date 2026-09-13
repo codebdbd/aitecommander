@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
@@ -16,6 +16,7 @@ from app.utils.ui.icon.icon_resolver import (
     resolve_category_icon_path,
     resolve_icon_path,
     resolve_section_icon_path,
+    resolve_sphere_icon_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,7 @@ def get_cached_icon(icon_path_str: str) -> Optional[QIcon]:
 def get_cached_icon_with_fallback(
     icon_path_str: str,
     entity_type: str,
+    entity_data: Any = None,
 ) -> Optional[QIcon]:
     """Return an icon for structure comboboxes, falling back to entity defaults."""
     entity = str(entity_type or "").strip().lower()
@@ -131,6 +133,8 @@ def get_cached_icon_with_fallback(
         resolved = resolve_section_icon_path(icon_path_str)
     elif entity == "category":
         resolved = resolve_category_icon_path(icon_path_str)
+    elif entity == "sphere":
+        resolved = resolve_sphere_icon_path(icon_path_str, sphere=entity_data)
     else:
         resolved = resolve_icon_path(icon_path_str)
         if not resolved and entity:

@@ -3,13 +3,8 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal
-
-try:
-    from PyQt6.QtCore import pyqtProperty  # type: ignore[attr-defined]
-except ImportError:
-    pyqtProperty = property  # type: ignore[misc,assignment]
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtProperty, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPalette
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -122,6 +117,14 @@ class TableDelegate(QStyledItemDelegate):
     def _apply_column_font_size(self, opt, col):
         """Apply font size for specific column."""
         try:
+            if col == 0:
+                view = self.parent() if hasattr(self, "parent") else None
+                if view is not None and hasattr(view, "horizontalHeader"):
+                    header = view.horizontalHeader()
+                    if header is not None:
+                        opt.font = QFont(header.font())
+                return
+
             val = self.col_sizes.get(col)
             if val is None:
                 if col == 2:

@@ -21,7 +21,7 @@ from app.utils.ui.qt.combo_helpers import (
     add_combo_mapping_item,
     select_first_combo_item,
 )
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon
+from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon, get_cached_icon_with_fallback
 
 from .base_dialog import BaseDialog
 
@@ -278,7 +278,9 @@ class ImportBrowserDialog(BaseDialog):
                     self.sphere_cb,
                     sphere,
                     icon_key="icon_path",
-                    icon_loader=get_cached_icon,
+                    icon_loader=lambda path, s=sphere: get_cached_icon_with_fallback(
+                        path, "sphere", entity_data=s
+                    ),
                 )
             if self.sphere_cb.count() > 0:
                 self.sphere_cb.setEnabled(True)

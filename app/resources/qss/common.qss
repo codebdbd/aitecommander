@@ -249,7 +249,7 @@ QToolButton:checked {
 }
 
 
-QLineEdit, QTextEdit, QComboBox, QSpinBox {
+QLineEdit, QTextEdit, QComboBox, QSpinBox, QFrame[input_frame="true"] {
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
@@ -540,7 +540,8 @@ QDialog QComboBox,
 QDialog QSpinBox,
 QDialog QDoubleSpinBox,
 QDialog QDateEdit,
-QDialog QTimeEdit {
+QDialog QTimeEdit,
+QDialog QFrame[input_frame="true"] {
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
@@ -593,12 +594,15 @@ QDialog QCheckBox:focus {
 
 QCheckBox::indicator,
 QDialog QCheckBox::indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: left center;
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
     background: transparent;
     width: 14px;
     height: 14px;
+    margin-top: 2px;
     margin-right: 4px;
 }
 

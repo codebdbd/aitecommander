@@ -360,7 +360,10 @@ def add_combo_mapping_item(
 
     icon = None
     if icon_key and icon_loader is not None:
-        icon = icon_loader(str(item.get(icon_key, "")))
+        try:
+            icon = icon_loader(str(item.get(icon_key, "")), item)
+        except TypeError:
+            icon = icon_loader(str(item.get(icon_key, "")))
 
     add_combo_item(combo, text, data, icon=icon)
     return True

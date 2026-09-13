@@ -80,12 +80,13 @@ class IconLoadingService:
         except Exception:
             pass
 
+        filename = Path(normalized).name
         for base_dir_getter in (
             icon_path_service.get_user_icons_dir,
             icon_path_service.get_ui_icons_dir,
         ):
             try:
-                candidate = base_dir_getter() / normalized
+                candidate = base_dir_getter() / filename
                 if candidate.exists() and is_valid_icon_file(candidate):
                     return self._remember(
                         self._existing_path_cache,

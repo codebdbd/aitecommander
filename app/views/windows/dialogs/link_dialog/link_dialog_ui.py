@@ -32,6 +32,7 @@ from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.qt.combo_helpers import PopupComboBox
+from app.views.widgets.input_frame import InputFrame
 
 logger = logging.getLogger(__name__)
 
@@ -310,10 +311,12 @@ class LinkDialogUI:
             self.notes_te.setTabChangesFocus(True)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to set tabChangesFocus for notes_te: %s", e)
+        self.notes_frame = InputFrame(self.notes_te)
         self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "Notes:"), self.notes_te
+            QCoreApplication.translate("LinkDialogUI", "Notes:"), self.notes_frame
         )
         self.widgets["notes_te"] = self.notes_te
+        self.widgets["notes_frame"] = self.notes_frame
 
         self.fav_chk = QCheckBox(
             QCoreApplication.translate("LinkDialogUI", "Add to favorites")
@@ -487,16 +490,14 @@ class LinkDialogUI:
     def _retranslate_notes_and_favorites(self):
         """Retranslate notes label and favorites checkbox."""
         try:
-            if (
-                hasattr(self, "form")
-                and self.form is not None
-                and hasattr(self, "notes_te")
-            ):
-                notes_label = self.form.labelForField(self.notes_te)
-                if notes_label is not None:
-                    notes_label.setText(
-                        QCoreApplication.translate("LinkDialogUI", "Notes:")
-                    )
+            if hasattr(self, "form") and self.form is not None:
+                field = getattr(self, "notes_frame", getattr(self, "notes_te", None))
+                if field is not None:
+                    notes_label = self.form.labelForField(field)
+                    if notes_label is not None:
+                        notes_label.setText(
+                            QCoreApplication.translate("LinkDialogUI", "Notes:")
+                        )
             if hasattr(self, "fav_chk") and self.fav_chk is not None:
                 self.fav_chk.setText(
                     QCoreApplication.translate("LinkDialogUI", "Add to favorites")
