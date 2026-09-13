@@ -25,12 +25,16 @@ def _dpi_scale(widget: QWidget | None) -> float:
 
 
 class ListItemHeightDelegate(QStyledItemDelegate):
-    """Ensures QListWidget items use a 32px logical height scaled by DPI."""
+    """Ensures QListWidget items use a configurable logical height (default 32px) scaled by DPI."""
+
+    def __init__(self, parent: QWidget | None = None, target_height: int = 32) -> None:
+        super().__init__(parent)
+        self._target_height = target_height
 
     def sizeHint(self, option, index):  # noqa: N802 (Qt signature)
-        """Return size hint with enforced 32px height."""
+        """Return size hint with enforced target height."""
         size = super().sizeHint(option, index)
         scale = _dpi_scale(option.widget)
-        target_h = int(round(32 * scale))
+        target_h = int(round(self._target_height * scale))
         # Preserve width from base, enforce target height
         return QSize(size.width(), target_h)

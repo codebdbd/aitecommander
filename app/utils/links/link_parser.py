@@ -267,6 +267,13 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str])
         return "Unknown"
     try:
         if link_type == "program":
+            if path.lower().startswith("shell:appsfolder\\"):
+                app_part = path.split("\\", 1)[1]
+                # Try to extract human-readable segment before '_' or '!'
+                base = app_part.split("!")[0]
+                if "_" in base and not base.startswith("{"):
+                    base = base.split("_")[0]
+                return base or app_part
             if path.lower().endswith(".lnk"):
                 return Path(path).stem
             target_path = lnk_info.get("path") if lnk_info else path
@@ -328,6 +335,28 @@ def _handle_program_icon(
     path: str, lnk_info: dict[str, str], icons_dir: str
 ) -> Optional[str]:
     """Handles program icon"""
+    if path.lower().startswith("shell:appsfolder\\"):
+        app_id = path.split("\\", 1)[1]
+        safe_name = re.sub(r"[^\w\-]", "_", app_id)[:50]
+        icon_dst = Path(icons_dir) / f"app_{safe_name}.png"
+        if is_valid_icon_file(str(icon_dst)):
+            return str(icon_dst)
+        try:
+            from app.utils.system.installed_apps_service import (
+                extract_shell_icon_image,
+            )
+
+            img = extract_shell_icon_image(path)
+            if img is not None and not img.isNull():
+                icon_dst.parent.mkdir(parents=True, exist_ok=True)
+                if img.save(str(icon_dst), "PNG") and is_valid_icon_file(str(icon_dst)):
+                    return str(icon_dst)
+        except Exception:
+            pass
+        saved = _get_file_icon_with_com(path, icon_dst)
+        if saved and is_valid_icon_file(saved):
+            return saved
+
     if path.lower().endswith(".lnk"):
         shortcut_app_icon = _handle_shortcut_app_icon(lnk_info, icons_dir)
         if shortcut_app_icon:

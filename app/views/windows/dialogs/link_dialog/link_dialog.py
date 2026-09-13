@@ -134,6 +134,10 @@ class LinkDialog(BaseDialog):
         """Return the "Browse" button (`QPushButton`)."""
         return self.ui.get_widget("browse_btn")
 
+    def _get_apps_btn(self) -> QPushButton:
+        """Return the "Apps" button (`QPushButton`)."""
+        return self.ui.get_widget("apps_btn")
+
     def _get_button_box(self) -> QDialogButtonBox:
         """Return the dialog button box (`QDialogButtonBox`)."""
         return self.ui.get_widget("button_box")

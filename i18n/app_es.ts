@@ -1,4 +1,5 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
 <TS version="2.1" language="es_ES">
   <context>
     <name>AccessibilityManager</name>
@@ -1932,64 +1933,64 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinkDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="279" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="283" />
         <source>Icon configuration is invalid.</source>
         <translation>La configuración del icono es inválida.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="284" />
         <source>Configuration error</source>
         <translation>Error de configuración</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="281" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="285" />
         <source>Icons directory is not set. Specify the path in the application settings or config.</source>
         <translation>No se ha establecido el directorio de iconos. Especifique la ruta en la configuración de la aplicación.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="284" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="288" />
         <source>Configuration parameter for icons is missing or empty.</source>
         <translation>El parámetro de configuración de los íconos falta o está vacío.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="454" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="458" />
         <source>Default icon not found.</source>
         <translation>No se encontró el ícono predeterminado.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="455" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="459" />
         <source>Icon issue</source>
         <translation>Problema con el icono</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="456" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="460" />
         <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
         <translation>El botón se mostrará sin icono. Proporcione una ruta válida en la configuración.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="459" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="463" />
         <source>Expected file: {path}</source>
         <translation>Archivo esperado: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="761" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="760" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="662" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="765" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="764" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="666" />
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="664" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="668" />
         <source>Profile: {name}</source>
         <translation>Perfil: {name}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="666" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="670" />
         <source>Profiles: {first}, {second}</source>
         <translation>Perfiles: {first}, {second}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="669" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="673" />
         <source>Profiles: {first}, {second} and {rest} more</source>
         <translation>Perfiles: {first}, {second} y {rest} más</translation>
     </message>
@@ -2026,94 +2027,104 @@ Are you sure you want to continue?</source>
         <translation>Carpeta</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="226" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="234" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="56" />
         <source>Default</source>
         <translation>Predeterminado</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="227" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="235" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="57" />
         <source>As application</source>
         <translation>Como aplicación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="228" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="236" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="58" />
         <source>Incognito</source>
         <translation>Incógnito</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="229" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="237" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="59" />
         <source>New window</source>
         <translation>Nueva ventana</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="230" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="238" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="60" />
         <source>Guest mode</source>
         <translation>Modo invitado</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="401" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="409" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="112" />
         <source>Link type:</source>
         <translation>Tipo de enlace:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="412" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="420" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="183" />
         <source>Browse...</source>
         <translation>Examinar...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="419" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="416" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="424" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="189" />
+        <source>Apps...</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="431" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="428" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="196" />
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="195" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="202" />
         <source>URL/Path:</source>
         <translation>URL/Ruta:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="445" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="241" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="457" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="249" />
         <source>Arguments:</source>
         <translation>Argumentos:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="458" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="281" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="470" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="289" />
         <source>Sphere:</source>
         <translation>Esfera:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="464" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="284" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="476" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="292" />
         <source>Section:</source>
         <translation>Sección:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="470" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="287" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="482" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="295" />
         <source>Category:</source>
         <translation>Categoría:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="486" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="306" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="498" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="314" />
         <source>Notes:</source>
         <translation>Notas:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="490" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="311" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="502" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="319" />
         <source>Add to favorites</source>
         <translation>Agregar a favoritos</translation>
+    </message>
+    <message>
+        <source>Apps</source>
+        <translation>Aplicaciones</translation>
     </message>
 </context><context>
     <name>LinkOperations</name>
@@ -3508,4 +3519,35 @@ Are you sure you want to continue?</source>
         <source>Search… (Ctrl+F)</source>
         <translation>Buscar... (Ctrl+F)</translation>
     </message>
-</context></TS>
+</context>    <context>
+        <name>InstalledAppsDialog</name>
+        <message>
+            <source>Select Installed Application</source>
+            <translation>Seleccionar aplicación instalada</translation>
+        </message>
+        <message>
+            <source>Search applications...</source>
+            <translation>Buscar aplicaciones...</translation>
+        </message>
+        <message>
+            <source>Loading installed applications...</source>
+            <translation>Cargando aplicaciones instaladas...</translation>
+        </message>
+        <message>
+            <source>Total applications: %d</source>
+            <translation>Total de aplicaciones: %d</translation>
+        </message>
+        <message>
+            <source>Shown: %d of %d</source>
+            <translation>Mostradas: %d de %d</translation>
+        </message>
+        <message>
+            <source>Select</source>
+            <translation>Seleccionar</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+    </context>
+</TS>
