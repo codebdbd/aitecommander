@@ -214,35 +214,14 @@ class SpheresBarController(QObject):
 
         menu = QMenu(button)
 
-        # 1. Rename sphere action
-        rename_action = menu.addAction(
-            get_menu_icon("edit", theme),
-            QCoreApplication.translate("SpheresBarController", "Rename Sphere..."),
-        )
-        rename_action.triggered.connect(partial(self._rename_sphere, sphere_id))
-
-        # 2. Reset sphere name action
-        reset_name_action = menu.addAction(
-            get_menu_icon("refresh", theme),
-            QCoreApplication.translate("SpheresBarController", "Reset to Default Name"),
-        )
-        default_canonical_name = self._get_default_name_for_sphere(sphere)
-        current_name = (sphere.get("name") or button.property("sphereName") or "").strip()
-        has_custom_name = bool(current_name and current_name != default_canonical_name)
-        reset_name_action.setEnabled(has_custom_name)
-        reset_name_action.triggered.connect(partial(self._reset_sphere_name, sphere_id))
-
-        # 3. Separator
-        menu.addSeparator()
-
-        # 4. Change sphere icon action
+        # 1. Change sphere icon action
         change_icon_action = menu.addAction(
             get_menu_icon("add_ico", theme),
             QCoreApplication.translate("SpheresBarController", "Change Icon..."),
         )
         change_icon_action.triggered.connect(partial(self._change_sphere_icon, sphere_id))
 
-        # 5. Reset sphere icon action
+        # 2. Reset sphere icon action
         reset_icon_action = menu.addAction(
             get_menu_icon("refresh", theme),
             QCoreApplication.translate("SpheresBarController", "Reset to Default Icon"),
@@ -252,6 +231,27 @@ class SpheresBarController(QObject):
         has_custom_icon = bool(current_icon_path and current_icon_path != default_icon_name)
         reset_icon_action.setEnabled(has_custom_icon)
         reset_icon_action.triggered.connect(partial(self._reset_sphere_icon, sphere_id))
+
+        # 3. Separator
+        menu.addSeparator()
+
+        # 4. Rename sphere action
+        rename_action = menu.addAction(
+            get_menu_icon("edit", theme),
+            QCoreApplication.translate("SpheresBarController", "Rename Sphere..."),
+        )
+        rename_action.triggered.connect(partial(self._rename_sphere, sphere_id))
+
+        # 5. Reset sphere name action
+        reset_name_action = menu.addAction(
+            get_menu_icon("refresh", theme),
+            QCoreApplication.translate("SpheresBarController", "Reset to Default Name"),
+        )
+        default_canonical_name = self._get_default_name_for_sphere(sphere)
+        current_name = (sphere.get("name") or button.property("sphereName") or "").strip()
+        has_custom_name = bool(current_name and current_name != default_canonical_name)
+        reset_name_action.setEnabled(has_custom_name)
+        reset_name_action.triggered.connect(partial(self._reset_sphere_name, sphere_id))
 
         menu.exec(button.mapToGlobal(pos))
 

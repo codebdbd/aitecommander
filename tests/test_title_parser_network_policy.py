@@ -22,6 +22,12 @@ class _FakeResponse:
         self.encoding = "utf-8"
         self.apparent_encoding = "utf-8"
 
+    def iter_content(self, chunk_size: int = 65536):
+        yield self.content
+
+    def close(self) -> None:
+        pass
+
 
 class TestTitleParserNetworkPolicy(unittest.TestCase):
     def test_get_title_uses_single_get_without_head_preflight(self) -> None:

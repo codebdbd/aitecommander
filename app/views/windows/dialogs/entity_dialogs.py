@@ -64,7 +64,11 @@ logger = logging.getLogger(__name__)
 
 def _combo_icon_loader(entity_type: str):
     def _load(icon_path: str, entity_data: Any = None):
-        return get_cached_icon_with_fallback(icon_path, entity_type, entity_data=entity_data)
+        if entity_data is not None:
+            return get_cached_icon_with_fallback(
+                icon_path, entity_type, entity_data=entity_data
+            )
+        return get_cached_icon_with_fallback(icon_path, entity_type)
 
     return _load
 

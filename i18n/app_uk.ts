@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="uk_UA">
   <context>
     <name>AboutDialog</name>
@@ -1233,7 +1232,7 @@ Old database restored.</source>
         <source>Archive load error: {error}</source>
         <translation>Помилка завантаження архіву: {error}</translation>
     </message>
-</context><context>
+<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} перевищує максимально дозволений розмір ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архів перевищує загальний дозволений розмір іконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>Архів містить забагато іконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Відновлення бази даних уже виконується.</translation></message></context><context>
     <name>DatabaseDialogs</name>
     <message>
         <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="39" />
@@ -1340,7 +1339,7 @@ Old database restored.</source>
         <source>Backup integrity check failed: {error}</source>
         <translation>Перевірка цілісності резервної копії не вдалася: {error}</translation>
     </message>
-</context><context>
+<message><source>Backup file does not exist: {path}</source><translation>Файл резервної копії не існує: {path}</translation></message><message><source>Backup file is empty: {path}</source><translation>Файл резервної копії порожній: {path}</translation></message></context><context>
     <name>DateUtils</name>
     <message>
         <source>Just now</source>

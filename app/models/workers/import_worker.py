@@ -16,13 +16,16 @@ class ImportStructureWorker(DatabaseWorker):
     с поддержкой прогресса и отмены операции.
     """
 
-    def __init__(self, data: list[dict]):
+    def __init__(self, data: list[dict] | dict):
         """
         Args:
-            data: Структура данных для импорта
+            data: Структура данных для импорта (список сфер или словарь с ключом 'spheres')
         """
         super().__init__()
-        self.data = copy.deepcopy(data or [])
+        if isinstance(data, dict) and "spheres" in data:
+            self.data = copy.deepcopy(data["spheres"] or [])
+        else:
+            self.data = copy.deepcopy(data or [])
 
     def _count_total_items(self, root: list[dict]) -> int:
         """Count total items for progress tracking."""
@@ -109,15 +112,28 @@ class ImportStructureWorker(DatabaseWorker):
     def _normalize_link(self, ln: dict, cat_ref: int, ln_idx: int) -> dict:
         """Normalize single link data."""
         link_type = LinkType.from_value(ln.get("type"))
+
+        raw_fav = ln.get("is_favorite", 0)
+        is_fav = 1 if (raw_fav is True or raw_fav == 1 or raw_fav == "1") else 0
+
+        notes = ln.get("notes")
+        notes_val = str(notes) if notes is not None else ""
+
+        last_used = ln.get("last_used")
+        last_used_val = str(last_used) if last_used else None
+
         link_data = {
             "category_ref": cat_ref,
             "name": ln.get("name", ""),
             "url": ln.get("url", ""),
-            "args": ln.get("args", ""),
+            "args": ln.get("args", "") or "",
             "type": link_type.value,
-            "browser_key": ln.get("browser_key", ""),
-            "icon_path": ln.get("icon_path", ""),
+            "browser_key": ln.get("browser_key") or None,
+            "icon_path": ln.get("icon_path", "") or "",
             "position": ln.get("position", ln_idx),
+            "notes": notes_val,
+            "is_favorite": is_fav,
+            "last_used": last_used_val,
         }
         if ln.get("id"):
             link_data["id"] = ln["id"]
@@ -292,8 +308,8 @@ class ImportStructureWorker(DatabaseWorker):
 
             connection.execute(
                 """INSERT INTO link 
-                   (category_id, name, url, args, type, browser_key, icon_path, position)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (category_id, name, url, args, type, browser_key, icon_path, position, notes, is_favorite, last_used)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     category_id,
                     ln["name"],
@@ -303,6 +319,9 @@ class ImportStructureWorker(DatabaseWorker):
                     ln["browser_key"],
                     ln["icon_path"],
                     ln["position"],
+                    ln["notes"],
+                    ln["is_favorite"],
+                    ln["last_used"],
                 ),
             )
             current += 1

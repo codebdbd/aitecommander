@@ -3,6 +3,8 @@
 import logging
 import os
 import shutil
+import sqlite3
+import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -47,6 +49,7 @@ class DatabaseController(QObject):
         super().__init__(parent)
         self.db = db
         self.dialogs = DatabaseDialogs(parent)
+        self._is_restoring = False
 
     def _emit_success(self, message: str, *, title: str | None = None) -> None:
         self.operation_success.emit(title or self.tr("Done"), message)
@@ -82,12 +85,17 @@ class DatabaseController(QObject):
 
     def handle_restore_database(self):
         """Database restore handler from backup."""
+        if self._is_restoring:
+            self._emit_error(self.tr("Database restoration is already in progress."))
+            return
+
         from app.views.windows.dialogs.restore_db_dialog import RestoreDbDialog
 
         dlg = RestoreDbDialog(parent=self.parent())
         if dlg.exec() == dlg.DialogCode.Accepted:
             selected = dlg.get_selected_backup()
             if selected:
+                self._is_restoring = True
                 # Run restore in background thread to avoid GUI freeze
                 self._perform_database_restore_async(selected)
 
@@ -105,6 +113,7 @@ class DatabaseController(QObject):
     @pyqtSlot(object, str)
     def _on_restore_success(self, new_db, backup_name):
         """Handle successful restore in GUI thread."""
+        self._is_restoring = False
         logger.info(f"Restore completed, updating DB reference: {new_db}")
         self.db = new_db
         self.database_restored.emit(new_db)
@@ -117,6 +126,7 @@ class DatabaseController(QObject):
     @pyqtSlot(str)
     def _on_restore_error(self, error_msg):
         """Handle restore error in GUI thread."""
+        self._is_restoring = False
         logger.error(f"Restore failed: {error_msg}")
         self._emit_error(
             self.tr("Restore error: {error}").format(error=error_msg),
@@ -189,13 +199,47 @@ class DatabaseController(QObject):
         )
 
     def _save_database_copy(self, db_path: str, save_path: str) -> None:
+        target_path = Path(save_path).resolve()
+        temp_path = target_path.with_name(f".{target_path.name}.tmp")
         try:
-            self._copy_file(db_path, save_path)
-            self.database_saved.emit(save_path)
+            from app.core.database_manager import DatabaseManager
+
+            conn = getattr(self.db, "connection", None)
+            if conn is None:
+                conn = DatabaseManager.get_connection()
+
+            try:
+                conn.execute("PRAGMA wal_checkpoint(FULL)")
+            except Exception as checkpoint_err:
+                logger.debug("WAL checkpoint prior to save warning: %s", checkpoint_err)
+
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
+            dest_conn = sqlite3.connect(str(temp_path))
+            try:
+                conn.backup(dest_conn)
+            finally:
+                dest_conn.close()
+
+            # Atomic publication
+            try:
+                os.replace(temp_path, target_path)
+            except OSError:
+                shutil.copy2(temp_path, target_path)
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+
+            self.database_saved.emit(str(target_path))
             self._emit_success(
-                self.tr("Database copy saved:\n{path}").format(path=save_path),
+                self.tr("Database copy saved:\n{path}").format(path=str(target_path)),
             )
         except Exception as e:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
             self._emit_error(
                 self.tr("Save error: {error}").format(error=e),
             )
@@ -276,16 +320,25 @@ class DatabaseController(QObject):
                         zipf.write(str(fpath), fname)
 
     def _import_icons_archive(self, zip_path: str, icons_dir: str) -> int:
-        """Extract icon archive and return extracted entry count."""
+        """Extract icon archive safely with limits and atomic placement."""
+        MAX_ICON_FILES = 2000
+        MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
+        MAX_TOTAL_EXTRACTED_SIZE = 100 * 1024 * 1024  # 100 MB total archive payload
+
         allowed_suffixes = {
             suffix.lower()
             for suffix in icon_path_service.get_supported_icon_formats()
         }
         target_root = Path(icons_dir).resolve()
-        imported = 0
+        target_root.mkdir(parents=True, exist_ok=True)
+
         with icon_files_lock():
             with zipfile.ZipFile(zip_path, "r") as zipf:
-                for member in zipf.infolist():
+                infolist = zipf.infolist()
+                valid_members = []
+                total_size = 0
+
+                for member in infolist:
                     if member.is_dir():
                         continue
                     member_path = Path(member.filename)
@@ -298,10 +351,46 @@ class DatabaseController(QObject):
                         or Path(member_name).suffix.lower() not in allowed_suffixes
                     ):
                         continue
-                    destination = (target_root / member_name).resolve()
-                    if destination.parent != target_root:
-                        continue
-                    with zipf.open(member, "r") as src, open(destination, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
-                    imported += 1
+
+                    if member.file_size > MAX_ICON_FILE_SIZE:
+                        raise ValueError(
+                            self.tr("File {name} exceeds maximum allowed size ({size} MB)").format(
+                                name=member_name,
+                                size=MAX_ICON_FILE_SIZE // (1024 * 1024),
+                            )
+                        )
+                    total_size += member.file_size
+                    if total_size > MAX_TOTAL_EXTRACTED_SIZE:
+                        raise ValueError(
+                            self.tr("Archive exceeds total allowed icon size ({size} MB)").format(
+                                size=MAX_TOTAL_EXTRACTED_SIZE // (1024 * 1024)
+                            )
+                        )
+                    valid_members.append((member, member_name))
+
+                if len(valid_members) > MAX_ICON_FILES:
+                    raise ValueError(
+                        self.tr("Archive contains too many icons ({count} > {limit})").format(
+                            count=len(valid_members),
+                            limit=MAX_ICON_FILES,
+                        )
+                    )
+
+                imported = 0
+                with tempfile.TemporaryDirectory(dir=target_root.parent) as tmp_dir:
+                    tmp_root = Path(tmp_dir)
+                    for member, member_name in valid_members:
+                        tmp_dest = tmp_root / member_name
+                        with zipf.open(member, "r") as src, open(tmp_dest, "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+
+                    for _, member_name in valid_members:
+                        src_path = tmp_root / member_name
+                        dest_path = target_root / member_name
+                        try:
+                            os.replace(src_path, dest_path)
+                        except OSError:
+                            shutil.copy2(src_path, dest_path)
+                        imported += 1
+
         return imported

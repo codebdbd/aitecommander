@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="ru_RU">
   <context>
     <name>AboutDialog</name>
@@ -1241,7 +1240,7 @@ Old database restored.</source>
         <source>Archive load error: {error}</source>
         <translation>Ошибка загрузки архива: {error}</translation>
     </message>
-</context><context>
+<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} превышает максимально допустимый размер ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архив превышает общий допустимый размер иконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>В архиве слишком много иконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Восстановление базы данных уже выполняется.</translation></message></context><context>
     <name>DatabaseDialogs</name>
     <message>
         <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="39" />
@@ -1348,7 +1347,7 @@ Old database restored.</source>
         <source>Backup integrity check failed: {error}</source>
         <translation>Проверка целостности резервной копии не удалась: {error}</translation>
     </message>
-</context><context>
+<message><source>Backup file does not exist: {path}</source><translation>Файл резервной копии не существует: {path}</translation></message><message><source>Backup file is empty: {path}</source><translation>Файл резервной копии пуст: {path}</translation></message></context><context>
     <name>DialogManager</name>
     <message>
         <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="22" />

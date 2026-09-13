@@ -32,7 +32,7 @@ dependencies = [
     "cloudscraper==1.2.71",
     "filelock==3.19.1",
     "idna==3.11",
-    "pillow==12.1.0",
+    "pillow==12.1.1",
     "pyparsing==3.3.2",
     "pyqt6==6.10.1",
     "pyqt6-qt6==6.10.1",
@@ -42,7 +42,7 @@ dependencies = [
     "requests-toolbelt==1.0.0",
     "soupsieve==2.8.3",
     "typing-extensions==4.15.0",
-    "urllib3==2.6.3",
+    "urllib3==2.7.0",
 ]
 
 [project.optional-dependencies]

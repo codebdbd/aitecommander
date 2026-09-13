@@ -686,7 +686,11 @@ def _fetch_and_parse_html(
         retries_override,
     )
     resp = http_request(
-        url, config, timeout_override=timeout_override, retries=retries_override
+        url,
+        config,
+        timeout_override=timeout_override,
+        retries=retries_override,
+        stream=True,
     )
     if not resp:
         logger.info("[title][fetch] result=empty url=%s", url)
@@ -705,6 +709,25 @@ def _fetch_and_parse_html(
             )
             logger.info("[title][fetch] result=non_html url=%s type=%s", url, ctype)
             return None, ""
+
+        # Limit HTML body size to 2 MB to prevent memory exhaustion / DoS
+        MAX_HTML_BYTES = 2 * 1024 * 1024
+        chunks = []
+        total_bytes = 0
+        for chunk in resp.iter_content(chunk_size=65536):
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+            if total_bytes >= MAX_HTML_BYTES:
+                logger.info(
+                    "[title][fetch] Reached max HTML size (%s bytes), truncated stream for %s",
+                    MAX_HTML_BYTES,
+                    url,
+                )
+                break
+
+        resp._content = b"".join(chunks)
         txt = _decode_response_text(resp, config)
         s = _make_soup(txt)
         logger.info(
@@ -717,6 +740,11 @@ def _fetch_and_parse_html(
         logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
         logger.info("[title][fetch] result=parse_error url=%s", url)
         return None, ""
+    finally:
+        try:
+            resp.close()
+        except Exception:
+            pass
 
 
 def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> str:

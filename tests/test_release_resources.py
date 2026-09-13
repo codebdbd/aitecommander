@@ -54,10 +54,14 @@ def test_compiled_ukrainian_matches_catalog(qt_app):
     assert translator.load(str(ROOT / "i18n/app_uk.qm"))
     for context in ET.parse(ROOT / "i18n/app_uk.ts").getroot().findall("context"):
         for message in context.findall("message"):
-            source = message.findtext("source")
             translation = message.find("translation")
-            forms = translation.findall("numerusform")
-            variants = zip((1, 2, 5), [form.text for form in forms]) if forms else [(-1, translation.text)]
+            if translation is not None and translation.get("type") in ("vanished", "obsolete"):
+                continue
+            source = message.findtext("source")
+            forms = translation.findall("numerusform") if translation is not None else []
+            variants = zip((1, 2, 5), [form.text for form in forms]) if forms else [(-1, translation.text if translation is not None else "")]
             for number, expected in variants:
+                if not expected:
+                    continue
                 assert translator.translate(context.findtext("name"), source.encode("utf-8"), None, number) == expected, source
                 assert sorted(re.findall(r"\{[^{}]*\}", source)) == sorted(re.findall(r"\{[^{}]*\}", expected)), source
