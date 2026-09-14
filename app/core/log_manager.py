@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from logging.handlers import RotatingFileHandler
 
 from app.core.paths.path_manager import PathManager
@@ -36,21 +35,22 @@ class LogManager:
             return
 
         numeric_level = cls._resolve_level(level)
-        log_dir = PathManager.logs_dir()
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / _LOG_FILE_NAME
-
         formatter = cls._create_formatter()
-
-        file_handler = cls._create_file_handler(log_file, formatter)
-
-        stream_handler = cls._create_stream_handler(formatter)
-
         root_logger = logging.getLogger()
-        if not cls._has_handler(root_logger, SafeRotatingFileHandler):
-            root_logger.addHandler(file_handler)
+
         if not cls._has_stream_handler(root_logger):
+            stream_handler = cls._create_stream_handler(formatter)
             root_logger.addHandler(stream_handler)
+
+        try:
+            log_dir = PathManager.logs_dir()
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = log_dir / _LOG_FILE_NAME
+            file_handler = cls._create_file_handler(log_file, formatter)
+            if not cls._has_handler(root_logger, SafeRotatingFileHandler):
+                root_logger.addHandler(file_handler)
+        except Exception as exc:
+            root_logger.warning("Failed to initialize file logging: %s", exc)
 
         root_logger.setLevel(numeric_level)
         cls._configured = True

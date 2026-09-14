@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import gc
 import logging
 import sqlite3
 import threading
@@ -10,9 +9,9 @@ from contextlib import AbstractContextManager
 from typing import Any, Callable, Protocol
 
 from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
     QCoreApplication,
     QObject,
-    QT_TRANSLATE_NOOP,
     Qt,
     QThread,
     QThreadPool,

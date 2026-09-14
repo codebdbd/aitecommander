@@ -5,7 +5,6 @@ from typing import Optional
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
@@ -17,12 +16,12 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
-from app.utils.browser.profile_selection_state import profile_selection_key
 from app.utils.browser.browser_profiles import async_profile_manager as _apm
 from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles import persistent_cache as _pc
 from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
+from app.utils.browser.profile_selection_state import profile_selection_key
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.qt.combo_helpers import PopupComboBox, select_first_combo_item
 

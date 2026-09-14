@@ -1,9 +1,10 @@
 """Центральная система обработки ошибок для массовых операций."""
 
-from enum import Enum
-from typing import Dict, Any, Optional
 import logging
 import time
+from enum import Enum
+from typing import Any, Dict
+
 
 class BulkOperationErrorType(Enum):
     VALIDATION_ERROR = "validation"

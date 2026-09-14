@@ -5,8 +5,8 @@ import unittest
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QListView, QWidget
 
-from app.views.windows.dialogs.entity_dialogs import SettingsDialog
 from app.views.windows.dialogs.base_dialog import ComboRowHeightDelegate
+from app.views.windows.dialogs.entity_dialogs import SettingsDialog
 
 
 class _DummySettings:

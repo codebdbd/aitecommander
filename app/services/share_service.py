@@ -6,16 +6,19 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication
 
+from app.utils.links.link_utils import sanitize_url_for_logging
+
 logger = logging.getLogger(__name__)
 
 
 def _open_url(url: str) -> bool:
+    safe_url = sanitize_url_for_logging(url)
     try:
         ok = QDesktopServices.openUrl(QUrl(url))
-        logger.debug("ShareService: openUrl(%s) -> %s", url, ok)
+        logger.debug("ShareService: openUrl(%s) -> %s", safe_url, ok)
         return bool(ok)
     except Exception:
-        logger.exception("ShareService: openUrl failed for %s", url)
+        logger.exception("ShareService: openUrl failed for %s", safe_url)
         return False
 
 

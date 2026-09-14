@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 EXCLUDED_DIRS = {
     ".git",
     ".venv",
@@ -455,7 +454,6 @@ def main() -> int:
             roles.append("IO")
         if business_fns or branch_count >= 20:
             roles.append("Logic")
-        score = branch_count + (20 * len(roles))
         if len(roles) >= 2:
             file_features[rel] = {
                 "layers": [layer],

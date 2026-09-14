@@ -14,9 +14,9 @@ from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal
 from app.config_data import app_config
 from app.models.base.db_base import db_lock
 from app.models.types.link_type import LinkType
-from app.utils.ui.icon.cache_manager import clear_icon_cache
-from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.links.link_parser import _extract_icon_from_exe, parse_local_link
+from app.utils.links.parser.fetcher import fetch_web_link_info
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 # Icons smaller than this are treated as default/placeholder icons

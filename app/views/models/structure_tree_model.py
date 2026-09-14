@@ -24,11 +24,16 @@ from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data.runtime_config import (
+    get_category_mime_type,
+    get_section_mime_type,
     get_tree_icon_size,
     get_tree_section_icon_prewarm_limit,
 )
+from app.utils.ui.icon.icon_resolver import (
+    resolve_category_icon_path,
+    resolve_section_icon_path,
+)
 from app.utils.ui.icon.loading_service import icon_loading_service
-from app.utils.ui.icon.icon_resolver import resolve_category_icon_path, resolve_section_icon_path
 from app.utils.ui.icon.validation import _validate_icon_name
 
 NodeType = str  # "section" | "category" | "root"
@@ -574,7 +579,11 @@ class StructureTreeModel(QAbstractItemModel):
         return Qt.DropAction.MoveAction | Qt.DropAction.CopyAction
 
     def mimeTypes(self) -> list[str]:  # noqa: N802
-        return ["application/x-structure-tree-index"]
+        return [
+            "application/x-structure-tree-index",
+            get_section_mime_type(),
+            get_category_mime_type(),
+        ]
 
     def mimeData(self, indexes: list[QModelIndex]) -> QMimeData:  # type: ignore[override]  # noqa: N802
         import json
@@ -583,17 +592,51 @@ class StructureTreeModel(QAbstractItemModel):
 
         mime = QMimeData()
         payload = []
+        section_ids: list[int] = []
+        source_sphere_id: int | None = None
+        category_ids: list[int] = []
+
         for idx in indexes or []:
             if not idx or not idx.isValid() or idx.column() != 0:
                 continue
+            node = idx.internalPointer()
             t = self.data(idx, Qt.ItemDataRole.UserRole)
             if isinstance(t, (tuple, list)) and len(t) == 2:
                 payload.append([t[0], t[1]])
+                if t[0] == "section" and isinstance(t[1], int):
+                    section_ids.append(t[1])
+                    if source_sphere_id is None and isinstance(node, TreeNode):
+                        sphere_val = node.payload.get("sphere_id")
+                        if isinstance(sphere_val, int):
+                            source_sphere_id = sphere_val
+                elif t[0] == "category" and isinstance(t[1], int):
+                    category_ids.append(t[1])
+
         try:
             ba = QByteArray(bytes(json.dumps(payload), encoding="utf-8"))
             mime.setData("application/x-structure-tree-index", ba)
         except Exception:
             pass
+
+        if section_ids:
+            try:
+                sec_payload = {
+                    "ids": section_ids,
+                    "source_sphere_id": source_sphere_id,
+                }
+                sec_ba = QByteArray(bytes(json.dumps(sec_payload), encoding="utf-8"))
+                mime.setData(get_section_mime_type(), sec_ba)
+            except Exception:
+                pass
+
+        if category_ids:
+            try:
+                cat_payload = {"ids": category_ids}
+                cat_ba = QByteArray(bytes(json.dumps(cat_payload), encoding="utf-8"))
+                mime.setData(get_category_mime_type(), cat_ba)
+            except Exception:
+                pass
+
         return mime
 
     def dropMimeData(  # noqa: N802

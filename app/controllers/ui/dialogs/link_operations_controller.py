@@ -1,14 +1,13 @@
 # app/controllers/link_operations_controller.py
 
 import logging
-import time
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
+from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
-from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from app.controllers.ui.undo.commands_links import (
     BatchDeleteLinksCmd,
     BatchSaveLinksCmd,
@@ -254,6 +253,7 @@ class LinkOperationsController(QObject):
     def _create_link_dialog(self, link, cat_id):
         """Create and configure link dialog."""
         from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
+
         from .link_dialog_controller import LinkDialogController
 
         structure_business = getattr(self.main_window, "structure_business", None)

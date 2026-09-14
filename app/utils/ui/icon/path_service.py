@@ -557,8 +557,9 @@ class IconPathResolver:
     # --- Icon conversion ---
     def convert_svg(self, icon_name: str, theme: str) -> str | None:  # noqa: C901
         # Local import to avoid circular dependencies
-        from .icon_operations.converters import convert_icon_to_png_128
         from PyQt6.QtWidgets import QApplication
+
+        from .icon_operations.converters import convert_icon_to_png_128
 
         try:
             app = QApplication.instance()

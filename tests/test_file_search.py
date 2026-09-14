@@ -1,15 +1,12 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-import pytest
 
 from app.views.windows.dialogs.file_search_dialog.common import (
     check_file_content,
     detect_and_read_text,
     is_probably_binary,
-    matches_criteria,
 )
 from app.views.windows.dialogs.file_search_dialog.search_worker import FileSearchWorker
 

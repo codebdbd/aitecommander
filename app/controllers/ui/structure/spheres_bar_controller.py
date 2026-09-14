@@ -16,11 +16,11 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import (
     get_default_sphere_icon_name,
     resolve_icon_path,
-    resolve_sphere_icon_path,
 )
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.menu_builders.base import get_menu_icon
 from app.utils.ui.updates import suspend_updates
+from app.views.widgets.spheres.sphere_tool_button import SphereToolButton
 from app.views.windows.dialogs.entity_dialogs import SphereRenameDialog
 
 logger = logging.getLogger(__name__)
@@ -130,8 +130,8 @@ class SpheresBarController(QObject):
         return self._get_default_icon_for_sphere(sphere)
 
     def _build_button(self, sphere: dict[str, Any]) -> QToolButton:
-        btn = QToolButton()
         sphere_id = sphere["id"]
+        btn = SphereToolButton(sphere_id)
         btn.setCheckable(True)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setIcon(self._resolve_sphere_icon(sphere))
@@ -155,6 +155,7 @@ class SpheresBarController(QObject):
         btn.setProperty("sphereName", sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(partial(self._on_button_clicked, sphere_id))
+        btn.section_dropped.connect(self._on_section_dropped)
         btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         btn.customContextMenuRequested.connect(partial(self._on_context_menu, sphere_id))
         # Ensure there are no graphics effects (neon, etc.) on the button
@@ -164,6 +165,33 @@ class SpheresBarController(QObject):
             pass
         self.w.sphere_buttons[sphere_id] = btn
         return btn
+
+    @pyqtSlot(int, int)
+    def _on_section_dropped(self, section_id: int, target_sphere_id: int) -> None:
+        """Handle dropping a section onto a sphere button."""
+        try:
+            logger.info(
+                "SpheresBarController: moving section %s to sphere %s",
+                section_id,
+                target_sphere_id,
+            )
+            from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
+
+            undo_stack = getattr(self.w, "undo_stack", None)
+            if undo_stack:
+                cmd = MoveSectionToSphereCommand(section_id, target_sphere_id, self.w)
+                undo_stack.push(cmd)
+            else:
+                logger.warning(
+                    "SpheresBarController: undo_stack not found, executing move directly"
+                )
+                cmd = MoveSectionToSphereCommand(section_id, target_sphere_id, self.w)
+                cmd.redo()
+        except Exception as e:
+            logger.exception(
+                "SpheresBarController: failed to execute move section to sphere: %s",
+                e,
+            )
 
     @staticmethod
     def _get_default_name_for_sphere(

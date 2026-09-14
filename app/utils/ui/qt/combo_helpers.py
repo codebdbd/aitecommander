@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-
 COMBO_POPUP_VIEW_OBJECT_NAME = "comboPopupView"
 COMBO_POPUP_CONTAINER_OBJECT_NAME = "comboPopupContainer"
 
@@ -91,7 +90,9 @@ class PopupComboBox(QComboBox):
         self._popup_view.activated.connect(self._activate_popup_index)
         self.currentIndexChanged.connect(self._sync_popup_current_index)
         self._install_popup_model()
-        from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
+        from app.utils.ui.qt.delegates.combo_row_height_delegate import (
+            ComboRowHeightDelegate,
+        )
         self.setItemDelegate(ComboRowHeightDelegate(self))
 
     def view(self) -> QListView:  # type: ignore[override]

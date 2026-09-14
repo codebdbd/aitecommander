@@ -147,7 +147,6 @@ class DragDropHandler(TreeHandlerBase):
             event.ignore()
             return
         target_type, _ = ttuple
-        drop_pos = self.tree_widget.dropIndicatorPosition()
         valid_drop = False
         if mime.hasFormat(app_config.get_link_mime_type()):
             if target_type == "category":
@@ -617,7 +616,6 @@ class DragDropHandler(TreeHandlerBase):
             return False
         source_type, _ = stuple
         target_index = self.tree_widget.indexAt(event.position().toPoint())
-        drop_pos = self.tree_widget.dropIndicatorPosition()
         if source_type == "section":
             # Sections not supported for moving yet
             return False

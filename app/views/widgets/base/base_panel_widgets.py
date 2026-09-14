@@ -2,7 +2,6 @@
 
 import copy
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
@@ -53,7 +52,9 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         # IMPROVEMENT: Configuration dependency injection
         if config is None:
             try:
-                from app.config_data.runtime_config import runtime_app_config as app_config
+                from app.config_data.runtime_config import (
+                    runtime_app_config as app_config,
+                )
 
                 config = AppConfigWidgetAdapter(app_config)
             except (ImportError, AttributeError) as e:

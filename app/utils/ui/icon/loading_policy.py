@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.config_data.runtime_config import (
+    get_runtime_app_config,
     get_tree_section_icon_prewarm_limit,
     get_tree_sections_first_render,
-    get_runtime_app_config,
 )
 
 

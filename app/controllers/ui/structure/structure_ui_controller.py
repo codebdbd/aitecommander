@@ -221,7 +221,10 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
+        from app.controllers.ui.undo.commands_links import (
+            BatchSaveLinksCmd,
+            SaveLinkCmd,
+        )
 
         links_data = [
             build_dropped_link_payload(target, category_id) for target in link_targets
@@ -249,8 +252,10 @@ class StructureUIController(QObject):
     def load(self, item_to_select=None) -> None:
         self.item_ops.load(item_to_select)
 
-    def switch_sphere(self, sphere_id: int) -> None:
-        self.item_ops.switch_sphere(sphere_id)
+    def switch_sphere(
+        self, sphere_id: int, item_to_select: tuple[str, int] | None = None
+    ) -> None:
+        self.item_ops.switch_sphere(sphere_id, item_to_select=item_to_select)
 
     def switch_to_next_sphere(self) -> None:
         """Switch to the next sphere using business logic."""

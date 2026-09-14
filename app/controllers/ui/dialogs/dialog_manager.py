@@ -235,9 +235,6 @@ class DialogManager:
         Returns:
             QMessageBox.StandardButton: Нажатая пользователем кнопка
         """
-        from app.views.windows.dialogs.base_dialog import (
-            apply_uniform_height_to_message_box,
-        )
         
         logger.debug("Showing custom dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)

@@ -9,9 +9,11 @@ Canonical implementations live in dedicated modules:
 from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
 from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
+from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
 
 __all__ = [
     "MoveLinksCommand",
     "MoveCategoryCommand",
     "MoveCategoriesCommand",
+    "MoveSectionToSphereCommand",
 ]

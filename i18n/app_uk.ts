@@ -1232,7 +1232,15 @@ Old database restored.</source>
         <source>Archive load error: {error}</source>
         <translation>Помилка завантаження архіву: {error}</translation>
     </message>
-<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} перевищує максимально дозволений розмір ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архів перевищує загальний дозволений розмір іконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>Архів містить забагато іконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Відновлення бази даних уже виконується.</translation></message></context><context>
+<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} перевищує максимально дозволений розмір ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архів перевищує загальний дозволений розмір іконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>Архів містить забагато іконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Відновлення бази даних уже виконується.</translation></message><message><source>Database connection error: {error}</source><translation>Помилка підключення до бази даних: {error}</translation></message><message><source>Database operation is already in progress.</source><translation>Операція з базою даних уже виконується.</translation></message><message><source>Database connected from:
+{file_name}</source><translation>Базу даних підключено з:
+{file_name}</translation></message></context><context>
+    <name>DatabaseRestoreWorker</name>
+    <message>
+        <source>Restored database failed verification: {error}</source>
+        <translation>Відновлена база даних не пройшла перевірку: {error}</translation>
+    </message>
+</context><context>
     <name>DatabaseDialogs</name>
     <message>
         <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="39" />

@@ -8,7 +8,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
@@ -18,7 +18,6 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
     resolve_icon_path,
-    resolve_link_type_icon,
 )
 from app.views.widgets.protocols import IconProviderProtocol
 

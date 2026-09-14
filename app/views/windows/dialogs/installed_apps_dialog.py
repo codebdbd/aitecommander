@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
 from app.utils.system.installed_apps_service import (
     InstalledAppInfo,
@@ -181,7 +180,9 @@ class InstalledAppsDialog(BaseDialog):
         layout.addLayout(bottom_layout)
 
     def _start_loading(self) -> None:
-        self.loader_thread = _AppsLoaderThread(self)
+        # Pass parent=None to prevent QThread destroyed while running crash on dialog destruction
+        self.loader_thread = _AppsLoaderThread(parent=None)
+        self.loader_thread.finished.connect(self.loader_thread.deleteLater)
         self.loader_thread.apps_ready.connect(self._on_apps_loaded)
         self.loader_thread.icon_ready.connect(self._on_icon_loaded)
         self.loader_thread.all_done.connect(self._on_loading_done)
@@ -267,13 +268,31 @@ class InstalledAppsDialog(BaseDialog):
             self.accept()
 
     def _stop_loader_thread(self, timeout_ms: int = 1500) -> None:
-        """Cooperatively cancel and wait for the background loader thread."""
+        """Cooperatively cancel and disconnect the background loader thread."""
         thread = getattr(self, "loader_thread", None)
-        if thread is not None and thread.isRunning():
-            thread.cancel()
-            thread.quit()
-            if not thread.wait(timeout_ms):
-                logger.warning("Installed apps loader thread did not terminate within %d ms", timeout_ms)
+        if thread is not None:
+            # Disconnect signals so finishing thread does not touch destroyed UI
+            try:
+                thread.apps_ready.disconnect(self._on_apps_loaded)
+            except Exception:
+                pass
+            try:
+                thread.icon_ready.disconnect(self._on_icon_loaded)
+            except Exception:
+                pass
+            try:
+                thread.all_done.disconnect(self._on_loading_done)
+            except Exception:
+                pass
+
+            if thread.isRunning():
+                thread.cancel()
+                thread.quit()
+                if not thread.wait(timeout_ms):
+                    logger.warning(
+                        "Installed apps loader thread did not terminate within %d ms; running asynchronously until completion",
+                        timeout_ms,
+                    )
 
     def accept(self) -> None:
         self._stop_loader_thread()

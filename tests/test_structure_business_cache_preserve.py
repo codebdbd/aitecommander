@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from app.controllers.business.structure_business import StructureBusinessLogic
 
 

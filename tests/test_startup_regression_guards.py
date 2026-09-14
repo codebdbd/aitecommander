@@ -4,7 +4,11 @@ from types import SimpleNamespace
 
 import app.controllers.system.window_setup.coordinator as coordinator
 import app.views.main_components.ui.topbar.top_bar_setup as top_bar_setup
-from app.startup.initializer import ApplicationInitializer, StartupMode, application_context
+from app.startup.initializer import (
+    ApplicationInitializer,
+    StartupMode,
+    application_context,
+)
 from app.startup.runtime import _register_cleanup_handler
 
 

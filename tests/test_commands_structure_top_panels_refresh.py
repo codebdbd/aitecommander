@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.controllers.ui.undo.commands_structure import _request_top_panels_refresh
-from app.controllers.ui.undo.commands_structure import _invalidate_links_business_cache
+from app.controllers.ui.undo.commands_structure import (
+    _invalidate_links_business_cache,
+    _request_top_panels_refresh,
+)
 
 
 def test_request_top_panels_refresh_prefers_direct_favorites_refresh():

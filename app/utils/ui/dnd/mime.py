@@ -62,6 +62,58 @@ class MimeDataParser:
             return md
 
     @staticmethod
+    def create_section_mime_data(
+        section_ids: list[int], source_sphere_id: int | None = None
+    ) -> QMimeData:
+        """Creates JSON MIME payload for sections with {"ids": [...], "source_sphere_id": ...}."""
+        md = QMimeData()
+        try:
+            payload = {
+                "ids": list(map(int, section_ids)),
+                "source_sphere_id": int(source_sphere_id) if source_sphere_id is not None else None,
+            }
+            raw = json.dumps(payload).encode("utf-8")
+            mime_type = app_config.get_section_mime_type()
+            md.setData(mime_type, QByteArray(raw))
+            return md
+        except Exception as exc:
+            logger.error("Failed to create section MIME data: %s", exc)
+            return md
+
+    @staticmethod
+    def extract_section_payload(
+        mime_data: QMimeData,
+    ) -> tuple[list[int], int | None]:
+        """Extracts section IDs and source sphere ID from MIME data.
+
+        Returns (section_ids, source_sphere_id).
+        """
+        try:
+            if not mime_data:
+                return [], None
+            mime_type = app_config.get_section_mime_type()
+            if not mime_data.hasFormat(mime_type):
+                return [], None
+            raw = mime_data.data(mime_type).data().decode("utf-8")
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                ids = [
+                    int(x)
+                    for x in data.get("ids", [])
+                    if isinstance(x, int) and not isinstance(x, bool)
+                ]
+                source_sphere_id = data.get("source_sphere_id")
+                if isinstance(source_sphere_id, int) and not isinstance(source_sphere_id, bool):
+                    sphere_id = int(source_sphere_id)
+                else:
+                    sphere_id = None
+                return ids, sphere_id
+            return [], None
+        except Exception as exc:
+            logger.warning("Failed to extract section payload from MIME: %s", exc)
+            return [], None
+
+    @staticmethod
     def extract_external_web_urls(mime_data: QMimeData) -> list[str]:
         """Extract unique external http(s) URLs from common MIME formats."""
         return [

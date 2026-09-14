@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-import sys
 import threading
 import time
 from collections.abc import Generator, Sequence
@@ -122,8 +121,12 @@ def initialization_method(
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as exc:
-                message = critical_message or f"Unexpected error in {func.__name__}: %s"
-                logger.critical(message, exc, exc_info=True)
+                if critical_message:
+                    logger.critical("%s: %s", critical_message, exc, exc_info=True)
+                else:
+                    logger.critical(
+                        "Unexpected error in %s: %s", func.__name__, exc, exc_info=True
+                    )
                 return False
 
         return wrapper

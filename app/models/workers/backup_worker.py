@@ -3,10 +3,10 @@
 import logging
 import sqlite3
 import time
-
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
 from app.models.managers.backup_manager import purge_old_backups
 from app.models.types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY

@@ -12,9 +12,9 @@ from PyQt6.QtGui import QIcon
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.models import LinkType
 from app.utils.links.parser.fetcher import fetch_web_link_info
+from app.utils.ui.db_tasks import run_db
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
-from app.utils.ui.db_tasks import run_db
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class LinkProcessingMixin:
         logger.info(
             "[Trace] link_info task_created id=%s type=%s path=%s processing=%s",
             _task_id,
-            lt.value if 'lt' in locals() else getattr(self.dialog, "link_type", "<unknown>"),
+            getattr(self.dialog, "link_type", "<unknown>"),
             path,
             self._is_processing,
         )

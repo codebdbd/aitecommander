@@ -1,8 +1,8 @@
 """Базовый класс для команд массовых операций."""
 
-from abc import abstractmethod
-from typing import Any, Dict, List, Optional
 import logging
+from abc import abstractmethod
+from typing import Any, Dict, List
 
 from app.controllers.ui.undo.base import BaseCommand
 

@@ -90,36 +90,37 @@ class SectionModel(DatabaseBase):
 
     def delete_section(self, section_id: int):
         """Deletes section by its ID and reindexes positions of remaining in same sphere."""
-        # Determine section's sphere before deletion
-        row = self._execute_with_error_handling(
-            "SELECT sphere_id FROM section WHERE id=?",
-            (section_id,),
-            fetch_method="one",
-        )
-        if row is None:
-            return
-        assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
-        sphere_data = row_to_dict(row)
-        sphere_id = (
-            int(sphere_data["sphere_id"])
-            if sphere_data.get("sphere_id") is not None
-            else None
-        )
+        with self.transaction():
+            # Determine section's sphere before deletion
+            row = self._execute_with_error_handling(
+                "SELECT sphere_id FROM section WHERE id=?",
+                (section_id,),
+                fetch_method="one",
+            )
+            if row is None:
+                return
+            assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
+            sphere_data = row_to_dict(row)
+            sphere_id = (
+                int(sphere_data["sphere_id"])
+                if sphere_data.get("sphere_id") is not None
+                else None
+            )
 
-        self._execute_with_error_handling(
-            "DELETE FROM section WHERE id=?", (section_id,)
-        )
-        logger.info("Deleted section with ID %s", section_id)
+            self._execute_with_error_handling(
+                "DELETE FROM section WHERE id=?", (section_id,)
+            )
+            logger.info("Deleted section with ID %s", section_id)
 
-        # Reindex positions of remaining sections in same sphere
-        if isinstance(sphere_id, int):
-            try:
-                self._reindex_positions("section", "sphere_id", sphere_id)
-            except Exception:
-                # Don't interrupt deletion, but log warning
-                logger.warning(
-                    "Failed to reindex section positions after deletion", exc_info=False
-                )
+            # Reindex positions of remaining sections in same sphere
+            if isinstance(sphere_id, int):
+                try:
+                    self._reindex_positions("section", "sphere_id", sphere_id)
+                except Exception:
+                    # Don't interrupt deletion, but log warning
+                    logger.warning(
+                        "Failed to reindex section positions after deletion", exc_info=False
+                    )
 
     # Note: _reindex_positions() is now inherited from DatabaseBase
 

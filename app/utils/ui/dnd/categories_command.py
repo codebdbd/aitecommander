@@ -6,18 +6,17 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import QItemSelectionModel, QTimer
 
+from app.core.constants import AppConstants
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
-from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
 from app.utils.ui.dnd.command_utils import (
+    _get_structure_business,
     _require_main,
     _require_structure_business,
-    _get_structure_business,
 )
-from app.core.constants import AppConstants
+from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
 
 if TYPE_CHECKING:
     from app.controllers.business.structure_business import StructureBusinessLogic
-    from app.views.windows.main_window_protocol import MainWindowProtocol
 
 import logging
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
 import shutil
+import sqlite3
 import uuid
+from pathlib import Path
 
 import pytest
 

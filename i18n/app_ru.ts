@@ -1240,7 +1240,15 @@ Old database restored.</source>
         <source>Archive load error: {error}</source>
         <translation>Ошибка загрузки архива: {error}</translation>
     </message>
-<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} превышает максимально допустимый размер ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архив превышает общий допустимый размер иконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>В архиве слишком много иконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Восстановление базы данных уже выполняется.</translation></message></context><context>
+<message><source>File {name} exceeds maximum allowed size ({size} MB)</source><translation>Файл {name} превышает максимально допустимый размер ({size} МБ)</translation></message><message><source>Archive exceeds total allowed icon size ({size} MB)</source><translation>Архив превышает общий допустимый размер иконок ({size} МБ)</translation></message><message><source>Archive contains too many icons ({count} &gt; {limit})</source><translation>В архиве слишком много иконок ({count} &gt; {limit})</translation></message><message><source>Database restoration is already in progress.</source><translation>Восстановление базы данных уже выполняется.</translation></message><message><source>Database connection error: {error}</source><translation>Ошибка подключения к базе данных: {error}</translation></message><message><source>Database operation is already in progress.</source><translation>Операция с базой данных уже выполняется.</translation></message><message><source>Database connected from:
+{file_name}</source><translation>База данных подключена из:
+{file_name}</translation></message></context><context>
+    <name>DatabaseRestoreWorker</name>
+    <message>
+        <source>Restored database failed verification: {error}</source>
+        <translation>Восстановленная база данных не прошла проверку: {error}</translation>
+    </message>
+</context><context>
     <name>DatabaseDialogs</name>
     <message>
         <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="39" />

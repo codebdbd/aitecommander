@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from app.utils.links.link_utils import SecurityValidator
 
 

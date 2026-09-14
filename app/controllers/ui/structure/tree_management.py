@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Any, Optional
 
-from PyQt6.QtCore import QModelIndex, QObject, Qt, pyqtSlot
+from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
 
 from app.config_data.runtime_config import (
     get_selection_restore_delay_ms,
@@ -16,7 +16,6 @@ from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
     StructureTreeModelProtocol,
 )
-from app.utils.ui.qt.roles import get_tree_tuple
 
 from .tree_snapshot_service import TreeSnapshotService
 from .tree_state_service import TreeStateService
@@ -72,6 +71,17 @@ class TreeManagement(QObject):
             tree=self.tree,
             model=self.model,
         )
+        self._pending_selection: tuple[str, int] | None = None
+
+    def set_pending_selection(self, item_type: str, item_id: int) -> None:
+        """Store pending selection to be restored after structure loads."""
+        self._pending_selection = (str(item_type), int(item_id))
+
+    def consume_pending_selection(self) -> tuple[str, int] | None:
+        """Consume and return pending selection."""
+        sel = self._pending_selection
+        self._pending_selection = None
+        return sel
 
     @pyqtSlot(list)
     def _on_structure_loaded(self, sections_data: list[dict[str, Any]]) -> None:
@@ -341,6 +351,34 @@ class TreeManagement(QObject):
                 "TreeManagement._after_snapshot_applied: failed to restore expanded state"
             )
         t1 = time.perf_counter()
+
+        pending = self.consume_pending_selection()
+        if pending:
+            item_type, item_id = pending
+            try:
+                sb = getattr(self.controller, "business", None) or getattr(
+                    self.controller, "structure_business", None
+                )
+                if sb:
+                    sb._suppress_category_restore_once = False
+                if hasattr(self.model, "populate_for_selection"):
+                    self.model.populate_for_selection(item_type, int(item_id))
+                self._state.restore_selection((item_type, item_id))
+                self._finalize_first_load()
+                t2 = time.perf_counter()
+                logger.info(
+                    "[Perf] TreeManagement.after_snapshot restore_expanded=%.2fms selection_path=pending_target (%s #%s) total=%.2fms",
+                    (t1 - t0) * 1000.0,
+                    item_type,
+                    item_id,
+                    (t2 - t0) * 1000.0,
+                )
+                return
+            except Exception:
+                logger.exception(
+                    "TreeManagement._after_snapshot_applied: failed to restore pending selection %r",
+                    pending,
+                )
 
         try:
             sb = getattr(self.controller, "business", None) or getattr(

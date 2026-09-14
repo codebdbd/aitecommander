@@ -3,7 +3,6 @@ UI elements and dependency injection.
 """
 
 import logging
-from functools import partial
 from typing import Any
 
 from PyQt6.QtCore import QCoreApplication

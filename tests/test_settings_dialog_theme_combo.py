@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from app.views.windows.dialogs.entity_dialogs import SettingsDialog
 
-
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 

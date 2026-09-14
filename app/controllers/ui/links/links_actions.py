@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.services import share_service
 
 

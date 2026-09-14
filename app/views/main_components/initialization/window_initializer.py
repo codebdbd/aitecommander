@@ -12,10 +12,10 @@ from contextlib import suppress
 from typing import Any, Callable, TypeAlias
 
 from PyQt6.QtCore import QCoreApplication, QTimer
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
-from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.controllers.system.window_setup.coordinator import WindowControllersSetup
+from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
@@ -602,6 +602,19 @@ class WindowInitializer:
     # === Error handlers ===
     def _handle_deferred_init_error(self, exc: Exception) -> None:
         """Display an error dialog and shut down the app when deferred init fails."""
+        app = QCoreApplication.instance()
+        if app is None or app.closingDown():
+            logger.debug("Suppressing init error dialog during shutdown: %s", exc)
+            return
+
+        try:
+            from sip import isdeleted
+
+            if isdeleted(self.window):
+                return
+        except Exception:
+            pass
+
         try:
             parent = self.window if hasattr(self.window, "isVisible") else None
             DialogManager.show_error(

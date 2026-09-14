@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtWidgets import QWidget, QComboBox
+from PyQt6.QtWidgets import QComboBox, QWidget
+
+from app.core.settings_manager import SettingsManager
 from app.utils.ui.qt.combo_helpers import PopupComboBox, select_combo_data
 from app.views.common.retranslatable import ReTranslatable
-from app.core.settings_manager import SettingsManager
 
 logger = logging.getLogger(__name__)
 

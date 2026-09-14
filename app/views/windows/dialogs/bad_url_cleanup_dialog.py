@@ -29,11 +29,15 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.worker_manager import WorkerManager
 from app.utils.i18n.common import tr as tr_common
 from app.views.windows.dialogs.base_dialog import BaseDialog
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon, get_cached_icon_with_fallback
+from app.views.windows.dialogs.link_dialog.icon_utils import (
+    get_cached_icon,
+    get_cached_icon_with_fallback,
+)
 
 if TYPE_CHECKING:
-    from app.controllers.services.bad_url_check_service import BadUrlCheckService
     from app.models.database import Database
+
+    from app.controllers.services.bad_url_check_service import BadUrlCheckService
 
 logger = logging.getLogger(__name__)
 
@@ -890,11 +894,11 @@ class BadUrlCleanupDialog(BaseDialog):
         if self._delete_in_progress:
             from PyQt6.QtWidgets import QMessageBox
 
-            from app.views.windows.dialogs.base_dialog import (
-                apply_uniform_height_to_message_box,
-            )
             from app.controllers.ui.dialogs.dialog_manager import (
                 localize_message_box_buttons,
+            )
+            from app.views.windows.dialogs.base_dialog import (
+                apply_uniform_height_to_message_box,
             )
 
             msg_box = QMessageBox(self)

@@ -8,9 +8,9 @@ from typing import Any
 from PyQt6.QtCore import QCoreApplication
 
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
+from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.controllers.ui.undo.base import BaseCommand, log_command
-from app.controllers.ui.dialogs import DialogManager
 from app.services import LinksService
 from app.utils.db.api import run_db
 
@@ -222,6 +222,7 @@ class SaveLinkCmd(BaseCommand):
         self.old_data = dict(old_data) if old_data else None
         self.created_id: int | None = None
         self._in_flight = False
+        self._pending_undo = False
 
     def _merge_old_data(self):
         """Merge missing fields from old_data into new_data."""
@@ -384,7 +385,11 @@ class SaveLinkCmd(BaseCommand):
             )
             return
         if self._in_flight:
-            logger.debug("SaveLinkCmd.redo ignored: operation already in flight")
+            if self._pending_undo:
+                self._pending_undo = False
+                logger.debug("SaveLinkCmd.redo: cancelled pending undo while in flight")
+            else:
+                logger.debug("SaveLinkCmd.redo ignored: operation already in flight")
             return
 
         # Compatibility path for non-GUI contexts (tests/scripts): execute inline.
@@ -417,6 +422,12 @@ class SaveLinkCmd(BaseCommand):
         def _on_finished(_result: int | None) -> None:
             try:
                 self._refresh_saved_link_payload()
+                if self._pending_undo:
+                    logger.info("SaveLinkCmd._on_finished: executing pending deferred undo")
+                    self._pending_undo = False
+                    self._execute_undo()
+                    return
+
                 self._emit_link_updated()
                 self._reload_table_if_needed()
                 self._emit_top_panels_refresh()
@@ -429,6 +440,7 @@ class SaveLinkCmd(BaseCommand):
 
         def _on_error(exc: Exception) -> None:
             try:
+                self._pending_undo = False
                 logger.warning("SaveLinkCmd.redo failed: %s", exc)
                 _show_links_command_error(
                     self.main,
@@ -482,12 +494,8 @@ class SaveLinkCmd(BaseCommand):
                 exc,
             )
 
-    @log_command
-    def undo(self):
-        if self._in_flight:
-            logger.debug("SaveLinkCmd.undo deferred: redo still in flight")
-            return
-        link_id = self.new_data.get("id")
+    def _execute_undo(self) -> None:
+        link_id = self.new_data.get("id") or self.created_id
         if self.old_data is None and link_id:
             self._undo_new_link(link_id)
         else:
@@ -495,6 +503,14 @@ class SaveLinkCmd(BaseCommand):
         self._reload_table_for_undo()
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+
+    @log_command
+    def undo(self):
+        if self._in_flight:
+            self._pending_undo = True
+            logger.info("SaveLinkCmd.undo deferred: redo still in flight, marked pending")
+            return
+        self._execute_undo()
 
 
 class BatchDeleteLinksCmd(BaseCommand):
@@ -547,9 +563,6 @@ class BatchDeleteLinksCmd(BaseCommand):
             if isinstance(link.get("category_id"), int) and link.get("category_id") > 0
         }
         links_business = getattr(self.main, "links_business", None)
-        skip_initial = (
-            getattr(self, "_suppress_ui", False) and getattr(self, "_first_redo", False)
-        )
         self._first_redo = False
         def _task() -> int:
             if links_business and hasattr(links_business, "links"):

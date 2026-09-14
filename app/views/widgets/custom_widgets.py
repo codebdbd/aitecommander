@@ -1,5 +1,4 @@
 import logging
-from time import perf_counter
 
 from PyQt6.QtCore import (
     QModelIndex,
@@ -20,8 +19,8 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
-from app.utils.ui.dnd.tree import DragDropHandler
 from app.utils.ui.dnd.pixmap import create_text_pixmap
+from app.utils.ui.dnd.tree import DragDropHandler
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.tree_components.move_operations_handler import (

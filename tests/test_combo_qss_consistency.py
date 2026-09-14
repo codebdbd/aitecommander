@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 THEME_FILES = [
     "common.qss",
     "dark.qss",

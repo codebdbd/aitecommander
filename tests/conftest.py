@@ -13,7 +13,6 @@ import _pytest.pathlib as pytest_pathlib
 import _pytest.tmpdir as pytest_tmpdir
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 root_str = str(PROJECT_ROOT)
 if root_str not in sys.path:

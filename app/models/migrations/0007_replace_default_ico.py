@@ -13,7 +13,6 @@ with the appropriate icon based on the link type:
 import sqlite3
 from typing import Any
 
-
 # Mapping of link types to their default icons
 LINK_TYPE_ICONS = {
     "web": "web_icon.png",

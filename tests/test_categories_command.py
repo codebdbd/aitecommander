@@ -1,7 +1,8 @@
 
 """Tests for MoveCategoriesCommand and get_categories_by_ids"""
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
+
 from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
 
 

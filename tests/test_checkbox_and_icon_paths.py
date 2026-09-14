@@ -1,9 +1,10 @@
+
 import pytest
-from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QCheckBox
-from app.services.theme_stylesheet_service import ThemeStylesheetService
+
 from app.config_data.runtime_config import runtime_app_config
 from app.core.paths.path_manager import PathManager
+from app.services.theme_stylesheet_service import ThemeStylesheetService
 
 
 @pytest.fixture(scope="module")

@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
+
 from app.views.widgets.protocols import UpdateStatus
 
 if TYPE_CHECKING:

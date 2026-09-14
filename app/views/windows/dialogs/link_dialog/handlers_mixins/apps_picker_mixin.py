@@ -5,7 +5,6 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QDialog
 
-from app.models.types.link_type import LinkType
 from app.utils.links.link_parser import parse_lnk
 from app.utils.system.installed_apps_service import cache_app_icon
 from app.utils.ui.icon.ui_helpers import set_icon_to_button

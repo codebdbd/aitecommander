@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 FORBIDDEN_IMPORT_RE = re.compile(
     r"^\s*from\s+app\.config_data\s+import\s+app_config\b", re.MULTILINE
 )

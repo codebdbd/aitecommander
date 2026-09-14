@@ -6,7 +6,6 @@ from typing import Any
 
 from app.core.settings_manager import SettingsManager
 
-
 LAST_WEB_LINK_PROFILE_KEYS_SETTING = "link_dialog.last_web_link_profile_keys"
 
 

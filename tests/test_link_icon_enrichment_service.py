@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 from app.controllers.ui.links.icon_enrichment_service import (
     LinkIconEnrichmentService,
-    _FetchIconTask,
     _can_replace_icon,
+    _FetchIconTask,
 )
 
 

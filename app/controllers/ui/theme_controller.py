@@ -6,7 +6,8 @@ from typing import Any, Callable, Optional
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QThread
 from PyQt6.QtWidgets import QApplication
 
-from app.config_data.runtime_config import get_runtime_app_config, runtime_app_config as app_config
+from app.config_data.runtime_config import get_runtime_app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.paths.path_manager import PathManager
 from app.core.settings_manager import SettingsManager
 from app.core.style_manager import StyleManager

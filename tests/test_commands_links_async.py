@@ -377,5 +377,66 @@ class TestBatchSaveLinksCmdCategoryRecovery(unittest.TestCase):
         show_error_mock.assert_called_once()
 
 
+class TestSaveLinkCmdPendingUndo(unittest.TestCase):
+    def _build_main(self) -> SimpleNamespace:
+        links_business = SimpleNamespace(
+            links=SimpleNamespace(
+                create_or_update_link=Mock(return_value=42),
+                get_link_by_id=Mock(
+                    return_value={"id": 42, "name": "New", "url": "https://a.com", "category_id": 1}
+                ),
+                delete_link=Mock(),
+            ),
+            link_updated=SimpleNamespace(emit=Mock()),
+            invalidate_cache=Mock(),
+        )
+        link_operations = SimpleNamespace(
+            emit_top_panels_changed=Mock(),
+            notify_after_save=Mock(),
+        )
+        links_table_controller = SimpleNamespace(reload=Mock())
+        return SimpleNamespace(
+            database_controller=SimpleNamespace(db=Mock()),
+            links_business=links_business,
+            link_operations=link_operations,
+            links_table_controller=links_table_controller,
+            get_current_category_id=Mock(return_value=1),
+        )
+
+    @patch("app.controllers.ui.undo.commands_links._run_links_db_command")
+    @patch("app.controllers.ui.undo.commands_links.QCoreApplication.instance")
+    def test_rapid_undo_executes_pending_undo_on_finish(
+        self, qapp_mock: Mock, run_db_mock: Mock
+    ) -> None:
+        qapp_mock.return_value = Mock()
+        main = self._build_main()
+        cmd = SaveLinkCmd(
+            new_data={"name": "New", "url": "https://a.com", "type": "web", "category_id": 1},
+            old_data=None,
+            main_window=main,
+        )
+
+        cmd.redo()
+        self.assertTrue(cmd._in_flight)
+        run_db_mock.assert_called_once()
+        task = run_db_mock.call_args.args[0]
+        on_finished = run_db_mock.call_args.kwargs["on_finished"]
+
+        task()
+
+        # User presses Undo while in flight
+        cmd.undo()
+        self.assertTrue(cmd._pending_undo)
+        main.links_business.links.delete_link.assert_not_called()
+
+        # Callback on finish triggers pending undo
+        on_finished(42)
+
+        main.links_business.links.delete_link.assert_called_once_with(42)
+        self.assertFalse(cmd._in_flight)
+        self.assertFalse(cmd._pending_undo)
+        main.links_business.link_updated.emit.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+
 import pytest
 
 from app.utils.ui.qt.gui_exec import (
-    DEFAULT_GUI_TIMEOUT,
-    is_gui_thread,
     run_in_gui_thread_sync,
 )
 

@@ -50,9 +50,9 @@ class DatabaseBase:
         self.connection_manager = connection_manager
         # Use shared transaction state from connection_manager if available
         base = getattr(connection_manager, "_base", None)
-        if base is not None and hasattr(base, "_transaction_state"):
+        if base is not None and getattr(base, "_transaction_state", None) is not None:
             self._transaction_state = base._transaction_state
-        elif hasattr(connection_manager, "_transaction_state"):
+        elif getattr(connection_manager, "_transaction_state", None) is not None:
             self._transaction_state = connection_manager._transaction_state
         else:
             self._transaction_state = threading.local()
@@ -147,6 +147,11 @@ class DatabaseBase:
             # Внешняя транзакция — держим db_lock на весь блок для изоляции
             with db_lock:
                 try:
+                    if conn.in_transaction:
+                        logger.warning(
+                            "DatabaseBase: connection was already in transaction before BEGIN TRANSACTION (nesting_level 0); committing pending changes"
+                        )
+                        conn.commit()
                     conn.execute("BEGIN TRANSACTION")
                     self._nesting_level = 1
                     yield
@@ -391,31 +396,32 @@ class DatabaseBase:
             where_clause = ""
             params = ()
         
-        # Get items in order
-        rows = self._execute_with_error_handling(
-            f"SELECT id FROM {table_name} {where_clause} ORDER BY position, id",
-            params,
-            fetch_method="all",
-        )
-        
-        ids_in_order = [int(r["id"]) for r in (rows or [])]
-        if not ids_in_order:
-            return
-        
-        # Prepare batch updates
-        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
-        
-        self._execute_many_with_error_handling(
-            f"UPDATE {table_name} SET position = ? WHERE id = ?",
-            updates,
-        )
-        
-        logger.debug(
-            "Reindexed %d items in %s%s",
-            len(updates),
-            table_name,
-            f" (parent {parent_column}={parent_id})" if parent_column else "",
-        )
+        with self.transaction():
+            # Get items in order
+            rows = self._execute_with_error_handling(
+                f"SELECT id FROM {table_name} {where_clause} ORDER BY position, id",
+                params,
+                fetch_method="all",
+            )
+            
+            ids_in_order = [int(r["id"]) for r in (rows or [])]
+            if not ids_in_order:
+                return
+            
+            # Prepare batch updates
+            updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
+            
+            self._execute_many_with_error_handling(
+                f"UPDATE {table_name} SET position = ? WHERE id = ?",
+                updates,
+            )
+            
+            logger.debug(
+                "Reindexed %d items in %s%s",
+                len(updates),
+                table_name,
+                f" (parent {parent_column}={parent_id})" if parent_column else "",
+            )
 
     @staticmethod
     def _ensure_row_list(

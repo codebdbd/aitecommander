@@ -3,9 +3,10 @@
 import sys
 import unittest
 from unittest.mock import Mock
+
 from PyQt6.QtCore import QModelIndex, QPointF, Qt
 from PyQt6.QtGui import QDropEvent
-from PyQt6.QtWidgets import QApplication, QAbstractItemView
+from PyQt6.QtWidgets import QAbstractItemView, QApplication
 
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.models.structure_tree_model import StructureTreeModel

@@ -286,7 +286,6 @@ class AsyncSignalHandlers(QObject):
                     if hasattr(self.controller, "_invalidate_categories_cache"):
                         self.controller._invalidate_categories_cache(parent_id)
                 elif item_type == "section":
-                    sphere_id = getattr(self.controller, "current_sphere_id", None)
                     if hasattr(self.controller, "_invalidate_structure_cache"):
                         self.controller._invalidate_structure_cache()
                     # Incremental UI update already handled; avoid full reload to

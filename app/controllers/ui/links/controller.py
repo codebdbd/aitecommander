@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import logging
-import time
 
 from PyQt6.QtCore import QCoreApplication, QObject, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
-from app.utils.links.dropped_web_link import build_dropped_link_payload
 from app.utils.common import safe_call
+from app.utils.links.dropped_web_link import build_dropped_link_payload
 from app.utils.ui.focus import get_focus_manager
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 from app.views.widgets.link import LinksTableView

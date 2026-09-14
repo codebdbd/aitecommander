@@ -271,6 +271,13 @@ class SettingsConfig(BaseConfig):
             val = self.get("ui.mime_types.category", "application/x-category-id")
         return val
 
+    def get_section_mime_type(self) -> str:
+        """Return the MIME type string used for sections."""
+        val = self.get("settings.mime_types.section")
+        if val is None:
+            val = self.get("ui.mime_types.section", "application/x-section-id")
+        return val
+
     # === Parser network settings / external services ===
     @property
     def ENABLE_CLOUDSCRAPER_FALLBACK(self) -> bool:

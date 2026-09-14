@@ -43,19 +43,21 @@ from app.services.theme_import_service import (
 from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.icon_resolver import (
     resolve_category_icon_path,
     resolve_section_icon_path,
 )
+from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.qt.combo_helpers import (
     PopupComboBox,
     add_combo_mapping_item,
     select_combo_data,
 )
-from app.views.widgets.language_selector import LanguageSelector
 from app.views.widgets.input_frame import InputFrame
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon_with_fallback
+from app.views.widgets.language_selector import LanguageSelector
+from app.views.windows.dialogs.link_dialog.icon_utils import (
+    get_cached_icon_with_fallback,
+)
 
 from .base_dialog import BaseDialog
 
