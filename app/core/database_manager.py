@@ -13,6 +13,7 @@ from pathlib import Path
 
 from app.core.paths.path_manager import PathManager
 from app.utils.db.migrations import MigrationRunner
+from app.utils.db.synchronization import db_lock
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +40,29 @@ class DatabaseManager:
 
     @classmethod
     @contextmanager
-    def maintenance_scope(cls) -> Iterator[None]:
-        """Enter exclusive maintenance mode: closes connections and prevents new connections."""
+    def maintenance_scope(cls, timeout: float = 30.0) -> Iterator[None]:
+        """Enter exclusive maintenance mode:
+        1. Waits for in-flight database transactions/queries to complete by acquiring db_lock.
+        2. Sets _maintenance_mode = True under _connection_lock to block new connections.
+        3. Closes all active connections without committing unfinished work.
+        4. Yields for exclusive maintenance operations.
+        5. In finally: clears _maintenance_mode under _connection_lock and releases db_lock.
+        """
         with cls._maintenance_lock:
-            cls._maintenance_mode = True
+            acquired = db_lock.acquire(timeout=timeout)
+            if not acquired:
+                raise TimeoutError(
+                    f"Could not enter database maintenance mode: timed out waiting {timeout}s for active database transactions to complete."
+                )
             try:
+                with cls._connection_lock:
+                    cls._maintenance_mode = True
                 cls.close_all()
                 yield
             finally:
-                cls._maintenance_mode = False
+                with cls._connection_lock:
+                    cls._maintenance_mode = False
+                db_lock.release()
 
     @classmethod
     def configure(cls, db_path: Path | None = None) -> None:
@@ -81,6 +96,11 @@ class DatabaseManager:
                 # as active for current thread. After close_all() the registry is cleared
                 # across threads, so stale thread-local references must be revalidated.
                 if cls._active_connections.get(thread_id) is conn:
+                    if cls._maintenance_mode:
+                        raise RuntimeError(
+                            "Database is currently in maintenance mode (restore/rebuild in progress). "
+                            "New operations are temporarily blocked."
+                        )
                     cls._thread_local.last_used = now
                     return conn
                 try:
@@ -88,6 +108,11 @@ class DatabaseManager:
                     conn.execute("SELECT 1").fetchone()
                     ping_ms = _ms(start_ping, time.perf_counter())
                     with cls._connection_lock:
+                        if cls._maintenance_mode:
+                            raise RuntimeError(
+                                "Database is currently in maintenance mode (restore/rebuild in progress). "
+                                "New operations are temporarily blocked."
+                            )
                         cls._active_connections[thread_id] = conn
                     cls._thread_local.last_used = now
                     total_ms = _ms(start_total, time.perf_counter())
@@ -106,6 +131,11 @@ class DatabaseManager:
                 start_ping = time.perf_counter()
                 conn.execute("SELECT 1").fetchone()
                 ping_ms = _ms(start_ping, time.perf_counter())
+                if cls._maintenance_mode:
+                    raise RuntimeError(
+                        "Database is currently in maintenance mode (restore/rebuild in progress). "
+                        "New operations are temporarily blocked."
+                    )
                 cls._thread_local.last_used = now
                 total_ms = _ms(start_total, time.perf_counter())
                 if total_ms >= 100:
@@ -122,6 +152,11 @@ class DatabaseManager:
 
         lock_wait_start = time.perf_counter()
         with cls._connection_lock:
+            if cls._maintenance_mode:
+                raise RuntimeError(
+                    "Database is currently in maintenance mode (restore/rebuild in progress). "
+                    "New operations are temporarily blocked."
+                )
             lock_wait_ms = _ms(lock_wait_start, time.perf_counter())
             conn = getattr(cls._thread_local, "conn", None)
             if conn is not None:
@@ -185,14 +220,20 @@ class DatabaseManager:
     @classmethod
     @contextmanager
     def transaction(cls) -> Iterator[sqlite3.Connection]:
-        conn = cls.get_connection()
-        try:
-            conn.execute("BEGIN")
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+        with db_lock:
+            conn = cls.get_connection()
+            try:
+                if conn.in_transaction:
+                    logger.warning(
+                        "DatabaseManager: connection was already in transaction before BEGIN; committing pending changes"
+                    )
+                    conn.commit()
+                conn.execute("BEGIN")
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     @classmethod
     def ensure_schema(cls) -> int:
@@ -209,8 +250,12 @@ class DatabaseManager:
         if conn is None:
             return
         try:
+            if conn.in_transaction:
+                logger.warning(
+                    "Connection had uncommitted transaction during close; rolling back"
+                )
+                conn.rollback()
             conn.execute("PRAGMA wal_checkpoint(FULL)")
-            conn.commit()
         except sqlite3.ProgrammingError as exc:
             # Expected during DB restore race when connection was already closed.
             if "closed database" in str(exc).lower():
@@ -230,12 +275,17 @@ class DatabaseManager:
         for thread_id, conn in connections:
             try:
                 try:
+                    if conn.in_transaction:
+                        logger.warning(
+                            "Connection for thread %s had uncommitted transaction during close_all; rolling back",
+                            thread_id,
+                        )
+                        conn.rollback()
                     conn.execute("PRAGMA mmap_size = 0")
                     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                    conn.commit()
                 except Exception as exc:
                     logger.warning(
-                        "Checkpoint failed for thread %s: %s", thread_id, exc
+                        "Checkpoint/rollback failed for thread %s: %s", thread_id, exc
                     )
                 conn.close()
             except Exception as exc:

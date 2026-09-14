@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 from unittest.mock import patch
+
 import pytest
 
 from app.utils.links.link_utils import (

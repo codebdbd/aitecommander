@@ -26,6 +26,79 @@ MAX_DATA_JSON_SIZE = 20 * 1024 * 1024  # 20 MB
 MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
 MAX_TOTAL_UNCOMPRESSED_SIZE = 50 * 1024 * 1024  # 50 MB total for archive
 
+ALLOWED_ICON_EXTENSIONS = frozenset({".ico", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"})
+_ALLOWED_IMAGE_FORMATS = ("PNG", "ICO", "JPEG", "BMP", "GIF", "WEBP")
+
+
+def _has_image_magic_bytes(blob: bytes) -> bool:
+    if len(blob) < 4:
+        return False
+    # PNG: \x89PNG\r\n\x1a\n
+    if blob.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    # JPEG: \xff\xd8\xff
+    if blob.startswith(b"\xff\xd8\xff"):
+        return True
+    # GIF: GIF87a or GIF89a
+    if blob.startswith(b"GIF87a") or blob.startswith(b"GIF89a"):
+        return True
+    # BMP: BM
+    if blob.startswith(b"BM"):
+        return True
+    # ICO: \x00\x00\x01\x00
+    if blob.startswith(b"\x00\x00\x01\x00"):
+        return True
+    # WEBP: RIFF....WEBP
+    if len(blob) >= 12 and blob.startswith(b"RIFF") and blob[8:12] == b"WEBP":
+        return True
+    return False
+
+
+def _is_valid_image_blob(blob: bytes) -> bool:
+    if not blob:
+        return False
+    if not _has_image_magic_bytes(blob):
+        return False
+    from io import BytesIO
+
+    from app.utils.images import verify_image_safe
+
+    return verify_image_safe(BytesIO(blob))
+
+
+def _sanitize_icon_path(
+    raw_icon_path: Any,
+    valid_icons: set[str] | None = None,
+    default: str = "",
+) -> str:
+    if not raw_icon_path or not isinstance(raw_icon_path, str):
+        return default
+    cleaned = raw_icon_path.strip()
+    if not cleaned:
+        return default
+
+    # Extract bare filename and reject path traversals or drive indicators
+    bare_name = Path(cleaned).name
+    if not bare_name:
+        return default
+
+    suffix = Path(bare_name).suffix.lower()
+    if suffix not in ALLOWED_ICON_EXTENSIONS:
+        return default
+
+    if valid_icons is not None:
+        if bare_name in valid_icons:
+            return bare_name
+        try:
+            icons_dir = icon_path_service.get_user_icons_dir()
+            if (icons_dir / bare_name).is_file():
+                return bare_name
+        except Exception:
+            pass
+        return default
+
+    return bare_name
+
 
 class StructureShareService:
     """Export/import section/category trees to shareable archives."""
@@ -44,16 +117,17 @@ class StructureShareService:
     def import_section_archive(self, path: Path, target_sphere_id: int) -> None:
         manifest, data, icons = self._read_archive(path)
         self._validate_manifest(manifest, expected_type="section")
-        self._install_icons(icons)
-        tree = self._prepare_section_tree_for_import(data, target_sphere_id)
+        valid_icons = self._install_icons(icons)
+        tree = self._prepare_section_tree_for_import(data, target_sphere_id, valid_icons=valid_icons)
         self._ss.import_section_tree(tree)
 
     def import_category_archive(self, path: Path, target_section_id: int) -> None:
         manifest, data, icons = self._read_archive(path)
         self._validate_manifest(manifest, expected_type="category")
-        self._install_icons(icons)
-        tree = self._prepare_category_tree_for_import(data, target_section_id)
+        valid_icons = self._install_icons(icons)
+        tree = self._prepare_category_tree_for_import(data, target_section_id, valid_icons=valid_icons)
         self._ss.import_category_tree(tree)
+
 
     def build_filename(self, package_type: str, name: str) -> str:
         safe_name = _normalize_ascii_name(name)
@@ -127,17 +201,42 @@ class StructureShareService:
         return candidates
 
     def _resolve_icon_candidates(self, candidates: list[str], icons_dir: Path) -> dict[str, Path]:
-        """Resolve candidates to existing paths and build archive-relative map."""
+        """Resolve candidates strictly within user icons directory and build archive-relative map."""
+        resolved_icons_dir = icons_dir.resolve()
         files: dict[str, Path] = {}
         for icon_name in candidates:
-            if not icon_name:
+            if not icon_name or not isinstance(icon_name, str):
                 continue
-            src = Path(icon_name)
-            if not src.is_absolute():
-                src = icons_dir / icon_name
+            name_stripped = icon_name.strip()
+            if not name_stripped:
+                continue
+
+            # Reject path traversal and drive indicators
+            if ".." in name_stripped or ":" in name_stripped:
+                continue
+
+            candidate_name = Path(name_stripped).name
+            if not candidate_name:
+                continue
+
+            src = (resolved_icons_dir / candidate_name).resolve()
+            try:
+                if not src.is_relative_to(resolved_icons_dir):
+                    continue
+            except AttributeError:
+                try:
+                    src.relative_to(resolved_icons_dir)
+                except ValueError:
+                    continue
+
             if not src.is_file():
                 continue
-            rel = str(Path("files") / "icons" / src.name)
+
+            # Verify safe extension
+            if src.suffix.lower() not in ALLOWED_ICON_EXTENSIONS:
+                continue
+
+            rel = (Path("files") / "icons" / src.name).as_posix()
             files.setdefault(rel, src)
         return files
 
@@ -256,26 +355,58 @@ class StructureShareService:
             if actual != expected_hash:
                 logger.warning("Checksum mismatch for %s (ignored)", rel_path)
 
-    def _install_icons(self, icons: dict[str, bytes]) -> None:
+    def _install_icons(self, icons: dict[str, bytes]) -> set[str]:
+        installed_or_valid: set[str] = set()
         if not icons:
-            return
-        icons_dir = icon_path_service.ensure_user_icons_dir()
+            return installed_or_valid
+        icons_dir = icon_path_service.ensure_user_icons_dir().resolve()
         for name, blob in icons.items():
-            dest = icons_dir / name
-            if dest.exists():
+            if not name or not isinstance(name, str):
                 continue
+            safe_name = Path(name).name
+            if not safe_name or ".." in name or ":" in name:
+                continue
+            suffix = Path(safe_name).suffix.lower()
+            if suffix not in ALLOWED_ICON_EXTENSIONS:
+                logger.warning("Skipping icon with disallowed extension: %s", safe_name)
+                continue
+            if not _is_valid_image_blob(blob):
+                logger.warning("Skipping icon with invalid image format: %s", safe_name)
+                continue
+
+            dest = (icons_dir / safe_name).resolve()
             try:
-                dest.write_bytes(blob)
-            except OSError:
-                logger.warning("Failed to write icon file: %s", dest)
+                if not dest.is_relative_to(icons_dir):
+                    continue
+            except AttributeError:
+                try:
+                    dest.relative_to(icons_dir)
+                except ValueError:
+                    continue
+
+            if not dest.exists():
+                try:
+                    dest.write_bytes(blob)
+                except OSError as write_err:
+                    logger.warning("Failed to write icon file %s: %s", dest, write_err)
+                    continue
+
+            installed_or_valid.add(safe_name)
+        return installed_or_valid
 
     def _prepare_section_tree_for_import(
-        self, data: dict[str, Any], sphere_id: int
+        self,
+        data: dict[str, Any],
+        sphere_id: int,
+        valid_icons: set[str] | None = None,
     ) -> dict[str, Any]:
         tree = deepcopy(data)
         section = dict(tree.get("section") or {})
         section.pop("id", None)
         section["sphere_id"] = int(sphere_id)
+        section["icon_path"] = _sanitize_icon_path(
+            section.get("icon_path"), valid_icons=valid_icons, default=""
+        )
         tree["section"] = section
 
         prepared_categories: list[dict[str, Any]] = []
@@ -285,23 +416,36 @@ class StructureShareService:
             cat = dict(item.get("category") or {})
             cat.pop("id", None)
             cat.pop("section_id", None)
-            links = self._sanitize_links(item.get("links") or [])
+            cat["icon_path"] = _sanitize_icon_path(
+                cat.get("icon_path"), valid_icons=valid_icons, default=""
+            )
+            links = self._sanitize_links(item.get("links") or [], valid_icons=valid_icons)
             prepared_categories.append({"category": cat, "links": links})
         tree["categories"] = prepared_categories
         return tree
 
     def _prepare_category_tree_for_import(
-        self, data: dict[str, Any], section_id: int
+        self,
+        data: dict[str, Any],
+        section_id: int,
+        valid_icons: set[str] | None = None,
     ) -> dict[str, Any]:
         tree = deepcopy(data)
         cat = dict(tree.get("category") or {})
         cat.pop("id", None)
         cat["section_id"] = int(section_id)
+        cat["icon_path"] = _sanitize_icon_path(
+            cat.get("icon_path"), valid_icons=valid_icons, default=""
+        )
         tree["category"] = cat
-        tree["links"] = self._sanitize_links(tree.get("links") or [])
+        tree["links"] = self._sanitize_links(tree.get("links") or [], valid_icons=valid_icons)
         return tree
 
-    def _sanitize_links(self, links: list[Any]) -> list[dict[str, Any]]:
+    def _sanitize_links(
+        self,
+        links: list[Any],
+        valid_icons: set[str] | None = None,
+    ) -> list[dict[str, Any]]:
         sanitized: list[dict[str, Any]] = []
         for link in links:
             if not isinstance(link, dict):
@@ -309,6 +453,9 @@ class StructureShareService:
             item = dict(link)
             item.pop("id", None)
             item.pop("category_id", None)
+            item["icon_path"] = _sanitize_icon_path(
+                item.get("icon_path"), valid_icons=valid_icons, default="default.ico"
+            )
             sanitized.append(item)
         return sanitized
 

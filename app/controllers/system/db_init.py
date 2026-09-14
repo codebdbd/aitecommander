@@ -4,7 +4,7 @@ import logging
 from typing import Callable
 
 from PyQt6.QtCore import QCoreApplication, QTimer
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.core.database_manager import DatabaseManager

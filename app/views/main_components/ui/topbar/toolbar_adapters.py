@@ -10,9 +10,12 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QToolBar, QToolButton
 
 from app.config_data.runtime_config import runtime_app_config
-from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.ui.icon.icon_resolver import (
+    resolve_icon_for_link,
+    resolve_link_type_icon,
+)
+from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.panels.recent_panel_widget import RECENT_LINKS_LIMIT
 

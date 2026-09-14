@@ -1,6 +1,6 @@
-import sys
 import os
 import runpy
+import sys
 from pathlib import Path
 
 VENVP = Path(r"d:\01_Codebdbd\01_projects\aitecommander\.venv\Lib\site-packages")
@@ -23,6 +23,6 @@ os.environ["PYTHONPATH"] = sep.join(paths) + (sep + existing_pp if existing_pp e
 
 os.environ["PATH"] = str(VENVP / "pywin32_system32") + os.pathsep + os.environ["PATH"]
 
-import pywin32_bootstrap
+import pywin32_bootstrap  # noqa: F401
 
 runpy.run_path(str(ROOT / "scripts" / "build.py"), run_name="__main__")

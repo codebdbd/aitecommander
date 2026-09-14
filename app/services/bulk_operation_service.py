@@ -11,13 +11,13 @@ import logging
 from app.models.types.category_types import CategoryDict
 from app.models.types.link_types import LinkInput
 from app.services.batch_operation_base import (
+    ERROR_CODE_BATCH_SIZE,
+    ERROR_CODE_REPOSITORY,
+    ERROR_CODE_VALIDATION,
     BaseBatchOperation,
     BulkOperationError,
     BulkOperationRepositoryError,
     BulkOperationValidationError,
-    ERROR_CODE_BATCH_SIZE,
-    ERROR_CODE_REPOSITORY,
-    ERROR_CODE_VALIDATION,
 )
 from app.services.protocols import BulkDatabaseProtocol
 

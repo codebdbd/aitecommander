@@ -4,11 +4,11 @@ import logging
 import os
 import shutil
 import sqlite3
-import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from uuid import uuid4
 
 from PyQt6.QtCore import (
     QObject,
@@ -17,9 +17,7 @@ from PyQt6.QtCore import (
 )
 
 from app.core.worker_manager import WorkerManager
-from app.models.db import Database
 from app.services.database_restore_worker import DatabaseRestoreWorker
-from app.utils.ui.db_errors import handle_db_error
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.icon.file_lock import icon_files_lock
 from app.utils.ui.icon.path_service import icon_path_service
@@ -133,57 +131,57 @@ class DatabaseController(QObject):
         )
 
     def handle_connect_database(self):
-        """Another database connection handler."""
+        """Another database connection handler with validation and exclusive maintenance."""
+        if self._is_restoring:
+            self._emit_error(self.tr("Database operation is already in progress."))
+            return
+
         db_path = self._get_db_path_or_emit_error()
         if not db_path:
             return
 
         file_path = self.dialogs.get_connect_file()
         if file_path:
-            self._perform_database_connection(str(file_path), db_path)
+            self._is_restoring = True
+            self._perform_database_connection_async(str(file_path))
 
-    def _perform_database_connection(self, file_path: str, db_path: str):
-        """Perform database connection.
+    def _perform_database_connection_async(self, file_path: str) -> None:
+        """Perform database connection in background thread with verification and maintenance lock."""
+        worker = DatabaseRestoreWorker(self.db, file_path)
+        worker.signals.success.connect(self._on_connect_success)
+        worker.signals.error.connect(self._on_connect_error)
+        WorkerManager.run(worker)
+        logger.info(f"Started async database connect from: {file_path}")
 
-        Business logic only. UI is updated via signals.
-        """
-        backup_path = db_path + ".bak"
-        try:
-            self._replace_database_file(file_path, db_path, backup_path)
+    @pyqtSlot(object, str)
+    def _on_connect_success(self, new_db, file_name: str) -> None:
+        """Handle successful connect in GUI thread."""
+        self._is_restoring = False
+        logger.info(f"Database connect completed, updating DB reference: {new_db}")
+        self.db = new_db
+        self.database_connected.emit(new_db)
+        self._emit_success(
+            self.tr("Database connected from:\n{file_name}").format(
+                file_name=file_name
+            ),
+        )
 
-            new_db = Database()
-            self.db = new_db
+    @pyqtSlot(str)
+    def _on_connect_error(self, error_msg: str) -> None:
+        """Handle connect error in GUI thread."""
+        self._is_restoring = False
+        logger.error(f"Database connect failed: {error_msg}")
+        self._emit_error(
+            self.tr("Database connection error: {error}").format(error=error_msg),
+        )
 
-            # Notify UI through signal - it will update all dependencies
-            self.database_connected.emit(new_db)
-
-        except Exception as e:
-            # Use centralized error handler
-            if not handle_db_error(e, self):
-                # In case of error restore old database
-                self._restore_database_backup(backup_path, db_path)
-                self._emit_error(
-                    self.tr("Database connection error: {error}\nOld database restored.").format(
-                        error=e
-                    ),
-                )
-
-    def _copy_file(self, src: str, dst: str) -> None:
-        """Wrapper for file copies to centralize future tracing/retries."""
-        shutil.copy2(src, dst)
-
-    def _replace_database_file(self, file_path: str, db_path: str, backup_path: str) -> None:
-        """Close DB, backup current file, then replace it with selected file."""
-        self.db.close_all()
-        self._copy_file(db_path, backup_path)
-        self._copy_file(file_path, db_path)
-
-    def _restore_database_backup(self, backup_path: str, db_path: str) -> None:
-        """Best-effort rollback after failed connect operation."""
-        try:
-            self._copy_file(backup_path, db_path)
-        except Exception:
-            pass
+    def _perform_database_connection(self, file_path: str, db_path: str | None = None) -> None:
+        """Entry point for connecting database with full verification and maintenance mode."""
+        if self._is_restoring:
+            self._emit_error(self.tr("Database operation is already in progress."))
+            return
+        self._is_restoring = True
+        self._perform_database_connection_async(file_path)
 
     def handle_save_database(self):
         """Database copy save handler."""
@@ -377,8 +375,10 @@ class DatabaseController(QObject):
                     )
 
                 imported = 0
-                with tempfile.TemporaryDirectory(dir=target_root.parent) as tmp_dir:
-                    tmp_root = Path(tmp_dir)
+                tmp_root = target_root.parent / f".{target_root.name}.import-{uuid4().hex}.tmp"
+                shutil.rmtree(tmp_root, ignore_errors=True)
+                tmp_root.mkdir(parents=True, exist_ok=False)
+                try:
                     for member, member_name in valid_members:
                         tmp_dest = tmp_root / member_name
                         with zipf.open(member, "r") as src, open(tmp_dest, "wb") as dst:
@@ -392,5 +392,7 @@ class DatabaseController(QObject):
                         except OSError:
                             shutil.copy2(src_path, dest_path)
                         imported += 1
+                finally:
+                    shutil.rmtree(tmp_root, ignore_errors=True)
 
         return imported

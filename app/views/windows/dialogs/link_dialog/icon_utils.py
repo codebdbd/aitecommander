@@ -11,13 +11,13 @@ from typing import Any, Optional
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
 
-from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.icon_resolver import (
     resolve_category_icon_path,
     resolve_icon_path,
     resolve_section_icon_path,
     resolve_sphere_icon_path,
 )
+from app.utils.ui.icon.loading_service import icon_loading_service
 
 logger = logging.getLogger(__name__)
 

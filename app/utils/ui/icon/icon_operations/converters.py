@@ -14,6 +14,8 @@ from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize
 from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 
+from app.utils.images import safe_image_open
+
 from ..validation import InvalidIconError, is_valid_icon_file
 
 logger = logging.getLogger(__name__)
@@ -186,7 +188,7 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
         dst_path_obj = Path(dst_path)
         dst_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        with Image.open(src_path) as img:
+        with safe_image_open(src_path) as img:
             img = _resize_image(img, size)
             img.save(dst_path, format="PNG")
         return True
@@ -221,7 +223,7 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
         except Exception:
             pass
 
-        with Image.open(src_path) as img:
+        with safe_image_open(src_path) as img:
             # Resize image
             img = _resize_image(img, size)
 

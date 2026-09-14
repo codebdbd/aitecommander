@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import tempfile
+import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,7 +12,6 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QDialog,
     QHBoxLayout,
-    QToolButton,
     QWidget,
 )
 
@@ -20,6 +19,7 @@ from app.controllers.business.structure_business import StructureBusinessLogic
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.core.database_manager import DatabaseManager
 from app.models.db import Database
+from tests.conftest import build_test_temp_path
 
 
 class FakeMainWindow(QWidget):
@@ -41,8 +41,11 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         cls._app = QApplication.instance() or QApplication([])
 
     def setUp(self) -> None:
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = Path(self.temp_dir.name) / "test.db"
+        self.temp_dir = build_test_temp_path("manual_tmp", f"spheres_bar_custom_icons_{id(self)}")
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = Path(self.temp_dir) / "test.db"
+        DatabaseManager.close_all()
         DatabaseManager.configure(self.db_path)
         DatabaseManager.ensure_schema()
         self.db = Database()
@@ -63,10 +66,7 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         self.db.close()
         DatabaseManager.close_all()
         DatabaseManager.configure(None)
-        try:
-            self.temp_dir.cleanup()
-        except Exception:
-            pass
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_update_sphere_icon_db_and_cache(self) -> None:
         # Fetch initial spheres
@@ -137,8 +137,10 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
 
     def test_resolve_sphere_icon_from_user_dir(self) -> None:
         # Create a dummy user icon file in user_icons_dir
-        with tempfile.TemporaryDirectory() as user_dir_str:
-            user_dir = Path(user_dir_str)
+        user_dir = build_test_temp_path("manual_tmp", f"spheres_bar_user_icons_{id(self)}")
+        shutil.rmtree(user_dir, ignore_errors=True)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        try:
             dummy_icon_file = user_dir / "custom_work.png"
 
             # Create a 16x16 PNG
@@ -150,6 +152,8 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
                 sphere = {"id": 1, "name": "Work", "icon_path": "custom_work.png"}
                 icon = self.controller._resolve_sphere_icon(sphere)
                 self.assertFalse(icon.isNull())
+        finally:
+            shutil.rmtree(user_dir, ignore_errors=True)
 
     def test_build_button_sets_context_menu_policy(self) -> None:
         sphere = {"id": 1, "name": "Work", "icon_path": ""}
@@ -213,7 +217,7 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         spheres = self.sb.structure_coordinator.db.spheres.get_spheres()
         sphere_id = spheres[0]["id"]
         sphere = spheres[0]
-        btn = self.controller._build_button(sphere)
+        _ = self.controller._build_button(sphere)
         self.sb.update_sphere_icon(sphere_id, "custom.png")
 
         self.controller._reset_sphere_icon(sphere_id)
@@ -292,9 +296,10 @@ class TestSpheresBarCustomIcons(unittest.TestCase):
         self.assertEqual("AI", btn.property("sphereName"))
 
     def test_sphere_rename_dialog_properties(self) -> None:
-        from app.views.windows.dialogs.entity_dialogs import SphereRenameDialog
         from PyQt6.QtWidgets import QDialogButtonBox
+
         from app.config_data.runtime_config import runtime_app_config as app_config
+        from app.views.windows.dialogs.entity_dialogs import SphereRenameDialog
 
         dialog = SphereRenameDialog(current_name="Test Sphere")
         dialog.show()

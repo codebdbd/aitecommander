@@ -37,6 +37,7 @@ from requests.exceptions import (
 )
 
 from app.config_data import app_config
+from app.utils.links.link_utils import sanitize_url_for_logging
 from app.utils.ui.icon.path_service import icon_path_service
 
 # Set PIL MAX_IMAGE_PIXELS once at import time (avoids per-call lock overhead)
@@ -327,7 +328,7 @@ class IconDownloader:
         icon_url: str, ct: str, ext: str, data: bytes
     ) -> bytes | None:
         if "image/svg" in ct or ext == "svg" or b"<svg" in data[:200].lower():
-            logger.debug("SVG detected %s", icon_url)
+            logger.debug("SVG detected %s", sanitize_url_for_logging(icon_url))
             # SECURITY: Limit SVG size to prevent DoS (max 2MB)
             max_svg_size = int(getattr(app_config, "ICON_MAX_SVG_SIZE", 2_097_152) or 2_097_152)
             if len(data) > max_svg_size:
@@ -335,7 +336,7 @@ class IconDownloader:
                     "[svg] Skipping oversized SVG (size=%s, limit=%s) from %s",
                     len(data),
                     max_svg_size,
-                    icon_url,
+                    sanitize_url_for_logging(icon_url),
                 )
                 return None
 
@@ -506,7 +507,7 @@ class IconDownloader:
         """Handle 304 Not Modified response."""
         if force_refresh:
             return None
-        logger.info("[conditional] 304 Not Modified for %s", icon_url)
+        logger.info("[conditional] 304 Not Modified for %s", sanitize_url_for_logging(icon_url))
         icon_filename = f"web_{sanitize_domain_for_filename(domain)}.png"
         path = str(icon_path_service.get_user_icons_dir() / icon_filename)
         if Path(path).exists():
@@ -603,11 +604,12 @@ class IconDownloader:
         if _is_cancelled(cancel_event):
             return None
 
-        _ALLOWED_IMAGE_FORMATS = ("PNG", "ICO", "JPEG", "BMP", "GIF", "WEBP")
-        with Image.open(BytesIO(data2), formats=_ALLOWED_IMAGE_FORMATS) as _probe:
+        from app.utils.images import safe_image_open
+
+        with safe_image_open(BytesIO(data2)) as _probe:
             _probe.verify()
 
-        with Image.open(BytesIO(data2), formats=_ALLOWED_IMAGE_FORMATS) as _img:
+        with safe_image_open(BytesIO(data2)) as _img:
             if _is_cancelled(cancel_event):
                 return None
             img = self.select_best_frame(_img)
@@ -651,7 +653,7 @@ class IconDownloader:
         if status == 304:
             if force_refresh:
                 return True, None
-            logger.info("[conditional] 304 Not Modified for %s", icon_url)
+            logger.info("[conditional] 304 Not Modified for %s", sanitize_url_for_logging(icon_url))
             icon_filename = f"web_{sanitize_domain_for_filename(domain)}.png"
             path = str(icon_path_service.get_user_icons_dir() / icon_filename)
             if Path(path).exists():
@@ -859,11 +861,11 @@ class IconDownloader:
             )
         except (UnidentifiedImageError, Image.DecompressionBombError) as e:
             logger.warning(
-                "[icon] unsafe_or_invalid_image url=%s: %s", icon_url, e, exc_info=True
+                "[icon] unsafe_or_invalid_image url=%s: %s", sanitize_url_for_logging(icon_url), e, exc_info=True
             )
             return None
         except Exception as e:
-            logger.error("Save icon error %s: %s", icon_url, e, exc_info=True)
+            logger.error("Save icon error %s: %s", sanitize_url_for_logging(icon_url), e, exc_info=True)
             return None
 
 
@@ -1098,7 +1100,7 @@ def _phase3_try_www_variant(
     """
     if _is_cancelled(cancel_event):
         return None
-    logger.debug("[phase3] Trying www/non-www variant for %s", page_url)
+    logger.debug("[phase3] Trying www/non-www variant for %s", sanitize_url_for_logging(page_url))
     variant_url = get_www_variant(page_url)
     if not variant_url or variant_url == page_url:
         return None
@@ -1176,7 +1178,7 @@ def _phase3_try_homepage_root(
     if root_url == page_url and normalized_path in {"", "/"}:
         return None
 
-    logger.debug("[phase3] Trying homepage root for %s via %s", page_url, root_url)
+    logger.debug("[phase3] Trying homepage root for %s via %s", sanitize_url_for_logging(page_url), sanitize_url_for_logging(root_url))
     try:
         resp = http_request(
             root_url,

@@ -33,6 +33,16 @@ class _HtmlResponse:
 
 
 class TestIconCandidateDiscovery(unittest.TestCase):
+    def setUp(self) -> None:
+        self._default_http_patch = patch(
+            "app.utils.links.parser.icon_candidates.http_request",
+            return_value=None,
+        )
+        self._default_http_patch.start()
+
+    def tearDown(self) -> None:
+        self._default_http_patch.stop()
+
     def test_declared_external_svg_icon_is_ranked_before_fallbacks(self) -> None:
         soup = BeautifulSoup(
             """

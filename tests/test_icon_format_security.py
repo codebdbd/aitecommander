@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import unittest
 from unittest.mock import MagicMock
+
 from PIL import Image
 
 from app.utils.links.parser.icon_downloader import IconDownloader

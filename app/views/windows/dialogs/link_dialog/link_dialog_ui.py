@@ -12,7 +12,6 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,

@@ -1,7 +1,7 @@
 """Тесты для команд массовых операций."""
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler

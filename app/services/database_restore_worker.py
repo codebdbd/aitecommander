@@ -5,7 +5,6 @@ from __future__ import annotations
 import gc
 import logging
 import os
-import shutil
 import sqlite3
 import time
 from pathlib import Path
@@ -20,6 +19,20 @@ from app.utils.db.migrations import MigrationRunner
 logger = logging.getLogger(__name__)
 
 REQUIRED_TABLES = frozenset({"sphere", "section", "category", "link"})
+
+REQUIRED_BASE_COLUMNS = {
+    "sphere": frozenset({"id", "name"}),
+    "section": frozenset({"id", "sphere_id", "name"}),
+    "category": frozenset({"id", "section_id", "name"}),
+    "link": frozenset({"id", "category_id", "name"}),
+}
+
+REQUIRED_FINAL_COLUMNS = {
+    "sphere": frozenset({"id", "name", "position", "icon_path"}),
+    "section": frozenset({"id", "sphere_id", "name", "position", "icon_path"}),
+    "category": frozenset({"id", "section_id", "name", "position", "icon_path"}),
+    "link": frozenset({"id", "category_id", "name", "url", "type", "position", "icon_path", "is_favorite"}),
+}
 
 
 class DatabaseRestoreWorkerSignals(QObject):
@@ -84,7 +97,10 @@ class DatabaseRestoreWorker(QRunnable):
             # 2. Verify integrity of the staged temporary file
             self._verify_backup_integrity(tmp_target)
 
-            # 3. Preserve original database before replacement
+            # 3. Apply pending migrations and validate schema compatibility on staged file
+            self._migrate_and_validate_staged_database(tmp_target)
+
+            # 4. Preserve original database before replacement
             has_orig = False
             if db_path.exists():
                 try:
@@ -96,7 +112,7 @@ class DatabaseRestoreWorker(QRunnable):
                 except Exception as e:
                     logger.warning(f"Failed to preserve original DB via rename: {e}")
 
-            # 4. Atomically move staged DB to live target path
+            # 5. Atomically move staged DB to live target path
             try:
                 os.replace(tmp_target, db_path)
                 logger.info(f"Atomically replaced live database with restored file: {db_path}")
@@ -111,16 +127,34 @@ class DatabaseRestoreWorker(QRunnable):
                         logger.critical(f"Failed to rollback original database: {rollback_err}")
                 raise replace_err
 
-            # 5. Create new database connection to verify live database
-            logger.info("Creating new database connection")
-            new_db = Database()
+            # 6. Verify live database file and create Database wrapper
+            logger.info("Verifying live database file after replacement")
+            try:
+                self._verify_live_database(db_path)
+            except Exception as verify_err:
+                logger.critical(f"Live database verification failed: {verify_err}")
+                if has_orig and orig_backup.exists():
+                    try:
+                        os.replace(orig_backup, db_path)
+                        logger.info("Successfully rolled back live database to original database")
+                    except Exception as rollback_err:
+                        logger.critical(f"Failed to rollback live database: {rollback_err}")
+                raise ValueError(
+                    QCoreApplication.translate(
+                        "DatabaseRestoreWorker",
+                        "Restored database failed verification: {error}",
+                    ).format(error=verify_err)
+                ) from verify_err
 
-            # Clean up preserved original on success
+            # Clean up preserved original only after live verification succeeds
             if has_orig and orig_backup.exists():
                 try:
                     orig_backup.unlink(missing_ok=True)
                 except Exception:
                     pass
+
+            logger.info("Creating new Database object")
+            new_db = Database()
 
             logger.info("Database restore completed successfully")
             return new_db, backup_path.name
@@ -194,29 +228,54 @@ class DatabaseRestoreWorker(QRunnable):
         return OSError(message)
 
     def _copy_backup_with_retries(self, backup_path, db_path, *, max_retries: int = 3) -> None:
-        """Copy backup DB file with retries to tolerate transient Windows locks."""
-        logger.info(f"Copying backup {backup_path} to {db_path}")
+        """Create a consistent snapshot of source DB into target staging file using SQLite Backup API."""
+        src_path = Path(backup_path).resolve()
+        dest_path = Path(db_path).resolve()
+        logger.info(f"Creating snapshot of {src_path} at {dest_path}")
+
+        last_error: Exception | None = None
         for attempt in range(max_retries):
             try:
-                shutil.copy2(backup_path, str(db_path))
-                logger.info(f"Successfully copied backup to {db_path}")
-                return
-            except OSError as copy_err:
+                # Use SQLite backup API to consistently incorporate WAL journal if present
+                src_uri = f"{src_path.as_uri()}?mode=ro"
+                src_conn = self._sqlite_connect(src_uri, uri=True)
+                try:
+                    dest_conn = self._sqlite_connect(str(dest_path))
+                    try:
+                        src_conn.backup(dest_conn)
+                        logger.info(f"Successfully created SQLite backup snapshot at {dest_path}")
+                        return
+                    finally:
+                        dest_conn.close()
+                finally:
+                    src_conn.close()
+            except Exception as backup_err:
+                last_error = backup_err
+                logger.warning(
+                    f"SQLite backup API attempt {attempt + 1} of {max_retries} failed: {backup_err}"
+                )
+                if dest_path.exists():
+                    try:
+                        dest_path.unlink()
+                    except OSError:
+                        pass
                 if attempt < max_retries - 1:
-                    logger.warning(
-                        f"Copy attempt {attempt + 1} failed: {copy_err}, retrying..."
-                    )
                     time.sleep(1.0)
                     gc.collect()
-                else:
-                    logger.error(f"All {max_retries} copy attempts failed")
-                    raise
+
+        logger.error(f"All {max_retries} SQLite backup snapshot attempts failed for {src_path}: {last_error}")
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"Failed to create database snapshot of {src_path}")
+
+    def _get_migrations_dir(self) -> Path:
+        return PathManager.app_root() / "models" / "migrations"
 
     def _get_max_supported_schema_version(self) -> int:
         if self._max_supported_version is not None:
             return self._max_supported_version
         try:
-            migrations_dir = PathManager.app_root() / "models" / "migrations"
+            migrations_dir = self._get_migrations_dir()
             if not migrations_dir.exists():
                 return 0
             runner = MigrationRunner(None, migrations_dir)
@@ -227,6 +286,64 @@ class DatabaseRestoreWorker(QRunnable):
         except Exception as exc:
             logger.warning("Could not determine max supported schema version: %s", exc)
             return 0
+
+    def _migrate_and_validate_staged_database(self, staged_path: Path) -> None:
+        """Apply pending migrations and verify full schema compatibility on staged file before swapping."""
+        logger.info(f"Applying pending migrations and validating staged DB at {staged_path}")
+        path_str = str(staged_path.resolve())
+        conn = self._open_sqlite_connection(path_str)
+        try:
+            conn.execute("PRAGMA foreign_keys = ON;")
+            migrations_dir = self._get_migrations_dir()
+            if migrations_dir and migrations_dir.exists():
+                runner = MigrationRunner(conn, migrations_dir)
+                applied_count = runner.run_all_pending()
+                logger.info(f"Applied {applied_count} pending migration(s) on staged database")
+
+            # Verify foreign keys after migrations
+            fk_violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if fk_violations:
+                raise ValueError(
+                    f"Foreign key check failed after migrations on staged database: {len(fk_violations)} violation(s)"
+                )
+
+            # Verify required final columns
+            for table_name, req_cols in REQUIRED_FINAL_COLUMNS.items():
+                col_info = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                existing_cols = {r[1] for r in col_info}
+                missing_cols = req_cols - existing_cols
+                if missing_cols:
+                    raise ValueError(
+                        f"Staged database table '{table_name}' is missing required column(s): {', '.join(sorted(missing_cols))}"
+                    )
+
+            # Smoke queries on staged database
+            conn.execute("SELECT id, name, position, icon_path FROM sphere LIMIT 1;").fetchall()
+            conn.execute("SELECT id, sphere_id, name, position, icon_path FROM section LIMIT 1;").fetchall()
+            conn.execute("SELECT id, section_id, name, position, icon_path FROM category LIMIT 1;").fetchall()
+            conn.execute("SELECT id, category_id, name, url, type, position, icon_path, is_favorite FROM link LIMIT 1;").fetchall()
+
+            conn.commit()
+            logger.info("Staged database migration and schema validation succeeded")
+        finally:
+            conn.close()
+            del conn
+            gc.collect()
+
+    def _verify_live_database(self, db_path: Path) -> None:
+        """Smoke test live database file before finalizing restore."""
+        logger.info(f"Performing smoke verification on live database at {db_path}")
+        path_str = str(Path(db_path).resolve())
+        conn = self._open_sqlite_connection(path_str)
+        try:
+            conn.execute("SELECT id, name, position, icon_path FROM sphere LIMIT 1;").fetchall()
+            conn.execute("SELECT id, sphere_id, name, position, icon_path FROM section LIMIT 1;").fetchall()
+            conn.execute("SELECT id, section_id, name, position, icon_path FROM category LIMIT 1;").fetchall()
+            conn.execute("SELECT id, category_id, name, url, type, position, icon_path, is_favorite FROM link LIMIT 1;").fetchall()
+        finally:
+            conn.close()
+            del conn
+            gc.collect()
 
     def _verify_backup_integrity(self, backup_path: Path | str) -> None:
         path = Path(backup_path).resolve()
@@ -256,7 +373,7 @@ class DatabaseRestoreWorker(QRunnable):
                 if result != "ok":
                     raise ValueError(f"SQLite integrity check failed: {result}")
 
-                # 2. Check required tables
+                # 2. Check required tables and base columns
                 tables = {
                     r[0]
                     for r in conn.execute(
@@ -268,6 +385,15 @@ class DatabaseRestoreWorker(QRunnable):
                     raise ValueError(
                         f"Database is missing required table(s): {', '.join(sorted(missing_tables))}"
                     )
+
+                for table_name, req_cols in REQUIRED_BASE_COLUMNS.items():
+                    col_info = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                    existing_cols = {r[1] for r in col_info}
+                    missing_cols = req_cols - existing_cols
+                    if missing_cols:
+                        raise ValueError(
+                            f"Database table '{table_name}' is missing required column(s): {', '.join(sorted(missing_cols))}"
+                        )
 
                 # 3. Check schema version
                 user_ver_row = conn.execute("PRAGMA user_version").fetchone()
@@ -299,6 +425,11 @@ class DatabaseRestoreWorker(QRunnable):
     def _open_sqlite_connection(self, path, **kwargs):
         """Wrapper for sqlite connection creation to simplify tests and tracing."""
         try:
-            return self._sqlite_connect(path, **kwargs)
+            conn = self._sqlite_connect(path, **kwargs)
         except TypeError:
-            return self._sqlite_connect(path)
+            conn = self._sqlite_connect(path)
+        try:
+            conn.row_factory = sqlite3.Row
+        except Exception:
+            pass
+        return conn

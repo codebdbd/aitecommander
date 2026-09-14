@@ -152,6 +152,7 @@ def _setup_logging_and_args(options: StartupOptions) -> StartupOptions:
     if args.no_gui and options.mode == StartupMode.GUI:
         options.mode = StartupMode.HEADLESS
     log_level = determine_log_level(args)
+    LogManager.setup(level=log_level)
     LogManager.set_level(log_level)
     _install_fault_handler()
     if options.log_system_details:
@@ -272,8 +273,13 @@ def _preload_ui_icons() -> None:
 
 def _initialize_database_and_profiles(
     initializer: ApplicationInitializer,
+    options: StartupOptions,
 ) -> None:
-    """Initialize database and browser profiles asynchronously."""
+    """Initialize post-startup database and browser profile tasks."""
+    if options.auto_quit:
+        logger.info("Auto-quit enabled, skipping deferred startup background tasks")
+        return
+
     db_initializer = DatabaseInitializer(initializer.database, initializer.main_window)
     db_initializer.initialize_async()
 
@@ -351,7 +357,6 @@ def _cleanup_resources(
     if app is not None and isinstance(app, QApplication):
         try:
             app.closeAllWindows()
-            app.processEvents()
         except Exception:
             pass
 
@@ -645,7 +650,7 @@ def run(options: StartupOptions | None = None) -> int:
             resolved_exit = ExitCode.INITIALIZATION_FAILURE
             return resolved_exit
 
-        _initialize_database_and_profiles(initializer)
+        _initialize_database_and_profiles(initializer, options)
         _schedule_auto_quit(app, options)
 
         exit_code = app.exec()
@@ -675,8 +680,12 @@ def run(options: StartupOptions | None = None) -> int:
             DatabaseManager.close_all()
         except Exception as exc:
             logger.warning("DatabaseManager close failed: %s", exc)
-        # Cleanup resources
-        if _resources_initialized:
+        # Cleanup resources only when the runtime owns the process exit. When
+        # returning to an embedding caller/test harness, Qt/PyQt objects may
+        # still hold resource-backed icons and styles during interpreter
+        # teardown; unregistering resources early can trigger native shutdown
+        # crashes on Windows.
+        if _resources_initialized and options.exit_on_finish and sys.platform != "win32":
             qCleanupResources()
             _resources_initialized = False
 

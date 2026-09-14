@@ -1,7 +1,8 @@
 """Tests for installed applications discovery service."""
 
-from pathlib import Path
 import platform
+from pathlib import Path
+
 import pytest
 
 from app.utils.system.installed_apps_service import (

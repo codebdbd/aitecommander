@@ -34,34 +34,31 @@ class IconReferenceService:
         return icon_path_service.get_user_icons_dir()
 
     def get_referenced_icons(self) -> set[str]:
-        """Получить множество иконок, на которые ссылаются активные ссылки.
+        """Получить множество иконок, на которые ссылаются активные сущности (link, category, section, sphere).
 
         Returns:
-            Множество имен файлов иконок, используемых ссылками.
+            Множество имен файлов иконок и путей, используемых в структуре.
         """
-        try:
-            query = """
-                SELECT DISTINCT icon_path
-                FROM link
-                WHERE icon_path IS NOT NULL
-                AND icon_path != ''
-            """
-            rows = self.db.connection.execute(query).fetchall()
-            # Возвращаем как имена файлов, так и полные пути
-            referenced = set()
-            for row in rows:
-                icon_path = row["icon_path"] if isinstance(row, dict) else row[0]
-                if icon_path:
-                    # Добавляем и имя файла, и полный путь
-                    referenced.add(icon_path)
-                    referenced.add(Path(icon_path).name)
-            return referenced
-        except Exception as e:
-            logger.error("Failed to get referenced icons: %s", e)
-            return set()
+        query = """
+            SELECT icon_path FROM link WHERE icon_path IS NOT NULL AND icon_path != ''
+            UNION
+            SELECT icon_path FROM category WHERE icon_path IS NOT NULL AND icon_path != ''
+            UNION
+            SELECT icon_path FROM section WHERE icon_path IS NOT NULL AND icon_path != ''
+            UNION
+            SELECT icon_path FROM sphere WHERE icon_path IS NOT NULL AND icon_path != ''
+        """
+        rows = self.db.connection.execute(query).fetchall()
+        referenced = set()
+        for row in rows:
+            icon_path = row["icon_path"] if isinstance(row, dict) else row[0]
+            if icon_path:
+                referenced.add(str(icon_path))
+                referenced.add(Path(icon_path).name)
+        return referenced
 
     def is_icon_used(self, icon_path: str) -> bool:
-        """Проверить, используется ли иконка хотя бы одной ссылкой.
+        """Проверить, используется ли иконка хотя бы одной сущностью (link, category, section, sphere).
 
         Args:
             icon_path: Путь или имя файла иконки.
@@ -69,23 +66,41 @@ class IconReferenceService:
         Returns:
             True если иконка используется.
         """
+        if not icon_path:
+            return False
         try:
-            query = """
-                SELECT COUNT(*) as cnt
-                FROM link
-                WHERE icon_path = ?
-                OR icon_path LIKE ?
-            """
-            # Проверяем и точное совпадение, и совпадение по имени файла
-            # Экранируем спецсимволы LIKE: % и _
             filename = Path(icon_path).name
-            escaped_filename = filename.replace("%", "\\%").replace("_", "\\_")
-            row = self.db.connection.execute(query, (icon_path, f"%{escaped_filename}")).fetchone()
-            cnt = row["cnt"] if isinstance(row, dict) else row[0]
-            return cnt > 0
+            escaped_filename = (
+                filename.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            )
+            query = """
+                SELECT 1 FROM link WHERE icon_path = ? OR icon_path LIKE ? ESCAPE '\\'
+                UNION ALL
+                SELECT 1 FROM category WHERE icon_path = ? OR icon_path LIKE ? ESCAPE '\\'
+                UNION ALL
+                SELECT 1 FROM section WHERE icon_path = ? OR icon_path LIKE ? ESCAPE '\\'
+                UNION ALL
+                SELECT 1 FROM sphere WHERE icon_path = ? OR icon_path LIKE ? ESCAPE '\\'
+                LIMIT 1
+            """
+            like_pattern = f"%{escaped_filename}"
+            row = self.db.connection.execute(
+                query,
+                (
+                    icon_path,
+                    like_pattern,
+                    icon_path,
+                    like_pattern,
+                    icon_path,
+                    like_pattern,
+                    icon_path,
+                    like_pattern,
+                ),
+            ).fetchone()
+            return row is not None
         except Exception as e:
             logger.error("Failed to check icon usage for %s: %s", icon_path, e)
-            return True  # В случае ошибки считаем, что иконка используется
+            return True  # В случае ошибки считаем, что иконка используется (fail-safe)
 
     def get_orphaned_icons(self) -> list[Path]:
         """Найти осиротевшие иконки (файлы без ссылок в БД).
@@ -97,9 +112,13 @@ class IconReferenceService:
         if not user_icons_dir.exists():
             return []
 
-        referenced = self.get_referenced_icons()
-        orphans = []
+        try:
+            referenced = self.get_referenced_icons()
+        except Exception as e:
+            logger.error("Failed to query referenced icons, aborting orphan scan: %s", e)
+            return []
 
+        orphans = []
         try:
             for icon_file in user_icons_dir.iterdir():
                 if not icon_file.is_file():
@@ -157,36 +176,50 @@ class IconReferenceService:
         return stats
 
     def cleanup_icon_if_orphaned(self, icon_path: str) -> bool:
-        """Проверить и удалить иконку, если она осиротевшая.
+        """Проверить и удалить иконку, если она осиротевшая и находится внутри user_icons_dir.
 
         Args:
             icon_path: Путь или имя файла иконки.
 
         Returns:
-            True если иконка была удалена, False если осталась.
+            True если иконка была удалена, False если осталась или находилась вне user_icons_dir.
         """
         if not icon_path:
             return False
 
-        if self.is_icon_used(icon_path):
+        path_obj = Path(icon_path)
+        if ".." in path_obj.parts:
+            logger.warning(
+                "Unsafe icon path with parent directory traversal: %s", icon_path
+            )
             return False
 
-        user_icons_dir = self._get_user_icons_dir()
-        filename = Path(icon_path).name
-        full_path = user_icons_dir / filename
+        filename = path_obj.name
+        if not filename or filename in (".", ".."):
+            return False
 
-        # Также проверяем полный путь
-        if not full_path.exists():
-            full_path = Path(icon_path)
-            if not full_path.exists():
-                return False
+        user_icons_dir = self._get_user_icons_dir().resolve()
+        target_file = (user_icons_dir / filename).resolve()
+
+        # Strict containment verification: target must reside within user_icons_dir
+        try:
+            target_file.relative_to(user_icons_dir)
+        except ValueError:
+            logger.warning("Target icon escapes user icons directory: %s", target_file)
+            return False
+
+        if not target_file.is_file():
+            return False
+
+        if self.is_icon_used(icon_path) or self.is_icon_used(filename):
+            return False
 
         try:
-            full_path.unlink()
-            logger.info("Cleaned up orphaned icon: %s", icon_path)
+            target_file.unlink()
+            logger.info("Cleaned up orphaned icon: %s", target_file)
             return True
         except Exception as e:
-            logger.warning("Failed to cleanup icon %s: %s", icon_path, e)
+            logger.warning("Failed to cleanup icon %s: %s", target_file, e)
             return False
 
     def _is_recent_file(self, path: Path, hours: int = 24) -> bool:

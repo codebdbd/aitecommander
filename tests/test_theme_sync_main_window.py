@@ -6,10 +6,9 @@ from unittest.mock import MagicMock, patch
 
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from app.core.settings_manager import SettingsManager
 from app.views.widgets.theme_selector import ThemeSelector
 from app.views.windows.dialogs.entity_dialogs import SettingsDialog
-from app.views.windows.main_window import MainWindow
-from app.core.settings_manager import SettingsManager
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -25,10 +24,16 @@ class _MockSettings:
         self._theme = theme
 
     def get_font_size(self) -> int:
-        return 12
+        return getattr(self, "_font_size", 12)
+
+    def set_font_size(self, value: int) -> None:
+        self._font_size = int(value)
 
     def get_max_backups(self) -> int:
-        return 10
+        return getattr(self, "_max_backups", 10)
+
+    def set_max_backups(self, value: int) -> None:
+        self._max_backups = int(value)
 
 
 class _MockThemeController:
@@ -45,10 +50,7 @@ class _MockThemeController:
         return list(self.themes)
 
     def refresh_themes(self) -> None:
-        if self.main_window and hasattr(self.main_window, "theme_selector"):
-            theme_sel = getattr(self.main_window, "theme_selector", None)
-            if theme_sel and hasattr(theme_sel, "refresh_themes"):
-                theme_sel.refresh_themes()
+        pass
 
     def clear_cache(self) -> None:
         pass
@@ -63,6 +65,22 @@ class _MockThemeController:
             self.main_window.update_theme()
         return True
 
+
+class _FakeMainWindow(QWidget):
+    def __init__(self, theme_ctrl: _MockThemeController) -> None:
+        super().__init__()
+        self.theme_ctrl = theme_ctrl
+        self.theme_selector = None
+        self.system_dialogs = None
+        self.theme_ctrl.set_main_window(self)
+
+    def update_theme(self) -> None:
+        theme_selector = getattr(self, "theme_selector", None)
+        if theme_selector is not None and hasattr(theme_selector, "update_theme_selection"):
+            theme_selector.update_theme_selection()
+        settings_dialog = getattr(getattr(self, "system_dialogs", None), "_settings_dialog", None)
+        if settings_dialog is not None and hasattr(settings_dialog, "update_theme_selection"):
+            settings_dialog.update_theme_selection()
 
 class TestThemeSyncMainWindow(unittest.TestCase):
     @classmethod
@@ -97,7 +115,7 @@ class TestThemeSyncMainWindow(unittest.TestCase):
         """When changing theme in SettingsDialog and saving, MainWindow.theme_selector is updated."""
         settings = _MockSettings("light")
         theme_ctrl = _MockThemeController(settings)
-        mw = MainWindow(settings, theme_ctrl)
+        mw = _FakeMainWindow(theme_ctrl)
 
         selector = ThemeSelector(theme_ctrl, parent=mw)
         mw.theme_selector = selector
@@ -133,7 +151,7 @@ class TestThemeSyncMainWindow(unittest.TestCase):
         """Changing theme in ThemeSelector updates SettingsDialog, and vice versa."""
         settings = _MockSettings("light")
         theme_ctrl = _MockThemeController(settings)
-        mw = MainWindow(settings, theme_ctrl)
+        mw = _FakeMainWindow(theme_ctrl)
 
         selector = ThemeSelector(theme_ctrl, parent=mw)
         mw.theme_selector = selector

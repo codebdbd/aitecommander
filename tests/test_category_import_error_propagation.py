@@ -1,16 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from pathlib import Path
-from unittest.mock import MagicMock
+
 import pytest
 
 from app.models.base.db_base import DatabaseError
-from app.models.db import Database
 from app.models.managers.import_export_manager import ImportExportManager
-
-
-import contextlib
 
 
 class DummyDb:

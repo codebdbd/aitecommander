@@ -8,7 +8,11 @@ from PyQt6.QtGui import QIcon
 
 from app.controllers.ui.types import StructureTreeModelProtocol
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_category_icon_path, resolve_icon_for_link, resolve_section_icon_path
+from app.utils.ui.icon.icon_resolver import (
+    resolve_category_icon_path,
+    resolve_icon_for_link,
+    resolve_section_icon_path,
+)
 
 
 class IconHandling:

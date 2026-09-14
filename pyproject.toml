@@ -32,7 +32,7 @@ dependencies = [
     "cloudscraper==1.2.71",
     "filelock==3.19.1",
     "idna==3.11",
-    "pillow==12.1.1",
+    "pillow==12.3.0",
     "pyparsing==3.3.2",
     "pyqt6==6.10.1",
     "pyqt6-qt6==6.10.1",
@@ -63,4 +63,34 @@ Repository = "https://github.com/codebdbd/aitecommander"
 Issues = "https://github.com/codebdbd/aitecommander/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app"]
+packages = ["app", "i18n"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = [
+    "app/resources/app_resources_rc.py",
+    "i18n/resources_rc.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+]
+ignore = [
+    "E501",   # Line length handled by formatter
+    "W291",   # Trailing whitespace handled by formatter
+    "W293",   # Blank line whitespace handled by formatter
+    "E402",   # Module level import not at top of file (bootstrap / sys.path setup)
+    "BLE001", # Blind-except (Qt GUI event loop failure containment)
+    "S110",   # try-except-pass (cleanup / fallback suppression)
+    "S112",   # try-except-continue
+    "UP045",  # non-pep604-annotation-optional (allow typing.Optional)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"_run_build.py" = ["F401"]
+

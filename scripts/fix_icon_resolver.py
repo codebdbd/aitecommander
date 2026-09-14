@@ -1,6 +1,5 @@
 """Fix icon_resolver.py to handle None from get_default_icon_path()."""
 
-import sys
 from pathlib import Path
 
 

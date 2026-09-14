@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import Mock, patch
+
+from PyQt6.QtCore import QItemSelectionModel
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QItemSelectionModel, QModelIndex
 
 from app.controllers.ui.links.controller import LinksUIController
+
 
 class TestLinksUiFocus(unittest.TestCase):
     @classmethod

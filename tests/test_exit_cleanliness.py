@@ -1,5 +1,6 @@
 """Integration test verifying clean application shutdown without Windows fastfail (0xc0000409)."""
 
+import os
 import subprocess
 import sys
 import unittest
@@ -23,12 +24,13 @@ class TestExitCleanliness(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, f"Expected 0, got {result.returncode}. Stderr: {result.stderr}")
 
-    def test_runtime_deterministic_exit(self) -> None:
-        """Verify that runtime.run executes cleanly with exit_on_finish=False."""
+    def test_runtime_headless_returns_with_exit_on_finish_disabled(self) -> None:
+        """Verify that runtime.run can return normally for embedding/headless callers."""
         code = (
-            "import os, sys; "
-            "from app.startup.runtime import StartupOptions, ExitCode, run; "
-            "opts = StartupOptions(auto_quit=True, quit_after_ms=50, exit_on_finish=False); "
+            "import sys; "
+            "from app.startup.initializer import StartupMode; "
+            "from app.startup.runtime import StartupOptions, run; "
+            "opts = StartupOptions(mode=StartupMode.HEADLESS, auto_quit=True, quit_after_ms=0, exit_on_finish=False); "
             "rc = run(opts); "
             "sys.exit(int(rc))"
         )
@@ -36,6 +38,25 @@ class TestExitCleanliness(unittest.TestCase):
         result = subprocess.run(
             cmd,
             cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, f"Expected 0, got {result.returncode}. Stderr: {result.stderr}")
+
+    def test_runtime_gui_auto_quit_exits_cleanly(self) -> None:
+        """Verify that the production GUI exit path avoids Windows Qt teardown fastfail."""
+        code = (
+            "from app.startup.runtime import StartupOptions, run; "
+            "run(StartupOptions(auto_quit=True, quit_after_ms=50, exit_on_finish=True))"
+        )
+        cmd = [sys.executable, "-c", code]
+        env = os.environ.copy()
+        env.pop("PYTEST_CURRENT_TEST", None)
+        result = subprocess.run(
+            cmd,
+            cwd=str(ROOT),
+            env=env,
             capture_output=True,
             text=True,
             timeout=15,

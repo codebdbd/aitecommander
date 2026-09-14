@@ -1,9 +1,7 @@
-import io
-import os
 import re
+import xml.etree.ElementTree as ET
 import zipfile
 import zlib
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 

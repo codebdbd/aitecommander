@@ -2,6 +2,7 @@
 
 import logging
 import unittest
+
 from app.utils.links.link_utils import ScriptLinkHandler, SecurityValidator
 
 

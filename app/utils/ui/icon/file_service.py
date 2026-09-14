@@ -12,6 +12,7 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
 from app.config_data import app_config
+from app.utils.images import safe_image_open
 
 from .validation import is_valid_icon_file
 
@@ -106,7 +107,7 @@ class IconFileService:
         Returns destination path on success, otherwise None (caller can fallback to copy).
         """
         try:
-            with Image.open(src) as im:
+            with safe_image_open(src) as im:
                 best = self._pick_best_ico_frame(im)
                 if best.mode != "RGBA":
                     best = best.convert("RGBA")

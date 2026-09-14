@@ -42,8 +42,10 @@ class TestCategoryModelGetByIds(unittest.TestCase):
     @patch.object(CategoryModel, "_ensure_row_list")
     @patch.object(CategoryModel, "_execute_with_error_handling")
     def test_order_preserved(self, mock_exec, mock_ensure, mock_r2d):
-        row1 = MagicMock(); row1.__getitem__ = lambda s, k: {"id": 1}[k]
-        row2 = MagicMock(); row2.__getitem__ = lambda s, k: {"id": 2}[k]
+        row1 = MagicMock()
+        row1.__getitem__ = lambda s, k: {"id": 1}[k]
+        row2 = MagicMock()
+        row2.__getitem__ = lambda s, k: {"id": 2}[k]
         mock_exec.return_value = [row2, row1]  # DB returns 2, 1
         mock_ensure.side_effect = lambda r: r
 
@@ -60,7 +62,8 @@ class TestCategoryModelGetByIds(unittest.TestCase):
     @patch.object(CategoryModel, "_ensure_row_list")
     @patch.object(CategoryModel, "_execute_with_error_handling")
     def test_single_db_call(self, mock_exec, mock_ensure, mock_r2d):
-        row = MagicMock(); row.__getitem__ = lambda s, k: {"id": 1}[k]
+        row = MagicMock()
+        row.__getitem__ = lambda s, k: {"id": 1}[k]
         mock_exec.return_value = [row]
         mock_ensure.side_effect = lambda r: r
         mock_r2d.side_effect = lambda r: {"id": r["id"], "name": "Cat"}
@@ -74,7 +77,8 @@ class TestCategoryModelGetByIds(unittest.TestCase):
     @patch.object(CategoryModel, "_ensure_row_list")
     @patch.object(CategoryModel, "_execute_with_error_handling")
     def test_duplicate_ids(self, mock_exec, mock_ensure, mock_r2d):
-        row = MagicMock(); row.__getitem__ = lambda s, k: {"id": 1}[k]
+        row = MagicMock()
+        row.__getitem__ = lambda s, k: {"id": 1}[k]
         mock_exec.return_value = [row]
         mock_ensure.side_effect = lambda r: r
         mock_r2d.side_effect = lambda r: {"id": r["id"], "name": "Cat"}
@@ -94,7 +98,8 @@ class TestCategoryModelGetByIds(unittest.TestCase):
     @patch.object(CategoryModel, "_ensure_row_list")
     @patch.object(CategoryModel, "_execute_with_error_handling")
     def test_missing_id_skipped(self, mock_exec, mock_ensure, mock_r2d):
-        row = MagicMock(); row.__getitem__ = lambda s, k: {"id": 1}[k]
+        row = MagicMock()
+        row.__getitem__ = lambda s, k: {"id": 1}[k]
         mock_exec.return_value = [row]
         mock_ensure.side_effect = lambda r: r
         mock_r2d.side_effect = lambda r: {"id": r["id"], "name": "Cat"}

@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, QTimer
 
-from app.controllers.structure_modules import AsyncOperations, AsyncSignalHandlers
 from app.config_data.runtime_config import get_structure_reload_delay_ms
+from app.controllers.structure_modules import AsyncOperations, AsyncSignalHandlers
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
     from app.controllers.business.structure_business import StructureBusinessLogic

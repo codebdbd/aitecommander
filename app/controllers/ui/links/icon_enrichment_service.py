@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import pythoncom
-
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal, pyqtSlot
 
 from app.config_data.runtime_config import runtime_app_config as app_config

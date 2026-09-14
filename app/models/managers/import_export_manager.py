@@ -3,12 +3,12 @@
 import logging
 import time
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
+from ...utils.db.sql_helpers import build_in_clause_placeholders
 from ..base.db_base import DatabaseError, db_lock
 from ..types.constants import PERFORMANCE_WARNING_THRESHOLD_MS
 from ..utils.link_validators import normalize_link_fields
-from ...utils.db.sql_helpers import build_in_clause_placeholders
 
 logger = logging.getLogger(__name__)
 _IMPORT_EXPORT_CONTEXT = "ImportExportProgress"

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 from app.utils.links.link_utils import LinkInfo, LinkType, ScriptLinkHandler
@@ -66,7 +66,6 @@ def test_script_handler_raises_helpful_error_when_no_python(logger, tmp_path):
                 handler._create_python_command(str(script), ["--arg"])
 
 def test_script_handler_open_passes_cwd_and_handles_pyw(logger, tmp_path):
-    import subprocess
     script = tmp_path / "gui_app.pyw"
     script.write_text("import sys", encoding="utf-8")
 

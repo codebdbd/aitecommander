@@ -8,7 +8,8 @@ from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from requests.exceptions import RequestException
+
+from app.utils.links.link_utils import sanitize_url_for_logging
 
 from .constants import BS_PARSER, logger
 from .domain import base_domain
@@ -216,13 +217,13 @@ def get_title_for_blocked_status(url: str, config, fallback: str = "") -> str:
         return fallback
 
     try:
-        logger.info("[title][blocked] try_playwright url=%s", url)
+        logger.info("[title][blocked] try_playwright url=%s", sanitize_url_for_logging(url))
         title = _try_playwright_title(url, config)
         if title and title.strip():
             host = base_domain(urlparse(url).netloc)
             return _smart_postprocess_title(title, host)
     except Exception:
-        logger.warning("[title][blocked] playwright failed url=%s", url, exc_info=True)
+        logger.warning("[title][blocked] playwright failed url=%s", sanitize_url_for_logging(url), exc_info=True)
 
     return fallback
 
@@ -679,9 +680,10 @@ def _fetch_and_parse_html(
     url: str, config, timeout_override: int | None, retries_override: int
 ) -> tuple[BeautifulSoup | None, str]:
     """Fetch HTML and parse with BeautifulSoup."""
+    safe_url = sanitize_url_for_logging(url)
     logger.debug(
         "[title][fetch] phase=get url=%s timeout=%s retries=%s",
-        url,
+        safe_url,
         timeout_override,
         retries_override,
     )
@@ -693,7 +695,7 @@ def _fetch_and_parse_html(
         stream=True,
     )
     if not resp:
-        logger.info("[title][fetch] result=empty url=%s", url)
+        logger.info("[title][fetch] result=empty url=%s", safe_url)
         return None, ""
 
     try:
@@ -704,10 +706,10 @@ def _fetch_and_parse_html(
         ):
             logger.warning(
                 "[title][GET] non-html content-type url=%s type='%s'",
-                url,
+                safe_url,
                 ctype,
             )
-            logger.info("[title][fetch] result=non_html url=%s type=%s", url, ctype)
+            logger.info("[title][fetch] result=non_html url=%s type=%s", safe_url, ctype)
             return None, ""
 
         # Limit HTML body size to 2 MB to prevent memory exhaustion / DoS
@@ -723,7 +725,7 @@ def _fetch_and_parse_html(
                 logger.info(
                     "[title][fetch] Reached max HTML size (%s bytes), truncated stream for %s",
                     MAX_HTML_BYTES,
-                    url,
+                    safe_url,
                 )
                 break
 
@@ -732,13 +734,13 @@ def _fetch_and_parse_html(
         s = _make_soup(txt)
         logger.info(
             "[title][fetch] result=html url=%s bytes=%s",
-            url,
+            safe_url,
             len(txt or ""),
         )
         return s, txt
     except Exception as e:
-        logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
-        logger.info("[title][fetch] result=parse_error url=%s", url)
+        logger.error("[title] parse error url=%s err=%s", safe_url, e, exc_info=True)
+        logger.info("[title][fetch] result=parse_error url=%s", safe_url)
         return None, ""
     finally:
         try:
@@ -761,8 +763,9 @@ def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> 
     if not need_render:
         return title
 
+    safe_url = sanitize_url_for_logging(url)
     try:
-        logger.info("[title] try playwright render url=%s", url)
+        logger.info("[title] try playwright render url=%s", safe_url)
         title2 = _try_playwright_title(url, config)
         if (
             title2
@@ -771,14 +774,14 @@ def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> 
         ):
             logger.info(
                 "[title] playwright extracted url=%s title='%s'",
-                url,
+                safe_url,
                 title2,
             )
             return title2
     except Exception as re:
         logger.warning(
             "[title] playwright render failed url=%s err=%s",
-            url,
+            safe_url,
             re,
             exc_info=True,
         )
@@ -796,8 +799,9 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
     if not use_selenium:
         return host
 
+    safe_url = sanitize_url_for_logging(url)
     try:
-        logger.info("[title] selenium fallback enabled url=%s", url)
+        logger.info("[title] selenium fallback enabled url=%s", safe_url)
         try:
             from selenium import webdriver  # type: ignore
             from selenium.webdriver.chrome.options import Options  # type: ignore
@@ -841,18 +845,18 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
             try:
                 s2 = _make_soup(page)
                 title2 = _extract_title(s2, url)
-                logger.info("[title] selenium extracted url=%s title='%s'", url, title2)
+                logger.info("[title] selenium extracted url=%s title='%s'", safe_url, title2)
                 return title2 or host
             except Exception as pe:
                 logger.error(
                     "[title] selenium parse error url=%s err=%s",
-                    url,
+                    safe_url,
                     pe,
                     exc_info=True,
                 )
     except Exception as se:
         logger.warning(
-            "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
+            "[title] selenium fallback failed url=%s err=%s", safe_url, se, exc_info=True
         )
 
     return host
@@ -867,16 +871,17 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
     if yt_title:
         return yt_title
 
+    safe_url = sanitize_url_for_logging(url)
     # Use provided soup if available
     if soup is not None:
-        logger.info("[title][path] mode=provided_soup url=%s", url)
+        logger.info("[title][path] mode=provided_soup url=%s", safe_url)
         return _extract_title(soup, url)
 
     # Fetch and parse HTML
     ua, timeout_override, retries_override = _get_config_params(config)
     logger.info(
         "[title] start url=%s ua=%s timeout=%s retries=%s",
-        url,
+        safe_url,
         ua,
         timeout_override,
         retries_override,
@@ -891,7 +896,7 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
         try:
             js_suspected = _looks_js_heavy(soup_obj, txt)
             if js_suspected:
-                logger.warning("[title] js-heavy suspected url=%s", url)
+                logger.warning("[title] js-heavy suspected url=%s", safe_url)
         except Exception:
             js_suspected = False
 
@@ -899,14 +904,14 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
         title = _try_playwright_render(url, config, title, js_suspected)
         logger.info(
             "[title] done url=%s extracted='%s' mode=http_get js_suspected=%s",
-            url,
+            safe_url,
             title,
             js_suspected,
         )
         return title
 
     # Selenium fallback
-    logger.info("[title][path] mode=selenium_fallback url=%s", url)
+    logger.info("[title][path] mode=selenium_fallback url=%s", safe_url)
     return _try_selenium_fallback(url, config, host, ua)
 
 

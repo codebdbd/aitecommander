@@ -3,7 +3,31 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QCoreApplication, QTimer
+
+
+def _is_qobject_deleted(obj) -> bool:
+    try:
+        from PyQt6 import sip
+
+        return bool(sip.isdeleted(obj))
+    except Exception:
+        try:
+            import sip
+
+            return bool(sip.isdeleted(obj))
+        except Exception:
+            return False
+
+
+def _step_owner_is_deleted(step_func: Callable[[], None]) -> bool:
+    owner = getattr(step_func, "__self__", None)
+    if owner is None:
+        return False
+    if _is_qobject_deleted(owner):
+        return True
+    window = getattr(owner, "window", None)
+    return window is not None and _is_qobject_deleted(window)
 
 
 class AsyncStepRunner:
@@ -56,12 +80,19 @@ class AsyncStepRunner:
         on_error: Callable[[Exception], None] | None,
         special_hooks: dict[Callable[[], None], Callable[[], None]] | None,
     ) -> None:
+        app = QCoreApplication.instance()
+        if app is None or app.closingDown():
+            return
+
         idx = int(index_getter())
         if idx >= len(steps):
             on_completed()
             return
 
         step_name, step_func = steps[idx]
+        if _step_owner_is_deleted(step_func):
+            return
+
         # Update status (if already available)
         try:
             self._set_status_message(step_name)

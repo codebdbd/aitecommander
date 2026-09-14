@@ -4,15 +4,15 @@ import logging
 import time
 from typing import Callable
 
+from PyQt6.QtCore import QObject, QTimer
+
 from app.config_data.runtime_config import (
     is_tree_snapshot_icon_warmup,
     is_tree_snapshot_suspend_updates,
 )
-from app.utils.ui.icon.loading_policy import get_tree_icon_loading_policy
 from app.utils.ui.icon.icon_resolver import resolve_icon_path
+from app.utils.ui.icon.loading_policy import get_tree_icon_loading_policy
 from app.utils.ui.icon.validation import _validate_icon_name
-
-from PyQt6.QtCore import QObject, QTimer
 
 logger = logging.getLogger(__name__)
 

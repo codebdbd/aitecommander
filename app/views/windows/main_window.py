@@ -283,9 +283,9 @@ class MainWindow(QMainWindow, ReTranslatable):
         if undo_action is not None or redo_action is not None:
             self._cleanup_undo_stack()
 
-        from app.utils.ui.menu_builders.menu_actions import MenuTexts
-
         from PyQt6.QtCore import QCoreApplication
+
+        from app.utils.ui.menu_builders.menu_actions import MenuTexts
 
         undo_action = us.createUndoAction(self)
         undo_action.setText(QCoreApplication.translate("MenuActions", MenuTexts.UNDO))
@@ -311,16 +311,18 @@ class MainWindow(QMainWindow, ReTranslatable):
     def _refresh_undo_text(self) -> None:
         """Update undo action text from translations."""
         if self.undo_action:
-            from app.utils.ui.menu_builders.menu_actions import MenuTexts
             from PyQt6.QtCore import QCoreApplication
+
+            from app.utils.ui.menu_builders.menu_actions import MenuTexts
 
             self.undo_action.setText(QCoreApplication.translate("MenuActions", MenuTexts.UNDO))
 
     def _refresh_redo_text(self) -> None:
         """Update redo action text from translations."""
         if self.redo_action:
-            from app.utils.ui.menu_builders.menu_actions import MenuTexts
             from PyQt6.QtCore import QCoreApplication
+
+            from app.utils.ui.menu_builders.menu_actions import MenuTexts
 
             self.redo_action.setText(QCoreApplication.translate("MenuActions", MenuTexts.REDO))
 
@@ -426,14 +428,16 @@ class MainWindow(QMainWindow, ReTranslatable):
                 button.setToolTip(QCoreApplication.translate("SpheresBarController", name))
         undo_action = getattr(self, "undo_action", None)
         if undo_action is not None:
-            from app.utils.ui.menu_builders.menu_actions import MenuTexts
             from PyQt6.QtCore import QCoreApplication
+
+            from app.utils.ui.menu_builders.menu_actions import MenuTexts
 
             undo_action.setText(QCoreApplication.translate("MenuActions", MenuTexts.UNDO))
         redo_action = getattr(self, "redo_action", None)
         if redo_action is not None:
-            from app.utils.ui.menu_builders.menu_actions import MenuTexts
             from PyQt6.QtCore import QCoreApplication
+
+            from app.utils.ui.menu_builders.menu_actions import MenuTexts
 
             redo_action.setText(QCoreApplication.translate("MenuActions", MenuTexts.REDO))
         switch_action = getattr(self, "switch_sphere_action", None)

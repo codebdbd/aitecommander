@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 import unittest
-from unittest.mock import MagicMock, patch
 
 from app.models.workers.export_worker import ExportStructureWorker
 

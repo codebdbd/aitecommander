@@ -2,21 +2,21 @@ from __future__ import annotations
 
 import dbm
 import os
-import shutil
 import shelve
+import shutil
 import unittest
 from unittest.mock import patch
 
 from app.utils.links.parser import fetcher
 from app.utils.links.parser.domain import base_domain
 from app.utils.links.parser.favicon_cache import _file_lock, _open_shelve_with_recovery
+from app.utils.links.parser.http_client import _is_fatal_exception, http_request
+from app.utils.links.parser.icon_downloader import IconDownloader
 from app.utils.links.parser.icon_fallback import (
     clear_domain_failed,
     is_domain_failed,
     mark_domain_failed,
 )
-from app.utils.links.parser.http_client import _is_fatal_exception, http_request
-from app.utils.links.parser.icon_downloader import IconDownloader
 from tests.conftest import build_test_temp_path
 
 
@@ -91,6 +91,18 @@ class TestFaviconFetcherNegativeHostCache(unittest.TestCase):
             patch(
                 "app.utils.links.parser.fetcher._resolve_icon_sync",
                 return_value=None,
+            ),
+            patch(
+                "app.utils.links.parser.icon_candidates.http_request",
+                return_value=None,
+            ),
+            patch(
+                "app.utils.links.parser.icon_downloader.http_request",
+                return_value=None,
+            ),
+            patch(
+                "requests.Session.send",
+                side_effect=RuntimeError("Real network access forbidden in unit tests (AUD-019)"),
             ),
         ):
             first = fetcher.fetch_web_link_info("https://bad.example.com/a", config)

@@ -41,8 +41,8 @@ from typing import Callable, Protocol, TypeVar
 from PyQt6.QtCore import (
     QCoreApplication,
     QObject,
-    QThread,
     Qt,
+    QThread,
     QThreadPool,
     pyqtSignal,
     pyqtSlot,

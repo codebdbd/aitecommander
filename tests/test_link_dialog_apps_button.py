@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 import pytest
 from PyQt6.QtWidgets import QApplication
 
@@ -40,6 +41,7 @@ def test_link_dialog_apps_btn_toggle(qapp):
 
 def test_installed_apps_dialog_bottom_layout(qapp):
     from PyQt6.QtWidgets import QHBoxLayout
+
     from app.views.windows.dialogs.installed_apps_dialog import InstalledAppsDialog
 
     dlg = InstalledAppsDialog()

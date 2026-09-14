@@ -14,14 +14,17 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
-from app.utils.ui.db_tasks import run_db
 from app.utils.i18n.common import tr as tr_common
+from app.utils.ui.db_tasks import run_db
 from app.utils.ui.qt.combo_helpers import (
     PopupComboBox,
     add_combo_mapping_item,
     select_first_combo_item,
 )
-from app.views.windows.dialogs.link_dialog.icon_utils import get_cached_icon, get_cached_icon_with_fallback
+from app.views.windows.dialogs.link_dialog.icon_utils import (
+    get_cached_icon,
+    get_cached_icon_with_fallback,
+)
 
 from .base_dialog import BaseDialog
 

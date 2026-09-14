@@ -2,6 +2,7 @@
 
 import unittest
 from unittest.mock import MagicMock
+
 from app.controllers.system.window_setup.wiring import DatabaseEventHandler
 
 

@@ -6,7 +6,12 @@ from datetime import datetime
 from PyQt6.QtWidgets import QDialog
 
 from app.controllers.ui.undo.commands_links import SaveLinkCmd
-from app.utils.links.link_utils import LinkInfo, LinkOpener
+from app.utils.links.link_utils import (
+    LinkInfo,
+    LinkOpener,
+    sanitize_link_dict_for_log,
+    sanitize_url_for_logging,
+)
 from app.views.windows.dialogs.entity_dialogs import NoteDialog
 
 from .base_component import BaseLinksUIComponent
@@ -81,12 +86,13 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
     def _open_link(self, link: dict):
         """Open link using LinkOpener."""
-        logger.debug("Opening link: type=%s, url=%s", link.get("type"), link.get("url"))
+        safe_url = sanitize_url_for_logging(link.get("url", ""))
+        logger.debug("Opening link: type=%s, url=%s", link.get("type"), safe_url)
 
         success = False
         try:
             # Create LinkInfo from dict
-            logger.debug("_open_link: link dict=%s", link)
+            logger.debug("_open_link: link dict=%s", sanitize_link_dict_for_log(link))
             link_info = LinkInfo.from_dict(link)
             logger.info("_open_link: link_info=%s", link_info)
             logger.debug(
@@ -113,7 +119,8 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                     "This link cannot be opened for security reasons.",
                 )
                 details = msg  # so reason text is available when details enabled
-                logger.warning("Blocked unsafe URL: %s", msg)
+                raw_url = msg.split(":", 1)[-1].strip() if ":" in msg else msg
+                logger.warning("Blocked unsafe URL: %s", sanitize_url_for_logging(raw_url))
                 DialogManager.show_info(
                     parent=self.main,
                     title=self.get_message("warning_title", "Warning"),

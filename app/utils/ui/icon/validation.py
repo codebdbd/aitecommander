@@ -21,9 +21,10 @@ from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
 
-from PIL import Image, UnidentifiedImageError
+from PIL import UnidentifiedImageError
 
 from app.config_data import app_config
+from app.utils.images import safe_image_open
 
 logger = logging.getLogger(__name__)
 
@@ -271,18 +272,17 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
         logger.debug("Unsupported raster format %s for %s", ext, path)
         return _set_cached_icon_validation(cache_key, False)
 
-    # Rasters: quick integrity check
+    # Rasters: quick integrity check with strict safe format allowlist
     try:
-        with Image.open(path) as img:
+        with safe_image_open(path) as img:
             img.verify()  # does not load fully into memory
         return _set_cached_icon_validation(cache_key, True)
-    except (UnidentifiedImageError, OSError) as exc:
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
         logger.debug("PIL verify failed for %s: %s", path, exc)
         return _set_cached_icon_validation(cache_key, False)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Unexpected raster validation error for %s: %s", path, exc)
         return _set_cached_icon_validation(cache_key, False)
-
 
 def validate_config_for_icons(config) -> bool:
     """Checks if config supports icon directories.

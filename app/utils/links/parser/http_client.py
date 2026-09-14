@@ -9,11 +9,12 @@ import warnings
 import requests
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
-from urllib3.util.retry import Retry
 from urllib3.exceptions import InsecureRequestWarning
+from urllib3.util.retry import Retry
+
+from app.utils.links.link_utils import sanitize_url_for_logging
 
 from .constants import (
-    HTTP_ALLOW_INSECURE_SSL_FALLBACK,
     HTTP_RETRIES,
     HTTP_RETRY_BACKOFF,
     TIMEOUT,
@@ -139,7 +140,7 @@ def get_session() -> requests.Session:
                     logger.debug(
                         "[http][resp] method=%s url=%s status=%s",
                         getattr(resp.request, "method", ""),
-                        getattr(resp, "url", ""),
+                        sanitize_url_for_logging(getattr(resp, "url", "")),
                         getattr(resp, "status_code", None),
                     )
                 except Exception:
@@ -184,7 +185,7 @@ def _build_request_kwargs(headers, timeout, stream, allow_redirects, verify=None
 def _try_injected_http_get(http_get, url, headers, timeout, allow_non_2xx, method):
     """Try injected http_get function."""
     if http_get and method == "GET":
-        logger.debug("[injected] %s %s", method, url)
+        logger.debug("[injected] %s %s", method, sanitize_url_for_logging(url))
         resp = http_get(url, headers=headers, timeout=timeout)
         if resp is None:
             raise RequestException("Injected http_get returned None")
@@ -201,7 +202,7 @@ def _try_cloudscraper(
     """Try cloudscraper request."""
     scraper = get_cloudscraper() if enable_cf else None
     if scraper is not None:
-        logger.debug("[cloudscraper] %s %s", method, url)
+        logger.debug("[cloudscraper] %s %s", method, sanitize_url_for_logging(url))
         kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects, verify=verify)
         resp = scraper.request(method, url, **kwargs)
         if allow_non_2xx:
@@ -263,7 +264,7 @@ def _try_session_request(
                     pass
         except Exception:
             logger.debug("failed to configure session retries (one-time)", exc_info=True)
-        logger.debug("[session] %s %s", method, url)
+        logger.debug("[session] %s %s", method, sanitize_url_for_logging(url))
         if _is_cancelled(cancel_event):
             return None
         req_kwargs = _build_request_kwargs(
@@ -372,10 +373,10 @@ def _handle_main_request_exception(
     """
     status = getattr(getattr(e, "response", None), "status_code", None)
     logger.debug(
-        "[http][error] method=%s url=%s status=%s err=%s", "GET" if method is None else method, url, status, e, exc_info=True
+        "[http][error] method=%s url=%s status=%s err=%s", "GET" if method is None else method, sanitize_url_for_logging(url), status, e, exc_info=True
     )
     if _is_fatal_exception(e):
-        logger.info("[http] Fatal error, aborting: %s", url)
+        logger.info("[http] Fatal error, aborting: %s", sanitize_url_for_logging(url))
         try:
             setattr(e, "_codex_fatal_http", True)
         except Exception:
@@ -388,7 +389,7 @@ def _handle_main_request_exception(
             )
             return cf_resp, None
         except RequestException as ce:
-            logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
+            logger.warning("Cloudscraper fallback failed for %s: %s", sanitize_url_for_logging(url), ce)
             return None, ce
     return None, e
 
@@ -398,7 +399,7 @@ def _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_n
     scraper = get_cloudscraper() if enable_cf else None
     if scraper is None:
         raise RequestException("cloudscraper unavailable")
-    logger.debug("[fallback->cloudscraper] %s %s", method, url)
+    logger.debug("[fallback->cloudscraper] %s %s", method, sanitize_url_for_logging(url))
     resp = scraper.request(method, url, headers=headers, timeout=timeout)
     if allow_non_2xx:
         return resp
@@ -455,13 +456,14 @@ def _is_fatal_exception(exc: Exception) -> bool:
 
 def _handle_cloudscraper_error(e: Exception, url: str) -> bool:
     """Log cloudscraper error and return True if we must abort immediately."""
-    logger.warning("Cloudscraper failed for %s: %s", url, e)
+    safe_url = sanitize_url_for_logging(url)
+    logger.warning("Cloudscraper failed for %s: %s", safe_url, e)
     if _is_name_resolution_error(e):
-        logger.info("[http] Name resolution error is fatal, aborting: %s", url)
+        logger.info("[http] Name resolution error is fatal, aborting: %s", safe_url)
         return True
     status = getattr(getattr(e, "response", None), "status_code", None)
     if _is_fatal_status_code(status):
-        logger.info("[http] Status %s is fatal, aborting: %s", status, url)
+        logger.info("[http] Status %s is fatal, aborting: %s", status, safe_url)
         return True
     return False
 
@@ -480,8 +482,9 @@ def http_request(
     cancel_event=None,
     prefer_cloudscraper_primary: bool | None = None,
 ) -> requests.Response | None:
+    safe_url = sanitize_url_for_logging(url)
     if _is_cancelled(cancel_event):
-        logger.debug("[http] cancel_event set before request %s", url)
+        logger.debug("[http] cancel_event set before request %s", safe_url)
         return None
     headers = _prepare_headers(config, extra_headers)
     base_timeout = getattr(config, "TIMEOUT", TIMEOUT)
@@ -493,7 +496,7 @@ def http_request(
     logger.debug(
         "[http][start] method=%s url=%s enable_cf=%s retries=%s timeout=%s retry_mode=%s cf_primary=%s",
         method,
-        url,
+        safe_url,
         enable_cf,
         retries,
         timeout,
@@ -518,7 +521,7 @@ def http_request(
     )
     if resp is not None:
         return resp
-    logger.warning("Requests failed for %s: %s", url, last_err)
+    logger.warning("Requests failed for %s: %s", safe_url, last_err)
     return None
 
 
@@ -614,7 +617,7 @@ def _http_request_impl(
                 and not _is_cancelled(cancel_event)
             ):
                 try:
-                    logger.info("[http] SSL verify failed, retrying insecure session for %s", url)
+                    logger.info("[http] SSL verify failed, retrying insecure session for %s", sanitize_url_for_logging(url))
                     insecure_resp = _try_session_request(
                         config,
                         method,

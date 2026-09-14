@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from logging import Logger
 import os
 import time
+from logging import Logger
 from typing import TYPE_CHECKING, Any
 
 from app.config_data.runtime_config import get_structure_reload_immediate_delay_ms

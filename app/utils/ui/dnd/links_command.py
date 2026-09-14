@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
-from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
-from app.utils.ui.dnd.command_utils import (
-    _require_main,
-    _require_structure_business,
-    _get_structure_business,
-)
-from app.utils.common import get_value
-from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from PyQt6.QtCore import QItemSelectionModel
 
+from app.config_data.runtime_config import get_table_selection_restore_delay_ms
+from app.utils.common import get_value
+from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
+from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
+
 if TYPE_CHECKING:
-    from app.controllers.business.structure_business import StructureBusinessLogic
-    from app.views.windows.main_window_protocol import MainWindowProtocol
+    pass
 
 import logging
 

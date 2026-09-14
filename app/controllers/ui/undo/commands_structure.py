@@ -5,14 +5,15 @@ from __future__ import annotations
 import logging
 import os
 import time
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QTimer
 
 from app.controllers.business.structure_business import StructureBusinessLogic
 from app.controllers.ui.dialogs import DialogManager
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.controllers.ui.undo.base import BaseCommand, log_command
 from app.controllers.ui.undo.stack import UndoManager
 from app.core.results import ErrorNotification, InvalidateRegion, Result
@@ -20,9 +21,8 @@ from app.models.db import Database
 from app.services.links_service import LinksService
 from app.services.structure_context_service import StructureContextService
 from app.services.structure_service import StructureService
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore
-from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.db_tasks import run_db
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
@@ -176,8 +176,8 @@ def _warm_category_icons_for_restore(
         return
     try:
         from app.utils.ui.icon import resolve_category_icon_path
-        from app.utils.ui.icon.icon_resolver import resolve_icon_path
         from app.utils.ui.icon.cache_manager import get_cached_category_icon
+        from app.utils.ui.icon.icon_resolver import resolve_icon_path
     except Exception:
         return
 
@@ -484,7 +484,6 @@ def _apply_restored_categories_update(
             )
             return False
 
-    did_apply_updates = False
     if categories_by_section:
         _warm_category_icons_for_restore(categories_by_section, max_icons=warm_icon_limit)
     if tree_manager is not None and categories_by_section:
@@ -498,15 +497,12 @@ def _apply_restored_categories_update(
                     section_id,
                     exc_info=True,
                 )
-        did_apply_updates = True
 
     _update_cache_after_restore(
         business,
         categories_by_section,
         restored_sections=restored_sections,
     )
-    if getattr(business, "cache_manager", None) is not None:
-        did_apply_updates = True
 
     if refresh_tiles:
         _refresh_tiles_after_restore()
@@ -1932,16 +1928,6 @@ class DeleteSectionsCmd(BaseCommand):
             )
             ui_phase_started = time.perf_counter()
             business = self._resolve_business()
-            first_section_id = None
-            if restored_payloads:
-                try:
-                    first_section_id = next(
-                        int(s.get("id"))
-                        for s in restored_payloads
-                        if isinstance(s.get("id"), int)
-                    )
-                except Exception:
-                    first_section_id = None
 
             restore_update_ms = 0.0
             end_batch_ms = 0.0

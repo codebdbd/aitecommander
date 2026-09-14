@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-import pytest
 
 from app.models.workers.export_worker import ExportStructureWorker
 from app.models.workers.import_worker import ImportStructureWorker

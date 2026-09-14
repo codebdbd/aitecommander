@@ -26,6 +26,7 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+
 from app.utils.links.parser.favicon_cache import _file_lock
 from tests.conftest import build_test_temp_path
 

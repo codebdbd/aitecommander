@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from app.views.widgets.theme_selector import ThemeSelector
 
-
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 

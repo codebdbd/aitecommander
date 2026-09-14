@@ -3,7 +3,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import app.views.windows.dialogs.link_dialog.handlers_mixins.link_processing_mixin as link_processing_mixin
-from app.views.windows.dialogs.link_dialog.link_dialog_handlers import LinkDialogHandlers
+from app.views.windows.dialogs.link_dialog.link_dialog_handlers import (
+    LinkDialogHandlers,
+)
 
 
 class _LineEditStub:

@@ -72,3 +72,6 @@ scripts/test_*.py
 
 # Documentation folder
 docs/
+
+# Local generated site/artifact
+Aite_Commander_PRO_V7/

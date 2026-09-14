@@ -99,12 +99,21 @@ class ItemOperations(QObject):
                 logger.debug("[ItemOperations.load] set_focus failed: %s", e)
 
     @pyqtSlot(int)
-    def switch_sphere(self, sphere_id: int) -> None:
+    def switch_sphere(
+        self, sphere_id: int, item_to_select: tuple[str, int] | None = None
+    ) -> None:
         """Switch sphere and reload structure.
 
         Best practice: only async loading via handler
         business.active_sphere_changed, without duplicates or sync fallbacks.
         """
+        if item_to_select and hasattr(self.controller, "tree_manager"):
+            try:
+                item_type, item_id = item_to_select
+                self.controller.tree_manager.set_pending_selection(item_type, item_id)
+            except Exception as e:
+                logger.warning("Failed to set pending selection: %s", e)
+
         # Do nothing if sphere doesn't change (e.g., double-click same sphere)
         try:
             current = getattr(self.business, "current_sphere_id", None)
@@ -113,6 +122,14 @@ class ItemOperations(QObject):
                     "switch_sphere: same sphere %s selected again; skip clearing and reload",
                     sphere_id,
                 )
+                if item_to_select and hasattr(self.controller, "selection_handler"):
+                    try:
+                        item_type, item_id = item_to_select
+                        self.controller.selection_handler._restore_selection_after_load(
+                            item_type, item_id
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to restore selection in same sphere: %s", e)
                 return
         except Exception:
             pass

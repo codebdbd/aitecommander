@@ -1,17 +1,19 @@
 """Controller for handling user actions (edit, delete, clipboard, etc.)."""
 
 import logging
-import time
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QObject, QTimer, Qt, pyqtSlot
+from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit
 
 from app.config_data.runtime_config import get_table_stack_index, get_tiles_stack_index
+from app.controllers.ui.undo.commands_structure import (
+    PasteCategoriesCmd,
+    PasteSectionsCmd,
+)
 from app.core.hotkey_manager import HotkeyManager
 from app.services.structure_context_service import StructureContextService
-from app.controllers.ui.undo.commands_structure import PasteCategoriesCmd, PasteSectionsCmd
 from app.utils.ui.clipboard import get_link_from_clipboard
 from app.utils.ui.focus import WidgetType, get_focus_manager
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache

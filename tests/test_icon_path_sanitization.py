@@ -1,8 +1,12 @@
 """Integration test for icon path and filename sanitization."""
 
 import unittest
+
 from app.utils.links.parser.domain import base_domain, sanitize_domain_for_filename
-from app.utils.ui.icon.path_service import icon_path_service, _sanitize_domain_for_filename
+from app.utils.ui.icon.path_service import (
+    _sanitize_domain_for_filename,
+    icon_path_service,
+)
 
 
 class TestIconPathSanitization(unittest.TestCase):

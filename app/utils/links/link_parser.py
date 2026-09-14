@@ -25,6 +25,7 @@ from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QFileIconProvider
 from win32com.shell import shell
 
+from app.utils.images import safe_image_open
 from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
 )
@@ -49,8 +50,7 @@ _IMAGE_PREVIEW_EXTENSIONS = {
     ".bmp",
     ".gif",
     ".webp",
-    ".tif",
-    ".tiff",
+    ".ico",
 }
 
 # Minimum size (bytes) for a cached icon to be considered a real system icon.
@@ -320,13 +320,13 @@ def _handle_shortcut_app_icon(lnk_info: dict[str, str], icons_dir: str) -> Optio
     if icon_src and Path(icon_src).exists():
         try:
             icon_dst.parent.mkdir(parents=True, exist_ok=True)
-            with Image.open(icon_src) as src_img:
+            with safe_image_open(icon_src) as src_img:
                 out = src_img.convert("RGBA") if src_img.mode != "RGBA" else src_img.copy()
                 out.save(icon_dst, format="PNG")
             if is_valid_icon_file(str(icon_dst)):
                 logger.debug("Copied shortcut app icon: %s", icon_dst)
                 return str(icon_dst)
-        except OSError as e:
+        except (OSError, ValueError) as e:
             logger.error("Failed to copy shortcut app icon: %s", e)
     return None
 
@@ -391,7 +391,7 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
             if is_cached_icon_valid(str(preview_path), path):
                 return str(preview_path)
             preview_path.parent.mkdir(parents=True, exist_ok=True)
-            with Image.open(path_obj) as src_img:
+            with safe_image_open(path_obj) as src_img:
                 preview = src_img.convert("RGBA")
                 preview.thumbnail((256, 256), Image.Resampling.LANCZOS)
                 preview.save(preview_path, format="PNG")

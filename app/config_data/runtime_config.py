@@ -163,3 +163,12 @@ def get_structure_reload_immediate_delay_ms(default: int = 50) -> int:
 def get_slow_update_positions_threshold_sec(default: float = 1.0) -> float:
     value = app_config.get("limits.slow_update_positions_threshold_sec", default)
     return float(value) if isinstance(value, (int, float)) else float(default)
+
+
+def get_section_mime_type() -> str:
+    return str(app_config.get_section_mime_type())
+
+
+def get_category_mime_type() -> str:
+    return str(app_config.get_category_mime_type())
+

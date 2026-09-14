@@ -1,6 +1,7 @@
 import importlib
 import logging
 import sqlite3
+
 import pytest
 
 migrate_mod = importlib.import_module("app.models.migrations.0003_change_link_unique")

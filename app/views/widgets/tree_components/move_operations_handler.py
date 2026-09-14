@@ -17,6 +17,7 @@ from app.utils.ui.dnd.base import TreeHandlerBase
 from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
 from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
+from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -132,6 +133,33 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
         else:
             logger.warning("Undo stack not found for moving links")
+
+    def execute_move_section_to_sphere_command(
+        self, section_id: int, target_sphere_id: int
+    ) -> bool:
+        """Execute the command to move a section to another sphere."""
+        main_win = self.tree_widget.window()
+
+        if hasattr(main_win, "undo_stack") and main_win.undo_stack is not None:
+            main_win.undo_stack.push(
+                MoveSectionToSphereCommand(section_id, target_sphere_id, main_win)
+            )
+            logger.info(
+                "MoveSectionToSphereCommand executed: section %s -> sphere %s",
+                section_id,
+                target_sphere_id,
+            )
+            return True
+
+        self._show_warning(
+            self.tr("Undo history is unavailable. Move canceled."),
+            self.tr("Undo history unavailable"),
+            informative_text=self.tr(
+                "Enable undo/redo support or initialize undo_stack in the main window."
+            ),
+        )
+        logger.warning("Undo stack not found for moving a section")
+        return False
 
     def execute_move_categories_command(
         self, category_ids: list[int], new_section_id: int, base_row: int

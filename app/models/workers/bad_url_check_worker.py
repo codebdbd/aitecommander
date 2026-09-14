@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal
 
 from app.models.types.link_type import LinkType
+from app.utils.links.link_utils import sanitize_url_for_logging
 
 if TYPE_CHECKING:
     from app.models.database import Database
@@ -238,7 +239,7 @@ class BadUrlCheckWorker(QRunnable):
                 with urllib.request.urlopen(req, timeout=timeout) as response:
                     # Accept 2xx and 3xx (redirects are OK)
                     if 200 <= response.status < 400:
-                        logger.debug("[bad_url_check] HTTPS available via %s: %s", method, https_url)
+                        logger.debug("[bad_url_check] HTTPS available via %s: %s", method, sanitize_url_for_logging(https_url))
                         return True
                 return False
             except HTTPError as e:
@@ -299,21 +300,21 @@ class BadUrlCheckWorker(QRunnable):
                 with urllib.request.urlopen(req, timeout=get_timeout) as response:
                     if 200 <= response.status < 400:
                         # Page is OK (HEAD was blocked, but GET works)
-                        logger.debug("[bad_url_check] GET confirmed page OK for %s (status=%s)", url, response.status)
+                        logger.debug("[bad_url_check] GET confirmed page OK for %s (status=%s)", sanitize_url_for_logging(url), response.status)
                         return True, ""
                     elif response.status == 404:
                         # Confirmed 404
-                        logger.info("[bad_url_check] GET confirmed 404 for %s", url)
+                        logger.info("[bad_url_check] GET confirmed 404 for %s", sanitize_url_for_logging(url))
                         return False, self.ERROR_404
                     else:
                         # Other codes - not critical
-                        logger.debug("[bad_url_check] GET returned non-critical status %s for %s", response.status, url)
+                        logger.debug("[bad_url_check] GET returned non-critical status %s for %s", response.status, sanitize_url_for_logging(url))
                         return True, ""
                         
             except HTTPError as e:
                 if e.code == 404:
                     # Confirmed 404
-                    logger.info("[bad_url_check] GET HTTPError confirmed 404 for %s", url)
+                    logger.info("[bad_url_check] GET HTTPError confirmed 404 for %s", sanitize_url_for_logging(url))
                     return False, self.ERROR_404
                 # Retry on other errors
                 if attempt == 0:
@@ -324,14 +325,14 @@ class BadUrlCheckWorker(QRunnable):
                 # Retry on connection errors; repeated failures mean the URL is unreachable
                 if attempt == 0:
                     continue
-                logger.info("[bad_url_check] GET connection failed for %s", url)
+                logger.info("[bad_url_check] GET connection failed for %s", sanitize_url_for_logging(url))
                 return False, self.ERROR_UNREACHABLE
                 
             except Exception:
                 # Unknown error - retry once
                 if attempt == 0:
                     continue
-                logger.info("[bad_url_check] GET failed for %s", url)
+                logger.info("[bad_url_check] GET failed for %s", sanitize_url_for_logging(url))
                 return False, self.ERROR_UNREACHABLE
         
         # All attempts failed
@@ -348,12 +349,15 @@ class BadUrlCheckWorker(QRunnable):
         except Exception:
             return None
 
-    def _dns_check(self, domain: str) -> bool:
-        """Return True if DNS resolves the domain, False otherwise."""
+    def _dns_check(self, host: str) -> bool:
+        """Return True if DNS resolves the host (IPv4 or IPv6), False otherwise."""
+        if not host:
+            return False
+        clean_host = host.strip("[]")
         try:
-            socket.gethostbyname(domain)
+            socket.getaddrinfo(clean_host, None)
             return True
-        except socket.gaierror:
+        except (socket.gaierror, socket.herror, OSError):
             return False
 
     def _head_check_and_followups(self, url: str, is_http: bool) -> tuple[bool, str]:
@@ -401,7 +405,7 @@ class BadUrlCheckWorker(QRunnable):
                 return False, self.ERROR_NO_SSL
             return True, ""
         except Exception:
-            logger.debug("[bad_url_check] HEAD failed for %s", url, exc_info=True)
+            logger.debug("[bad_url_check] HEAD failed for %s", sanitize_url_for_logging(url), exc_info=True)
             return False, self.ERROR_UNREACHABLE
 
     def _check_url(self, url: str) -> tuple[bool, str]:
@@ -416,12 +420,12 @@ class BadUrlCheckWorker(QRunnable):
         try:
             self._raise_if_cancelled()
             parsed = self._parse_url(url)
-            if parsed is None:
+            if parsed is None or not parsed.hostname:
                 # Invalid URL format - skip it (not critical)
                 return True, ""
 
-            # Level 1: DNS check (original domain only)
-            if not self._dns_check(parsed.netloc):
+            # Level 1: DNS check (original host/domain only)
+            if not self._dns_check(parsed.hostname):
                 return False, self.ERROR_DNS_FAILED
 
             # Level 2 & 3: HEAD + follow-ups
@@ -429,7 +433,7 @@ class BadUrlCheckWorker(QRunnable):
             return self._head_check_and_followups(url, is_http)
 
         except Exception as e:
-            logger.debug("Failed to check URL %s: %s", url, e)
+            logger.debug("Failed to check URL %s: %s", sanitize_url_for_logging(url), e)
             return True, ""
 
     def _check_link(self, link: dict) -> list[dict] | None:
@@ -456,7 +460,8 @@ class BadUrlCheckWorker(QRunnable):
             # Extract domain once
             from urllib.parse import urlparse
             try:
-                domain = urlparse(url).netloc
+                _pu = urlparse(url)
+                domain = _pu.hostname or _pu.netloc
             except Exception:
                 domain = QCoreApplication.translate("BadUrlCheckWorker", "unknown")
 
@@ -559,11 +564,11 @@ class BadUrlCheckWorker(QRunnable):
                         QCoreApplication.translate("BadUrlCheckWorker", "Checked {0}/{1} (issues: {2})").format(checked, total, len(bad_urls)),
                     )
                 except CancelledError:
-                    logger.debug("[bad_url_check] Future cancelled for URL %s", link.get("url", "?"))
+                    logger.debug("[bad_url_check] Future cancelled for URL %s", sanitize_url_for_logging(link.get("url", "")))
                     break
                 except Exception as e:
                     logger.warning(
-                        "[bad_url_check] Exception checking URL %s: %s", link.get("url", "?"), e
+                        "[bad_url_check] Exception checking URL %s: %s", sanitize_url_for_logging(link.get("url", "")), e
                     )
                     checked += 1
         finally:

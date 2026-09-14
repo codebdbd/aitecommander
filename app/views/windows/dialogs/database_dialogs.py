@@ -6,9 +6,9 @@ from typing import Optional, cast
 from PyQt6.QtCore import QCoreApplication, QObject
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.utils.i18n.common import tr as tr_common
 from app.utils.share_paths import ensure_service_root, get_desktop_dir, get_entity_dir
-from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.views.windows.dialogs.base_dialog import apply_uniform_height_to_message_box
 
 _TR_CONTEXT = "DatabaseDialogs"

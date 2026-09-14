@@ -5,8 +5,8 @@ from typing import TypeAlias, TypeVar
 
 from app.core.results import ErrorNotification, InvalidateRegion, Result
 from app.models import Database, StructureCoordinator
-from app.utils.db.sql_helpers import build_in_clause_placeholders
 from app.services.bulk_operation_service import BulkOperationService
+from app.utils.db.sql_helpers import build_in_clause_placeholders
 
 from .uow import unit_of_work
 

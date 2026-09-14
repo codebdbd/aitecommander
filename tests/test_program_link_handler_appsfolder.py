@@ -1,6 +1,5 @@
 import logging
 from unittest.mock import patch
-import pytest
 
 from app.models.types.link_type import LinkType
 from app.utils.links.link_utils import LinkInfo, ProgramLinkHandler, SecurityValidator

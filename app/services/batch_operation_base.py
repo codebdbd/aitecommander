@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from contextlib import nullcontext
 import uuid
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, TypeVar
 

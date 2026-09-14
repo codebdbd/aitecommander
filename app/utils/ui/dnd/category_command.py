@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler

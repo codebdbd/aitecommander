@@ -35,23 +35,67 @@ logger = logging.getLogger(__name__)
 
 def sanitize_url_for_logging(url: str) -> str:
     """Strip query parameters, fragments, and credentials from URLs for safe logging."""
-    if not url:
+    if not isinstance(url, str) or not url:
         return ""
     try:
-        if "://" not in url:
+        is_windows_path = len(url) > 2 and url[1] == ":" and url[2] in ("/", "\\")
+        is_posix_path = url.startswith("/") and not url.startswith("//")
+        is_unc_path = url.startswith("\\\\")
+        if (is_windows_path or is_posix_path or is_unc_path) and ("?" not in url and "#" not in url):
             return url
-        parsed = urlsplit(url)
-        if not parsed.scheme or not parsed.netloc:
+
+        has_scheme = "://" in url
+        has_query_or_frag = "?" in url or "#" in url
+        has_userinfo = "@" in url and not (is_windows_path or is_posix_path or is_unc_path)
+
+        dummy_prefix = False
+        target = url
+        if not has_scheme and (has_query_or_frag or has_userinfo or url.startswith("//")):
+            target = "//" + url
+            dummy_prefix = True
+
+        parsed = urlsplit(target)
+        if not parsed.scheme and not parsed.netloc and not dummy_prefix:
             return url
+
         netloc = parsed.hostname or ""
         if parsed.port:
             netloc = f"{netloc}:{parsed.port}"
-        base = urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+        elif not netloc and parsed.netloc and "@" in parsed.netloc:
+            netloc = parsed.netloc.split("@")[-1]
+        elif not netloc and not dummy_prefix:
+            netloc = parsed.netloc
+
+        scheme = "" if dummy_prefix else parsed.scheme
+        base = urlunsplit((scheme, netloc, parsed.path, "", ""))
+        if dummy_prefix and base.startswith("//"):
+            base = base[2:]
         if parsed.query:
             return f"{base}?"
         return base
     except Exception:
         return "<redacted-url>"
+
+
+sanitize_url_for_log = sanitize_url_for_logging
+
+
+def sanitize_link_dict_for_log(link_dict: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy of a link dictionary with credentials, query params, args and notes redacted."""
+    if not isinstance(link_dict, dict):
+        return {}
+    res = dict(link_dict)
+    if "url" in res and isinstance(res["url"], str):
+        res["url"] = sanitize_url_for_logging(res["url"])
+    if "path" in res and isinstance(res["path"], str):
+        link_type = str(res.get("type", "")).lower()
+        if link_type in ("web", "") or "://" in res["path"]:
+            res["path"] = sanitize_url_for_logging(res["path"])
+    if "args" in res and res["args"]:
+        res["args"] = "<redacted>"
+    if "notes" in res and res["notes"]:
+        res["notes"] = "<redacted>"
+    return res
 
 
 class LinkType(Enum):
@@ -74,6 +118,18 @@ class LinkInfo:
     args: str = ""
     category_id: Optional[int] = None
     browser_key: Optional[str] = None
+
+    def __repr__(self) -> str:
+        safe_path = (
+            sanitize_url_for_logging(self.path)
+            if self.link_type == LinkType.WEB
+            else self.path
+        )
+        safe_args = "<redacted>" if self.args else ""
+        return (
+            f"LinkInfo(id={self.id}, link_type={self.link_type}, path={safe_path!r}, "
+            f"args={safe_args!r}, category_id={self.category_id}, browser_key={self.browser_key!r})"
+        )
 
     @classmethod
     def from_dict(cls, link_dict: dict[str, Any]) -> "LinkInfo":

@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import Mock
 
 from app.services.batch_operation_base import (
-    BulkOperationValidationError,
     ERROR_CODE_BATCH_SIZE,
+    BulkOperationValidationError,
 )
 from app.services.bulk_operation_service import BulkOperationService
 

@@ -8,10 +8,10 @@ import time
 from typing import Optional, cast
 
 from PyQt6.QtCore import (
+    QT_TRANSLATE_NOOP,
     QCoreApplication,
     QObject,
     QRunnable,
-    QT_TRANSLATE_NOOP,
     QThreadPool,
     pyqtSignal,
 )

@@ -4,7 +4,6 @@ import sqlite3
 import threading
 import time
 import uuid
-from pathlib import Path
 
 from app.core.database_manager import DatabaseManager
 from tests.conftest import build_test_temp_path

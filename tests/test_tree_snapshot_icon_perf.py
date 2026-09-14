@@ -6,26 +6,32 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication
 
 from app.controllers.ui.structure.tree_snapshot_service import TreeSnapshotService
-from app.utils.ui.icon.loading_service import IconLoadingService
 from app.utils.ui.icon import validation as icon_validation
-from app.views.main_components.ui.topbar.toolbar_adapters import (
-    _resolve_existing_icon_path_fast,
-)
-from app.views.windows.dialogs.link_dialog.icon_utils import (
-    IconErrorKind,
-    get_cached_icon as get_dialog_cached_icon,
-    get_cached_icon_with_fallback,
-    make_icon_result,
-)
 from app.utils.ui.icon.loading_policy import (
     get_tiles_icon_loading_policy,
     get_tree_icon_loading_policy,
 )
-from app.views.models.structure_tree_model import IconLoader, StructureTreeModel, TreeNode
+from app.utils.ui.icon.loading_service import IconLoadingService
+from app.views.main_components.ui.topbar.toolbar_adapters import (
+    _resolve_existing_icon_path_fast,
+)
+from app.views.models.structure_tree_model import (
+    IconLoader,
+    StructureTreeModel,
+    TreeNode,
+)
+from app.views.windows.dialogs.link_dialog.icon_utils import (
+    IconErrorKind,
+    get_cached_icon_with_fallback,
+    make_icon_result,
+)
+from app.views.windows.dialogs.link_dialog.icon_utils import (
+    get_cached_icon as get_dialog_cached_icon,
+)
 from tests.conftest import build_test_temp_path
 
 
@@ -87,7 +93,7 @@ class TestIconValidationCache(unittest.TestCase):
                 open_calls += 1
                 return real_open(*args, **kwargs)
 
-            with patch("app.utils.ui.icon.validation.Image.open", side_effect=_counting_open):
+            with patch("app.utils.images.safe_image.Image.open", side_effect=_counting_open):
                 self.assertTrue(icon_validation.is_valid_icon_file(icon_path))
             self.assertTrue(icon_validation.is_valid_icon_file(icon_path))
 

@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import shutil
 import sqlite3
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
+
+from conftest import build_test_temp_path
 
 from app.controllers.ui.dialogs.database_controller import DatabaseController
 
 
 class TestDatabaseControllerSave(unittest.TestCase):
     def test_save_database_copy_creates_consistent_sqlite_backup(self, tmp_path=None) -> None:
-        import tempfile
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
+        temp_path = build_test_temp_path("manual_tmp", "database_controller_save")
+        shutil.rmtree(temp_path, ignore_errors=True)
+        temp_path.mkdir(parents=True, exist_ok=True)
+        try:
             source_db = temp_path / "source.db"
             dest_db = temp_path / "saved_copy.db"
 
@@ -37,3 +40,5 @@ class TestDatabaseControllerSave(unittest.TestCase):
             conn.close()
 
             self.assertEqual([r[0] for r in rows], ["item1", "item2"])
+        finally:
+            shutil.rmtree(temp_path, ignore_errors=True)

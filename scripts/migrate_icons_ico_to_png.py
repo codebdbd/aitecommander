@@ -7,7 +7,6 @@ from pathlib import Path
 
 from PIL import Image
 
-
 TABLES = ("link", "category", "section", "sphere")
 
 

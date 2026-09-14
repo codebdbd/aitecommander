@@ -13,8 +13,9 @@ from app.models.workers.icon_refresh_worker import IconRefreshWorker
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 if TYPE_CHECKING:
-    from app.controllers.system.app_shutdown_controller import AppShutdownController
     from app.models.database import Database
+
+    from app.controllers.system.app_shutdown_controller import AppShutdownController
 
 logger = logging.getLogger(__name__)
 

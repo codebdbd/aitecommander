@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 from PyQt6.QtCore import QRunnable
 
 from app.controllers.ui.state.task_scheduler import TaskType, get_task_scheduler
+from app.utils.links.link_utils import sanitize_url_for_logging
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 
@@ -25,8 +26,11 @@ from .constants import BS_PARSER, CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 from .domain import apply_jitter, base_domain, sanitize_domain_for_filename
 from .http_client import http_request
 from .icon_downloader import pick_icon_parallel, save_icon
-from .title_parser import get_provider_title_fast, get_title, get_title_for_blocked_status
-
+from .title_parser import (
+    get_provider_title_fast,
+    get_title,
+    get_title_for_blocked_status,
+)
 
 _HOST_FAILURE_LOCK = threading.RLock()
 _HOST_FAILURES: dict[str, float] = {}
@@ -237,7 +241,7 @@ def _try_direct_favicon_on_block(
             if saved:
                 return saved
         except Exception:
-            logger.debug("direct favicon fallback failed url=%s", icon_url, exc_info=True)
+            logger.debug("direct favicon fallback failed url=%s", sanitize_url_for_logging(icon_url), exc_info=True)
     try:
         try:
             soup = BeautifulSoup("", BS_PARSER)
@@ -253,7 +257,7 @@ def _try_direct_favicon_on_block(
             cancel_event=cancel_event,
         )
     except Exception:
-        logger.debug("full icon pipeline fallback failed for %s", url, exc_info=True)
+        logger.debug("full icon pipeline fallback failed for %s", sanitize_url_for_logging(url), exc_info=True)
     return None
 
 
@@ -321,8 +325,9 @@ def _check_cache(
 
     # Any cached entry without title is considered incomplete and must be retried.
     # Otherwise we can get "stuck" forever on empty titles due to cache hits.
+    safe_url = sanitize_url_for_logging(url)
     if not cached_title:
-        logger.info("[cache] BYPASS_EMPTY_TITLE %s", url)
+        logger.info("[cache] BYPASS_EMPTY_TITLE %s", safe_url)
         return None
 
     # Cached default-icon entries without a local downloaded icon are incomplete.
@@ -334,7 +339,7 @@ def _check_cache(
         and default_icon_path
         and cached_icon == default_icon_path
     ):
-        logger.info("[cache] BYPASS_DEFAULT_ICON_NO_FILE %s", url)
+        logger.info("[cache] BYPASS_DEFAULT_ICON_NO_FILE %s", safe_url)
         return None
 
     # Legacy fallback title == host + default icon is also explicitly weak.
@@ -345,13 +350,13 @@ def _check_cache(
         and url_host
         and cached_title.lower() == url_host.lower()
     ):
-        logger.info("[cache] BYPASS_WEAK_DEFAULT_ICON %s", url)
+        logger.info("[cache] BYPASS_WEAK_DEFAULT_ICON %s", safe_url)
         return None
 
     # Legacy shared-domain icon cache (e.g. gemini.google.com -> web_google_com.png)
     # must be bypassed so exact-host icons can be resolved and stored separately.
     if _is_mismatched_downloaded_icon_path(cached_icon, icon_host, default_icon_path):
-        logger.info("[cache] BYPASS_MISMATCHED_ICON_HOST %s icon=%s host=%s", url, cached_icon, icon_host)
+        logger.info("[cache] BYPASS_MISMATCHED_ICON_HOST %s icon=%s host=%s", safe_url, cached_icon, icon_host)
         return None
 
     # A cached custom icon path can become stale after orphan cleanup or manual
@@ -359,10 +364,10 @@ def _check_cache(
     if cached_icon and cached_icon != default_icon_path:
         try:
             if not Path(cached_icon).exists():
-                logger.info("[cache] BYPASS_MISSING_CACHED_ICON %s icon=%s", url, cached_icon)
+                logger.info("[cache] BYPASS_MISSING_CACHED_ICON %s icon=%s", safe_url, cached_icon)
                 return None
         except Exception:
-            logger.info("[cache] BYPASS_INVALID_CACHED_ICON %s icon=%s", url, cached_icon)
+            logger.info("[cache] BYPASS_INVALID_CACHED_ICON %s icon=%s", safe_url, cached_icon)
             return None
 
     if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
@@ -372,15 +377,73 @@ def _check_cache(
     return cached
 
 
+MAX_HTML_BYTES = 2 * 1024 * 1024  # 2 MB limit to prevent memory exhaustion / slow DoS
+
+
+def _read_limited_html_text(resp, config=None) -> str:
+    """Read streaming response body with size limit and decode safely."""
+    try:
+        ctype = str(getattr(resp, "headers", {}).get("Content-Type", "") or "").lower()
+        if ctype and not any(
+            token in ctype
+            for token in ("text/html", "application/xhtml+xml", "application/xml")
+        ):
+            logger.warning("[fetch] non-html content-type type='%s'", ctype)
+            return ""
+
+        chunks: list[bytes] = []
+        total_bytes = 0
+        iter_content_fn = getattr(resp, "iter_content", None)
+        if callable(iter_content_fn):
+            for chunk in resp.iter_content(chunk_size=65536):
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total_bytes += len(chunk)
+                if total_bytes >= MAX_HTML_BYTES:
+                    logger.info(
+                        "[fetch] Reached max HTML size (%s bytes), truncated stream",
+                        MAX_HTML_BYTES,
+                    )
+                    break
+        else:
+            raw_content = getattr(resp, "content", b"") or b""
+            chunks.append(raw_content[:MAX_HTML_BYTES])
+
+        content = b"".join(chunks)
+        enc = getattr(resp, "encoding", None)
+        if not enc or str(enc).lower() == "iso-8859-1":
+            try:
+                from charset_normalizer import from_bytes  # type: ignore
+
+                best = from_bytes(content).best()
+                if best is not None:
+                    return str(best)
+            except Exception:
+                pass
+            try:
+                return content.decode(
+                    getattr(resp, "apparent_encoding", None) or "utf-8",
+                    errors="replace",
+                )
+            except Exception:
+                pass
+        return content.decode(enc or "utf-8", errors="replace")
+    finally:
+        try:
+            close_fn = getattr(resp, "close", None)
+            if callable(close_fn):
+                close_fn()
+        except Exception:
+            pass
+
+
 def _fetch_and_parse_html(
     url: str, config, html_timeout, cancel_event=None
 ) -> tuple[BeautifulSoup | None, int | None]:
-    """Fetch URL and parse HTML.
-    
-    OPTIMIZATION: Removed redundant HEAD request - if site is unreachable,
-    the main GET will fail quickly with same timeout.
-    """
+    """Fetch URL and parse HTML with body size limits."""
     _raise_if_cancelled(cancel_event)
+    safe_url = sanitize_url_for_logging(url)
     resp = http_request(
         url,
         config,
@@ -389,54 +452,38 @@ def _fetch_and_parse_html(
         retries=0,
         cancel_event=cancel_event,
         prefer_cloudscraper_primary=False,
+        stream=True,
     )
     if not resp:
         try:
-            logger.debug("[fetch] http_request returned None for %s", url)
+            logger.debug("[fetch] http_request returned None for %s", safe_url)
         except Exception:
             pass
         return None, None
 
+    status_code = int(getattr(resp, "status_code", 0) or 0)
+    if status_code >= 400:
+        logger.info("[fetch] html_skip status=%s url=%s", status_code, safe_url)
+        try:
+            close_fn = getattr(resp, "close", None)
+            if callable(close_fn):
+                close_fn()
+        except Exception:
+            pass
+        return None, status_code
+
+    _raise_if_cancelled(cancel_event)
     try:
-        status_code = int(getattr(resp, "status_code", 0) or 0)
-        if status_code >= 400:
-            logger.info("[fetch] html_skip status=%s url=%s", status_code, url)
+        txt = _read_limited_html_text(resp, config)
+        if not txt:
             return None, status_code
-
         _raise_if_cancelled(cancel_event)
-        # Robust decode (avoid ISO-8859-1 defaults)
-        enc = getattr(resp, "encoding", None)
-        if not enc or str(enc).lower() == "iso-8859-1":
-            try:
-                # Attempt to detect encoding via charset-normalizer
-                try:
-                    from charset_normalizer import from_bytes  # type: ignore
-
-                    best = from_bytes(resp.content).best()
-                    if best is not None:
-                        txt = str(best)
-                    else:
-                        txt = resp.content.decode(
-                            getattr(resp, "apparent_encoding", None) or "utf-8",
-                            errors="replace",
-                        )
-                except Exception:
-                    txt = resp.content.decode(
-                        getattr(resp, "apparent_encoding", None) or "utf-8",
-                        errors="replace",
-                    )
-            except Exception:
-                txt = resp.text
-        else:
-            txt = resp.text
-
-        # Create soup safely with fallback parser
         try:
             return BeautifulSoup(txt, BS_PARSER), status_code
         except Exception:
             return BeautifulSoup(txt, "html.parser"), status_code
     except Exception as e:
-        logger.debug("bs4 parse failed for %s: %s", url, e)
+        logger.debug("bs4 parse failed for %s: %s", safe_url, e)
         return None, None
 
 
@@ -473,7 +520,7 @@ def _resolve_icon_sync(
             cancel_event=cancel_event,
         )
     except Exception as e:
-        logger.debug("pick_icon failed for %s: %s", url, e)
+        logger.debug("pick_icon failed for %s: %s", sanitize_url_for_logging(url), e)
         return None
 
 
@@ -496,6 +543,7 @@ def _refetch_html_for_icon(url: str, config, cancel_event=None) -> BeautifulSoup
         retries=0,
         cancel_event=cancel_event,
         prefer_cloudscraper_primary=False,
+        stream=True,
     )
     if not resp:
         _mark_host_temporarily_unreachable(host)
@@ -504,18 +552,14 @@ def _refetch_html_for_icon(url: str, config, cancel_event=None) -> BeautifulSoup
     try:
         _clear_host_temporary_failure(host)
         _raise_if_cancelled(cancel_event)
-        enc = getattr(resp, "encoding", None)
-        if not enc or str(enc).lower() == "iso-8859-1":
-            try:
-                txt = resp.content.decode(
-                    getattr(resp, "apparent_encoding", None) or "utf-8",
-                    errors="replace",
-                )
-            except Exception:
-                txt = resp.text
-        else:
-            txt = resp.text
-        return BeautifulSoup(txt, BS_PARSER)
+        txt = _read_limited_html_text(resp, config)
+        if not txt:
+            return None
+        _raise_if_cancelled(cancel_event)
+        try:
+            return BeautifulSoup(txt, BS_PARSER)
+        except Exception:
+            return BeautifulSoup(txt, "html.parser")
     except Exception:
         return None
 
@@ -532,7 +576,7 @@ def _update_cache_with_icon(url: str, title: str, icon_path: str, config) -> Non
         }
         write_cache(url, current, config)
     except Exception as ex:
-        logger.debug("cache write (async) failed for %s: %s", url, ex)
+        logger.debug("cache write (async) failed for %s: %s", sanitize_url_for_logging(url), ex)
 
 
 def _notify_icon_ready(
@@ -548,7 +592,7 @@ def _notify_icon_ready(
             operation_id=f"icon_ready:{url}",
         )
     except Exception as ex:
-        logger.debug("on_icon_ready scheduling failed for %s: %s", url, ex)
+        logger.debug("on_icon_ready scheduling failed for %s: %s", sanitize_url_for_logging(url), ex)
 
 
 def _create_icon_resolve_task(
@@ -583,7 +627,7 @@ def _create_icon_resolve_task(
                 html_soup, url, icon_host, config, force_refresh=False
             )
         except Exception as ex:
-            logger.debug("pick_icon (async) failed for %s: %s", url, ex)
+            logger.debug("pick_icon (async) failed for %s: %s", sanitize_url_for_logging(url), ex)
 
         if not resolved:
             return
@@ -627,6 +671,7 @@ def fetch_web_link_info(
     _raise_if_cancelled(cancel_event)
     # 1) Sanitize URL and get host
     url = _sanitize_url(url)
+    safe_url = sanitize_url_for_logging(url)
     try:
         parsed = urlparse(url)
         icon_host = _normalized_icon_host(parsed.netloc)
@@ -645,7 +690,7 @@ def fetch_web_link_info(
         result_source = "cache"
         logger.info(
             "[Perf] fetch_web_link_info url=%s source=%s total=%.2f ms cache_check=%.2f ms",
-            url,
+            safe_url,
             result_source,
             (time.perf_counter() - perf_t0) * 1000.0,
             cache_check_ms,
@@ -674,18 +719,18 @@ def fetch_web_link_info(
         and _is_host_temporarily_unreachable(failure_host)
     ):
         host_negative = True
-        logger.info("[fetch][host_negative] hit host=%s url=%s", failure_host, url)
+        logger.info("[fetch][host_negative] hit host=%s url=%s", failure_host, safe_url)
         result = _build_negative_result(url, "", default_icon, config)
         t_cache_write0 = time.perf_counter()
         try:
             write_cache(url, result, config)
         except Exception:
-            logger.debug("cache write failed for host-negative %s", url, exc_info=True)
+            logger.debug("cache write failed for host-negative %s", safe_url, exc_info=True)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
         result_source = "host_negative"
         logger.info(
             "[Perf] fetch_web_link_info url=%s source=%s total=%.2f ms cache_check=%.2f ms cache_write=%.2f ms host_negative=%s",
-            url,
+            safe_url,
             result_source,
             (time.perf_counter() - perf_t0) * 1000.0,
             cache_check_ms,
@@ -722,7 +767,7 @@ def fetch_web_link_info(
         try:
             write_cache(url, result, config)
         except Exception as e:
-            logger.debug("cache write failed for %s: %s", url, e)
+            logger.debug("cache write failed for %s: %s", safe_url, e)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
         if defer_icon and icon_path is None and not existing_icon_path:
@@ -799,7 +844,7 @@ def fetch_web_link_info(
                 "[fetch][host_negative] mark host=%s status=%s url=%s",
                 failure_host,
                 html_status,
-                url,
+                safe_url,
             )
             _mark_host_temporarily_unreachable(failure_host)
         else:
@@ -807,11 +852,11 @@ def fetch_web_link_info(
                 "[fetch][host_negative] skip_mark_unknown host=%s status=%s url=%s",
                 failure_host,
                 html_status,
-                url,
+                safe_url,
             )
             _clear_host_temporary_failure(failure_host)
     else:
-        logger.debug("[fetch][host_negative] clear host=%s url=%s", failure_host, url)
+        logger.debug("[fetch][host_negative] clear host=%s url=%s", failure_host, safe_url)
         _clear_host_temporary_failure(failure_host)
     _raise_if_cancelled(cancel_event)
 
@@ -832,7 +877,7 @@ def fetch_web_link_info(
         title = get_title(url, config, soup)
         title_ms = (time.perf_counter() - t_title0) * 1000.0
     try:
-        logger.debug("[fetch] title='%s' for %s", title, url)
+        logger.debug("[fetch] title='%s' for %s", title, safe_url)
     except Exception:
         pass
 
@@ -892,7 +937,7 @@ def fetch_web_link_info(
     try:
         write_cache(url, result, config)
     except Exception as e:
-        logger.debug("cache write failed for %s: %s", url, e)
+        logger.debug("cache write failed for %s: %s", safe_url, e)
     cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
 
     # 9) Schedule deferred icon resolution if needed
@@ -927,7 +972,7 @@ def fetch_web_link_info(
 
     logger.info(
         "[Perf] fetch_web_link_info url=%s source=%s total=%.2f ms cache_check=%.2f ms fetch_html=%.2f ms title=%.2f ms icon=%.2f ms cache_write=%.2f ms defer_icon=%s deferred_icon_scheduled=%s host_negative=%s",
-        url,
+        safe_url,
         result_source,
         (time.perf_counter() - perf_t0) * 1000.0,
         cache_check_ms,

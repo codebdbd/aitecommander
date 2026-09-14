@@ -7,15 +7,26 @@ Discovers applications from:
 """
 
 import ctypes
-from ctypes import byref, c_int, c_ubyte, c_ulong, c_ushort, c_void_p, c_wchar, c_wchar_p, Structure, wintypes
-from dataclasses import dataclass
 import logging
 import os
-from pathlib import Path
 import platform
 import re
-from typing import Any, Optional
 import uuid
+from ctypes import (
+    Structure,
+    byref,
+    c_int,
+    c_ubyte,
+    c_ulong,
+    c_ushort,
+    c_void_p,
+    c_wchar,
+    c_wchar_p,
+    wintypes,
+)
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +86,8 @@ class _GUID(Structure):
         ("Data4", c_ubyte * 8),
     ]
 
-    def __init__(self, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8):
-        super().__init__(l, w1, w2, (c_ubyte * 8)(b1, b2, b3, b4, b5, b6, b7, b8))
+    def __init__(self, data1, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8):
+        super().__init__(data1, w1, w2, (c_ubyte * 8)(b1, b2, b3, b4, b5, b6, b7, b8))
 
 
 class _SHFILEINFOW(Structure):

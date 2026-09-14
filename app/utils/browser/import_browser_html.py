@@ -5,9 +5,8 @@ import uuid
 from collections import defaultdict
 from urllib.parse import urlparse
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
-
 from bs4 import BeautifulSoup
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
 from app.config_data import app_config
 from app.models.types.constants import CATEGORY_BULK_UUID_FIELD

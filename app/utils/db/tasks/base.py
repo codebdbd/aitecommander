@@ -77,6 +77,7 @@ class DatabaseTask(QRunnable, Generic[T]):
             return
         try:
             # Determine signature: support callables with 0 or 1 positional argument
+            takes_reporter = False
             try:
                 sig = inspect.signature(self.func)
                 params = list(sig.parameters.values())
@@ -92,13 +93,14 @@ class DatabaseTask(QRunnable, Generic[T]):
                 has_var_pos = any(
                     p.kind == inspect.Parameter.VAR_POSITIONAL for p in params
                 )
-
-                if has_var_pos or len(pos_params) == 1:
-                    result = self.func(self.report_progress)  # type: ignore[misc]
-                else:
-                    result = self.func()  # type: ignore[call-arg]
+                takes_reporter = has_var_pos or len(pos_params) == 1
             except ValueError:
                 # Signature unavailable (built-in/C function): call without arguments by default
+                takes_reporter = False
+
+            if takes_reporter:
+                result = self.func(self.report_progress)  # type: ignore[misc]
+            else:
                 result = self.func()  # type: ignore[call-arg]
             if self._canceled:
                 self.signals.canceled.emit()

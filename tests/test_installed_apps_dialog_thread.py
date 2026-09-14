@@ -53,3 +53,13 @@ class TestInstalledAppsDialogThread(unittest.TestCase):
             # Test reject stops thread
             dialog.reject()
             self.assertFalse(dialog.loader_thread.isRunning())
+
+    def test_loader_thread_not_parented_to_dialog_to_prevent_crash(self) -> None:
+        with patch(
+            "app.views.windows.dialogs.installed_apps_dialog.get_installed_apps",
+            return_value=[],
+        ):
+            dialog = InstalledAppsDialog()
+            # AUD-021: parent must be None so dialog destruction does not destroy running QThread
+            self.assertIsNone(dialog.loader_thread.parent())
+            dialog.reject()
