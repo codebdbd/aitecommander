@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from PyQt6 import sip
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from app.controllers.system.app_shutdown_controller import (
@@ -52,10 +53,29 @@ class BadUrlCheckService(QObject):
     def show_dialog(self) -> None:
         """Show dialog if it is hidden while the check is running."""
 
-        if self._dialog and not self._dialog.isVisible():
-            self._dialog.show()
-            self._dialog.raise_()
-            self._dialog.activateWindow()
+        if self._dialog is None:
+            return
+
+        # Guard: C++ QDialog object might have been destroyed already (user closed it).
+        try:
+            if sip.isdeleted(self._dialog):
+                self._dialog = None
+                return
+        except Exception:
+            try:
+                self._dialog.objectName()
+            except RuntimeError:
+                self._dialog = None
+                return
+
+        try:
+            if not self._dialog.isVisible():
+                self._dialog.show()
+                self._dialog.raise_()
+                self._dialog.activateWindow()
+        except RuntimeError as e:
+            logger.debug("BadUrlCheckService.show_dialog: C++ object destroyed: %s", e)
+            self._dialog = None
 
     def start_check(
         self,

@@ -379,6 +379,7 @@ class LinkDialogUI:
         )
         self.adjust_button_width(self.rotation_profiles_btn)
         self.rotation_profiles_btn.setVisible(False)
+        self.rotation_profiles_btn.setEnabled(False)
         fav_row.addWidget(self.rotation_chk)
         fav_row.addWidget(self.rotation_profiles_btn)
 

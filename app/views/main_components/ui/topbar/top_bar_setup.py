@@ -146,7 +146,7 @@ class TopBarBuilder:
             toolbar.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
         except Exception:
             pass
-        toolbar.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        toolbar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         try:
             toolbar.setFixedHeight(int(app_config.ui.get_top_bar_height()))
         except (TypeError, ValueError, AttributeError):

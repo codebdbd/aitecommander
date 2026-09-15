@@ -334,10 +334,14 @@ border-color: #FFCD11;
 QDialog QPushButton:disabled,
 QDialog QToolButton:disabled {
 background: #303030;
+  color: #707070;
+  border-color: #303030;
 }
 QDialog QPushButton:disabled:hover,
 QDialog QToolButton:disabled:hover {
 background: #303030;
+  color: #707070;
+  border-color: #303030;
 }
 QCheckBox::indicator,
 QDialog QCheckBox::indicator {

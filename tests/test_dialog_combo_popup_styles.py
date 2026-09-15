@@ -170,6 +170,74 @@ class TestDialogComboPopupStyles(unittest.TestCase):
         finally:
             dlg.close()
 
+    def test_dialog_combo_and_popup_icon_horizontal_alignment(self) -> None:
+        from PyQt6.QtCore import QPoint, QSize
+        from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
+        from PyQt6.QtWidgets import QDialog
+
+        from app.config_data.runtime_config import runtime_app_config as app_config
+        from app.services.theme_stylesheet_service import ThemeStylesheetService
+        from app.utils.ui.qt.combo_helpers import PopupComboBox
+
+        svc = ThemeStylesheetService(app_config)
+        qss = svc.load_stylesheet("matrix", "matrix.qss")
+        self._app.setStyleSheet(qss)
+
+        dlg = QDialog()
+        try:
+            combo = PopupComboBox(dlg)
+            combo.setFixedHeight(32)
+            combo.setFixedWidth(200)
+            combo.setIconSize(QSize(24, 24))
+
+            pix = QPixmap(24, 24)
+            pix.fill(Qt.GlobalColor.cyan)
+            combo.addItem(QIcon(pix), "AI")
+            dlg.show()
+            combo.showPopup()
+            self._app.processEvents()
+
+            # Render combo to find global x of icon
+            img_c = QImage(combo.size(), QImage.Format.Format_ARGB32)
+            img_c.fill(Qt.GlobalColor.black)
+            p = QPainter(img_c)
+            combo.render(p)
+            p.end()
+            c_xs = [
+                x
+                for x in range(img_c.width())
+                for y in range(img_c.height())
+                if img_c.pixelColor(x, y).blue() > 200
+                and img_c.pixelColor(x, y).red() < 50
+            ]
+            self.assertTrue(bool(c_xs), "Icon pixels not found in combo")
+            combo_icon_gx = combo.mapToGlobal(QPoint(0, 0)).x() + min(c_xs)
+
+            # Render popup to find global x of icon
+            popup = combo._popup
+            img_p = QImage(popup.size(), QImage.Format.Format_ARGB32)
+            img_p.fill(Qt.GlobalColor.black)
+            p = QPainter(img_p)
+            popup.render(p)
+            p.end()
+            p_xs = [
+                x
+                for x in range(img_p.width())
+                for y in range(32)
+                if img_p.pixelColor(x, y).blue() > 200
+                and img_p.pixelColor(x, y).red() < 50
+            ]
+            self.assertTrue(bool(p_xs), "Icon pixels not found in popup")
+            popup_icon_gx = popup.mapToGlobal(QPoint(0, 0)).x() + min(p_xs)
+
+            self.assertEqual(
+                combo_icon_gx,
+                popup_icon_gx,
+                f"Combo icon ({combo_icon_gx}) and popup icon ({popup_icon_gx}) horizontal alignment mismatch",
+            )
+        finally:
+            dlg.close()
+
 
 if __name__ == "__main__":
     unittest.main()

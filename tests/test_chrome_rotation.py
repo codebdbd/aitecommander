@@ -228,13 +228,13 @@ def test_rotation_mixin_toggled():
     # Toggle ON
     handler._on_rotation_toggled(True)
     profile_btn.setEnabled.assert_called_with(False)
-    rotation_btn.setVisible.assert_called_with(True)
+    rotation_btn.setEnabled.assert_called_with(True)
     assert dialog.selected_profiles == []
 
     # Toggle OFF
     handler._on_rotation_toggled(False)
     profile_btn.setEnabled.assert_called_with(True)
-    rotation_btn.setVisible.assert_called_with(False)
+    rotation_btn.setEnabled.assert_called_with(False)
     assert dialog.rotation_profiles == []
 
 
@@ -315,7 +315,7 @@ def test_load_rotation_state_in_dialog():
     assert dialog.rotation_profiles == profiles
     rotation_chk.setChecked.assert_called_with(True)
     profile_btn.setEnabled.assert_called_with(False)
-    rotation_btn.setVisible.assert_called_with(True)
+    rotation_btn.setEnabled.assert_called_with(True)
 
 
 def test_type_change_mixin_hides_rotation_when_not_web():
@@ -350,12 +350,15 @@ def test_type_change_mixin_hides_rotation_when_not_web():
     rotation_chk.setChecked.assert_called_with(False)
 
 
-def test_button_counters_and_tooltips():
+def test_button_counters_and_tooltips(monkeypatch):
     """Verify that both top profile button and rotation button use count badges and detailed tooltips."""
+    import app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin as rot_mod
     from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
         RotationMixin,
     )
     from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
+
+    monkeypatch.setattr(rot_mod, "_tr", lambda text, *a, **kw: text)
 
     dialog = Mock(spec=LinkDialog)
     dialog.tr = lambda s: s

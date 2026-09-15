@@ -153,6 +153,48 @@ class LinkInfo:
             }
             link_type = type_mapping.get(link_type_str, LinkType.WEB)
 
+        raw_path = link_dict.get("url") or link_dict.get("path", "")
+
+        # Sanity-correct link_type based on actual path content (migration & consistency guard).
+        # Older DB records or manual edits can store wrong link_type for special Windows paths.
+        if raw_path:
+            path_lower = str(raw_path).lower()
+            windows_special = False
+            if (
+                "!" in raw_path
+                and "." in raw_path
+                and " " not in raw_path
+                and "\\" not in raw_path
+                and "/" not in raw_path
+            ):
+                windows_special = True
+            if path_lower.startswith("shell:appsfolder\\"):
+                windows_special = True
+
+            if windows_special and link_type != LinkType.PROGRAM:
+                logger.warning(
+                    "LinkInfo autocorrect: id=%s type=%s → PROGRAM for path=%s",
+                    link_dict.get("id"),
+                    link_type.value,
+                    raw_path,
+                )
+                link_type = LinkType.PROGRAM
+
+            # Promote obvious executables mistakenly stored as FILE
+            elif (
+                link_type in (LinkType.FILE, LinkType.FOLDER)
+                and Path(raw_path).exists()
+                and Path(raw_path).is_file()
+                and Path(raw_path).suffix.lower() in (".exe", ".lnk", ".msi", ".app")
+            ):
+                logger.warning(
+                    "LinkInfo autocorrect: id=%s type=%s → PROGRAM for executable path=%s",
+                    link_dict.get("id"),
+                    link_type.value,
+                    raw_path,
+                )
+                link_type = LinkType.PROGRAM
+
         # Extract browser_key: first from field, then from args
         browser_key_from_field = link_dict.get("browser_key")
         browser_key_from_args = cls._extract_browser_key_from_args(
@@ -163,7 +205,7 @@ class LinkInfo:
         return cls(
             id=link_dict.get("id"),
             link_type=link_type,
-            path=link_dict.get("url") or link_dict.get("path", ""),
+            path=raw_path,
             args=link_dict.get("args", ""),
             category_id=link_dict.get("category_id"),
             browser_key=browser_key,
@@ -256,9 +298,18 @@ class SecurityValidator:
         if not path:
             return False
 
-        if platform.system() == "Windows" and path.lower().startswith("shell:appsfolder\\"):
-            forbidden = {"|", ";", ">", "<", "`", "$", "\r", "\n", "\0", "&"}
-            return not any(char in path for char in forbidden)
+        path_lower = path.lower()
+
+        # Windows shell:appsfolder\ paths and bare AppUserModelID (UWP / Store apps).
+        # AUMID format: Publisher.PackageName!AppId (e.g. OpenAI.Codex_abc!App)
+        if platform.system() == "Windows":
+            aumid_like = (
+                path_lower.startswith("shell:appsfolder\\")
+                or ("!" in path and "." in path and " " not in path and "\\" not in path and "/" not in path)
+            )
+            if aumid_like:
+                forbidden = {"|", ";", ">", "<", "`", "$", "\r", "\n", "\0", "&"}
+                return not any(char in path for char in forbidden)
 
         # Check for dangerous characters (except allowed for paths)
         dangerous_for_paths = cls.DANGEROUS_CHARS - {"(", ")"}
@@ -885,6 +936,28 @@ class ProgramLinkHandler(LinkHandler):
                 self.logger.error("Failed to launch shell app %s: %s", link_info.path, e)
                 raise
 
+        # Bare AppUserModelID (UWP / Store App): Publisher.PackageName!AppId
+        if (
+            platform.system() == "Windows"
+            and "!" in link_info.path
+            and "." in link_info.path
+            and " " not in link_info.path
+            and "\\" not in link_info.path
+            and "/" not in link_info.path
+        ):
+            shell_path = f"shell:appsfolder\\{link_info.path}"
+            try:
+                os.startfile(shell_path)
+                self.logger.info(
+                    "Successfully launched AUMID app: %s via %s",
+                    link_info.path,
+                    shell_path,
+                )
+                return
+            except OSError as e:
+                self.logger.error("Failed to launch AUMID %s: %s", link_info.path, e)
+                raise
+
         if not Path(link_info.path).exists():
             raise FileNotFoundError(f"Program not found: {link_info.path}")
 
@@ -992,15 +1065,62 @@ class LinkOpener:
         if not isinstance(link_info.link_type, LinkType):
             raise ValueError(f"Incorrect link type: {link_info.link_type}")
 
+        # Defense-in-depth: auto-correct link_type for known virtual/WIndows paths.
+        # If the actual path content clearly indicates a different type (e.g. AUMID stored as FILE),
+        # override for routing only to avoid FileNotFoundError on non-existent virtual paths.
+        effective_type = link_info.link_type
+        try:
+            detected = get_link_type_from_path(link_info.path)
+            # Promote AUMID / shell:appsfolder to PROGRAM regardless of stored type.
+            if detected == LinkType.PROGRAM and (
+                "!" in link_info.path
+                or link_info.path.lower().startswith("shell:appsfolder\\")
+            ):
+                if effective_type != LinkType.PROGRAM:
+                    self.logger.warning(
+                        "Link type autocorrect: id=%s stored_type=%s path=%s → routing as PROGRAM",
+                        link_info.id,
+                        effective_type.value,
+                        link_info.path,
+                    )
+                    effective_type = LinkType.PROGRAM
+            # Promote .exe/.lnk/.msi stored as FILE to PROGRAM (common migration artifact)
+            elif (
+                detected == LinkType.PROGRAM
+                and effective_type in (LinkType.FILE, LinkType.FOLDER)
+                and Path(link_info.path).exists()
+            ):
+                if Path(link_info.path).suffix.lower() in (".exe", ".lnk", ".msi", ".app"):
+                    self.logger.warning(
+                        "Link type autocorrect: id=%s stored_type=%s path=%s → routing as PROGRAM",
+                        link_info.id,
+                        effective_type.value,
+                        link_info.path,
+                    )
+                    effective_type = LinkType.PROGRAM
+        except Exception as e:
+            self.logger.debug("Link type autocorrect skipped: %s", e)
+
+        # Build a temporary LinkInfo copy with effective_type for handler selection.
+        # Keep original link_type untouched for logging / caller-visible state.
+        if effective_type is not link_info.link_type:
+            from dataclasses import replace
+            routing_info = replace(link_info, link_type=effective_type)
+        else:
+            routing_info = link_info
+
         self.logger.debug(
-            "Opening link: %s - %s", link_info.link_type.value, link_info.path
+            "Opening link: %s - %s (effective type: %s)",
+            link_info.link_type.value,
+            link_info.path,
+            effective_type.value,
         )
 
         # Find suitable handler
         for handler in self.handlers:
-            if handler.can_handle(link_info):
+            if handler.can_handle(routing_info):
                 try:
-                    handler.open(link_info)
+                    handler.open(routing_info)
                     return
                 except Exception as e:
                     self.logger.error(
@@ -1009,7 +1129,7 @@ class LinkOpener:
                     raise
 
         # If handler not found
-        raise ValueError(f"Unsupported link type: {link_info.link_type}")
+        raise ValueError(f"Unsupported link type: {effective_type}")
 
 
 # Утилитарные функции для удобства использования (обратная совместимость)
@@ -1090,6 +1210,21 @@ def get_link_type_from_path(path: str) -> LinkType:
     # Web links
     if path_lower.startswith(("http://", "https://", "ftp://")):
         return LinkType.WEB
+
+    # Windows UWP / Store AppUserModelID: Publisher.PackageName!AppId
+    if (
+        platform.system() == "Windows"
+        and "!" in path
+        and "." in path
+        and " " not in path
+        and "\\" not in path
+        and "/" not in path
+    ):
+        return LinkType.PROGRAM
+
+    # Windows shell:appsfolder\ virtual paths
+    if platform.system() == "Windows" and path_lower.startswith("shell:appsfolder\\"):
+        return LinkType.PROGRAM
 
     # File paths
     if Path(path).exists():
