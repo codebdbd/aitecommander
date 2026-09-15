@@ -16,6 +16,7 @@ from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
+from app.config_data.runtime_config import get_thread_pool_shutdown_timeout
 from app.controllers.system.db_init import DatabaseInitializer
 from app.core.constants import AppConstants
 from app.core.database_manager import DatabaseManager
@@ -673,7 +674,7 @@ def run(options: StartupOptions | None = None) -> int:
             except Exception as exc:
                 logger.warning("SingleInstanceGuard close failed: %s", exc)
         try:
-            WorkerManager.shutdown(timeout_ms=2000)
+            WorkerManager.shutdown(timeout_ms=get_thread_pool_shutdown_timeout())
         except Exception as exc:
             logger.warning("WorkerManager shutdown failed: %s", exc)
         try:
@@ -702,6 +703,12 @@ def run(options: StartupOptions | None = None) -> int:
             except Exception:
                 pass
             if sys.platform == "win32":
+                try:
+                    import pythoncom
+
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
                 try:
                     import ctypes
 

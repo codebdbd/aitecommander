@@ -117,7 +117,7 @@ class TableDelegate(QStyledItemDelegate):
     def _apply_column_font_size(self, opt, col):
         """Apply font size for specific column."""
         try:
-            if col == 0:
+            if col in (0, 1):
                 view = self.parent() if hasattr(self, "parent") else None
                 if view is not None and hasattr(view, "horizontalHeader"):
                     header = view.horizontalHeader()
@@ -127,9 +127,9 @@ class TableDelegate(QStyledItemDelegate):
 
             val = self.col_sizes.get(col)
             if val is None:
-                if col == 2:
+                if col == 3:
                     val = self.col_opened_px
-                elif col == 3:
+                elif col == 4:
                     val = self.col_notes_px
             if val and int(val) > 0:
                 f = opt.font
@@ -179,12 +179,12 @@ class TableDelegate(QStyledItemDelegate):
         col = index.column()
         self._apply_column_font_size(opt, col)
 
-        if col == 2:
+        if col == 3:
             self._apply_column_color(opt, col, "openedColColor")
-        elif col == 3:
+        elif col == 4:
             self._apply_column_color(opt, col, "notesColColor")
 
-        if col == 1:
+        if col == 2:
             self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
@@ -355,8 +355,13 @@ class LinksTableView(
         col_widths = app_config.ui.get_col_widths()
         try:
             self.setColumnWidth(0, col_widths[0])
+            self.setColumnWidth(1, col_widths[1])
+            self.setColumnWidth(2, col_widths[2])
+            self.setColumnWidth(3, col_widths[3])
         except Exception:
-            pass
+            logger.debug(
+                "LinksTableView: failed to set column widths", exc_info=True
+            )
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
@@ -365,37 +370,31 @@ class LinksTableView(
         header.setStretchLastSection(True)
         try:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         except Exception:
             logger.debug(
-                "LinksTableView: failed to set resize mode for column 0", exc_info=True
+                "LinksTableView: failed to set resize mode for column 0 and 1", exc_info=True
             )
+        # Column 3 ("Opened") resize mode is driven by config
         try:
-            self.setColumnWidth(1, col_widths[1])
-            self.setColumnWidth(2, col_widths[2])
-        except Exception:
-            logger.debug(
-                "LinksTableView: failed to set column widths for 1/2", exc_info=True
-            )
-        # Column 2 ("Opened") resize mode is driven by config
-        try:
-            col2_mode = str(
+            col3_mode = str(
                 app_config.ui.get("ui.links_table_col2_mode", "fixed")
             ).lower()
         except Exception:
-            col2_mode = "fixed"
+            col3_mode = "fixed"
         try:
-            if col2_mode in ("fixed", "f"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-            elif col2_mode in ("interactive", "i"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-            elif col2_mode in ("contents", "content", "auto", "resizetocontents"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+            if col3_mode in ("fixed", "f"):
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+            elif col3_mode in ("interactive", "i"):
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+            elif col3_mode in ("contents", "content", "auto", "resizetocontents"):
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
             else:
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         except Exception:
             # Fallback to Fixed
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(True)
         initial_col, initial_order = self._load_initial_sort()

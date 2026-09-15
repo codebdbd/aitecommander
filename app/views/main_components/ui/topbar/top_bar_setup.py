@@ -224,6 +224,7 @@ class TopBarBuilder:
 
         # Add separator before search
         try:
+            top_bar.addSpacing(4)
             top_bar.addWidget(self.ui._create_vertical_separator())
             top_bar.addSpacing(4)
         except Exception:
@@ -297,7 +298,7 @@ class TopBarBuilder:
         except Exception:
             logger.debug("TopPanel: failed to apply toolbar spacing stylesheet", exc_info=True)
         try:
-            toolbar.setContentsMargins(0, 0, 0, 0)
+            toolbar.setContentsMargins(0, 0, effective_spacing, 0)
         except Exception:
             logger.debug("TopPanel: failed to set toolbar right margin", exc_info=True)
 

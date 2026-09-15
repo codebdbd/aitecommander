@@ -222,6 +222,7 @@ class StructureTreeModel(QAbstractItemModel):
 
     icon_loaded = pyqtSignal(object, QIcon, name="iconLoaded")
     icon_failed = pyqtSignal(object, str, name="iconFailed")
+    _CLEANUP_TIMEOUT_MS = 300
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -1383,7 +1384,7 @@ class StructureTreeModel(QAbstractItemModel):
         """Останавливает все активные задачи загрузки иконок.
         
         Используется при закрытии окна или удалении модели.
-        Ожидает завершения всех активных задач (максимум 5 секунд).
+        Ожидает завершения активных задач с коротким таймаутом.
         """
         self._shutdown = True
         with self._active_icon_lock:
@@ -1391,7 +1392,11 @@ class StructureTreeModel(QAbstractItemModel):
             self._icon_waiters_by_path.clear()
 
         if self._thread_pool:
-            self._thread_pool.waitForDone(5000)
+            try:
+                self._thread_pool.clear()
+            except Exception:
+                pass
+            self._thread_pool.waitForDone(self._CLEANUP_TIMEOUT_MS)
 
     def index_for(self, item_type: str, item_id: int) -> QModelIndex:
         """Возвращает QModelIndex для элемента по его типу и ID.

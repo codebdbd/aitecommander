@@ -178,6 +178,10 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Create a new category."""
         self._require_facade().add_new_category()
 
+    def launch_marked_links(self) -> None:
+        """Launch all marked links in the current category."""
+        self._require_facade().launch_marked_links()
+
     def reload_structure(self) -> None:
         """Reload the entire structure tree."""
         self._require_facade().reload_structure()

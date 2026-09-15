@@ -343,11 +343,12 @@ class TaskScheduler(QObject):
         logger.info("All scheduled operations cleared")
 
     def _on_app_about_to_quit(self) -> None:
-        """Flush timers and wait for background tasks before exit."""
+        """Flush timers and clear pending operations before exit.
+
+        Thread pool waiting is handled centrally by AppShutdownController.
+        """
         try:
             self.clear_all_operations()
-            if self.thread_pool:
-                self.thread_pool.waitForDone(3000)
         except Exception as exc:
             logger.warning("TaskScheduler: shutdown cleanup failed: %s", exc)
 

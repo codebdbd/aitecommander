@@ -248,22 +248,7 @@ class _AutoHideTreeFilter(QObject):
             self._logger.debug("AutoHideTree: failed to switch to table", exc_info=True)
 
     def _hide_topbar_panels(self) -> None:
-        if not self._manage_topbar_panels:
-            return
-        toolbar = getattr(self.window, "top_bar_toolbar", None)
-        if toolbar is not None:
-            try:
-                toolbar.setVisible(False)
-            except (AttributeError, RuntimeError):
-                self._logger.debug("AutoHideTree: failed to hide top bar toolbar", exc_info=True)
-            return
-        for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-            try:
-                panel = getattr(self.window, attr, None)
-                if panel is not None:
-                    panel.setVisible(False)
-            except (AttributeError, RuntimeError):
-                self._logger.debug(f"AutoHideTree: failed to hide panel '{attr}'", exc_info=True)
+        pass
 
     def _restore_splitter(self, splitter) -> None:
         if splitter is None:
@@ -278,22 +263,7 @@ class _AutoHideTreeFilter(QObject):
             self._logger.debug("AutoHideTree: failed to restore splitter", exc_info=True)
 
     def _show_topbar_panels(self) -> None:
-        if not self._manage_topbar_panels:
-            return
-        toolbar = getattr(self.window, "top_bar_toolbar", None)
-        if toolbar is not None:
-            try:
-                toolbar.setVisible(True)
-            except (AttributeError, RuntimeError):
-                self._logger.debug("AutoHideTree: failed to show top bar toolbar", exc_info=True)
-            return
-        for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-            try:
-                panel = getattr(self.window, attr, None)
-                if panel is not None:
-                    panel.setVisible(True)
-            except (AttributeError, RuntimeError):
-                self._logger.debug(f"AutoHideTree: failed to show panel '{attr}'", exc_info=True)
+        pass
 
     def _restore_stack_index(self, stack) -> None:
         if stack is None or self._saved_state is None or self._saved_state.stack_index is None:
@@ -328,9 +298,11 @@ class _AutoHideTreeFilter(QObject):
         except (AttributeError, RuntimeError):
             return
 
-        if w <= self.threshold:
+        exit_threshold = self.threshold + 60
+
+        if w <= self.threshold and not self._is_collapsed:
             self._handle_narrow_window(splitter, stack, table, w)
-        elif w > self.threshold and self._is_collapsed:
+        elif w >= exit_threshold and self._is_collapsed:
             self._handle_wide_window(splitter, stack)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
@@ -522,22 +494,8 @@ class WindowUISetup:
     def _init_and_schedule_topbar_manager(self) -> None:
         if self._uses_toolbar_topbar():
             self.window._topbar_manager = None
-            try:
-                if hasattr(self.window, "shown"):
-                    self.window.shown.connect(
-                        partial(self._schedule_topbar_initialization, None)
-                    )
-                else:
-                    QTimer.singleShot(
-                        UIConstants.IMMEDIATE_TIMER,
-                        partial(self._schedule_topbar_initialization, None),
-                    )
-            except Exception:
-                logger.debug(
-                    "TopPanel: failed to schedule toolbar initialization",
-                    exc_info=True,
-                )
             return
+
         try:
             self.window._topbar_manager = TopBarLayoutManager(self.window)
             self._register_topbar_cleanup(self.window._topbar_manager)
