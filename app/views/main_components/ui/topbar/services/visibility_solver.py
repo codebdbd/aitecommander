@@ -18,9 +18,7 @@ class VisibilitySolver:
         self._use_binary_search = use_binary_search
 
     def compute_visible_counts(self, ctx: LayoutContext) -> dict[str, int]:
-        if self._use_binary_search:
-            return self._compute_with_binary_search(ctx)
-        return self._compute_greedy(ctx)
+        return {state.definition.label: state.max_visible for state in ctx.panel_states}
 
     def _compute_greedy(self, ctx: LayoutContext) -> dict[str, int]:
         panel_states = list(ctx.panel_states)

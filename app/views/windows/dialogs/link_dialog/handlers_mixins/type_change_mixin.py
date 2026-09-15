@@ -108,9 +108,8 @@ class TypeChangeMixin:
                 if not is_web:
                     rotation_chk.setChecked(False)
             if rotation_btn is not None:
-                rotation_btn.setVisible(
-                    is_web and rotation_chk is not None and rotation_chk.isChecked()
-                )
+                rotation_btn.setVisible(is_web and not has_profiles)
+                rotation_btn.setEnabled(rotation_chk is not None and rotation_chk.isChecked())
         except (AttributeError, RuntimeError):
             pass
 

@@ -36,7 +36,7 @@ class RotationMixin:
         if checked:
             profile_btn.setEnabled(False)
             if rotation_btn is not None:
-                rotation_btn.setVisible(True)
+                rotation_btn.setEnabled(True)
                 self._update_rotation_btn_text(rotation_btn, self.dialog.rotation_profiles, self.dialog)
             # Clear regular profiles — rotation takes over
             self.dialog.selected_profiles = []
@@ -51,7 +51,7 @@ class RotationMixin:
             if hasattr(self.dialog, "_update_profile_button_state"):
                 self.dialog._update_profile_button_state()
             if rotation_btn is not None:
-                rotation_btn.setVisible(False)
+                rotation_btn.setEnabled(False)
                 self._update_rotation_btn_text(rotation_btn, [], self.dialog)
             # Clear rotation profiles
             self.dialog.rotation_profiles = []

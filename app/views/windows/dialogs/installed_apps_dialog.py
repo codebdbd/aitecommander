@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
+from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QFileInfo, QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
@@ -270,22 +271,44 @@ class InstalledAppsDialog(BaseDialog):
     def _stop_loader_thread(self, timeout_ms: int = 1500) -> None:
         """Cooperatively cancel and disconnect the background loader thread."""
         thread = getattr(self, "loader_thread", None)
-        if thread is not None:
-            # Disconnect signals so finishing thread does not touch destroyed UI
-            try:
-                thread.apps_ready.disconnect(self._on_apps_loaded)
-            except Exception:
-                pass
-            try:
-                thread.icon_ready.disconnect(self._on_icon_loaded)
-            except Exception:
-                pass
-            try:
-                thread.all_done.disconnect(self._on_loading_done)
-            except Exception:
-                pass
+        if thread is None:
+            return
 
-            if thread.isRunning():
+        # PyQt6: guard against already-destroyed C++ QThread object.
+        # Use sip.isdeleted with a RuntimeError fallback to be robust across bindings.
+        def _alive(qobj) -> bool:
+            try:
+                return not sip.isdeleted(qobj)
+            except Exception:
+                try:
+                    qobj.objectName()
+                    return True
+                except RuntimeError:
+                    return False
+
+        if not _alive(thread):
+            self.loader_thread = None
+            return
+
+        # Disconnect signals so finishing thread does not touch destroyed UI
+        try:
+            if _alive(thread):
+                thread.apps_ready.disconnect(self._on_apps_loaded)
+        except Exception:
+            pass
+        try:
+            if _alive(thread):
+                thread.icon_ready.disconnect(self._on_icon_loaded)
+        except Exception:
+            pass
+        try:
+            if _alive(thread):
+                thread.all_done.disconnect(self._on_loading_done)
+        except Exception:
+            pass
+
+        try:
+            if _alive(thread) and thread.isRunning():
                 thread.cancel()
                 thread.quit()
                 if not thread.wait(timeout_ms):
@@ -293,6 +316,12 @@ class InstalledAppsDialog(BaseDialog):
                         "Installed apps loader thread did not terminate within %d ms; running asynchronously until completion",
                         timeout_ms,
                     )
+        except RuntimeError as e:
+            logger.debug("Loader thread already destroyed while stopping: %s", e)
+
+        # Drop the Python reference so repeated calls (reject/closeEvent/accept)
+        # never touch a possibly-deleted C++ object.
+        self.loader_thread = None
 
     def accept(self) -> None:
         self._stop_loader_thread()

@@ -489,7 +489,7 @@ class LinkDialog(BaseDialog):
             rotation_chk.setChecked(True)
             profile_btn.setEnabled(False)
             if rotation_btn is not None:
-                rotation_btn.setVisible(True)
+                rotation_btn.setEnabled(True)
                 from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
                     RotationMixin,
                 )
