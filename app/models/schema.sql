@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS link (
     type         TEXT    NOT NULL CHECK(type IN ('web','file','program','script','folder')),
     notes        TEXT    DEFAULT '',
     is_favorite  INTEGER NOT NULL CHECK(is_favorite IN (0,1)) DEFAULT 0,
+    is_group_launch INTEGER NOT NULL DEFAULT 0,
     last_used    TEXT    DEFAULT NULL,
     icon_path    TEXT    NOT NULL DEFAULT '',
     args         TEXT    DEFAULT '',

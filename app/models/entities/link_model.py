@@ -28,6 +28,7 @@ ALLOWED_LINK_COLUMNS = {
     "type",
     "notes",
     "is_favorite",
+    "is_group_launch",
     "last_used",
     "icon_path",
     "args",
@@ -68,6 +69,7 @@ class LinkModel(DatabaseBase):
                     "type",
                     "notes",
                     "is_favorite",
+                    "is_group_launch",
                     "last_used",
                     "icon_path",
                     "args",
@@ -137,7 +139,7 @@ class LinkModel(DatabaseBase):
         result: dict[int, list[dict[str, Any]]] = {cid: [] for cid in ids}
         select_clause = (
             "SELECT id, category_id, name, url, type, notes, "
-            "is_favorite, last_used, icon_path, args, browser_key, position, "
+            "is_favorite, is_group_launch, last_used, icon_path, args, browser_key, position, "
             "chrome_rotation, rotation_index, rotation_profiles "
             "FROM link WHERE category_id IN ({placeholders}) "
             "ORDER BY category_id, position"
@@ -239,6 +241,7 @@ class LinkModel(DatabaseBase):
             "type",
             "notes",
             "is_favorite",
+            "is_group_launch",
             "last_used",
             "icon_path",
             "args",
@@ -251,6 +254,7 @@ class LinkModel(DatabaseBase):
 
         data = {field: link.get(field) for field in all_possible_fields}
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+        data["is_group_launch"] = int(data.get("is_group_launch", 0) or 0)
         data["chrome_rotation"] = int(data.get("chrome_rotation", 0) or 0)
         data["rotation_index"] = int(data.get("rotation_index", 0) or 0)
         data["rotation_profiles"] = (
@@ -732,7 +736,7 @@ class LinkModel(DatabaseBase):
 
         all_fields = [
             "id", "category_id", "name", "url", "type", "notes",
-            "is_favorite", "last_used", "icon_path", "args", "position", "browser_key",
+            "is_favorite", "is_group_launch", "last_used", "icon_path", "args", "position", "browser_key",
             "chrome_rotation", "rotation_index", "rotation_profiles",
         ]
 

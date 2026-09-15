@@ -31,7 +31,7 @@ from app.views.main_components.common.resource_manager import ResourceManager
 
 logger = logging.getLogger(__name__)
 
-THREAD_POOL_SHUTDOWN_TIMEOUT_MS = 1000
+THREAD_POOL_SHUTDOWN_TIMEOUT_MS = 300
 
 T = TypeVar("T")
 
@@ -360,6 +360,11 @@ class ApplicationInitializer:
             self._resource_manager.cleanup_all()
 
             if self.thread_pool and hasattr(self.thread_pool, "waitForDone"):
+                if hasattr(self.thread_pool, "clear"):
+                    try:
+                        self.thread_pool.clear()
+                    except Exception:
+                        pass
                 active_count = getattr(
                     self.thread_pool, "activeThreadCount", lambda: 0
                 )()

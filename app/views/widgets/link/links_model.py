@@ -75,7 +75,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = ["♥"] + [self._tr(text) for text in _HEADER_TRANSLATABLE]
+        self._headers = ["☑", "♥"] + [self._tr(text) for text in _HEADER_TRANSLATABLE]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -100,12 +100,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     def _get_display_data(self, col, link):
         """Get display data for column."""
         if col == 0:
-            return self._star_display_text(bool(link.get("is_favorite")))
+            return None
         if col == 1:
-            return self._name_display_text(link, mode="normal")
+            return self._star_display_text(bool(link.get("is_favorite")))
         if col == 2:
-            return self._last_used_display_text(link.get("last_used"))
+            return self._name_display_text(link, mode="normal")
         if col == 3:
+            return self._last_used_display_text(link.get("last_used"))
+        if col == 4:
             display, _ = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )
@@ -114,7 +116,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_decoration_data(self, col, link):
         """Get decoration data for column."""
-        if col == 1:
+        if col == 2:
             try:
                 resolved_path = resolve_icon_for_link(link)
                 if resolved_path:
@@ -125,11 +127,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_tooltip_data(self, col, link):
         """Get tooltip data for column."""
-        if col == 1:
+        if col == 2:
             tip = self._name_tooltip(link)
             if tip:
                 return tip
-        if col == 3:
+        if col == 4:
             _, tip = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )
@@ -139,7 +141,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_alignment_data(self, col):
         """Get alignment data for column."""
-        if col in (0, 2):
+        if col in (0, 1, 3):
             return int(Qt.AlignmentFlag.AlignCenter)
         return None
 
@@ -157,6 +159,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         if role == Qt.ItemDataRole.UserRole:
             return link
+
+        if role == Qt.ItemDataRole.CheckStateRole:
+            if col == 0:
+                return Qt.CheckState.Checked if bool(link.get("is_group_launch")) else Qt.CheckState.Unchecked
+            return None
 
         if role == Qt.ItemDataRole.DisplayRole:
             result = self._get_display_data(col, link)
@@ -195,12 +202,15 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # By default the table is not editable via delegates
-        return (
+        base_flags = (
             Qt.ItemFlag.ItemIsSelectable
             | Qt.ItemFlag.ItemIsEnabled
             | Qt.ItemFlag.ItemIsDragEnabled
             | Qt.ItemFlag.ItemIsDropEnabled
         )
+        if index.column() == 0:
+            base_flags |= Qt.ItemFlag.ItemIsUserCheckable
+        return base_flags
 
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
@@ -237,15 +247,25 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 )
                 return True
 
-            if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
+            if role == Qt.ItemDataRole.CheckStateRole:
                 if col == 0:
+                    checked = (value == Qt.CheckState.Checked.value) or (value == Qt.CheckState.Checked)
+                    link["is_group_launch"] = 1 if checked else 0
+                    self.dataChanged.emit(index, index, [role])
+                    # Ensure DB gets updated here! Oh wait, model only stores memory.
+                    # We need to trigger a database update. The UI Controller usually listens to dataChanged.
+                    return True
+                return False
+
+            if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
+                if col == 1:
                     link["is_favorite"] = bool(value)
-                elif col == 1:
-                    link["name"] = str(value)
                 elif col == 2:
+                    link["name"] = str(value)
+                elif col == 3:
                     # Store as-is; sort() performs normalization for ordering
                     link["last_used"] = value
-                elif col == 3:
+                elif col == 4:
                     link["notes"] = str(value)
                 else:
                     return False
@@ -433,17 +453,19 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
         def key_for(link: dict[str, Any]) -> Any:
             if column == 0:
+                return 1 if bool(link.get("is_group_launch", False)) else 0
+            if column == 1:
                 # Cast to int for comparison to avoid mixing types
                 return 1 if bool(link.get("is_favorite", False)) else 0
-            if column == 1:
-                return str(link.get("name", "")).casefold()
             if column == 2:
+                return str(link.get("name", "")).casefold()
+            if column == 3:
                 last_used = link.get("last_used")
                 if last_used in (None, ""):
                     # Never opened: keep alphabetical order within this bucket
                     return (0, str(link.get("name", "")).casefold())
                 return (1, normalize_last_used(last_used))
-            if column == 3:
+            if column == 4:
                 return str(link.get("notes", "")).casefold()
             # Unknown column - sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")

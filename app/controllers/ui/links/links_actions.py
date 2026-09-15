@@ -53,6 +53,10 @@ class LinksActions:
         if self.links and hasattr(self.links, "open_selected_links"):
             self.links.open_selected_links()
 
+    def launch_marked_links(self):
+        if self.links and hasattr(self.links, "launch_marked_links"):
+            self.links.launch_marked_links()
+
     def toggle_link_favorite(self, link: dict | None = None):
         if self.links:
             self.links.toggle_favorite(link)

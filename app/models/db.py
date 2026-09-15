@@ -710,7 +710,11 @@ class Database(QObject):
             if hasattr(self, "_thread_pool") and self._thread_pool:
                 try:
                     logger.debug("Waiting for thread pool to finish...")
-                    timeout_ms = app_config.get("threading.cleanup_timeout_ms", 5000)
+                    try:
+                        self._thread_pool.clear()
+                    except Exception:
+                        pass
+                    timeout_ms = app_config.get("threading.cleanup_timeout_ms", 300)
                     if not self._thread_pool.waitForDone(timeout_ms):
                         logger.warning(
                             "Thread pool did not finish within %dms timeout, some workers may still be running. Active threads: %d",

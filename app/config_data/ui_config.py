@@ -24,6 +24,12 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "shortcut": "F4",
     },
     {
+        "id": "launch_marked",
+        "handler": "launch_marked_links",
+        "shortcut": "F5",
+        "label": "Запустить отмеченные            F5",
+    },
+    {
         "id": "add_link",
         "handler": "show_link_dialog",
         "shortcut": "F1",
@@ -172,7 +178,7 @@ class UIConfig(BaseConfig):
 
     def get_col_widths(self) -> list:
         """Return the column widths for the links table."""
-        return self.get("ui.col_widths", [40, 400, 130])
+        return self.get("ui.col_widths", [30, 40, 400, 130])
 
     def get_max_favorites(self) -> int:
         """Return the maximum number of favorites."""
@@ -460,7 +466,7 @@ class UIConfig(BaseConfig):
 
     def get_thread_pool_shutdown_timeout(self) -> int:
         """Return the thread pool shutdown timeout."""
-        return self.get("ui.thread_pool_shutdown_timeout", 2000)
+        return self.get("ui.thread_pool_shutdown_timeout", 300)
 
     # === Structure reload timing ===
 
@@ -700,7 +706,7 @@ class UIConfig(BaseConfig):
         """Return the column indexes for the links table."""
         return self.get(
             "ui.links_table_columns",
-            {"favorite": 0, "name": 1, "last_used": 2, "notes": 3},
+            {"group_launch": 0, "favorite": 1, "name": 2, "last_used": 3, "notes": 4},
         )
 
     def get_links_table_messages(self) -> dict[str, str]:

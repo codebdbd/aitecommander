@@ -364,18 +364,15 @@ class AppShutdownController:
             timeout=3000,
             critical=True,
         )
-        # 2) Thread pool waiting (strict, critical)
-        # Align handler timeout with ui.thread_pool_shutdown_timeout config, adding buffer
+        # 2) Thread pool waiting (non-critical, bounded by config)
         tp_timeout = get_thread_pool_shutdown_timeout()
-        handler_timeout = max(
-            tp_timeout + 1000, 3000
-        )  # small buffer to avoid false timeouts
+        handler_timeout = tp_timeout
         self.add_shutdown_handler(
             "thread_pools_wait",
             self._wait_for_thread_pools,
             ShutdownPriority.NORMAL,
             timeout=handler_timeout,
-            critical=True,
+            critical=False,
         )
         # 3) Persist UI snapshot for warm start
         self.add_shutdown_handler(
@@ -483,7 +480,7 @@ class AppShutdownController:
         return True
 
     def _wait_for_thread_pools(self, timeout_ms: int) -> bool:
-        """Wait for thread completion - improved version of original."""
+        """Wait for thread completion with bounded timeout and pre-cleared queues."""
         configured_timeout = get_thread_pool_shutdown_timeout()
         try:
             effective_timeout = min(
@@ -492,26 +489,26 @@ class AppShutdownController:
             )
         except Exception:
             effective_timeout = configured_timeout
-        # Split the budget between global and local pools so total wait is bounded.
-        timeout = max(100, effective_timeout // 2)
+        # Split budget between global and local pools
+        timeout = max(50, effective_timeout // 2)
 
         # Global thread pool
         try:
             pool = QThreadPool.globalInstance()
-            if pool and pool.activeThreadCount() > 0:
-                logger.debug(
-                    "Waiting for %s global threads to finish",
-                    pool.activeThreadCount(),
-                )
-                if not pool.waitForDone(timeout):
-                    logger.warning(
-                        "Global thread pool did not finish within timeout, forcing cleanup"
+            if pool:
+                try:
+                    pool.clear()
+                except Exception:
+                    pass
+                if pool.activeThreadCount() > 0:
+                    logger.debug(
+                        "Waiting for %s global threads to finish",
+                        pool.activeThreadCount(),
                     )
-                    # Пытаемся форсированно завершить
-                    try:
-                        pool.clear()
-                    except Exception as clear_exc:
-                        logger.error("Error clearing global thread pool: %s", clear_exc)
+                    if not pool.waitForDone(timeout):
+                        logger.warning(
+                            "Global thread pool did not finish within timeout, forcing cleanup"
+                        )
         except Exception as exc:
             logger.error("Error waiting for global thread pool: %s", exc, exc_info=True)
 
@@ -519,21 +516,19 @@ class AppShutdownController:
         try:
             if hasattr(self.window, "thread_pool"):
                 local_pool = self.window.thread_pool
-                if local_pool and local_pool.activeThreadCount() > 0:
-                    logger.debug(
-                        "Waiting for %s local threads to finish",
-                        local_pool.activeThreadCount(),
-                    )
-                    if not local_pool.waitForDone(timeout):
-                        logger.warning(
-                            "Local thread pool did not finish within timeout, forcing cleanup"
+                if local_pool:
+                    try:
+                        local_pool.clear()
+                    except Exception:
+                        pass
+                    if local_pool.activeThreadCount() > 0:
+                        logger.debug(
+                            "Waiting for %s local threads to finish",
+                            local_pool.activeThreadCount(),
                         )
-                        try:
-                            local_pool.clear()
-                        except Exception as clear_exc:
-                            logger.error(
-                                "Error clearing local thread pool: %s",
-                                clear_exc,
+                        if not local_pool.waitForDone(timeout):
+                            logger.warning(
+                                "Local thread pool did not finish within timeout, forcing cleanup"
                             )
         except Exception as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
@@ -595,13 +590,7 @@ class AppShutdownController:
         return True
 
     def _backup_database(self, timeout_ms: int) -> bool:
-        """Create database backup in non-blocking mode.
-
-        During shutdown we must never block the GUI thread on long disk/DB work.
-        We start the backup asynchronously and then wait for the thread pool to
-        drain so the worker fully completes (including signal emissions) before
-        Qt objects are destroyed - otherwise Windows reports a crash.
-        """
+        """Create database backup during shutdown."""
         try:
             if not hasattr(self.window, "db"):
                 logger.debug("No 'db' attribute found on window, skipping backup")
@@ -612,43 +601,18 @@ class AppShutdownController:
                 logger.debug("Database instance is None, skipping backup")
                 return True
 
-            backup_async = getattr(db, "backup_async", None)
-            if callable(backup_async):
-                try:
-                    logger.info("Scheduling async database backup during shutdown")
-                    backup_async(
-                        on_finished=lambda _result: logger.debug(
-                            "Async shutdown backup completed"
-                        ),
-                        on_error=lambda exc, _tb: logger.warning(
-                            "Async shutdown backup failed: %s", exc
-                        ),
-                        on_progress=None,
-                    )
-                    # Wait for the backup thread to finish before returning so
-                    # that Qt objects are not destroyed while the worker is
-                    # still running and emitting signals.
-                    pool = QThreadPool.globalInstance()
-                    if pool is not None:
-                        wait_ms = max(100, timeout_ms)
-                        if not pool.waitForDone(wait_ms):
-                            logger.warning(
-                                "Thread pool did not drain within %d ms during backup shutdown",
-                                wait_ms,
-                            )
-                    return True
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to schedule async backup during shutdown: %s",
-                        exc,
-                        exc_info=True,
-                    )
-                    return True
+            if not hasattr(db, "backup"):
+                logger.debug("Database has no backup method")
+                return True
 
-            # Do not run synchronous backup in shutdown path to avoid UI hangs.
-            logger.debug(
-                "Database has no async backup API; skipping synchronous backup at shutdown"
-            )
+            backup_method = db.backup
+            if not callable(backup_method):
+                logger.debug("Database backup attribute is not callable")
+                return True
+
+            logger.info("Creating database backup...")
+            backup_method()
+            logger.info("Database backup created successfully")
             return True
 
         except Exception as exc:

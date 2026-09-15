@@ -12,6 +12,12 @@ if __name__ == "__main__":
         pass
     if sys.platform == "win32":
         try:
+            import pythoncom
+
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
+        try:
             import ctypes
 
             ctypes.windll.kernel32.ExitProcess(int(code))

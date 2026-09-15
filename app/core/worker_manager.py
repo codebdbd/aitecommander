@@ -93,4 +93,8 @@ class WorkerManager:
         pool = cls._pool
         if pool is None:
             return
+        try:
+            pool.clear()
+        except Exception:
+            pass
         pool.waitForDone(max(0, int(timeout_ms)))

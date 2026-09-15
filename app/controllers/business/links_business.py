@@ -66,7 +66,7 @@ class LinksBusinessLogic(QObject):
     """Business logic responsible for working with links."""
 
     # Constants
-    DEFAULT_SHUTDOWN_TIMEOUT = 2000
+    DEFAULT_SHUTDOWN_TIMEOUT = 300
     DEFAULT_RECENT_LIMIT = 10
     CACHE_TTL_SECONDS = 300  # 5 minutes TTL for cache
 
@@ -164,12 +164,17 @@ class LinksBusinessLogic(QObject):
             except TypeError:
                 pass  # Signal not connected
 
+            self._clear_pending_tasks()
             thread_pool = self.scheduler.get_thread_pool()
+            if hasattr(thread_pool, "clear"):
+                try:
+                    thread_pool.clear()
+                except Exception:
+                    pass
             active_threads = thread_pool.activeThreadCount()
             if active_threads > 0:
                 self.logger.debug("Waiting for %d active threads...", active_threads)
             thread_pool.waitForDone(timeout)
-            self._clear_pending_tasks()
             self._cache.clear()
             self.logger.debug("LinksBusinessLogic shutdown completed")
         except Exception as e:
