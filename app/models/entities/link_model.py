@@ -33,6 +33,9 @@ ALLOWED_LINK_COLUMNS = {
     "args",
     "browser_key",
     "position",
+    "chrome_rotation",
+    "rotation_index",
+    "rotation_profiles",
 }
 
 LINK_ALL_COLUMNS = ", ".join(sorted(ALLOWED_LINK_COLUMNS))
@@ -70,6 +73,9 @@ class LinkModel(DatabaseBase):
                     "args",
                     "browser_key",
                     "position",
+                    "chrome_rotation",
+                    "rotation_index",
+                    "rotation_profiles",
                 ]
                 use_fields_raw = list(fields or default_fields)
                 use_fields = [
@@ -131,7 +137,8 @@ class LinkModel(DatabaseBase):
         result: dict[int, list[dict[str, Any]]] = {cid: [] for cid in ids}
         select_clause = (
             "SELECT id, category_id, name, url, type, notes, "
-            "is_favorite, last_used, icon_path, args, browser_key, position "
+            "is_favorite, last_used, icon_path, args, browser_key, position, "
+            "chrome_rotation, rotation_index, rotation_profiles "
             "FROM link WHERE category_id IN ({placeholders}) "
             "ORDER BY category_id, position"
         )
@@ -237,10 +244,20 @@ class LinkModel(DatabaseBase):
             "args",
             "position",
             "browser_key",
+            "chrome_rotation",
+            "rotation_index",
+            "rotation_profiles",
         ]
 
         data = {field: link.get(field) for field in all_possible_fields}
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+        data["chrome_rotation"] = int(data.get("chrome_rotation", 0) or 0)
+        data["rotation_index"] = int(data.get("rotation_index", 0) or 0)
+        data["rotation_profiles"] = (
+            str(data["rotation_profiles"])
+            if data.get("rotation_profiles") is not None
+            else None
+        )
         data["icon_path"] = data.get("icon_path", "") or ""
         try:
             data["type"] = LinkType.from_value(data.get("type", "web")).value
@@ -407,6 +424,12 @@ class LinkModel(DatabaseBase):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._execute_with_error_handling(
             "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
+        )
+
+    def update_rotation_index(self, link_id: int, new_index: int) -> None:
+        """Update rotation index for link."""
+        self._execute_with_error_handling(
+            "UPDATE link SET rotation_index = ? WHERE id = ?", (new_index, link_id)
         )
 
     def count_favorites(self) -> int:
@@ -710,6 +733,7 @@ class LinkModel(DatabaseBase):
         all_fields = [
             "id", "category_id", "name", "url", "type", "notes",
             "is_favorite", "last_used", "icon_path", "args", "position", "browser_key",
+            "chrome_rotation", "rotation_index", "rotation_profiles",
         ]
 
         # Normalize and group by category

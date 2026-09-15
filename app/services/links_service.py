@@ -168,6 +168,11 @@ class LinksService:
         self.repo.update_link_last_used(link_id)
 
     @unit_of_work
+    def update_rotation_index(self, link_id: int, new_index: int) -> None:
+        self._validate_positive_int(link_id, "link_id")
+        self.repo.update_rotation_index(link_id, new_index)
+
+    @unit_of_work
     def clear_favorites(self) -> None:
         self.repo.clear_favorites()
 

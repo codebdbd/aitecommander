@@ -975,7 +975,7 @@ class UIConfig(BaseConfig):
 
     def get_table_item_height(self) -> int:
         """Return table view item height."""
-        return self.get("ui.table_item_height", 28)
+        return self.get("ui.table_item_height", 32)
 
     def get_separator_height(self) -> int:
         """Return separator widget height."""

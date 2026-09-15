@@ -47,14 +47,34 @@ except ImportError:
     pass
 
 from app.core.constants import AppConstants
-from app.core.error_handler import GlobalErrorHandler
-from app.startup.runtime import run
 
 APP_NAME = AppConstants.APP_NAME
 
 
+def _handle_early_cli_exit() -> int | None:
+    """Handle CLI-only flags before importing GUI/PyQt runtime modules."""
+    if not any(arg in {"--version", "-h", "--help"} for arg in sys.argv[1:]):
+        return None
+
+    from app.startup.argument_parser import parse_arguments
+
+    try:
+        parse_arguments()
+    except SystemExit as exc:
+        code = exc.code if isinstance(exc.code, int) else 0
+        return int(code)
+    return 0
+
+
 def main() -> int:
     """Run the Qt application."""
+    early_exit_code = _handle_early_cli_exit()
+    if early_exit_code is not None:
+        return early_exit_code
+
+    from app.core.error_handler import GlobalErrorHandler
+    from app.startup.runtime import run
+
     GlobalErrorHandler.install()
     return run()
 

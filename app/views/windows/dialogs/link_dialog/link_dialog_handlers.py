@@ -12,6 +12,7 @@ from .handlers_mixins.hierarchy_mixin import HierarchyMixin
 from .handlers_mixins.icons_mixin import IconsMixin
 from .handlers_mixins.link_processing_mixin import LinkProcessingMixin
 from .handlers_mixins.profiles_mixin import ProfilesMixin
+from .handlers_mixins.rotation_mixin import RotationMixin
 from .handlers_mixins.type_change_mixin import TypeChangeMixin
 from .handlers_mixins.validation_mixin import ValidationMixin
 from .link_dialog_signals import LinkDialogSignals
@@ -25,6 +26,7 @@ class LinkDialogHandlers(
     AppsPickerMixin,
     IconsMixin,
     ProfilesMixin,
+    RotationMixin,
     HierarchyMixin,
     FormDataMixin,
     ValidationMixin,
@@ -86,6 +88,14 @@ class LinkDialogHandlers(
             apps_btn.clicked.connect(self._on_apps_picker)
         self.dialog._get_profile_btn().clicked.connect(self._on_profile)
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
+
+        # Chrome rotation
+        rotation_chk = self.dialog._get_rotation_chk()
+        if rotation_chk is not None:
+            rotation_chk.toggled.connect(self._on_rotation_toggled)
+        rotation_btn = self.dialog._get_rotation_profiles_btn()
+        if rotation_btn is not None:
+            rotation_btn.clicked.connect(self._on_rotation_select_profiles)
 
         # Hierarchy combo boxes
         self.dialog._get_sphere_cb().currentIndexChanged.connect(self._update_sections)

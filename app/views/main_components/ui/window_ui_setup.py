@@ -1091,8 +1091,14 @@ class WindowUISetup:
                 continue
 
             w = it.widget()
-            is_spacer = it.spacerItem() is not None
-            stretch = 1 if (w is search_widget or is_spacer) else 0
+            is_search = (
+                w is not None
+                and (
+                    w is search_widget
+                    or w.objectName() in ("mainSearch", "mainSearchPlaceholder")
+                )
+            )
+            stretch = 1 if is_search else 0
             try:
                 top_bar.setStretch(i, stretch)
             except Exception:

@@ -255,3 +255,98 @@ def test_stale_url_does_not_overwrite_icon(tmp_path: Path) -> None:
         )
 
     links.create_or_update_link.assert_not_called()
+
+
+def test_enqueue_batch_filters_and_limits() -> None:
+    main = _MainWindow()
+    service = LinkIconEnrichmentService(main)
+    scheduler = Mock()
+
+    def _mock_can_replace(link: dict) -> bool:
+        # Link 101 and 102 need replacement, link 103 already has custom icon
+        return link.get("id") in {101, 102}
+
+    with (
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service.get_task_scheduler",
+            return_value=scheduler,
+        ),
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service._can_replace_icon",
+            side_effect=_mock_can_replace,
+        ),
+    ):
+        links = [
+            {"id": 101, "url": "https://first.example", "type": "web"},
+            {"id": 102, "url": "https://second.example", "type": "web"},
+            {"id": 103, "url": "https://third.example", "type": "web"},
+        ]
+        # Test batch enqueuing
+        enqueued = service.enqueue_batch(links, limit=10)
+        assert enqueued == 2
+        assert scheduler.submit_task.call_count == 2
+
+
+def test_enqueue_batch_uses_session_cache_and_reset() -> None:
+    main = _MainWindow()
+    service = LinkIconEnrichmentService(main)
+    scheduler = Mock()
+
+    with (
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service.get_task_scheduler",
+            return_value=scheduler,
+        ),
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service._can_replace_icon",
+            return_value=True,
+        ),
+    ):
+        links = [
+            {"id": 201, "url": "https://first.example", "type": "web"},
+            {"id": 202, "url": "https://second.example", "type": "web"},
+        ]
+        # First call enqueues both
+        assert service.enqueue_batch(links) == 2
+        assert scheduler.submit_task.call_count == 2
+
+        # Second call with same links skips because they are cached in session
+        assert service.enqueue_batch(links) == 0
+        assert scheduler.submit_task.call_count == 2
+
+        # Reset session cache
+        service.reset_session_cache()
+        # After clearing session cache and removing in-flight generations
+        service._generation_by_link.clear()
+        assert service.enqueue_batch(links) == 2
+        assert scheduler.submit_task.call_count == 4
+
+
+def test_enqueue_links_icon_enrichment_helper() -> None:
+    from app.controllers.ui.links.icon_enrichment_service import (
+        enqueue_links_icon_enrichment,
+    )
+
+    main = _MainWindow()
+    scheduler = Mock()
+
+    with (
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service.get_task_scheduler",
+            return_value=scheduler,
+        ),
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service._can_replace_icon",
+            return_value=True,
+        ),
+        patch(
+            "app.controllers.ui.links.icon_enrichment_service.QCoreApplication.instance",
+            return_value=Mock(),
+        ),
+    ):
+        links = [{"id": 301, "url": "https://first.example", "type": "web"}]
+        count = enqueue_links_icon_enrichment(main, links)
+        assert count == 1
+        assert hasattr(main, "_link_icon_enrichment_service")
+        assert scheduler.submit_task.call_count == 1
+

@@ -1,5 +1,6 @@
 # app/controllers/link_dialog_controller.py
 
+import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -160,6 +161,11 @@ class LinkDialogController:
     def _prepare_links_data(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Prepares link data for saving."""
         links_data = []
+
+        # Chrome rotation: always save as a single record with rotation_profiles JSON
+        if form_data.get("chrome_rotation") and form_data.get("rotation_profiles"):
+            links_data.append(self._prepare_regular_link(form_data))
+            return links_data
 
         # Edit mode: if web and profiles are set —
         # uses profile processing (will update current and add missing);
@@ -410,6 +416,25 @@ class LinkDialogController:
         )
         if form_data.get("_reparse_icon"):
             record["_reparse_icon"] = True
+
+        # Chrome rotation: embed rotation data into the record
+        if form_data.get("chrome_rotation") and form_data.get("rotation_profiles"):
+            record["chrome_rotation"] = 1
+            record["rotation_index"] = int(form_data.get("rotation_index", 0) or 0)
+            record["rotation_profiles"] = json.dumps(
+                [
+                    {
+                        "directory": p.get("directory", ""),
+                        "name": p.get("name", ""),
+                        "browser_key": p.get("browser_key", "chrome"),
+                    }
+                    for p in form_data["rotation_profiles"]
+                ]
+            )
+        else:
+            record["chrome_rotation"] = 0
+            record["rotation_profiles"] = None
+
         return record
 
     def get_result_data(self) -> list[dict[str, Any]]:

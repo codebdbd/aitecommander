@@ -187,6 +187,8 @@ class LinksTableController(QObject):
                     )
             else:
                 self.table.populate(links)
+
+            self._trigger_background_icon_enrichment(links)
         except Exception as e:
             logger.error(
                 "LinksTableController.on_links_loaded: failed: %s", e, exc_info=True
@@ -270,11 +272,16 @@ class LinksTableController(QObject):
                             )
                         self.update_row(payload)
                         return
+
                     except Exception:
                         logger.debug(
                             "LinksTableController.on_link_saved: lightweight update failed; fallback to reload",
                             exc_info=True,
                         )
+                # If this was an icon enrichment update, and category doesn't match current category,
+                # do NOT reload the table. The link in DB is already updated for when the user visits it.
+                if payload.get("_is_icon_enrichment"):
+                    return
                 # Fallback: if data insufficient or category mismatch — do regular reload
                 if _debug:
                     logger.debug(
@@ -302,3 +309,26 @@ class LinksTableController(QObject):
             logger.exception("LinksTableController.on_link_deleted: failed")
 
     # --- Internals ---
+    def _trigger_background_icon_enrichment(self, links: list[dict]) -> None:
+        """Trigger background icon enrichment for links with default icons."""
+        if not links:
+            return
+        try:
+            from app.config_data.runtime_config import is_auto_enrich_icons_enabled
+
+            if not is_auto_enrich_icons_enabled():
+                return
+        except Exception:
+            pass
+
+        try:
+            from app.controllers.ui.links.icon_enrichment_service import (
+                enqueue_links_icon_enrichment,
+            )
+
+            enqueue_links_icon_enrichment(self.main, links)
+        except Exception:
+            logger.debug(
+                "LinksTableController: failed to trigger background icon enrichment",
+                exc_info=True,
+            )

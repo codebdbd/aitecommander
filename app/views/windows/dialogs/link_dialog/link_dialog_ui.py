@@ -59,6 +59,11 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "New window")
     QCoreApplication.translate("LinkDialogUI", "Guest mode")
 
+# lupdate hint for Chrome rotation labels
+if False:  # pragma: no cover
+    QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
+    QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+
 
 class LinkDialogUI:
     """UI components for `LinkDialog`."""
@@ -173,6 +178,39 @@ class LinkDialogUI:
 
         container.addLayout(self.form)
 
+    @staticmethod
+    def adjust_button_width(
+        btn: QPushButton | None,
+        min_width: int = 115,
+        padding: int = 28,
+    ) -> int:
+        """Adjust button width dynamically based on its text and font metrics.
+
+        Ensures text is never clipped regardless of language, font, or DPI scaling,
+        while maintaining a clean minimum width for visual consistency.
+        """
+        if btn is None:
+            return 0
+        try:
+            text = btn.text()
+            fm = btn.fontMetrics()
+            text_width = fm.horizontalAdvance(text) if text else 0
+            icon_width = 0
+            if hasattr(btn, "icon") and not btn.icon().isNull():
+                icon_size = btn.iconSize()
+                icon_width = (icon_size.width() if icon_size.isValid() else 16) + 8
+            required_width = int(text_width) + int(icon_width) + padding
+            target_width = max(min_width, required_width)
+            btn.setFixedWidth(target_width)
+            return target_width
+        except Exception as e:
+            logger.debug("Failed to adjust button width: %s", e)
+            try:
+                btn.setFixedWidth(min_width)
+            except Exception:
+                pass
+            return min_width
+
     def _form_add_path_row(self) -> None:
         """Add URL/Path row with Browse/Profile buttons."""
         self.url_le = QLineEdit()
@@ -182,20 +220,23 @@ class LinkDialogUI:
         self.browse_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Browse...")
         )
-        self.browse_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        self.adjust_button_width(self.browse_btn)
         hl_path.addWidget(self.browse_btn)
 
         self.apps_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Apps")
         )
-        self.apps_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        self.adjust_button_width(self.apps_btn)
         self.apps_btn.setVisible(False)
         hl_path.addWidget(self.apps_btn)
 
         self.profile_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Profile")
         )
-        self.profile_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        self.profile_btn.setToolTip(
+            QCoreApplication.translate("LinkDialogUI", "Select browser profile")
+        )
+        self.adjust_button_width(self.profile_btn)
         hl_path.addWidget(self.profile_btn)
 
         self.form.addRow(
@@ -217,12 +258,12 @@ class LinkDialogUI:
         hl_name.addWidget(self.name_le, 1)
 
         self.icon_btn = QPushButton(tr_common("Icon"))
-        self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         try:
             default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
         except (AttributeError, RuntimeError, ValueError) as e:
             logger.warning("Failed to configure icon button size: %s", e)
+        self.adjust_button_width(self.icon_btn)
         hl_name.addWidget(self.icon_btn)
 
         self.form.addRow(tr_common("Name:"), hl_name)
@@ -322,11 +363,29 @@ class LinkDialogUI:
         )
         fav_row = QHBoxLayout()
         fav_row.setContentsMargins(0, 0, 0, 0)
-        fav_row.setSpacing(0)
+        fav_row.setSpacing(8)
         fav_row.addWidget(self.fav_chk)
         fav_row.addStretch(1)
+
+        # Chrome rotation checkbox + profile selection button
+        self.rotation_chk = QCheckBox(
+            QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
+        )
+        self.rotation_profiles_btn = QPushButton(
+            QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+        )
+        self.rotation_profiles_btn.setToolTip(
+            QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
+        )
+        self.adjust_button_width(self.rotation_profiles_btn)
+        self.rotation_profiles_btn.setVisible(False)
+        fav_row.addWidget(self.rotation_chk)
+        fav_row.addWidget(self.rotation_profiles_btn)
+
         self.form.addRow("", fav_row)
         self.widgets["fav_chk"] = self.fav_chk
+        self.widgets["rotation_chk"] = self.rotation_chk
+        self.widgets["rotation_profiles_btn"] = self.rotation_profiles_btn
 
     def _build_buttons(self, container: QVBoxLayout) -> None:
         """Create OK/Cancel buttons panel and add it to container."""
@@ -421,10 +480,12 @@ class LinkDialogUI:
                 self.browse_btn.setText(
                     QCoreApplication.translate("LinkDialogUI", "Browse...")
                 )
+                self.adjust_button_width(self.browse_btn)
             if hasattr(self, "apps_btn") and self.apps_btn is not None:
                 self.apps_btn.setText(
                     QCoreApplication.translate("LinkDialogUI", "Apps")
                 )
+                self.adjust_button_width(self.apps_btn)
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
                 if not self.profile_btn.text() or self.profile_btn.text() == (
                     QCoreApplication.translate("LinkDialogUI", "Profile")
@@ -432,6 +493,7 @@ class LinkDialogUI:
                     self.profile_btn.setText(
                         QCoreApplication.translate("LinkDialogUI", "Profile")
                     )
+                self.adjust_button_width(self.profile_btn)
         except Exception:
             pass
 
@@ -448,6 +510,7 @@ class LinkDialogUI:
                     name_label.setText(tr_common("Name:"))
             if hasattr(self, "icon_btn") and self.icon_btn is not None:
                 self.icon_btn.setText(tr_common("Icon"))
+                self.adjust_button_width(self.icon_btn)
         except Exception:
             pass
 
@@ -501,6 +564,17 @@ class LinkDialogUI:
                 self.fav_chk.setText(
                     QCoreApplication.translate("LinkDialogUI", "Add to favorites")
                 )
+            if hasattr(self, "rotation_chk") and self.rotation_chk is not None:
+                self.rotation_chk.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
+                )
+            if hasattr(self, "rotation_profiles_btn") and self.rotation_profiles_btn is not None:
+                # Only retranslate if no profiles are configured (otherwise keep dynamic text)
+                if not self.rotation_profiles_btn.isVisible():
+                    self.rotation_profiles_btn.setText(
+                        QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+                    )
+                self.adjust_button_width(self.rotation_profiles_btn)
         except Exception:
             pass
 

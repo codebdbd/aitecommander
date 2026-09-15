@@ -148,15 +148,27 @@ class LinkIconEnrichmentService(QObject):
         super().__init__(parent)
         self._main_ref = weakref.ref(main_window)
         self._generation_by_link: dict[int, int] = {}
+        self._attempted_link_ids: set[int] = set()
         self._network_finished.connect(self._on_network_finished)
 
-    def enqueue(self, link: dict[str, Any]) -> bool:
+    def reset_session_cache(self) -> None:
+        """Clear the session set of attempted links (e.g. on manual refresh)."""
+        self._attempted_link_ids.clear()
+
+    def enqueue(
+        self,
+        link: dict[str, Any],
+        *,
+        allow_name_replacement: bool = True,
+    ) -> bool:
         link_id = link.get("id")
         url = str(link.get("url") or "").strip()
         link_type = str(link.get("type") or link.get("link_type") or "").lower()
         can_replace_icon = _can_replace_icon(link)
         can_replace_name = (
-            link_type == LinkType.WEB.value and _can_replace_name(link, "resolved")
+            allow_name_replacement
+            and link_type == LinkType.WEB.value
+            and _can_replace_name(link, "resolved")
         )
         force_refresh = bool(link.get("_reparse_icon"))
         if (
@@ -169,6 +181,7 @@ class LinkIconEnrichmentService(QObject):
         ):
             return False
 
+        self._attempted_link_ids.add(link_id)
         generation = self._generation_by_link.get(link_id, 0) + 1
         self._generation_by_link[link_id] = generation
         get_task_scheduler().submit_task(
@@ -182,6 +195,55 @@ class LinkIconEnrichmentService(QObject):
             )
         )
         return True
+
+    def enqueue_batch(
+        self,
+        links: list[dict[str, Any]],
+        *,
+        limit: int = 50,
+        allow_name_replacement: bool = False,
+    ) -> int:
+        """Enqueue background icon enrichment for multiple links.
+
+        Only enqueues links that actually need icon replacement and have
+        not yet been attempted in the current session.
+
+        Args:
+            links: List of link dictionaries to check and enrich.
+            limit: Maximum number of links to enqueue in this batch to prevent
+                   network saturation.
+            allow_name_replacement: Whether to allow auto-replacing the title.
+                                   Defaults to False for background batch loads so
+                                   existing names in the view are preserved.
+
+        Returns:
+            Number of links successfully enqueued.
+        """
+        if not links or limit <= 0:
+            return 0
+
+        enqueued_count = 0
+        for link in links:
+            if not isinstance(link, dict):
+                continue
+            if enqueued_count >= limit:
+                break
+            link_id = link.get("id")
+            if not isinstance(link_id, int) or link_id <= 0:
+                continue
+            if link_id in self._attempted_link_ids or link_id in self._generation_by_link:
+                continue
+            if not _can_replace_icon(link):
+                continue
+            if self.enqueue(link, allow_name_replacement=allow_name_replacement):
+                enqueued_count += 1
+
+        if enqueued_count > 0:
+            logger.debug(
+                "LinkIconEnrichmentService.enqueue_batch: enqueued %d link(s) for enrichment",
+                enqueued_count,
+            )
+        return enqueued_count
 
     @pyqtSlot(object)
     def _on_network_finished(self, result: object) -> None:
@@ -227,7 +289,10 @@ class LinkIconEnrichmentService(QObject):
                 current["name"] = title
             links_service.create_or_update_link(current)
             refreshed = links_service.get_link_by_id(link_id)
-            return dict(refreshed) if refreshed else current
+            target = refreshed if refreshed else current
+            if isinstance(target, dict):
+                target["_is_icon_enrichment"] = True
+            return target
 
         run_db(
             _persist_if_current,
@@ -287,8 +352,38 @@ def enqueue_link_icon_enrichment(main_window: Any, link: dict[str, Any]) -> bool
     service = getattr(main_window, "_link_icon_enrichment_service", None)
     if not isinstance(service, LinkIconEnrichmentService):
         service = LinkIconEnrichmentService(main_window)
-        setattr(main_window, "_link_icon_enrichment_service", service)
+        try:
+            setattr(main_window, "_link_icon_enrichment_service", service)
+        except Exception:
+            pass
     return service.enqueue(link)
 
 
-__all__ = ["LinkIconEnrichmentService", "enqueue_link_icon_enrichment"]
+def enqueue_links_icon_enrichment(
+    main_window: Any,
+    links: list[dict[str, Any]],
+    *,
+    limit: int = 50,
+    allow_name_replacement: bool = False,
+) -> int:
+    """Queue background favicon enrichment for multiple links."""
+    if QCoreApplication.instance() is None or main_window is None or not links:
+        return 0
+    service = getattr(main_window, "_link_icon_enrichment_service", None)
+    if not isinstance(service, LinkIconEnrichmentService):
+        service = LinkIconEnrichmentService(main_window)
+        try:
+            setattr(main_window, "_link_icon_enrichment_service", service)
+        except Exception:
+            pass
+    return service.enqueue_batch(
+        links, limit=limit, allow_name_replacement=allow_name_replacement
+    )
+
+
+__all__ = [
+    "LinkIconEnrichmentService",
+    "enqueue_link_icon_enrichment",
+    "enqueue_links_icon_enrichment",
+]
+

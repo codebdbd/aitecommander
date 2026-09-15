@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from typing import Any, Callable
 
 from PyQt6.QtCore import QPoint, QRect, QSize, Qt
-from PyQt6.QtGui import QGuiApplication, QIcon, QKeyEvent
+from PyQt6.QtGui import QGuiApplication, QIcon, QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QFrame,
     QHBoxLayout,
     QListView,
+    QStyle,
+    QStyleOptionComboBox,
     QWidget,
 )
 
@@ -73,6 +76,27 @@ class _ComboPopupFrame(QFrame):
         layout.setSpacing(0)
         layout.addWidget(owner._popup_view)
 
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        pos = self._owner.mapFromGlobal(event.globalPosition().toPoint())
+        if self._owner.rect().contains(pos):
+            if self._owner.isEditable():
+                opt = QStyleOptionComboBox()
+                self._owner.initStyleOption(opt)
+                sc = self._owner.style().hitTestComplexControl(
+                    QStyle.ComplexControl.CC_ComboBox,
+                    opt,
+                    pos,
+                    self._owner,
+                )
+                if sc != QStyle.SubControl.SC_ComboBoxArrow:
+                    super().mousePressEvent(event)
+                    return
+            self.setAttribute(Qt.WidgetAttribute.WA_NoMouseReplay, True)
+            self._owner._combo_clicked_to_close = time.monotonic()
+            self._owner.hidePopup()
+            return
+        super().mousePressEvent(event)
+
     def hideEvent(self, event) -> None:
         self._owner._popup_visible = False
         super().hideEvent(event)
@@ -84,6 +108,7 @@ class PopupComboBox(QComboBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._popup_visible = False
+        self._combo_clicked_to_close = 0.0
         self._popup_view = ComboPopupListView(self)
         self._popup = _ComboPopupFrame(self)
         self._popup_view.clicked.connect(self._activate_popup_index)
@@ -146,7 +171,7 @@ class PopupComboBox(QComboBox):
         self._popup_view.setIconSize(size)
 
     def showPopup(self) -> None:  # type: ignore[override]
-        if self.count() <= 0:
+        if self.count() <= 0 or not self.isEnabled():
             return
         self._install_popup_model()
         self._sync_popup_current_index(self.currentIndex())
@@ -165,6 +190,34 @@ class PopupComboBox(QComboBox):
         if self._popup.isVisible():
             self._popup.hide()
         self._popup_visible = False
+        super().hidePopup()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if not self.isEnabled():
+            return
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.isEditable():
+                opt = QStyleOptionComboBox()
+                self.initStyleOption(opt)
+                sc = self.style().hitTestComplexControl(
+                    QStyle.ComplexControl.CC_ComboBox,
+                    opt,
+                    event.position().toPoint(),
+                    self,
+                )
+                if sc != QStyle.SubControl.SC_ComboBoxArrow:
+                    super().mousePressEvent(event)
+                    return
+            if self._popup.isVisible():
+                self._combo_clicked_to_close = time.monotonic()
+                self.hidePopup()
+                return
+            if time.monotonic() - getattr(self, "_combo_clicked_to_close", 0.0) < 0.3:
+                self._combo_clicked_to_close = 0.0
+                return
+            self.showPopup()
+            return
+        super().mousePressEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() in (Qt.Key.Key_Down, Qt.Key.Key_Up, Qt.Key.Key_F4):

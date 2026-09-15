@@ -164,6 +164,9 @@ class LinkBulkUpsertService:
             item.get("args"),
             item.get("browser_key"),
             item.get("position", 0) if item.get("position") is not None else 0,
+            int(item.get("chrome_rotation", 0) or 0),
+            int(item.get("rotation_index", 0) or 0),
+            item.get("rotation_profiles"),
             record_id,
         )
     
@@ -178,7 +181,8 @@ class LinkBulkUpsertService:
         
         update_sql = (
             "UPDATE link SET category_id=?, name=?, url=?, type=?, notes=?, "
-            "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=? WHERE id=?"
+            "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=?, "
+            "chrome_rotation=?, rotation_index=?, rotation_profiles=? WHERE id=?"
         )
         
         try:
@@ -215,6 +219,9 @@ class LinkBulkUpsertService:
                         "args": update_tuple[8],
                         "browser_key": update_tuple[9],
                         "position": update_tuple[10],
+                        "chrome_rotation": update_tuple[11],
+                        "rotation_index": update_tuple[12],
+                        "rotation_profiles": update_tuple[13],
                     })
         
         return inserts_with_id
