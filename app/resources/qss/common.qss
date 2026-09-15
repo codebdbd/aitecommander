@@ -256,7 +256,7 @@ QTimeEdit {
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
-    padding: 0 4px 3px 4px;
+    padding: 0 4px;
 }
 
 QTextEdit,
@@ -269,7 +269,8 @@ QFrame[input_frame="true"] {
 }
 
 QComboBox {
-    padding: 0 22px 3px 8px;
+    padding-left: 8px;
+    padding-right: 22px;
 }
 
 QComboBox QAbstractItemView {
@@ -287,6 +288,11 @@ QComboBox QAbstractItemView::item:hover {
     outline: none;
 }
 
+QFrame#comboPopupContainer {
+    border: 1px solid;
+    border-radius: 0;
+}
+
 QListView#comboPopupView,
 QListView#comboPopupView:focus {
     outline: none;
@@ -299,7 +305,7 @@ QListView#comboPopupView::item:selected,
 QListView#comboPopupView::item:hover {
     outline: none;
     border: none;
-    padding: 2px 4px 2px 8px;
+    padding: 0 4px 0 8px;
     min-height: 0;
 }
 
@@ -503,7 +509,7 @@ QWidget#bottomBarContainer QPushButton {
     border-right: 1px solid;
     border-right-color: transparent;
     margin: 0;
-    padding: 2px 8px 6px 8px;
+    padding: 0 8px;
 }
 
 QWidget#bottomBarContainer QPushButton[last="1"] {
@@ -516,7 +522,7 @@ QDialog QPushButton {
     border-color: transparent;
     border-radius: 0;
     outline: none;
-    padding: 3px 14px 7px 14px;
+    padding: 0 14px;
 }
 
 QDialog QToolButton {
@@ -524,12 +530,12 @@ QDialog QToolButton {
     border-color: transparent;
     border-radius: 0;
     outline: none;
-    padding: 2px 8px 6px 8px;
+    padding: 0 8px;
 }
 
 QDialog QToolButton#linkTypeBtn {
     border-radius: 0;
-    padding: 7px 6px 9px 6px;
+    padding: 8px 6px;
     margin: 0;
     background: transparent;
     border: 1px solid;
@@ -561,7 +567,8 @@ QDialog QFrame[input_frame="true"] {
 }
 
 QDialog QComboBox {
-    padding: 0 22px 3px 8px;
+    padding-left: 8px;
+    padding-right: 22px;
 }
 
 QDialog QLineEdit,
@@ -569,11 +576,11 @@ QDialog QSpinBox,
 QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
-    padding: 0 4px 3px 4px;
+    padding: 0 4px;
 }
 
 QDialog QLineEdit {
-    padding: 0 8px 3px 8px;
+    padding: 0 8px;
 }
 
 

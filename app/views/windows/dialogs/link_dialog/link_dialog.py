@@ -146,6 +146,14 @@ class LinkDialog(BaseDialog):
         """Return the favorites checkbox (`QCheckBox`)."""
         return self.ui.get_widget("fav_chk")
 
+    def _get_rotation_chk(self) -> QCheckBox:
+        """Return the Chrome rotation checkbox (`QCheckBox`)."""
+        return self.ui.get_widget("rotation_chk")
+
+    def _get_rotation_profiles_btn(self) -> QPushButton:
+        """Return the rotation profiles selection button (`QPushButton`)."""
+        return self.ui.get_widget("rotation_profiles_btn")
+
     def _get_notes_te(self) -> QTextEdit:
         """Return the notes text edit (`QTextEdit`)."""
         return self.ui.get_widget("notes_te")
@@ -213,6 +221,7 @@ class LinkDialog(BaseDialog):
         self.link_type = self.link.get("type", "web")
         self.icon_name = self.link.get("icon_path", "")
         self.selected_profiles: list[dict] = []
+        self.rotation_profiles: list[dict] = []
         self._profiles_explicitly_changed = False
         self._processing_cleanup_done = False
 
@@ -404,6 +413,9 @@ class LinkDialog(BaseDialog):
         finally:
             self._suspend_auto_processing = False
 
+        # Load Chrome rotation state
+        self._load_rotation_state()
+
         logger.debug("Initial values applied to UI; continuing with icon setup")
 
 
@@ -416,9 +428,10 @@ class LinkDialog(BaseDialog):
         if self.link and self.link.get("migrated_profiles"):
             self.selected_profiles = self.link["migrated_profiles"]
             
-        if self.selected_profiles:
-            profile_btn = self._get_profile_btn()
-            profile_btn.setText(self._format_profile_text(self.selected_profiles))
+        self._update_profile_button_state()
+
+        # Restore Chrome rotation state
+        self._load_rotation_state()
 
         # Update UI state
         self.handlers._update_ui_state()
@@ -446,6 +459,46 @@ class LinkDialog(BaseDialog):
             QTimer.singleShot(0, _apply_initial_focus)
         except Exception:
             pass
+
+    def _load_rotation_state(self) -> None:
+        """Restore Chrome rotation state from saved link data."""
+        import json
+
+        if not self.link:
+            return
+
+        chrome_rotation = bool(self.link.get("chrome_rotation", 0))
+        rotation_chk = self._get_rotation_chk()
+        rotation_btn = self._get_rotation_profiles_btn()
+        profile_btn = self._get_profile_btn()
+
+        if rotation_chk is None:
+            return
+
+        if chrome_rotation:
+            # Restore rotation profiles from JSON
+            raw = self.link.get("rotation_profiles")
+            if raw:
+                try:
+                    self.rotation_profiles = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    self.rotation_profiles = []
+            else:
+                self.rotation_profiles = []
+
+            rotation_chk.setChecked(True)
+            profile_btn.setEnabled(False)
+            if rotation_btn is not None:
+                rotation_btn.setVisible(True)
+                from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
+                    RotationMixin,
+                )
+                RotationMixin._update_rotation_btn_text(
+                    rotation_btn, self.rotation_profiles, self
+                )
+        else:
+            if self.selected_profiles:
+                rotation_chk.setVisible(False)
 
     def _set_initial_icon(self) -> None:
         """Set initial icon."""
@@ -676,19 +729,36 @@ class LinkDialog(BaseDialog):
         return icon_path_service.get_user_icons_dir()
 
     def _format_profile_text(self, profiles: list[dict]) -> str:
-        """Format display text for selected profiles."""
-        profile_names = [p.get("name") or p.get("email") for p in profiles]
-        if not profile_names:
+        """Format display text for selected profiles button."""
+        count = len(profiles) if profiles else 0
+        if count == 0:
             return self.tr("Profile")
-        elif len(profile_names) == 1:
-            return self.tr("Profile: {name}").format(name=profile_names[0])
-        elif len(profile_names) == 2:
-            return self.tr("Profiles: {first}, {second}").format(
-                first=profile_names[0], second=profile_names[1]
-            )
-        return self.tr("Profiles: {first}, {second} and {rest} more").format(
-            first=profile_names[0], second=profile_names[1], rest=len(profile_names) - 2
-        )
+        if count == 1:
+            return self.tr("Profile (1)")
+        return self.tr("Profiles ({count})").format(count=count)
+
+    def _format_profile_tooltip(self, profiles: list[dict]) -> str:
+        """Format detailed tooltip for selected profiles button."""
+        if not profiles:
+            return self.tr("Select browser profile")
+        names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
+        if len(names) == 1:
+            return self.tr("Selected profile: {name}\n(Click to change)").format(name=names[0])
+        lines = [self.tr("Selected profiles ({count}):").format(count=len(names))]
+        for n in names:
+            lines.append(f"• {n}")
+        lines.append(self.tr("(Click to change)"))
+        return "\n".join(lines)
+
+    def _update_profile_button_state(self) -> None:
+        """Update top profile button text and tooltip."""
+        profile_btn = self._get_profile_btn()
+        if profile_btn is None:
+            return
+        profile_btn.setText(self._format_profile_text(self.selected_profiles))
+        profile_btn.setToolTip(self._format_profile_tooltip(self.selected_profiles))
+        if hasattr(self, "ui") and hasattr(self.ui, "adjust_button_width"):
+            self.ui.adjust_button_width(profile_btn)
 
     def _cleanup_processing(self) -> None:
         """Stop delayed/background link processing before dialog teardown."""
@@ -771,13 +841,16 @@ class LinkDialog(BaseDialog):
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()
-        # Profile button text (reset to default if not customized)
+        # Profile and rotation button texts and tooltips
         try:
-            profile_btn = self._get_profile_btn()
-            if profile_btn is not None:
-                current_text = profile_btn.text()
-                # Only reset if it's the default "Profile" text to avoid overriding custom summaries
-                if not current_text or current_text == self.tr("Profile"):
-                    profile_btn.setText(self.tr("Profile"))
+            self._update_profile_button_state()
+            rotation_btn = self._get_rotation_profiles_btn()
+            if rotation_btn is not None:
+                from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
+                    RotationMixin,
+                )
+                RotationMixin._update_rotation_btn_text(
+                    rotation_btn, self.rotation_profiles, self
+                )
         except Exception:
             pass

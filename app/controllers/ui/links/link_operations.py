@@ -84,16 +84,62 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                 logger.error("Unexpected error saving note: %s", e)
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
 
+    def _prepare_rotated_link(self, link: dict) -> dict:
+        """Prepare link copy with args and browser_key set to next rotated Chrome profile."""
+        import json
+
+        profiles = []
+        try:
+            raw_profiles = link.get("rotation_profiles")
+            if isinstance(raw_profiles, str):
+                profiles = json.loads(raw_profiles)
+            elif isinstance(raw_profiles, list):
+                profiles = raw_profiles
+        except Exception as e:
+            logger.error("Failed to parse rotation_profiles JSON: %s", e)
+            profiles = []
+
+        if not profiles:
+            return link
+
+        current_index = int(link.get("rotation_index", 0) or 0) % len(profiles)
+        profile = profiles[current_index]
+
+        rotated_link = link.copy()
+        profile_dir = profile.get("directory", "")
+        rotated_link["args"] = f'--profile-directory="{profile_dir}"'
+        rotated_link["browser_key"] = profile.get("browser_key", "chrome")
+
+        # Advance rotation index for next open
+        next_index = (current_index + 1) % len(profiles)
+        link["rotation_index"] = next_index
+        rotated_link["rotation_index"] = next_index
+
+        link_id = link.get("id")
+        if isinstance(link_id, int):
+            update_rot = getattr(self.business, "update_rotation_index", None)
+            if callable(update_rot):
+                try:
+                    update_rot(link_id, next_index)
+                except Exception as e:
+                    logger.error("Error updating rotation index for link %s: %s", link_id, e)
+
+        return rotated_link
+
     def _open_link(self, link: dict):
         """Open link using LinkOpener."""
-        safe_url = sanitize_url_for_logging(link.get("url", ""))
-        logger.debug("Opening link: type=%s, url=%s", link.get("type"), safe_url)
+        target_link = link
+        if link.get("chrome_rotation") and link.get("rotation_profiles"):
+            target_link = self._prepare_rotated_link(link)
+
+        safe_url = sanitize_url_for_logging(target_link.get("url", ""))
+        logger.debug("Opening link: type=%s, url=%s", target_link.get("type"), safe_url)
 
         success = False
         try:
             # Create LinkInfo from dict
-            logger.debug("_open_link: link dict=%s", sanitize_link_dict_for_log(link))
-            link_info = LinkInfo.from_dict(link)
+            logger.debug("_open_link: link dict=%s", sanitize_link_dict_for_log(target_link))
+            link_info = LinkInfo.from_dict(target_link)
             logger.info("_open_link: link_info=%s", link_info)
             logger.debug(
                 "_open_link: link_info created with browser_key=%s",

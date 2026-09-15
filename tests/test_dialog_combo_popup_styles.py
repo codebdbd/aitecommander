@@ -70,6 +70,106 @@ class TestDialogComboPopupStyles(unittest.TestCase):
             dialog.close()
             parent.close()
 
+    def test_dialog_combo_icon_vertical_centering(self) -> None:
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
+        from PyQt6.QtWidgets import QComboBox, QDialog
+
+        from app.config_data.runtime_config import runtime_app_config as app_config
+        from app.services.theme_stylesheet_service import ThemeStylesheetService
+
+        svc = ThemeStylesheetService(app_config)
+        qss = svc.load_stylesheet("violet_pulse", "violet_pulse.qss")
+        self._app.setStyleSheet(qss)
+
+        dlg = QDialog()
+        try:
+            combo = QComboBox(dlg)
+            combo.setFixedHeight(32)
+            combo.setFixedWidth(200)
+            combo.setIconSize(QSize(24, 24))
+
+            pix = QPixmap(24, 24)
+            pix.fill(Qt.GlobalColor.cyan)
+            combo.addItem(QIcon(pix), "AI")
+            dlg.show()
+            self._app.processEvents()
+
+            img = QImage(combo.size(), QImage.Format.Format_ARGB32)
+            img.fill(Qt.GlobalColor.black)
+            p = QPainter(img)
+            combo.render(p)
+            p.end()
+
+            icon_ys = []
+            for y in range(img.height()):
+                for x in range(35):
+                    c = img.pixelColor(x, y)
+                    if c.blue() > 200 and c.green() > 200 and c.red() < 50:
+                        icon_ys.append(y)
+                        break
+
+            self.assertTrue(bool(icon_ys), "Icon pixels not found in rendered combo")
+            top_gap = min(icon_ys)
+            bot_gap = combo.height() - 1 - max(icon_ys)
+            self.assertEqual(
+                top_gap,
+                bot_gap,
+                f"Icon in QComboBox is not vertically centered: top_gap={top_gap}, bot_gap={bot_gap}",
+            )
+        finally:
+            dlg.close()
+
+    def test_dialog_button_icon_vertical_centering(self) -> None:
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
+        from PyQt6.QtWidgets import QDialog, QPushButton
+
+        from app.config_data.runtime_config import runtime_app_config as app_config
+        from app.services.theme_stylesheet_service import ThemeStylesheetService
+
+        svc = ThemeStylesheetService(app_config)
+        qss = svc.load_stylesheet("violet_pulse", "violet_pulse.qss")
+        self._app.setStyleSheet(qss)
+
+        dlg = QDialog()
+        try:
+            btn = QPushButton("Icon", dlg)
+            btn.setFixedHeight(32)
+            btn.setFixedWidth(100)
+            btn.setIconSize(QSize(24, 24))
+
+            pix = QPixmap(24, 24)
+            pix.fill(Qt.GlobalColor.cyan)
+            btn.setIcon(QIcon(pix))
+            dlg.show()
+            self._app.processEvents()
+
+            img = QImage(btn.size(), QImage.Format.Format_ARGB32)
+            img.fill(Qt.GlobalColor.black)
+            p = QPainter(img)
+            btn.render(p)
+            p.end()
+
+            icon_ys = []
+            for y in range(img.height()):
+                for x in range(35):
+                    c = img.pixelColor(x, y)
+                    if c.blue() > 200 and c.green() > 200 and c.red() < 50:
+                        icon_ys.append(y)
+                        break
+
+            self.assertTrue(bool(icon_ys), "Icon pixels not found in rendered button")
+            top_gap = min(icon_ys)
+            bot_gap = btn.height() - 1 - max(icon_ys)
+            self.assertEqual(
+                top_gap,
+                bot_gap,
+                f"Icon in QPushButton is not vertically centered: top_gap={top_gap}, bot_gap={bot_gap}",
+            )
+        finally:
+            dlg.close()
+
 
 if __name__ == "__main__":
     unittest.main()

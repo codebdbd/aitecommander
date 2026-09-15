@@ -29,6 +29,24 @@ def test_cli_help_flag_exits_zero() -> None:
     assert "usage:" in res.stdout
 
 
+def test_cli_version_does_not_import_pyqt() -> None:
+    code = (
+        "import sys; "
+        "sys.argv = ['app.main', '--version']; "
+        "import app.main; "
+        "rc = app.main.main(); "
+        "print('PYQT_IMPORTED', any(name.startswith('PyQt6') for name in sys.modules)); "
+        "sys.exit(rc)"
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    assert "PYQT_IMPORTED False" in res.stdout
+
+
 def test_log_manager_setup_fail_soft(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(LogManager, "_configured", False)
     blocker_file = tmp_path / "blocker.txt"

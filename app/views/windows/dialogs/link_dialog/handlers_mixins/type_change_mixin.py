@@ -68,6 +68,8 @@ class TypeChangeMixin:
         profile_btn.setVisible(is_web)
         if apps_btn is not None:
             apps_btn.setVisible(is_program)
+            if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):
+                self.dialog.ui.adjust_button_width(apps_btn)
 
         # "Browse" button is shown only for specific types
         browse_btn.setVisible(
@@ -95,6 +97,22 @@ class TypeChangeMixin:
         else:
             args_le.setVisible(show_args)
         args_label.setVisible(show_args)
+
+        # Chrome rotation: visible only for Web links when no profiles are selected
+        try:
+            rotation_chk = self.dialog._get_rotation_chk()
+            rotation_btn = self.dialog._get_rotation_profiles_btn()
+            if rotation_chk is not None:
+                has_profiles = bool(getattr(self.dialog, "selected_profiles", None))
+                rotation_chk.setVisible(is_web and not has_profiles)
+                if not is_web:
+                    rotation_chk.setChecked(False)
+            if rotation_btn is not None:
+                rotation_btn.setVisible(
+                    is_web and rotation_chk is not None and rotation_chk.isChecked()
+                )
+        except (AttributeError, RuntimeError):
+            pass
 
         # Focus depending on type: WEB -> URL field, otherwise -> "Browse" button
         def _apply_focus():

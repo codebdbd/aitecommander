@@ -142,6 +142,19 @@ class ToolbarActionAdapter(QObject):
         except Exception:
             logger.debug("TopBarToolbar: failed to configure button", exc_info=True)
 
+    def _set_button_last(self, button: QToolButton, is_last: bool) -> None:
+        if bool(button.property("toolbar_last")) == is_last:
+            return
+        button.setProperty("toolbar_last", is_last)
+        try:
+            style = button.style()
+            if style is not None:
+                style.unpolish(button)
+                style.polish(button)
+            button.update()
+        except Exception:
+            pass
+
     def _update_global_last_button(self) -> None:
         buttons: list[QToolButton] = []
         for action in self._toolbar.actions():
@@ -163,17 +176,8 @@ class ToolbarActionAdapter(QObject):
         if previous_last is new_last:
             return
         if previous_last is not None:
-            previous_last.setProperty("toolbar_last", False)
-            try:
-                previous_last.update()
-            except Exception:
-                pass
-        if not bool(new_last.property("toolbar_last")):
-            new_last.setProperty("toolbar_last", True)
-            try:
-                new_last.update()
-            except Exception:
-                pass
+            self._set_button_last(previous_last, False)
+        self._set_button_last(new_last, True)
         self._last_marked_button = new_last
 
     def setVisible(self, visible: bool) -> None:  # noqa: N802 - Qt-style API
@@ -192,20 +196,10 @@ class ToolbarActionAdapter(QObject):
         if previous_last is new_last:
             return
         if previous_last is not None and previous_last in self._buttons:
-            previous_last.setProperty("toolbar_last", False)
-            try:
-                previous_last.update()
-            except Exception:
-                pass
+            self._set_button_last(previous_last, False)
         for button in self._buttons[:-1]:
-            if bool(button.property("toolbar_last")):
-                button.setProperty("toolbar_last", False)
-        if not bool(new_last.property("toolbar_last")):
-            new_last.setProperty("toolbar_last", True)
-            try:
-                new_last.update()
-            except Exception:
-                pass
+            self._set_button_last(button, False)
+        self._set_button_last(new_last, True)
         self._last_marked_button = new_last
 
 

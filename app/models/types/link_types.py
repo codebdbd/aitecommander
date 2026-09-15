@@ -1,6 +1,6 @@
 """Type definitions for LinkModel."""
 
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 
 class LinkDict(TypedDict, total=False):
@@ -17,6 +17,9 @@ class LinkDict(TypedDict, total=False):
     args: str
     browser_key: str
     position: int
+    chrome_rotation: int
+    rotation_index: int
+    rotation_profiles: Optional[str]
 
 
 class LinkInput(TypedDict, total=False):
@@ -33,3 +36,6 @@ class LinkInput(TypedDict, total=False):
     args: str
     browser_key: str
     position: int
+    chrome_rotation: int
+    rotation_index: int
+    rotation_profiles: Optional[str]

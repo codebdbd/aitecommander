@@ -28,8 +28,8 @@ def test_real_migrations_apply_and_required_indexes_exist() -> None:
     runner = MigrationRunner(conn, Path("app/models/migrations"))
 
     applied = runner.run_all_pending()
-    assert applied == 7
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+    assert applied == 8
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
 
     index_names = {
         row["name"]

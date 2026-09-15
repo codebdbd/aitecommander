@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import time
 import unittest
 
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtCore import QPointF, Qt
+from PyQt6.QtGui import QIcon, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import QApplication, QComboBox
 
 from app.utils.ui.qt.combo_helpers import (
+    PopupComboBox,
     add_combo_item,
     add_combo_mapping_item,
     select_combo_data,
@@ -114,6 +117,131 @@ class TestComboHelpers(unittest.TestCase):
 
         self.assertFalse(added)
         self.assertEqual(0, combo.count())
+
+    def test_popup_combobox_toggles_on_repeated_click(self) -> None:
+        combo = PopupComboBox()
+        combo.addItem("Item 1")
+        combo.addItem("Item 2")
+        combo.show()
+        self._app.processEvents()
+
+        click_pos = combo.rect().center()
+        pt = QPointF(click_pos)
+        global_pt = QPointF(combo.mapToGlobal(click_pos))
+
+        # First click: opens popup
+        press_event1 = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            pt,
+            global_pt,
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(press_event1)
+        self.assertTrue(combo._popup.isVisible())
+        self.assertTrue(combo._popup_visible)
+
+        # Second click: closes popup
+        press_event2 = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            pt,
+            global_pt,
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(press_event2)
+        self.assertFalse(combo._popup.isVisible())
+        self.assertFalse(combo._popup_visible)
+
+        # Third click after brief delay: opens popup again
+        time.sleep(0.35)
+        press_event3 = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            pt,
+            global_pt,
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(press_event3)
+        self.assertTrue(combo._popup.isVisible())
+        self.assertTrue(combo._popup_visible)
+
+        combo.hidePopup()
+
+    def test_popup_frame_mouse_press_on_owner_sets_no_mouse_replay_and_closes(self) -> None:
+        combo = PopupComboBox()
+        combo.addItem("Alpha")
+        combo.addItem("Beta")
+        combo.show()
+        combo.showPopup()
+        self._app.processEvents()
+        self.assertTrue(combo._popup.isVisible())
+
+        click_pos = combo.rect().center()
+        global_pos = combo.mapToGlobal(click_pos)
+        popup_event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(global_pos),
+            QPointF(global_pos),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo._popup.mousePressEvent(popup_event)
+        self._app.processEvents()
+
+        self.assertFalse(combo._popup.isVisible())
+        self.assertFalse(combo._popup_visible)
+        self.assertTrue(combo._popup.testAttribute(Qt.WidgetAttribute.WA_NoMouseReplay))
+
+        # Replayed click right after close should be ignored
+        replay_event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(click_pos),
+            QPointF(global_pos),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(replay_event)
+        self.assertFalse(combo._popup.isVisible())
+
+    def test_popup_combobox_disabled_does_not_open(self) -> None:
+        combo = PopupComboBox()
+        combo.addItem("Item 1")
+        combo.setEnabled(False)
+        combo.show()
+
+        click_pos = combo.rect().center()
+        event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(click_pos),
+            QPointF(combo.mapToGlobal(click_pos)),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(event)
+        self.assertFalse(combo._popup.isVisible())
+
+    def test_popup_combobox_empty_does_not_open(self) -> None:
+        combo = PopupComboBox()
+        combo.show()
+
+        click_pos = combo.rect().center()
+        event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(click_pos),
+            QPointF(combo.mapToGlobal(click_pos)),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        combo.mousePressEvent(event)
+        self.assertFalse(combo._popup.isVisible())
 
 
 if __name__ == "__main__":

@@ -118,6 +118,9 @@ class LinkInfo:
     args: str = ""
     category_id: Optional[int] = None
     browser_key: Optional[str] = None
+    chrome_rotation: bool = False
+    rotation_index: int = 0
+    rotation_profiles: Optional[str] = None
 
     def __repr__(self) -> str:
         safe_path = (
@@ -128,7 +131,8 @@ class LinkInfo:
         safe_args = "<redacted>" if self.args else ""
         return (
             f"LinkInfo(id={self.id}, link_type={self.link_type}, path={safe_path!r}, "
-            f"args={safe_args!r}, category_id={self.category_id}, browser_key={self.browser_key!r})"
+            f"args={safe_args!r}, category_id={self.category_id}, browser_key={self.browser_key!r}, "
+            f"chrome_rotation={self.chrome_rotation!r}, rotation_index={self.rotation_index!r})"
         )
 
     @classmethod
@@ -163,6 +167,9 @@ class LinkInfo:
             args=link_dict.get("args", ""),
             category_id=link_dict.get("category_id"),
             browser_key=browser_key,
+            chrome_rotation=bool(link_dict.get("chrome_rotation", False)),
+            rotation_index=int(link_dict.get("rotation_index", 0) or 0),
+            rotation_profiles=link_dict.get("rotation_profiles"),
         )
 
     @staticmethod

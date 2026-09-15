@@ -60,6 +60,12 @@ class FormDataMixin:
             "_reparse_icon": bool(
                 getattr(self.dialog, "_reparse_icon_requested", False)
             ),
+            "chrome_rotation": bool(
+                getattr(self.dialog, "_get_rotation_chk", lambda: None)()
+                and self.dialog._get_rotation_chk().isChecked()
+            ),
+            "rotation_profiles": getattr(self.dialog, "rotation_profiles", []) or [],
+            "rotation_index": self.dialog.link.get("rotation_index", 0) if self.dialog.link else 0,
         }
 
         handlers = getattr(self.dialog, "handlers", None)

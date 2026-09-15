@@ -58,10 +58,28 @@ class ProfilesMixin:
                         f"_on_profile: profile {i}: name={profile.get('name')}, browser_key={profile.get('browser_key')}"
                     )
 
-                profile_btn = self.dialog._get_profile_btn()
-                profile_btn.setText(
-                    self.dialog._format_profile_text(self.dialog.selected_profiles)
-                )
+                if hasattr(self.dialog, "_update_profile_button_state"):
+                    self.dialog._update_profile_button_state()
+                else:
+                    profile_btn = self.dialog._get_profile_btn()
+                    profile_btn.setText(
+                        self.dialog._format_profile_text(self.dialog.selected_profiles)
+                    )
+            else:
+                if hasattr(self.dialog, "_update_profile_button_state"):
+                    self.dialog._update_profile_button_state()
+                else:
+                    profile_btn = self.dialog._get_profile_btn()
+                    profile_btn.setText(self.dialog.tr("Profile"))
+
+            # Mutual exclusion: hide rotation checkbox when profile is selected (only for web links)
+            try:
+                rotation_chk = self.dialog._get_rotation_chk()
+                if rotation_chk is not None:
+                    is_web = self._is_web_link_dialog()
+                    rotation_chk.setVisible(is_web and not bool(self.dialog.selected_profiles))
+            except (AttributeError, RuntimeError):
+                pass
 
     def _initial_profile_selection_keys(self) -> set[str]:
         current_profiles = getattr(self.dialog, "selected_profiles", []) or []

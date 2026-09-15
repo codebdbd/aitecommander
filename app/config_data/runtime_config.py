@@ -142,6 +142,14 @@ def is_debug_links_inline_update() -> bool:
     return bool(app_config.ui.get_debug_links_inline_update())
 
 
+def is_auto_enrich_icons_enabled(default: bool = True) -> bool:
+    try:
+        return bool(app_config.get("ui.auto_enrich_icons", default))
+    except Exception:
+        return default
+
+
+
 def is_drop_stale_structure_snapshots(default: bool = False) -> bool:
     if hasattr(app_config.ui, "get_drop_stale_structure_snapshots"):
         return bool(app_config.ui.get_drop_stale_structure_snapshots())

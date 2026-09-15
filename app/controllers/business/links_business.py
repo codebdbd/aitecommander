@@ -390,6 +390,20 @@ class LinksBusinessLogic(QObject):
             task_id=link_id,
         )
 
+    def update_rotation_index(self, link_id: int, new_index: int) -> None:
+        """Update the Chrome rotation index for a link."""
+        if not self._validate_link_id(link_id):
+            return
+
+        self._run_db_task(
+            lambda: self.links.update_rotation_index(link_id, new_index),
+            description=f"update_rotation_index({link_id}, {new_index})",
+            on_finished=lambda _: self.logger.debug(
+                "Updated rotation index for link %s to %s", link_id, new_index
+            ),
+            task_id=link_id,
+        )
+
     def toggle_favorite(self, link: dict[str, Any]) -> None:
         """Toggle favorite status for a link."""
         if (
