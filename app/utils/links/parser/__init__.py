@@ -29,6 +29,11 @@ def shutdown_parser_background_tasks(wait: bool = False, cancel_futures: bool = 
         shutdown_cloudscraper(wait=wait)
     except Exception:
         pass
+    try:
+        from .favicon_cache import favicon_cache
+        favicon_cache.close()
+    except Exception:
+        pass
 
 __all__ = [
     "fetch_web_link_info",
