@@ -89,12 +89,18 @@ class WorkerManager:
         return cls.run(_wrapped)
 
     @classmethod
-    def shutdown(cls, timeout_ms: int) -> None:
+    def shutdown(cls, timeout_ms: int) -> bool:
         pool = cls._pool
         if pool is None:
-            return
+            return True
         try:
             pool.clear()
         except Exception:
             pass
-        pool.waitForDone(max(0, int(timeout_ms)))
+        done = pool.waitForDone(max(0, int(timeout_ms)))
+        if not done:
+            logger.error(
+                "WorkerManager thread pool did not finish within %d ms",
+                timeout_ms,
+            )
+        return bool(done)

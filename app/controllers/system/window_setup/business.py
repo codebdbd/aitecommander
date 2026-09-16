@@ -161,7 +161,12 @@ def _setup_dialog_controllers(
 
 def _setup_shutdown_controller(window: Any, controllers: dict[str, Any]) -> None:
     """Set up application shutdown controller."""
-    app_shutdown = AppShutdownController(window)
+    existing = getattr(window, "app_shutdown", None)
+    if existing is not None and isinstance(existing, AppShutdownController):
+        app_shutdown = existing
+    else:
+        app_shutdown = AppShutdownController(window)
+        window.app_shutdown = app_shutdown
     controllers["app_shutdown"] = app_shutdown
 
 

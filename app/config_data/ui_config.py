@@ -1102,19 +1102,22 @@ class UIConfig(BaseConfig):
 
     # === Auto-hide and top bar ===
 
-    def get_auto_hide_manage_topbar(self) -> bool:
-        """Return whether auto-hide logic should manage top bar visibility.
-
-        Config key: ``ui.auto_hide_manage_topbar``. Defaults to ``False``.
-        """
-        return bool(self.get("ui.auto_hide_manage_topbar", False))
-
     def get_auto_hide_switch_to_table(self) -> bool:
         """Return whether auto-hide should switch to table view when tree hides.
 
         Config key: ``ui.auto_hide_switch_to_table``. Defaults to ``False``.
         """
         return bool(self.get("ui.auto_hide_switch_to_table", False))
+
+    def get_auto_hide_tree_threshold(self) -> int:
+        """Return base window width threshold for auto-hiding the tree panel.
+
+        Config key: ``ui.auto_hide_tree_threshold``. Defaults to ``320``.
+        """
+        try:
+            return max(160, int(self.get("ui.auto_hide_tree_threshold", 320)))
+        except (TypeError, ValueError):
+            return 320
 
     def get_topbar_throttle_ms(self) -> int:
         """Return throttle interval for top bar layout updates in milliseconds.

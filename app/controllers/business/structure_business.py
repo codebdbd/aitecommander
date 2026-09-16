@@ -226,7 +226,11 @@ class StructureBusinessLogic(QObject):
             )
 
             if getattr(self, "_result_dispatcher", None) is not None:
-                self._result_dispatcher.deleteLater()
+                try:
+                    self._result_dispatcher.deleteLater()
+                except RuntimeError:
+                    pass
+                self._result_dispatcher = None
             self.async_service.shutdown(timeout=timeout)
             self.cache_manager.invalidate()
             self.logger.info("StructureBusinessLogic shutdown completed")

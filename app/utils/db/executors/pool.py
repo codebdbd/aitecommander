@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from PyQt6.QtCore import QThreadPool
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["get_thread_pool", "set_thread_pool", "shutdown_thread_pool"]
 
@@ -33,17 +37,21 @@ def get_thread_pool() -> QThreadPool:
     return _DB_POOL
 
 
-def shutdown_thread_pool(timeout_ms: int = 1000) -> None:
+def shutdown_thread_pool(timeout_ms: int = 1000) -> bool:
     """Clear and wait for dedicated DB thread pool on application shutdown."""
     global _DB_POOL
     pool = _DB_POOL
     if pool is None:
-        return
+        return True
     try:
         pool.clear()
     except Exception:
         pass
     try:
-        pool.waitForDone(max(0, int(timeout_ms)))
-    except Exception:
-        pass
+        done = pool.waitForDone(max(0, int(timeout_ms)))
+        if not done:
+            logger.error("DB thread pool did not finish within %d ms", timeout_ms)
+        return bool(done)
+    except Exception as exc:
+        logger.error("Error waiting for DB thread pool: %s", exc, exc_info=True)
+        return False

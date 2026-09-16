@@ -18,3 +18,12 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 ## 3. Communication Constraints
 - **Zero Explanation Rule**: Upon completing a task, your response MUST be extremely brief. "Готово" (Done) is ideal. Do NOT list the files you changed. Do NOT explain your logic.
 - **No Permissions**: If a file is missing or untracked during an operation (e.g., git commit), assume it is intentional and proceed. DO NOT stop to ask the user for permission.
+
+## 4. Mandatory Workflow Rule (ОБЯЗАТЕЛЬНО К ИСПОЛНЕНИЮ)
+- **Strict Order of Action**: Before touching ANY code, you MUST follow this strict sequence:
+  1. **Причина**: Describe the exact root cause of the problem.
+  2. **Решение**: Describe the proposed technical solution.
+  3. **План**: Provide a detailed implementation plan.
+  4. **Согласование**: Wait for explicit user approval.
+  5. **Смена кода**: ONLY after user approval, make code changes. NO EXCEPTIONS.
+

@@ -47,7 +47,12 @@ class PopulationManagerMixin:
         table = self._link_table()
         try:
             sel = table.selectionModel()
-            current_selection = [i.row() for i in sel.selectedRows()] if sel else []
+            current_selection = []
+            if sel:
+                for i in sel.selectedRows():
+                    link_data = table.get_link_at(i.row())
+                    if link_data and "id" in link_data:
+                        current_selection.append(link_data["id"])
         except Exception:
             self.logger.debug("populate: failed to capture selection", exc_info=True)
             current_selection = []
@@ -106,12 +111,12 @@ class PopulationManagerMixin:
                 "populate: failed to unblock table signals", exc_info=True
             )
 
-    def _should_full_refresh(self, links, sort_col):
+    def _should_full_refresh(self, links, sort_col, mode="normal"):
         """Check if full refresh is needed."""
         helpers = self._data_helpers()
         current_order = self._get_current_order()
         new_order = [link.get("id") for link in links if link and "id" in link]
-        if (sort_col == -1) and current_order and (current_order != new_order):
+        if mode != "search" and (sort_col == -1) and current_order and (current_order != new_order):
             self.logger.info(
                 "[LinksTableView] Detected ID order change without active sorting — performing full refresh"
             )
@@ -250,7 +255,7 @@ class PopulationManagerMixin:
                 if not cache_ok:
                     table.rebuild_cache_from_items()
 
-                if self._should_full_refresh(links, sort_col):
+                if self._should_full_refresh(links, sort_col, mode):
                     self._full_populate(links, mode)
                     return
 
@@ -344,7 +349,11 @@ class PopulationManagerMixin:
                         exc_info=True,
                     )
 
-            # Automatic selection restore intentionally removed for default Qt behavior
+            if selection and hasattr(table, "focus_on_link_id"):
+                try:
+                    table.focus_on_link_id(selection[0])
+                except Exception:
+                    self.logger.debug("populate: failed to restore selection by ID")
 
             # Restore scroll position
             scroll_bar = table.verticalScrollBar()

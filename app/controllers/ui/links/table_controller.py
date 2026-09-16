@@ -72,6 +72,13 @@ class LinksTableController(QObject):
         self._current_category_id: Optional[int] = None
         self._current_request_id: Optional[int] = None
 
+        try:
+            model = getattr(self.table, "model", lambda: None)()
+            if model and hasattr(model, "groupLaunchToggled"):
+                model.groupLaunchToggled.connect(self._on_group_launch_toggled)
+        except Exception as e:
+            logger.warning("LinksTableController: failed to connect groupLaunchToggled: %s", e)
+
     # --- Public API ---
     def reload(self, category_id: Optional[int], request_id: Optional[int] = None) -> None:
         """Reload links table for specified category.
@@ -97,13 +104,9 @@ class LinksTableController(QObject):
                         request_id,
                     )
                     return
-                # If reload already running, queue it, but avoid duplicates
-                if (
-                    category_id == self._current_category_id
-                    or category_id == self._queued_category_id
-                ):
+                if category_id == self._queued_category_id:
                     logger.debug(
-                        "LinksTableController.reload: already processing or queued category_id=%s",
+                        "LinksTableController.reload: already queued category_id=%s",
                         category_id,
                     )
                     return
@@ -154,6 +157,25 @@ class LinksTableController(QObject):
                 e,
             )
             raise
+
+    def _on_group_launch_toggled(self, link_id: int, val_int: int) -> None:
+        try:
+            from app.core.worker_manager import worker_manager
+            worker_manager.submit(
+                self._update_group_launch_task, link_id, val_int, 
+                task_name=f"update_group_launch_{link_id}"
+            )
+        except Exception as e:
+            logger.warning("LinksTableController: Failed to dispatch is_group_launch update: %s", e)
+
+    def _update_group_launch_task(self, link_id: int, val_int: int) -> None:
+        try:
+            from app.models.db import Database
+            db = Database()
+            with db.transaction():
+                db.links.update_group_launch(link_id, val_int)
+        except Exception as e:
+            logger.warning("LinksTableController: Failed to save is_group_launch: %s", e)
 
     # --- Slots for business signals ---
     def on_links_loaded(
@@ -282,10 +304,23 @@ class LinksTableController(QObject):
                 # do NOT reload the table. The link in DB is already updated for when the user visits it.
                 if payload.get("_is_icon_enrichment"):
                     return
-                # Fallback: if data insufficient or category mismatch — do regular reload
+                # Fallback: if data insufficient or category mismatch
+                if cat_id != current_category_id:
+                    if _debug:
+                        logger.debug(
+                            "on_link_saved: link %s moved to cat %s, removing from current cat %s",
+                            link_id, cat_id, current_category_id
+                        )
+                    if hasattr(self.table, "find_row_by_link_id"):
+                        row = self.table.find_row_by_link_id(link_id)
+                        if row is not None and row >= 0:
+                            if hasattr(self.table, "_remove_row"):
+                                self.table._remove_row(row)
+                    return
+
                 if _debug:
                     logger.debug(
-                        "on_link_saved: reload due to payload insufficiency or category mismatch payload_cat=%s current_cat=%s",
+                        "on_link_saved: reload due to payload insufficiency payload_cat=%s current_cat=%s",
                         cat_id,
                         current_category_id,
                     )

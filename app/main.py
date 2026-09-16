@@ -30,13 +30,6 @@ for _b_mod in ("brotlicffi", "brotli"):
     except Exception:
         sys.modules[_b_mod] = None
 
-# Enable C-level traceback for segfaults if stderr is available
-try:
-    import faulthandler
-    if sys.stderr is not None:
-        faulthandler.enable()
-except Exception:
-    pass
 
 # Fix for PyQt6 + pywin32 COM uninitialization crash on Windows exit
 sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED
@@ -86,12 +79,4 @@ if __name__ == "__main__":
         sys.stderr.flush()
     except Exception:
         pass
-    if sys.platform == "win32":
-        try:
-            import ctypes
-
-            ctypes.windll.kernel32.ExitProcess(int(code))
-        except Exception:
-            os._exit(code)
-    else:
-        os._exit(code)
+    sys.exit(code)

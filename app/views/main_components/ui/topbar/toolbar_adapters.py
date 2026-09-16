@@ -19,20 +19,41 @@ from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.panels.recent_panel_widget import RECENT_LINKS_LIMIT
 
+__all__ = [
+    "ToolbarSeparatorController",
+    "ToolbarActionAdapter",
+    "QuickAddToolbarAdapter",
+    "LinksToolbarAdapter",
+]
+
 logger = logging.getLogger(__name__)
 
 
-def _icon_from_path(path: Path, fallback: Path | None = None) -> QIcon:
+def _icon_from_path(
+    path: Path,
+    fallback: Path | None = None,
+    link_type: str = "file",
+) -> QIcon:
     try:
         icon = create_icon_from_path(str(path))
         if not icon or getattr(icon, "isNull", lambda: True)():
             if fallback is not None:
                 icon = create_icon_from_path(str(fallback))
+            elif link_type:
+                fallback_path = resolve_link_type_icon(link_type)
+                if fallback_path:
+                    icon = create_icon_from_path(str(fallback_path))
         return icon
-    except Exception as exc:
+    except (TypeError, ValueError, RuntimeError, OSError) as exc:
         logger.debug("TopBarToolbar: failed to load icon %s: %s", path, exc)
         if fallback is not None:
             return create_icon_from_path(str(fallback))
+        try:
+            fallback_path = resolve_link_type_icon(link_type)
+            if fallback_path:
+                return create_icon_from_path(str(fallback_path))
+        except (TypeError, ValueError, RuntimeError, OSError):
+            pass
         return QIcon()
 
 
@@ -50,7 +71,7 @@ def _resolve_icon_for_link_fast(link_data: dict[str, Any] | None) -> str:
 
     try:
         link_type = ((link_data.get("type") or "file").strip() or "file").lower()
-    except Exception:
+    except (AttributeError, TypeError):
         link_type = "file"
 
     return resolve_link_type_icon(link_type)
@@ -109,12 +130,17 @@ class ToolbarActionAdapter(QObject):
         self._buttons: list[QToolButton] = []
         self._last_marked_button: QToolButton | None = None
 
+    @property
+    def actions(self) -> list[QAction]:
+        """Return a copy of the registered actions list."""
+        return list(self._actions)
+
     def clear_actions(self) -> None:
         for action in self._actions:
             try:
                 self._toolbar.removeAction(action)
                 action.deleteLater()
-            except Exception:
+            except (RuntimeError, AttributeError):
                 pass
         self._actions.clear()
         self._buttons.clear()
@@ -139,7 +165,7 @@ class ToolbarActionAdapter(QObject):
                     button.setAccessibleName(label)
                     button.setAccessibleDescription(label)
                 self._buttons.append(button)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopBarToolbar: failed to configure button", exc_info=True)
 
     def _set_button_last(self, button: QToolButton, is_last: bool) -> None:
@@ -152,40 +178,42 @@ class ToolbarActionAdapter(QObject):
                 style.unpolish(button)
                 style.polish(button)
             button.update()
-        except Exception:
+        except (RuntimeError, AttributeError):
             pass
 
     def _update_global_last_button(self) -> None:
-        buttons: list[QToolButton] = []
-        for action in self._toolbar.actions():
+        new_last: QToolButton | None = None
+        for action in reversed(self._toolbar.actions()):
             try:
                 button = self._toolbar.widgetForAction(action)
-            except Exception:
+            except (RuntimeError, AttributeError):
                 continue
             if (
                 isinstance(button, QToolButton)
                 and bool(button.property("toolbar_btn"))
-                and button.isVisible()
+                and not button.isHidden()
             ):
-                buttons.append(button)
-        if not buttons:
-            self._last_marked_button = None
-            return
-        new_last = buttons[-1]
-        previous_last = self._last_marked_button
+                new_last = button
+                break
+
+        previous_last = getattr(self._toolbar, "_global_last_button", None)
         if previous_last is new_last:
             return
         if previous_last is not None:
             self._set_button_last(previous_last, False)
-        self._set_button_last(new_last, True)
-        self._last_marked_button = new_last
+        if new_last is not None:
+            self._set_button_last(new_last, True)
+        self._toolbar._global_last_button = new_last
 
-    def setVisible(self, visible: bool) -> None:  # noqa: N802 - Qt-style API
+    def set_actions_visible(self, visible: bool) -> None:
         for action in self._actions:
             try:
                 action.setVisible(bool(visible))
-            except Exception:
+            except (RuntimeError, AttributeError):
                 pass
+
+    def setVisible(self, visible: bool) -> None:  # noqa: N802 - deprecated compatibility alias
+        self.set_actions_visible(visible)
 
     def _mark_last_button(self) -> None:
         if not self._buttons:
@@ -214,7 +242,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
     ) -> None:
         try:
             button_size_raw = runtime_app_config.ui.get_quick_add_button_size()
-        except Exception:
+        except (TypeError, ValueError, AttributeError):
             button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
         icon_size = runtime_app_config.ui.get_top_panel_icon_size()
         button_size, icon_size = _button_sizes(button_size_raw, icon_size)
@@ -252,10 +280,10 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         for code, icon_name, tooltip in quick_types:
             label = tooltips.get(code, tooltip) or code
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
-            icon = _icon_from_path(icon_path)
+            icon = _icon_from_path(icon_path, link_type=code)
             action = QAction(icon, label, self._toolbar)
             action.setToolTip(label)
-            action.triggered.connect(lambda _=False, ct=code: self._on_quick_add(ct))
+            action.triggered.connect(lambda checked=False, ct=code: self._on_quick_add(ct))
             self._add_action(action)
         self._mark_last_button()
         self._update_global_last_button()
@@ -278,12 +306,12 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         if hasattr(provider, "get_current_category_id"):
             try:
                 return provider.get_current_category_id()
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError, ValueError):
                 logger.debug("QuickAddToolbar: failed to get current category", exc_info=True)
         if hasattr(provider, "facade") and provider.facade:
             try:
                 return provider.facade.get_current_category_id()
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError, ValueError):
                 logger.debug("QuickAddToolbar: facade category lookup failed", exc_info=True)
         return None
 
@@ -324,15 +352,32 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         self.clear_actions()
         for link_data in self._last_items:
             name = link_data.get("name") or "Unknown"
+            link_type = ((link_data.get("type") or "file").strip() or "file").lower()
             if fast_icons:
                 icon_path = _resolve_icon_for_link_fast(link_data)
             else:
                 icon_path = resolve_icon_for_link(link_data)
-            icon = _icon_from_path(Path(icon_path)) if icon_path else QIcon()
+            icon = (
+                _icon_from_path(Path(icon_path), link_type=link_type)
+                if icon_path
+                else _icon_from_path(Path(""), link_type=link_type)
+            )
             action = QAction(icon, name, self._toolbar)
-            action.setToolTip(name)
+
+            tooltip_parts = [f"<b>{name}</b>"]
+            target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
+            if target_path:
+                tooltip_parts.append(f"📍 {target_path}")
+            category_name = link_data.get("category_name") or link_data.get("category")
+            if category_name:
+                tooltip_parts.append(f"📁 {category_name}")
+            last_opened = link_data.get("last_opened_at") or link_data.get("last_opened")
+            if last_opened:
+                tooltip_parts.append(f"🕐 {last_opened}")
+            action.setToolTip("<br/>".join(tooltip_parts))
+
             action.setData(link_data)
-            action.triggered.connect(lambda _=False, data=link_data: self._on_link(data))
+            action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
             self._add_action(action)
         self._mark_last_button()
         self._update_global_last_button()
@@ -353,7 +398,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             return
         try:
             self.clearRequested.emit()
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopBarToolbar: failed to emit clearRequested", exc_info=True)
 
     def _on_link(self, link_data: dict[str, Any]) -> None:

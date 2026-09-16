@@ -10,6 +10,7 @@ from PyQt6.QtCore import (
     QCoreApplication,
     QModelIndex,
     Qt,
+    pyqtSignal,
 )
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
@@ -53,6 +54,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """
 
     MAX_ICON_CACHE = 500  # Icon cache size limit
+    groupLaunchToggled = pyqtSignal(int, int)  # link_id, val_int
 
     def __init__(
         self,
@@ -198,7 +200,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if 0 <= section < len(self._headers):
                     return self._headers[section]
             elif role == Qt.ItemDataRole.TextAlignmentRole:
-                if section in (0, 2, 4):
+                if section == 2:
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return super().headerData(section, orientation, role)
@@ -260,13 +262,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 self.dataChanged.emit(index, index, [Qt.ItemDataRole.CheckStateRole])
                 link_id = link.get("id")
                 if link_id:
-                    try:
-                        from app.models.db import Database
-                        db = Database()
-                        with db.transaction():
-                            db.links.update_group_launch(link_id, val_int)
-                    except Exception as e:
-                        logger.warning("Failed to save is_group_launch: %s", e)
+                    self.groupLaunchToggled.emit(link_id, val_int)
                 return True
 
             if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
@@ -383,11 +379,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             last = src[-1]
             # Adjust the target when moving downward
             insert_row = target_row
-            if insert_row > last + 1:
-                insert_row = insert_row
-            elif insert_row <= first:
-                insert_row = insert_row
-            else:
+            if first < insert_row <= last + 1:
                 # If the target falls inside the range, treat as no-op
                 return
 
@@ -416,9 +408,27 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         ]
         segment_items: list[dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
+        new_links = remaining[:insert_at] + segment_items + remaining[insert_at:]
+        
+        id_to_new_row = {item.get("id"): r for r, item in enumerate(new_links) if item.get("id") is not None}
+        
         self.layoutAboutToBeChanged.emit()
         try:
-            self._links = remaining[:insert_at] + segment_items + remaining[insert_at:]
+            old_parents = self.persistentIndexList()
+            to_indexes = []
+            for p_idx in old_parents:
+                if p_idx.isValid() and p_idx.row() < len(self._links):
+                    item = self._links[p_idx.row()]
+                    new_r = id_to_new_row.get(item.get("id"))
+                    if new_r is not None:
+                        to_indexes.append(self.index(new_r, p_idx.column(), p_idx.parent()))
+                    else:
+                        to_indexes.append(p_idx)
+                else:
+                    to_indexes.append(p_idx)
+            self._links = new_links
+            if old_parents:
+                self.changePersistentIndexList(old_parents, to_indexes)
         finally:
             self.layoutChanged.emit()
 

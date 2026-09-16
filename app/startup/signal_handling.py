@@ -9,7 +9,7 @@ import signal
 import sys
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QCoreApplication, QSocketNotifier
+from PyQt6.QtCore import QCoreApplication, QSocketNotifier, QTimer
 from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
@@ -34,10 +34,10 @@ def _stream_is_tty(stream: Any) -> bool:
         return False
 
 
-def signal_handler(
-    signum: int, frame: Any, initializer: ApplicationInitializer | None = None
+def _trigger_graceful_shutdown(
+    signum: int, initializer: ApplicationInitializer | None = None
 ) -> None:
-    """Handle SIGINT/SIGTERM signals by requesting a graceful shutdown."""
+    """Initiate graceful shutdown via MainWindow if available, falling back to QCoreApplication.exit."""
     signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
     logger.info(
         "Received %s signal, initiating graceful shutdown...",
@@ -48,7 +48,27 @@ def signal_handler(
         if signum in (signal.SIGINT, signal.SIGTERM)
         else 1
     )
+    main_window = getattr(initializer, "main_window", None) if initializer else None
+    if main_window is not None and hasattr(main_window, "close"):
+        try:
+            logger.info("Closing main window gracefully on %s signal", signal_name)
+            try:
+                QTimer.singleShot(5000, lambda: QCoreApplication.exit(exit_code))
+            except Exception:
+                pass
+            main_window.close()
+            return
+        except Exception as exc:
+            logger.error("Failed to close main window gracefully on signal: %s", exc, exc_info=True)
+
     QCoreApplication.exit(exit_code)
+
+
+def signal_handler(
+    signum: int, frame: Any, initializer: ApplicationInitializer | None = None
+) -> None:
+    """Handle SIGINT/SIGTERM signals by requesting a graceful shutdown."""
+    _trigger_graceful_shutdown(signum, initializer)
 
 
 def safe_signal_handler(
@@ -114,12 +134,7 @@ def setup_signal_handling(
             else:
                 signum = data[0]
 
-            signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
-            logger.info(
-                "Received %s signal via QSocketNotifier, initiating graceful shutdown...",
-                signal_name,
-            )
-            QCoreApplication.exit(SIGNAL_EXIT_CODE_BASE + signum)
+            _trigger_graceful_shutdown(signum, initializer)
 
         notifier.activated.connect(handle_qt_signal)
         notifiers.append(notifier)

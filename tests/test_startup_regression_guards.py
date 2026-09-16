@@ -169,6 +169,9 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
         def setStyleSheet(self, *_args, **_kwargs):
             pass
 
+        def set_button_height(self, *_args, **_kwargs):
+            pass
+
     class FakeHBoxLayout:
         def __init__(self):
             self.widgets = []
@@ -192,6 +195,8 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
         class Policy:
             Minimum = 0
             Fixed = 1
+            Preferred = 2
+            Maximum = 3
 
     class FakeQt:
         class AlignmentFlag:
@@ -252,6 +257,7 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
 
     monkeypatch.setattr(top_bar_setup, "QAction", FakeAction)
     monkeypatch.setattr(top_bar_setup, "QToolBar", FakeToolBar)
+    monkeypatch.setattr(top_bar_setup, "TopBarToolBar", FakeToolBar)
     monkeypatch.setattr(top_bar_setup, "QHBoxLayout", FakeHBoxLayout)
     monkeypatch.setattr(top_bar_setup, "QSize", lambda w, h: (w, h))
     monkeypatch.setattr(top_bar_setup, "QSizePolicy", FakeSizePolicy)

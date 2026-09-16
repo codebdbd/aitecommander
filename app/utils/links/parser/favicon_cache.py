@@ -16,6 +16,7 @@ from collections import OrderedDict
 from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
+import weakref
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -243,6 +244,17 @@ def _open_shelve_with_recovery(path: str):
 
 
 class FaviconCache(BaseCache):
+    _instances: weakref.WeakSet[FaviconCache] = weakref.WeakSet()
+    _atexit_registered: bool = False
+
+    @classmethod
+    def _atexit_shutdown_all(cls) -> None:
+        for inst in list(cls._instances):
+            try:
+                inst._safe_shutdown()
+            except Exception:
+                pass
+
     def __init__(self, *, default_ttl: float | None = CACHE_TTL) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
@@ -259,10 +271,13 @@ class FaviconCache(BaseCache):
             )
         except Exception:
             self._persistent_enabled = False
-        try:
-            atexit.register(self._safe_shutdown)
-        except Exception:
-            pass
+        FaviconCache._instances.add(self)
+        if not FaviconCache._atexit_registered:
+            try:
+                atexit.register(FaviconCache._atexit_shutdown_all)
+                FaviconCache._atexit_registered = True
+            except Exception:
+                pass
 
     # Shelve handling
     def _get_db_path(self) -> str:
