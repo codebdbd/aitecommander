@@ -34,6 +34,11 @@ def shutdown_parser_background_tasks(wait: bool = False, cancel_futures: bool = 
         favicon_cache.close()
     except Exception:
         pass
+    try:
+        from .http_client import _cleanup_thread_local_session
+        _cleanup_thread_local_session()
+    except Exception:
+        pass
 
 __all__ = [
     "fetch_web_link_info",

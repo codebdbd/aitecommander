@@ -68,10 +68,10 @@ class RightPanelBuilder:
         splitter.addWidget(self.window.left_panel)
         splitter.addWidget(right_panel)
         try:
-            splitter.setCollapsible(0, True)
+            splitter.setCollapsible(0, False)
         except (RuntimeError, TypeError):
             logger.debug(
-                "RightPanel: failed to set splitter collapsible(0, True)", exc_info=True
+                "RightPanel: failed to set splitter collapsible(0, False)", exc_info=True
             )
         stretch_factors = app_config.ui.get_splitter_stretch_factors()
         splitter.setStretchFactor(0, stretch_factors[0])

@@ -293,6 +293,11 @@ class ApplicationInitializer:
                 logger.debug("Failed to detach signal notifier: %s", exc)
         self._signal_notifiers.clear()
 
+    @property
+    def shutdown_controller(self) -> AppShutdownController | None:
+        """Return the active shutdown controller if one was created."""
+        return self._shutdown_controller
+
     def has_pending_cleanup(self) -> bool:
         """Return True if cleanup still needs to be executed."""
         with self._cleanup_lock:
@@ -371,7 +376,11 @@ class ApplicationInitializer:
                 if active_count > 0:
                     logger.debug("Cleanup step: wait for thread pool")
                     logger.debug("Waiting for %d threads to complete", active_count)
-                    self.thread_pool.waitForDone(THREAD_POOL_SHUTDOWN_TIMEOUT_MS)
+                    if not self.thread_pool.waitForDone(THREAD_POOL_SHUTDOWN_TIMEOUT_MS):
+                        logger.error(
+                            "Initializer thread pool did not finish within %d ms",
+                            THREAD_POOL_SHUTDOWN_TIMEOUT_MS,
+                        )
             cleanup_succeeded = True
 
         except Exception as exc_type:
@@ -499,14 +508,6 @@ class ApplicationInitializer:
             else:
                 self._shutdown_controller = AppShutdownController(self.main_window)
                 self.main_window.app_shutdown = self._shutdown_controller
-
-            self._shutdown_controller.add_shutdown_handler(
-                "application_initializer_cleanup",
-                self._cleanup_via_shutdown_controller,
-                priority=ShutdownPriority.LOW,
-                timeout=3000,
-                critical=True,
-            )
         return True
 
     @initialization_method(
@@ -538,6 +539,9 @@ class ApplicationInitializer:
                     ("theme", self.apply_initial_theme),
                 ]
             )
+        else:
+            if self._shutdown_controller is None:
+                self._shutdown_controller = AppShutdownController(None)
 
         for step_name, step_func in initialization_steps:
             if not step_func():

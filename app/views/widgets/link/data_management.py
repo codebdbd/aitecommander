@@ -204,10 +204,15 @@ class DataManagementMixin:
             model = getattr(self, "model", lambda: None)()
             if model is None:
                 return None
-            for row in range(model.rowCount()):
-                link_data = self.get_link_at(row)
-                if link_data and link_data.get("id") == link_id:
+            if hasattr(model, "find_row_by_id"):
+                row = model.find_row_by_id(link_id)
+                if row != -1:
                     return row
+            else:
+                for row in range(model.rowCount()):
+                    link_data = self.get_link_at(row)
+                    if link_data and link_data.get("id") == link_id:
+                        return row
             return None
         except Exception as e:
             self.logger.error(

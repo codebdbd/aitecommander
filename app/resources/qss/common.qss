@@ -184,6 +184,18 @@ QWidget#topBarHost QToolButton:checked {
     border-color: transparent;
 }
 
+QToolBar#topBarToolbar QToolButton[toolbar_btn="true"] {
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    margin-right: 4px;
+}
+
+QToolBar#topBarToolbar QToolButton[toolbar_last="true"] {
+    margin-right: 0px;
+}
+
 QWidget#topBarHost QPushButton {
     border: 1px solid;
     border-color: transparent;
@@ -358,19 +370,31 @@ QTableView QHeaderView::section:horizontal {
     border-left: none;
     border-right: 1px solid #3A3E44;
     padding-left: 6px;
-    padding-right: 20px;
+    padding-right: 24px;
     padding-top: 2px;
     padding-bottom: 2px;
 }
 
 QTableView QHeaderView::section:horizontal:first {
     border-left: none;
-    padding: 2px 2px;
+    padding-left: 6px;
+    padding-right: 24px;
 }
 
 QTableView QHeaderView::section:horizontal:last {
     border-right: none;
-    padding: 2px 2px;
+    padding-left: 6px;
+    padding-right: 24px;
+}
+
+QHeaderView::up-arrow,
+QHeaderView::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+    border: none;
+    padding: 0px;
+    margin: 0px;
 }
 
 QTableView QHeaderView,
@@ -397,7 +421,13 @@ QTableWidget {
 }
 
 QTableView::item,
-QTableWidget::item,
+QTableWidget::item {
+    border: none;
+    border-radius: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
 QTreeView::item:selected,
 QTableView::item:selected,
 QTableWidget::item:selected,

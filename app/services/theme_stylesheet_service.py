@@ -654,6 +654,21 @@ class ThemeStylesheetService:
         except Exception:
             pass
         try:
+            btn_size = int(self._app_config.ui.get_top_panel_button_size())
+            btn_spacing = max(0, int(self._app_config.ui.get_top_bar_buttons_spacing()))
+            lines.append(
+                "QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"] { "
+                f"min-width: {btn_size}px; max-width: {btn_size}px; "
+                f"min-height: {btn_size}px; max-height: {btn_size}px; "
+                f"margin-right: {btn_spacing}px; "
+                "}"
+            )
+            lines.append(
+                "QToolBar#topBarToolbar QToolButton[toolbar_last=\"true\"] { margin-right: 0px; }"
+            )
+        except Exception:
+            pass
+        try:
             sep_height = int(self._app_config.ui.get_separator_height())
             lines.append(
                 "QWidget[class=\"separator\"] { "

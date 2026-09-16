@@ -335,7 +335,19 @@ def _cleanup_resources(
     app: QApplication | QCoreApplication | None,
     about_to_quit_cleanup_registered: bool,
 ) -> None:
-    """Cleanup all resources on shutdown."""
+    shutdown_ctrl = None
+    if initializer:
+        if initializer.main_window and getattr(initializer.main_window, "app_shutdown", None):
+            shutdown_ctrl = initializer.main_window.app_shutdown
+        elif getattr(initializer, "shutdown_controller", None):
+            shutdown_ctrl = initializer.shutdown_controller
+
+    if shutdown_ctrl and not getattr(shutdown_ctrl, "_shutdown_completed", False):
+        try:
+            shutdown_ctrl.perform_shutdown()
+        except Exception as exc:
+            logger.error("Error during shutdown controller execution: %s", exc)
+
     if initializer:
         try:
             initializer.ensure_emergency_cleanup()
@@ -355,11 +367,6 @@ def _cleanup_resources(
         except Exception:
             pass
 
-    if app is not None and isinstance(app, QApplication):
-        try:
-            app.closeAllWindows()
-        except Exception:
-            pass
 
 
 def _register_hotkeys() -> None:
@@ -671,7 +678,7 @@ def run(options: StartupOptions | None = None) -> int:
         try:
             from app.utils.links.parser import shutdown_parser_background_tasks
 
-            shutdown_parser_background_tasks(wait=False)
+            shutdown_parser_background_tasks(wait=True, cancel_futures=True)
         except Exception as exc:
             logger.warning("Parser background tasks shutdown failed: %s", exc)
         if single_instance_guard is not None:
@@ -702,12 +709,12 @@ def run(options: StartupOptions | None = None) -> int:
             qCleanupResources()
             _resources_initialized = False
 
+        _disable_fault_handler()
         log_shutdown()
         try:
             LogManager.shutdown()
         except Exception:
             pass
-        _disable_fault_handler()
 
         target_code = resolved_exit
         if (
@@ -721,21 +728,7 @@ def run(options: StartupOptions | None = None) -> int:
                 sys.stderr.flush()
             except Exception:
                 pass
-            if sys.platform == "win32":
-                try:
-                    import pythoncom
-
-                    pythoncom.CoUninitialize()
-                except Exception:
-                    pass
-                try:
-                    import ctypes
-
-                    ctypes.windll.kernel32.ExitProcess(int(target_code))
-                except Exception:
-                    os._exit(int(target_code))
-            else:
-                os._exit(int(target_code))
+            sys.exit(int(target_code))
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]

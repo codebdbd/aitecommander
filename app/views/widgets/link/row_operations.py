@@ -223,14 +223,6 @@ class RowOperationsMixin:
             if not inserted:
                 return False
 
-            try:
-                table.rebuild_cache_from_items()
-            except Exception:
-                logger.debug(
-                    "[LinksTableView] rebuild_cache_from_items failed after insert",
-                    exc_info=True,
-                )
-
             return True
 
         except Exception as e:
@@ -449,6 +441,15 @@ class RowOperationsMixin:
             if self._add_row(target_row, link, mode):
                 inserted += 1
                 processed.add(link_id)
+
+        if inserted > 0:
+            try:
+                table.rebuild_cache_from_items()
+            except Exception:
+                logger.debug(
+                    "[LinksTableView] rebuild_cache_from_items failed after bulk insert",
+                    exc_info=True,
+                )
 
         missing = ids - processed
         if missing:

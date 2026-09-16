@@ -2,6 +2,7 @@
 
 import inspect
 import logging
+import os
 import sys
 import threading
 import time
@@ -19,6 +20,7 @@ from app.config_data.runtime_config import (
     get_thread_pool_shutdown_timeout,
     is_shutdown_parallel_execution,
 )
+from app.core.paths.path_manager import PathManager
 from app.utils.cache.topbar_snapshot import TopBarSnapshot, TopBarSnapshotStore
 
 # Module logger
@@ -114,10 +116,11 @@ class AppShutdownController:
     - Safe shutdown in multithreaded environment
     """
 
-    def __init__(self, main_window: "QMainWindow"):
+    def __init__(self, main_window: Optional["QMainWindow"] = None):
         self.window = main_window
         self.shutdown_handlers: list[ShutdownHandler] = []
         self.shutdown_in_progress = False
+        self._shutdown_completed = False
         self._shutdown_lock: Optional[threading.RLock] = threading.RLock()
         self._shutdown_started_ts: float | None = None
         self._topbar_snapshot_store = TopBarSnapshotStore()
@@ -141,6 +144,17 @@ class AppShutdownController:
             return
 
         with self._shutdown_lock:
+            if self._shutdown_completed:
+                logger.warning(
+                    "Shutdown has already completed, ignoring subsequent request"
+                )
+                if event is not None:
+                    try:
+                        event.accept()
+                    except Exception:
+                        pass
+                return
+
             if self.shutdown_in_progress:
                 logger.warning(
                     "Shutdown is already in progress, ignoring duplicate request"
@@ -165,16 +179,22 @@ class AppShutdownController:
         finally:
             # Safe call to parent closeEvent (backward compatibility)
             self._safe_close_event(event)
+            self._shutdown_completed = True
             # ✅ Resource cleanup
             self.cleanup()
 
     def _safe_close_event(self, event):
         """Safe call to parent closeEvent with fallback."""
-        if event is None:
+        if self.window is None or event is None:
+            if event is not None:
+                try:
+                    event.accept()
+                except Exception:
+                    pass
             return
         try:
-            # Use proper super() call to ensure correct event propagation
-            super(type(self.window), self.window).closeEvent(event)
+            # Explicitly invoke QMainWindow.closeEvent to avoid super(type(obj), obj) MRO issues
+            QMainWindow.closeEvent(self.window, event)
         except AttributeError:
             # Parent class doesn't have closeEvent, accept the event
             event.accept()
@@ -312,23 +332,27 @@ class AppShutdownController:
             handler.critical,
         )
 
-        # Execute handler directly in the main thread to avoid Qt thread issues
         err_holder: list[BaseException] = []
         result_holder: list[bool] = []
 
+        timeout_to_use = eff_timeout_ms or handler.timeout
         try:
-            result = handler.run(eff_timeout_ms or handler.timeout)
+            if timeout_to_use and timeout_to_use > 0:
+                with self._timeout_context(timeout_to_use, handler.name):
+                    result = handler.run(timeout_to_use)
+            else:
+                result = handler.run(timeout_to_use)
             result_holder.append(result)
+        except ShutdownTimeoutError as timeout_err:
+            if handler.critical:
+                logger.critical(
+                    "Critical handler '%s' timed out: %s", handler.name, timeout_err
+                )
+                raise
+            logger.error("Handler '%s' timed out: %s", handler.name, timeout_err)
+            return
         except BaseException as e:  # noqa: BLE001
             err_holder.append(e)
-
-        # Handle timeout using QTimer if needed
-        if eff_timeout_sec is not None:
-            # For timeout handling, we would need to implement a different approach
-            # since we can't easily interrupt execution in the main thread
-            # For now, we'll execute without timeout enforcement in the main thread
-            # which is safer than accessing Qt objects from background threads
-            pass
 
         if err_holder:
             exc = err_holder[0]
@@ -445,6 +469,8 @@ class AppShutdownController:
 
     def _shutdown_controllers(self, timeout_ms: int) -> bool:
         """Stop background controllers - improved version of original."""
+        if not self.window:
+            return True
         controllers_to_shutdown = [
             ("links", "Links controller"),
             ("links_business", "Links business controller"),
@@ -498,6 +524,7 @@ class AppShutdownController:
             effective_timeout = configured_timeout
         # Split budget between global and local pools
         timeout = max(50, effective_timeout // 2)
+        all_pools_done = True
 
         # Global thread pool
         try:
@@ -513,11 +540,14 @@ class AppShutdownController:
                         pool.activeThreadCount(),
                     )
                     if not pool.waitForDone(timeout):
-                        logger.warning(
-                            "Global thread pool did not finish within timeout, forcing cleanup"
+                        logger.error(
+                            "Global thread pool did not finish within %d ms, forcing cleanup",
+                            timeout,
                         )
+                        all_pools_done = False
         except Exception as exc:
             logger.error("Error waiting for global thread pool: %s", exc, exc_info=True)
+            all_pools_done = False
 
         # Локальный thread pool окна
         try:
@@ -534,12 +564,15 @@ class AppShutdownController:
                             local_pool.activeThreadCount(),
                         )
                         if not local_pool.waitForDone(timeout):
-                            logger.warning(
-                                "Local thread pool did not finish within timeout, forcing cleanup"
+                            logger.error(
+                                "Local thread pool did not finish within %d ms, forcing cleanup",
+                                timeout,
                             )
+                            all_pools_done = False
         except Exception as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
-        return True
+            all_pools_done = False
+        return all_pools_done
 
     def _save_topbar_snapshot(self, timeout_ms: int) -> bool:
         """Persist top bar state for warm start."""
@@ -583,17 +616,25 @@ class AppShutdownController:
 
         snapshot = TopBarSnapshot(favorites=favorites, recents=recents)
         try:
-            self._topbar_snapshot_store.save(snapshot)
+            if timeout_ms and timeout_ms > 0:
+                with self._timeout_context(timeout_ms, "save_topbar_snapshot"):
+                    self._topbar_snapshot_store.save(snapshot)
+            else:
+                self._topbar_snapshot_store.save(snapshot)
             logger.debug(
                 "AppShutdownController: snapshot saved (favorites=%s, recents=%s)",
                 len(favorites),
                 len(recents),
             )
+        except ShutdownTimeoutError as exc:
+            logger.warning("AppShutdownController: saving topbar snapshot timed out: %s", exc)
+            return False
         except Exception:
             logger.debug(
                 "AppShutdownController: snapshot store raised unexpectedly",
                 exc_info=True,
             )
+            return False
         return True
 
     def _backup_database(self, timeout_ms: int) -> bool:
@@ -608,9 +649,9 @@ class AppShutdownController:
                 logger.debug("Database instance is None, skipping backup")
                 return True
 
-            from app.core.constants import BACKUP_DIR
-            if BACKUP_DIR.exists():
-                existing = sorted(BACKUP_DIR.glob("aite_bd_*.db"))
+            backup_dir = PathManager.backups_dir()
+            if backup_dir.exists():
+                existing = sorted(backup_dir.glob("*.db*"))
                 if existing:
                     latest = existing[-1]
                     try:
@@ -635,10 +676,17 @@ class AppShutdownController:
                 return True
 
             logger.info("Creating database backup...")
-            backup_method()
+            if timeout_ms and timeout_ms > 0:
+                with self._timeout_context(timeout_ms, "backup_database"):
+                    backup_method()
+            else:
+                backup_method()
             logger.info("Database backup created successfully")
             return True
 
+        except ShutdownTimeoutError as exc:
+            logger.error("Database backup timed out: %s", exc)
+            return False
         except Exception as exc:
             # Backup error is not critical, but we log it
             logger.error("Database backup failed: %s", exc, exc_info=True)
@@ -697,12 +745,30 @@ def create_shutdown_controller(main_window: "QMainWindow") -> AppShutdownControl
 def emergency_shutdown():
     """Emergency application shutdown in case of critical errors."""
     logger.critical("Emergency shutdown initiated")
+
+    def _force_kill():
+        try:
+            if sys.platform == "win32":
+                import ctypes
+
+                ctypes.windll.kernel32.ExitProcess(1)
+        except Exception:
+            pass
+        os._exit(1)
+
+    try:
+        watchdog = threading.Timer(3.0, _force_kill)
+        watchdog.daemon = True
+        watchdog.start()
+    except Exception as exc:
+        logger.critical("Failed to start emergency watchdog: %s", exc)
+
     try:
         app = QApplication.instance()
         if app:
             app.quit()
         else:
-            sys.exit(1)
+            _force_kill()
     except Exception as exc:
         logger.critical("Error during emergency shutdown: %s", exc)
-        sys.exit(1)
+        _force_kill()

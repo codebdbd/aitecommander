@@ -175,7 +175,6 @@ class ConfigKey(str, Enum):
     DIAG_RESIZE_LOG_MAX_MOVES = "diag.resize_log.max_moves"
 
     # Auto-hide
-    UI_AUTO_HIDE_MANAGE_TOPBAR = "ui.auto_hide_manage_topbar"
     UI_AUTO_HIDE_SWITCH_TO_TABLE = "ui.auto_hide_switch_to_table"
 
 

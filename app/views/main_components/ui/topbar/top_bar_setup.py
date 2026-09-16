@@ -1,11 +1,12 @@
 # app/views/main_components/top_bar_setup.py
 from __future__ import annotations
 
+from contextlib import contextmanager
 import logging
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QEvent, QObject, QSize, Qt, QTimer
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWidget
 
@@ -15,49 +16,72 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     QuickAddToolbarAdapter,
     ToolbarSeparatorController,
 )
+from app.views.widgets.theme_selector import ThemeSelector
+
+if TYPE_CHECKING:
+    from app.views.main_components.ui.window_ui_setup import WindowUISetup
+
+__all__ = ["TopBarToolBar", "TopBarBuilder"]
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_SPACING: int = 4
+_DEFAULT_BUTTON_SIZE: int = 32
 
-class _ExtButtonAligner(QObject):
-    """Vertically centres the QToolBar extension button.
 
-    ``QToolBarLayout`` positions the extension button via a separate
-    code-path that does not centre it like regular action widgets.
-    This event filter fires after each layout pass and adjusts the
-    button's geometry so it aligns with the other toolbar buttons.
-    """
+class _StageTimer:
+    """Lightweight stage timing collector for diagnostic logging."""
 
-    def __init__(self, toolbar: QToolBar, button_height: int) -> None:
-        super().__init__(toolbar)
-        self._toolbar = toolbar
-        self._button_height = button_height
-        self._pending = False
+    def __init__(self) -> None:
+        self.timings: dict[str, float] = {}
 
-    # -- QObject overrides --------------------------------------------------
-
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        etype = event.type()
-        if etype in (QEvent.Type.LayoutRequest, QEvent.Type.Resize):
-            if not self._pending:
-                self._pending = True
-                QTimer.singleShot(0, self._centre)
-        return False
-
-    # -- internal -----------------------------------------------------------
-
-    def _centre(self) -> None:
-        self._pending = False
+    @contextmanager
+    def measure(self, name: str):
+        start = perf_counter()
         try:
-            btn = self._toolbar.findChild(QToolButton, "qt_toolbar_ext_button")
-        except RuntimeError:
+            yield
+        finally:
+            self.timings[name] = (perf_counter() - start) * 1000.0
+
+
+class TopBarToolBar(QToolBar):
+    """QToolBar subclass that vertically centres the Qt extension (overflow) button."""
+
+    def __init__(self, parent: QWidget | None = None, button_height: int = _DEFAULT_BUTTON_SIZE) -> None:
+        if isinstance(parent, QWidget):
+            super().__init__(parent)
+        else:
+            try:
+                super().__init__(parent)
+            except TypeError:
+                super().__init__()
+        self._button_height = max(1, int(button_height))
+
+    def set_button_height(self, height: int) -> None:
+        self._button_height = max(1, int(height))
+        self._centre_ext_button()
+
+    def resizeEvent(self, event) -> None:
+        try:
+            super().resizeEvent(event)
+        except (RuntimeError, AttributeError):
+            pass
+        self._centre_ext_button()
+
+    def _centre_ext_button(self) -> None:
+        try:
+            btn = self.findChild(QToolButton, "qt_toolbar_ext_button")
+        except (RuntimeError, AttributeError):
             return
-        if btn is None or not btn.isVisible():
+        if btn is None or btn.isHidden():
             return
-        geo = btn.geometry()
-        target_y = max(0, (self._toolbar.height() - self._button_height) // 2)
-        if geo.y() != target_y or geo.height() != self._button_height:
-            btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
+        try:
+            geo = btn.geometry()
+            target_y = max(0, (self.height() - self._button_height) // 2)
+            if geo.y() != target_y or geo.height() != self._button_height:
+                btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
+        except (RuntimeError, AttributeError):
+            pass
 
 
 class TopBarBuilder:
@@ -66,11 +90,30 @@ class TopBarBuilder:
     Does not alter existing behavior.
     """
 
-    def __init__(self, ui: Any) -> None:
-        # ui is WindowUISetup; typed as Any to avoid circular imports
+    def __init__(self, ui: WindowUISetup) -> None:
         self.ui = ui
         self.window = ui.window
         self.main_layout = ui.main_layout
+
+    def _resolve_container_parent(self) -> QWidget | None:
+        """Determine parent widget for top-bar helper components."""
+        parent_fn = getattr(self.main_layout, "parentWidget", None)
+        if callable(parent_fn):
+            try:
+                parent = parent_fn()
+                if isinstance(parent, QWidget):
+                    return parent
+            except (RuntimeError, AttributeError):
+                pass
+        central_fn = getattr(self.window, "centralWidget", None)
+        if callable(central_fn):
+            try:
+                central = central_fn()
+                if isinstance(central, QWidget):
+                    return central
+            except (RuntimeError, AttributeError):
+                pass
+        return None
 
     def build(self) -> None:
         """Construct and attach the top bar.
@@ -89,151 +132,141 @@ class TopBarBuilder:
         (metrics, timing, visibility rules).
         """
         total_start = perf_counter()
-        cleanup_ms = 0.0
-        layout_ms = 0.0
-        toolbar_ms = 0.0
-        prefill_ms = 0.0
-        host_ms = 0.0
-        search_ms = 0.0
-        schedule_ms = 0.0
+        timer = _StageTimer()
 
-        cleanup_start = perf_counter()
-        # Remove any previously built top bar to keep build() idempotent.
-        existing_host = getattr(self.window, "top_bar_host", None)
-        if isinstance(existing_host, QWidget):
-            try:
-                if self.main_layout is not None:
-                    self.main_layout.removeWidget(existing_host)
-            except Exception:
-                logger.debug("TopPanel: failed to detach existing top bar host", exc_info=True)
-            try:
-                existing_host.setParent(None)
-                existing_host.deleteLater()
-            except Exception:
-                logger.debug("TopPanel: failed to dispose existing top bar host", exc_info=True)
-        # Determine parent for helper widgets
-        container_parent = (
-            getattr(self.main_layout, "parentWidget", lambda: None)()
-            or self.window.centralWidget()
-        )
-        cleanup_ms = (perf_counter() - cleanup_start) * 1000.0
+        with timer.measure("cleanup"):
+            # Remove any previously built top bar to keep build() idempotent.
+            existing_host = getattr(self.window, "top_bar_host", None)
+            if isinstance(existing_host, QWidget):
+                try:
+                    if self.main_layout is not None:
+                        self.main_layout.removeWidget(existing_host)
+                except (RuntimeError, AttributeError):
+                    logger.debug("TopPanel: failed to detach existing top bar host", exc_info=True)
+                try:
+                    existing_host.setParent(None)
+                    existing_host.deleteLater()
+                except (RuntimeError, AttributeError):
+                    logger.debug("TopPanel: failed to dispose existing top bar host", exc_info=True)
+            # Determine parent for helper widgets
+            container_parent = self._resolve_container_parent()
 
         # Remove the previous top separator;
         # QMenuBar border-bottom draws the visual line
 
         # Create top bar layout: toolbar + search field
-        layout_start = perf_counter()
-        top_bar = QHBoxLayout()
-        try:
-            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
-        except (TypeError, ValueError):
-            side = 8
-            logger.warning("TopPanel: invalid side spacing in config; using default 8")
-        top_bar.setContentsMargins(side, 0, side, 0)
-        top_bar.setSpacing(0)
-        top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        layout_ms = (perf_counter() - layout_start) * 1000.0
+        with timer.measure("layout"):
+            top_bar = QHBoxLayout()
+            try:
+                side = int(app_config.ui.get_top_bar_widgets_side_spacing())
+            except (TypeError, ValueError):
+                side = 8
+                logger.warning("TopPanel: invalid side spacing in config; using default 8")
+            top_bar.setContentsMargins(side, 0, side, 0)
+            top_bar.setSpacing(0)
+            top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # Build toolbar actions (quick/favorites/recents)
-        toolbar_start = perf_counter()
-        toolbar = QToolBar(container_parent)
-        toolbar.setObjectName("topBarToolbar")
-        toolbar.setMovable(False)
-        toolbar.setFloatable(False)
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        try:
-            icon_size = app_config.ui.get_top_panel_icon_size()
-            toolbar.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
-        except Exception:
-            pass
-        toolbar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        try:
-            toolbar.setFixedHeight(int(app_config.ui.get_top_bar_height()))
-        except (TypeError, ValueError, AttributeError):
-            logger.debug("TopPanel: failed to set toolbar height", exc_info=True)
-        try:
-            toolbar.setContentsMargins(0, 0, 0, 0)
-        except Exception:
-            pass
-        try:
-            spacing = int(app_config.ui.get_top_bar_buttons_spacing())
-        except (TypeError, ValueError):
-            spacing = 4
-        try:
-            button_size = int(app_config.ui.get_top_panel_button_size())
-        except (TypeError, ValueError):
-            button_size = 32
-        sep_quick_fav = toolbar.addSeparator()
-        sep_fav_recent = toolbar.addSeparator()
-        end_marker = QAction(toolbar)
-        end_marker.setVisible(False)
-        toolbar.addAction(end_marker)
+        with timer.measure("toolbar"):
+            try:
+                spacing = int(app_config.ui.get_top_bar_buttons_spacing())
+            except (TypeError, ValueError):
+                spacing = _DEFAULT_SPACING
+            try:
+                button_size = int(app_config.ui.get_top_panel_button_size())
+            except (TypeError, ValueError):
+                button_size = _DEFAULT_BUTTON_SIZE
 
-        sep_controller = ToolbarSeparatorController(sep_quick_fav, sep_fav_recent)
-        quick_adapter = QuickAddToolbarAdapter(
-            toolbar,
-            insert_before=sep_quick_fav,
-            category_provider=self.window,
-            separator_controller=sep_controller,
-        )
-        fav_adapter = LinksToolbarAdapter(
-            toolbar,
-            insert_before=sep_fav_recent,
-            button_object_name="favoriteButton",
-            group_name="fav",
-            emit_refresh_on_click=False,
-            separator_controller=sep_controller,
-        )
-        recent_adapter = LinksToolbarAdapter(
-            toolbar,
-            insert_before=end_marker,
-            button_object_name="recentButton",
-            group_name="recent",
-            emit_refresh_on_click=True,
-            separator_controller=sep_controller,
-        )
-
-        self.window.top_bar_toolbar = toolbar
-        self.window.quick_add_widget = quick_adapter
-        self.window.fav_widget = fav_adapter
-        self.window.recent_links_widget = recent_adapter
-
-        # Apply cached top-panel data as soon as widgets exist, before the
-        # controller and layout manager come online later in startup.
-        try:
-            self.ui._prefill_topbar_widgets_before_manager()
-        except Exception:
-            logger.debug(
-                "TopPanel: early snapshot prefill failed",
-                exc_info=True,
+            toolbar = TopBarToolBar(container_parent, button_height=button_size)
+            toolbar.setObjectName("topBarToolbar")
+            toolbar.setMovable(False)
+            toolbar.setFloatable(False)
+            toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            try:
+                icon_size = app_config.ui.get_top_panel_icon_size()
+                toolbar.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            toolbar.setSizePolicy(
+                getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                QSizePolicy.Policy.Fixed,
             )
-        toolbar_ms = (perf_counter() - toolbar_start) * 1000.0
+            try:
+                toolbar.setFixedHeight(int(app_config.ui.get_top_bar_height()))
+            except (TypeError, ValueError, AttributeError):
+                logger.debug("TopPanel: failed to set toolbar height", exc_info=True)
+            toolbar.setContentsMargins(0, 0, 0, 0)
+            sep_quick_fav = toolbar.addSeparator()
+            sep_fav_recent = toolbar.addSeparator()
+
+            # Invisible anchor action: ensures Recent actions are inserted
+            # before any trailing items added to the toolbar later.
+            end_marker = QAction(toolbar)
+            end_marker.setVisible(False)
+            toolbar.addAction(end_marker)
+
+            sep_controller = ToolbarSeparatorController(sep_quick_fav, sep_fav_recent)
+            quick_adapter = QuickAddToolbarAdapter(
+                toolbar,
+                insert_before=sep_quick_fav,
+                category_provider=self.window,
+                separator_controller=sep_controller,
+            )
+            fav_adapter = LinksToolbarAdapter(
+                toolbar,
+                insert_before=sep_fav_recent,
+                button_object_name="favoriteButton",
+                group_name="fav",
+                emit_refresh_on_click=False,
+                separator_controller=sep_controller,
+            )
+            recent_adapter = LinksToolbarAdapter(
+                toolbar,
+                insert_before=end_marker,
+                button_object_name="recentButton",
+                group_name="recent",
+                emit_refresh_on_click=True,
+                separator_controller=sep_controller,
+            )
+
+            self.window.top_bar_toolbar = toolbar
+            self.window.quick_add_widget = quick_adapter
+            self.window.fav_widget = fav_adapter
+            self.window.recent_links_widget = recent_adapter
+
+            # Apply cached top-panel data as soon as widgets exist, before the
+            # controller and layout manager come online later in startup.
+            try:
+                self.ui._prefill_topbar_widgets_before_manager()
+            except (RuntimeError, AttributeError, TypeError):
+                logger.debug(
+                    "TopPanel: early snapshot prefill failed",
+                    exc_info=True,
+                )
+
+            top_bar.addWidget(toolbar)
+            self._apply_toolbar_spacing(toolbar, spacing, button_size)
 
         # Snapshot prefill is deferred to the post-show startup phase.
-        prefill_ms = 0.0
-
-        top_bar.addWidget(toolbar)
-        self._apply_toolbar_spacing(toolbar, spacing, button_size)
+        timer.timings["prefill"] = 0.0
 
         # Create and insert host
-        host_start = perf_counter()
-        top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)
-        self.main_layout.addWidget(top_bar_host)
-        self.window.top_bar_host = top_bar_host
-        host_ms = (perf_counter() - host_start) * 1000.0
+        with timer.measure("host"):
+            top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)
+            self.main_layout.addWidget(top_bar_host)
+            self.window.top_bar_host = top_bar_host
 
         # Add separator before search
         try:
             top_bar.addSpacing(4)
             top_bar.addWidget(self.ui._create_vertical_separator())
             top_bar.addSpacing(4)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to insert toolbar/search separator", exc_info=True)
 
         # Add search widget to layout after toolbar
-        search_start = perf_counter()
-        self.ui.setup_search_widget(top_bar)
-        search_ms = (perf_counter() - search_start) * 1000.0
+        with timer.measure("search"):
+            self.ui.setup_search_widget(top_bar)
 
         # Add vertical separator before Theme Selector
         try:
@@ -244,39 +277,49 @@ class TopBarBuilder:
             self.window.theme_selector_separator = theme_separator
             if hasattr(top_bar, "addSpacing"):
                 top_bar.addSpacing(4)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to insert theme selector separator", exc_info=True)
 
         # Add Theme Selector combobox
         try:
-            from app.views.widgets.theme_selector import ThemeSelector
             theme_selector = ThemeSelector(self.window.theme_ctrl, top_bar_host)
             try:
                 theme_selector.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
-            except Exception:
+                theme_selector.setSizePolicy(
+                    getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                    QSizePolicy.Policy.Fixed,
+                )
+                theme_selector.setMaximumWidth(120)
+            except (TypeError, ValueError, AttributeError):
                 pass
             top_bar.addWidget(theme_selector)
             self.window.theme_selector = theme_selector
-        except Exception:
+        except (RuntimeError, TypeError, AttributeError):
             logger.exception("TopPanel: failed to add ThemeSelector")
 
+        # Ensure search widget receives stretch while toolbar and selectors stay fixed
+        try:
+            if hasattr(self.ui, "_normalize_top_bar_stretches"):
+                self.ui._normalize_top_bar_stretches(top_bar)
+        except (RuntimeError, AttributeError):
+            logger.debug("TopPanel: failed to normalize top bar stretches", exc_info=True)
+
         # Schedule top panels refresh (toolbar does overflow on its own)
-        schedule_start = perf_counter()
-        self.ui._init_and_schedule_topbar_manager()
-        schedule_ms = (perf_counter() - schedule_start) * 1000.0
+        with timer.measure("schedule"):
+            self.ui._init_and_schedule_topbar_manager()
 
         logger.info(
             "[Perf] TopBar build: total=%.2f ms cleanup=%.2f ms layout=%.2f ms "
             "toolbar=%.2f ms prefill=%.2f ms host=%.2f ms search=%.2f ms "
             "schedule=%.2f ms",
             (perf_counter() - total_start) * 1000.0,
-            cleanup_ms,
-            layout_ms,
-            toolbar_ms,
-            prefill_ms,
-            host_ms,
-            search_ms,
-            schedule_ms,
+            timer.timings.get("cleanup", 0.0),
+            timer.timings.get("layout", 0.0),
+            timer.timings.get("toolbar", 0.0),
+            timer.timings.get("prefill", 0.0),
+            timer.timings.get("host", 0.0),
+            timer.timings.get("search", 0.0),
+            timer.timings.get("schedule", 0.0),
         )
 
     def _apply_toolbar_spacing(
@@ -284,29 +327,9 @@ class TopBarBuilder:
     ) -> None:
         effective_spacing = max(0, spacing)
         try:
-            toolbar.setStyleSheet(
-                "QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"] { "
-                f"min-width: {button_size}px; "
-                f"max-width: {button_size}px; "
-                f"min-height: {button_size}px; "
-                f"max-height: {button_size}px; "
-                f"margin-right: {effective_spacing}px; "
-                "}"
-                "QToolBar#topBarToolbar QToolButton[toolbar_last=\"true\"] { "
-                "margin-right: 0px; }"
-            )
-        except Exception:
-            logger.debug("TopPanel: failed to apply toolbar spacing stylesheet", exc_info=True)
-        try:
             toolbar.setContentsMargins(0, 0, effective_spacing, 0)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to set toolbar right margin", exc_info=True)
+        if isinstance(toolbar, TopBarToolBar):
+            toolbar.set_button_height(button_size)
 
-        # Centre the Qt extension button (three-dot overflow) vertically.
-        # QToolBarLayout positions it via a separate code-path that does
-        # not centre it like regular action widgets.
-        try:
-            aligner = _ExtButtonAligner(toolbar, button_size)
-            toolbar.installEventFilter(aligner)
-        except Exception:
-            logger.debug("TopPanel: failed to install ext-button aligner", exc_info=True)

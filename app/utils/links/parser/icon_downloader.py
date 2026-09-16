@@ -167,6 +167,9 @@ def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit pa
         _ICON_EXECUTOR_SIZE = 0
 
 
+_ICON_ATEXIT_REGISTERED = False
+
+
 def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
     """Returns shared ThreadPoolExecutor for icon downloads.
 
@@ -174,7 +177,7 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
     On expansion, old pool is gracefully stopped without waiting (running tasks finish there).
     Upper bound is `app_config.ICON_MAX_WORKERS` (default 6).
     """
-    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
+    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE, _ICON_ATEXIT_REGISTERED
 
     # Fast lock-free check
     ex = _ICON_EXECUTOR
@@ -193,10 +196,12 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
             # Initial creation
             _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=desired)
             _ICON_EXECUTOR_SIZE = desired
-            try:
-                atexit.register(lambda: _shutdown_icon_executor(wait=False))
-            except Exception as e:  # pragma: no cover - best-effort atexit
-                logger.debug("failed to register icon executor shutdown: %s", e)
+            if not _ICON_ATEXIT_REGISTERED:
+                try:
+                    atexit.register(lambda: _shutdown_icon_executor(wait=False))
+                    _ICON_ATEXIT_REGISTERED = True
+                except Exception as e:  # pragma: no cover - best-effort atexit
+                    logger.debug("failed to register icon executor shutdown: %s", e)
             return _ICON_EXECUTOR
 
         # Existing pool present. If new size is larger — expand by recreating

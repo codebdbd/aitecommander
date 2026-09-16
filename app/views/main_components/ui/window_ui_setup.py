@@ -115,10 +115,7 @@ class PanelPlaceholderCalculator:
             "recent": max(3, app_config.ui.get_topbar_min_visible_recent() or 3),
         }.get(mode, 3)
 
-        try:
-            min_search_width = int(app_config.ui.get_top_panel_search_min_width())
-        except (TypeError, ValueError):
-            min_search_width = app_config.ui.get_topbar_min_search_width_absolute()
+        min_search_width = WindowUISetup._resolve_search_min_width()
 
         padding = app_config.ui.get_topbar_panel_padding()
         min_panel_width = app_config.ui.get_topbar_min_panel_width()
@@ -177,25 +174,44 @@ class _AutoHideTreeFilter(QObject):
     def __init__(
         self,
         window: QWidget,
-        threshold_width: int,
-        default_sizes: list[int],
+        threshold_width: int = 320,
+        default_sizes: list[int] | None = None,
         logger_: logging.Logger = logger,
     ):
         super().__init__(window)
         self.window = window
-        self.threshold = int(threshold_width)
+        self.base_threshold = int(threshold_width)
         self.default_sizes = (
             default_sizes[:] if isinstance(default_sizes, (list, tuple)) else [250, 750]
         )
         self._is_collapsed = False
         self._saved_state: SplitterState | None = None
         self._logger = logger_
+
+    def _get_screen_scale(self) -> float:
+        """Return the device pixel ratio (screen scale) for the host window."""
         try:
-            self._manage_topbar_panels = bool(
-                app_config.ui.get_auto_hide_manage_topbar()
-            )
-        except (AttributeError, TypeError, ValueError):
-            self._manage_topbar_panels = False
+            if hasattr(self.window, "devicePixelRatioF"):
+                dpr = float(self.window.devicePixelRatioF())
+                if dpr > 0:
+                    return dpr
+        except (RuntimeError, AttributeError):
+            pass
+        try:
+            screen = self.window.screen()
+            if screen is not None:
+                dpr = float(screen.devicePixelRatio())
+                if dpr > 0:
+                    return dpr
+        except (RuntimeError, AttributeError):
+            pass
+        return 1.0
+
+    @property
+    def threshold(self) -> int:
+        """Dynamic threshold width taking screen scale factor into account."""
+        scale = self._get_screen_scale()
+        return max(self.base_threshold, int(round(self.base_threshold * scale)))
 
     def _save_current_state(self, splitter, stack) -> None:
         sizes: tuple[int, ...] | None = None
@@ -213,7 +229,7 @@ class _AutoHideTreeFilter(QObject):
         except (AttributeError, RuntimeError):
             self._logger.debug("AutoHideTree: failed to read stack index", exc_info=True)
 
-        if sizes is not None:
+        if sizes is not None and len(sizes) >= 2 and sizes[0] > 0:
             self._saved_state = SplitterState(sizes=sizes, stack_index=stack_idx)
 
     def _collapse_splitter(self, splitter, w: int) -> None:
@@ -244,23 +260,18 @@ class _AutoHideTreeFilter(QObject):
         except (AttributeError, RuntimeError):
             self._logger.debug("AutoHideTree: failed to switch to table", exc_info=True)
 
-    def _hide_topbar_panels(self) -> None:
-        pass
-
     def _restore_splitter(self, splitter) -> None:
         if splitter is None:
             return
         try:
-            if self._saved_state and len(self._saved_state.sizes) == 2:
+            if self._saved_state and len(self._saved_state.sizes) == 2 and self._saved_state.sizes[0] > 0:
                 splitter.setSizes(list(self._saved_state.sizes))
             else:
                 sizes = [int(x) for x in self.default_sizes]
                 splitter.setSizes(sizes)
+            splitter.setCollapsible(0, False)
         except (RuntimeError, TypeError, ValueError):
             self._logger.debug("AutoHideTree: failed to restore splitter", exc_info=True)
-
-    def _show_topbar_panels(self) -> None:
-        pass
 
     def _restore_stack_index(self, stack) -> None:
         if stack is None or self._saved_state is None or self._saved_state.stack_index is None:
@@ -273,19 +284,23 @@ class _AutoHideTreeFilter(QObject):
 
     def _handle_narrow_window(self, splitter, stack, table, w: int) -> None:
         if not self._is_collapsed:
+            self._logger.info(
+                "AutoHideTree: narrow window detected (%d px <= threshold %d px, scale=%.2f), collapsing tree",
+                w,
+                self.threshold,
+                self._get_screen_scale(),
+            )
             self._save_current_state(splitter, stack)
             self._collapse_splitter(splitter, w)
             self._switch_to_table_view(stack, table)
             self._is_collapsed = True
-        self._hide_topbar_panels()
 
     def _handle_wide_window(self, splitter, stack) -> None:
         self._restore_splitter(splitter)
-        self._show_topbar_panels()
         self._restore_stack_index(stack)
         self._is_collapsed = False
 
-    def _apply(self):
+    def _apply(self) -> None:
         splitter = getattr(self.window, "splitter", None)
         stack = getattr(self.window, "stack", None)
         table = getattr(self.window, "table", None)
@@ -295,9 +310,12 @@ class _AutoHideTreeFilter(QObject):
         except (AttributeError, RuntimeError):
             return
 
-        exit_threshold = self.threshold + 60
+        effective_threshold = self.threshold
+        scale = self._get_screen_scale()
+        exit_margin = int(round(60 * scale))
+        exit_threshold = effective_threshold + exit_margin
 
-        if w <= self.threshold and not self._is_collapsed:
+        if w <= effective_threshold and not self._is_collapsed:
             self._handle_narrow_window(splitter, stack, table, w)
         elif w >= exit_threshold and self._is_collapsed:
             self._handle_wide_window(splitter, stack)
@@ -871,11 +889,7 @@ class WindowUISetup:
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
         )
-        try:
-            min_search_w = int(app_config.ui.get_top_panel_search_min_width())
-        except (TypeError, ValueError):
-            min_search_w = app_config.ui.get_topbar_min_search_width_absolute()
-            logger.warning("SearchWidget: invalid min width, using fallback")
+        min_search_w = self._resolve_search_min_width()
         try:
             placeholder.setMinimumWidth(min_search_w)
         except Exception:
@@ -894,22 +908,28 @@ class WindowUISetup:
     def _schedule_search_widget_materialization(
         self, top_bar: QHBoxLayout, placeholder: QWidget
     ) -> None:
+        """Schedule replacement of placeholder with real QLineEdit search widget.
+
+        Uses singleShot(0) to defer search field initialization to the next event
+        loop tick after the main window is shown, keeping initial paint time minimal.
+        """
         def _apply() -> None:
             self._materialize_search_widget(top_bar, placeholder)
 
         try:
             is_visible = bool(getattr(self.window, "isVisible", lambda: False)())
-        except Exception:
+        except (RuntimeError, AttributeError):
             is_visible = False
 
         try:
             if is_visible:
+                # Intentional next-tick deferral to avoid blocking event loop
                 QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
             elif hasattr(self.window, "shown"):
                 self.window.shown.connect(_apply)
             else:
                 QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug(
                 "SearchWidget: failed to schedule materialization",
                 exc_info=True,
@@ -931,11 +951,7 @@ class WindowUISetup:
             search.setFixedHeight(int(fallback_h))
             logger.warning("SearchWidget: invalid height, using fallback")
         search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        try:
-            min_search_w = int(app_config.ui.get_top_panel_search_min_width())
-        except (TypeError, ValueError):
-            min_search_w = app_config.ui.get_topbar_min_search_width_absolute()
-            logger.warning("SearchWidget: invalid min width, using fallback")
+        min_search_w = self._resolve_search_min_width()
         try:
             search.setMinimumWidth(min_search_w)
         except Exception:
@@ -1018,6 +1034,18 @@ class WindowUISetup:
 
         menu = create_context_menu(widget)
         menu.popup(widget.mapToGlobal(pos))
+
+    @staticmethod
+    def _resolve_search_min_width() -> int:
+        """Resolve guaranteed minimum search field width with fallback."""
+        try:
+            val = int(app_config.ui.get_top_panel_search_min_width())
+        except (TypeError, ValueError, AttributeError):
+            try:
+                val = int(app_config.ui.get_topbar_min_search_width_absolute())
+            except (TypeError, ValueError, AttributeError):
+                val = 148
+        return max(160, val)
 
     @safe_ui_operation("TopPanel: _normalize_top_bar_stretches failed", exc=(Exception,))
     def _normalize_top_bar_stretches(self, top_bar: QHBoxLayout) -> None:
@@ -1172,11 +1200,8 @@ class WindowUISetup:
         self._right_panel_builder.build_shell(mid)
 
     def finalize_right_panel(self) -> None:
-        builder = getattr(self, "_right_panel_builder", None)
-        if builder is None:
-            logger.debug("RightPanel: builder missing during finalize")
-            return
-        builder.finalize_content()
+        if self._right_panel_builder is not None:
+            self._right_panel_builder.finalize_content()
 
     def _prefill_topbar_widgets_before_manager(self) -> None:
         """Apply snapshot at widget build stage before manager adjusts layout."""
@@ -1199,7 +1224,7 @@ class WindowUISetup:
         applied = self._apply_snapshot_to_widgets(snapshot)
         if applied:
             self._topbar_snapshot_applied = True
-            self.window._pending_topbar_snapshot = snapshot
+            setattr(self.window, "_pending_topbar_snapshot", snapshot)
             try:
                 logger.debug(
                     "WindowUISetup: top bar prefilled before manager "
@@ -1212,14 +1237,13 @@ class WindowUISetup:
 
     def _setup_auto_hide_tree_filter(self, splitter_sizes: list[int]) -> None:
         try:
-            min_w = int(app_config.ui.get_window_min_width())
-        except (TypeError, ValueError):
-            min_w = app_config.ui.get_window_min_width()
-            logger.warning("RightPanel: invalid min width, using 280")
+            threshold_w = int(app_config.ui.get_auto_hide_tree_threshold())
+        except (TypeError, ValueError, AttributeError):
+            threshold_w = 320
 
         try:
             self.window._auto_hide_tree_filter = _AutoHideTreeFilter(
-                self.window, threshold_width=min_w, default_sizes=splitter_sizes
+                self.window, threshold_width=threshold_w, default_sizes=splitter_sizes
             )
             self.window.installEventFilter(self.window._auto_hide_tree_filter)
             try:

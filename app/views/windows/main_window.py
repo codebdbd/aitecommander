@@ -7,6 +7,7 @@ from PyQt6.QtGui import QAction, QCloseEvent, QShowEvent, QUndoStack
 from PyQt6.QtWidgets import (
     QMainWindow,
     QMenuBar,
+    QPushButton,
     QScrollArea,
     QSplitter,
     QStackedLayout,
@@ -896,17 +897,25 @@ class MainWindow(QMainWindow, ReTranslatable):
         logger.info("MainWindow.closeEvent: initiating shutdown")
 
         if hasattr(self, "app_shutdown") and self.app_shutdown:
+            shutdown_delegated = False
             try:
                 logger.info(
                     "MainWindow.closeEvent: delegating to AppShutdownController"
                 )
                 self.app_shutdown.perform_shutdown(event)  # type: ignore[arg-type]
-                self._cleanup_resources()
-                return
+                shutdown_delegated = True
             except Exception:
                 logger.exception(
                     "MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent"
                 )
+            try:
+                self._cleanup_resources()
+            except Exception:
+                logger.exception("MainWindow.closeEvent: _cleanup_resources failed")
+
+            if shutdown_delegated:
+                return
+
         self._cleanup_resources()
         super().closeEvent(event)
 

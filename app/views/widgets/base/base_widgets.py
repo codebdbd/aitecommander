@@ -642,11 +642,17 @@ class BaseDragDropTableWidget(QTableView):
         in the first column's ``UserRole``.
         """
         if not index or not index.isValid():
-            raise ValueError("Invalid model index")
+            return 0
         data = index.data(Qt.ItemDataRole.UserRole)
         if data is None:
-            raise ValueError("UserRole data is None")
-        return int(data) if data is not None else 0
+            return 0
+        if isinstance(data, dict):
+            val = data.get("id", 0)
+            return int(val) if val is not None else 0
+        try:
+            return int(data)
+        except (ValueError, TypeError):
+            return 0
 
     def _is_valid_internal_drop(self, source_rows: list[int], target_row: int) -> bool:
         """Validate internal drop (kept permissive for legacy behavior).

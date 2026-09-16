@@ -3,8 +3,8 @@
 
 import logging
 
-from PyQt6.QtCore import QEvent, QModelIndex, QRect, QSize, Qt, pyqtProperty, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPalette
+from PyQt6.QtCore import QEvent, QModelIndex, QPointF, QRect, QSize, Qt, pyqtProperty, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPainter, QPalette, QPen, QPolygonF
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -164,7 +164,8 @@ class TableDelegate(QStyledItemDelegate):
         """Apply text elision for name column."""
         opt.textElideMode = Qt.TextElideMode.ElideRight
         try:
-            available_w = max(0, opt.rect.width() - 4)
+            icon_w = opt.decorationSize.width() + 8 if not opt.icon.isNull() else 0
+            available_w = max(0, opt.rect.width() - icon_w - 4)
         except Exception:
             available_w = opt.rect.width()
         opt.text = opt.fontMetrics.elidedText(
@@ -231,10 +232,10 @@ class TableDelegate(QStyledItemDelegate):
 
     def editorEvent(self, event, model, option, index):
         if index.column() == 0:
-            if event.type() in (
-                QEvent.Type.MouseButtonRelease,
-                QEvent.Type.MouseButtonDblClick,
-            ) and event.button() == Qt.MouseButton.LeftButton:
+            if (
+                event.type() == QEvent.Type.MouseButtonRelease
+                and event.button() == Qt.MouseButton.LeftButton
+            ):
                 current_state = index.data(Qt.ItemDataRole.CheckStateRole)
                 new_state = (
                     Qt.CheckState.Unchecked
@@ -254,10 +255,98 @@ class TableDelegate(QStyledItemDelegate):
                 return True
             if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
                 return True
-        return super().editorEvent(event, model, option, index)
-
         # Top-left corner borders (cell above row 1 and before column 0)
         # are rendered via QSS (`QTableView QTableCornerButton::section`) in `dark.qss`
+        return super().editorEvent(event, model, option, index)
+
+class ExplorerHeaderView(QHeaderView):
+    """Header view with Windows Explorer style split-button sort toggles."""
+
+    def __init__(self, orientation: Qt.Orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setMouseTracking(True)
+        self.setSectionsClickable(True)
+        self._hovered_section = -1
+        self._hovered_toggle = False
+
+    def mouseMoveEvent(self, event):
+        pos = event.position().toPoint()
+        sec = self.logicalIndexAt(pos)
+        on_toggle = False
+        if sec >= 0:
+            sec_x = self.sectionViewportPosition(sec)
+            sec_w = self.sectionSize(sec)
+            if pos.x() >= sec_x + sec_w - 24:
+                on_toggle = True
+        if sec != self._hovered_section or on_toggle != self._hovered_toggle:
+            self._hovered_section = sec
+            self._hovered_toggle = on_toggle
+            self.viewport().update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered_section = -1
+        self._hovered_toggle = False
+        self.viewport().update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        is_sorted = self.isSortIndicatorShown() and self.sortIndicatorSection() >= 0
+        sorted_sec = self.sortIndicatorSection() if is_sorted else -1
+
+        target_sec = sorted_sec if sorted_sec >= 0 else self._hovered_section
+        if target_sec < 0:
+            return
+
+        sec_x = self.sectionViewportPosition(target_sec)
+        sec_w = self.sectionSize(target_sec)
+        h = self.viewport().height()
+        if sec_w < 36:
+            return
+
+        toggle_w = 24
+        tx = sec_x + sec_w - toggle_w
+        p = QPainter(self.viewport())
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        dark = self.palette().window().color().lightness() < 128
+        is_toggle_hover = (self._hovered_section == target_sec and self._hovered_toggle)
+
+        # 1. Divider line (full header height)
+        div_color = QColor("#3A3E44") if dark else QColor("#B3B3B3")
+        p.setPen(QPen(div_color, 1))
+        p.drawLine(tx, 0, tx, h)
+
+        # 2. Toggle compartment background
+        if is_toggle_hover:
+            bg_color = QColor(255, 255, 255, 28) if dark else QColor(0, 0, 0, 20)
+        else:
+            bg_color = QColor(255, 255, 255, 12) if dark else QColor(0, 0, 0, 8)
+        p.fillRect(QRect(tx + 1, 0, toggle_w, h), bg_color)
+
+        # 3. Large visible chevron
+        cx = tx + toggle_w / 2.0
+        cy = h / 2.0
+        chev_color = (
+            (QColor("#FFFFFF") if is_toggle_hover else QColor("#BFC7D5"))
+            if dark
+            else (QColor("#111111") if is_toggle_hover else QColor("#555555"))
+        )
+        pen = QPen(chev_color, 1.8)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+
+        if is_sorted and target_sec == sorted_sec:
+            if self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
+                pts = [QPointF(cx - 5, cy + 2.5), QPointF(cx, cy - 2.5), QPointF(cx + 5, cy + 2.5)]
+            else:
+                pts = [QPointF(cx - 5, cy - 2.5), QPointF(cx, cy + 2.5), QPointF(cx + 5, cy - 2.5)]
+        else:
+            pts = [QPointF(cx - 5, cy - 2.5), QPointF(cx, cy + 2.5), QPointF(cx + 5, cy - 2.5)]
+        p.drawPolyline(QPolygonF(pts))
+        p.end()
 
 
 class LinksTableView(
@@ -419,13 +508,16 @@ class LinksTableView(
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
+        header = ExplorerHeaderView(Qt.Orientation.Horizontal, self)
+        self.setHorizontalHeader(header)
+        header.setSectionsClickable(True)
         col_widths = app_config.ui.get_col_widths()
         try:
-            self.setColumnWidth(0, col_widths[0])
+            self.setColumnWidth(0, max(int(col_widths[0]), 52))
             self.setColumnWidth(1, col_widths[1])
             self.setColumnWidth(2, col_widths[2])
             fav_w = col_widths[4] if len(col_widths) >= 5 else col_widths[3]
-            self.setColumnWidth(4, fav_w)
+            self.setColumnWidth(4, max(int(fav_w), 52))
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
@@ -434,7 +526,6 @@ class LinksTableView(
         _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
-        header = self.horizontalHeader()
         header.setStretchLastSection(False)
         try:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
@@ -466,6 +557,7 @@ class LinksTableView(
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(True)
+        header.sortIndicatorChanged.connect(self.sortByColumn)
         initial_col, initial_order = self._load_initial_sort()
         self._apply_sort(initial_col, initial_order)
         self.delegate = TableDelegate(self)
