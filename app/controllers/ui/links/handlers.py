@@ -229,8 +229,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             logger.warning("No link found at row %s", row)
             return
 
-        # Don't open link on double-click on favorite column (star)
-        if column == self.COLUMNS["favorite"]:
+        # Don't open link on double-click on checkbox or favorite column
+        if column in (self.COLUMNS.get("group_launch", 0), self.COLUMNS["favorite"]):
             return
 
         if column == self.COLUMNS["notes"]:
@@ -240,6 +240,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
     def _on_cell_clicked(self, row: int, column: int):
         """Handle cell click."""
+        if column == self.COLUMNS.get("group_launch", 0):
+            return
+
         link = self.controller.get_link_at(row)
         if not link:
             logger.warning("No link found at row %s", row)

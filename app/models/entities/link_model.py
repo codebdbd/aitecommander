@@ -37,6 +37,7 @@ ALLOWED_LINK_COLUMNS = {
     "chrome_rotation",
     "rotation_index",
     "rotation_profiles",
+    "is_group_launch",
 }
 
 LINK_ALL_COLUMNS = ", ".join(sorted(ALLOWED_LINK_COLUMNS))
@@ -78,6 +79,7 @@ class LinkModel(DatabaseBase):
                     "chrome_rotation",
                     "rotation_index",
                     "rotation_profiles",
+                    "is_group_launch",
                 ]
                 use_fields_raw = list(fields or default_fields)
                 use_fields = [
@@ -250,6 +252,7 @@ class LinkModel(DatabaseBase):
             "chrome_rotation",
             "rotation_index",
             "rotation_profiles",
+            "is_group_launch",
         ]
 
         data = {field: link.get(field) for field in all_possible_fields}
@@ -434,6 +437,13 @@ class LinkModel(DatabaseBase):
         """Update rotation index for link."""
         self._execute_with_error_handling(
             "UPDATE link SET rotation_index = ? WHERE id = ?", (new_index, link_id)
+        )
+
+    def update_group_launch(self, link_id: int, is_group_launch: int) -> None:
+        """Update group launch status for link."""
+        self._execute_with_error_handling(
+            "UPDATE link SET is_group_launch = ? WHERE id = ?",
+            (1 if is_group_launch else 0, link_id),
         )
 
     def count_favorites(self) -> int:

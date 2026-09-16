@@ -1016,3 +1016,9 @@ class ActionController(QObject):
                 bool(widget or tree_focused or table_focused or tiles_focused)
             )
 
+        try:
+            if hasattr(self.main_window, "update_group_launch_action_state"):
+                self.main_window.update_group_launch_action_state()
+        except Exception:
+            pass
+

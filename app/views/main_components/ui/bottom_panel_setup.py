@@ -59,6 +59,8 @@ class BottomBarContainer(QWidget):
 
 
 def _label_for_action(action_id: str) -> str:
+    if action_id == "launch_marked":
+        return "Запустить отмеченные"
     if action_id == "add_section":
         return QCoreApplication.translate("BottomPanel", MenuStrings.ACTION_ADD_SECTION)
     if action_id == "add_category":
@@ -83,6 +85,8 @@ def _tooltip_for_action(action_id: str) -> str:
         )
     if action_id == "add_link":
         return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_ADD_LINK)
+    if action_id == "launch_marked":
+        return "Запустить отмеченные ссылки (F5)"
     if action_id == "edit_link":
         return QCoreApplication.translate("BottomPanel", DialogStrings.TOOLTIP_EDIT)
     if action_id == "delete_link":

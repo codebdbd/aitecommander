@@ -3,10 +3,11 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtProperty, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, QRect, QSize, Qt, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPalette
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHeaderView,
     QStyle,
     QStyledItemDelegate,
@@ -117,7 +118,10 @@ class TableDelegate(QStyledItemDelegate):
     def _apply_column_font_size(self, opt, col):
         """Apply font size for specific column."""
         try:
-            if col in (0, 1):
+            if col == 0:
+                return
+
+            if col == 4:
                 view = self.parent() if hasattr(self, "parent") else None
                 if view is not None and hasattr(view, "horizontalHeader"):
                     header = view.horizontalHeader()
@@ -170,6 +174,11 @@ class TableDelegate(QStyledItemDelegate):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
 
+    def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        super().initStyleOption(option, index)
+        if index.column() == 0:
+            option.features &= ~QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
+
     def paint(self, painter, option, index):
         self._paint_hover_highlight(painter, option, index)
 
@@ -188,6 +197,64 @@ class TableDelegate(QStyledItemDelegate):
             self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
+
+        if col == 0:
+            widget = option.widget
+            style = widget.style() if widget else QApplication.style()
+            check_opt = QStyleOptionViewItem(option)
+            super().initStyleOption(check_opt, index)
+
+            state = index.data(Qt.ItemDataRole.CheckStateRole)
+            check_opt.state = check_opt.state & ~QStyle.StateFlag.State_HasFocus
+            if state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked):
+                check_opt.state |= QStyle.StateFlag.State_On
+                check_opt.state &= ~QStyle.StateFlag.State_Off
+            else:
+                check_opt.state |= QStyle.StateFlag.State_Off
+                check_opt.state &= ~QStyle.StateFlag.State_On
+
+            check_rect = style.subElementRect(
+                QStyle.SubElement.SE_ItemViewItemCheckIndicator, check_opt, widget
+            )
+            w = check_rect.width()
+            h = check_rect.height()
+            x = option.rect.x() + (option.rect.width() - w) // 2
+            y = option.rect.y() + (option.rect.height() - h) // 2
+            check_opt.rect = QRect(x, y, w, h)
+
+            style.drawPrimitive(
+                QStyle.PrimitiveElement.PE_IndicatorItemViewItemCheck,
+                check_opt,
+                painter,
+                widget,
+            )
+
+    def editorEvent(self, event, model, option, index):
+        if index.column() == 0:
+            if event.type() in (
+                QEvent.Type.MouseButtonRelease,
+                QEvent.Type.MouseButtonDblClick,
+            ) and event.button() == Qt.MouseButton.LeftButton:
+                current_state = index.data(Qt.ItemDataRole.CheckStateRole)
+                new_state = (
+                    Qt.CheckState.Unchecked
+                    if current_state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked)
+                    else Qt.CheckState.Checked
+                )
+                model.setData(index, new_state, Qt.ItemDataRole.CheckStateRole)
+                return True
+            if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Space:
+                current_state = index.data(Qt.ItemDataRole.CheckStateRole)
+                new_state = (
+                    Qt.CheckState.Unchecked
+                    if current_state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked)
+                    else Qt.CheckState.Checked
+                )
+                model.setData(index, new_state, Qt.ItemDataRole.CheckStateRole)
+                return True
+            if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+                return True
+        return super().editorEvent(event, model, option, index)
 
         # Top-left corner borders (cell above row 1 and before column 0)
         # are rendered via QSS (`QTableView QTableCornerButton::section`) in `dark.qss`
@@ -357,7 +424,8 @@ class LinksTableView(
             self.setColumnWidth(0, col_widths[0])
             self.setColumnWidth(1, col_widths[1])
             self.setColumnWidth(2, col_widths[2])
-            self.setColumnWidth(3, col_widths[3])
+            fav_w = col_widths[4] if len(col_widths) >= 5 else col_widths[3]
+            self.setColumnWidth(4, fav_w)
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
@@ -367,34 +435,35 @@ class LinksTableView(
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
         header = self.horizontalHeader()
-        header.setStretchLastSection(True)
+        header.setStretchLastSection(False)
         try:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
         except Exception:
             logger.debug(
-                "LinksTableView: failed to set resize mode for column 0 and 1", exc_info=True
+                "LinksTableView: failed to set resize mode for column 0/1", exc_info=True
             )
-        # Column 3 ("Opened") resize mode is driven by config
+        # Column 2 ("Opened") resize mode is driven by config
         try:
-            col3_mode = str(
+            col2_mode = str(
                 app_config.ui.get("ui.links_table_col2_mode", "fixed")
             ).lower()
         except Exception:
-            col3_mode = "fixed"
+            col2_mode = "fixed"
         try:
-            if col3_mode in ("fixed", "f"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-            elif col3_mode in ("interactive", "i"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-            elif col3_mode in ("contents", "content", "auto", "resizetocontents"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+            if col2_mode in ("fixed", "f"):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+            elif col2_mode in ("interactive", "i"):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+            elif col2_mode in ("contents", "content", "auto", "resizetocontents"):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
             else:
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         except Exception:
             # Fallback to Fixed
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(True)
         initial_col, initial_order = self._load_initial_sort()
@@ -443,6 +512,18 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect rowsMoved", exc_info=True
             )
+        try:
+            model.dataChanged.connect(self._on_model_data_changed)
+        except Exception:
+            pass
+
+    def _on_model_data_changed(self, top_left, bottom_right, roles=None) -> None:
+        try:
+            main_win = self.window()
+            if main_win and hasattr(main_win, "update_group_launch_action_state"):
+                main_win.update_group_launch_action_state()
+        except Exception:
+            pass
 
     def dragEnterEvent(self, event) -> None:  # type: ignore[override]
         if self._has_external_link_targets(event):
@@ -526,6 +607,8 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
+        if logical_index == 0:
+            return
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
             self.setSortingEnabled(True)

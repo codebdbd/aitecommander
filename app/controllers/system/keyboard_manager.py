@@ -409,6 +409,10 @@ class GlobalKeyHandler(BaseKeyHandler):
         logger.debug("KeyboardManager: F4 pressed")
         self._safe_call(self.main_window, "add_new_category")
 
+    def handle_f5(self) -> None:
+        logger.debug("KeyboardManager: F5 pressed")
+        self._safe_call(self.main_window, "launch_marked_links")
+
     def handle_f6(self) -> None:
         action = self._safe_getattr(self.main_window, "switch_sphere_action")
         if action:
@@ -569,6 +573,7 @@ class KeyboardManager(QObject):
             ("global.edit_link", self.global_handler.handle_f2),
             ("global.add_section", self.global_handler.handle_f3),
             ("global.add_category", self.global_handler.handle_f4),
+            ("global.launch_marked", self.global_handler.handle_f5),
             ("global.switch_sphere", self.global_handler.handle_f6),
             ("global.search_files", self.global_handler.handle_file_search),
             ("global.settings", self.global_handler.handle_settings),

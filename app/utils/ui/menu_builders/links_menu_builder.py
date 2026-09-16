@@ -78,6 +78,16 @@ class LinksMenuBuilder:
             )
         )
 
+        if self._count_marked_links() >= 2:
+            menu.addAction(
+                self.actions.create(
+                    MenuTexts.LAUNCH_MARKED,
+                    self.main_window.links_actions.launch_marked_links,
+                    Shortcuts.LAUNCH_MARKED,
+                    get_menu_icon("list_start", self.theme),
+                )
+            )
+
         is_favorite = link and link.get("is_favorite")
         fav_text = (
             MenuTexts.REMOVE_FROM_FAVORITES
@@ -297,6 +307,15 @@ class LinksMenuBuilder:
                     get_menu_icon("add_link", self.theme),
                 )
             )
+            if self._count_marked_links() >= 2:
+                menu.addAction(
+                    self.actions.create(
+                        MenuTexts.LAUNCH_MARKED,
+                        self.main_window.links_actions.launch_marked_links,
+                        Shortcuts.LAUNCH_MARKED,
+                        get_menu_icon("list_start", self.theme),
+                    )
+                )
             menu.addSeparator()
 
         if self._clipboard_has_links():
@@ -412,3 +431,19 @@ class LinksMenuBuilder:
         except Exception as e:
             logger.warning("[LinksMenu] Clipboard check failed: %s", e)
         return False
+
+    def _count_marked_links(self) -> int:
+        """Count links marked for group launch in current category."""
+        marked_count = 0
+        try:
+            table = getattr(self.main_window, "table", None)
+            if table is not None:
+                model = table.model()
+                if model is not None:
+                    for r in range(model.rowCount()):
+                        row_link = self.main_window.get_link_at_row(r)
+                        if row_link and bool(row_link.get("is_group_launch")):
+                            marked_count += 1
+        except Exception:
+            pass
+        return marked_count
