@@ -361,9 +361,6 @@ def _cleanup_resources(
         except Exception:
             pass
 
-    log_shutdown()
-    _disable_fault_handler()
-
 
 def _register_hotkeys() -> None:
     """Register all hotkeys with defaults before UI creation."""
@@ -671,6 +668,12 @@ def run(options: StartupOptions | None = None) -> int:
         _cleanup_resources(
             initializer, signal_manager, app, about_to_quit_cleanup_registered
         )
+        try:
+            from app.utils.links.parser import shutdown_parser_background_tasks
+
+            shutdown_parser_background_tasks(wait=False)
+        except Exception as exc:
+            logger.warning("Parser background tasks shutdown failed: %s", exc)
         if single_instance_guard is not None:
             try:
                 single_instance_guard.close()
@@ -680,6 +683,12 @@ def run(options: StartupOptions | None = None) -> int:
             WorkerManager.shutdown(timeout_ms=get_thread_pool_shutdown_timeout())
         except Exception as exc:
             logger.warning("WorkerManager shutdown failed: %s", exc)
+        try:
+            from app.utils.db.executors.pool import shutdown_thread_pool
+
+            shutdown_thread_pool(timeout_ms=get_thread_pool_shutdown_timeout())
+        except Exception as exc:
+            logger.warning("DB thread pool shutdown failed: %s", exc)
         try:
             DatabaseManager.close_all()
         except Exception as exc:
@@ -692,6 +701,13 @@ def run(options: StartupOptions | None = None) -> int:
         if _resources_initialized and options.exit_on_finish and sys.platform != "win32":
             qCleanupResources()
             _resources_initialized = False
+
+        log_shutdown()
+        try:
+            LogManager.shutdown()
+        except Exception:
+            pass
+        _disable_fault_handler()
 
         target_code = resolved_exit
         if (

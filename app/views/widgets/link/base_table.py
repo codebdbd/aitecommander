@@ -32,22 +32,22 @@ from .row_operations import RowOperationsMixin
 logger = logging.getLogger(__name__)
 
 
+from PyQt6.QtWidgets import QProxyStyle
+
+class HeaderStyle(QProxyStyle):
+    """Custom style to suppress sort indicator arrows on columns 0 and 4."""
+    def drawPrimitive(self, element, option, painter, widget=None):
+        if element == QStyle.PrimitiveElement.PE_IndicatorHeaderArrow:
+            if isinstance(widget, QHeaderView):
+                if widget.sortIndicatorSection() in (0, 4):
+                    return  # Don't draw the arrow
+        super().drawPrimitive(element, option, painter, widget)
+
 class LinksHeaderView(QHeaderView):
     """Custom horizontal header that suppresses sort indicator arrows on columns 0 and 4."""
-
-    def paintSection(self, painter, rect, logicalIndex):
-        if (
-            logicalIndex in (0, 4)
-            and self.isSortIndicatorShown()
-            and self.sortIndicatorSection() == logicalIndex
-        ):
-            self.setSortIndicatorShown(False)
-            try:
-                super().paintSection(painter, rect, logicalIndex)
-            finally:
-                self.setSortIndicatorShown(True)
-            return
-        super().paintSection(painter, rect, logicalIndex)
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setStyle(HeaderStyle(self.style()))
 
 
 class TableDelegate(QStyledItemDelegate):
@@ -139,19 +139,11 @@ class TableDelegate(QStyledItemDelegate):
             if col == 0:
                 return
 
-            if col == 4:
-                view = self.parent() if hasattr(self, "parent") else None
-                if view is not None and hasattr(view, "horizontalHeader"):
-                    header = view.horizontalHeader()
-                    if header is not None:
-                        opt.font = QFont(header.font())
-                return
-
             val = self.col_sizes.get(col)
             if val is None:
-                if col == 3:
+                if col == 2:
                     val = self.col_opened_px
-                elif col == 4:
+                elif col == 3:
                     val = self.col_notes_px
             if val and int(val) > 0:
                 f = opt.font
@@ -175,8 +167,8 @@ class TableDelegate(QStyledItemDelegate):
                 pal.setColor(QPalette.ColorRole.Text, color)
                 pal.setColor(QPalette.ColorRole.WindowText, color)
                 opt.palette = pal
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("TableDelegate color apply failed: %s", e)
 
     def _apply_name_column_elision(self, opt):
         """Apply text elision for name column."""
@@ -206,12 +198,12 @@ class TableDelegate(QStyledItemDelegate):
         col = index.column()
         self._apply_column_font_size(opt, col)
 
-        if col == 3:
+        if col == 2:
             self._apply_column_color(opt, col, "openedColColor")
-        elif col == 4:
+        elif col == 3:
             self._apply_column_color(opt, col, "notesColColor")
 
-        if col == 2:
+        if col == 1:
             self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
