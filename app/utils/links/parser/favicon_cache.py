@@ -6,7 +6,6 @@ Data-compatible with the legacy version (keys = URL, values = dict with icon/tit
 
 from __future__ import annotations
 
-import atexit
 import dbm
 import os
 import shelve
@@ -245,10 +244,15 @@ def _open_shelve_with_recovery(path: str):
 
 class FaviconCache(BaseCache):
     _instances: weakref.WeakSet[FaviconCache] = weakref.WeakSet()
-    _atexit_registered: bool = False
 
     @classmethod
-    def _atexit_shutdown_all(cls) -> None:
+    def shutdown_all_instances(cls) -> None:
+        """Явно закрыть shelve-соединения всех живых экземпляров.
+
+        Вызывается централизованно из shutdown_parser_background_tasks(),
+        вместо старого механизма atexit.register(), который был мёртвым кодом в GUI-режиме
+        (runtime.py завершал процесс через ExitProcess до запуска стандартных atexit).
+        """
         for inst in list(cls._instances):
             try:
                 inst._safe_shutdown()
@@ -272,12 +276,6 @@ class FaviconCache(BaseCache):
         except Exception:
             self._persistent_enabled = False
         FaviconCache._instances.add(self)
-        if not FaviconCache._atexit_registered:
-            try:
-                atexit.register(FaviconCache._atexit_shutdown_all)
-                FaviconCache._atexit_registered = True
-            except Exception:
-                pass
 
     # Shelve handling
     def _get_db_path(self) -> str:
@@ -314,7 +312,8 @@ class FaviconCache(BaseCache):
                     "favicon_cache: failed to close db: %s", exc, exc_info=True
                 )
 
-    def _safe_shutdown(self) -> None:  # pragma: no cover - atexit path
+    def _safe_shutdown(self) -> None:
+        """Best-effort close shelve db. Вызывается централизованно перед выходом."""
         try:
             self._close_db()
         except Exception:

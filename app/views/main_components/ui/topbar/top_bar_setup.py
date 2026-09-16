@@ -268,21 +268,29 @@ class TopBarBuilder:
         with timer.measure("search"):
             self.ui.setup_search_widget(top_bar)
 
-        # Add vertical separator before Theme Selector
+        # Add Theme Selector & Separator container
         try:
-            if hasattr(top_bar, "addSpacing"):
-                top_bar.addSpacing(4)
-            theme_separator = self.ui._create_vertical_separator()
-            top_bar.addWidget(theme_separator)
-            self.window.theme_selector_separator = theme_separator
-            if hasattr(top_bar, "addSpacing"):
-                top_bar.addSpacing(4)
-        except (RuntimeError, AttributeError):
-            logger.debug("TopPanel: failed to insert theme selector separator", exc_info=True)
+            theme_container = QWidget(top_bar_host if isinstance(top_bar_host, QWidget) else None)
+            theme_container.setObjectName("themeSelectorContainer")
+            try:
+                theme_container.setFixedHeight(int(app_config.ui.get_top_bar_height()))
+                theme_container.setSizePolicy(
+                    getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                    QSizePolicy.Policy.Fixed,
+                )
+            except (TypeError, ValueError, AttributeError):
+                pass
 
-        # Add Theme Selector combobox
-        try:
-            theme_selector = ThemeSelector(self.window.theme_ctrl, top_bar_host)
+            theme_layout = QHBoxLayout()
+            theme_layout.setContentsMargins(4, 0, 0, 0)
+            theme_layout.setSpacing(4)
+            theme_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+            theme_separator = self.ui._create_vertical_separator()
+            theme_layout.addWidget(theme_separator)
+            self.window.theme_selector_separator = theme_separator
+
+            theme_selector = ThemeSelector(self.window.theme_ctrl, theme_container)
             try:
                 theme_selector.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
                 theme_selector.setSizePolicy(
@@ -292,10 +300,14 @@ class TopBarBuilder:
                 theme_selector.setMaximumWidth(120)
             except (TypeError, ValueError, AttributeError):
                 pass
-            top_bar.addWidget(theme_selector)
+            theme_layout.addWidget(theme_selector)
             self.window.theme_selector = theme_selector
+
+            theme_container.setLayout(theme_layout)
+            top_bar.addWidget(theme_container)
+            self.window.theme_selector_container = theme_container
         except (RuntimeError, TypeError, AttributeError):
-            logger.exception("TopPanel: failed to add ThemeSelector")
+            logger.exception("TopPanel: failed to add ThemeSelector container")
 
         # Ensure search widget receives stretch while toolbar and selectors stay fixed
         try:

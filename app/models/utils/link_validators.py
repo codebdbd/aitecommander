@@ -84,6 +84,9 @@ def normalize_link_fields(link_data: dict[str, Any], all_fields: list[str]) -> d
     
     # Normalize boolean/integer fields
     data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+    data["is_group_launch"] = int(data.get("is_group_launch", 0) or 0)
+    data["chrome_rotation"] = int(data.get("chrome_rotation", 0) or 0)
+    data["rotation_index"] = int(data.get("rotation_index", 0) or 0)
     
     return data
 

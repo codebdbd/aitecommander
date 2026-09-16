@@ -13,7 +13,13 @@ from .title_parser import get_title  # convenient alias
 
 
 def shutdown_parser_background_tasks(wait: bool = False, cancel_futures: bool = True) -> None:
-    """Stop shared parser executors/network helpers to allow fast shutdown."""
+    """Stop shared parser executors/network helpers to allow fast shutdown.
+
+    ЕДИНСТВЕННЫЙ централизованный путь shutdown для parser-модулей.
+    Ранее эти действия дублировались через `atexit.register(...)` в каждом модуле отдельно,
+    но в GUI-режиме эти хендлеры были мёртвым кодом: runtime выходил через sys.exit/ExitProcess
+    до запуска стандартного интерпретаторного atexit run-loop.
+    """
     try:
         from .icon_downloader import _shutdown_icon_executor
         _shutdown_icon_executor(wait=wait)
@@ -30,8 +36,8 @@ def shutdown_parser_background_tasks(wait: bool = False, cancel_futures: bool = 
     except Exception:
         pass
     try:
-        from .favicon_cache import favicon_cache
-        favicon_cache.close()
+        from .favicon_cache import FaviconCache
+        FaviconCache.shutdown_all_instances()
     except Exception:
         pass
     try:

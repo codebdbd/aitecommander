@@ -182,7 +182,6 @@ class ApplicationInitializer:
         self._cleanup_in_progress = False
         self._cleanup_failed = False
         self._last_cleanup_error: str | None = None
-        self._shutdown_cleanup_started = False
         self._cleanup_lock = threading.Lock()
         self._shutdown_controller: AppShutdownController | None = None
         self._signal_notifiers: list[QSocketNotifier] = []
@@ -404,18 +403,6 @@ class ApplicationInitializer:
             logger.debug(
                 "ApplicationInitializer cleanup completed in %.2fms", duration * 1000
             )
-
-    def _cleanup_via_shutdown_controller(self, timeout_ms: int | None = None) -> bool:
-        """Mark cleanup ownership and execute initializer cleanup via shutdown controller."""
-        with self._cleanup_lock:
-            self._shutdown_cleanup_started = True
-        try:
-            self._cleanup_sync()
-            return self._cleanup_done
-        finally:
-            with self._cleanup_lock:
-                if not self._cleanup_done:
-                    self._shutdown_cleanup_started = False
 
     def _register_if_cleanable(self, resource: Any, name: str) -> None:
         """Helper to safely register cleanable resources using duck typing."""

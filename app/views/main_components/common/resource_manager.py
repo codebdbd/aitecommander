@@ -120,15 +120,35 @@ class ResourceManager:
         Improvement note: makes the API simpler—no need to supply ``cleanup_func``
         for typical Qt objects.
         """
-        # QTimer -> stop()
+        from PyQt6.QtCore import QCoreApplication
+
+        # 1) QTimer -> stop()
         if hasattr(resource, "stop") and callable(resource.stop):
             return resource.stop
 
-        # QWidget, QObject -> deleteLater()
+        # 2) QWidget, QObject -> deleteLater or direct destroy on shutdown
         if hasattr(resource, "deleteLater") and callable(resource.deleteLater):
-            return resource.deleteLater
+            app = QCoreApplication.instance()
+            if app is None or app.closingDown():
+                from PyQt6 import sip
 
-        # File-like -> close()
+                def _forced_destroy(r=resource):
+                    try:
+                        if hasattr(r, "destroy") and callable(r.destroy):
+                            r.destroy(destroyWindows=True, destroySubWindows=True)
+                    except Exception:
+                        pass
+                    try:
+                        if not sip.isdeleted(r):
+                            sip.delete(r)
+                    except Exception:
+                        pass
+
+                return _forced_destroy
+            else:
+                return resource.deleteLater
+
+        # 3) File-like -> close()
         if hasattr(resource, "close") and callable(resource.close):
             return resource.close
 

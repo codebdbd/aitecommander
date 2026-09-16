@@ -12,7 +12,6 @@ Separated pure functions and `IconDownloader` class:
 
 from __future__ import annotations
 
-import atexit
 import hashlib
 import json
 import os
@@ -150,7 +149,12 @@ def _combine_cancel_events(*events):
     return _CombinedCancelEvent()
 
 
-def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit path
+def _shutdown_icon_executor(wait: bool = False):
+    """Best-effort shutdown shared icon downloader executor.
+
+    Вызывается централизованно из shutdown_parser_background_tasks(),
+    старый atexit.register() path удалён как dead-code в GUI shutdown.
+    """
     global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
     try:
         ex = _ICON_EXECUTOR
@@ -167,9 +171,6 @@ def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit pa
         _ICON_EXECUTOR_SIZE = 0
 
 
-_ICON_ATEXIT_REGISTERED = False
-
-
 def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
     """Returns shared ThreadPoolExecutor for icon downloads.
 
@@ -177,7 +178,7 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
     On expansion, old pool is gracefully stopped without waiting (running tasks finish there).
     Upper bound is `app_config.ICON_MAX_WORKERS` (default 6).
     """
-    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE, _ICON_ATEXIT_REGISTERED
+    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
 
     # Fast lock-free check
     ex = _ICON_EXECUTOR
@@ -196,12 +197,6 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
             # Initial creation
             _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=desired)
             _ICON_EXECUTOR_SIZE = desired
-            if not _ICON_ATEXIT_REGISTERED:
-                try:
-                    atexit.register(lambda: _shutdown_icon_executor(wait=False))
-                    _ICON_ATEXIT_REGISTERED = True
-                except Exception as e:  # pragma: no cover - best-effort atexit
-                    logger.debug("failed to register icon executor shutdown: %s", e)
             return _ICON_EXECUTOR
 
         # Existing pool present. If new size is larger — expand by recreating

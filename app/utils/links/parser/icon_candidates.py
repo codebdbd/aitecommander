@@ -12,7 +12,7 @@ Rationale:
 - Limit concurrency via app_config. The setting `ICON_MANIFEST_MAX_WORKERS` is
   read from `app.config_data.app_config` (defaults to 4). The value is clamped
   to a minimum of 1 by construction (`max(1, value)`).
-- The pool is registered for shutdown at process exit via `atexit`.
+- The pool is shut down centrally via `shutdown_parser_background_tasks()`.
 
 Testing/Utilities:
 - Use `shutdown_manifest_executor(wait=False, cancel_futures=True)` to explicitly
@@ -22,7 +22,6 @@ Testing/Utilities:
 
 from __future__ import annotations
 
-import atexit
 import json
 import re
 import threading
@@ -41,9 +40,6 @@ from .http_client import http_request
 
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
-_MANIFEST_ATEXIT_HANDLER = (
-    None  # stores the registered atexit handler to support unregister
-)
 
 
 @dataclass(slots=True)
@@ -88,8 +84,9 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
     """Get or create the global manifest ThreadPoolExecutor.
 
     Threads count is taken from `app_config.ICON_MANIFEST_MAX_WORKERS` (default 4),
-    and is clamped to minimum 1. The executor is registered for process-exit
-    shutdown via `atexit`.
+    and is clamped to minimum 1. Shutdown is performed centrally via
+    `shutdown_parser_background_tasks()` — старый atexit.register() path удалён
+    как dead-code в GUI shutdown (sys.exit/ExitProcess исполнялись раньше atexit).
     """
     global _MANIFEST_EXECUTOR
     if _MANIFEST_EXECUTOR is not None:
@@ -109,45 +106,16 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
             _MANIFEST_EXECUTOR = ThreadPoolExecutor(
                 max_workers=max(1, max_workers), thread_name_prefix="manifest"
             )
-            try:
-                # Remove previously registered handler if any (in case of recreation)
-                global _MANIFEST_ATEXIT_HANDLER
-                if _MANIFEST_ATEXIT_HANDLER is not None:
-                    try:
-                        atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
-                    except Exception:
-                        logger.debug(
-                            "Failed to unregister previous atexit handler for manifest executor",
-                            exc_info=True,
-                        )
-                    finally:
-                        _MANIFEST_ATEXIT_HANDLER = None
-
-                # Capture the current executor instance to avoid referencing None after manual shutdown
-                def _manifest_shutdown_handler(
-                    e: ThreadPoolExecutor | None = _MANIFEST_EXECUTOR,
-                ) -> None:
-                    if e is not None:
-                        e.shutdown(wait=False, cancel_futures=True)
-
-                _MANIFEST_ATEXIT_HANDLER = atexit.register(_manifest_shutdown_handler)
-            except Exception:
-                logger.debug(
-                    "Failed to register atexit shutdown for manifest executor",
-                    exc_info=True,
-                )
     return _MANIFEST_EXECUTOR
 
 
 def shutdown_manifest_executor(wait: bool = False, cancel_futures: bool = True) -> bool:
     """Explicitly shutdown the global manifest executor.
 
-    Useful in tests or controlled environments to ensure clean teardown between
-    runs. Returns True if an executor existed and was shut down, False if there
-    was nothing to do. A future call to `_get_manifest_executor()` will lazily
-    recreate the pool on demand.
+    ЕДИНСТВЕННЫЙ shutdown-путь (и для тестов, и для runtime).
+    Централизованно вызывается из shutdown_parser_background_tasks().
     """
-    global _MANIFEST_EXECUTOR, _MANIFEST_ATEXIT_HANDLER
+    global _MANIFEST_EXECUTOR
     with _MANIFEST_EXECUTOR_GUARD:
         if _MANIFEST_EXECUTOR is None:
             return False
@@ -155,17 +123,6 @@ def shutdown_manifest_executor(wait: bool = False, cancel_futures: bool = True) 
             _MANIFEST_EXECUTOR.shutdown(wait=wait, cancel_futures=cancel_futures)
         finally:
             _MANIFEST_EXECUTOR = None
-            # Ensure atexit handler is removed to avoid accumulation on recreation
-            if _MANIFEST_ATEXIT_HANDLER is not None:
-                try:
-                    atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
-                except Exception:
-                    logger.debug(
-                        "Failed to unregister atexit handler during shutdown",
-                        exc_info=True,
-                    )
-                finally:
-                    _MANIFEST_ATEXIT_HANDLER = None
     return True
 
 
