@@ -735,17 +735,10 @@ class UIConfig(BaseConfig):
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
-<<<<<<< HEAD
-        return self.get(
-            "ui.links_table_columns",
-            {"group_launch": 0, "favorite": 1, "name": 2, "last_used": 3, "notes": 4},
-        )
-=======
         cols = self.get("ui.links_table_columns")
         if isinstance(cols, dict) and cols.get("favorite") == 4:
             return cols
         return {"group_launch": 0, "name": 1, "last_used": 2, "notes": 3, "favorite": 4}
->>>>>>> a53bc4b6 (fix(ui): center checkbox and opened columns in links table, align shortcuts and header)
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""
