@@ -35,12 +35,6 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "shortcut": "F1",
     },
     {
-        "id": "launch_marked",
-        "handler": "launch_marked_links",
-        "shortcut": "F5",
-        "label": "Запустить отмеченные",
-    },
-    {
         "id": "edit_link",
         "handler": "edit_current",
         "shortcut": "F2",
@@ -184,14 +178,7 @@ class UIConfig(BaseConfig):
 
     def get_col_widths(self) -> list:
         """Return the column widths for the links table."""
-        widths = self.get("ui.col_widths", [32, 400, 130, 100, 32])
-        if isinstance(widths, (list, tuple)):
-            if len(widths) == 4:
-                # Add default width for the notes column or fav
-                return [int(widths[0]), int(widths[1]), int(widths[2]), 100, int(widths[3])]
-            if len(widths) >= 5:
-                return [int(w) for w in widths]
-        return [32, 400, 130, 100, 32]
+        return self.get("ui.col_widths", [30, 40, 400, 130])
 
     def get_max_favorites(self) -> int:
         """Return the maximum number of favorites."""
@@ -708,38 +695,19 @@ class UIConfig(BaseConfig):
 
         if not normalized:
             normalized = _default_bottom_actions()
-        else:
-            launch_action = None
-            for idx, a in enumerate(normalized):
-                if a.get("id") == "launch_marked":
-                    launch_action = normalized.pop(idx)
-                    break
-            if not launch_action:
-                launch_action = {
-                    "id": "launch_marked",
-                    "handler": "launch_marked_links",
-                    "shortcut": "F5",
-                    "label": "Запустить отмеченные",
-                }
-            insert_idx = len(normalized)
-            for idx, a in enumerate(normalized):
-                if a.get("id") == "add_link":
-                    insert_idx = idx + 1
-                    break
-            normalized.insert(insert_idx, launch_action)
 
         return normalized
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return ["▶", "Name", "Last opened", "Notes", "♥"]
+        return ["♥", "Name", "Last opened", "Notes"]
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
-        cols = self.get("ui.links_table_columns")
-        if isinstance(cols, dict) and cols.get("favorite") == 4:
-            return cols
-        return {"group_launch": 0, "name": 1, "last_used": 2, "notes": 3, "favorite": 4}
+        return self.get(
+            "ui.links_table_columns",
+            {"group_launch": 0, "favorite": 1, "name": 2, "last_used": 3, "notes": 4},
+        )
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""
