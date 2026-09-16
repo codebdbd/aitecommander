@@ -39,9 +39,6 @@ from app.core.strings import WindowStrings
 from app.utils.cache.topbar_snapshot import TopBarSnapshot, TopBarSnapshotStore
 from app.utils.ui.focus import WidgetRegistry, WidgetType
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.views.main_components.ui.topbar.top_bar_layout_manager import (
-    TopBarLayoutManager,
-)
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.custom_widgets import StructureTreeView
 from app.views.widgets.panels.favorites_panel_widget import FavoritesPanelWidget
@@ -487,25 +484,9 @@ class WindowUISetup:
             logger.warning("TopPanel: failed to set size policy", exc_info=True)
         return top_bar_host
 
-    def _uses_toolbar_topbar(self) -> bool:
-        toolbar = getattr(self.window, "top_bar_toolbar", None)
-        return isinstance(toolbar, QToolBar)
-
     def _init_and_schedule_topbar_manager(self) -> None:
-        if self._uses_toolbar_topbar():
-            self.window._topbar_manager = None
-            return
-
-        try:
-            self.window._topbar_manager = TopBarLayoutManager(self.window)
-            self._register_topbar_cleanup(self.window._topbar_manager)
-        except (RuntimeError, TypeError):
-            self.window._topbar_manager = None
-            logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
-            return
-        mgr = getattr(self.window, "_topbar_manager", None)
-        if not mgr:
-            return
+        self.window._topbar_manager = None
+        mgr = None
         try:
             if hasattr(self.window, "shown"):
                 self.window.shown.connect(
@@ -604,19 +585,19 @@ class WindowUISetup:
         return applied, snapshot
 
     def _schedule_topbar_initialization(
-        self, mgr: TopBarLayoutManager | None
+        self, mgr: object | None
     ) -> None:
         if getattr(self.window, "_topbar_initialized", False):
             return
         self.window._topbar_initialized = True
         QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, partial(self._finalize_topbar_startup, mgr))
 
-    def _prepare_initial_topbar_layout(self, mgr: TopBarLayoutManager | None) -> None:
+    def _prepare_initial_topbar_layout(self, mgr: object | None) -> None:
         """Initialize static topbar layout before data arrives."""
         if mgr is None:
             return
         try:
-            mgr.prepare_initial_layout()
+            mgr.prepare_initial_layout()  # type: ignore[attr-defined]
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
         except Exception:
@@ -629,7 +610,7 @@ class WindowUISetup:
         return self._prefill_topbar_from_snapshot(controller)
 
     def _connect_topbar_data_signal(
-        self, controller, mgr: TopBarLayoutManager | None
+        self, controller, mgr: object | None
     ) -> None:
         """Wire controller data-loaded signal to layout manager readiness."""
         if mgr is None:
@@ -639,7 +620,8 @@ class WindowUISetup:
                 from PyQt6.QtCore import Qt
 
                 controller.data_loaded.connect(
-                    mgr.mark_data_ready, Qt.ConnectionType.SingleShotConnection
+                    mgr.mark_data_ready,  # type: ignore[attr-defined]
+                    Qt.ConnectionType.SingleShotConnection,
                 )
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
@@ -670,7 +652,7 @@ class WindowUISetup:
                 len(snapshot.recents),
             )
 
-    def _finalize_topbar_startup(self, mgr: TopBarLayoutManager | None) -> None:
+    def _finalize_topbar_startup(self, mgr: object | None) -> None:
         self._prepare_initial_topbar_layout(mgr)
 
         controller = _get_top_panels_controller(self.window)
@@ -682,7 +664,7 @@ class WindowUISetup:
 
         if mgr is not None:
             try:
-                mgr.mark_data_ready()
+                mgr.mark_data_ready()  # type: ignore[attr-defined]
             except Exception:
                 logger.debug("TopPanel: immediate mark_data_ready failed", exc_info=True)
 
@@ -740,13 +722,13 @@ class WindowUISetup:
         except Exception:
             logger.debug("WindowUISetup: failed to retranslate top bar", exc_info=True)
 
-    def _register_topbar_cleanup(self, manager: TopBarLayoutManager | None) -> None:
+    def _register_topbar_cleanup(self, manager: object | None) -> None:
         if manager is None or not hasattr(self.window, "destroyed"):
             return
         if getattr(self.window, "_topbar_cleanup_connected", False):
             return
         try:
-            self.window.destroyed.connect(lambda: manager.cleanup())
+            self.window.destroyed.connect(lambda: manager.cleanup())  # type: ignore[attr-defined]
             self.window._topbar_cleanup_connected = True
             logger.debug("WindowUISetup: cleanup connected to window.destroyed")
         except Exception:
