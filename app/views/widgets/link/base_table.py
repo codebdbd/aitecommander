@@ -131,9 +131,9 @@ class TableDelegate(QStyledItemDelegate):
 
             val = self.col_sizes.get(col)
             if val is None:
-                if col == 3:
+                if col == 2:
                     val = self.col_opened_px
-                elif col == 4:
+                elif col == 3:
                     val = self.col_notes_px
             if val and int(val) > 0:
                 f = opt.font
@@ -188,12 +188,12 @@ class TableDelegate(QStyledItemDelegate):
         col = index.column()
         self._apply_column_font_size(opt, col)
 
-        if col == 3:
+        if col == 2:
             self._apply_column_color(opt, col, "openedColColor")
-        elif col == 4:
+        elif col == 3:
             self._apply_column_color(opt, col, "notesColColor")
 
-        if col == 2:
+        if col == 1:
             self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
@@ -607,8 +607,6 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
-        if logical_index == 0:
-            return
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
             self.setSortingEnabled(True)
