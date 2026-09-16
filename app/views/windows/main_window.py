@@ -895,19 +895,19 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
 
-        self._cleanup_resources()
-
         if hasattr(self, "app_shutdown") and self.app_shutdown:
             try:
                 logger.info(
                     "MainWindow.closeEvent: delegating to AppShutdownController"
                 )
                 self.app_shutdown.perform_shutdown(event)  # type: ignore[arg-type]
+                self._cleanup_resources()
                 return
             except Exception:
                 logger.exception(
                     "MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent"
                 )
+        self._cleanup_resources()
         super().closeEvent(event)
 
     def _cleanup_resources(self) -> None:
@@ -928,13 +928,14 @@ class MainWindow(QMainWindow, ReTranslatable):
             except Exception as e:
                 logger.debug("MainWindow: cleanup %s failed: %s", task_name, e)
 
-        try:
-            self.widgets.clear()
-        except Exception:
-            logger.debug(
-                "MainWindow: failed to clear widget container during cleanup",
-                exc_info=True,
-            )
+        if hasattr(self, "widgets") and hasattr(self.widgets, "clear"):
+            try:
+                self.widgets.clear()
+            except Exception:
+                logger.debug(
+                    "MainWindow: failed to clear widget container during cleanup",
+                    exc_info=True,
+                )
 
         logger.debug("MainWindow: cleanup completed")
 

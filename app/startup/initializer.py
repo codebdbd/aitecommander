@@ -503,7 +503,7 @@ class ApplicationInitializer:
             self._shutdown_controller.add_shutdown_handler(
                 "application_initializer_cleanup",
                 self._cleanup_via_shutdown_controller,
-                priority=ShutdownPriority.HIGH,
+                priority=ShutdownPriority.LOW,
                 timeout=3000,
                 critical=True,
             )
