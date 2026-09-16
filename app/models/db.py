@@ -724,10 +724,6 @@ class Database(QObject):
                 except Exception as e:
                     logger.warning("Error waiting for thread pool: %s", e)
 
-            try:
-                DatabaseManager.close_all()
-            except Exception as e:
-                logger.warning("Error closing database connections: %s", e)
 
             for attr in [
                 "spheres",

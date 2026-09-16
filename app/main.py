@@ -32,12 +32,15 @@ for _b_mod in ("brotlicffi", "brotli"):
 
 
 # Fix for PyQt6 + pywin32 COM uninitialization crash on Windows exit
+# COM инициализация — САМОЕ ПЕРВОЕ. Парный CoUninitialize — в конце main() в finally (LIFO).
 sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED
 try:
     import pythoncom
+
     pythoncom.CoInitialize()
+    _com_initialized = True
 except ImportError:
-    pass
+    _com_initialized = False
 
 from app.core.constants import AppConstants
 
@@ -60,16 +63,59 @@ def _handle_early_cli_exit() -> int | None:
 
 
 def main() -> int:
-    """Run the Qt application."""
-    early_exit_code = _handle_early_cli_exit()
-    if early_exit_code is not None:
-        return early_exit_code
+    """Run the Qt application.
 
-    from app.core.error_handler import GlobalErrorHandler
-    from app.startup.runtime import run
+    Гарантии:
+    - CoInitialize / CoUninitialize симметричны (тот же модуль, тот же finally).
+    - atexit-хендлеры срабатывают явно перед CoUninitialize (shelve close и др.).
+    - На Windows (не-тесты) финальный выход — через ExitProcess, чтобы предотвратить
+      беспорядочную финализацию C++ Qt-объектов циклическим GC Python.
+    """
+    exit_code = 0
+    try:
+        # --- CLI ранний выход (--version / --help) ---
+        early_exit_code = _handle_early_cli_exit()
+        if early_exit_code is not None:
+            exit_code = int(early_exit_code)
+            return exit_code
 
-    GlobalErrorHandler.install()
-    return run()
+        # --- Установка глобального обработчика ошибок ---
+        from app.core.error_handler import GlobalErrorHandler
+
+        GlobalErrorHandler.install()
+
+        # --- Запуск рантайма. ВАЖНО: run() больше не вызывает sys.exit()! ---
+        from app.startup.runtime import run
+
+        exit_code = int(run())
+        return exit_code
+
+    finally:
+        # Парный CoUninitialize (для CoInitialize на строках 34-40 этого же модуля)
+        if _com_initialized:
+            try:
+                import pythoncom
+
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
+    # ✅ ТОЛЬКО ПОСЛЕ всех cleanup-операций — безопасный hard-exit (Windows GUI, не-тесты)
+    #    ExitProcess/os._exit предотвращают случайный порядок деструкторов sip/PyQt C++ объектов,
+    #    который и вызывал Access Violation 0xC0000005 («Прекращена работа программы python.exe»).
+    if sys.platform == "win32" and not getattr(sys, "_running_tests", False) and "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.ExitProcess(exit_code)
+        except Exception:
+            os._exit(exit_code)
+    return exit_code
 
 
 if __name__ == "__main__":

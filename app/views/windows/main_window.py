@@ -392,6 +392,8 @@ class MainWindow(QMainWindow, ReTranslatable):
             else:
                 self.theme_ctrl.main_window = self
         self.theme_selector = None
+        self.theme_selector_container = None
+        self.theme_selector_separator = None
         self._widgets = MainWindowWidgets()
         # Dependencies are injected after construction; initialize placeholders to avoid attribute errors.
         self.facade: Optional[WindowFacade] = facade

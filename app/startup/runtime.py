@@ -700,12 +700,11 @@ def run(options: StartupOptions | None = None) -> int:
             DatabaseManager.close_all()
         except Exception as exc:
             logger.warning("DatabaseManager close failed: %s", exc)
-        # Cleanup resources only when the runtime owns the process exit. When
-        # returning to an embedding caller/test harness, Qt/PyQt objects may
-        # still hold resource-backed icons and styles during interpreter
-        # teardown; unregistering resources early can trigger native shutdown
-        # crashes on Windows.
-        if _resources_initialized and options.exit_on_finish and sys.platform != "win32":
+        # Симметричная очистка ресурсов Qt (парный вызов для qInitResources() на строке 626).
+        # Ранее обходился на win32 из-за краша при беспорядочной финализации — теперь
+        # это безопасно: hard-exit (ExitProcess) централизован в app/main.py и гарантирует
+        # завершение процесса перед деструктуризацией sip/C++ объектов на тестах/embed.
+        if _resources_initialized:
             qCleanupResources()
             _resources_initialized = False
 
@@ -716,19 +715,12 @@ def run(options: StartupOptions | None = None) -> int:
         except Exception:
             pass
 
-        target_code = resolved_exit
-        if (
-            options.exit_on_finish
-            and options.mode == StartupMode.GUI
-            and not getattr(sys, "_running_tests", False)
-            and "PYTEST_CURRENT_TEST" not in os.environ
-        ):
-            try:
-                sys.stdout.flush()
-                sys.stderr.flush()
-            except Exception:
-                pass
-            sys.exit(int(target_code))
+        # ⚠️ ВАЖНО: sys.exit() ЗДЕСЬ БОЛЬШЕ НЕТ.
+        # run() просто возвращает resolved_exit — поток управления дойдёт до app/main.py,
+        # где выполнится симметричный CoUninitialize + безопасный ExitProcess hard-exit.
+        # Удалённый sys.exit здесь обходил все внешние finally-блоки на стеке (включая
+        # app/main.main() finally), что вызывало ассиметрию COM и Access Violation 0xC0000005.
+        return int(resolved_exit)
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]

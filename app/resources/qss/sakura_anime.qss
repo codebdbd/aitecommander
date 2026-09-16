@@ -354,7 +354,7 @@ border-color: #FF8FC7;
 }
 QCheckBox::indicator:checked,
 QDialog QCheckBox::indicator:checked {
-background: #FF8FC7;
+background: #561D3B;
 border-color: #FF8FC7;
 image: url(":/icons/dark/check.svg");
 }

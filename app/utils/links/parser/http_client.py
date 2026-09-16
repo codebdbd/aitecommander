@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import atexit
 import threading
 import warnings
 
@@ -31,10 +30,6 @@ except ImportError:  # pragma: no cover - optional dependency
 # Lazy, shared cloudscraper instance
 _CLOUDSCRAPER = None
 _CLOUDSCRAPER_GUARD = threading.Lock()
-
-# One-time registration guard for session atexit cleanup
-_SESSION_CLEANUP_REGISTERED = False
-_SESSION_CLEANUP_GUARD = threading.Lock()
 
 
 def _is_cancelled(cancel_event) -> bool:
@@ -67,10 +62,6 @@ def get_cloudscraper():
             ) as e:  # pragma: no cover - creation failure
                 logger.warning("cloudscraper init failed: %s", e)
                 return None
-            try:
-                atexit.register(lambda: shutdown_cloudscraper(wait=False))
-            except RuntimeError as e:
-                logger.debug("failed to register cloudscraper shutdown: %s", e)
     return _CLOUDSCRAPER
 
 
@@ -93,9 +84,9 @@ _tls = threading.local()
 
 
 def _cleanup_thread_local_session():
-    """Best-effort close for thread-local session at interpreter shutdown.
+    """Best-effort close for thread-local session.
 
-    Registered once via atexit; safe to call multiple times.
+    Called explicitly via shutdown_parser_background_tasks(). Safe to call multiple times.
     """
     try:
         s = getattr(_tls, "session", None)
@@ -149,16 +140,6 @@ def get_session() -> requests.Session:
             s.hooks.setdefault("response", []).append(_log_response)
         except Exception:
             pass
-        # One-time atexit registration
-        global _SESSION_CLEANUP_REGISTERED
-        if not _SESSION_CLEANUP_REGISTERED:
-            with _SESSION_CLEANUP_GUARD:
-                if not _SESSION_CLEANUP_REGISTERED:
-                    try:
-                        atexit.register(_cleanup_thread_local_session)
-                        _SESSION_CLEANUP_REGISTERED = True
-                    except RuntimeError as e:
-                        logger.debug("failed to register session atexit cleanup: %s", e)
     return s
 
 
