@@ -1,28 +1,8 @@
-"""TopBar module - modular architecture with services, models, controllers.
+"""TopBar module - QToolBar-based implementation with toolbar adapters.
 
-Architecture:
-- services/: Business logic (layout, config, search, separators)
-- models/: Data structures (LayoutContext, PanelState, constants)
-- controllers/: UI coordination (TopBarController)
-- Root: Legacy compatibility layer (TopBarLayoutManager)
+Active components:
+- top_bar_setup.py: TopBarBuilder for assembling the QToolBar-based top bar
+- toolbar_adapters.py: Adapters for Quick Add / Favorites / Recent action groups
 """
 
-# Legacy compatibility - re-export from new locations
-from .models.layout_context import LayoutContext
-from .models.panel_state import PanelDefinition, PanelState
-from .models.topbar_constants import TOPBAR_CONSTANTS
-from .services.config_service import TopBarConfigService, TopBarSettings
-from .services.layout_service import LayoutComputationResult, TopBarLayoutService
-from .top_bar_layout_manager import TopBarLayoutManager
-
-__all__ = [
-    "TopBarLayoutManager",
-    "LayoutContext",
-    "PanelDefinition",
-    "PanelState",
-    "TOPBAR_CONSTANTS",
-    "TopBarConfigService",
-    "TopBarSettings",
-    "LayoutComputationResult",
-    "TopBarLayoutService",
-]
+__all__ = []
