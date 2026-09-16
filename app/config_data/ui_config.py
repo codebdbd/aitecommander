@@ -184,13 +184,15 @@ class UIConfig(BaseConfig):
 
     def get_col_widths(self) -> list:
         """Return the column widths for the links table."""
-        widths = self.get("ui.col_widths", [30, 400, 130, 40])
+        widths = self.get("ui.col_widths", [32, 400, 130, 100, 32])
         if isinstance(widths, (list, tuple)):
             if len(widths) == 3:
-                return [30, int(widths[1]), int(widths[2]), int(widths[0])]
-            if len(widths) >= 4:
+                return [32, int(widths[1]), int(widths[2]), 100, 32]
+            if len(widths) == 4:
+                return [int(widths[0]), int(widths[1]), int(widths[2]), 100, int(widths[3])]
+            if len(widths) >= 5:
                 return [int(w) for w in widths]
-        return [30, 400, 130, 40]
+        return [32, 400, 130, 100, 32]
 
     def get_max_favorites(self) -> int:
         """Return the maximum number of favorites."""
