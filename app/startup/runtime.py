@@ -381,6 +381,9 @@ def _register_hotkeys() -> None:
         "global.add_category", "F4", context=Qt.ShortcutContext.WindowShortcut
     )
     HotkeyManager.register(
+        "global.launch_marked", "F5", context=Qt.ShortcutContext.WindowShortcut
+    )
+    HotkeyManager.register(
         "global.switch_sphere", "F6", context=Qt.ShortcutContext.WindowShortcut
     )
     HotkeyManager.register(

@@ -67,6 +67,7 @@ class Shortcuts:
     ADD_CATEGORY = "global.add_category"
     SETTINGS = "global.settings"
     SEARCH_FILES = "global.search_files"
+    LAUNCH_MARKED = "global.launch_marked"
     EXIT = "global.exit"
     DELETE = "global.delete"
     ENTER = "global.enter"
@@ -123,6 +124,7 @@ class MenuTexts:
     REDO = QT_TRANSLATE_NOOP("MenuActions", "&Redo")
     # Links context menu
     OPEN = QT_TRANSLATE_NOOP("MenuActions", "Open")
+    LAUNCH_MARKED = QT_TRANSLATE_NOOP("MenuActions", "Запустить отмеченные")
     EDIT = QT_TRANSLATE_NOOP("MenuActions", "Edit")
     DELETE = QT_TRANSLATE_NOOP("MenuActions", "Delete")
     COPY = QT_TRANSLATE_NOOP("MenuActions", "Copy")

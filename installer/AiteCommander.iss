@@ -58,8 +58,8 @@ Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\dreamy_room"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\dreamy_room"
 
 [Icons]
-Name: "{autogroup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autogroup}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]

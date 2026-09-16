@@ -163,6 +163,10 @@ class WindowFacade:
         """
         return bool(self.links_actions.edit_selected_link())
 
+    def launch_marked_links(self) -> None:
+        """Launch all marked links in the current category."""
+        self.links_actions.launch_marked_links()
+
     # === Universal actions ===
 
     def edit_current(self) -> None:

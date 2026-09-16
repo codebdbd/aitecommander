@@ -70,7 +70,8 @@ def test_link_model_rotation_support():
             position INTEGER DEFAULT 0,
             chrome_rotation INTEGER NOT NULL DEFAULT 0,
             rotation_index INTEGER NOT NULL DEFAULT 0,
-            rotation_profiles TEXT DEFAULT NULL
+            rotation_profiles TEXT DEFAULT NULL,
+            is_group_launch INTEGER NOT NULL DEFAULT 0
         );
         """
     )

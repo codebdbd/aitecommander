@@ -173,6 +173,11 @@ class LinksService:
         self.repo.update_rotation_index(link_id, new_index)
 
     @unit_of_work
+    def update_group_launch(self, link_id: int, is_group_launch: int) -> None:
+        self._validate_positive_int(link_id, "link_id")
+        self.repo.update_group_launch(link_id, is_group_launch)
+
+    @unit_of_work
     def clear_favorites(self) -> None:
         self.repo.clear_favorites()
 

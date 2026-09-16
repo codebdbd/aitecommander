@@ -26,17 +26,42 @@ import time
 def _remove_dir_robust(path: Path) -> None:
     if not path.exists():
         return
+
+    def _onerror(func, p, exc_info):
+        try:
+            import os
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except Exception:
+            pass
+
     for _ in range(5):
         try:
+            try:
+                import os
+                os.chmod(path, stat.S_IWRITE)
+            except Exception:
+                pass
             for p in path.glob("**/*"):
                 try:
-                    p.chmod(stat.S_IWRITE)
+                    import os
+                    os.chmod(p, stat.S_IWRITE)
                 except Exception:
                     pass
-            shutil.rmtree(path, ignore_errors=False)
-            break
+            shutil.rmtree(path, onexc=_onerror)
+            if not path.exists():
+                return
         except Exception:
             time.sleep(0.5)
+
+    if path.exists():
+        try:
+            subprocess.run(["cmd", "/c", "rd", "/s", "/q", str(path)], capture_output=True)
+        except Exception:
+            pass
+
+    if path.exists():
+        raise RuntimeError(f"Failed to remove directory: {path}")
 
 
 def clean() -> None:

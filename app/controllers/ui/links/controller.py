@@ -264,6 +264,39 @@ class LinksUIController(QObject):
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
+    def get_marked_links(self) -> list[dict]:
+        """Get all links marked for group launch in current category."""
+        try:
+            model = self.table.model()
+            if model is None:
+                return []
+            marked = []
+            for row in range(model.rowCount()):
+                link = self.get_link_at(row)
+                if link and bool(link.get("is_group_launch")):
+                    marked.append(link)
+            return marked
+        except Exception as e:
+            logger.error("Error getting marked links: %s", e)
+            return []
+
+    def launch_marked_links(self) -> None:
+        """Launch all marked links in the current category."""
+        links = self.get_marked_links()
+        if not links:
+            logger.info("launch_marked_links: no marked links in current category")
+            return
+        limit = self._confirm_open_many_links(len(links))
+        if limit is None:
+            return
+        if limit is not None and limit < len(links):
+            links = links[:limit]
+        logger.info("launch_marked_links: count=%s", len(links))
+        if len(links) == 1:
+            self.link_ops._open_link(links[0])
+            return
+        self._open_links_in_batches(links, max_total=limit)
+
     def open_selected_links(self) -> None:
         """Open all currently selected links."""
         links = self.get_selected_links()

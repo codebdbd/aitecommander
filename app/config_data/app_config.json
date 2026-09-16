@@ -108,6 +108,12 @@
         "shortcut": "F1"
       },
       {
+        "id": "launch_marked",
+        "handler": "launch_marked_links",
+        "shortcut": "F5",
+        "label": "Запустить отмеченные"
+      },
+      {
         "id": "edit_link",
         "handler": "edit_current",
         "shortcut": "F2"

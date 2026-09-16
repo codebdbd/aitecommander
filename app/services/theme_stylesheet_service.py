@@ -257,6 +257,23 @@ class ThemeStylesheetService:
             "QTextEdit:focus,",
             'QTextEdit:focus, QFrame[input_frame="true"][focused="true"], QFrame[input_frame="true"]:focus,',
         )
+        # Checkbox indicator state adaptation for tables
+        qss = qss.replace(
+            "QCheckBox::indicator,",
+            "QCheckBox::indicator, QTableView::indicator,",
+        )
+        qss = qss.replace(
+            "QCheckBox::indicator:hover,",
+            "QCheckBox::indicator:hover, QTableView::indicator:hover,",
+        )
+        qss = qss.replace(
+            "QCheckBox::indicator:checked,",
+            "QCheckBox::indicator:checked, QTableView::indicator:checked,",
+        )
+        qss = qss.replace(
+            "QCheckBox::indicator:disabled,",
+            "QCheckBox::indicator:disabled, QTableView::indicator:disabled,",
+        )
         return qss
 
     @staticmethod

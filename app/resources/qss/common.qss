@@ -345,6 +345,34 @@ QHeaderView::section {
     padding: 4px;
 }
 
+QTableView QHeaderView::section:vertical,
+QHeaderView:vertical::section,
+QTableView QTableCornerButton::section,
+QTableView QTableCornerButton::section:first {
+    border: none;
+}
+
+QTableView QHeaderView::section:horizontal {
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-right: 1px solid #3A3E44;
+    padding-left: 6px;
+    padding-right: 20px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+QTableView QHeaderView::section:horizontal:first {
+    border-left: none;
+    padding: 2px 2px;
+}
+
+QTableView QHeaderView::section:horizontal:last {
+    border-right: none;
+    padding: 2px 2px;
+}
+
 QTableView QHeaderView,
 QTreeView QHeaderView {
     font-weight: normal;
@@ -625,8 +653,21 @@ QDialog QCheckBox::indicator {
     margin-right: 4px;
 }
 
+QTableView::indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: center;
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0px;
+    background: transparent;
+    width: 12px;
+    height: 12px;
+    outline: none;
+}
+
 QDialog QCheckBox::indicator,
-QDialog QCheckBox::indicator:focus {
+QDialog QCheckBox::indicator:focus,
+QTableView::indicator:focus {
     outline: none;
 }
 
