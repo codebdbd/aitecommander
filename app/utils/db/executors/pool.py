@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QThreadPool
 
-__all__ = ["get_thread_pool", "set_thread_pool"]
+__all__ = ["get_thread_pool", "set_thread_pool", "shutdown_thread_pool"]
 
 # Dedicated DB pool override for tests / special cases.
 _CUSTOM_POOL: QThreadPool | None = None
@@ -31,3 +31,19 @@ def get_thread_pool() -> QThreadPool:
         pool.setExpiryTimeout(-1)
         _DB_POOL = pool
     return _DB_POOL
+
+
+def shutdown_thread_pool(timeout_ms: int = 1000) -> None:
+    """Clear and wait for dedicated DB thread pool on application shutdown."""
+    global _DB_POOL
+    pool = _DB_POOL
+    if pool is None:
+        return
+    try:
+        pool.clear()
+    except Exception:
+        pass
+    try:
+        pool.waitForDone(max(0, int(timeout_ms)))
+    except Exception:
+        pass

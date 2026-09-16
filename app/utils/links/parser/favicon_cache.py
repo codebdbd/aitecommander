@@ -305,6 +305,14 @@ class FaviconCache(BaseCache):
         except Exception:
             pass
 
+    def close(self) -> None:
+        """Explicitly flush and close the underlying shelve database."""
+        self._safe_shutdown()
+
+    def shutdown(self) -> None:
+        """Alias for close()."""
+        self.close()
+
     # Helpers
     def _get_default_icon(self) -> str:
         if self._default_icon_cached is not None:

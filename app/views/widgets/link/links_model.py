@@ -102,12 +102,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         if col == 0:
             return None
         if col == 1:
-            return self._star_display_text(bool(link.get("is_favorite")))
-        if col == 2:
             return self._name_display_text(link, mode="normal")
-        if col == 3:
+        if col == 2:
             return self._last_used_display_text(link.get("last_used"))
-        if col == 4:
+        if col == 3:
             display, _ = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )
@@ -118,7 +116,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_decoration_data(self, col, link):
         """Get decoration data for column."""
-        if col == 2:
+        if col == 1:
             try:
                 resolved_path = resolve_icon_for_link(link)
                 if resolved_path:
@@ -129,11 +127,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_tooltip_data(self, col, link):
         """Get tooltip data for column."""
-        if col == 2:
+        if col == 1:
             tip = self._name_tooltip(link)
             if tip:
                 return tip
-        if col == 4:
+        if col == 3:
             _, tip = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )

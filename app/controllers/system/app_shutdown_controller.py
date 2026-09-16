@@ -130,12 +130,11 @@ class AppShutdownController:
         # ✅ Flag for tracking cleanup
         self._cleaned_up = False
 
-    def perform_shutdown(self, event: "QCloseEvent") -> None:
+    def perform_shutdown(self, event: Optional["QCloseEvent"] = None) -> None:
         """Main method - fully compatible with original interface.
 
-        ✅ FIX: Added parameter typing.
-
-            event: Window close event
+        Args:
+            event: Window close event (optional)
         """
         if self._shutdown_lock is None:
             logger.error("Shutdown lock is None, cannot proceed safely")
@@ -171,6 +170,8 @@ class AppShutdownController:
 
     def _safe_close_event(self, event):
         """Safe call to parent closeEvent with fallback."""
+        if event is None:
+            return
         try:
             # Use proper super() call to ensure correct event propagation
             super(type(self.window), self.window).closeEvent(event)
@@ -355,8 +356,15 @@ class AppShutdownController:
 
     def _register_default_handlers(self):
         """Register default handlers (compatibility with original code)."""
-        # Order as before: controllers -> wait threads -> backup
-        # 1) Controller shutdown (strict, critical)
+        # 1) Persist UI snapshot for warm start (HIGH - must save before controllers/UI teardown)
+        self.add_shutdown_handler(
+            "topbar_snapshot",
+            self._save_topbar_snapshot,
+            ShutdownPriority.HIGH,
+            timeout=1000,
+            critical=False,
+        )
+        # 2) Controller shutdown (strict, critical)
         self.add_shutdown_handler(
             "controllers_shutdown",
             self._shutdown_controllers,
@@ -364,7 +372,7 @@ class AppShutdownController:
             timeout=3000,
             critical=True,
         )
-        # 2) Thread pool waiting (non-critical, bounded by config)
+        # 3) Thread pool waiting (non-critical, bounded by config)
         tp_timeout = get_thread_pool_shutdown_timeout()
         handler_timeout = tp_timeout
         self.add_shutdown_handler(
@@ -372,14 +380,6 @@ class AppShutdownController:
             self._wait_for_thread_pools,
             ShutdownPriority.NORMAL,
             timeout=handler_timeout,
-            critical=False,
-        )
-        # 3) Persist UI snapshot for warm start
-        self.add_shutdown_handler(
-            "topbar_snapshot",
-            self._save_topbar_snapshot,
-            ShutdownPriority.LOW,
-            timeout=1000,
             critical=False,
         )
         # 4) Database backup (non-critical, last)
@@ -448,7 +448,7 @@ class AppShutdownController:
         controllers_to_shutdown = [
             ("links", "Links controller"),
             ("links_business", "Links business controller"),
-            ("tiles", "Tiles controller"),
+            ("structure_business", "Structure business logic"),
         ]
 
         for attr_name, display_name in controllers_to_shutdown:
@@ -469,7 +469,14 @@ class AppShutdownController:
                 logger.debug("Shutting down %s", display_name)
                 shutdown_method = controller.shutdown
                 if callable(shutdown_method):
-                    shutdown_method()
+                    try:
+                        sig = inspect.signature(shutdown_method)
+                        if len(sig.parameters) > 0:
+                            shutdown_method(timeout_ms)
+                        else:
+                            shutdown_method()
+                    except (TypeError, ValueError):
+                        shutdown_method()
                 else:
                     logger.warning("%s.shutdown is not callable", display_name)
 
@@ -600,6 +607,23 @@ class AppShutdownController:
             if db is None:
                 logger.debug("Database instance is None, skipping backup")
                 return True
+
+            from app.core.constants import BACKUP_DIR
+            if BACKUP_DIR.exists():
+                existing = sorted(BACKUP_DIR.glob("aite_bd_*.db"))
+                if existing:
+                    latest = existing[-1]
+                    try:
+                        latest_mtime = latest.stat().st_mtime
+                        if time.time() - latest_mtime < 900:
+                            logger.info(
+                                "Skipping shutdown backup: recent backup exists (%s, %.1f min ago)",
+                                latest.name,
+                                (time.time() - latest_mtime) / 60,
+                            )
+                            return True
+                    except Exception:
+                        pass
 
             if not hasattr(db, "backup"):
                 logger.debug("Database has no backup method")

@@ -32,6 +32,24 @@ from .row_operations import RowOperationsMixin
 logger = logging.getLogger(__name__)
 
 
+class LinksHeaderView(QHeaderView):
+    """Custom horizontal header that suppresses sort indicator arrows on columns 0 and 4."""
+
+    def paintSection(self, painter, rect, logicalIndex):
+        if (
+            logicalIndex in (0, 4)
+            and self.isSortIndicatorShown()
+            and self.sortIndicatorSection() == logicalIndex
+        ):
+            self.setSortIndicatorShown(False)
+            try:
+                super().paintSection(painter, rect, logicalIndex)
+            finally:
+                self.setSortIndicatorShown(True)
+            return
+        super().paintSection(painter, rect, logicalIndex)
+
+
 class TableDelegate(QStyledItemDelegate):
     """Unified delegate: row hover highlight and character-based elision for the ``Name`` column."""
 
@@ -383,6 +401,7 @@ class LinksTableView(
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setHorizontalHeader(LinksHeaderView(Qt.Orientation.Horizontal, self))
         self._settings = getattr(parent, "settings", None)
         # Object name used for QSS tweaks (e.g., header font size)
         try:
@@ -607,8 +626,6 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
-        if logical_index == 0:
-            return
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
             self.setSortingEnabled(True)
