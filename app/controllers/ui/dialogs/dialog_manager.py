@@ -9,7 +9,13 @@ import logging
 from typing import Optional
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
-from PyQt6.QtWidgets import QMessageBox, QWidget
+from PyQt6.QtWidgets import (
+    QDialogButtonBox,
+    QMessageBox,
+    QSizePolicy,
+    QSpacerItem,
+    QWidget,
+)
 
 from app.config_data.runtime_config import (
     get_dialog_message_box_max_width,
@@ -60,6 +66,9 @@ def localize_message_box_buttons(msg_box: QMessageBox) -> None:
         if button is not None:
             button.setText(text)
     apply_uniform_height_to_message_box(msg_box)
+    button_box = msg_box.findChild(QDialogButtonBox)
+    if button_box is not None:
+        button_box.setCenterButtons(True)
 
 
 class DialogManager:
@@ -205,6 +214,18 @@ class DialogManager:
 
         # Limit maximum dialog width
         msg_box.setMaximumWidth(get_dialog_message_box_max_width())
+
+        layout = msg_box.layout()
+        if layout is not None:
+            layout.addItem(
+                QSpacerItem(
+                    360, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed
+                ),
+                layout.rowCount(),
+                0,
+                1,
+                layout.columnCount(),
+            )
 
         localize_message_box_buttons(msg_box)
 

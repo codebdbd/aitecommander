@@ -63,6 +63,9 @@ if False:  # pragma: no cover
 if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
     QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+    QCoreApplication.translate("LinkDialogUI", "Rotation")
+    QCoreApplication.translate("LinkDialogUI", "Profiles")
+    QCoreApplication.translate("LinkDialogUI", "Favorites")
 
 
 class LinkDialogUI:
@@ -345,7 +348,7 @@ class LinkDialogUI:
         )
 
     def _form_add_notes_and_fav(self) -> None:
-        """Add notes field and favorites checkbox."""
+        """Add notes field to form section."""
         self.notes_te = QTextEdit()
         try:
             self.notes_te.setTabChangesFocus(True)
@@ -358,21 +361,25 @@ class LinkDialogUI:
         self.widgets["notes_te"] = self.notes_te
         self.widgets["notes_frame"] = self.notes_frame
 
+    def _build_buttons(self, container: QVBoxLayout) -> None:
+        """Create bottom row with options (favorite, rotation) and OK/Cancel buttons."""
+        bottom_row = QHBoxLayout()
+        bottom_row.setContentsMargins(0, 0, 0, 0)
+        bottom_row.setSpacing(8)
+
+        # Favorite checkbox
         self.fav_chk = QCheckBox(
-            QCoreApplication.translate("LinkDialogUI", "Add to favorites")
+            QCoreApplication.translate("LinkDialogUI", "Favorites")
         )
-        fav_row = QHBoxLayout()
-        fav_row.setContentsMargins(0, 0, 0, 0)
-        fav_row.setSpacing(8)
-        fav_row.addWidget(self.fav_chk)
-        fav_row.addStretch(1)
+        bottom_row.addWidget(self.fav_chk)
+        bottom_row.addSpacing(16)
 
         # Chrome rotation checkbox + profile selection button
         self.rotation_chk = QCheckBox(
-            QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
+            QCoreApplication.translate("LinkDialogUI", "Rotation")
         )
         self.rotation_profiles_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+            QCoreApplication.translate("LinkDialogUI", "Profiles")
         )
         self.rotation_profiles_btn.setToolTip(
             QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
@@ -380,16 +387,11 @@ class LinkDialogUI:
         self.adjust_button_width(self.rotation_profiles_btn)
         self.rotation_profiles_btn.setVisible(False)
         self.rotation_profiles_btn.setEnabled(False)
-        fav_row.addWidget(self.rotation_chk)
-        fav_row.addWidget(self.rotation_profiles_btn)
+        bottom_row.addWidget(self.rotation_chk)
+        bottom_row.addWidget(self.rotation_profiles_btn)
 
-        self.form.addRow("", fav_row)
-        self.widgets["fav_chk"] = self.fav_chk
-        self.widgets["rotation_chk"] = self.rotation_chk
-        self.widgets["rotation_profiles_btn"] = self.rotation_profiles_btn
+        bottom_row.addStretch(1)
 
-    def _build_buttons(self, container: QVBoxLayout) -> None:
-        """Create OK/Cancel buttons panel and add it to container."""
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -414,7 +416,12 @@ class LinkDialogUI:
             logger.warning("Failed to configure focus for Cancel button: %s", e)
         cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
-        container.addWidget(self.button_box)
+        bottom_row.addWidget(self.button_box)
+        container.addLayout(bottom_row)
+
+        self.widgets["fav_chk"] = self.fav_chk
+        self.widgets["rotation_chk"] = self.rotation_chk
+        self.widgets["rotation_profiles_btn"] = self.rotation_profiles_btn
         self.widgets["button_box"] = self.button_box
         self.widgets["ok_btn"] = ok_btn
 
@@ -563,17 +570,17 @@ class LinkDialogUI:
                         )
             if hasattr(self, "fav_chk") and self.fav_chk is not None:
                 self.fav_chk.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Add to favorites")
+                    QCoreApplication.translate("LinkDialogUI", "Favorites")
                 )
             if hasattr(self, "rotation_chk") and self.rotation_chk is not None:
                 self.rotation_chk.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
+                    QCoreApplication.translate("LinkDialogUI", "Rotation")
                 )
             if hasattr(self, "rotation_profiles_btn") and self.rotation_profiles_btn is not None:
                 # Only retranslate if no profiles are configured (otherwise keep dynamic text)
                 if not self.rotation_profiles_btn.isVisible():
                     self.rotation_profiles_btn.setText(
-                        QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+                        QCoreApplication.translate("LinkDialogUI", "Profiles")
                     )
                 self.adjust_button_width(self.rotation_profiles_btn)
         except Exception:

@@ -177,8 +177,7 @@ class ItemDeletionService(QObject):
         if not DialogManager.ask_confirmation(
             self._main,
             message,
-            _tr_deletion(_DELETE_SECTION_TITLE),
-            informative_text=_tr_deletion(_DELETE_SECTION_INFO),
+            _tr_deletion(_CONFIRM_DELETION_TITLE),
             details=f"sections={len(section_ids)}, cats={total_categories}, links={total_links}",
         ):
             return True
@@ -283,8 +282,7 @@ class ItemDeletionService(QObject):
         return DialogManager.ask_confirmation(
             self._main,
             message,
-            _tr_deletion(_DELETE_SECTION_TITLE),
-            informative_text=_tr_deletion(_DELETE_SECTION_INFO),
+            _tr_deletion(_CONFIRM_DELETION_TITLE),
             details=f"section_id={section_data.get('id')}, cats={cats_count}, links={links_count}",
         )
 
@@ -297,7 +295,6 @@ class ItemDeletionService(QObject):
             self._main,
             message,
             _tr_deletion(_CONFIRM_DELETION_TITLE),
-            informative_text=_tr_deletion(_DELETE_CATEGORY_INFO),
             details=f"category_id={category_data.get('id')}, links={links_count}",
         )
 

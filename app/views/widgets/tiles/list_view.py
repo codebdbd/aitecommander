@@ -4,6 +4,7 @@ import logging
 from typing import cast
 
 from PyQt6.QtCore import (
+    QCoreApplication,
     QEvent,
     QItemSelectionModel,
     QModelIndex,
@@ -179,8 +180,12 @@ class CategoryListView(QListView):
         shown = names[:2]
         remaining = total - len(shown)
         if remaining > 0:
-            return f"Перетаскивается {total} элементов — {', '.join(shown)} и еще {remaining}"
-        return f"Перетаскивается {total} элементов — {', '.join(shown)}"
+            return QCoreApplication.translate(
+                "DragDrop", "Dragging {total} items — {shown} and {remaining} more"
+            ).format(total=total, shown=", ".join(shown), remaining=remaining)
+        return QCoreApplication.translate(
+            "DragDrop", "Dragging {total} items — {shown}"
+        ).format(total=total, shown=", ".join(shown))
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         # Explicitly start DnD when cursor moved enough

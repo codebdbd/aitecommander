@@ -79,7 +79,7 @@ class IconRefreshDialog(BaseDialog):
         layout = QVBoxLayout(self)
         
         # Заголовок (с начальным текстом)
-        self.title_label = QLabel(QCoreApplication.translate("IconRefreshDialog", "Refreshing icons for imported links"))
+        self.title_label = QLabel(QCoreApplication.translate("IconRefreshDialog", "Refreshing link icons"))
         self.title_label.setWordWrap(True)
         layout.addWidget(self.title_label)
         
@@ -150,11 +150,8 @@ class IconRefreshDialog(BaseDialog):
             percentage = int((current / total) * 100)
             self.progress_bar.setValue(percentage)
         
-        self.status_label.setText(message)
-        
-        # Обновляем статистику (если есть в сообщении)
-        if "обновлено:" in message.lower():
-            self.stats_label.setText(message)
+        self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Updating icons..."))
+        self.stats_label.setText(message)
     
     def _on_finished(self, stats: dict):
         """Обработчик завершения."""
@@ -269,11 +266,11 @@ class IconRefreshDialog(BaseDialog):
             return
         
         self.setWindowTitle(tr_common("Icon Refresh"))
-        self.title_label.setText(QCoreApplication.translate("IconRefreshDialog", "Refreshing icons for imported links"))
+        self.title_label.setText(QCoreApplication.translate("IconRefreshDialog", "Refreshing link icons"))
         
         if not self._is_finished:
             if self._has_started:
-                self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Initializing..."))
+                self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Updating icons..."))
             else:
                 self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Click Refresh to start icon parsing"))
         
@@ -290,7 +287,7 @@ class IconRefreshDialog(BaseDialog):
         if self.service.is_running() or self._cancel_requested:
             return
         self.refresh_button.setEnabled(False)
-        self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Starting refresh..."))
+        self.status_label.setText(QCoreApplication.translate("IconRefreshDialog", "Updating icons..."))
         try:
             started = self.service.start_refresh(**self._start_options)
         except Exception as exc:

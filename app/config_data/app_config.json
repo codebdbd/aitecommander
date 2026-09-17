@@ -110,8 +110,7 @@
       {
         "id": "launch_marked",
         "handler": "launch_marked_links",
-        "shortcut": "F5",
-        "label": "Запустить отмеченные"
+        "shortcut": "F5"
       },
       {
         "id": "edit_link",

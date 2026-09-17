@@ -1,5 +1,4 @@
 <?xml version='1.0' encoding='utf-8'?>
-<!DOCTYPE TS>
 <TS version="2.1" language="en_GB">
     <context>
         <name>AccessibilityManager</name>
@@ -370,22 +369,22 @@
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="21" />
             <source>Preparing backup...</source>
-            <translation type="unfinished" />
+            <translation>Preparing backup...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="22" />
             <source>Creating backup...</source>
-            <translation type="unfinished" />
+            <translation>Creating backup...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="23" />
             <source>Cleaning up old backups...</source>
-            <translation type="unfinished" />
+            <translation>Cleaning up old backups...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="25" />
             <source>Backup completed</source>
-            <translation type="unfinished" />
+            <translation>Backup completed</translation>
         </message>
     </context>
     <context>
@@ -569,7 +568,7 @@
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="694" />
             <source>Double-click to open or copy</source>
-            <translation type="unfinished" />
+            <translation>Double-click to open or copy</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="809" />
@@ -783,28 +782,36 @@
             <source>Action button: {label}</source>
             <translation>Action button: {label}</translation>
         </message>
+            <message>
+            <source>Launch Marked</source>
+            <translation>Launch Marked</translation>
+        </message>
+        <message>
+            <source>Launch marked links (F5)</source>
+            <translation>Launch marked links (F5)</translation>
+        </message>
     </context>
     <context>
         <name>BrowserBookmarksImporter</name>
         <message>
             <location filename="..\app\utils\browser\import_browser_html.py" line="18" />
             <source>Import from browser</source>
-            <translation type="unfinished">Import from browser</translation>
+            <translation>Import from browser</translation>
         </message>
         <message>
             <location filename="..\app\utils\browser\import_browser_html.py" line="19" />
             <source>HTML Files (*.html *.htm)</source>
-            <translation type="unfinished" />
+            <translation>HTML Files (*.html *.htm)</translation>
         </message>
         <message>
             <location filename="..\app\utils\browser\import_browser_html.py" line="21" />
             <source>Added links: {count}</source>
-            <translation type="unfinished" />
+            <translation>Added links: {count}</translation>
         </message>
         <message>
             <location filename="..\app\utils\browser\import_browser_html.py" line="23" />
             <source>Categories created: {count}</source>
-            <translation type="unfinished" />
+            <translation>Categories created: {count}</translation>
         </message>
     </context>
     <context>
@@ -880,7 +887,7 @@
         <message>
             <location filename="..\app\utils\browser\browser_profiles\async_profile_manager.py" line="23" />
             <source>Loading {browser}</source>
-            <translation type="unfinished" />
+            <translation>Loading {browser}</translation>
         </message>
     </context>
     <context>
@@ -1120,7 +1127,7 @@
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="87" />
             <source>Database restoration is already in progress.</source>
-            <translation type="unfinished" />
+            <translation>Database restoration is already in progress.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="119" />
@@ -1138,18 +1145,19 @@
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="181" />
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="136" />
             <source>Database operation is already in progress.</source>
-            <translation type="unfinished" />
+            <translation>Database operation is already in progress.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="164" />
             <source>Database connected from:
 {file_name}</source>
-            <translation type="unfinished" />
+            <translation>Database connected from:
+{file_name}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="175" />
             <source>Database connection error: {error}</source>
-            <translation type="unfinished" />
+            <translation>Database connection error: {error}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="233" />
@@ -1193,17 +1201,17 @@
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="355" />
             <source>File {name} exceeds maximum allowed size ({size} MB)</source>
-            <translation type="unfinished" />
+            <translation>File {name} exceeds maximum allowed size ({size} MB)</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="363" />
             <source>Archive exceeds total allowed icon size ({size} MB)</source>
-            <translation type="unfinished" />
+            <translation>Archive exceeds total allowed icon size ({size} MB)</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="371" />
             <source>Archive contains too many icons ({count} &gt; {limit})</source>
-            <translation type="unfinished" />
+            <translation>Archive contains too many icons ({count} &gt; {limit})</translation>
         </message>
         <message>
             <source>Database connection error: {error}
@@ -1283,12 +1291,12 @@ Old database restored.</translation>
         <message>
             <location filename="..\app\models\db.py" line="45" />
             <source>Applying migrations...</source>
-            <translation type="unfinished" />
+            <translation>Applying migrations...</translation>
         </message>
         <message>
             <location filename="..\app\models\db.py" line="47" />
             <source>Initializing default data...</source>
-            <translation type="unfinished" />
+            <translation>Initializing default data...</translation>
         </message>
     </context>
     <context>
@@ -1315,7 +1323,7 @@ Old database restored.</translation>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="143" />
             <source>Restored database failed verification: {error}</source>
-            <translation type="unfinished" />
+            <translation>Restored database failed verification: {error}</translation>
         </message>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="221" />
@@ -1325,12 +1333,12 @@ Old database restored.</translation>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="352" />
             <source>Backup file does not exist: {path}</source>
-            <translation type="unfinished" />
+            <translation>Backup file does not exist: {path}</translation>
         </message>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="360" />
             <source>Backup file is empty: {path}</source>
-            <translation type="unfinished" />
+            <translation>Backup file is empty: {path}</translation>
         </message>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="419" />
@@ -1386,22 +1394,22 @@ Old database restored.</translation>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="32" />
             <source>Error</source>
-            <translation type="unfinished">Error</translation>
+            <translation>Error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="33" />
             <source>Warning</source>
-            <translation type="unfinished">Warning</translation>
+            <translation>Warning</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="34" />
             <source>Information</source>
-            <translation type="unfinished">Information</translation>
+            <translation>Information</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="35" />
             <source>Confirmation</source>
-            <translation type="unfinished">Confirmation</translation>
+            <translation>Confirmation</translation>
         </message>
     </context>
     <context>
@@ -1599,7 +1607,7 @@ Old database restored.</translation>
         <message>
             <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="44" />
             <source>Path</source>
-            <translation type="unfinished" />
+            <translation>Path</translation>
         </message>
     </context>
     <context>
@@ -1865,27 +1873,27 @@ Failed: {3}</translation>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="15" />
             <source>Loading spheres...</source>
-            <translation type="unfinished" />
+            <translation>Loading spheres...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="17" />
             <source>Loading sections...</source>
-            <translation type="unfinished" />
+            <translation>Loading sections...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="19" />
             <source>Loading categories...</source>
-            <translation type="unfinished" />
+            <translation>Loading categories...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="21" />
             <source>Loading links...</source>
-            <translation type="unfinished" />
+            <translation>Loading links...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="23" />
             <source>Hierarchy assembly completed</source>
-            <translation type="unfinished" />
+            <translation>Hierarchy assembly completed</translation>
         </message>
     </context>
     <context>
@@ -1931,67 +1939,67 @@ Failed: {3}</translation>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="15" />
             <source>Section addition error</source>
-            <translation type="unfinished" />
+            <translation>Section addition error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="17" />
             <source>Failed to add section.</source>
-            <translation type="unfinished" />
+            <translation>Failed to add section.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="19" />
             <source>Check the entered data and try again.</source>
-            <translation type="unfinished" />
+            <translation>Check the entered data and try again.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="21" />
             <source>Category addition error</source>
-            <translation type="unfinished" />
+            <translation>Category addition error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="23" />
             <source>Failed to add category.</source>
-            <translation type="unfinished" />
+            <translation>Failed to add category.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="25" />
             <source>Section edit error</source>
-            <translation type="unfinished" />
+            <translation>Section edit error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="27" />
             <source>Failed to edit section.</source>
-            <translation type="unfinished" />
+            <translation>Failed to edit section.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="29" />
             <source>Try again or contact support.</source>
-            <translation type="unfinished" />
+            <translation>Try again or contact support.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="31" />
             <source>Category edit error</source>
-            <translation type="unfinished" />
+            <translation>Category edit error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="33" />
             <source>Failed to edit category.</source>
-            <translation type="unfinished" />
+            <translation>Failed to edit category.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="35" />
             <source>No sections in the current sphere. Create a new section?</source>
-            <translation type="unfinished" />
+            <translation>No sections in the current sphere. Create a new section?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="37" />
             <source>No sections</source>
-            <translation type="unfinished" />
+            <translation>No sections</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="39" />
             <source>The section creation dialog will be opened.</source>
-            <translation type="unfinished" />
+            <translation>The section creation dialog will be opened.</translation>
         </message>
     </context>
     <context>
@@ -2003,7 +2011,11 @@ Failed: {3}</translation>
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation type="unfinished" />
+            <translation>Section '{section}' contains {categories} categor(y/ies) and {links} link(s).
+
+All nested categories and links will be permanently deleted!
+
+Are you sure you want to continue?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="23" />
@@ -2012,27 +2024,31 @@ Are you sure you want to continue?</source>
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation type="unfinished" />
+            <translation>Category '{category}' contains {links} link(s).
+
+All nested links will be permanently deleted!
+
+Are you sure you want to continue?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="28" />
             <source>Delete section</source>
-            <translation type="unfinished">Delete section</translation>
+            <translation>Delete section</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="30" />
             <source>Confirm deletion</source>
-            <translation type="unfinished" />
+            <translation>Confirm deletion</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="32" />
             <source>This action is irreversible. All nested categories and links will be deleted.</source>
-            <translation type="unfinished" />
+            <translation>This action is irreversible. All nested categories and links will be deleted.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="35" />
             <source>This action is irreversible. All links in the category will be deleted.</source>
-            <translation type="unfinished" />
+            <translation>This action is irreversible. All links in the category will be deleted.</translation>
         </message>
     </context>
     <context>
@@ -2313,6 +2329,18 @@ Are you sure you want to continue?</source>
             <source>(Click to change)</source>
             <translation>(Click to change)</translation>
         </message>
+            <message>
+            <source>Favorites</source>
+            <translation>Favorites</translation>
+        </message>
+        <message>
+            <source>Rotation</source>
+            <translation>Rotation</translation>
+        </message>
+        <message>
+            <source>Profiles</source>
+            <translation>Profiles</translation>
+        </message>
     </context>
     <context>
         <name>LinkOperations</name>
@@ -2400,57 +2428,57 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="15" />
             <source>Warning</source>
-            <translation type="unfinished">Warning</translation>
+            <translation>Warning</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="16" />
             <source>Error</source>
-            <translation type="unfinished">Error</translation>
+            <translation>Error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="17" />
             <source>Check data correctness and try again.</source>
-            <translation type="unfinished" />
+            <translation>Check data correctness and try again.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="19" />
             <source>Try again or contact support.</source>
-            <translation type="unfinished" />
+            <translation>Try again or contact support.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="22" />
             <source>No categories available. Create a category first.</source>
-            <translation type="unfinished" />
+            <translation>No categories available. Create a category first.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="24" />
             <source>Select a category to insert the link</source>
-            <translation type="unfinished" />
+            <translation>Select a category to insert the link</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="26" />
             <source>Error saving note</source>
-            <translation type="unfinished" />
+            <translation>Error saving note</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="27" />
             <source>Database error</source>
-            <translation type="unfinished" />
+            <translation>Database error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="28" />
             <source>Validation error</source>
-            <translation type="unfinished" />
+            <translation>Validation error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="31" />
             <source>This link cannot be opened for security reasons.</source>
-            <translation type="unfinished" />
+            <translation>This link cannot be opened for security reasons.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="33" />
             <source>Check the link address or edit it.</source>
-            <translation type="unfinished" />
+            <translation>Check the link address or edit it.</translation>
         </message>
     </context>
     <context>
@@ -2856,18 +2884,22 @@ Are you sure you want to continue?</translation>
             <source>Error: %1</source>
             <translation>Error: %1</translation>
         </message>
+            <message>
+            <source>Launch marked</source>
+            <translation>Launch marked</translation>
+        </message>
     </context>
     <context>
         <name>MessageHandler</name>
         <message>
             <location filename="..\app\controllers\system\window_setup\wiring.py" line="24" />
             <source>Operation completed successfully.</source>
-            <translation type="unfinished" />
+            <translation>Operation completed successfully.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\system\window_setup\wiring.py" line="26" />
             <source>Try repeating the action or contact support.</source>
-            <translation type="unfinished" />
+            <translation>Try repeating the action or contact support.</translation>
         </message>
     </context>
     <context>
@@ -2981,7 +3013,7 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="73" />
             <source>Profile</source>
-            <translation type="unfinished">Profile</translation>
+            <translation>Profile</translation>
         </message>
     </context>
     <context>
@@ -3011,12 +3043,12 @@ Are you sure you want to continue?</translation>
             <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
             <translation>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</translation>
         </message>
-    </context>
+    <message><source>No backups found</source><translation>No backups found</translation></message><message><source>{timestamp} | {backup_name} ({size} MB)</source><translation>{timestamp} | {backup_name} ({size} MB)</translation></message><message><source>{backup_name} ({size} MB)</source><translation>{backup_name} ({size} MB)</translation></message><message><source>Error: {details}</source><translation>Error: {details}</translation></message></context>
     <context>
         <name>RotationMixin</name>
         <message>
             <source>Profile</source>
-            <translation type="vanished">Profile</translation>
+            <translation>Profile</translation>
         </message>
         <message>
             <source>Profile selection module is unavailable.</source>
@@ -3090,12 +3122,12 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\controllers\ui\structure\selection_handling.py" line="29" />
             <source>Warning</source>
-            <translation type="unfinished">Warning</translation>
+            <translation>Warning</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\selection_handling.py" line="30" />
             <source>Check the correctness of actions and try again.</source>
-            <translation type="unfinished" />
+            <translation>Check the correctness of actions and try again.</translation>
         </message>
     </context>
     <context>
@@ -3103,49 +3135,51 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="19" />
             <source>About</source>
-            <translation type="unfinished">About</translation>
+            <translation>About</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="20" />
             <source>Link Manager
 Version 1.0
 © MyCompany</source>
-            <translation type="unfinished" />
+            <translation>Link Manager
+Version 1.0
+© MyCompany</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="37" />
             <location filename="..\app\config_data\settings_config.py" line="30" />
             <location filename="..\app\config_data\settings_config.py" line="23" />
             <source>Web Link</source>
-            <translation type="unfinished" />
+            <translation>Web Link</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="39" />
             <location filename="..\app\config_data\settings_config.py" line="32" />
             <location filename="..\app\config_data\settings_config.py" line="24" />
             <source>File</source>
-            <translation type="unfinished">File</translation>
+            <translation>File</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="40" />
             <location filename="..\app\config_data\settings_config.py" line="33" />
             <location filename="..\app\config_data\settings_config.py" line="25" />
             <source>Program</source>
-            <translation type="unfinished" />
+            <translation>Program</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="38" />
             <location filename="..\app\config_data\settings_config.py" line="31" />
             <location filename="..\app\config_data\settings_config.py" line="26" />
             <source>Script</source>
-            <translation type="unfinished">Script</translation>
+            <translation>Script</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="41" />
             <location filename="..\app\config_data\settings_config.py" line="34" />
             <location filename="..\app\config_data\settings_config.py" line="27" />
             <source>Folder</source>
-            <translation type="unfinished">Folder</translation>
+            <translation>Folder</translation>
         </message>
     </context>
     <context>
@@ -3516,102 +3550,102 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="14" />
             <source>Browser Import</source>
-            <translation type="unfinished" />
+            <translation>Browser Import</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="15" />
             <source>Auto-save</source>
-            <translation type="unfinished" />
+            <translation>Auto-save</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="16" />
             <source>Icon Refresh</source>
-            <translation type="unfinished">Icon Refresh</translation>
+            <translation>Icon Refresh</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="17" />
             <source>Bad URL Check</source>
-            <translation type="unfinished" />
+            <translation>Bad URL Check</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="19" />
             <source>Error reading HTML file.</source>
-            <translation type="unfinished" />
+            <translation>Error reading HTML file.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="21" />
             <source>Check file integrity and access rights.</source>
-            <translation type="unfinished" />
+            <translation>Check file integrity and access rights.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="23" />
             <source>No links found in file.</source>
-            <translation type="unfinished" />
+            <translation>No links found in file.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="25" />
             <source>Export bookmarks from browser in HTML format and select correct file.</source>
-            <translation type="unfinished" />
+            <translation>Export bookmarks from browser in HTML format and select correct file.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="28" />
             <source>No section selected for import.</source>
-            <translation type="unfinished">No section selected for import.</translation>
+            <translation>No section selected for import.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="30" />
             <source>Select section where categories and links will be added.</source>
-            <translation type="unfinished" />
+            <translation>Select section where categories and links will be added.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="32" />
             <source>Failed to create auto-save before import.</source>
-            <translation type="unfinished" />
+            <translation>Failed to create auto-save before import.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="34" />
             <source>Failed to create auto-save before check.</source>
-            <translation type="unfinished" />
+            <translation>Failed to create auto-save before check.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="36" />
             <source>Import completed with error</source>
-            <translation type="unfinished" />
+            <translation>Import completed with error</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="38" />
             <source>Protocol statistics:</source>
-            <translation type="unfinished" />
+            <translation>Protocol statistics:</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="40" />
             <source>HTTPS links: {count}</source>
-            <translation type="unfinished" />
+            <translation>HTTPS links: {count}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="42" />
             <source>HTTP links: {count}</source>
-            <translation type="unfinished" />
+            <translation>HTTP links: {count}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="44" />
             <source>Would you like to check URLs for HTTPS availability?</source>
-            <translation type="unfinished" />
+            <translation>Would you like to check URLs for HTTPS availability?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="46" />
             <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
-            <translation type="unfinished" />
+            <translation>This will verify which HTTP links can be upgraded to HTTPS.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="49" />
             <source>Failed to start icon refresh</source>
-            <translation type="unfinished" />
+            <translation>Failed to start icon refresh</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="51" />
             <source>Failed to start bad URL check</source>
-            <translation type="unfinished" />
+            <translation>Failed to start bad URL check</translation>
         </message>
     </context>
     <context>
@@ -3649,12 +3683,12 @@ Are you sure you want to continue?</translation>
         <message>
             <location filename="..\app\controllers\ui\undo\commands_structure.py" line="30" />
             <source>Delete canceled</source>
-            <translation type="unfinished" />
+            <translation>Delete canceled</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\undo\commands_structure.py" line="31" />
             <source>Backup failed. Delete canceled to keep undo available.</source>
-            <translation type="unfinished" />
+            <translation>Backup failed. Delete canceled to keep undo available.</translation>
         </message>
     </context>
     <context>
@@ -3764,4 +3798,4 @@ Are you sure you want to continue?</translation>
             <translation>Search… (Ctrl+F)</translation>
         </message>
     </context>
-</TS>
+<context><name>DragDrop</name><message><source>Dragging {total} items — {shown} and {remaining} more</source><translation>Dragging {total} items — {shown} and {remaining} more</translation></message><message><source>Dragging {total} items — {shown}</source><translation>Dragging {total} items — {shown}</translation></message></context></TS>

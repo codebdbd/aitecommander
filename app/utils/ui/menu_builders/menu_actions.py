@@ -124,7 +124,7 @@ class MenuTexts:
     REDO = QT_TRANSLATE_NOOP("MenuActions", "&Redo")
     # Links context menu
     OPEN = QT_TRANSLATE_NOOP("MenuActions", "Open")
-    LAUNCH_MARKED = QT_TRANSLATE_NOOP("MenuActions", "Запустить отмеченные")
+    LAUNCH_MARKED = QT_TRANSLATE_NOOP("MenuActions", "Launch marked")
     EDIT = QT_TRANSLATE_NOOP("MenuActions", "Edit")
     DELETE = QT_TRANSLATE_NOOP("MenuActions", "Delete")
     COPY = QT_TRANSLATE_NOOP("MenuActions", "Copy")
