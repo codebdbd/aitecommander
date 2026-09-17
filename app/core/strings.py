@@ -26,6 +26,7 @@ class MenuStrings:
     ACTION_EDIT = QT_TRANSLATE_NOOP("BottomPanel", "Edit")
     ACTION_DELETE = QT_TRANSLATE_NOOP("BottomPanel", "Delete")
     ACTION_SPHERE = QT_TRANSLATE_NOOP("BottomPanel", "Sphere")
+    ACTION_LAUNCH_MARKED = QT_TRANSLATE_NOOP("BottomPanel", "Launch Marked")
 
     PANEL_RECENT_LINKS = QT_TRANSLATE_NOOP("MainWindow", "Recent Links")
     PANEL_FAVORITES = QT_TRANSLATE_NOOP("MainWindow", "Favorites")
@@ -44,6 +45,7 @@ class DialogStrings:
     TOOLTIP_DELETE = QT_TRANSLATE_NOOP("BottomPanel", "Delete the selected item.")
     TOOLTIP_SWITCH_SPHERE = QT_TRANSLATE_NOOP("BottomPanel", "Switch to next available sphere"
     )
+    TOOLTIP_LAUNCH_MARKED = QT_TRANSLATE_NOOP("BottomPanel", "Launch marked links (F5)")
 
 
 class StatusStrings:
@@ -67,6 +69,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate("BottomPanel", "Edit")
     QCoreApplication.translate("BottomPanel", "Delete")
     QCoreApplication.translate("BottomPanel", "Sphere")
+    QCoreApplication.translate("BottomPanel", "Launch Marked")
     QCoreApplication.translate("BottomPanel", "Create a new section.")
     QCoreApplication.translate(
         "BottomPanel", "Create a new category in the selected section."
@@ -77,6 +80,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate(
         "BottomPanel", "Switch to next available sphere"
     )
+    QCoreApplication.translate("BottomPanel", "Launch marked links (F5)")
     QCoreApplication.translate("BottomPanel", "Action button: {label}")
     QCoreApplication.translate("MainWindow", "Button {idx} of {total} visible buttons")
     QCoreApplication.translate("MainWindow", "Hidden button")

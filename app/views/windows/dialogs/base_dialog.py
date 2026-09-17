@@ -62,12 +62,15 @@ def apply_uniform_height(dialog: QDialog):
 
 def apply_uniform_height_to_message_box(msg_box: QMessageBox):
     """
-    Apply uniform 32px height to all buttons in a QMessageBox.
+    Apply uniform height and standard width (100px) to all buttons in a QMessageBox.
     Call this after adding all buttons to the message box.
     """
+    btn_w = app_config.ui.get_fixed_button_width()
+    btn_h = app_config.ui.get_dialog_control_height()
     buttons = msg_box.findChildren(QPushButton)
     for button in buttons:
-        button.setFixedHeight(app_config.ui.get_dialog_control_height())
+        button.setFixedHeight(btn_h)
+        button.setMinimumWidth(btn_w)
 
 
 def _tr(text: str) -> str:

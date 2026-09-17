@@ -630,6 +630,10 @@ QDialog QPushButton {
     padding: 0 14px;
 }
 
+QMessageBox QPushButton {
+    min-width: 100px;
+}
+
 QDialog QToolButton {
     border: 1px solid;
     border-color: transparent;
@@ -708,6 +712,7 @@ QDialog QCheckBox {
     border: none;
     border-radius: 0;
     outline: none;
+    spacing: 6px;
 }
 
 QCheckBox:focus,
@@ -727,7 +732,6 @@ QDialog QCheckBox::indicator {
     width: 14px;
     height: 14px;
     margin-top: 2px;
-    margin-right: 4px;
 }
 
 QTableView::indicator {

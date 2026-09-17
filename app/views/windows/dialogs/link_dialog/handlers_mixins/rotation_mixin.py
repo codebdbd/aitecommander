@@ -114,7 +114,7 @@ class RotationMixin:
         """Format display text for rotation profiles button."""
         count = len(profiles) if profiles else 0
         if count == 0:
-            return _tr("Select profiles...")
+            return _tr("Profiles")
         return _tr("Profiles ({count})").format(count=count)
 
     @staticmethod

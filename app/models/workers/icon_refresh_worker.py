@@ -182,13 +182,16 @@ class IconRefreshWorker(QRunnable):
             logger.error("Failed to update icon for link %s: %s", link_id, e)
             return False
 
-    def _fetch_icon_for_link(self, url: str) -> str | None:
+    def _fetch_icon_for_link(
+        self, url: str, cancel_event: threading.Event | None = None
+    ) -> str | None:
         """Скачать иконку для URL.
         
         Returns:
             Путь к скачанной иконке или None при ошибке
         """
         self._raise_if_cancelled()
+        effective_cancel = cancel_event or self._cancel_event
         try:
             # Используем defer_icon=False для синхронной загрузки в фоновом потоке
             # force_refresh=True чтобы игнорировать кеш и скачать реальную иконку
@@ -198,7 +201,7 @@ class IconRefreshWorker(QRunnable):
                 force_refresh=True,
                 defer_icon=False,
                 on_icon_ready=None,
-                cancel_event=self._cancel_event,
+                cancel_event=effective_cancel,
             )
             
             self._raise_if_cancelled()
@@ -377,6 +380,7 @@ class IconRefreshWorker(QRunnable):
                     )
                     stats["failed"] += 1
 
+            self._maybe_emit_progress(stats, total, force=True)
             if updates_to_commit:
                 self._commit_updates(updates_to_commit, default_icon_path)
         finally:
@@ -433,10 +437,10 @@ class IconRefreshWorker(QRunnable):
         else:
             stats["failed"] += 1
 
-    def _maybe_emit_progress(self, stats: dict, total: int) -> None:
+    def _maybe_emit_progress(self, stats: dict, total: int, force: bool = False) -> None:
         current = stats.get("updated", 0) + stats.get("skipped", 0) + stats.get("failed", 0)
         current_time = time.time() * 1000
-        if current_time - self._last_progress_time >= self._progress_throttle_ms:
+        if force or (current_time - self._last_progress_time >= self._progress_throttle_ms):
             self.signals.progress.emit(
                 current,
                 total,
@@ -544,12 +548,30 @@ class IconRefreshWorker(QRunnable):
                     link_id,
                     url[:60],
                 )
-            if link_type == LinkType.PROGRAM.value:
-                new_icon_path = self._extract_icon_for_program(url)
-            elif link_type == LinkType.FILE.value:
-                new_icon_path = self._fetch_icon_for_file(url)
-            else:
-                new_icon_path = self._fetch_icon_for_link(url)
+            link_cancel = threading.Event()
+            timer = threading.Timer(10.0, link_cancel.set)
+            timer.daemon = True
+            timer.start()
+
+            class _CombinedCancel:
+                def __init__(self, main_cancel, local_cancel):
+                    self._main = main_cancel
+                    self._local = local_cancel
+
+                def is_set(self):
+                    return self._main.is_set() or self._local.is_set()
+
+            try:
+                if link_type == LinkType.PROGRAM.value:
+                    new_icon_path = self._extract_icon_for_program(url)
+                elif link_type == LinkType.FILE.value:
+                    new_icon_path = self._fetch_icon_for_file(url)
+                else:
+                    new_icon_path = self._fetch_icon_for_link(
+                        url, cancel_event=_CombinedCancel(self._cancel_event, link_cancel)
+                    )
+            finally:
+                timer.cancel()
             
             if new_icon_path and new_icon_path != default_icon_path:
                 logger.info(

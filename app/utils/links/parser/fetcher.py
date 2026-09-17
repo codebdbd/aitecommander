@@ -243,21 +243,16 @@ def _try_direct_favicon_on_block(
         except Exception:
             logger.debug("direct favicon fallback failed url=%s", sanitize_url_for_logging(icon_url), exc_info=True)
     try:
-        try:
-            soup = BeautifulSoup("", BS_PARSER)
-        except Exception:
-            soup = BeautifulSoup("", "html.parser")
-        logger.debug("[fetch] direct favicon fallback exhausted, trying full icon pipeline for host=%s", host)
-        return pick_icon_parallel(
-            soup,
-            url,
+        from .icon_downloader import _phase4_google_api
+        logger.debug("[fetch] direct favicon fallback exhausted, trying Google Favicon API for host=%s", host)
+        return _phase4_google_api(
             host,
-            config,
+            config=config,
             force_refresh=force_refresh,
             cancel_event=cancel_event,
         )
     except Exception:
-        logger.debug("full icon pipeline fallback failed for %s", sanitize_url_for_logging(url), exc_info=True)
+        logger.debug("google favicon fallback failed for %s", sanitize_url_for_logging(url), exc_info=True)
     return None
 
 

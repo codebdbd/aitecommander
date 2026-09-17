@@ -1,6 +1,7 @@
 import logging
 
 from PyQt6.QtCore import (
+    QCoreApplication,
     QModelIndex,
     QPersistentModelIndex,
     QRect,
@@ -516,8 +517,12 @@ class StructureTreeView(QTreeView):
         shown = names[:2]
         remaining = total - len(shown)
         if remaining > 0:
-            return f"Перетаскивается {total} элементов — {', '.join(shown)} и еще {remaining}"
-        return f"Перетаскивается {total} элементов — {', '.join(shown)}"
+            return QCoreApplication.translate(
+                "DragDrop", "Dragging {total} items — {shown} and {remaining} more"
+            ).format(total=total, shown=", ".join(shown), remaining=remaining)
+        return QCoreApplication.translate(
+            "DragDrop", "Dragging {total} items — {shown}"
+        ).format(total=total, shown=", ".join(shown))
 
     def _safe_emit(
         self, signal, payload, *, fallback=None, signal_name: str = ""

@@ -1,11 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
-<!DOCTYPE TS>
 <TS version="2.1" language="uk_UA">
     <context>
         <name>AboutDialog</name>
         <message>
             <source>About</source>
-            <translation type="vanished">Про програму</translation>
+            <translation>Про програму</translation>
         </message>
         <message>
             <source>Application data</source>
@@ -33,7 +32,7 @@
         </message>
         <message>
             <source>Information</source>
-            <translation type="vanished">Інформація</translation>
+            <translation>Інформація</translation>
         </message>
         <message>
             <source>License: MIT</source>
@@ -520,37 +519,37 @@
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1160" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="162" />
             <source>Checking web links for availability...</source>
-            <translation type="unfinished">Перевірка доступності веб-посилань...</translation>
+            <translation>Перевірка доступності веб-посилань...</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="171" />
             <source>Error:</source>
-            <translation type="unfinished">Помилка:</translation>
+            <translation>Помилка:</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="175" />
             <source>🟢 All</source>
-            <translation type="unfinished">🟢 Усі</translation>
+            <translation>🟢 Усі</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="176" />
             <source>🔴 DNS Failed</source>
-            <translation type="unfinished">🔴 DNS не знайдено</translation>
+            <translation>🔴 DNS не знайдено</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="177" />
             <source>🟡 404 Not Found</source>
-            <translation type="unfinished">🟡 404 Не знайдено</translation>
+            <translation>🟡 404 Не знайдено</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="178" />
             <source>🔵 No SSL</source>
-            <translation type="unfinished">🔵 Немає SSL</translation>
+            <translation>🔵 Немає SSL</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="185" />
             <source>Sphere:</source>
-            <translation type="unfinished">Сфера:</translation>
+            <translation>Сфера:</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="539" />
@@ -560,86 +559,86 @@
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="199" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="189" />
             <source>All</source>
-            <translation type="unfinished">Усі</translation>
+            <translation>Усі</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="195" />
             <source>Section:</source>
-            <translation type="unfinished">Розділ:</translation>
+            <translation>Розділ:</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="205" />
             <source>Category:</source>
-            <translation type="unfinished">Категорія:</translation>
+            <translation>Категорія:</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1165" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="221" />
             <source>Select</source>
-            <translation type="unfinished">Вибрати</translation>
+            <translation>Вибрати</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1166" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="222" />
             <source>Domain</source>
-            <translation type="unfinished">Домен</translation>
+            <translation>Домен</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1167" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="223" />
             <source>URL</source>
-            <translation type="unfinished">URL</translation>
+            <translation>URL</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1168" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="224" />
             <source>Error</source>
-            <translation type="unfinished">Помилка</translation>
+            <translation>Помилка</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1169" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="225" />
             <source>Category</source>
-            <translation type="unfinished">Категорія</translation>
+            <translation>Категорія</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1173" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="250" />
             <source>Select All</source>
-            <translation type="unfinished">Вибрати всі</translation>
+            <translation>Вибрати всі</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1174" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="255" />
             <source>Select None</source>
-            <translation type="unfinished">Зняти виділення</translation>
+            <translation>Зняти виділення</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="280" />
             <source>Background</source>
-            <translation type="unfinished">В фон</translation>
+            <translation>В фон</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1176" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="289" />
             <source>Delete Selected</source>
-            <translation type="unfinished">Видалити вибрані</translation>
+            <translation>Видалити вибрані</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1177" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="297" />
             <source>Close</source>
-            <translation type="unfinished">Закрити</translation>
+            <translation>Закрити</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="351" />
             <source>Open in Browser</source>
-            <translation type="unfinished">Відкрити у браузері</translation>
+            <translation>Відкрити у браузері</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="355" />
             <source>Copy URL</source>
-            <translation type="unfinished">Копіювати URL</translation>
+            <translation>Копіювати URL</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="694" />
@@ -649,99 +648,99 @@
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="809" />
             <source>All links are accessible!</source>
-            <translation type="unfinished">Усі посилання доступні!</translation>
+            <translation>Усі посилання доступні!</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="814" />
             <source>Found {0} unreachable links in {1} domains</source>
-            <translation type="unfinished">Знайдено {0} недоступних посилань у {1} доменах</translation>
+            <translation>Знайдено {0} недоступних посилань у {1} доменах</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="856" />
             <source>Error: {0}</source>
-            <translation type="unfinished">Помилка: {0}</translation>
+            <translation>Помилка: {0}</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="870" />
             <source>Cancelling...</source>
-            <translation type="unfinished">Скасування...</translation>
+            <translation>Скасування...</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="883" />
             <source>Bad URL check running in background — click to show</source>
-            <translation type="unfinished">Перевірка битих URL працює у фоновому режимі — натисніть, щоб показати</translation>
+            <translation>Перевірка битих URL працює у фоновому режимі — натисніть, щоб показати</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="907" />
             <source>Link deletion is still in progress. Please wait.</source>
-            <translation type="unfinished">Видалення посилань ще триває. Будь ласка, зачекайте.</translation>
+            <translation>Видалення посилань ще триває. Будь ласка, зачекайте.</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="924" />
             <source>Cancel Check</source>
-            <translation type="unfinished">Скасувати перевірку</translation>
+            <translation>Скасувати перевірку</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="925" />
             <source>URL check is still running. Cancel it?</source>
-            <translation type="unfinished">Перевірка URL ще триває. Скасувати?</translation>
+            <translation>Перевірка URL ще триває. Скасувати?</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="970" />
             <source>Selected: {0} of {1}</source>
-            <translation type="unfinished">Вибрано: {0} з {1}</translation>
+            <translation>Вибрано: {0} з {1}</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1129" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1012" />
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="996" />
             <source>Delete Bad URLs</source>
-            <translation type="unfinished">Видалити погані URL</translation>
+            <translation>Видалити погані URL</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="997" />
             <source>No links selected for deletion.</source>
-            <translation type="unfinished">Не вибрано посилань для видалення.</translation>
+            <translation>Не вибрано посилань для видалення.</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1006" />
             <source>Delete {0} selected links?</source>
-            <translation type="unfinished">Видалити {0} вибраних посилань?</translation>
+            <translation>Видалити {0} вибраних посилань?</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1007" />
             <source>This action cannot be undone.</source>
-            <translation type="unfinished">Цю дію неможливо скасувати.</translation>
+            <translation>Цю дію неможливо скасувати.</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1036" />
             <source>Deleting selected links... ({0})</source>
-            <translation type="unfinished">Видалення вибраних посилань... ({0})</translation>
+            <translation>Видалення вибраних посилань... ({0})</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1056" />
             <source>Deleting selected links... {0}/{1}</source>
-            <translation type="unfinished">Видалення вибраних посилань... {0}/{1}</translation>
+            <translation>Видалення вибраних посилань... {0}/{1}</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1099" />
             <source>All links deleted!</source>
-            <translation type="unfinished">Усі посилання видалено!</translation>
+            <translation>Усі посилання видалено!</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1111" />
             <source>Deleted {0} links. {1} total remaining ({2} visible).</source>
-            <translation type="unfinished">Видалено {0} посилань. Залишилося {1} всього ({2} видимих).</translation>
+            <translation>Видалено {0} посилань. Залишилося {1} всього ({2} видимих).</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1130" />
             <source>Failed to delete links.</source>
-            <translation type="unfinished">Не вдалося видалити посилання.</translation>
+            <translation>Не вдалося видалити посилання.</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1134" />
             <source>Failed to delete selected links.</source>
-            <translation type="unfinished">Не вдалося видалити вибрані посилання.</translation>
+            <translation>Не вдалося видалити вибрані посилання.</translation>
         </message>
     </context>
     <context>
@@ -858,6 +857,14 @@
             <location filename="..\app\core\strings.py" line="52" />
             <source>Action button: {label}</source>
             <translation>Кнопка дії: {label}</translation>
+        </message>
+            <message>
+            <source>Launch Marked</source>
+            <translation>Запустити позначені</translation>
+        </message>
+        <message>
+            <source>Launch marked links (F5)</source>
+            <translation>Запустити позначені посилання (F5)</translation>
         </message>
     </context>
     <context>
@@ -1220,7 +1227,7 @@
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="164" />
             <source>Database connected from:
 {file_name}</source>
-            <translation>Базу даних підключено з:
+            <translation>База даних підключена з:
 {file_name}</translation>
         </message>
         <message>
@@ -1275,7 +1282,7 @@
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="363" />
             <source>Archive exceeds total allowed icon size ({size} MB)</source>
-            <translation>Архів перевищує загальний дозволений розмір іконок ({size} МБ)</translation>
+            <translation>Архів перевищує допустимий розмір іконок ({size} МБ)</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="371" />
@@ -1392,7 +1399,7 @@ Old database restored.</source>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="143" />
             <source>Restored database failed verification: {error}</source>
-            <translation type="unfinished">Відновлена база даних не пройшла перевірку: {error}</translation>
+            <translation>Відновлена база даних не пройшла перевірку: {error}</translation>
         </message>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="221" />
@@ -2005,7 +2012,7 @@ Failed: {3}</source>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="23" />
             <source>Hierarchy assembly completed</source>
-            <translation>Побудову ієрархії завершено</translation>
+            <translation>Збирання ієрархії завершено</translation>
         </message>
     </context>
     <context>
@@ -2081,12 +2088,12 @@ Failed: {3}</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="27" />
             <source>Failed to edit section.</source>
-            <translation>Не вдалося відредагувати розділ.</translation>
+            <translation>Не вдалося змінити розділ.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="29" />
             <source>Try again or contact support.</source>
-            <translation>Спробуйте знову або зверніться до служби підтримки.</translation>
+            <translation>Спробуйте знову або зверніться до підтримки.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="31" />
@@ -2096,7 +2103,7 @@ Failed: {3}</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="33" />
             <source>Failed to edit category.</source>
-            <translation>Не вдалося відредагувати категорію.</translation>
+            <translation>Не вдалося змінити категорію.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="35" />
@@ -2123,11 +2130,11 @@ Failed: {3}</source>
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
+            <translation>Розділ '{section}' містить категорій: {categories} та посилань: {links}.
 
-Усі вкладені категорії та посилання буде видалено назавжди!
+Усі вкладені категорії та посилання будуть безповоротно видалені!
 
-Продовжити?</translation>
+Ви впевнені, що хочете продовжити?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="23" />
@@ -2136,11 +2143,11 @@ Are you sure you want to continue?</source>
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation>Категорія «{category}» містить {links} посилань.
+            <translation>Категорія '{category}' містить посилань: {links}.
 
-Усі вкладені посилання буде видалено назавжди!
+Усі вкладені посилання будуть безповоротно видалені!
 
-Продовжити?</translation>
+Ви впевнені, що хочете продовжити?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="28" />
@@ -2155,12 +2162,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="32" />
             <source>This action is irreversible. All nested categories and links will be deleted.</source>
-            <translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+            <translation>Ця дія є незворотною. Усі вкладені категорії та посилання будуть видалені.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="35" />
             <source>This action is irreversible. All links in the category will be deleted.</source>
-            <translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+            <translation>Ця дія незворотна. Усі посилання в категорії будуть видалені.</translation>
         </message>
     </context>
     <context>
@@ -2456,6 +2463,18 @@ Are you sure you want to continue?</source>
             <source>(Click to change)</source>
             <translation>(Натисніть для зміни)</translation>
         </message>
+        <message>
+            <source>Favorites</source>
+            <translation>Обране</translation>
+        </message>
+        <message>
+            <source>Rotation</source>
+            <translation>Ротація</translation>
+        </message>
+        <message>
+            <source>Profiles</source>
+            <translation>Профілі</translation>
+        </message>
     </context>
     <context>
         <name>LinkOperations</name>
@@ -2553,12 +2572,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="17" />
             <source>Check data correctness and try again.</source>
-            <translation>Перевірте правильність даних і спробуйте знову.</translation>
+            <translation>Перевірте коректність даних та спробуйте знову.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="19" />
             <source>Try again or contact support.</source>
-            <translation>Спробуйте знову або зверніться до служби підтримки.</translation>
+            <translation>Спробуйте знову або зверніться до підтримки.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="22" />
@@ -2568,7 +2587,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="24" />
             <source>Select a category to insert the link</source>
-            <translation>Виберіть категорію для вставлення посилання</translation>
+            <translation>Оберіть категорію для вставки посилання</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="26" />
@@ -2583,7 +2602,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="28" />
             <source>Validation error</source>
-            <translation>Помилка перевірки даних</translation>
+            <translation>Помилка валідації</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="31" />
@@ -3022,6 +3041,10 @@ Are you sure you want to continue?</source>
             <source>Error: %1</source>
             <translation>Помилка: %1</translation>
         </message>
+            <message>
+            <source>Launch marked</source>
+            <translation>Запустити позначені</translation>
+        </message>
     </context>
     <context>
         <name>MessageHandler</name>
@@ -3033,7 +3056,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\system\window_setup\wiring.py" line="26" />
             <source>Try repeating the action or contact support.</source>
-            <translation>Спробуйте повторити дію або зверніться до служби підтримки.</translation>
+            <translation>Спробуйте повторити дію або зверніться до підтримки.</translation>
         </message>
     </context>
     <context>
@@ -3147,7 +3170,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="73" />
             <source>Profile</source>
-            <translation type="unfinished">Профіль</translation>
+            <translation>Профіль</translation>
         </message>
     </context>
     <context>
@@ -3177,12 +3200,12 @@ Are you sure you want to continue?</source>
             <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
             <translation>Виберіть файл зі списку й натисніть «Відновити». Якщо список порожній, перевірте каталог резервних копій.</translation>
         </message>
-    </context>
+    <message><source>No backups found</source><translation>Резервних копій не знайдено</translation></message><message><source>{timestamp} | {backup_name} ({size} MB)</source><translation>{timestamp} | {backup_name} ({size} МБ)</translation></message><message><source>{backup_name} ({size} MB)</source><translation>{backup_name} ({size} МБ)</translation></message><message><source>Error: {details}</source><translation>Помилка: {details}</translation></message></context>
     <context>
         <name>RotationMixin</name>
         <message>
             <source>Profile</source>
-            <translation type="vanished">Профіль</translation>
+            <translation>Профіль</translation>
         </message>
         <message>
             <source>Profile selection module is unavailable.</source>
@@ -3261,7 +3284,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\structure\selection_handling.py" line="30" />
             <source>Check the correctness of actions and try again.</source>
-            <translation>Перевірте правильність дій і спробуйте знову.</translation>
+            <translation>Перевірте коректність дій та спробуйте знову.</translation>
         </message>
     </context>
     <context>
@@ -3285,7 +3308,7 @@ Version 1.0
             <location filename="..\app\config_data\settings_config.py" line="30" />
             <location filename="..\app\config_data\settings_config.py" line="23" />
             <source>Web Link</source>
-            <translation>Вебпосилання</translation>
+            <translation>Веб-посилання</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="39" />
@@ -3299,7 +3322,7 @@ Version 1.0
             <location filename="..\app\config_data\settings_config.py" line="33" />
             <location filename="..\app\config_data\settings_config.py" line="25" />
             <source>Program</source>
-            <translation>Програма</translation>
+            <translation>Застосунок</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="38" />
@@ -3548,11 +3571,11 @@ Are you sure you want to continue?</source>
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation>Розділ «{section}» містить {categories} категорій і {links} посилань.
+            <translation>Розділ '{section}' містить категорій: {categories} та посилань: {links}.
 
-Усі вкладені категорії та посилання буде видалено назавжди!
+Усі вкладені категорії та посилання будуть безповоротно видалені!
 
-Продовжити?</translation>
+Ви впевнені, що хочете продовжити?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="30" />
@@ -3574,11 +3597,11 @@ Are you sure you want to continue?</source>
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation>Категорія «{category}» містить {links} посилань.
+            <translation>Категорія '{category}' містить посилань: {links}.
 
-Усі вкладені посилання буде видалено назавжди!
+Усі вкладені посилання будуть безповоротно видалені!
 
-Продовжити?</translation>
+Ви впевнені, що хочете продовжити?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="40" />
@@ -3593,12 +3616,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="42" />
             <source>This action is irreversible. All nested categories and links will be deleted.</source>
-            <translation>Ця дія незворотна. Усі вкладені категорії та посилання буде видалено.</translation>
+            <translation>Ця дія є незворотною. Усі вкладені категорії та посилання будуть видалені.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="45" />
             <source>This action is irreversible. All links in the category will be deleted.</source>
-            <translation>Ця дія незворотна. Усі посилання в категорії буде видалено.</translation>
+            <translation>Ця дія незворотна. Усі посилання в категорії будуть видалені.</translation>
         </message>
     </context>
     <context>
@@ -3684,7 +3707,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="14" />
             <source>Browser Import</source>
-            <translation>Імпорт із браузера</translation>
+            <translation>Імпорт з браузера</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="15" />
@@ -3699,12 +3722,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="17" />
             <source>Bad URL Check</source>
-            <translation>Перевірка URL</translation>
+            <translation>Перевірка неробочих посилань</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="19" />
             <source>Error reading HTML file.</source>
-            <translation>Помилка читання HTML-файлу.</translation>
+            <translation>Помилка читання файлу HTML.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="21" />
@@ -3719,7 +3742,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="25" />
             <source>Export bookmarks from browser in HTML format and select correct file.</source>
-            <translation>Експортуйте закладки з браузера у форматі HTML і виберіть правильний файл.</translation>
+            <translation>Експортуйте закладки з браузера у форматі HTML та виберіть правильний файл.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="28" />
@@ -3729,17 +3752,17 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="30" />
             <source>Select section where categories and links will be added.</source>
-            <translation>Виберіть розділ, до якого буде додано категорії та посилання.</translation>
+            <translation>Оберіть розділ, до якого будуть додані категорії та посилання.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="32" />
             <source>Failed to create auto-save before import.</source>
-            <translation>Не вдалося виконати автозбереження перед імпортом.</translation>
+            <translation>Не вдалося створити автозбереження перед імпортом.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="34" />
             <source>Failed to create auto-save before check.</source>
-            <translation>Не вдалося виконати автозбереження перед перевіркою.</translation>
+            <translation>Не вдалося створити автозбереження перед перевіркою.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="36" />
@@ -3754,32 +3777,32 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="40" />
             <source>HTTPS links: {count}</source>
-            <translation>Посилання HTTPS: {count}</translation>
+            <translation>HTTPS посилання: {count}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="42" />
             <source>HTTP links: {count}</source>
-            <translation>Посилання HTTP: {count}</translation>
+            <translation>HTTP посилання: {count}</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="44" />
             <source>Would you like to check URLs for HTTPS availability?</source>
-            <translation>Перевірити доступність URL через HTTPS?</translation>
+            <translation>Бажаєте перевірити URL на доступність за HTTPS?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="46" />
             <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
-            <translation>Це перевірить, які посилання HTTP можна перевести на HTTPS.</translation>
+            <translation>Це перевірить, які HTTP посилання можна оновити до HTTPS.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="49" />
             <source>Failed to start icon refresh</source>
-            <translation>Не вдалося почати оновлення іконок</translation>
+            <translation>Не вдалося запустити оновлення іконок</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="51" />
             <source>Failed to start bad URL check</source>
-            <translation>Не вдалося почати перевірку URL</translation>
+            <translation>Не вдалося запустити перевірку неробочих посилань</translation>
         </message>
     </context>
     <context>
@@ -3822,7 +3845,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\undo\commands_structure.py" line="31" />
             <source>Backup failed. Delete canceled to keep undo available.</source>
-            <translation>Не вдалося створити резервну копію. Видалення скасовано, щоб зберегти можливість скасування дії.</translation>
+            <translation>Збій резервного копіювання. Видалення скасовано для збереження можливості скасування.</translation>
         </message>
     </context>
     <context>
@@ -3932,4 +3955,4 @@ Are you sure you want to continue?</source>
             <translation>Пошук… (Ctrl+F)</translation>
         </message>
     </context>
-</TS>
+<context><name>DragDrop</name><message><source>Dragging {total} items — {shown} and {remaining} more</source><translation>Перетягується {total} елементів — {shown} та ще {remaining}</translation></message><message><source>Dragging {total} items — {shown}</source><translation>Перетягується {total} елементів — {shown}</translation></message></context></TS>

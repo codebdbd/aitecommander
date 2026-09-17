@@ -14,7 +14,6 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtWidgets import (
     QComboBox,
-    QDialogButtonBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -23,6 +22,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -245,61 +245,50 @@ class BadUrlCleanupDialog(BaseDialog):
         
         layout.addWidget(self.table_widget)
 
-        # Selection buttons (скрыты до завершения)
-        selection_layout = QHBoxLayout()
+        # Bottom controls row (all in a single line)
+        self.button_box = QWidget()
+        bottom_layout = QHBoxLayout(self.button_box)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(8)
+
+        # Left side: selection buttons and counter label
         self.select_all_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Select All"))
         self.select_all_button.clicked.connect(self._on_select_all)
         self.select_all_button.setVisible(False)
-        selection_layout.addWidget(self.select_all_button)
+        bottom_layout.addWidget(self.select_all_button)
 
         self.select_none_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Select None"))
         self.select_none_button.clicked.connect(self._on_select_none)
         self.select_none_button.setVisible(False)
-        selection_layout.addWidget(self.select_none_button)
+        bottom_layout.addWidget(self.select_none_button)
 
-        selection_layout.addStretch()
-        layout.addLayout(selection_layout)
-
-        # Selection info
         self.selection_info_label = QLabel("")
         self.selection_info_label.setVisible(False)
-        layout.addWidget(self.selection_info_label)
+        bottom_layout.addWidget(self.selection_info_label)
 
-        # Action buttons
-        self.button_box = QDialogButtonBox()
+        bottom_layout.addStretch(1)
 
-        # Cancel button (during check)
-        self.cancel_button = QPushButton(tr_common("Cancel"))
-        self.cancel_button.clicked.connect(self._on_cancel_clicked)
-        self.button_box.addButton(
-            self.cancel_button, QDialogButtonBox.ButtonRole.RejectRole
-        )
+        # Right side: action buttons (Close - Delete Selected; Background - Cancel during check)
+        self.close_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Close"))
+        self.close_button.clicked.connect(self.accept)
+        self.close_button.setVisible(False)
+        bottom_layout.addWidget(self.close_button)
 
-        # Background button (hide during check)
+        self.delete_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
+        self.delete_button.clicked.connect(self._on_delete_clicked)
+        self.delete_button.setVisible(False)
+        bottom_layout.addWidget(self.delete_button)
+
         self.background_button = QPushButton(
             QCoreApplication.translate("BadUrlCleanupDialog", "Background")
         )
         self.background_button.clicked.connect(self._on_background_clicked)
         self.background_button.setVisible(False)
-        self.button_box.addButton(
-            self.background_button, QDialogButtonBox.ButtonRole.ActionRole
-        )
+        bottom_layout.addWidget(self.background_button)
 
-        # Delete button (after completion)
-        self.delete_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
-        self.delete_button.clicked.connect(self._on_delete_clicked)
-        self.delete_button.setVisible(False)
-        self.button_box.addButton(
-            self.delete_button, QDialogButtonBox.ButtonRole.DestructiveRole
-        )
-
-        # Close button (after completion)
-        self.close_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Close"))
-        self.close_button.clicked.connect(self.accept)
-        self.close_button.setVisible(False)
-        self.button_box.addButton(
-            self.close_button, QDialogButtonBox.ButtonRole.AcceptRole
-        )
+        self.cancel_button = QPushButton(tr_common("Cancel"))
+        self.cancel_button.clicked.connect(self._on_cancel_clicked)
+        bottom_layout.addWidget(self.cancel_button)
         
         layout.addWidget(self.button_box)
     

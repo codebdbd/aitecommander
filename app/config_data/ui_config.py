@@ -27,7 +27,6 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "id": "launch_marked",
         "handler": "launch_marked_links",
         "shortcut": "F5",
-        "label": "Запустить отмеченные            F5",
     },
     {
         "id": "add_link",
@@ -38,7 +37,6 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "id": "launch_marked",
         "handler": "launch_marked_links",
         "shortcut": "F5",
-        "label": "Запустить отмеченные",
     },
     {
         "id": "edit_link",
@@ -720,7 +718,6 @@ class UIConfig(BaseConfig):
                     "id": "launch_marked",
                     "handler": "launch_marked_links",
                     "shortcut": "F5",
-                    "label": "Запустить отмеченные",
                 }
             insert_idx = len(normalized)
             for idx, a in enumerate(normalized):

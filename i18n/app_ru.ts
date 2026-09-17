@@ -1,11 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
-<!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
     <context>
         <name>AboutDialog</name>
         <message>
             <source>About</source>
-            <translation type="vanished">О программе</translation>
+            <translation>О программе</translation>
         </message>
         <message>
             <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
@@ -13,7 +12,7 @@
         </message>
         <message>
             <source>Information</source>
-            <translation type="vanished">Информация</translation>
+            <translation>Информация</translation>
         </message>
         <message>
             <source>Version {0}</source>
@@ -445,22 +444,22 @@
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="21" />
             <source>Preparing backup...</source>
-            <translation type="unfinished" />
+            <translation>Подготовка резервной копии...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="22" />
             <source>Creating backup...</source>
-            <translation type="unfinished" />
+            <translation>Создание резервной копии...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="23" />
             <source>Cleaning up old backups...</source>
-            <translation type="unfinished" />
+            <translation>Очистка старых резервных копий...</translation>
         </message>
         <message>
             <location filename="..\app\models\workers\backup_worker.py" line="25" />
             <source>Backup completed</source>
-            <translation type="unfinished" />
+            <translation>Резервное копирование завершено</translation>
         </message>
     </context>
     <context>
@@ -644,7 +643,7 @@
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="694" />
             <source>Double-click to open or copy</source>
-            <translation type="unfinished" />
+            <translation>Дважды кликните, чтобы открыть или скопировать</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="809" />
@@ -863,6 +862,14 @@
             <source>Action button: {label}</source>
             <translation>Кнопка действия: {label}</translation>
         </message>
+            <message>
+            <source>Launch Marked</source>
+            <translation>Запустить отмеченные</translation>
+        </message>
+        <message>
+            <source>Launch marked links (F5)</source>
+            <translation>Запустить отмеченные ссылки (F5)</translation>
+        </message>
     </context>
     <context>
         <name>BrowserBookmarksImporter</name>
@@ -964,7 +971,7 @@
         <message>
             <location filename="..\app\utils\browser\browser_profiles\async_profile_manager.py" line="23" />
             <source>Loading {browser}</source>
-            <translation type="unfinished" />
+            <translation>Загрузка {browser}</translation>
         </message>
     </context>
     <context>
@@ -1283,12 +1290,12 @@
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="363" />
             <source>Archive exceeds total allowed icon size ({size} MB)</source>
-            <translation>Архив превышает общий допустимый размер иконок ({size} МБ)</translation>
+            <translation>Архив превышает допустимый размер иконок ({size} МБ)</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="371" />
             <source>Archive contains too many icons ({count} &gt; {limit})</source>
-            <translation>В архиве слишком много иконок ({count} &gt; {limit})</translation>
+            <translation>Архив содержит слишком много иконок ({count} &gt; {limit})</translation>
         </message>
         <message>
             <source>Database connection error: {error}
@@ -1368,12 +1375,12 @@ Old database restored.</source>
         <message>
             <location filename="..\app\models\db.py" line="45" />
             <source>Applying migrations...</source>
-            <translation type="unfinished" />
+            <translation>Применение миграций...</translation>
         </message>
         <message>
             <location filename="..\app\models\db.py" line="47" />
             <source>Initializing default data...</source>
-            <translation type="unfinished" />
+            <translation>Инициализация исходных данных...</translation>
         </message>
     </context>
     <context>
@@ -1400,7 +1407,7 @@ Old database restored.</source>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="143" />
             <source>Restored database failed verification: {error}</source>
-            <translation type="unfinished">Восстановленная база данных не прошла проверку: {error}</translation>
+            <translation>Восстановленная база данных не прошла проверку: {error}</translation>
         </message>
         <message>
             <location filename="..\app\services\database_restore_worker.py" line="221" />
@@ -1471,22 +1478,22 @@ Old database restored.</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="32" />
             <source>Error</source>
-            <translation type="unfinished">Ошибка</translation>
+            <translation>Ошибка</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="33" />
             <source>Warning</source>
-            <translation type="unfinished">Предупреждение</translation>
+            <translation>Предупреждение</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="34" />
             <source>Information</source>
-            <translation type="unfinished">Информация</translation>
+            <translation>Информация</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\dialog_manager.py" line="35" />
             <source>Confirmation</source>
-            <translation type="unfinished">Подтверждение</translation>
+            <translation>Подтверждение</translation>
         </message>
     </context>
     <context>
@@ -1692,7 +1699,7 @@ Old database restored.</source>
         <message>
             <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="44" />
             <source>Path</source>
-            <translation type="unfinished" />
+            <translation>Путь</translation>
         </message>
     </context>
     <context>
@@ -1700,8 +1707,12 @@ Old database restored.</source>
         <message>
             <location filename="..\app\views\windows\dialogs\icon_refresh_dialog.py" line="272" />
             <location filename="..\app\views\windows\dialogs\icon_refresh_dialog.py" line="82" />
-            <source>Refreshing icons for imported links</source>
-            <translation>Обновление иконок для импортированных ссылок</translation>
+            <source>Refreshing link icons</source>
+            <translation>Обновление иконок ссылок</translation>
+        </message>
+        <message>
+            <source>Updating icons...</source>
+            <translation>Идет обновление иконок...</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\icon_refresh_dialog.py" line="320" />
@@ -1958,27 +1969,27 @@ Failed: {3}</source>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="15" />
             <source>Loading spheres...</source>
-            <translation type="unfinished" />
+            <translation>Загрузка сфер...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="17" />
             <source>Loading sections...</source>
-            <translation type="unfinished" />
+            <translation>Загрузка разделов...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="19" />
             <source>Loading categories...</source>
-            <translation type="unfinished" />
+            <translation>Загрузка категорий...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="21" />
             <source>Loading links...</source>
-            <translation type="unfinished" />
+            <translation>Загрузка ссылок...</translation>
         </message>
         <message>
             <location filename="..\app\models\managers\import_export_manager.py" line="23" />
             <source>Hierarchy assembly completed</source>
-            <translation type="unfinished" />
+            <translation>Сборка иерархии завершена</translation>
         </message>
     </context>
     <context>
@@ -2066,7 +2077,7 @@ Failed: {3}</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="29" />
             <source>Try again or contact support.</source>
-            <translation>Повторите попытку или обратитесь в поддержку.</translation>
+            <translation>Попробуйте снова или обратитесь в поддержку.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="31" />
@@ -2103,11 +2114,11 @@ Failed: {3}</source>
 All nested categories and links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation type="unfinished">Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
+            <translation>Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
 
-Все вложенные категории и ссылки будут удалены безвозвратно!
+Все вложенные категории и ссылки будут безвозвратно удалены!
 
-Продолжить?</translation>
+Вы уверены, что хотите продолжить?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="23" />
@@ -2116,31 +2127,31 @@ Are you sure you want to continue?</source>
 All nested links will be permanently deleted!
 
 Are you sure you want to continue?</source>
-            <translation type="unfinished">Категория '{category}' содержит ссылок: {links}.
+            <translation>Категория '{category}' содержит ссылок: {links}.
 
-Все вложенные ссылки будут удалены безвозвратно!
+Все вложенные ссылки будут безвозвратно удалены!
 
-Продолжить?</translation>
+Вы уверены, что хотите продолжить?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="28" />
             <source>Delete section</source>
-            <translation type="unfinished">Удалить раздел</translation>
+            <translation>Удалить раздел</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="30" />
             <source>Confirm deletion</source>
-            <translation type="unfinished">Подтверждение удаления</translation>
+            <translation>Подтверждение удаления</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="32" />
             <source>This action is irreversible. All nested categories and links will be deleted.</source>
-            <translation type="unfinished">Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
+            <translation>Это действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_operations.py" line="35" />
             <source>This action is irreversible. All links in the category will be deleted.</source>
-            <translation type="unfinished">Действие необратимо. Все ссылки в категории будут удалены.</translation>
+            <translation>Это действие необратимо. Все ссылки в категории будут удалены.</translation>
         </message>
     </context>
     <context>
@@ -2460,6 +2471,18 @@ Are you sure you want to continue?</source>
             <source>(Click to change)</source>
             <translation>(Нажмите для изменения)</translation>
         </message>
+        <message>
+            <source>Favorites</source>
+            <translation>Избранное</translation>
+        </message>
+        <message>
+            <source>Rotation</source>
+            <translation>Ротация</translation>
+        </message>
+        <message>
+            <source>Profiles</source>
+            <translation>Профили</translation>
+        </message>
     </context>
     <context>
         <name>LinkOperations</name>
@@ -2555,57 +2578,57 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="15" />
             <source>Warning</source>
-            <translation type="unfinished">Предупреждение</translation>
+            <translation>Предупреждение</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="16" />
             <source>Error</source>
-            <translation type="unfinished">Ошибка</translation>
+            <translation>Ошибка</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="17" />
             <source>Check data correctness and try again.</source>
-            <translation type="unfinished" />
+            <translation>Проверьте корректность данных и попробуйте снова.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="19" />
             <source>Try again or contact support.</source>
-            <translation type="unfinished">Повторите попытку или обратитесь в поддержку.</translation>
+            <translation>Попробуйте снова или обратитесь в поддержку.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="22" />
             <source>No categories available. Create a category first.</source>
-            <translation type="unfinished" />
+            <translation>Нет доступных категорий. Сначала создайте категорию.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="24" />
             <source>Select a category to insert the link</source>
-            <translation type="unfinished" />
+            <translation>Выберите категорию для вставки ссылки</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="26" />
             <source>Error saving note</source>
-            <translation type="unfinished" />
+            <translation>Ошибка сохранения заметки</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="27" />
             <source>Database error</source>
-            <translation type="unfinished" />
+            <translation>Ошибка базы данных</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="28" />
             <source>Validation error</source>
-            <translation type="unfinished" />
+            <translation>Ошибка валидации</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="31" />
             <source>This link cannot be opened for security reasons.</source>
-            <translation type="unfinished" />
+            <translation>Эту ссылку невозможно открыть по соображениям безопасности.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\links\base_component.py" line="33" />
             <source>Check the link address or edit it.</source>
-            <translation type="unfinished" />
+            <translation>Проверьте адрес ссылки или отредактируйте его.</translation>
         </message>
     </context>
     <context>
@@ -2775,7 +2798,7 @@ Are you sure you want to continue?</source>
             <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
             <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
             <source>About</source>
-            <translation>О приложении</translation>
+            <translation>О программе</translation>
         </message>
         <message>
             <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
@@ -3015,6 +3038,10 @@ Are you sure you want to continue?</source>
             <source>Error: %1</source>
             <translation>Ошибка: %1</translation>
         </message>
+            <message>
+            <source>Launch marked</source>
+            <translation>Запустить отмеченные</translation>
+        </message>
     </context>
     <context>
         <name>MessageHandler</name>
@@ -3026,7 +3053,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\system\window_setup\wiring.py" line="26" />
             <source>Try repeating the action or contact support.</source>
-            <translation>Повторите действие или обратитесь в поддержку.</translation>
+            <translation>Попробуйте повторить действие или обратитесь в поддержку.</translation>
         </message>
     </context>
     <context>
@@ -3140,7 +3167,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="73" />
             <source>Profile</source>
-            <translation type="unfinished">Профиль</translation>
+            <translation>Профиль</translation>
         </message>
     </context>
     <context>
@@ -3170,12 +3197,12 @@ Are you sure you want to continue?</source>
             <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
             <translation>Выберите файл из списка и нажмите «Восстановить». Если список пуст, проверьте каталог резервных копий.</translation>
         </message>
-    </context>
+    <message><source>No backups found</source><translation>Резервные копии не найдены</translation></message><message><source>{timestamp} | {backup_name} ({size} MB)</source><translation>{timestamp} | {backup_name} ({size} МБ)</translation></message><message><source>{backup_name} ({size} MB)</source><translation>{backup_name} ({size} МБ)</translation></message><message><source>Error: {details}</source><translation>Ошибка: {details}</translation></message></context>
     <context>
         <name>RotationMixin</name>
         <message>
             <source>Profile</source>
-            <translation type="vanished">Профиль</translation>
+            <translation>Профиль</translation>
         </message>
         <message>
             <source>Profile selection module is unavailable.</source>
@@ -3249,12 +3276,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\structure\selection_handling.py" line="29" />
             <source>Warning</source>
-            <translation type="unfinished">Предупреждение</translation>
+            <translation>Предупреждение</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\selection_handling.py" line="30" />
             <source>Check the correctness of actions and try again.</source>
-            <translation type="unfinished" />
+            <translation>Проверьте корректность действий и попробуйте снова.</translation>
         </message>
     </context>
     <context>
@@ -3262,49 +3289,51 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="19" />
             <source>About</source>
-            <translation type="unfinished">О приложении</translation>
+            <translation>О программе</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="20" />
             <source>Link Manager
 Version 1.0
 © MyCompany</source>
-            <translation type="unfinished" />
+            <translation>Менеджер ссылок
+Версия 1.0
+© MyCompany</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="37" />
             <location filename="..\app\config_data\settings_config.py" line="30" />
             <location filename="..\app\config_data\settings_config.py" line="23" />
             <source>Web Link</source>
-            <translation type="unfinished" />
+            <translation>Веб-ссылка</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="39" />
             <location filename="..\app\config_data\settings_config.py" line="32" />
             <location filename="..\app\config_data\settings_config.py" line="24" />
             <source>File</source>
-            <translation type="unfinished">Файл</translation>
+            <translation>Файл</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="40" />
             <location filename="..\app\config_data\settings_config.py" line="33" />
             <location filename="..\app\config_data\settings_config.py" line="25" />
             <source>Program</source>
-            <translation type="unfinished" />
+            <translation>Программа</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="38" />
             <location filename="..\app\config_data\settings_config.py" line="31" />
             <location filename="..\app\config_data\settings_config.py" line="26" />
             <source>Script</source>
-            <translation type="unfinished">Скрипт</translation>
+            <translation>Скрипт</translation>
         </message>
         <message>
             <location filename="..\app\config_data\settings_config.py" line="41" />
             <location filename="..\app\config_data\settings_config.py" line="34" />
             <location filename="..\app\config_data\settings_config.py" line="27" />
             <source>Folder</source>
-            <translation type="unfinished">Папка</translation>
+            <translation>Папка</translation>
         </message>
     </context>
     <context>
@@ -3541,9 +3570,9 @@ All nested categories and links will be permanently deleted!
 Are you sure you want to continue?</source>
             <translation>Раздел '{section}' содержит категорий: {categories} и ссылок: {links}.
 
-Все вложенные категории и ссылки будут удалены безвозвратно!
+Все вложенные категории и ссылки будут безвозвратно удалены!
 
-Продолжить?</translation>
+Вы уверены, что хотите продолжить?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="30" />
@@ -3567,9 +3596,9 @@ All nested links will be permanently deleted!
 Are you sure you want to continue?</source>
             <translation>Категория '{category}' содержит ссылок: {links}.
 
-Все вложенные ссылки будут удалены безвозвратно!
+Все вложенные ссылки будут безвозвратно удалены!
 
-Продолжить?</translation>
+Вы уверены, что хотите продолжить?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="40" />
@@ -3584,12 +3613,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="42" />
             <source>This action is irreversible. All nested categories and links will be deleted.</source>
-            <translation>Действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
+            <translation>Это действие необратимо. Все вложенные категории и ссылки будут удалены.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\structure\item_deletion_service.py" line="45" />
             <source>This action is irreversible. All links in the category will be deleted.</source>
-            <translation>Действие необратимо. Все ссылки в категории будут удалены.</translation>
+            <translation>Это действие необратимо. Все ссылки в категории будут удалены.</translation>
         </message>
     </context>
     <context>
@@ -3690,7 +3719,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="17" />
             <source>Bad URL Check</source>
-            <translation>Проверка недоступных URL</translation>
+            <translation>Проверка нерабочих ссылок</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="19" />
@@ -3720,7 +3749,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="30" />
             <source>Select section where categories and links will be added.</source>
-            <translation>Выберите раздел, куда будут добавлены категории и ссылки.</translation>
+            <translation>Выберите раздел, в который будут добавлены категории и ссылки.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="32" />
@@ -3755,12 +3784,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="44" />
             <source>Would you like to check URLs for HTTPS availability?</source>
-            <translation>Хотите проверить доступность HTTPS для URL?</translation>
+            <translation>Хотите проверить URL на доступность по HTTPS?</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="46" />
             <source>This will verify which HTTP links can be upgraded to HTTPS.</source>
-            <translation>Будет проверено, какие HTTP ссылки можно заменить на HTTPS.</translation>
+            <translation>Это проверит, какие HTTP ссылки могут быть обновлены до HTTPS.</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="49" />
@@ -3770,7 +3799,7 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="51" />
             <source>Failed to start bad URL check</source>
-            <translation>Не удалось запустить проверку недоступных URL</translation>
+            <translation>Не удалось запустить проверку нерабочих ссылок</translation>
         </message>
         <message>
             <source>Thank you for using our application!</source>
@@ -3812,12 +3841,12 @@ Are you sure you want to continue?</source>
         <message>
             <location filename="..\app\controllers\ui\undo\commands_structure.py" line="30" />
             <source>Delete canceled</source>
-            <translation type="unfinished" />
+            <translation>Удаление отменено</translation>
         </message>
         <message>
             <location filename="..\app\controllers\ui\undo\commands_structure.py" line="31" />
             <source>Backup failed. Delete canceled to keep undo available.</source>
-            <translation type="unfinished" />
+            <translation>Сбой резервного копирования. Удаление отменено для сохранения возможности отмены.</translation>
         </message>
     </context>
     <context>
@@ -3927,4 +3956,4 @@ Are you sure you want to continue?</source>
             <translation>Поиск… (Ctrl+F)</translation>
         </message>
     </context>
-</TS>
+<context><name>DragDrop</name><message><source>Dragging {total} items — {shown} and {remaining} more</source><translation>Перетаскивается {total} элементов — {shown} и еще {remaining}</translation></message><message><source>Dragging {total} items — {shown}</source><translation>Перетаскивается {total} элементов — {shown}</translation></message></context></TS>

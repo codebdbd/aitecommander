@@ -69,6 +69,7 @@ class BadUrlCheckWorker(QRunnable):
         self.signals = BadUrlCheckSignals()
         self._is_cancelled = False
         self._cancel_event = threading.Event()
+        self._hierarchies_cache: dict[int, dict[str, Any]] = {}
         self._executor: ThreadPoolExecutor | None = None
 
     def cancel(self):
@@ -116,14 +117,11 @@ class BadUrlCheckWorker(QRunnable):
                 data = dict(row)
                 url = data["url"]
                 if url in url_groups:
-                    url_groups[url]["link_ids"].append(data["id"])
+                    url_groups[url]["links"].append(data)
                 else:
                     url_groups[url] = {
                         "url": url,
-                        "link_ids": [data["id"]],
-                        "link_id": data["id"],
-                        "name": data.get("name", ""),
-                        "category_id": data.get("category_id"),
+                        "links": [data],
                     }
 
             unique = list(url_groups.values())
@@ -136,6 +134,58 @@ class BadUrlCheckWorker(QRunnable):
         except Exception as e:
             logger.error("Failed to query web links: %s", e, exc_info=True)
             return []
+
+    def _get_empty_hierarchy(self) -> dict[str, Any]:
+        default_path = QCoreApplication.translate("BadUrlCheckWorker", "No Category")
+        return {
+            "path": default_path,
+            "sphere_name": "",
+            "sphere_icon_path": "",
+            "section_name": "",
+            "section_icon_path": "",
+            "category_name": "",
+            "category_icon_path": "",
+        }
+
+    def _load_all_category_hierarchies(self) -> dict[int, dict[str, Any]]:
+        """Preload all category hierarchies in a single query."""
+        default_path = QCoreApplication.translate("BadUrlCheckWorker", "No Category")
+        hierarchies: dict[int, dict[str, Any]] = {}
+        try:
+            query = """
+                SELECT
+                    c.id AS category_id,
+                    c.name AS category_name,
+                    c.icon_path AS category_icon,
+                    s.name AS section_name,
+                    s.icon_path AS section_icon,
+                    sp.name AS sphere_name,
+                    sp.icon_path AS sphere_icon
+                FROM category c
+                LEFT JOIN section s ON c.section_id = s.id
+                LEFT JOIN sphere sp ON s.sphere_id = sp.id
+            """
+            rows = self.db.connection.execute(query).fetchall()
+            for row in rows:
+                row_data = dict(row)
+                cat_id = row_data["category_id"]
+                category_name = row_data.get("category_name") or ""
+                section_name = row_data.get("section_name") or ""
+                sphere_name = row_data.get("sphere_name") or ""
+                parts = [p for p in (sphere_name, section_name, category_name) if p]
+                path = " / ".join(parts) if parts else category_name or default_path
+                hierarchies[cat_id] = {
+                    "path": path,
+                    "sphere_name": sphere_name,
+                    "sphere_icon_path": row_data.get("sphere_icon") or "",
+                    "section_name": section_name,
+                    "section_icon_path": row_data.get("section_icon") or "",
+                    "category_name": category_name,
+                    "category_icon_path": row_data.get("category_icon") or "",
+                }
+        except Exception as e:
+            logger.error("Failed to load category hierarchies: %s", e, exc_info=True)
+        return hierarchies
 
     def _get_category_hierarchy(self, category_id: int | None) -> dict[str, Any]:
         """Return hierarchy metadata (names + icons) for specified category."""
@@ -449,7 +499,7 @@ class BadUrlCheckWorker(QRunnable):
             raise CancelledError()
 
         url = link["url"]
-        link_ids = link["link_ids"]
+        link_items = link.get("links", [])
 
         # Check URL (3 levels: DNS, 404, SSL)
         is_reachable, error = self._check_url(url)
@@ -467,16 +517,24 @@ class BadUrlCheckWorker(QRunnable):
 
             # Emit one bad_url_found signal per link ID
             results = []
-            for link_id in link_ids:
+            for link_item in link_items:
+                cat_id = link_item.get("category_id")
+                hierarchy = (
+                    self._hierarchies_cache.get(cat_id)
+                    if hasattr(self, "_hierarchies_cache")
+                    else self._get_category_hierarchy(cat_id)
+                )
+                if not hierarchy:
+                    hierarchy = self._get_empty_hierarchy()
                 bad_url_info = {
-                    "id": link_id,
+                    "id": link_item["id"],
                     "url": url,
-                    "name": link.get("name", ""),
+                    "name": link_item.get("name", ""),
                     "error": error,
-                    "category_path": "",
-                    "category_id": link.get("category_id"),
+                    "category_path": hierarchy.get("path", ""),
+                    "category_id": cat_id,
                     "domain": domain,
-                    "hierarchy": {},
+                    "hierarchy": hierarchy,
                 }
                 results.append(bad_url_info)
 
@@ -484,7 +542,7 @@ class BadUrlCheckWorker(QRunnable):
                 "[bad_url_check] Bad URL found: %s (%s) — affects %s links",
                 url[:80],
                 error,
-                len(link_ids),
+                len(link_items),
             )
 
             return results
@@ -504,6 +562,7 @@ class BadUrlCheckWorker(QRunnable):
                 return
 
             logger.info("[bad_url_check] Found %s web links to check", total)
+            self._hierarchies_cache = self._load_all_category_hierarchies()
             self._emit_start_progress(total)
 
             bad_urls, checked = self._check_links_parallel(links, total)

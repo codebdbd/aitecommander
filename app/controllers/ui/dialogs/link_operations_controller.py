@@ -470,12 +470,18 @@ class LinkOperationsController(QObject):
                 )
             return
 
-        message = _tr_link_ops(_CONFIRM_DELETE_LINKS_MESSAGE).format(count=len(links))
+        raw_msg = _tr_link_ops(_CONFIRM_DELETE_LINKS_MESSAGE).format(count=len(links))
+        info = _tr_link_ops(_CONFIRM_DELETE_LINKS_INFO)
+        if "\n\n" in raw_msg:
+            head, tail = raw_msg.split("\n\n", 1)
+            message = f"{head}\n{info}\n\n{tail}"
+        else:
+            message = f"{raw_msg}\n{info}"
+
         if not DialogManager.ask_confirmation(
             self.main_window,
             message,
             _tr_link_ops(_CONFIRM_DELETE_LINKS_TITLE),
-            informative_text=_tr_link_ops(_CONFIRM_DELETE_LINKS_INFO),
             details=f"links={len(links)}",
         ):
             return

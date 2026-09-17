@@ -19,15 +19,15 @@ from app.views.common.retranslatable import ReTranslatable
 
 from .base_dialog import BaseDialog
 
-_LIST_ITEM_TEMPLATES: dict[str, str] = {
-    "no_backups": "Резервные копии не найдены",
-    "single_backup": "{timestamp} | {backup_name} ({size} МБ)",
-    "auto_backup_with_timestamp": "{timestamp} | {backup_name} ({size} МБ)",
-    "auto_backup_without_timestamp": "{backup_name} ({size} МБ)",
-    "error": "Ошибка: {details}",
-}
-
 logger = logging.getLogger(__name__)
+
+_LIST_ITEM_TEMPLATES: dict[str, str] = {
+    "no_backups": "No backups found",
+    "single_backup": "{timestamp} | {backup_name} ({size} MB)",
+    "auto_backup_with_timestamp": "{timestamp} | {backup_name} ({size} MB)",
+    "auto_backup_without_timestamp": "{backup_name} ({size} MB)",
+    "error": "Error: {details}",
+}
 
 
 class RestoreDbDialog(BaseDialog):
@@ -349,11 +349,13 @@ class RestoreDbDialog(BaseDialog):
         template_key = data.get("template_key", "")
         format_kwargs = data.get("format_kwargs", {})
 
+        template = None
         try:
-            template = _LIST_ITEM_TEMPLATES.get(template_key)
-            if template is None:
+            raw_template = _LIST_ITEM_TEMPLATES.get(template_key)
+            if raw_template is None:
                 logger.warning("Unknown list item template key: %s", template_key)
-                template = template_key
+                raw_template = template_key
+            template = QCoreApplication.translate("RestoreDbDialog", raw_template)
             if format_kwargs:
                 template = template.format(**format_kwargs)
             item.setText(template)
