@@ -27,6 +27,9 @@ from ctypes import (
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+import threading
+
+from PyQt6.QtCore import QObject, QFileSystemWatcher
 
 logger = logging.getLogger(__name__)
 
@@ -246,12 +249,60 @@ def get_start_menu_shortcuts() -> dict[str, str]:
     return {stem: data["target"] for stem, data in unique_shortcuts.items()}
 
 
-def get_installed_apps() -> list[InstalledAppInfo]:
+class AppsCacheManager(QObject):
+    """Singleton for monitoring Start Menu directories and maintaining apps cache automatically."""
+    
+    _instance = None
+    
+    @classmethod
+    def get(cls) -> 'AppsCacheManager':
+        if cls._instance is None:
+            cls._instance = AppsCacheManager()
+        return cls._instance
+
+    def __init__(self):
+        super().__init__()
+        self.cached_apps: Optional[list[InstalledAppInfo]] = None
+        self._lock = threading.Lock()
+        
+        self.watcher = QFileSystemWatcher(self)
+        self.watcher.directoryChanged.connect(self._on_dir_changed)
+        
+        # Monitor Start Menu directories
+        start_dirs = [
+            os.path.expandvars(r"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs"),
+            os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs")
+        ]
+        for d in start_dirs:
+            if os.path.exists(d):
+                self.watcher.addPath(d)
+
+    def _on_dir_changed(self, path: str):
+        logger.debug("Start menu changed: %s. Invalidating cache.", path)
+        with self._lock:
+            self.cached_apps = None
+
+    def set_cache(self, apps: list[InstalledAppInfo]):
+        with self._lock:
+            self.cached_apps = apps
+            
+    def get_cache(self) -> Optional[list[InstalledAppInfo]]:
+        with self._lock:
+            return self.cached_apps
+
+
+def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
     """Discover all installed applications on Windows, resolving desktop apps to their real .exe.
 
     Returns:
         Sorted list of `InstalledAppInfo` objects.
     """
+    manager = AppsCacheManager.get()
+    if not force_refresh:
+        cached = manager.get_cache()
+        if cached is not None:
+            return cached
+
     if platform.system() != "Windows":
         return []
 
@@ -381,6 +432,8 @@ def get_installed_apps() -> list[InstalledAppInfo]:
 
     # Sort alphabetically by name
     apps.sort(key=lambda a: a.name.lower())
+    
+    manager.set_cache(apps)
     return apps
 
 

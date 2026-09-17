@@ -28,8 +28,10 @@ from PyQt6.QtWidgets import (
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.combo_helpers import PopupComboBox
 from app.views.widgets.input_frame import InputFrame
 
@@ -378,13 +380,13 @@ class LinkDialogUI:
         self.rotation_chk = QCheckBox(
             QCoreApplication.translate("LinkDialogUI", "Rotation")
         )
-        self.rotation_profiles_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Profiles")
-        )
+        self.rotation_profiles_btn = QPushButton()
         self.rotation_profiles_btn.setToolTip(
             QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
         )
-        self.adjust_button_width(self.rotation_profiles_btn)
+        self.rotation_profiles_btn.setIcon(icon_cache.get_icon("account", get_current_theme()))
+        self.rotation_profiles_btn.setIconSize(QSize(18, 18))
+        self.rotation_profiles_btn.setFixedWidth(32)
         self.rotation_profiles_btn.setVisible(False)
         self.rotation_profiles_btn.setEnabled(False)
         bottom_row.addWidget(self.rotation_chk)
@@ -577,12 +579,11 @@ class LinkDialogUI:
                     QCoreApplication.translate("LinkDialogUI", "Rotation")
                 )
             if hasattr(self, "rotation_profiles_btn") and self.rotation_profiles_btn is not None:
-                # Only retranslate if no profiles are configured (otherwise keep dynamic text)
-                if not self.rotation_profiles_btn.isVisible():
-                    self.rotation_profiles_btn.setText(
-                        QCoreApplication.translate("LinkDialogUI", "Profiles")
-                    )
-                self.adjust_button_width(self.rotation_profiles_btn)
+                self.rotation_profiles_btn.setText("")
+                self.rotation_profiles_btn.setToolTip(
+                    QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
+                )
+                self.rotation_profiles_btn.setIcon(icon_cache.get_icon("account", get_current_theme()))
         except Exception:
             pass
 

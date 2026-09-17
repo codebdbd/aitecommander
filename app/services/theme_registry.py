@@ -27,6 +27,7 @@ class ThemeDefinition:
     preview_path: Path | None
     source: str  # "bundled" | "user"
     origin_path: Path
+    icon_color: str = "#FFFFFF"
 
 
 class ThemeRegistry:
@@ -100,13 +101,26 @@ class ThemeRegistry:
         theme = self.get_theme(theme_id)
         return bool(theme and theme.source == "user")
 
+    def get_theme_icon_color(self, theme_id: str) -> str:
+        """Return icon color hex for the specified theme."""
+        theme = self.get_theme(theme_id)
+        if theme and theme.icon_color:
+            return theme.icon_color
+        if theme and not theme.is_dark:
+            return "#1F2430"
+        return "#FFFFFF"
+
     def get_required_icon_names(self, *, base_theme_id: str = "light") -> set[str]:
         with self._lock:
             if self._required_icons_cache is not None:
                 return set(self._required_icons_cache)
 
-        theme = self.get_theme(base_theme_id)
-        if theme is None:
+        base_icons_dir = PathManager.ui_icons_dir() / "base"
+        if not base_icons_dir.exists():
+            theme = self.get_theme(base_theme_id)
+            base_icons_dir = theme.icons_dir if theme else None
+
+        if base_icons_dir is None or not base_icons_dir.exists():
             return set()
 
         allowed_ext = {
@@ -114,7 +128,7 @@ class ThemeRegistry:
         }
         required: set[str] = set()
         try:
-            for entry in theme.icons_dir.iterdir():
+            for entry in base_icons_dir.iterdir():
                 if not entry.is_file():
                     continue
                 if entry.suffix.lower() not in allowed_ext:
@@ -170,6 +184,7 @@ class ThemeRegistry:
             return None
         version = str(data.get("version", "")).strip() or "1.0.0"
         is_dark = bool(data.get("is_dark", False))
+        icon_color = str(data.get("icon_color", "#FFFFFF" if is_dark else "#1F2430")).strip()
 
         qss_rel = data.get("qss")
         icons_rel = data.get("icons_dir")
@@ -206,6 +221,7 @@ class ThemeRegistry:
             preview_path=preview_path,
             source=source,
             origin_path=manifest_path,
+            icon_color=icon_color,
         )
 
     def _resolve_safe_path(

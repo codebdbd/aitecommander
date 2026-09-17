@@ -6,10 +6,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import re
 from pathlib import Path
 
-from PyQt6.QtCore import QThread
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QByteArray, QSize, Qt, QThread
+from PyQt6.QtGui import QIcon, QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
@@ -92,6 +94,31 @@ def _create_svg_icon_fast(svg_path: str, size: int) -> QIcon:
 
 
 # === SVG ICON CREATION ===
+
+
+def _create_tinted_svg_icon(svg_path: str, color_hex: str) -> QIcon:
+    """Create high-DPI QIcon from SVG file tinted with the theme color."""
+    try:
+        raw_svg = Path(svg_path).read_text(encoding="utf-8")
+        if 'fill="' in raw_svg:
+            tinted = re.sub(r'fill="[^"]*"', f'fill="{color_hex}"', raw_svg)
+        else:
+            tinted = raw_svg.replace("<svg ", f'<svg fill="{color_hex}" ')
+        renderer = QSvgRenderer(QByteArray(tinted.encode("utf-8")))
+        if not renderer.isValid():
+            return _create_svg_icon(svg_path)
+        icon = QIcon()
+        for sz in (16, 24, 32, 48, 64):
+            pm = QPixmap(sz, sz)
+            pm.fill(Qt.GlobalColor.transparent)
+            p = QPainter(pm)
+            renderer.render(p)
+            p.end()
+            icon.addPixmap(pm)
+        return icon
+    except Exception as exc:
+        logger.debug("Failed to tint SVG icon %s: %s", svg_path, exc)
+        return _create_svg_icon(svg_path)
 
 
 def _create_svg_icon(svg_path: str) -> QIcon:
@@ -249,6 +276,17 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
             # quickly return result before short TTL expires
             set_icon(icon_name, theme, None, negative=True)
             return QIcon()
+
+        # Dynamic tinting for SVG icons using theme's icon_color
+        if path.endswith(".svg"):
+            from app.services.theme_registry import theme_registry
+            theme_color = theme_registry.get_theme_icon_color(theme)
+            icon = _create_tinted_svg_icon(path, theme_color)
+            if not icon.isNull():
+                load_time = time.time() - start_time
+                metrics_record_disk_load(load_time)
+                set_icon(icon_name, theme, icon)
+                return icon
 
         # Use optimized rendering for common sizes when available
         base_size = app_config.get_default_icon_size()

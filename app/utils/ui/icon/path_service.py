@@ -182,6 +182,10 @@ class IconPathService:
             self._ui_icons_dir = self._config.paths.get_ui_icons_dir()
         return self._ui_icons_dir
 
+    def get_base_icons_dir(self) -> Path:
+        """Path to single-source base UI icons directory."""
+        return self.get_ui_icons_dir() / "base"
+
     def _get_theme_definition(self, theme: str):
         try:
             from app.services.theme_registry import theme_registry
@@ -440,6 +444,16 @@ class IconPathService:
             logger.debug("Failed to build icon index for theme %s: %s", theme, exc)
         return index
 
+    def get_base_icon(self, icon_name: str) -> Path | None:
+        """Find icon in single-source base directory."""
+        clean_name = Path(icon_name).name.lower()
+        if "." not in clean_name:
+            clean_name = f"{clean_name}.svg"
+        base_file = self.get_base_icons_dir() / clean_name
+        if base_file.exists() and base_file.is_file():
+            return base_file
+        return None
+
     def get_indexed_icon(self, theme: str, icon_name: str) -> Path | None:
         norm_theme = validate_theme(theme)
         now = time.time()
@@ -461,7 +475,11 @@ class IconPathService:
                     self._theme_dir_mtime[norm_theme] = new_mtime
         with self._index_lock:
             index = self._theme_index.get(norm_theme, {})
-            return index.get(icon_name.lower())
+            hit = index.get(icon_name.lower())
+            if hit is not None:
+                return hit
+        # Fallback to single-source base directory
+        return self.get_base_icon(icon_name)
 
 
 # --- Global instance and convenient proxy functions ---

@@ -136,7 +136,7 @@ class ThemeStylesheetService:
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
         )
         combined_qss = self._adapt_qss_for_input_frames(combined_qss)
-        combined_qss = self._resolve_icon_urls(combined_qss)
+        combined_qss = self._resolve_icon_urls(combined_qss, theme_name)
 
         # FIX: Use cached overrides
         try:
@@ -277,10 +277,39 @@ class ThemeStylesheetService:
         return qss
 
     @staticmethod
-    def _resolve_icon_urls(qss: str) -> str:
-        """Resolve Qt resource icon paths (':/icons/') to absolute disk paths."""
-        ui_icons_dir = PathManager.ui_icons_dir().as_posix()
-        return qss.replace(":/icons/", f"{ui_icons_dir}/")
+    def _tint_svg_for_qss(icon_name: str, color_hex: str, theme_name: str) -> str:
+        """Get or create tinted SVG on disk for QSS and return its path."""
+        base_svg = PathManager.ui_icons_dir() / "base" / icon_name
+        if not base_svg.exists():
+            return ""
+        cache_dir = PathManager.ui_icons_dir() / "qss_cache" / theme_name
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        dest_svg = cache_dir / icon_name
+        if dest_svg.exists() and dest_svg.stat().st_mtime >= base_svg.stat().st_mtime:
+            return dest_svg.as_posix()
+        raw = base_svg.read_text(encoding="utf-8")
+        if 'fill="' in raw:
+            tinted = re.sub(r'fill="[^"]*"', f'fill="{color_hex}"', raw)
+        else:
+            tinted = raw.replace("<svg ", f'<svg fill="{color_hex}" ')
+        dest_svg.write_text(tinted, encoding="utf-8")
+        return dest_svg.as_posix()
+
+    def _resolve_icon_urls(self, qss: str, theme_name: str = "light") -> str:
+        """Resolve icon paths in QSS to dynamically tinted theme icons."""
+        from app.services.theme_registry import theme_registry
+        theme_color = theme_registry.get_theme_icon_color(theme_name)
+
+        def _repl(match):
+            full = match.group(1)
+            icon_name = Path(full).name
+            tinted_path = self._tint_svg_for_qss(icon_name, theme_color, theme_name)
+            if tinted_path:
+                return f'url("{tinted_path}")'
+            return match.group(0)
+
+        pattern = r'url\(["\']?([^"\')]*?(?:/icons/|ui_icons/)[^"\')]+)["\']?\)'
+        return re.sub(pattern, _repl, qss)
 
     def _get_from_cache(self, theme_name: str) -> str | None:
         with self._cache_lock:
