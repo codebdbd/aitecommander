@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Iterable
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QObject, QPoint, QSize, Qt, pyqtSlot
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSlot
+from PyQt6.QtGui import QCursor, QIcon
 from PyQt6.QtWidgets import QDialog, QMenu, QToolButton, QWidget
 
 from app.config_data.runtime_config import get_sphere_button_icon_size
@@ -69,6 +70,9 @@ class SpheresBarController(QObject):
             )
             raise
         sb.load_spheres_async()
+        if hasattr(self.w, "spheres_bar") and self.w.spheres_bar:
+            self.w.spheres_bar.setMouseTracking(True)
+            self.w.spheres_bar.installEventFilter(self)
 
     @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
@@ -137,7 +141,7 @@ class SpheresBarController(QObject):
         btn.setIcon(self._resolve_sphere_icon(sphere))
         # Use icon size from config for both icon and button to avoid inner padding
         icon_w, icon_h = get_sphere_button_icon_size()
-        btn.setFixedSize(icon_w, icon_h)
+        btn.setFixedSize(icon_w + 6, icon_h + 24)
         # Remove internal margins at widget level
         try:
             btn.setContentsMargins(0, 0, 0, 0)
@@ -163,8 +167,35 @@ class SpheresBarController(QObject):
             btn.setGraphicsEffect(None)
         except Exception:
             pass
+        btn.installEventFilter(self)
         self.w.sphere_buttons[sphere_id] = btn
         return btn
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """macOS Dock magnification wave: calculate smooth wave magnification."""
+        s_bar = getattr(self.w, "spheres_bar", None)
+        if s_bar and (watched == s_bar or watched in getattr(self.w, "sphere_buttons", {}).values()):
+            ev_type = event.type()
+            if ev_type == QEvent.Type.MouseMove:
+                pos_in_bar = s_bar.mapFromGlobal(QCursor.pos())
+                cursor_x = float(pos_in_bar.x())
+                wave_radius = 75.0
+                for btn in getattr(self.w, "sphere_buttons", {}).values():
+                    if hasattr(btn, "set_target_scale"):
+                        btn_center_x = float(btn.geometry().center().x())
+                        dist = abs(cursor_x - btn_center_x)
+                        if dist < wave_radius:
+                            scale = (1.0 + math.cos(math.pi * dist / wave_radius)) / 2.0
+                        else:
+                            scale = 0.0
+                        btn.set_target_scale(scale)
+            elif ev_type == QEvent.Type.Leave:
+                pos_in_bar = s_bar.mapFromGlobal(QCursor.pos())
+                if not s_bar.rect().contains(pos_in_bar):
+                    for btn in getattr(self.w, "sphere_buttons", {}).values():
+                        if hasattr(btn, "set_target_scale"):
+                            btn.set_target_scale(0.0)
+        return super().eventFilter(watched, event)
 
     @pyqtSlot(int, int)
     def _on_section_dropped(self, section_id: int, target_sphere_id: int) -> None:

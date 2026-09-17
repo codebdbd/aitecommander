@@ -129,6 +129,19 @@ def _install_qt_message_filter() -> None:
         logger.debug("Failed to install Qt message filter: %s", exc, exc_info=True)
 
 
+def _uninstall_qt_message_filter() -> None:
+    """Uninstall the Qt message filter and restore default handler."""
+    global _qt_prev_message_handler
+    try:
+        from PyQt6.QtCore import qInstallMessageHandler
+
+        qInstallMessageHandler(None)
+    except Exception as exc:
+        logger.debug("Failed to uninstall Qt message filter: %s", exc)
+    finally:
+        _qt_prev_message_handler = None
+
+
 class ExitCode(IntEnum):
     """Application exit codes following Unix conventions."""
 
@@ -366,6 +379,8 @@ def _cleanup_resources(
                 delattr(app, "_about_to_quit_cleanup")
         except Exception:
             pass
+
+    _uninstall_qt_message_filter()
 
 
 
@@ -678,7 +693,7 @@ def run(options: StartupOptions | None = None) -> int:
         try:
             from app.utils.links.parser import shutdown_parser_background_tasks
 
-            shutdown_parser_background_tasks(wait=True, cancel_futures=True)
+            shutdown_parser_background_tasks(wait=False, cancel_futures=True)
         except Exception as exc:
             logger.warning("Parser background tasks shutdown failed: %s", exc)
         if single_instance_guard is not None:
@@ -687,26 +702,45 @@ def run(options: StartupOptions | None = None) -> int:
             except Exception as exc:
                 logger.warning("SingleInstanceGuard close failed: %s", exc)
         try:
-            WorkerManager.shutdown(timeout_ms=get_thread_pool_shutdown_timeout())
+            WorkerManager.shutdown(timeout_ms=min(50, get_thread_pool_shutdown_timeout()))
         except Exception as exc:
             logger.warning("WorkerManager shutdown failed: %s", exc)
         try:
             from app.utils.db.executors.pool import shutdown_thread_pool
 
-            shutdown_thread_pool(timeout_ms=get_thread_pool_shutdown_timeout())
+            shutdown_thread_pool(timeout_ms=min(50, get_thread_pool_shutdown_timeout()))
         except Exception as exc:
             logger.warning("DB thread pool shutdown failed: %s", exc)
         try:
             DatabaseManager.close_all()
         except Exception as exc:
             logger.warning("DatabaseManager close failed: %s", exc)
-        # Симметричная очистка ресурсов Qt (парный вызов для qInitResources() на строке 626).
-        # Ранее обходился на win32 из-за краша при беспорядочной финализации — теперь
-        # это безопасно: hard-exit (ExitProcess) централизован в app/main.py и гарантирует
-        # завершение процесса перед деструктуризацией sip/C++ объектов на тестах/embed.
-        if _resources_initialized:
+        # Cleanup resources only when the runtime owns the process exit and not on win32
+        if _resources_initialized and options.exit_on_finish and sys.platform != "win32":
             qCleanupResources()
             _resources_initialized = False
+
+        if initializer is not None:
+            if getattr(initializer, "main_window", None) is not None:
+                try:
+                    initializer.main_window.close()
+                    initializer.main_window.deleteLater()
+                except Exception:
+                    pass
+                initializer.main_window = None
+            initializer = None
+        initializer_ref[0] = None
+
+        if app is not None:
+            try:
+                app.processEvents()
+            except Exception:
+                pass
+            try:
+                app.quit()
+            except Exception:
+                pass
+            app = None
 
         _disable_fault_handler()
         log_shutdown()
@@ -715,11 +749,6 @@ def run(options: StartupOptions | None = None) -> int:
         except Exception:
             pass
 
-        # ⚠️ ВАЖНО: sys.exit() ЗДЕСЬ БОЛЬШЕ НЕТ.
-        # run() просто возвращает resolved_exit — поток управления дойдёт до app/main.py,
-        # где выполнится симметричный CoUninitialize + безопасный ExitProcess hard-exit.
-        # Удалённый sys.exit здесь обходил все внешние finally-блоки на стеке (включая
-        # app/main.main() finally), что вызывало ассиметрию COM и Access Violation 0xC0000005.
         return int(resolved_exit)
 
 

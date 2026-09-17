@@ -88,7 +88,6 @@ def main() -> int:
         from app.startup.runtime import run
 
         exit_code = int(run())
-        return exit_code
 
     finally:
         # Парный CoUninitialize (для CoInitialize на строках 34-40 этого же модуля)
@@ -100,21 +99,6 @@ def main() -> int:
             except Exception:
                 pass
 
-    # ✅ ТОЛЬКО ПОСЛЕ всех cleanup-операций — безопасный hard-exit (Windows GUI, не-тесты)
-    #    ExitProcess/os._exit предотвращают случайный порядок деструкторов sip/PyQt C++ объектов,
-    #    который и вызывал Access Violation 0xC0000005 («Прекращена работа программы python.exe»).
-    if sys.platform == "win32" and not getattr(sys, "_running_tests", False) and "PYTEST_CURRENT_TEST" not in os.environ:
-        try:
-            sys.stdout.flush()
-            sys.stderr.flush()
-        except Exception:
-            pass
-        try:
-            import ctypes
-
-            ctypes.windll.kernel32.ExitProcess(exit_code)
-        except Exception:
-            os._exit(exit_code)
     return exit_code
 
 

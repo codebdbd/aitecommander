@@ -34,19 +34,24 @@ stop: 0.95 #22513A, stop: 1 #22513A
 );
 }
 QWidget#spheres_bar QToolButton {
+    color: #F4D23C;
+    border: none;
+    border-radius: 8px;
 }
 QWidget#spheres_bar QToolButton:hover,
-QWidget#spheres_bar QToolButton:checked,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
-border-color: #F4D23C;
-background: transparent;
+QWidget#spheres_bar QToolButton:checked,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked,
+QWidget#spheres_bar QToolButton:checked:hover,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked:hover {
+    border: none;
+    background: transparent;
 }
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
-border-color: #FFFFFF;
-background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-stop: 0 #236C32, stop: 1 #D39B24);
+    border: none;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+    stop: 0 #236C32, stop: 1 #D39B24);
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #142111;
@@ -508,12 +513,6 @@ background-color: #7A2020;
 color: #FFFFFF;
 selection-color: #FFFFFF;
 }
-QWidget#spheres_bar QToolButton:hover,
-QWidget#spheres_bar QToolButton:pressed,
-QWidget#spheres_bar QToolButton:checked,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed,
-QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked,
 #spheres_bar QPushButton:hover,
 QPushButton:hover,
 QPushButton:pressed,

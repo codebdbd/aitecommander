@@ -75,6 +75,7 @@ docs/
 
 # Local generated site/artifact
 Aite_Commander_PRO_V7/
+site/
 
 # Tool caches
 .ruff_cache/
