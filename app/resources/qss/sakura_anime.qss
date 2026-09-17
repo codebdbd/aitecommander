@@ -50,8 +50,7 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked:hover {
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
     border: none;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-    stop: 0 #6045A8, stop: 1 #D96FA8);
+    background: transparent;
 }
 QWidget#LeftPanel QToolButton:hover {
 background: #211A31;

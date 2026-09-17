@@ -4,13 +4,14 @@
 import logging
 
 from PyQt6.QtCore import QEvent, QModelIndex, QPointF, QRect, QSize, Qt, pyqtProperty, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPalette, QPen, QPolygonF
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPalette, QPen, QPolygonF
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHeaderView,
     QStyle,
     QStyledItemDelegate,
+    QStyleOptionHeader,
     QStyleOptionViewItem,
 )
 
@@ -290,6 +291,26 @@ class ExplorerHeaderView(QHeaderView):
         self.viewport().update()
         super().leaveEvent(event)
 
+    def paintSection(self, painter, rect, logicalIndex):
+        if logicalIndex == 0:
+            opt = QStyleOptionHeader()
+            self.initStyleOption(opt)
+            opt.rect = rect
+            opt.section = logicalIndex
+            opt.text = ""
+            opt.icon = QIcon()
+            self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
+            model = self.model()
+            if model is not None:
+                icon = model.headerData(0, Qt.Orientation.Horizontal, Qt.ItemDataRole.DecorationRole)
+                if isinstance(icon, QIcon) and not icon.isNull():
+                    sz = 16
+                    ix = rect.x() + (rect.width() - sz) // 2
+                    iy = rect.y() + (rect.height() - sz) // 2
+                    icon.paint(painter, ix, iy, sz, sz, Qt.AlignmentFlag.AlignCenter)
+            return
+        super().paintSection(painter, rect, logicalIndex)
+
     def paintEvent(self, event):
         super().paintEvent(event)
         is_sorted = self.sortIndicatorSection() >= 0
@@ -513,11 +534,11 @@ class LinksTableView(
         header.setSectionsClickable(True)
         col_widths = app_config.ui.get_col_widths()
         try:
-            self.setColumnWidth(0, max(int(col_widths[0]), 52))
+            self.setColumnWidth(0, 32)
             self.setColumnWidth(1, col_widths[1])
             self.setColumnWidth(2, col_widths[2])
             fav_w = col_widths[4] if len(col_widths) >= 5 else col_widths[3]
-            self.setColumnWidth(4, max(int(fav_w), 52))
+            self.setColumnWidth(4, 32)
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
@@ -699,14 +720,16 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
+        if logical_index in (0, 4):
+            return
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
             self.setSortingEnabled(True)
             try:
-                header.setSortIndicatorShown(True)
+                header.setSortIndicatorShown(False)
             except Exception:
                 logger.debug(
-                    "LinksTableView: failed to setSortIndicatorShown(True)",
+                    "LinksTableView: failed to setSortIndicatorShown(False)",
                     exc_info=True,
                 )
             # Execute a single ascending sort; Qt will handle subsequent toggles

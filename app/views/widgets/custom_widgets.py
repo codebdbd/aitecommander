@@ -452,42 +452,6 @@ class StructureTreeView(QTreeView):
     def _normalize_scrollbars(self) -> None:
         """Ensure scrollbars use normal (non-inverted) controls."""
         try:
-            bars = (self.verticalScrollBar(), self.horizontalScrollBar())
-        except Exception:
-            bars = ()
-        for bar in bars:
-            if bar is None:
-                continue
-            try:
-                # Make scrollbar always visible and with a readable thumb (local only, no global QSS).
-                if bar.orientation() == Qt.Orientation.Vertical:
-                    bar.setStyleSheet(
-                        """
-                        QScrollBar:vertical {
-                            width: 10px;
-                            background: transparent;
-                            margin: 0;
-                        }
-                        QScrollBar::handle:vertical {
-                            background: #8a8a8a;
-                            min-height: 24px;
-                        }
-                        QScrollBar::handle:vertical:hover {
-                            background: #aaaaaa;
-                        }
-                        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                            height: 0px;
-                        }
-                        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                            background: transparent;
-                        }
-                        """
-                    )
-            except Exception:
-                logger.debug(
-                    "StructureTreeView: failed to normalize scrollbar", exc_info=True
-                )
-        try:
             self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         except Exception:
