@@ -74,6 +74,9 @@ class _AppsLoaderThread(QThread):
             for idx, app in enumerate(apps):
                 if self._is_cancelled or self.isInterruptionRequested():
                     return
+                if getattr(app, "cached_image", None) is not None:
+                    self.icon_ready.emit(idx, app.cached_image)
+                    continue
                 try:
                     target_src = (
                         app.icon_path
@@ -84,6 +87,7 @@ class _AppsLoaderThread(QThread):
                     if img is not None and not img.isNull():
                         if self._is_cancelled or self.isInterruptionRequested():
                             return
+                        app.cached_image = img
                         self.icon_ready.emit(idx, img)
                 except Exception:
                     pass
@@ -199,13 +203,6 @@ class InstalledAppsDialog(BaseDialog):
             item.setSizeHint(QSize(0, 42))
             # Use app description as secondary tooltip
             item.setToolTip(f"{app.name}\n{app.path}")
-            # Fast initial icon (if available from QFileIconProvider)
-            try:
-                icon = self._icon_provider.icon(QFileInfo(app.path))
-                if not icon.isNull():
-                    item.setIcon(icon)
-            except Exception:
-                pass
             item.setData(Qt.ItemDataRole.UserRole, app)
             self.apps_list.addItem(item)
 
