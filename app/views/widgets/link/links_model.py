@@ -77,7 +77,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = ["▶"] + [self._tr(text) for text in _HEADER_TRANSLATABLE] + ["♥"]
+        self._headers = [""] + [self._tr(text) for text in _HEADER_TRANSLATABLE] + ["♥"]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -196,11 +196,15 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:  # type: ignore[override]
         if orientation == Qt.Orientation.Horizontal:
+            if role == Qt.ItemDataRole.DecorationRole and section == 0:
+                from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+
+                return icon_cache.get_icon("list_start")
             if role == Qt.ItemDataRole.DisplayRole:
                 if 0 <= section < len(self._headers):
                     return self._headers[section]
             elif role == Qt.ItemDataRole.TextAlignmentRole:
-                if section == 2:
+                if section in (0, 2, 4):
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return super().headerData(section, orientation, role)

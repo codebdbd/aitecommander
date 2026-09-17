@@ -273,7 +273,7 @@ class ExplorerHeaderView(QHeaderView):
         pos = event.position().toPoint()
         sec = self.logicalIndexAt(pos)
         on_toggle = False
-        if sec >= 0:
+        if sec >= 0 and sec not in (0, 4):
             sec_x = self.sectionViewportPosition(sec)
             sec_w = self.sectionSize(sec)
             if pos.x() >= sec_x + sec_w - 24:
@@ -292,11 +292,11 @@ class ExplorerHeaderView(QHeaderView):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        is_sorted = self.isSortIndicatorShown() and self.sortIndicatorSection() >= 0
+        is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
 
         target_sec = sorted_sec if sorted_sec >= 0 else self._hovered_section
-        if target_sec < 0:
+        if target_sec < 0 or target_sec in (0, 4):
             return
 
         sec_x = self.sectionViewportPosition(target_sec)
@@ -556,7 +556,7 @@ class LinksTableView(
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self.setSortingEnabled(True)
-        header.setSortIndicatorShown(True)
+        header.setSortIndicatorShown(False)
         header.sortIndicatorChanged.connect(self.sortByColumn)
         initial_col, initial_order = self._load_initial_sort()
         self._apply_sort(initial_col, initial_order)

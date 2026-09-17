@@ -5,17 +5,21 @@ import json
 import logging
 from typing import Any
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import QRectF, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
+    QBrush,
     QColor,
     QDragEnterEvent,
     QDragLeaveEvent,
     QDragMoveEvent,
     QDropEvent,
+    QIcon,
     QPainter,
+    QPainterPath,
+    QPalette,
     QPen,
 )
-from PyQt6.QtWidgets import QToolButton, QWidget
+from PyQt6.QtWidgets import QStyle, QStyleOptionToolButton, QToolButton, QWidget
 
 from app.config_data.runtime_config import get_section_mime_type
 from app.utils.ui.dnd.mime import MimeDataParser
@@ -34,6 +38,37 @@ class SphereToolButton(QToolButton):
         self.setCheckable(True)
         self.setAcceptDrops(True)
         self._is_drag_over = False
+        self._hover_scale: float = 0.0
+        self._target_scale: float = 0.0
+        self._lerp_timer: QTimer = QTimer(self)
+        self._lerp_timer.setInterval(16)  # ~60 FPS
+        self._lerp_timer.timeout.connect(self._step_lerp)
+        self.setMouseTracking(True)
+
+    def set_target_scale(self, target: float) -> None:
+        """Set target magnification factor (0.0 - 1.0)."""
+        self._target_scale = max(0.0, min(1.0, float(target)))
+        if not self._lerp_timer.isActive():
+            self._lerp_timer.start()
+
+    def _step_lerp(self) -> None:
+        """Smooth LERP interpolation step for silky 60 FPS motion."""
+        diff = self._target_scale - self._hover_scale
+        if abs(diff) < 0.002:
+            self._hover_scale = self._target_scale
+            self._lerp_timer.stop()
+            self.update()
+            return
+        self._hover_scale += diff * 0.18
+        self.update()
+
+    def set_hover_scale(self, scale: float) -> None:
+        """Legacy setter compatibility."""
+        self.set_target_scale(scale)
+
+    def animate_scale_to(self, target: float, duration_ms: int = 120) -> None:
+        """Smooth animation compatibility."""
+        self.set_target_scale(target)
 
     def _extract_section_info(self, event: Any) -> tuple[int | None, int | None]:
         mime = event.mimeData() if hasattr(event, "mimeData") else None
@@ -119,14 +154,58 @@ class SphereToolButton(QToolButton):
             self.update()
 
     def paintEvent(self, event) -> None:
-        super().paintEvent(event)
-        if self._is_drag_over:
-            painter = QPainter(self)
-            try:
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                pen = QPen(QColor(0, 120, 215), 2)
-                painter.setPen(pen)
-                rect = self.rect().adjusted(1, 1, -1, -1)
-                painter.drawRoundedRect(rect, 4, 4)
-            finally:
-                painter.end()
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            rect = self.rect()
+
+            # 1. Фоновая подложка из QSS (hover / checked / pressed)
+            opt = QStyleOptionToolButton()
+            self.initStyleOption(opt)
+            opt.icon = QIcon()  # стиль отрисовывает только фон, иконку рисуем сами со скруглением
+            self.style().drawComplexControl(QStyle.ComplexControl.CC_ToolButton, opt, painter, self)
+
+            # 2. Отрисовка иконки со скруглением углов (squircle)
+            icon = self.icon()
+            if not icon.isNull():
+                # Физика macOS Dock: рост строго вверх от нижней базовой линии
+                s = self._hover_scale
+                size = 56.0 + 14.0 * s           # 56px в покое -> 70px на пике (+14px)
+                bottom_y = float(rect.height() - 14)  # фиксированная базовая линия
+                top_y = bottom_y - size
+                left_x = (rect.width() - size) / 2.0
+                icon_rect_f = QRectF(left_x, top_y, size, size)
+
+                path = QPainterPath()
+                path.addRoundedRect(icon_rect_f, 8.0, 8.0)
+
+                painter.save()
+                painter.setClipPath(path)
+                pix = icon.pixmap(64, 64)
+                painter.drawPixmap(icon_rect_f, pix, QRectF(pix.rect()))
+                painter.restore()
+
+            # 3. Нижний круглый индикатор (macOS dot): ТОЛЬКО для активной сферы
+            if self.isChecked():
+                dot_d = 5.0
+                dot_x = (rect.width() - dot_d) / 2.0
+                dot_y = float(rect.height() - dot_d - 3.0)
+                dot_rect = QRectF(dot_x, dot_y, dot_d, dot_d)
+
+                accent = self.palette().color(QPalette.ColorRole.ButtonText)
+                if accent.name().lower() in ("#000000", "#ffffff", "#ddf7ff", "#00000000"):
+                    accent = QColor("#00D7FF")
+
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QBrush(accent))
+                painter.drawEllipse(dot_rect)
+
+            # 4. Состояние Drag & Drop
+            if self._is_drag_over:
+                painter.setPen(QPen(QColor(0, 120, 215), 2))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                d_rect = rect.adjusted(1, 1, -1, -1)
+                painter.drawRoundedRect(QRectF(d_rect), 6.0, 6.0)
+        finally:
+            painter.end()

@@ -11,37 +11,34 @@ QWidget#LeftPanel {
 }
 
 
-#spheres_bar QToolButton {
-    border: 2px solid;
-    border-color: transparent; 
-    border-radius: 0;
+#spheres_bar QToolButton,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton {
+    border: none;
+    border-radius: 8px;
     padding: 0;
+    background: transparent;
 }
 
-
 #spheres_bar QToolButton:hover,
-#spheres_bar QToolButton:pressed,
-#spheres_bar QToolButton:checked {
-    border: 2px solid;
-    border-color: transparent;
-    border-radius: 0;
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
+    border: none;
+    background: transparent;
 }
 
 #spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
-    border-style: inset;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.18);
 }
 
+#spheres_bar QToolButton:checked,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
+    border: none;
+    background: transparent;
+}
 
 QWidget#LeftPanel QToolButton {
     border: none;
-}
-
-QWidget#LeftPanel QWidget#spheres_bar QToolButton {
-    border: 2px solid;
-    border-color: transparent;
-    border-radius: 0;
-    padding: 0;
 }
 
 
@@ -369,22 +366,19 @@ QTableView QHeaderView::section:horizontal {
     border-bottom: none;
     border-left: none;
     border-right: 1px solid #3A3E44;
-    padding-left: 6px;
-    padding-right: 24px;
-    padding-top: 2px;
-    padding-bottom: 2px;
+    padding: 2px 6px;
 }
 
 QTableView QHeaderView::section:horizontal:first {
     border-left: none;
-    padding-left: 6px;
-    padding-right: 24px;
+    padding-left: 2px;
+    padding-right: 2px;
 }
 
 QTableView QHeaderView::section:horizontal:last {
     border-right: none;
-    padding-left: 6px;
-    padding-right: 24px;
+    padding-left: 2px;
+    padding-right: 2px;
 }
 
 QHeaderView::up-arrow,
