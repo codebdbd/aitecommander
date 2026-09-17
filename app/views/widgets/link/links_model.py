@@ -448,7 +448,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         2: ``last_used`` (normalized to float timestamp; ``None`` -> ``-inf``)
         3: ``notes`` (str, casefold)
         """
-        if not self._links:
+        if not self._links or column in (0, 4):
             return
 
         def normalize_last_used(v: Any) -> float:

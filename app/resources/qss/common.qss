@@ -1,3 +1,56 @@
+/* ============================================================================
+   MODERN MINIMAL SCROLLBAR (macOS / Fluent Capsule Style)
+   ============================================================================ */
+QScrollBar:vertical {
+    border: none;
+    background: transparent;
+    width: 6px;
+    margin: 2px 0 2px 0;
+}
+
+QScrollBar::handle:vertical {
+    background: rgba(140, 140, 140, 0.35);
+    min-height: 28px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: rgba(140, 140, 140, 0.65);
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: rgba(140, 140, 140, 0.85);
+}
+
+QScrollBar:horizontal {
+    border: none;
+    background: transparent;
+    height: 6px;
+    margin: 0 2px 0 2px;
+}
+
+QScrollBar::handle:horizontal {
+    background: rgba(140, 140, 140, 0.35);
+    min-width: 28px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: rgba(140, 140, 140, 0.65);
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: rgba(140, 140, 140, 0.85);
+}
+
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::add-page, QScrollBar::sub-page {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+    border: none;
+}
+
 QMainWindow > QFrame {
     
     border-radius: 0;
@@ -28,7 +81,7 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
 #spheres_bar QToolButton:pressed,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
     border: none;
-    background-color: rgba(255, 255, 255, 0.18);
+    background: transparent;
 }
 
 #spheres_bar QToolButton:checked,
