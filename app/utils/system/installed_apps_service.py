@@ -44,6 +44,7 @@ class InstalledAppInfo:
     description: str = ""
     icon_path: Optional[str] = None
     args: str = ""
+    cached_image: Any = None
 
 
 # Valid executable extensions for runnable desktop programs

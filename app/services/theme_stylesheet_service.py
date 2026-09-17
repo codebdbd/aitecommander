@@ -738,37 +738,14 @@ def configure_qicon_theme(theme_name: str) -> None:
     alias_target = ICON_THEME_ALIASES.get(normalized)
     effective_name = theme_name
     if alias_target:
-        alias_dir = ui_icons_dir / alias_target
-        if alias_dir.exists():
-            logger.debug(
-                "ThemeStylesheetService: icon theme '%s' mapped to alias '%s'",
-                theme_name,
-                alias_target,
-            )
-            effective_name = alias_target
-        else:
-            logger.warning(
-                "ThemeStylesheetService: alias '%s' for theme '%s' missing, using original name",
-                alias_target,
-                theme_name,
-            )
+        effective_name = alias_target
+    base_dir = ui_icons_dir / "base"
     theme_dir = ui_icons_dir / effective_name
-    if not theme_dir.exists():
-        fallback = "light"
-        fallback_dir = ui_icons_dir / fallback
-        if fallback_dir.exists():
-            logger.warning(
-                "ThemeStylesheetService: icon theme '%s' not found, using fallback '%s'",
-                theme_name,
-                fallback,
-            )
-            effective_name = fallback
-        else:
-            logger.warning(
-                "ThemeStylesheetService: icon theme directory not found: %s, fallback 'light' also missing",
-                theme_dir,
-            )
+    if not theme_dir.exists() and base_dir.exists():
+        effective_name = "base"
     search_paths = [str(ui_icons_dir)]
+    if base_dir.exists() and str(base_dir) not in search_paths:
+        search_paths.append(str(base_dir))
     try:
         current_paths = QIcon.themeSearchPaths()
         for path in current_paths:
