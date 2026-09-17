@@ -185,16 +185,29 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def update_group_launch_action_state(self) -> None:
         """Update enabled state of the group launch button and shortcut."""
+        table = getattr(self, "table", None)
         category_id = self.get_current_category_id()
         is_enabled = False
-        if category_id and hasattr(self, "table") and self.table is not None:
-            model = self.table.model()
-            if model is not None:
-                for row in range(model.rowCount()):
-                    link = self.get_link_at_row(row)
-                    if link and bool(link.get("is_group_launch")):
-                        is_enabled = True
-                        break
+        if category_id and table is not None:
+            from PyQt6.QtWidgets import QApplication
+
+            focused = QApplication.focusWidget()
+            table_focused = bool(
+                focused is not None
+                and (
+                    focused == table
+                    or table.hasFocus()
+                    or (hasattr(table, "isAncestorOf") and table.isAncestorOf(focused))
+                )
+            )
+            if table_focused:
+                model = table.model()
+                if model is not None:
+                    for row in range(model.rowCount()):
+                        link = self.get_link_at_row(row)
+                        if link and bool(link.get("is_group_launch")):
+                            is_enabled = True
+                            break
         container = getattr(self, "bottom_bar_container", None)
         if container:
             btn = container.findChild(QPushButton, "bottomBarButton_launch_marked")

@@ -54,6 +54,9 @@ class LinksUIController(QObject):
         self.main = main_window
         self._row_by_link_id: dict[int, int] = {}
         self.table_controller = links_table_controller
+        self._quick_look_dialog = None
+        if hasattr(self.table, "quickLookRequested"):
+            self.table.quickLookRequested.connect(self.toggle_quick_look)
 
         # Initialize submodules with explicit dependencies
         # Pass category provider: first ui_state, otherwise main_window itself,
@@ -263,6 +266,63 @@ class LinksUIController(QObject):
         """Open link."""
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
+
+    def toggle_quick_look(self) -> None:
+        """Toggle macOS-style Quick Look preview for currently selected link."""
+        if self._quick_look_dialog and self._quick_look_dialog.isVisible():
+            self._quick_look_dialog.close()
+            return
+
+        try:
+            idx = self.table.currentIndex() if hasattr(self.table, "currentIndex") else None
+            row = idx.row() if idx and idx.isValid() else -1
+        except Exception:
+            row = -1
+
+        if row < 0:
+            sel_rows = self.get_selected_rows()
+            row = sel_rows[0] if sel_rows else -1
+
+        if row < 0:
+            return
+
+        link = self.get_link_at(row)
+        if not link:
+            return
+
+        from app.views.windows.dialogs.quick_look_dialog import QuickLookDialog
+
+        if not self._quick_look_dialog:
+            self._quick_look_dialog = QuickLookDialog(
+                self.main,
+                on_open_callback=self.open_link,
+                on_navigate_callback=self._on_quick_look_navigate,
+            )
+
+        self._quick_look_dialog.set_link(link)
+        if hasattr(self.main, "geometry"):
+            geom = self.main.geometry()
+            qx = geom.x() + (geom.width() - self._quick_look_dialog.width()) // 2
+            qy = geom.y() + (geom.height() - self._quick_look_dialog.height()) // 2
+            self._quick_look_dialog.move(qx, qy)
+        self._quick_look_dialog.show()
+        self._quick_look_dialog.raise_()
+        self._quick_look_dialog.activateWindow()
+
+    def _on_quick_look_navigate(self, delta: int) -> None:
+        """Navigate table rows up/down while Quick Look is open."""
+        model = self.table.model()
+        if not model:
+            return
+        current_row = self.table.currentIndex().row() if self.table.currentIndex().isValid() else 0
+        next_row = max(0, min(model.rowCount() - 1, current_row + delta))
+        if next_row != current_row:
+            self.table.selectRow(next_row)
+            idx = model.index(next_row, 1)
+            self.table.setCurrentIndex(idx)
+            link = self.get_link_at(next_row)
+            if link and self._quick_look_dialog and self._quick_look_dialog.isVisible():
+                self._quick_look_dialog.set_link(link)
 
     def get_marked_links(self) -> list[dict]:
         """Get all links marked for group launch in current category."""

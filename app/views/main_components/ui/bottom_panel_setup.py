@@ -264,6 +264,8 @@ class BottomPanelBuilder:
             if action_id:
                 btn.setObjectName(f"bottomBarButton_{action_id}")
                 btn.setProperty("action_id", action_id)
+                if action_id == "launch_marked":
+                    btn.setEnabled(False)
             try:
                 btn.setFixedHeight(app_config.ui.get_bottom_bar_button_height())
             except (RuntimeError, TypeError):

@@ -255,6 +255,8 @@ class EditingKeyHandler(BaseKeyHandler):
             return self._handle_enter_key(focused_widget)
         elif key == Qt.Key.Key_Escape:
             return self._handle_escape_key(focused_widget)
+        elif key == Qt.Key.Key_Space:
+            return self._handle_space_key(focused_widget)
         return False
 
     def _handle_enter_key(self, focused_widget: Optional[QWidget]) -> bool:
@@ -267,6 +269,18 @@ class EditingKeyHandler(BaseKeyHandler):
         # In table - open link
         elif self._is_table_focused(focused_widget):
             return self._handle_table_enter()
+        return False
+
+    def _handle_space_key(self, focused_widget: Optional[QWidget]) -> bool:
+        if self._is_table_focused(focused_widget):
+            return self._handle_table_space()
+        return False
+
+    def _handle_table_space(self) -> bool:
+        links = self._safe_getattr(self.main_window, "links")
+        if links and hasattr(links, "toggle_quick_look"):
+            self._safe_call(links, "toggle_quick_look")
+            return True
         return False
 
     def _handle_escape_key(self, focused_widget: Optional[QWidget]) -> bool:
@@ -693,7 +707,7 @@ class KeyboardManager(QObject):
         """Handle editing keys."""
         key = event.key()
 
-        if key in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Escape):
+        if key in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Escape, Qt.Key.Key_Space):
             return self.editing_handler.handle_key(event, focused_widget)
 
         return False

@@ -870,7 +870,7 @@ class SettingsDialog(BaseDialog):
             self,
             self.tr("Import theme"),
             "",
-            self.tr("Theme packages (*.zip);;All files (*)"),
+            self.tr("Theme files (*.zip *.qss);;Stylesheets (*.qss);;Theme packages (*.zip);;All files (*)"),
         )
         if not path:
             return

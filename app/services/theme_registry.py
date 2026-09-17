@@ -188,21 +188,23 @@ class ThemeRegistry:
 
         qss_rel = data.get("qss")
         icons_rel = data.get("icons_dir")
-        if not qss_rel or not icons_rel:
-            logger.warning("Theme missing qss or icons_dir in %s", manifest_path)
+        if not qss_rel:
+            logger.warning("Theme missing qss in %s", manifest_path)
             return None
 
         qss_path = self._resolve_safe_path(base_path, qss_rel)
-        icons_dir = self._resolve_safe_path(base_path, icons_rel, require_dir=True)
-        if qss_path is None or icons_dir is None:
-            logger.warning("Theme paths invalid in %s", manifest_path)
-            return None
-        if not qss_path.is_file():
+        if qss_path is None or not qss_path.is_file():
             logger.warning("Theme QSS file missing: %s", qss_path)
             return None
-        if not icons_dir.is_dir():
-            logger.warning("Theme icons dir missing: %s", icons_dir)
-            return None
+
+        base_icons = PathManager.ui_icons_dir() / "base"
+        if not icons_rel or icons_rel == "resources/ui_icons/base":
+            icons_dir = base_icons
+        else:
+            icons_dir = (
+                self._resolve_safe_path(base_path, icons_rel, require_dir=True)
+                or base_icons
+            )
 
         preview_path = None
         preview_rel = data.get("preview")

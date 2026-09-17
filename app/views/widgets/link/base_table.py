@@ -4,7 +4,7 @@
 import logging
 
 from PyQt6.QtCore import QEvent, QModelIndex, QPointF, QRect, QSize, Qt, pyqtProperty, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPalette, QPen, QPolygonF
+from PyQt6.QtGui import QColor, QFont, QIcon, QKeyEvent, QPainter, QPalette, QPen, QPolygonF
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -237,15 +237,6 @@ class TableDelegate(QStyledItemDelegate):
                 event.type() == QEvent.Type.MouseButtonRelease
                 and event.button() == Qt.MouseButton.LeftButton
             ):
-                current_state = index.data(Qt.ItemDataRole.CheckStateRole)
-                new_state = (
-                    Qt.CheckState.Unchecked
-                    if current_state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked)
-                    else Qt.CheckState.Checked
-                )
-                model.setData(index, new_state, Qt.ItemDataRole.CheckStateRole)
-                return True
-            if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Space:
                 current_state = index.data(Qt.ItemDataRole.CheckStateRole)
                 new_state = (
                     Qt.CheckState.Unchecked
@@ -490,6 +481,7 @@ class LinksTableView(
     links_reordered: pyqtSignal = pyqtSignal(
         list
     )  # List[int] - link IDs in the new order
+    quickLookRequested: pyqtSignal = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -629,8 +621,38 @@ class LinksTableView(
             model.dataChanged.connect(self._on_model_data_changed)
         except Exception:
             pass
+        try:
+            model.modelReset.connect(self._on_model_data_changed)
+        except Exception:
+            pass
+        try:
+            model.rowsInserted.connect(self._on_model_data_changed)
+        except Exception:
+            pass
+        try:
+            model.rowsRemoved.connect(self._on_model_data_changed)
+        except Exception:
+            pass
 
-    def _on_model_data_changed(self, top_left, bottom_right, roles=None) -> None:
+    def _on_model_data_changed(self, *args, **kwargs) -> None:
+        try:
+            main_win = self.window()
+            if main_win and hasattr(main_win, "update_group_launch_action_state"):
+                main_win.update_group_launch_action_state()
+        except Exception:
+            pass
+
+    def focusInEvent(self, event) -> None:
+        super().focusInEvent(event)
+        try:
+            main_win = self.window()
+            if main_win and hasattr(main_win, "update_group_launch_action_state"):
+                main_win.update_group_launch_action_state()
+        except Exception:
+            pass
+
+    def focusOutEvent(self, event) -> None:
+        super().focusOutEvent(event)
         try:
             main_win = self.window()
             if main_win and hasattr(main_win, "update_group_launch_action_state"):
@@ -701,6 +723,13 @@ class LinksTableView(
             if viewport is not None:
                 viewport.update()
         event.accept()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+            self.quickLookRequested.emit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     # Override abstract methods from ``BaseDragDropTableWidget``
     def _extract_item_ids_from_items(self, items):
