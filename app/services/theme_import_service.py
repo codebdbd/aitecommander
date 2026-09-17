@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import tempfile
 import zipfile
@@ -41,7 +42,8 @@ class ThemeManifest:
     version: str
     is_dark: bool
     qss_path: Path
-    icons_dir: Path
+    icons_dir: Path | None
+    icon_color: str
     preview_path: Path | None
     root: Path
 
@@ -72,11 +74,16 @@ class ThemeImportService:
 
         with tempfile.TemporaryDirectory(prefix="theme_import_") as temp_dir:
             temp_root = Path(temp_dir)
-            extracted_root = (
-                self._extract_zip(src, temp_root)
-                if src.is_file() and zipfile.is_zipfile(src)
-                else self._copy_from_dir(src, temp_root)
-            )
+            if src.is_file() and src.suffix.lower() == ".qss":
+                extracted_root = self._create_theme_from_qss(src, temp_root)
+            elif src.is_file() and zipfile.is_zipfile(src):
+                extracted_root = self._extract_zip(src, temp_root)
+            elif src.is_dir():
+                extracted_root = self._copy_from_dir(src, temp_root)
+            else:
+                raise ThemeImportError(
+                    f"Theme source is not a valid zip, qss, or directory: {src}"
+                )
 
             manifest = self._validate_theme_root(extracted_root)
             theme_id = manifest.theme_id
@@ -130,6 +137,57 @@ class ThemeImportService:
             shutil.rmtree(theme.origin_path.parent)
         except OSError as exc:
             raise ThemeImportError(f"Failed to remove theme '{theme_id}': {exc}") from exc
+
+    def _create_theme_from_qss(self, src: Path, temp_root: Path) -> Path:
+        raw_stem = src.stem
+        theme_id = re.sub(r"[^a-z0-9_-]", "_", raw_stem.lower()).strip("_")
+        if len(theme_id) < 2:
+            theme_id = f"theme_{theme_id}"
+        theme_id = theme_id[:64]
+        name = raw_stem.replace("_", " ").strip().title() or "Custom Theme"
+
+        try:
+            qss_content = src.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ThemeImportError(f"Failed to read QSS file: {exc}") from exc
+
+        bg_hexes = re.findall(
+            r"background(?:-color)?\s*:\s*#([0-9a-fA-F]{3,6})\b",
+            qss_content,
+            re.IGNORECASE,
+        )
+        is_dark = True
+        if bg_hexes:
+            lums: list[float] = []
+            for h in bg_hexes:
+                h_full = "".join(c * 2 for c in h) if len(h) == 3 else h
+                try:
+                    r = int(h_full[0:2], 16)
+                    g = int(h_full[2:4], 16)
+                    b = int(h_full[4:6], 16)
+                    lums.append((0.299 * r + 0.587 * g + 0.114 * b) / 255.0)
+                except ValueError:
+                    pass
+            if lums:
+                is_dark = (sum(lums) / len(lums)) < 0.5
+
+        icon_color = "#FFFFFF" if is_dark else "#1F2430"
+        dest = temp_root / theme_id
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest / f"{theme_id}.qss")
+        manifest = {
+            "id": theme_id,
+            "name": name,
+            "version": "1.0.0",
+            "is_dark": is_dark,
+            "qss": f"{theme_id}.qss",
+            "icons_dir": "resources/ui_icons/base",
+            "icon_color": icon_color,
+        }
+        (dest / "theme.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return dest
 
     def _extract_zip(self, src: Path, temp_root: Path) -> Path:
         max_zip = int(self._config.get_theme_max_package_size())
@@ -212,15 +270,24 @@ class ThemeImportService:
 
         qss_rel = data.get("qss")
         icons_rel = data.get("icons_dir")
-        if not qss_rel or not icons_rel:
-            raise ThemeValidationError("theme.json: qss and icons_dir are required.")
+        if not qss_rel:
+            raise ThemeValidationError("theme.json: qss is required.")
 
         qss_path = self._resolve_theme_path(root, qss_rel, require_file=True)
-        icons_dir = self._resolve_theme_path(root, icons_rel, require_dir=True)
-        if qss_path is None or icons_dir is None:
-            raise ThemeValidationError("theme.json: invalid qss or icons_dir path.")
+        if qss_path is None:
+            raise ThemeValidationError("theme.json: invalid qss path.")
         if qss_path.suffix.lower() != ".qss":
             raise ThemeValidationError("theme.json: qss must point to a .qss file.")
+
+        icon_color = str(
+            data.get("icon_color", "#FFFFFF" if is_dark else "#1F2430")
+        ).strip()
+        icons_dir = None
+        if icons_rel and icons_rel != "resources/ui_icons/base":
+            icons_dir = self._resolve_theme_path(root, icons_rel, require_dir=True)
+            if icons_dir is None:
+                raise ThemeValidationError("theme.json: invalid icons_dir path.")
+            self._validate_icons(icons_dir)
 
         preview_path = None
         preview_rel = data.get("preview")
@@ -228,7 +295,6 @@ class ThemeImportService:
             preview_path = self._resolve_theme_path(root, preview_rel, require_file=True)
 
         self._validate_allowed_files(root)
-        self._validate_icons(icons_dir)
 
         return ThemeManifest(
             theme_id=theme_id,
@@ -237,6 +303,7 @@ class ThemeImportService:
             is_dark=is_dark,
             qss_path=qss_path,
             icons_dir=icons_dir,
+            icon_color=icon_color,
             preview_path=preview_path,
             root=root,
         )
@@ -284,29 +351,16 @@ class ThemeImportService:
                 )
 
     def _validate_icons(self, icons_dir: Path) -> None:
-        required = self._registry.get_required_icon_names()
-        if not required:
-            raise ThemeValidationError("Base theme icon manifest is empty.")
         allowed_ext = {
             ext.lower() for ext in self._config.get_supported_icon_formats()
         }
-
-        existing: set[str] = set()
         for entry in icons_dir.iterdir():
             if not entry.is_file():
                 continue
             if entry.suffix.lower() not in allowed_ext:
                 continue
-            existing.add(entry.name.lower())
             if not is_valid_icon_file(entry):
                 raise ThemeValidationError(f"Invalid icon file: {entry.name}")
-
-        missing = sorted(required - existing)
-        if missing:
-            preview = ", ".join(missing[:6])
-            raise ThemeValidationError(
-                f"Missing required icons. Examples: {preview}"
-            )
 
     def _generate_unique_id(self, base_id: str) -> str:
         existing_ids = set(self._registry.get_theme_ids())

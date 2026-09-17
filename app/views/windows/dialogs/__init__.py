@@ -24,6 +24,7 @@ __all__ = [
     "ImportBrowserDialog",
     "RestoreDbDialog",
     "FileSearchDialog",
+    "QuickLookDialog",
 ]
 
 
@@ -35,6 +36,7 @@ def __getattr__(name: str) -> Any:
         "ImportBrowserDialog": ".import_browser_dialog",
         "RestoreDbDialog": ".restore_db_dialog",
         "FileSearchDialog": ".file_search_dialog.file_search_dialog",
+        "QuickLookDialog": ".quick_look_dialog",
         "BaseEntityDialog": ".entity_dialogs",
         "SectionDialog": ".entity_dialogs",
         "CategoryDialog": ".entity_dialogs",

@@ -340,6 +340,7 @@ def _assign_controllers_to_window(window: Any, controllers: dict[str, Any]) -> N
     window.database_controller = controllers["database_controller"]
     window.system_dialogs = controllers["system_dialogs"]
     window.app_shutdown = controllers["app_shutdown"]
+    window.links = controllers.get("links")
 
     _setup_links_actions(window, controllers)
     _setup_additional_controllers(window, controllers)

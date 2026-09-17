@@ -262,7 +262,7 @@ class LinkDialogUI:
         hl_name = QHBoxLayout()
         hl_name.addWidget(self.name_le, 1)
 
-        self.icon_btn = QPushButton(tr_common("Icon"))
+        self.icon_btn = QPushButton(f"  {tr_common('Icon')}")
         try:
             default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
@@ -519,7 +519,7 @@ class LinkDialogUI:
                 if name_label is not None:
                     name_label.setText(tr_common("Name:"))
             if hasattr(self, "icon_btn") and self.icon_btn is not None:
-                self.icon_btn.setText(tr_common("Icon"))
+                self.icon_btn.setText(f"  {tr_common('Icon')}")
                 self.adjust_button_width(self.icon_btn)
         except Exception:
             pass
