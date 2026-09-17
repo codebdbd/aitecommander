@@ -23,7 +23,7 @@ def test_theme_stylesheet_service_resolves_icon_urls():
 
     icons_dir = PathManager.ui_icons_dir().as_posix()
     assert icons_dir in qss
-    assert f"{icons_dir}/dark/check.svg" in qss
+    assert f"{icons_dir}/qss_cache/cyberpunk_neon/check.svg" in qss
 
 
 def test_common_qss_contains_checkbox_alignment_rules():

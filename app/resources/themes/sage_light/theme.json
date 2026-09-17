@@ -4,5 +4,6 @@
   "version": "1.0.0",
   "is_dark": false,
   "qss": "resources/qss/sage_light.qss",
-  "icons_dir": "resources/ui_icons/sage_light"
+  "icons_dir": "resources/ui_icons/base",
+  "icon_color": "#6F8F6D"
 }

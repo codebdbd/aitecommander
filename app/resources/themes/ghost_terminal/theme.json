@@ -4,5 +4,6 @@
   "version": "1.0.0",
   "is_dark": true,
   "qss": "resources/qss/ghost_terminal.qss",
-  "icons_dir": "resources/ui_icons/ghost_terminal"
+  "icons_dir": "resources/ui_icons/base",
+  "icon_color": "#39FF88"
 }

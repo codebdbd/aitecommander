@@ -134,7 +134,5 @@ class RotationMixin:
         """Update rotation profiles button text and tooltip based on selection."""
         if btn is None:
             return
-        btn.setText(cls._format_rotation_text(profiles))
+        btn.setText("")
         btn.setToolTip(cls._format_rotation_tooltip(profiles))
-        if dialog and hasattr(dialog, "ui") and hasattr(dialog.ui, "adjust_button_width"):
-            dialog.ui.adjust_button_width(btn)

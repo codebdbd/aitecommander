@@ -4,5 +4,6 @@
   "version": "1.0.0",
   "is_dark": false,
   "qss": "resources/qss/nord_light.qss",
-  "icons_dir": "resources/ui_icons/nord_light"
+  "icons_dir": "resources/ui_icons/base",
+  "icon_color": "#5F88A8"
 }
