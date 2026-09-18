@@ -11,6 +11,11 @@ from PyQt6.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
+from app.models.types.constants import (
+    MAX_NAME_LENGTH,
+    MAX_NOTES_LENGTH,
+    MAX_URL_LENGTH,
+)
 from app.services.links_service import LinksService
 from app.utils.db.api import run_db
 from app.utils.db.db_error_handler import handle_db_error
@@ -644,10 +649,19 @@ class LinksBusinessLogic(QObject):
         url = (data.get("url") or "").strip()
         name = (data.get("name") or "").strip()
 
-        if not url:
+        if not url or len(url) > MAX_URL_LENGTH:
             return None
         if not name:
             name = url
+
+        notes = (data.get("notes") or "").strip()
+        if len(name) > MAX_NAME_LENGTH:
+            if not notes:
+                notes = name
+            name = name[:MAX_NAME_LENGTH].strip()
+        if len(notes) > MAX_NOTES_LENGTH:
+            notes = notes[:MAX_NOTES_LENGTH]
+
         if not validate_link_form_data(name, url, link_type):
             return None
 
@@ -656,7 +670,7 @@ class LinksBusinessLogic(QObject):
             "name": name,
             "url": url,
             "type": link_type,
-            "notes": data.get("notes") or "",
+            "notes": notes,
             "is_favorite": int(data.get("is_favorite") or 0),
             "icon_path": data.get("icon_path") or data.get("icon_name") or "",
             "args": data.get("args") or "",
@@ -733,11 +747,19 @@ class LinksBusinessLogic(QObject):
         Returns:
             The ID of the created link, or ``None`` if creation failed.
         """
-        result_id = self.links.create_or_update_link(link_data)
+        payload = dict(link_data)
+        name = str(payload.get("name") or "").strip()
+        notes = str(payload.get("notes") or "").strip()
+        if len(name) > MAX_NAME_LENGTH:
+            if not notes:
+                notes = name
+            payload["name"] = name[:MAX_NAME_LENGTH].strip()
+            payload["notes"] = notes[:MAX_NOTES_LENGTH]
+        result_id = self.links.create_or_update_link(payload)
         if result_id:
             self._invalidate_cache()
             self.logger.debug(
-                "Created link for import: %s", link_data.get("name", "<no name>")
+                "Created link for import: %s", payload.get("name", "<no name>")
             )
             return result_id
         else:
