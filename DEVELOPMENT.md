@@ -177,7 +177,6 @@ aitecommander/
 │   ├── resources_rc.py               # Скомпилированные ресурсы переводов
 │   ├── i18n.qrc                      # QRC-манифест переводов
 │   ├── locale_utils.py               # Утилиты локали
-│   ├── fix_ts_file.py                # Утилита исправления .ts файлов
 │   ├── app.pro                       # Проект lupdate/lrelease
 │   └── __init__.py
 ├── tests/                            # Тестовый набор (73 файла)
@@ -190,8 +189,7 @@ aitecommander/
 │   ├── build_installer.ps1           # Скрипт сборки инсталлятора Inno Setup
 │   ├── migrate_icons_ico_to_png.py   # Миграция иконок
 │   ├── arch_diag_generate.py         # Генерация арх. диаграмм
-│   ├── audit_translations.py         # Аудит полноты переводов
-│   └── update_ts.py                  # Синхронизация файлов переводов
+│   └── audit_translations.py         # Вспомогательный модуль проверки для тестов
 ├── aitecommander.spec                # PyInstaller .spec
 ├── aitecommander.bat                 # Windows-лаунчер
 ├── pyproject.toml                    # Метаданные проекта и зависимости (hatchling)
