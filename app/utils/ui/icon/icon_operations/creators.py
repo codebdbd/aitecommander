@@ -100,9 +100,9 @@ def _create_tinted_svg_icon(svg_path: str, color_hex: str) -> QIcon:
     """Create high-DPI QIcon from SVG file tinted with the theme color."""
     try:
         raw_svg = Path(svg_path).read_text(encoding="utf-8")
-        if 'fill="' in raw_svg:
-            tinted = re.sub(r'fill="[^"]*"', f'fill="{color_hex}"', raw_svg)
-        else:
+        tinted = re.sub(r'stroke="(?!none")[^"]*"', f'stroke="{color_hex}"', raw_svg)
+        tinted = re.sub(r'fill="(?!none")[^"]*"', f'fill="{color_hex}"', tinted)
+        if 'fill=' not in tinted and 'stroke=' not in tinted:
             tinted = raw_svg.replace("<svg ", f'<svg fill="{color_hex}" ')
         renderer = QSvgRenderer(QByteArray(tinted.encode("utf-8")))
         if not renderer.isValid():
@@ -183,13 +183,13 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
     path_obj = Path(file_path)
 
     if path_obj.suffix.lower() == ".svg":
-        # Special SVG handling
-        try:
-            icon = await _create_svg_icon_async(str(path_obj))
-            if not icon.isNull():
-                return icon
-        except InvalidIconError as exc:
-            logger.debug("Error creating SVG icon from %s: %s", file_path, exc)
+        from app.services.theme_registry import theme_registry
+        from app.utils.ui.icon.path_service import get_current_theme
+        theme = get_current_theme()
+        theme_color = theme_registry.get_theme_icon_color(theme)
+        return await run_in_gui_thread_async(
+            lambda: _create_tinted_svg_icon(str(path_obj), theme_color)
+        )
 
         # Fallback to PNG version of icon
         png_path = path_obj.with_suffix(".png")
@@ -560,6 +560,12 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         # Use fast loading for PNG files with common sizes
         if _should_use_fast_path(path_obj):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
+        elif path_obj.suffix.lower() == ".svg":
+            from app.services.theme_registry import theme_registry
+            from app.utils.ui.icon.path_service import get_current_theme
+            theme = get_current_theme()
+            theme_color = theme_registry.get_theme_icon_color(theme)
+            icon = _create_tinted_svg_icon(icon_path, theme_color)
         else:
             icon = _create_icon_from_file_path(icon_path)
 

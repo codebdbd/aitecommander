@@ -6,11 +6,13 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 
 - **4-level hierarchy** — Spheres, Sections, Categories, Links with drag & drop reordering
 - **5 link types** — Web, File, Folder, Program, Script
+- **macOS-style Quick Look** — Instant Spacebar preview for images, PDF, spreadsheets, DOCX, archives, code, and folders with zoom and navigation
 - **Favorites & Recents** — Quick-access panels in the top bar
 - **Full-text search** — Search by name, URL, notes, and arguments
+- **Group Launch** — Select multiple links with checkboxes and launch them simultaneously
 - **Undo/Redo** — Full undo stack for all operations
 - **Drag & Drop** — Move items between categories and reorder within the tree
-- **16 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, and 11 more bundled presets
+- **17 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, Dreamy Room, and 11 more bundled presets
 - **6 languages** — English, Ukrainian, Russian, French, Spanish, German
 - **40+ keyboard shortcuts** — Fully customizable hotkeys
 - **Browser import** — Import bookmarks from Chrome, Edge, Firefox HTML exports
@@ -23,10 +25,10 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 
 ## Documentation
 
-- [User Guide (Russian)](docs/USER_GUIDE_RU.md) — подробное практическое руководство пользователя
+- [User Guide (Russian)](USER_GUIDE_RU.md) — подробное практическое руководство пользователя
 - [Architecture & Capabilities](CAPABILITIES.md) — техническое описание возможностей и архитектуры
-- [Theme Customization](docs/THEMES.md) — руководство по созданию и установке тем
-- [Development Guide](docs/DEVELOPMENT.md) — руководство для разработчиков
+- [Theme Customization](THEMES.md) — руководство по созданию и установке тем
+- [Development Guide](DEVELOPMENT.md) — руководство для разработчиков
 
 ## Requirements
 

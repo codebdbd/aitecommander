@@ -154,6 +154,52 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         except LinkValidationError as e:
             logger.error("Link validation error: %s", e)
             self._show_error(f"{self.get_message('validation_error')}: {str(e)}")
+        except FileNotFoundError as e:
+            raw_path = target_link.get("url", "")
+            logger.warning("File or folder not found: %s", raw_path)
+            from app.controllers.ui.dialogs import DialogManager
+
+            hint_text = self.get_message("file_not_found_hint")
+            info_text = f"{hint_text}\n\n{raw_path}" if raw_path else hint_text
+            DialogManager.show_info(
+                parent=self.main,
+                title=self.get_message("not_found_title", "File Not Found"),
+                message=self.get_message(
+                    "file_not_found_message",
+                    "The file or folder could not be found on disk.",
+                ),
+                informative_text=info_text,
+                details=str(raw_path) if raw_path else None,
+                silent=True,
+            )
+        except OSError as e:
+            if getattr(e, "winerror", None) in (2, 3):
+                raw_path = target_link.get("url", "")
+                logger.warning(
+                    "File or folder not found (winerror=%s): %s",
+                    getattr(e, "winerror", None),
+                    raw_path,
+                )
+                from app.controllers.ui.dialogs import DialogManager
+
+                hint_text = self.get_message("file_not_found_hint")
+                info_text = f"{hint_text}\n\n{raw_path}" if raw_path else hint_text
+                DialogManager.show_info(
+                    parent=self.main,
+                    title=self.get_message("not_found_title", "File Not Found"),
+                    message=self.get_message(
+                        "file_not_found_message",
+                        "The file or folder could not be found on disk.",
+                    ),
+                    informative_text=info_text,
+                    details=str(raw_path) if raw_path else None,
+                    silent=True,
+                )
+            else:
+                logger.error(
+                    "Error opening link %s: %s", link.get("url", link), e, exc_info=True
+                )
+                self._show_error(f"Failed to open link: {str(e)}")
         except ValueError as e:
             # User-friendly unsafe URL handling without popup errors
             msg = str(e)

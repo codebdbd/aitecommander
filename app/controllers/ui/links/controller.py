@@ -300,7 +300,7 @@ class LinksUIController(QObject):
             )
 
         self._quick_look_dialog.set_link(link)
-        if hasattr(self.main, "geometry"):
+        if hasattr(self.main, "geometry") and not self._quick_look_dialog.isMaximized():
             geom = self.main.geometry()
             qx = geom.x() + (geom.width() - self._quick_look_dialog.width()) // 2
             qy = geom.y() + (geom.height() - self._quick_look_dialog.height()) // 2

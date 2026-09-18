@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **macOS-style Quick Look Dialog (`Space`)**:
+  - Instant preview for table items triggered by pressing `Space`.
+  - Native PDF document viewer powered by `QtPdf` with multi-page navigation (`Page Up`, `Page Down`, `Home`, `End`) and interactive footer switcher (`◀ N / M ▶`).
+  - Rich viewers for spreadsheets (`.xlsx`, `.xlsm`, `.csv`), Word documents (`.docx`), archives (`.zip`, `.jar`, `.whl`, `.apk`), markdown (`.md`), code/text, and images.
+  - Universal zoom system with `Ctrl + Plus`, `Ctrl + Minus`, `Ctrl + 0`, and `Ctrl + MouseWheel`.
+  - Fast "Show in Windows Explorer" shortcut (`Ctrl+E` / `Ctrl+У`) with non-blocking file selection.
+  - Live keyboard navigation (`Up` / `Down`) through links while Quick Look stays open.
+  - Fullscreen / maximize toggle via `F` or `F11` across all keyboard layouts.
+
+### Improved
+- **Delicate Error Handling for Missing Files**:
+  - Replaced loud system chimes with silent notifications and warning cards when files are moved or deleted.
+
 ---
 
 ## [1.1.8] - 2026-09-08

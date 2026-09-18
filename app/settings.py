@@ -133,3 +133,17 @@ class AppSettings:
             return
         self._qs.setValue("Tree/LastItemType", item_type)
         self._qs.setValue("Tree/LastItemId", int(item_id))
+
+    def get_last_sphere_id(self) -> int | None:
+        """Return last selected sphere id if saved."""
+        raw = self._qs.value("Sphere/LastSphereId")
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            return None
+        val = self._as_int(raw, -1, "Sphere/LastSphereId")
+        return val if val > 0 else None
+
+    def set_last_sphere_id(self, sphere_id: int) -> None:
+        """Persist last selected sphere id."""
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
+            return
+        self._qs.setValue("Sphere/LastSphereId", int(sphere_id))

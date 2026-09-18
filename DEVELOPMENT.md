@@ -1,6 +1,6 @@
 # Разработка Aite Commander
 
-Руководство для разработчиков PyQt6-приложения **Aite Commander** — менеджера закладок с 4-уровневой иерархией, 6 темами и 6 языками.
+Руководство для разработчиков PyQt6-приложения **Aite Commander** — менеджера закладок с 4-уровневой иерархией, 17 темами и 6 языками.
 
 ## Архитектура проекта
 
@@ -31,7 +31,7 @@ aitecommander/
 │   │   ├── workers/                  # base_worker, backup, bad_url_check, export,
 │   │   │                             #   icon_refresh, import, initialization
 │   │   ├── base/                     # db_base.py, db_connection_protocol.py
-│   │   ├── migrations/               # SQL/Python миграции (0001_init.sql — 0006_add_favorite_position_index.py)
+│   │   ├── migrations/               # SQL/Python миграции (0001_init.sql — 0009_add_group_launch.py)
 │   │   ├── protocols/                # bulk_operations.py
 │   │   ├── types/                    # link_type, link_types, category_types, constants
 │   │   ├── utils/                    # link_validators, link_bulk_upsert_service, structure_stats

@@ -32,6 +32,13 @@ _LINKS_MESSAGES = {
     ),
     "unsafe_url_hint": QT_TRANSLATE_NOOP("LinksUI", "Check the link address or edit it."
     ),
+    "not_found_title": QT_TRANSLATE_NOOP("LinksUI", "File Not Found"),
+    "file_not_found_message": QT_TRANSLATE_NOOP(
+        "LinksUI", "The file or folder could not be found on disk."
+    ),
+    "file_not_found_hint": QT_TRANSLATE_NOOP(
+        "LinksUI", "The file may have been moved, renamed, or deleted."
+    ),
 }
 
 

@@ -255,7 +255,50 @@ class StructureUIController(QObject):
     def switch_sphere(
         self, sphere_id: int, item_to_select: tuple[str, int] | None = None
     ) -> None:
+        if item_to_select is None and getattr(self.main, "_first_structure_load", False):
+            sphere_id, item_to_select = self._resolve_initial_sphere_and_selection(sphere_id)
         self.item_ops.switch_sphere(sphere_id, item_to_select=item_to_select)
+
+    def _resolve_initial_sphere_and_selection(
+        self, fallback_sphere_id: int
+    ) -> tuple[int, tuple[str, int] | None]:
+        """Resolve the sphere and tree item to restore on initial startup."""
+        settings = getattr(self.main, "settings", None)
+        if not settings:
+            return fallback_sphere_id, None
+
+        saved_item: tuple[str, int] | None = None
+        if hasattr(settings, "get_last_tree_selection"):
+            try:
+                saved_item = settings.get_last_tree_selection()
+            except Exception:
+                saved_item = None
+
+        if saved_item:
+            item_type, item_id = saved_item
+            try:
+                db = getattr(self.business, "db", None)
+                if db:
+                    if item_type == "category" and hasattr(db, "categories"):
+                        hier = db.categories.get_category_hierarchy(int(item_id))
+                        if hier and isinstance(hier.get("sphere_id"), int):
+                            return int(hier["sphere_id"]), saved_item
+                    elif item_type == "section" and hasattr(db, "sections"):
+                        sec = db.sections.get_section_by_id(int(item_id))
+                        if sec and isinstance(sec.get("sphere_id"), int):
+                            return int(sec["sphere_id"]), saved_item
+            except Exception as e:
+                logger.debug("Failed to resolve sphere for saved tree item %s #%s: %s", item_type, item_id, e)
+
+        if hasattr(settings, "get_last_sphere_id"):
+            try:
+                saved_sphere = settings.get_last_sphere_id()
+                if isinstance(saved_sphere, int) and saved_sphere > 0:
+                    return int(saved_sphere), None
+            except Exception:
+                pass
+
+        return fallback_sphere_id, None
 
     def switch_to_next_sphere(self) -> None:
         """Switch to the next sphere using business logic."""

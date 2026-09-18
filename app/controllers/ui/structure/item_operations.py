@@ -141,6 +141,9 @@ class ItemOperations(QObject):
             pass
 
         self.business.set_current_sphere(sphere_id)
+        settings = getattr(self.main, "settings", None)
+        if settings and hasattr(settings, "set_last_sphere_id"):
+            settings.set_last_sphere_id(int(sphere_id))
         # Do not clear the model immediately: wait for structure_loaded to avoid empty tree
         # and artifacts on double clicks/fast switching.
         # Further loading is initiated by business.on_active_sphere_changed handler,
