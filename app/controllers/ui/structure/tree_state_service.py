@@ -18,6 +18,11 @@ class TreeStateService(QObject):
         self._controller = controller
         self._tree = tree
         self._model = model
+        try:
+            self._tree.expanded.connect(self._on_expansion_changed)
+            self._tree.collapsed.connect(self._on_expansion_changed)
+        except Exception:
+            pass
 
     # --- Save/restore expansion ---
     def capture_expanded_state(self) -> dict[tuple[str, int], bool]:
@@ -48,6 +53,46 @@ class TreeStateService(QObject):
             logger.exception(
                 "TreeStateService.restore_expanded_state: failed to restore expanded state"
             )
+
+    def save_expanded_state(self, sphere_id: int) -> None:
+        """Persist currently expanded section IDs for sphere to settings."""
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
+            return
+        main_win = getattr(self._controller, "main", None)
+        settings = getattr(main_win, "settings", None)
+        if not settings or not hasattr(settings, "set_expanded_sections"):
+            return
+        expanded = self.capture_expanded_state()
+        section_ids = {
+            item_id
+            for (item_type, item_id), is_exp in expanded.items()
+            if item_type == "section" and is_exp
+        }
+        settings.set_expanded_sections(sphere_id, section_ids)
+
+    def load_saved_expanded_state(
+        self, sphere_id: int
+    ) -> dict[tuple[str, int], bool]:
+        """Load saved expanded state from settings for sphere."""
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
+            return {}
+        main_win = getattr(self._controller, "main", None)
+        settings = getattr(main_win, "settings", None)
+        if not settings or not hasattr(settings, "get_expanded_sections"):
+            return {}
+        saved_ids = settings.get_expanded_sections(sphere_id)
+        return {("section", sid): True for sid in saved_ids}
+
+    def _on_expansion_changed(self, index: QModelIndex) -> None:
+        try:
+            sb = getattr(self._controller, "business", None) or getattr(
+                self._controller, "structure_business", None
+            )
+            sphere_id = getattr(sb, "current_sphere_id", None) if sb else None
+            if isinstance(sphere_id, int) and sphere_id > 0:
+                self.save_expanded_state(sphere_id)
+        except Exception:
+            pass
 
     # --- Selection ---
     def capture_current_selection(self) -> tuple[str, int] | None:

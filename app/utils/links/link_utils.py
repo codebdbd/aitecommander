@@ -1157,7 +1157,6 @@ class ProgramLinkHandler(LinkHandler):
             self.logger.error("Failed to launch program %s: %s", link_info.path, e)
             raise
 
-
 class LinkOpener:
     """Main class for opening various types of links"""
 
@@ -1228,6 +1227,7 @@ class LinkOpener:
 
         if not isinstance(link_info.link_type, LinkType):
             raise ValueError(f"Incorrect link type: {link_info.link_type}")
+
 
         # Defense-in-depth: auto-correct link_type for known virtual/WIndows paths.
         # If the actual path content clearly indicates a different type (e.g. AUMID stored as FILE),
@@ -1398,7 +1398,7 @@ def get_link_type_from_path(path: str) -> LinkType:
             ext = Path(path).suffix.lower()
             if ext in (".ps1", ".py", ".pyw", ".bat", ".cmd", ".sh"):
                 return LinkType.SCRIPT
-            elif ext in (".exe", ".msi", ".app"):
+            elif ext in (".exe", ".msi", ".app", ".lnk"):
                 return LinkType.PROGRAM
             else:
                 return LinkType.FILE

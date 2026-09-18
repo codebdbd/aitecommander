@@ -103,3 +103,17 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Geometry & Error Handling Rules**:
   1. **Персистентность геометрии**: Сохранение геометрии ведётся строго в `QSettings` (`quick_look_geometry`) при `closeEvent` и восстанавливается через `restoreGeometry()`. Запрещено убирать сохранение геометрии.
   2. **Деликатная обработка ошибок**: При отсутствии файла на диске диалог отображает информационную карточку ошибки в стеке страниц. Запрещено выбрасывать модальные `QMessageBox` или вызывать системные звуковые сигналы.
+
+## 11. Architecture Standards: Startup Preload & Spheres Bar (МГНОВЕННЫЙ СТАРТ ПАНЕЛИ СФЕР)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Порядок инициализации панели сфер и предзагрузки зафиксирован для исключения задержек (pop-in / flicker).
+- **Strict Startup Preload Rules**:
+  1. **Синхронная предзагрузка сфер**: В `SpheresBarController.init()` сферы загружаются синхронно через `sb.get_spheres()` (<0.2 мс) и немедленно отрисовываются через `self.on_spheres_loaded_ui(spheres)` до вызова `window.show()`. Асинхронный вызов `sb.load_spheres_async()` используется строго как fallback при пустом результате.
+  2. **Запрет на откладывание инициализации**: В `WindowInitializer._initialize_spheres()` запрещено откладывать инициализацию сфер через `QTimer.singleShot(0, ...)` при видимости окна — кнопки обязаны быть созданы синхронно на шаге `AFTER_DB_STEP_CONFIG`.
+
+## 12. Architecture Standards: Structure Tree State & Expansion (СОХРАНЕНИЕ СОСТОЯНИЯ ДЕРЕВА)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Механизм сохранения состояния свернутости/развернутости разделов и выбора элементов дерева зафиксирован.
+- **Strict Expansion & Selection Rules**:
+  1. **Персистентность раскрытых разделов**: Состояние раскрытых разделов сохраняется в `QSettings` (`Tree/ExpandedSections_{sphere_id}`) при сигналах дерева `expanded`/`collapsed` и восстанавливается при `initial_load` через `TreeManagement._after_snapshot_applied` -> `TreeStateService.restore_expanded_state()`. Запрещено обнулять `expanded_state` на старте.
+  2. **Запрет на принудительное раскрытие разделов**: В `SelectionWorkflowService.restore_selection_after_load` строго запрещено вызывать `self._tree.expand(index)` при выборе раздела (`item_type == "section"`). Выбор раздела отображает его плитки в правой панели, но обязан сохранять свернутое или развернутое состояние ветки в дереве без изменений.
+  3. **Раскрытие только предков для дочерних категорий**: Автоматическое раскрытие (`_expand_index_path` / `expand(parent_index)`) разрешено строго для родительских узлов при выборе дочерней категории, чтобы обеспечить видимость выбранного элемента в иерархии.
+

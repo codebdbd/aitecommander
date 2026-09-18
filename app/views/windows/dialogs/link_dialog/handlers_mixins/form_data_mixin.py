@@ -30,6 +30,11 @@ class FormDataMixin:
         except Exception:
             collected_args = self.dialog._get_args_le().text().strip()
 
+        admin_chk = getattr(self.dialog, "_get_run_as_admin_chk", lambda: None)()
+        if admin_chk and admin_chk.isVisible() and admin_chk.isChecked():
+            if "--run-as-admin" not in collected_args:
+                collected_args = f"--run-as-admin {collected_args}".strip()
+
         collected_link_id = self.dialog.link.get("id") if self.dialog.link else None
 
         logger.debug("_collect_form_data: collected name from UI='%s'", collected_name)

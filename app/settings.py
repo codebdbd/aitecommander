@@ -147,3 +147,19 @@ class AppSettings:
         if not isinstance(sphere_id, int) or sphere_id <= 0:
             return
         self._qs.setValue("Sphere/LastSphereId", int(sphere_id))
+
+    def get_expanded_sections(self, sphere_id: int) -> set[int]:
+        """Return set of expanded section IDs for a sphere."""
+        raw = self._qs.value(f"Tree/ExpandedSections_{sphere_id}", "")
+        if not raw or not isinstance(raw, str):
+            return set()
+        try:
+            return {int(x) for x in raw.split(",") if x.strip()}
+        except Exception:
+            return set()
+
+    def set_expanded_sections(self, sphere_id: int, section_ids: set[int]) -> None:
+        """Persist expanded section IDs for a sphere."""
+        raw = ",".join(str(i) for i in sorted(section_ids))
+        self._qs.setValue(f"Tree/ExpandedSections_{sphere_id}", raw)
+
