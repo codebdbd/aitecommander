@@ -10,12 +10,13 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
+from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.protocols import WidgetConfigProtocol
 
 logger = logging.getLogger(__name__)
 
 
-class QuickAddPanelWidget(BaseTopPanelWidget):
+class QuickAddPanelWidget(BaseTopPanelWidget, ReTranslatable):
     """Dedicated widget for quick add panel functionality."""
 
     def __init__(
@@ -42,8 +43,10 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
         # Set object names for styling
         self.setObjectName("quickAddPanel")
         self.bg_frame.setObjectName("quickAddPanelBg")
+        self._buttons: dict[str, QToolButton] = {}
         # Setup quick add buttons immediately
         self._setup_quick_buttons()
+        ReTranslatable.__init__(self, auto_connect=True, call_retranslate=False)
 
     def set_data(self, items: list) -> None:
         """Apply the common panel contract by rebuilding quick buttons."""
@@ -98,6 +101,7 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
         ih = max(1, min(ih, bh))
         quick_type_tooltips = app_config.settings.get_quick_type_tooltips()
 
+        self._buttons.clear()
         for code, icon_name, tooltip in quick_types:
             btn = QToolButton()
             btn.setObjectName("quickButton")
@@ -118,6 +122,14 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
 
             # Add to layout
             self.panel_layout.addWidget(btn)
+            self._buttons[code] = btn
+
+    def retranslateUi(self) -> None:
+        """Update quick add button tooltips when language changes."""
+        quick_type_tooltips = app_config.settings.get_quick_type_tooltips()
+        for code, btn in self._buttons.items():
+            if code in quick_type_tooltips:
+                btn.setToolTip(quick_type_tooltips[code])
 
     def _handle_quick_add(self, link_type: str) -> None:
         """Handles quick add button click."""
