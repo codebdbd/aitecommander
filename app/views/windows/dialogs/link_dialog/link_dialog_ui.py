@@ -12,6 +12,7 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
+    QComboBox,
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
@@ -60,6 +61,9 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Incognito")
     QCoreApplication.translate("LinkDialogUI", "New window")
     QCoreApplication.translate("LinkDialogUI", "Guest mode")
+    QCoreApplication.translate("LinkDialogUI", "Run as administrator")
+    QCoreApplication.translate("LinkDialogUI", "Keep console open")
+    QCoreApplication.translate("LinkDialogUI", "Administrator + Keep open")
 
 # lupdate hint for Chrome rotation labels
 if False:  # pragma: no cover
@@ -284,12 +288,24 @@ class LinkDialogUI:
         (QT_TRANSLATE_NOOP("LinkDialogUI", "Guest mode"),         "--guest"),
     ]
 
+    _SCRIPT_ARG_PRESETS = [
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Default"),                    ""),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Run as administrator"),       "--run-as-admin"),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Keep console open"),          "--keep-open"),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Administrator + Keep open"),  "--run-as-admin --keep-open"),
+    ]
+
+    _PROGRAM_ARG_PRESETS = [
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Default"),                    ""),
+        (QT_TRANSLATE_NOOP("LinkDialogUI", "Run as administrator"),       "--run-as-admin"),
+    ]
+
     def _form_add_args_row(self) -> None:
         """Add row for launch arguments.
 
         Uses a QStackedWidget with two pages:
-        - index 0: editable QComboBox with browser flag presets (Web links)
-        - index 1: plain QLineEdit (Program / Script links)
+        - index 0: non-editable QComboBox with browser flag presets (Web links)
+        - index 1: editable QComboBox with preset flags and free text input (Program / Script links)
         """
         self.args_label = QLabel(
             QCoreApplication.translate("LinkDialogUI", "Arguments:")
@@ -302,19 +318,40 @@ class LinkDialogUI:
             translated = QCoreApplication.translate("LinkDialogUI", label)
             self.args_cb.addItem(translated, userData=value)
 
-        # Program / Script: plain text
-        self.args_le = QLineEdit()
+        # Program / Script: editable PopupComboBox with presets and free text input
+        self.args_prog_cb = PopupComboBox()
+        self.args_prog_cb.setEditable(True)
+        self.args_prog_cb.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.args_prog_cb.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.args_le = self.args_prog_cb.lineEdit()
+
+        # Populate initial presets for Script/Program
+        for label, value in self._SCRIPT_ARG_PRESETS:
+            translated = QCoreApplication.translate("LinkDialogUI", label)
+            self.args_prog_cb.addItem(translated, userData=value)
+        self.args_prog_cb.setCurrentIndex(0)
+        self.args_le.clear()
+
+        # When user selects an item from dropdown, set its preset value into the lineEdit
+        def _on_prog_preset_activated(index: int) -> None:
+            if 0 <= index < self.args_prog_cb.count():
+                val = self.args_prog_cb.itemData(index)
+                if val is not None:
+                    self.args_le.setText(str(val))
+
+        self.args_prog_cb.activated.connect(_on_prog_preset_activated)
 
         self.args_stack = QStackedWidget()
-        self.args_stack.addWidget(self.args_cb)   # index 0 → Web
-        self.args_stack.addWidget(self.args_le)   # index 1 → Program/Script
+        self.args_stack.addWidget(self.args_cb)        # index 0 → Web
+        self.args_stack.addWidget(self.args_prog_cb)   # index 1 → Program/Script
 
         self.form.addRow(self.args_label, self.args_stack)
         self.widgets.update({
-            "args_le":    self.args_le,
-            "args_cb":    self.args_cb,
-            "args_stack": self.args_stack,
-            "args_label": self.args_label,
+            "args_le":      self.args_le,
+            "args_cb":      self.args_cb,
+            "args_prog_cb": self.args_prog_cb,
+            "args_stack":   self.args_stack,
+            "args_label":   self.args_label,
         })
 
 
@@ -525,12 +562,32 @@ class LinkDialogUI:
             pass
 
     def _retranslate_args_row(self):
-        """Retranslate arguments row label."""
+        """Retranslate arguments row label and preset options."""
         try:
             if hasattr(self, "args_label") and self.args_label is not None:
                 self.args_label.setText(
                     QCoreApplication.translate("LinkDialogUI", "Arguments:")
                 )
+            if hasattr(self, "args_cb") and self.args_cb is not None:
+                for idx, (label, _) in enumerate(self._WEB_ARG_PRESETS):
+                    if idx < self.args_cb.count():
+                        self.args_cb.setItemText(
+                            idx, QCoreApplication.translate("LinkDialogUI", label)
+                        )
+            if hasattr(self, "args_prog_cb") and self.args_prog_cb is not None:
+                current_text = self.args_prog_cb.lineEdit().text()
+                # Determine current presets list by count
+                presets = (
+                    self._SCRIPT_ARG_PRESETS
+                    if self.args_prog_cb.count() == len(self._SCRIPT_ARG_PRESETS)
+                    else self._PROGRAM_ARG_PRESETS
+                )
+                for idx, (label, _) in enumerate(presets):
+                    if idx < self.args_prog_cb.count():
+                        self.args_prog_cb.setItemText(
+                            idx, QCoreApplication.translate("LinkDialogUI", label)
+                        )
+                self.args_prog_cb.lineEdit().setText(current_text)
         except Exception:
             pass
 

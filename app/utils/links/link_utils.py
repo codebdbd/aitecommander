@@ -829,6 +829,16 @@ class ScriptLinkHandler(LinkHandler):
             )
             raise ValueError(f"Invalid script arguments: {e}") from e
 
+        admin_flags = {"--run-as-admin", "--admin"}
+        run_as_admin = any(a in admin_flags for a in arg_list)
+        if run_as_admin:
+            arg_list = [a for a in arg_list if a not in admin_flags]
+
+        if "--keep-open" in arg_list:
+            arg_list = [a for a in arg_list if a != "--keep-open"]
+            self._batch_keep_open = True
+            self._ps_keep_open = True
+
         script_handlers = {
             ".ps1": self._create_powershell_command,
             ".py": self._create_python_command,
@@ -840,13 +850,18 @@ class ScriptLinkHandler(LinkHandler):
 
         handler = script_handlers.get(ext)
         try:
+            cwd = str(path.parent.resolve())
+            if run_as_admin and platform.system() == "Windows":
+                self._open_as_admin(script_path_str, ext, arg_list, cwd=cwd)
+                self.logger.info("Successfully launched script as admin: %s", script_path_str)
+                return
+
             if handler:
                 cmd = handler(script_path_str, arg_list)
                 if not cmd:
                     # Command handled directly (e.g. via os.startfile fallback)
                     return
                 flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
-                cwd = str(path.parent.resolve())
                 if isinstance(cmd, str):
                     subprocess.Popen(cmd, shell=True, creationflags=flags, cwd=cwd)
                 else:
@@ -1022,6 +1037,30 @@ class ScriptLinkHandler(LinkHandler):
             )
         return [bash_exe, path] + args
 
+    def _open_as_admin(self, script_path: str, ext: str, args: list[str], cwd: str) -> None:
+        """Launches script with elevated administrator privileges via Windows UAC."""
+        import ctypes
+
+        arg_str = " ".join(f'"{a}"' if " " in a else a for a in args)
+        if ext in (".bat", ".cmd"):
+            flag = "/k" if self._batch_keep_open else "/c"
+            params = f'{flag} ""{script_path}"" {arg_str}'.strip()
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+        elif ext == ".ps1":
+            ps_flag = "-NoExit " if self._ps_keep_open else ""
+            params = f'{ps_flag}-ExecutionPolicy Bypass -File "{script_path}" {arg_str}'.strip()
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", self.powershell_path, params, cwd, 1)
+        elif ext in (".py", ".pyw"):
+            python_exe = self._resolve_python_executable(script_path, windowed=(ext == ".pyw")) or sys.executable
+            params = f'"{script_path}" {arg_str}'.strip()
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", python_exe, params, cwd, 1)
+        else:
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", script_path, arg_str, cwd, 1)
+
+        # Ret <= 32 indicates an error in ShellExecuteW; 1223 = ERROR_CANCELLED (user clicked 'No' in UAC)
+        if ret <= 32 and ret != 1223:
+            raise OSError(f"ShellExecuteW runas failed with error code {ret}")
+
 
 class ProgramLinkHandler(LinkHandler):
     """Program handler"""
@@ -1088,7 +1127,22 @@ class ProgramLinkHandler(LinkHandler):
                     )
                     raise ValueError(f"Invalid program arguments: {e}") from e
 
+            admin_flags = {"--run-as-admin", "--admin"}
+            run_as_admin = any(a in admin_flags for a in arg_list)
+            if run_as_admin:
+                arg_list = [a for a in arg_list if a not in admin_flags]
+
             work_dir = str(Path(link_info.path).parent.resolve())
+            if run_as_admin and platform.system() == "Windows":
+                import ctypes
+
+                arg_str = " ".join(f'"{a}"' if " " in a else a for a in arg_list)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", link_info.path, arg_str, work_dir, 1)
+                if ret <= 32 and ret != 1223:
+                    raise OSError(f"ShellExecuteW runas failed with error code {ret}")
+                self.logger.info("Successfully launched program as admin: %s", link_info.path)
+                return
+
             subprocess.Popen([link_info.path] + arg_list, cwd=work_dir)
             self.logger.info(
                 "Successfully launched program: %s",
