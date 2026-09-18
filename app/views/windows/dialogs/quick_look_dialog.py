@@ -6,6 +6,7 @@ import html
 import logging
 import os
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime
@@ -550,7 +551,6 @@ class QuickLookDialog(BaseDialog):
             path_str = path_str[8:]
         p = Path(path_str)
         if p.exists():
-            import sys
             try:
                 if sys.platform == "win32":
                     subprocess.Popen(["explorer.exe", f"/select,{p.resolve()}"])
@@ -594,6 +594,7 @@ class QuickLookDialog(BaseDialog):
             self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
 
     def set_link(self, link: dict[str, Any]) -> None:
+        self._cleanup_context_menus()
         self._apply_preview_theme()
         self._current_link = link
         name = str(link.get("name") or self.tr("Untitled"))
@@ -966,8 +967,8 @@ class QuickLookDialog(BaseDialog):
                 if "xl/sharedStrings.xml" in z.namelist():
                     ss_tree = ET.fromstring(z.read("xl/sharedStrings.xml"))
                     for si in ss_tree.iter():
-                        if si.tag.endswith("}si"):
-                            texts = [t.text for t in si.iter() if t.tag.endswith("}t") and t.text]
+                        if si.tag.endswith("}si") or si.tag == "si":
+                            texts = [t.text for t in si.iter() if (t.tag.endswith("}t") or t.tag == "t") and t.text]
                             shared_strings.append("".join(texts))
 
                 sheet_name = "xl/worksheets/sheet1.xml"
@@ -980,10 +981,10 @@ class QuickLookDialog(BaseDialog):
                 sheet_tree = ET.fromstring(z.read(sheet_name))
                 rows: list[list[str]] = []
                 for row_el in sheet_tree.iter():
-                    if row_el.tag.endswith("}row"):
+                    if row_el.tag.endswith("}row") or row_el.tag == "row":
                         row_dict: dict[int, str] = {}
                         for c_el in row_el.iter():
-                            if c_el.tag.endswith("}c"):
+                            if c_el.tag.endswith("}c") or c_el.tag == "c":
                                 ref = c_el.attrib.get("r", "")
                                 col_letters = "".join(filter(str.isalpha, ref)).upper()
                                 c_idx = 0
@@ -995,11 +996,15 @@ class QuickLookDialog(BaseDialog):
                                 val = ""
                                 if cell_type == "inlineStr":
                                     val = "".join(
-                                        t.text for t in c_el.iter() if t.tag.endswith("}t") and t.text
+                                        t.text for t in c_el.iter() if (t.tag.endswith("}t") or t.tag == "t") and t.text
                                     )
                                 else:
-                                    v_el = next((child for child in c_el if child.tag.endswith("}v")), None)
+                                    v_el = next((child for child in c_el if child.tag.endswith("}v") or child.tag == "v"), None)
                                     raw_val = v_el.text if v_el is not None and v_el.text else ""
+                                    if not raw_val:
+                                        f_el = next((child for child in c_el if child.tag.endswith("}f") or child.tag == "f"), None)
+                                        if f_el is not None and f_el.text:
+                                            raw_val = f"={f_el.text}"
                                     if cell_type == "s" and raw_val.isdigit():
                                         idx = int(raw_val)
                                         val = shared_strings[idx] if idx < len(shared_strings) else raw_val
@@ -1622,159 +1627,80 @@ class QuickLookDialog(BaseDialog):
                     self._zoom_out()
                 return True
         elif event.type() == event.Type.KeyPress:
-            key = event.key()
-            modifiers = event.modifiers()
-            if key in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
-                self.close()
-                return True
-            elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                self._handle_open()
-                return True
-            elif key in (Qt.Key.Key_F, Qt.Key.Key_F11) or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x46:
-                self._toggle_fullscreen()
-                return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and (
-                key == Qt.Key.Key_C or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x43
-            ):
-                if self._stack.currentWidget() == self._table_view and self._copy_table_selection():
-                    return True
-                if self._stack.currentWidget() == self._text_page and self._text_edit.textCursor().hasSelection():
-                    self._text_edit.copy()
-                    return True
-                self._handle_copy_path()
-                return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and (
-                key == Qt.Key.Key_A or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x41
-            ):
-                if self._stack.currentWidget() == self._table_view:
-                    self._table_view.selectAll()
-                    return True
-                if self._stack.currentWidget() == self._text_page:
-                    self._text_edit.selectAll()
-                    return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and (
-                key == Qt.Key.Key_E
-                or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x45
-            ):
-                self._handle_reveal_in_explorer()
-                return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
-                self._zoom_in()
-                return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and key == Qt.Key.Key_Minus:
-                self._zoom_out()
-                return True
-            elif modifiers == Qt.KeyboardModifier.ControlModifier and key == Qt.Key.Key_0:
-                self._zoom_reset()
-                return True
-            elif key == Qt.Key.Key_PageUp:
-                if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
-                    self._pdf_prev_page()
-                    return True
-            elif key == Qt.Key.Key_PageDown:
-                if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
-                    self._pdf_next_page()
-                    return True
-            elif key == Qt.Key.Key_Home:
-                if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
-                    self._pdf_first_page()
-                    return True
-            elif key == Qt.Key.Key_End:
-                if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
-                    self._pdf_last_page()
-                    return True
-            elif key in (Qt.Key.Key_Down, Qt.Key.Key_Up):
-                if self._on_navigate_callback:
-                    self._on_navigate_callback(1 if key == Qt.Key.Key_Down else -1)
+            if self._handle_key_event(event):
                 return True
         return super().eventFilter(obj, event)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def _handle_key_event(self, event: QKeyEvent) -> bool:
         key = event.key()
         modifiers = event.modifiers()
         if key in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
             self.close()
-            event.accept()
-            return
+            return True
         elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._handle_open()
-            event.accept()
-            return
+            return True
         elif key in (Qt.Key.Key_F, Qt.Key.Key_F11) or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x46:
             self._toggle_fullscreen()
-            event.accept()
-            return
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and (
             key == Qt.Key.Key_C or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x43
         ):
             if self._stack.currentWidget() == self._table_view and self._copy_table_selection():
-                event.accept()
-                return
+                return True
             if self._stack.currentWidget() == self._text_page and self._text_edit.textCursor().hasSelection():
                 self._text_edit.copy()
-                event.accept()
-                return
+                return True
             self._handle_copy_path()
-            event.accept()
-            return
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and (
             key == Qt.Key.Key_A or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x41
         ):
             if self._stack.currentWidget() == self._table_view:
                 self._table_view.selectAll()
-                event.accept()
-                return
+                return True
             if self._stack.currentWidget() == self._text_page:
                 self._text_edit.selectAll()
-                event.accept()
-                return
+                return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and (
             key == Qt.Key.Key_E
             or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x45
         ):
             self._handle_reveal_in_explorer()
-            event.accept()
-            return
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
             self._zoom_in()
-            event.accept()
-            return
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and key == Qt.Key.Key_Minus:
             self._zoom_out()
-            event.accept()
-            return
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and key == Qt.Key.Key_0:
             self._zoom_reset()
-            event.accept()
-            return
+            return True
         elif key == Qt.Key.Key_PageUp:
             if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
                 self._pdf_prev_page()
-                event.accept()
-                return
+                return True
         elif key == Qt.Key.Key_PageDown:
             if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
                 self._pdf_next_page()
-                event.accept()
-                return
+                return True
         elif key == Qt.Key.Key_Home:
             if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
                 self._pdf_first_page()
-                event.accept()
-                return
+                return True
         elif key == Qt.Key.Key_End:
             if _HAS_PDF and self._stack.currentWidget() == self._pdf_view:
                 self._pdf_last_page()
-                event.accept()
-                return
-        elif key == Qt.Key.Key_Down:
+                return True
+        elif key in (Qt.Key.Key_Down, Qt.Key.Key_Up):
             if self._on_navigate_callback:
-                self._on_navigate_callback(1)
-            event.accept()
-            return
-        elif key == Qt.Key.Key_Up:
-            if self._on_navigate_callback:
-                self._on_navigate_callback(-1)
+                self._on_navigate_callback(1 if key == Qt.Key.Key_Down else -1)
+            return True
+        return False
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if self._handle_key_event(event):
             event.accept()
             return
         super().keyPressEvent(event)
