@@ -19,11 +19,8 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
 from app.views.windows.dialogs.base_dialog import BaseDialog
 
-_TR_CONTEXT = "AsyncOperationDialog"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("AsyncOperationDialog", text, disambiguation)
 
 
 _DEFAULT_TITLE = None

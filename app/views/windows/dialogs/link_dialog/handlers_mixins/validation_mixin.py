@@ -7,11 +7,8 @@ from PyQt6.QtCore import QCoreApplication
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "ValidationMixin"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("ValidationMixin", text, disambiguation)
 
 
 # Reusable field labels for messaging/focus handling

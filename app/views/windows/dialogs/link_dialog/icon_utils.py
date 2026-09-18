@@ -21,13 +21,6 @@ from app.utils.ui.icon.loading_service import icon_loading_service
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "LinkDialogIconUtils"
-
-
-def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
-
-
 class IconErrorKind(Enum):
     NOT_FOUND = "not_found"
     INVALID_PATH = "invalid_path"
@@ -58,7 +51,7 @@ def make_icon_result(
             None,
             IconErrorKind.INVALID_PATH,
             None,
-            _tr("Icon path is empty"),
+            QCoreApplication.translate("LinkDialogIconUtils", "Icon path is empty"),
         )
 
     try:
@@ -70,7 +63,7 @@ def make_icon_result(
             None,
             IconErrorKind.UNEXPECTED_ERROR,
             exc,
-            _tr("Unexpected error: {error}").format(error=exc),
+            QCoreApplication.translate("LinkDialogIconUtils", "Unexpected error: {error}").format(error=exc),
         )
 
     if not resolved:
@@ -80,7 +73,7 @@ def make_icon_result(
             None,
             IconErrorKind.NOT_FOUND,
             None,
-            _tr("Icon not found: {path}").format(path=sanitized),
+            QCoreApplication.translate("LinkDialogIconUtils", "Icon not found: {path}").format(path=sanitized),
         )
 
     icon = icon_loading_service.get_path_icon(resolved)
@@ -91,7 +84,7 @@ def make_icon_result(
             Path(resolved),
             IconErrorKind.NOT_FOUND,
             None,
-            _tr("Icon not found: {path}").format(path=sanitized),
+            QCoreApplication.translate("LinkDialogIconUtils", "Icon not found: {path}").format(path=sanitized),
         )
 
     return IconResult(True, icon, Path(resolved), None, None, "")

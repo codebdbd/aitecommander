@@ -30,13 +30,6 @@ from app.views.windows.dialogs.base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "InstalledAppsDialog"
-
-
-def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
-
-
 # lupdate hints for InstalledAppsDialog
 if False:  # pragma: no cover
     QCoreApplication.translate("InstalledAppsDialog", "Select Installed Application")
@@ -106,7 +99,7 @@ class InstalledAppsDialog(BaseDialog):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("InstalledAppsDialog")
-        self.setWindowTitle(_tr("Select Installed Application"))
+        self.setWindowTitle(self.tr("Select Installed Application"))
         self.setMinimumSize(480, 560)
         self.resize(520, 620)
 
@@ -127,14 +120,14 @@ class InstalledAppsDialog(BaseDialog):
         search_layout = QHBoxLayout()
         self.search_le = QLineEdit()
         self.search_le.setObjectName("appsSearchLineEdit")
-        self.search_le.setPlaceholderText(_tr("Search applications..."))
+        self.search_le.setPlaceholderText(self.tr("Search applications..."))
         self.search_le.setClearButtonEnabled(True)
         self.search_le.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_le)
         layout.addLayout(search_layout)
 
         # 2. Loading indicator
-        self.loading_label = QLabel(_tr("Loading installed applications..."))
+        self.loading_label = QLabel(self.tr("Loading installed applications..."))
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loading_bar = QProgressBar()
         self.loading_bar.setRange(0, 0)  # Indeterminate
@@ -173,7 +166,7 @@ class InstalledAppsDialog(BaseDialog):
             QDialogButtonBox.StandardButton.Cancel
         )
         if self.ok_button:
-            self.ok_button.setText(_tr("Select"))
+            self.ok_button.setText(self.tr("Select"))
             self.ok_button.setEnabled(False)
         if self.cancel_button:
             self.cancel_button.setText(tr_common("Cancel"))
@@ -240,11 +233,11 @@ class InstalledAppsDialog(BaseDialog):
             self.count_label.setText("")
         elif current == total:
             self.count_label.setText(
-                _tr("Total applications: %d") % total
+                self.tr("Total applications: %d") % total
             )
         else:
             self.count_label.setText(
-                _tr("Shown: %d of %d") % (current, total)
+                self.tr("Shown: %d of %d") % (current, total)
             )
 
     def _on_selection_changed(self) -> None:
@@ -338,14 +331,14 @@ class InstalledAppsDialog(BaseDialog):
 
     def retranslateUi(self) -> None:
         """Update strings when language changes."""
-        self.setWindowTitle(_tr("Select Installed Application"))
+        self.setWindowTitle(self.tr("Select Installed Application"))
         if hasattr(self, "search_le") and self.search_le is not None:
-            self.search_le.setPlaceholderText(_tr("Search applications..."))
+            self.search_le.setPlaceholderText(self.tr("Search applications..."))
         if hasattr(self, "loading_label") and self.loading_label is not None:
             if self.loading_label.isVisible():
-                self.loading_label.setText(_tr("Loading installed applications..."))
+                self.loading_label.setText(self.tr("Loading installed applications..."))
         if hasattr(self, "ok_button") and self.ok_button is not None:
-            self.ok_button.setText(_tr("Select"))
+            self.ok_button.setText(self.tr("Select"))
         if hasattr(self, "cancel_button") and self.cancel_button is not None:
             self.cancel_button.setText(tr_common("Cancel"))
         if hasattr(self, "count_label"):

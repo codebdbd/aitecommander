@@ -13,11 +13,8 @@ from app.views.windows.dialogs.async_operation_dialog import AsyncOperationDialo
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "AsyncHelpers"
-
-
 def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
+    return QCoreApplication.translate("AsyncHelpers", text)
 
 
 def run_async_import(

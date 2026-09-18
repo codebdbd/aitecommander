@@ -18,11 +18,8 @@ from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "LinkProcessingMixin"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("LinkProcessingMixin", text, disambiguation)
 
 
 class LinkProcessingMixin:

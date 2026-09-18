@@ -41,11 +41,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "BadUrlCleanupDialog"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("BadUrlCleanupDialog", text, disambiguation)
 
 
 class _DeleteLinksWorkerSignals(QObject):

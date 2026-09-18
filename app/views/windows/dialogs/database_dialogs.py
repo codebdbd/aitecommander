@@ -11,11 +11,8 @@ from app.utils.i18n.common import tr as tr_common
 from app.utils.share_paths import ensure_service_root, get_desktop_dir, get_entity_dir
 from app.views.windows.dialogs.base_dialog import apply_uniform_height_to_message_box
 
-_TR_CONTEXT = "DatabaseDialogs"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("DatabaseDialogs", text, disambiguation)
 
 
 class DatabaseDialogs(QObject):

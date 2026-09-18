@@ -29,11 +29,8 @@ from app.views.windows.dialogs.link_dialog.icon_utils import (
 
 from .base_dialog import BaseDialog
 
-_TR_CONTEXT = "ImportBrowserDialog"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("ImportBrowserDialog", text, disambiguation)
 
 
 logger = logging.getLogger(__name__)

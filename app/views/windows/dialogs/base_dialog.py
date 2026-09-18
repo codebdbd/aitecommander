@@ -73,10 +73,6 @@ def apply_uniform_height_to_message_box(msg_box: QMessageBox):
         button.setMinimumWidth(btn_w)
 
 
-def _tr(text: str) -> str:
-    return QCoreApplication.translate("MenuActions", text)
-
-
 def create_context_menu(widget):
     menu = QMenu(widget)
 
@@ -89,14 +85,14 @@ def create_context_menu(widget):
 
     undo_action = cast(
         QAction,
-        menu.addAction(get_menu_icon("undo", theme_name), _tr("&Undo")),
+        menu.addAction(get_menu_icon("undo", theme_name), QCoreApplication.translate("MenuActions", "&Undo")),
     )
     undo_action.triggered.connect(widget.undo)
     undo_action.setShortcut(HotkeyManager.get_sequence("edit.undo"))
 
     redo_action = cast(
         QAction,
-        menu.addAction(get_menu_icon("redo", theme_name), _tr("&Redo")),
+        menu.addAction(get_menu_icon("redo", theme_name), QCoreApplication.translate("MenuActions", "&Redo")),
     )
     redo_action.triggered.connect(widget.redo)
     redo_action.setShortcut(HotkeyManager.get_sequence("edit.redo"))
@@ -105,14 +101,14 @@ def create_context_menu(widget):
 
     cut_action = cast(
         QAction,
-        menu.addAction(get_menu_icon("cut", theme_name), _tr("Cut")),
+        menu.addAction(get_menu_icon("cut", theme_name), QCoreApplication.translate("MenuActions", "Cut")),
     )
     cut_action.triggered.connect(widget.cut)
     cut_action.setShortcut(HotkeyManager.get_sequence("edit.cut"))
 
     copy_action = cast(
         QAction,
-        menu.addAction(get_menu_icon("copy", theme_name), _tr("Copy")),
+        menu.addAction(get_menu_icon("copy", theme_name), QCoreApplication.translate("MenuActions", "Copy")),
     )
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut(HotkeyManager.get_sequence("edit.copy"))
@@ -128,7 +124,7 @@ def create_context_menu(widget):
                 QAction,
                 menu.addAction(
                     get_menu_icon("paste", theme_name),
-                    _tr("Paste"),
+                    QCoreApplication.translate("MenuActions", "Paste"),
                 ),
             )
             paste_action.triggered.connect(widget.paste)
@@ -138,7 +134,7 @@ def create_context_menu(widget):
 
     delete_action = cast(
         QAction,
-        menu.addAction(get_menu_icon("delete", theme_name), _tr("Delete")),
+        menu.addAction(get_menu_icon("delete", theme_name), QCoreApplication.translate("MenuActions", "Delete")),
     )
     delete_action.triggered.connect(widget.clear)
     delete_action.setShortcut(HotkeyManager.get_sequence("edit.delete"))
@@ -148,7 +144,7 @@ def create_context_menu(widget):
     select_all_action = cast(
         QAction,
         menu.addAction(
-            get_menu_icon("select_all", theme_name), _tr("Select all")
+            get_menu_icon("select_all", theme_name), QCoreApplication.translate("MenuActions", "Select all")
         ),
     )
     select_all_action.triggered.connect(widget.selectAll)
