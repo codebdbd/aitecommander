@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import csv
 import html
 import logging
@@ -16,6 +17,7 @@ from PyQt6.QtGui import (
     QColor,
     QFont,
     QIcon,
+    QImage,
     QImageReader,
     QKeyEvent,
     QKeySequence,
@@ -57,8 +59,15 @@ try:
 except ImportError:
     _HAS_PDF = False
 
+try:
+    from PIL import Image, PsdImagePlugin
+    _HAS_PIL = True
+except ImportError:
+    _HAS_PIL = False
+
 from app.core.hotkey_manager import HotkeyManager
 from app.models.types.link_type import LinkType
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.icon_service import get_icon
 from app.utils.ui.icon.path_service import get_current_theme
@@ -139,6 +148,27 @@ _DARK_PREVIEW_QSS = """
 #QuickLookDialog QListWidget::item:selected {
     background-color: #264f78;
     color: #ffffff;
+}
+#QuickLookDialog QPushButton {
+    padding: 3px 12px;
+}
+#QuickLookDialog QPushButton#pdf_nav_btn {
+    background-color: transparent;
+    border: 1px solid rgba(140, 140, 140, 0.35);
+    border-radius: 3px;
+    padding: 0px;
+    margin: 0px;
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:hover {
+    background-color: rgba(140, 140, 140, 0.2);
+    border-color: rgba(140, 140, 140, 0.6);
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:pressed {
+    background-color: rgba(140, 140, 140, 0.35);
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:disabled {
+    border-color: rgba(140, 140, 140, 0.15);
+    opacity: 0.3;
 }
 QMenu {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -223,6 +253,27 @@ _LIGHT_PREVIEW_QSS = """
     background-color: #cce8ff;
     color: #000000;
 }
+#QuickLookDialog QPushButton {
+    padding: 3px 12px;
+}
+#QuickLookDialog QPushButton#pdf_nav_btn {
+    background-color: transparent;
+    border: 1px solid rgba(140, 140, 140, 0.35);
+    border-radius: 3px;
+    padding: 0px;
+    margin: 0px;
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:hover {
+    background-color: rgba(140, 140, 140, 0.2);
+    border-color: rgba(140, 140, 140, 0.6);
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:pressed {
+    background-color: rgba(140, 140, 140, 0.35);
+}
+#QuickLookDialog QPushButton#pdf_nav_btn:disabled {
+    border-color: rgba(140, 140, 140, 0.15);
+    opacity: 0.3;
+}
 QMenu {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background-color: #FAFCFF;
@@ -276,9 +327,9 @@ class QuickLookDialog(BaseDialog):
         self.setObjectName("QuickLookDialog")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.installEventFilter(self)
-        self.resize(720, 520)
-        self.setMinimumSize(480, 320)
-        self._normal_size = QSize(720, 520)
+        self.resize(760, 540)
+        self.setMinimumSize(740, 480)
+        self._normal_size = QSize(760, 540)
         self._normal_geometry: Optional[QRect] = None
 
         self._on_open_callback = on_open_callback
@@ -305,6 +356,8 @@ class QuickLookDialog(BaseDialog):
         # Content Stack
         self._stack = QStackedWidget()
         self._stack.setStyleSheet("background: transparent; border: none;")
+        self._stack.setMinimumHeight(380)
+        self._stack.setMinimumWidth(700)
         root_layout.addWidget(self._stack, 1)
 
         # Page 0: Image Preview
@@ -343,7 +396,8 @@ class QuickLookDialog(BaseDialog):
             self._pdf_view = QPdfView(self)
             self._pdf_view.setDocument(self._pdf_doc)
             self._pdf_view.setPageMode(QPdfView.PageMode.MultiPage)
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.FitInView)
+            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomFactor(1.44)
             self._pdf_view.installEventFilter(self)
             if hasattr(self._pdf_view, "viewport") and self._pdf_view.viewport():
                 self._pdf_view.viewport().installEventFilter(self)
@@ -432,6 +486,7 @@ class QuickLookDialog(BaseDialog):
         footer_layout.addWidget(self._footer_icon_lbl)
 
         self._path_lbl = QLabel()
+        self._path_lbl.setMinimumWidth(0)
         self._path_lbl.setStyleSheet("color: gray; font-size: 11px;")
         self._path_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         footer_layout.addWidget(self._path_lbl, 1)
@@ -441,16 +496,24 @@ class QuickLookDialog(BaseDialog):
         pdf_nav_layout = QHBoxLayout(self._pdf_nav_widget)
         pdf_nav_layout.setContentsMargins(0, 0, 0, 0)
         pdf_nav_layout.setSpacing(4)
-        self._pdf_prev_btn = QPushButton("◀")
+        self._pdf_prev_btn = QPushButton()
+        self._pdf_prev_btn.setObjectName("pdf_nav_btn")
         self._pdf_prev_btn.setFixedSize(22, 22)
+        self._pdf_prev_btn.setIconSize(QSize(12, 12))
+        self._pdf_prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pdf_prev_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pdf_prev_btn.clicked.connect(self._pdf_prev_page)
+        self._pdf_prev_btn.setToolTip(_tr("Previous Page"))
         self._pdf_page_lbl = QLabel("1 / 1")
         self._pdf_page_lbl.setStyleSheet("font-size: 11px; opacity: 0.8;")
-        self._pdf_next_btn = QPushButton("▶")
+        self._pdf_next_btn = QPushButton()
+        self._pdf_next_btn.setObjectName("pdf_nav_btn")
         self._pdf_next_btn.setFixedSize(22, 22)
+        self._pdf_next_btn.setIconSize(QSize(12, 12))
+        self._pdf_next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pdf_next_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pdf_next_btn.clicked.connect(self._pdf_next_page)
+        self._pdf_next_btn.setToolTip(_tr("Next Page"))
         pdf_nav_layout.addWidget(self._pdf_prev_btn)
         pdf_nav_layout.addWidget(self._pdf_page_lbl)
         pdf_nav_layout.addWidget(self._pdf_next_btn)
@@ -463,12 +526,22 @@ class QuickLookDialog(BaseDialog):
 
         self._copy_btn = QPushButton(_tr("Copy Path"))
         self._copy_btn.setFixedHeight(26)
+        self._copy_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._copy_btn.clicked.connect(self._handle_copy_path)
         footer_layout.addWidget(self._copy_btn)
 
+        self._reveal_footer_btn = QPushButton(_tr("Open in Explorer"))
+        self._reveal_footer_btn.setFixedHeight(26)
+        self._reveal_footer_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._reveal_footer_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._reveal_footer_btn.setToolTip(_tr("Open in Explorer (Ctrl+E)"))
+        self._reveal_footer_btn.clicked.connect(self._handle_reveal_in_explorer)
+        footer_layout.addWidget(self._reveal_footer_btn)
+
         self._open_btn = QPushButton()
         self._open_btn.setFixedHeight(26)
+        self._open_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._open_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._open_btn.clicked.connect(self._handle_open)
         footer_layout.addWidget(self._open_btn)
@@ -514,14 +587,6 @@ class QuickLookDialog(BaseDialog):
             self.showMaximized()
 
     def changeEvent(self, event) -> None:
-        if event.type() == event.Type.WindowStateChange:
-            if not self.isMaximized() and self.width() >= (self.screen().geometry().width() - 20):
-                if self._normal_geometry:
-                    self.setGeometry(self._normal_geometry)
-                else:
-                    self.resize(self._normal_size)
-            elif not self.isMaximized() and self.width() > 720:
-                self.resize(self._normal_size)
         super().changeEvent(event)
 
     def retranslateUi(self) -> None:
@@ -531,6 +596,9 @@ class QuickLookDialog(BaseDialog):
         if hasattr(self, "_copy_btn"):
             self._copy_btn.setText(_tr("Copy Path"))
             self._copy_btn.setToolTip(_tr("Copy Path / URL (Ctrl+C)"))
+        if hasattr(self, "_reveal_footer_btn"):
+            self._reveal_footer_btn.setText(_tr("Open in Explorer"))
+            self._reveal_footer_btn.setToolTip(_tr("Open in Explorer (Ctrl+E)"))
 
     def set_link(self, link: dict[str, Any]) -> None:
         self._apply_preview_theme()
@@ -547,6 +615,12 @@ class QuickLookDialog(BaseDialog):
             self._open_btn.setEnabled(True)
         if hasattr(self, "_pdf_nav_widget"):
             self._pdf_nav_widget.setVisible(False)
+        if hasattr(self, "_reveal_footer_btn"):
+            clean_u = url.strip().strip('"\'')
+            if clean_u.startswith("file:///"):
+                clean_u = clean_u[8:]
+            is_local = bool(clean_u and (os.path.exists(clean_u) or link_type in (LinkType.FILE, LinkType.FOLDER, LinkType.PROGRAM)))
+            self._reveal_footer_btn.setVisible(is_local)
         self._current_orig_image = None
         self._image_zoom = 1.0
 
@@ -640,13 +714,25 @@ class QuickLookDialog(BaseDialog):
                     )
                     return
 
+        if ext in (".psd", ".psb"):
+            if self._render_psd_preview(path_str, ext):
+                return
+
+        if ext == ".ai":
+            if self._render_ai_preview(path_str, ext):
+                return
+
+        if ext == ".eps":
+            if self._render_eps_preview(path_str, ext):
+                return
+
         if ext == ".pdf" and _HAS_PDF and self._pdf_doc is not None:
             try:
                 self._pdf_doc.load(path_str)
                 if self._pdf_doc.status() == QPdfDocument.Status.Ready:
                     self._stack.setCurrentWidget(self._pdf_view)
-                    self._pdf_view.setZoomMode(QPdfView.ZoomMode.FitInView)
-                    self._pdf_nav_widget.setVisible(True)
+                    self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+                    self._pdf_view.setZoomFactor(1.44)
                     self._update_pdf_info()
                     return
             except Exception as e:
@@ -742,6 +828,143 @@ class QuickLookDialog(BaseDialog):
         except Exception as e:
             logger.debug("Failed to read CSV %s: %s", path_str, e)
             return False
+
+    def _render_psd_preview(self, path_str: str, ext: str) -> bool:
+        if _HAS_PIL:
+            try:
+                with Image.open(path_str) as im:
+                    orig_w, orig_h = im.size
+                    if orig_w > 0 and orig_h > 0:
+                        im_rgba = im.convert("RGBA")
+                        data = im_rgba.tobytes("raw", "RGBA")
+                        qimg = QImage(data, orig_w, orig_h, orig_w * 4, QImage.Format.Format_RGBA8888)
+                        pix = QPixmap.fromImage(qimg.copy())
+                        if not pix.isNull():
+                            self._current_orig_image = pix
+                            self._image_zoom = 1.0
+                            self._stack.setCurrentWidget(self._image_page)
+                            self._apply_image_zoom()
+                            sz_str = _format_file_size(os.path.getsize(path_str))
+                            self._image_info_lbl.setText(
+                                f"{orig_w} × {orig_h} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
+                            )
+                            return True
+            except Exception as e:
+                logger.debug("Failed to read PSD via Pillow %s: %s", path_str, e)
+
+        thumb_bytes = self._extract_adobe_thumbnail(path_str)
+        if thumb_bytes:
+            qimg = QImage()
+            if qimg.loadFromData(thumb_bytes):
+                pix = QPixmap.fromImage(qimg)
+                if not pix.isNull():
+                    self._current_orig_image = pix
+                    self._image_zoom = 1.0
+                    self._stack.setCurrentWidget(self._image_page)
+                    self._apply_image_zoom()
+                    sz_str = _format_file_size(os.path.getsize(path_str))
+                    self._image_info_lbl.setText(
+                        f"{qimg.width()} × {qimg.height()} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
+                    )
+                    return True
+        return False
+
+    def _render_ai_preview(self, path_str: str, ext: str) -> bool:
+        if _HAS_PDF and self._pdf_doc is not None:
+            try:
+                self._pdf_doc.load(path_str)
+                if self._pdf_doc.status() == QPdfDocument.Status.Ready and self._pdf_doc.pageCount() > 0:
+                    self._stack.setCurrentWidget(self._pdf_view)
+                    self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+                    self._pdf_view.setZoomFactor(1.44)
+                    self._update_pdf_info()
+                    return True
+            except Exception as e:
+                logger.debug("Direct PDF load failed for AI %s: %s", path_str, e)
+
+        thumb_bytes = self._extract_adobe_thumbnail(path_str)
+        if thumb_bytes:
+            qimg = QImage()
+            if qimg.loadFromData(thumb_bytes):
+                pix = QPixmap.fromImage(qimg)
+                if not pix.isNull():
+                    self._current_orig_image = pix
+                    self._image_zoom = 1.0
+                    self._stack.setCurrentWidget(self._image_page)
+                    self._apply_image_zoom()
+                    sz_str = _format_file_size(os.path.getsize(path_str))
+                    self._image_info_lbl.setText(
+                        f"{qimg.width()} × {qimg.height()} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
+                    )
+                    return True
+        return False
+
+    def _render_eps_preview(self, path_str: str, ext: str) -> bool:
+        try:
+            with open(path_str, "rb") as f:
+                header = f.read(30)
+                if len(header) >= 30 and header[:4] == b"\xc5\xd0\xd3\xc6":
+                    tiff_start = int.from_bytes(header[20:24], "little")
+                    tiff_len = int.from_bytes(header[24:28], "little")
+                    if tiff_start > 0 and tiff_len > 0:
+                        f.seek(tiff_start)
+                        tiff_data = f.read(tiff_len)
+                        qimg = QImage()
+                        if qimg.loadFromData(tiff_data):
+                            pix = QPixmap.fromImage(qimg)
+                            if not pix.isNull():
+                                self._current_orig_image = pix
+                                self._image_zoom = 1.0
+                                self._stack.setCurrentWidget(self._image_page)
+                                self._apply_image_zoom()
+                                sz_str = _format_file_size(os.path.getsize(path_str))
+                                self._image_info_lbl.setText(
+                                    f"{qimg.width()} × {qimg.height()} px  •  {sz_str}  •  EPS"
+                                )
+                                return True
+        except Exception as e:
+            logger.debug("Failed to read binary EPS preview %s: %s", path_str, e)
+
+        thumb_bytes = self._extract_adobe_thumbnail(path_str)
+        if thumb_bytes:
+            qimg = QImage()
+            if qimg.loadFromData(thumb_bytes):
+                pix = QPixmap.fromImage(qimg)
+                if not pix.isNull():
+                    self._current_orig_image = pix
+                    self._image_zoom = 1.0
+                    self._stack.setCurrentWidget(self._image_page)
+                    self._apply_image_zoom()
+                    sz_str = _format_file_size(os.path.getsize(path_str))
+                    self._image_info_lbl.setText(
+                        f"{qimg.width()} × {qimg.height()} px  •  {sz_str}  •  EPS"
+                    )
+                    return True
+        return False
+
+    @staticmethod
+    def _extract_adobe_thumbnail(path_str: str) -> bytes | None:
+        try:
+            with open(path_str, "rb") as f:
+                chunk = f.read(2 * 1024 * 1024)
+            for tag_s, tag_e in (
+                (b"<xmpGImg:image>", b"</xmpGImg:image>"),
+                (b"<xapGImg:image>", b"</xapGImg:image>"),
+            ):
+                s_idx = chunk.find(tag_s)
+                if s_idx != -1:
+                    e_idx = chunk.find(tag_e, s_idx)
+                    if e_idx != -1:
+                        raw_b64 = (
+                            chunk[s_idx + len(tag_s):e_idx]
+                            .strip()
+                            .replace(b"\n", b"")
+                            .replace(b"\r", b"")
+                        )
+                        return base64.b64decode(raw_b64)
+        except Exception as e:
+            logger.debug("Failed to extract Adobe thumbnail %s: %s", path_str, e)
+        return None
 
     def _render_xlsx_preview(self, path_str: str) -> bool:
         try:
@@ -865,6 +1088,9 @@ class QuickLookDialog(BaseDialog):
             return
         cur_page = self._pdf_view.pageNavigator().currentPage() + 1
         self._pdf_page_lbl.setText(f"{cur_page} / {page_count}")
+        self._pdf_nav_widget.setVisible(page_count > 1)
+        self._pdf_prev_btn.setEnabled(cur_page > 1)
+        self._pdf_next_btn.setEnabled(cur_page < page_count)
         zoom_pct = int(self._pdf_view.zoomFactor() * 100)
         path_str = (
             str(self._current_link.get("url") or self._current_link.get("path") or "")
@@ -876,8 +1102,9 @@ class QuickLookDialog(BaseDialog):
             if path_str and os.path.exists(path_str)
             else ""
         )
+        fmt_label = Path(path_str).suffix.upper().lstrip(".") or "PDF"
         self._text_info_lbl.setText(
-            f"PDF  •  {_tr('Page')} {cur_page} / {page_count}  •  {zoom_pct}%  •  {sz_str}"
+            f"{fmt_label}  •  {_tr('Page')} {cur_page} / {page_count}  •  {zoom_pct}%  •  {sz_str}"
         )
 
     def _pdf_prev_page(self) -> None:
@@ -927,7 +1154,8 @@ class QuickLookDialog(BaseDialog):
     def _zoom_reset(self) -> None:
         cur_w = self._stack.currentWidget()
         if _HAS_PDF and cur_w == self._pdf_view and self._pdf_view:
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.FitInView)
+            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomFactor(1.44)
             self._update_pdf_info()
         elif cur_w == self._image_page and self._current_orig_image:
             self._image_zoom = 1.0
@@ -1173,6 +1401,10 @@ class QuickLookDialog(BaseDialog):
 
     def _apply_preview_theme(self) -> None:
         self.setStyleSheet(_DARK_PREVIEW_QSS if self._is_dark_theme() else _LIGHT_PREVIEW_QSS)
+        cur_t = get_current_theme()
+        if hasattr(self, "_pdf_prev_btn") and hasattr(self, "_pdf_next_btn"):
+            self._pdf_prev_btn.setIcon(icon_cache.get_icon("left", cur_t))
+            self._pdf_next_btn.setIcon(icon_cache.get_icon("right", cur_t))
 
     def _set_formatted_text(self, text: str, is_code: bool = False) -> None:
         doc = self._text_edit.document()
@@ -1228,11 +1460,11 @@ class QuickLookDialog(BaseDialog):
 
     def _update_text_margins(self) -> None:
         w = self._text_edit.width() or self.width()
+        margin = max(32, (w - 768) // 2)
         if getattr(self, "_is_prose_mode", True):
-            margin = max(32, (w - 768) // 2)
             self._text_edit.setViewportMargins(margin, 24, margin, 24)
         else:
-            self._text_edit.setViewportMargins(28, 16, 28, 16)
+            self._text_edit.setViewportMargins(margin, 16, margin, 16)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

@@ -219,10 +219,59 @@ class SystemDialogController:
         """Open section selection dialog and return selected section id."""
         from app.views.windows.dialogs.import_browser_dialog import ImportBrowserDialog
 
-        dlg = ImportBrowserDialog(self.main_window.structure_business, self.main_window)
+        default_sphere_id, default_section_id = self._get_current_location()
+
+        dlg = ImportBrowserDialog(
+            self.main_window.structure_business,
+            self.main_window,
+            default_sphere_id=default_sphere_id,
+            default_section_id=default_section_id,
+        )
         if dlg.exec() != dlg.DialogCode.Accepted:
             return None
         return dlg.get_selected_section_id()
+
+    def _get_current_location(self) -> tuple[int | None, int | None]:
+        """Determine currently active sphere and section IDs from main window."""
+        default_sphere_id: int | None = None
+        default_section_id: int | None = None
+
+        sb = getattr(self.main_window, "structure_business", None)
+        if sb is not None:
+            default_sphere_id = getattr(sb, "current_sphere_id", None)
+
+        # 1. Try to get currently selected section from structure tree
+        structure = getattr(self.main_window, "structure", None)
+        if structure is not None:
+            item_ops = getattr(structure, "item_ops", None)
+            if item_ops is not None:
+                dialogs = getattr(item_ops, "_dialogs", None)
+                if dialogs is not None and hasattr(dialogs, "get_selected_section_id"):
+                    default_section_id = dialogs.get_selected_section_id()
+
+        # 2. If nothing selected in tree, try current category
+        if default_section_id is None and hasattr(self.main_window, "get_current_category_id"):
+            try:
+                cat_id = self.main_window.get_current_category_id()
+                if cat_id and sb is not None and hasattr(sb, "categories"):
+                    hierarchy = sb.categories.get_category_hierarchy(cat_id)
+                    if hierarchy:
+                        default_section_id = hierarchy.get("section_id")
+                        if default_sphere_id is None:
+                            default_sphere_id = hierarchy.get("sphere_id")
+            except Exception:
+                pass
+
+        # 3. If section was found, verify/sync its sphere_id
+        if default_section_id is not None and sb is not None:
+            try:
+                sec_data = sb.get_section_data(default_section_id)
+                if sec_data and sec_data.get("sphere_id"):
+                    default_sphere_id = sec_data["sphere_id"]
+            except Exception:
+                pass
+
+        return default_sphere_id, default_section_id
 
     def _backup_before_import(self, run_async_backup) -> bool:
         """Perform async backup before importing; show error and return False on failure."""

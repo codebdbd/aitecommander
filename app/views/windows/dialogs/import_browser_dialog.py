@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QLabel,
+    QLayout,
     QVBoxLayout,
 )
 
@@ -41,7 +42,13 @@ logger = logging.getLogger(__name__)
 class ImportBrowserDialog(BaseDialog):
     """Dialog for selecting a section when importing browser links."""
 
-    def __init__(self, structure_business_logic, parent=None):
+    def __init__(
+        self,
+        structure_business_logic,
+        parent=None,
+        default_sphere_id: Optional[int] = None,
+        default_section_id: Optional[int] = None,
+    ):
         # Pre-initialize UI attributes so early retranslate calls are safe
         self._header_label: QLabel | None = None
         self._button_box: QDialogButtonBox | None = None
@@ -55,10 +62,13 @@ class ImportBrowserDialog(BaseDialog):
         self.selected_section_id = None
         self._sections_request_token = 0
         self._latest_requested_sphere: Optional[int] = None
+        self._target_sphere_id = default_sphere_id
+        self._target_section_id = default_section_id
+
+        if self._target_sphere_id is None and structure_business_logic is not None:
+            self._target_sphere_id = getattr(structure_business_logic, "current_sphere_id", None)
 
         self.setWindowTitle(tr_common("Import from browser"))
-        width, height = app_config.ui.get_import_browser_dialog_size()
-        self.resize(width, height)
         self.setModal(True)
 
         self._init_ui()
@@ -68,6 +78,7 @@ class ImportBrowserDialog(BaseDialog):
     def _init_ui(self) -> None:
         """Initialize dialog widgets."""
         vbox = QVBoxLayout(self)
+        vbox.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
 
         # Header
         self._header_label = QLabel(self.tr("Select where to import links:"))
@@ -75,14 +86,18 @@ class ImportBrowserDialog(BaseDialog):
 
         # Form with two rows: sphere and section
         form = QFormLayout()
+        width, _ = app_config.ui.get_import_browser_dialog_size()
+        combo_min_width = max(280, width - 100)
 
         self.sphere_cb = PopupComboBox()
         self.sphere_cb.setEnabled(False)
+        self.sphere_cb.setMinimumWidth(combo_min_width)
         self.sphere_cb.addItem(self.tr("Loading…"))
         form.addRow(self.tr("Sphere:"), self.sphere_cb)
 
         self.section_cb = PopupComboBox()
         self.section_cb.setEnabled(False)
+        self.section_cb.setMinimumWidth(combo_min_width)
         self.section_cb.addItem(self.tr("Select a sphere first"))
         form.addRow(self.tr("Section:"), self.section_cb)
 
@@ -287,7 +302,16 @@ class ImportBrowserDialog(BaseDialog):
                 )
             if self.sphere_cb.count() > 0:
                 self.sphere_cb.setEnabled(True)
-                select_first_combo_item(self.sphere_cb)
+                target_idx = -1
+                if self._target_sphere_id is not None:
+                    for i in range(self.sphere_cb.count()):
+                        if self.sphere_cb.itemData(i) == self._target_sphere_id:
+                            target_idx = i
+                            break
+                if target_idx >= 0:
+                    self.sphere_cb.setCurrentIndex(target_idx)
+                else:
+                    select_first_combo_item(self.sphere_cb)
         current_data = self.sphere_cb.currentData()
         self._latest_requested_sphere = (
             current_data if isinstance(current_data, int) else None
@@ -315,7 +339,17 @@ class ImportBrowserDialog(BaseDialog):
                     icon_loader=get_cached_icon,
                 )
             self.section_cb.setEnabled(True)
-            select_first_combo_item(self.section_cb)
+            target_idx = -1
+            if self._target_section_id is not None:
+                for i in range(self.section_cb.count()):
+                    if self.section_cb.itemData(i) == self._target_section_id:
+                        target_idx = i
+                        break
+            if target_idx >= 0:
+                self.section_cb.setCurrentIndex(target_idx)
+                self._target_section_id = None
+            else:
+                select_first_combo_item(self.section_cb)
         self.selected_section_id = self.get_selected_section_id()
 
     def _set_section_placeholder(self, text: str, *, enabled: bool) -> None:

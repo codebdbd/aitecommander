@@ -3,13 +3,19 @@ import binascii
 import logging
 import uuid
 from collections import defaultdict
+from html.parser import HTMLParser
+from typing import Any
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
 from app.config_data import app_config
-from app.models.types.constants import CATEGORY_BULK_UUID_FIELD
+from app.models.types.constants import (
+    CATEGORY_BULK_UUID_FIELD,
+    MAX_NAME_LENGTH,
+    MAX_NOTES_LENGTH,
+    MAX_URL_LENGTH,
+)
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.validators.link_validators import validate_link_form_data
 
@@ -68,6 +74,8 @@ def _normalize_category_name(raw_name: object) -> str:
         name = str(raw_name).strip()
     except Exception:
         return ""
+    if len(name) > MAX_NAME_LENGTH:
+        name = name[:MAX_NAME_LENGTH].strip()
     return name
 
 
@@ -167,46 +175,92 @@ class BrowserBookmarksImporter:
                 return ""
         return icon_fname
 
-    def _process_bookmark_node(self, node, current_cat, categories, icons_dir):
-        """Process bookmark node recursively."""
-        for child in node.find_all(recursive=False):
-            if child.name == "h3":
-                current_cat = _normalize_category_name(child.get_text()) or "Uncategorized"
-            elif child.name == "a":
-                normalized_cat = _normalize_category_name(current_cat) or "Uncategorized"
-                if normalized_cat not in categories:
-                    categories[normalized_cat] = []
-                url = child.get("href")
-                name = child.get_text() or url
-                icon_data = child.get("icon")
-                icon_path = ""
-                if icon_data and icon_data.startswith("data:image/"):
-                    icon_path = self._save_icon_from_base64(icon_data, url, icons_dir)
-                link = {"name": name, "url": url, "icon_path": icon_path}
-                categories[normalized_cat].append(link)
-            elif child.name == "dl":
-                self._process_bookmark_node(child, current_cat, categories, icons_dir)
-            elif child.name in ["p", "dt"]:
-                self._process_bookmark_node(child, current_cat, categories, icons_dir)
+class _NetscapeBookmarkParser(HTMLParser):
+    """Event-driven parser for Netscape Bookmark HTML files with folder stack."""
+
+    def __init__(self, icons_dir: Any, save_icon_callback: Any) -> None:
+        super().__init__()
+        self.categories: dict[str, list[dict[str, str]]] = defaultdict(list)
+        self.folder_stack: list[str] = ["Uncategorized"]
+        self.pending_folder: str | None = None
+        self.in_h3 = False
+        self.current_h3_text: list[str] = []
+        self.current_link: dict[str, str] | None = None
+        self.current_a_text: list[str] = []
+        self.icons_dir = icons_dir
+        self.save_icon_callback = save_icon_callback
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        t = tag.lower()
+        attr_dict = {k.lower(): (v or "") for k, v in attrs}
+        if t == "h3":
+            self.in_h3 = True
+            self.current_h3_text = []
+        elif t == "dl":
+            folder = (
+                self.pending_folder
+                if self.pending_folder
+                else (self.folder_stack[-1] if self.folder_stack else "Uncategorized")
+            )
+            self.folder_stack.append(folder)
+            self.pending_folder = None
+        elif t == "a":
+            url = attr_dict.get("href", "").strip()
+            icon_data = attr_dict.get("icon", "")
+            icon_path = ""
+            if (
+                icon_data
+                and icon_data.startswith("data:image/")
+                and self.save_icon_callback
+                and self.icons_dir
+            ):
+                icon_path = self.save_icon_callback(icon_data, url, self.icons_dir)
+            self.current_link = {
+                "url": url,
+                "icon_path": icon_path,
+                "category": self.folder_stack[-1] if self.folder_stack else "Uncategorized",
+            }
+            self.current_a_text = []
+
+    def handle_endtag(self, tag: str) -> None:
+        t = tag.lower()
+        if t == "h3":
+            self.in_h3 = False
+            raw_title = "".join(self.current_h3_text).strip()
+            self.pending_folder = _normalize_category_name(raw_title) or "Uncategorized"
+        elif t == "dl":
+            if len(self.folder_stack) > 1:
+                self.folder_stack.pop()
+        elif t == "a":
+            if self.current_link:
+                name = "".join(self.current_a_text).strip() or self.current_link["url"]
+                cat = _normalize_category_name(self.current_link["category"]) or "Uncategorized"
+                self.categories[cat].append({
+                    "name": name,
+                    "url": self.current_link["url"],
+                    "icon_path": self.current_link["icon_path"],
+                })
+                self.current_link = None
+
+    def handle_data(self, data: str) -> None:
+        if self.in_h3:
+            self.current_h3_text.append(data)
+        elif self.current_link is not None:
+            self.current_a_text.append(data)
 
     def parse_bookmarks(self, html_path: str) -> dict:
         """Parses HTML browser bookmarks export into structure {category_name: [links...]}."""
         text = self._read_file_with_encoding(html_path)
         logger.debug("DEBUG: file head = %s", text[:500])
 
-        soup = BeautifulSoup(text, "html.parser")
-        categories: dict[str, list] = defaultdict(list)
         icons_dir = app_config.paths.get_link_icons_dir()
+        parser = _NetscapeBookmarkParser(icons_dir, self._save_icon_from_base64)
+        parser.feed(text)
 
-        root_dl = soup.find("dl")
-        logger.debug("DEBUG: soup.find('dl') = %s", root_dl)
+        total_links = sum(len(links) for links in parser.categories.values())
+        logger.debug("DEBUG: Total links found: %s", total_links)
 
-        if root_dl:
-            self._process_bookmark_node(root_dl, "Uncategorized", categories, icons_dir)
-            total_links = sum(len(links) for links in categories.values())
-            logger.debug("DEBUG: Total links found: %s", total_links)
-
-        return dict(categories)
+        return dict(parser.categories)
 
     # === Business слой ===
     def _get_default_icon(self):
@@ -267,8 +321,27 @@ class BrowserBookmarksImporter:
             )
             return None
 
+        if len(url) > MAX_URL_LENGTH:
+            logger.warning(
+                "DEBUG: Skipping link '%s' in category '%s' due to URL exceeding max length %d (%d chars)",
+                name,
+                cat_name,
+                MAX_URL_LENGTH,
+                len(url),
+            )
+            return None
+
         if not name:
             name = url
+
+        notes = (link.get("notes", "") or "").strip()
+        if len(name) > MAX_NAME_LENGTH:
+            if not notes:
+                notes = name
+            name = name[:MAX_NAME_LENGTH].strip()
+
+        if len(notes) > MAX_NOTES_LENGTH:
+            notes = notes[:MAX_NOTES_LENGTH]
 
         if not validate_link_form_data(name, url, "web"):
             logger.debug(
@@ -281,10 +354,10 @@ class BrowserBookmarksImporter:
 
         payload = {
             "category_id": int(category_id),
-            "name": name.strip(),
+            "name": name,
             "url": url.strip(),
             "type": "web",
-            "notes": "",
+            "notes": notes,
             "is_favorite": int(link.get("is_favorite") or 0),
             "icon_path": link.get("icon_path", "") or "",
             "args": link.get("args", "") or "",
