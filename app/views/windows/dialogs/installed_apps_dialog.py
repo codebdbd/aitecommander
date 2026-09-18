@@ -233,11 +233,11 @@ class InstalledAppsDialog(BaseDialog):
             self.count_label.setText("")
         elif current == total:
             self.count_label.setText(
-                self.tr("Total applications: %d") % total
+                self.tr("%n application(s) total", "", total)
             )
         else:
             self.count_label.setText(
-                self.tr("Shown: %d of %d") % (current, total)
+                self.tr("Shown: %1 of %2").replace("%1", str(current)).replace("%2", str(total))
             )
 
     def _on_selection_changed(self) -> None:

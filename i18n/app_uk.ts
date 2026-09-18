@@ -1740,10 +1740,14 @@
             <source>Search error</source>
             <translation>Помилка пошуку</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="701" />
-            <source>Search finished. Files found: {count}</source>
-            <translation>Пошук завершено. Знайдено файлів: {count}</translation>
+            <source>Search finished. %n file(s) found.</source>
+            <translation>
+                <numerusform>Пошук завершено. Знайдено %n файл.</numerusform>
+                <numerusform>Пошук завершено. Знайдено %n файли.</numerusform>
+                <numerusform>Пошук завершено. Знайдено %n файлів.</numerusform>
+            </translation>
         </message>
     </context>
     <context>
@@ -2079,13 +2083,11 @@ Failed: {3}</source>
             <translation>Завантаження встановлених програм...</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="236" />
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="38" />
             <source>Total applications: %d</source>
             <translation>Всього програм: %d</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="240" />
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="39" />
             <source>Shown: %d of %d</source>
             <translation>Відображено: %d з %d</translation>
@@ -2101,6 +2103,20 @@ Failed: {3}</source>
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="41" />
             <source>Cancel</source>
             <translation>Скасувати</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="236" />
+            <source>%n application(s) total</source>
+            <translation>
+                <numerusform>Всього %n програма</numerusform>
+                <numerusform>Всього %n програми</numerusform>
+                <numerusform>Всього %n програм</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="240" />
+            <source>Shown: %1 of %2</source>
+            <translation>Показано: %1 з %2</translation>
         </message>
     </context>
     <context>
@@ -2289,35 +2305,38 @@ Are you sure you want to continue?</source>
             <source>Profile</source>
             <translation>Профіль</translation>
         </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="737" />
-            <source>Profile (1)</source>
-            <translation>Профіль (1)</translation>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="736" />
+            <source>%n profile(s)</source>
+            <translation>
+                <numerusform>%n профіль</numerusform>
+                <numerusform>%n профілі</numerusform>
+                <numerusform>%n профілів</numerusform>
+            </translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="738" />
-            <source>Profiles ({count})</source>
-            <translation>Профілі ({count})</translation>
-        </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="743" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="741" />
             <source>Select browser profile</source>
             <translation>Обрати профіль браузера</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="746" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="744" />
             <source>Selected profile: {name}
 (Click to change)</source>
             <translation>Обраний профіль: {name}
 (Натисніть для зміни)</translation>
         </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="747" />
-            <source>Selected profiles ({count}):</source>
-            <translation>Обрано профілів ({count}):</translation>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="745" />
+            <source>%n selected profile(s):</source>
+            <translation>
+                <numerusform>Вибрано %n профіль:</numerusform>
+                <numerusform>Вибрано %n профілі:</numerusform>
+                <numerusform>Вибрано %n профілів:</numerusform>
+            </translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="750" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="748" />
             <source>(Click to change)</source>
             <translation>(Натисніть для зміни)</translation>
         </message>
@@ -2505,15 +2524,23 @@ Are you sure you want to continue?</source>
             <source>Select profiles for rotation</source>
             <translation>Оберіть профілі для ротації</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="111" />
-            <source>Profiles ({count})</source>
-            <translation>Профілі ({count})</translation>
+            <source>%n profile(s)</source>
+            <translation>
+                <numerusform>%n профіль</numerusform>
+                <numerusform>%n профілі</numerusform>
+                <numerusform>%n профілів</numerusform>
+            </translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="119" />
-            <source>Rotation order ({count}):</source>
-            <translation>Порядок ротації ({count}):</translation>
+            <source>Rotation order (%n profile(s)):</source>
+            <translation>
+                <numerusform>Порядок ротації (%n профіль):</numerusform>
+                <numerusform>Порядок ротації (%n профілі):</numerusform>
+                <numerusform>Порядок ротації (%n профілів):</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="122" />
@@ -3294,10 +3321,14 @@ Are you sure you want to continue?</source>
             <source>The file may have been moved, renamed, or deleted.</source>
             <translation>Файл міг бути переміщений, перейменований або видалений.</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="683" />
-            <source>paragraphs</source>
-            <translation>абзаців</translation>
+            <source>%n paragraph(s)</source>
+            <translation>
+                <numerusform>%n абзац</numerusform>
+                <numerusform>%n абзаци</numerusform>
+                <numerusform>%n абзаців</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="772" />
@@ -3325,16 +3356,24 @@ Are you sure you want to continue?</source>
             <source>Modified</source>
             <translation>Змінено</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1025" />
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="818" />
-            <source>preview rows</source>
-            <translation>рядків попереднього перегляду</translation>
+            <source>%n preview row(s)</source>
+            <translation>
+                <numerusform>%n рядок попереднього перегляду</numerusform>
+                <numerusform>%n рядки попереднього перегляду</numerusform>
+                <numerusform>%n рядків попереднього перегляду</numerusform>
+            </translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
-            <source>files and folders</source>
-            <translation>файлів та папок</translation>
+            <source>%n file(s) and folder(s)</source>
+            <translation>
+                <numerusform>%n файл і папка</numerusform>
+                <numerusform>%n файли та папки</numerusform>
+                <numerusform>%n файлів та папок</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
@@ -3351,10 +3390,14 @@ Are you sure you want to continue?</source>
             <source>Access error</source>
             <translation>Помилка доступу</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1509" />
-            <source>Total items in root</source>
-            <translation>Всього елементів у корені</translation>
+            <source>%n item(s) in root</source>
+            <translation>
+                <numerusform>%n елемент у корені</numerusform>
+                <numerusform>%n елементи у корені</numerusform>
+                <numerusform>%n елементів у корені</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1548" />

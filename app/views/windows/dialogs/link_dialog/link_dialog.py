@@ -733,9 +733,7 @@ class LinkDialog(BaseDialog):
         count = len(profiles) if profiles else 0
         if count == 0:
             return self.tr("Profile")
-        if count == 1:
-            return self.tr("Profile (1)")
-        return self.tr("Profiles ({count})").format(count=count)
+        return self.tr("%n profile(s)", "", count)
 
     def _format_profile_tooltip(self, profiles: list[dict]) -> str:
         """Format detailed tooltip for selected profiles button."""
@@ -744,7 +742,7 @@ class LinkDialog(BaseDialog):
         names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
         if len(names) == 1:
             return self.tr("Selected profile: {name}\n(Click to change)").format(name=names[0])
-        lines = [self.tr("Selected profiles ({count}):").format(count=len(names))]
+        lines = [self.tr("%n selected profile(s):", "", len(names))]
         for n in names:
             lines.append(f"• {n}")
         lines.append(self.tr("(Click to change)"))

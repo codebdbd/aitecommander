@@ -1739,10 +1739,13 @@
             <source>Search error</source>
             <translation>Error de búsqueda</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="701" />
-            <source>Search finished. Files found: {count}</source>
-            <translation>Búsqueda finalizada. Archivos encontrados: {count}</translation>
+            <source>Search finished. %n file(s) found.</source>
+            <translation>
+                <numerusform>Búsqueda finalizada. %n archivo encontrado.</numerusform>
+                <numerusform>Búsqueda finalizada. %n archivos encontrados.</numerusform>
+            </translation>
         </message>
     </context>
     <context>
@@ -2078,13 +2081,11 @@ Fallos: {3}</translation>
             <translation>Cargando aplicaciones instaladas...</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="236" />
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="38" />
             <source>Total applications: %d</source>
             <translation>Total de aplicaciones: %d</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="240" />
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="39" />
             <source>Shown: %d of %d</source>
             <translation>Mostradas: %d de %d</translation>
@@ -2100,6 +2101,19 @@ Fallos: {3}</translation>
             <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="41" />
             <source>Cancel</source>
             <translation>Cancelar</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="236" />
+            <source>%n application(s) total</source>
+            <translation>
+                <numerusform>%n aplicación en total</numerusform>
+                <numerusform>%n aplicaciones en total</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="240" />
+            <source>Shown: %1 of %2</source>
+            <translation>Mostrado: %1 de %2</translation>
         </message>
     </context>
     <context>
@@ -2288,35 +2302,36 @@ Are you sure you want to continue?</source>
             <source>Profile</source>
             <translation>Perfil</translation>
         </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="737" />
-            <source>Profile (1)</source>
-            <translation>Perfil (1)</translation>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="736" />
+            <source>%n profile(s)</source>
+            <translation>
+                <numerusform>%n perfil</numerusform>
+                <numerusform>%n perfiles</numerusform>
+            </translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="738" />
-            <source>Profiles ({count})</source>
-            <translation>Perfiles ({count})</translation>
-        </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="743" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="741" />
             <source>Select browser profile</source>
             <translation>Seleccionar perfil de navegador</translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="746" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="744" />
             <source>Selected profile: {name}
 (Click to change)</source>
             <translation>Perfil seleccionado: {name}
 (Haga clic para cambiar)</translation>
         </message>
-        <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="747" />
-            <source>Selected profiles ({count}):</source>
-            <translation>Perfiles seleccionados ({count}):</translation>
+        <message numerus="yes">
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="745" />
+            <source>%n selected profile(s):</source>
+            <translation>
+                <numerusform>%n perfil seleccionado:</numerusform>
+                <numerusform>%n perfiles seleccionados:</numerusform>
+            </translation>
         </message>
         <message>
-            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="750" />
+            <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="748" />
             <source>(Click to change)</source>
             <translation>(Haga clic para cambiar)</translation>
         </message>
@@ -2504,15 +2519,21 @@ Are you sure you want to continue?</source>
             <source>Select profiles for rotation</source>
             <translation>Seleccionar perfiles para rotación</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="111" />
-            <source>Profiles ({count})</source>
-            <translation>Perfiles ({count})</translation>
+            <source>%n profile(s)</source>
+            <translation>
+                <numerusform>%n perfil</numerusform>
+                <numerusform>%n perfiles</numerusform>
+            </translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="119" />
-            <source>Rotation order ({count}):</source>
-            <translation>Orden de rotación ({count}):</translation>
+            <source>Rotation order (%n profile(s)):</source>
+            <translation>
+                <numerusform>Orden de rotación (%n perfil):</numerusform>
+                <numerusform>Orden de rotación (%n perfiles):</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="122" />
@@ -3293,10 +3314,13 @@ Are you sure you want to continue?</source>
             <source>The file may have been moved, renamed, or deleted.</source>
             <translation>El archivo puede haber sido movido, renombrado o eliminado.</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="683" />
-            <source>paragraphs</source>
-            <translation>párrafos</translation>
+            <source>%n paragraph(s)</source>
+            <translation>
+                <numerusform>%n párrafo</numerusform>
+                <numerusform>%n párrafos</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="772" />
@@ -3324,16 +3348,22 @@ Are you sure you want to continue?</source>
             <source>Modified</source>
             <translation>Modificado</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1025" />
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="818" />
-            <source>preview rows</source>
-            <translation>filas de vista previa</translation>
+            <source>%n preview row(s)</source>
+            <translation>
+                <numerusform>%n fila de vista previa</numerusform>
+                <numerusform>%n filas de vista previa</numerusform>
+            </translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
-            <source>files and folders</source>
-            <translation>archivos y carpetas</translation>
+            <source>%n file(s) and folder(s)</source>
+            <translation>
+                <numerusform>%n archivo y carpeta</numerusform>
+                <numerusform>%n archivos y carpetas</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
@@ -3350,10 +3380,13 @@ Are you sure you want to continue?</source>
             <source>Access error</source>
             <translation>Error de acceso</translation>
         </message>
-        <message>
+        <message numerus="yes">
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1509" />
-            <source>Total items in root</source>
-            <translation>Total de elementos en la raíz</translation>
+            <source>%n item(s) in root</source>
+            <translation>
+                <numerusform>%n elemento en la raíz</numerusform>
+                <numerusform>%n elementos en la raíz</numerusform>
+            </translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1548" />
