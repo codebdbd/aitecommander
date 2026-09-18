@@ -5,15 +5,17 @@ import csv
 import html
 import logging
 import os
+import re
 import subprocess
 import sys
+import wave
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, QFileInfo, QPoint, QPointF, QRect, QSize, Qt
+from PyQt6.QtCore import QCoreApplication, QFileInfo, QPoint, QPointF, QRect, QSettings, QSize, Qt
 from PyQt6.QtGui import (
     QColor,
     QFont,
@@ -27,6 +29,7 @@ from PyQt6.QtGui import (
     QPalette,
     QPixmap,
     QShortcut,
+    QSyntaxHighlighter,
     QTextBlockFormat,
     QTextCharFormat,
     QTextCursor,
@@ -69,6 +72,7 @@ except ImportError:
 from app.core.hotkey_manager import HotkeyManager
 from app.models.types.link_type import LinkType
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.config_data import app_config
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.icon_service import get_icon
 from app.utils.ui.icon.path_service import get_current_theme
@@ -77,11 +81,102 @@ from app.views.windows.dialogs.base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico", ".svg"}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm"}
 TEXT_EXTENSIONS = {
     ".txt", ".py", ".json", ".md", ".bat", ".ps1", ".log",
     ".yaml", ".yml", ".ini", ".csv", ".sh", ".cmd", ".xml",
     ".html", ".css", ".js", ".ts", ".sql", ".conf", ".cfg", ".env"
 }
+
+
+class CodeSyntaxHighlighter(QSyntaxHighlighter):
+    """Lightweight syntax highlighter for common programming & config formats."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._rules: list[tuple[re.Pattern, QTextCharFormat]] = []
+
+    def configure(self, ext: str, is_dark: bool) -> None:
+        self._rules.clear()
+        ext = ext.lower()
+
+        kw_color = QColor("#569CD6") if is_dark else QColor("#0000FF")
+        str_color = QColor("#CE9178") if is_dark else QColor("#A31515")
+        comm_color = QColor("#6A9955") if is_dark else QColor("#008000")
+        num_color = QColor("#B5CEA8") if is_dark else QColor("#098658")
+        prop_color = QColor("#9CDCFE") if is_dark else QColor("#001080")
+
+        kw_fmt = QTextCharFormat()
+        kw_fmt.setForeground(kw_color)
+        kw_fmt.setFontWeight(QFont.Weight.Bold)
+
+        str_fmt = QTextCharFormat()
+        str_fmt.setForeground(str_color)
+
+        comm_fmt = QTextCharFormat()
+        comm_fmt.setForeground(comm_color)
+        comm_fmt.setFontItalic(True)
+
+        num_fmt = QTextCharFormat()
+        num_fmt.setForeground(num_color)
+
+        prop_fmt = QTextCharFormat()
+        prop_fmt.setForeground(prop_color)
+
+        self._rules.append((re.compile(r"\b\d+(\.\d+)?\b"), num_fmt))
+        self._rules.append((re.compile(r'"[^"\\]*(\\.[^"\\]*)*"'), str_fmt))
+        self._rules.append((re.compile(r"'[^'\\]*(\\.[^'\\]*)*'"), str_fmt))
+
+        if ext in (".py", ".pyw"):
+            keywords = [
+                "and", "as", "assert", "async", "await", "break", "class", "continue",
+                "def", "del", "elif", "else", "except", "finally", "for", "from",
+                "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+                "or", "pass", "raise", "return", "try", "while", "with", "yield",
+                "None", "True", "False", "self",
+            ]
+            self._rules.append((re.compile(r"\b(" + "|".join(keywords) + r")\b"), kw_fmt))
+            self._rules.append((re.compile(r"#.*$"), comm_fmt))
+        elif ext in (".json", ".yaml", ".yml"):
+            self._rules.append((re.compile(r'"[^"\\]+":'), prop_fmt))
+            self._rules.append((re.compile(r"^[\s]*[\w\-]+:"), prop_fmt))
+            self._rules.append((re.compile(r"\b(true|false|null)\b", re.IGNORECASE), kw_fmt))
+            self._rules.append((re.compile(r"#.*$"), comm_fmt))
+        elif ext in (".js", ".ts", ".jsx", ".tsx"):
+            keywords = [
+                "break", "case", "catch", "class", "const", "continue", "default",
+                "delete", "do", "else", "export", "extends", "finally", "for",
+                "function", "if", "import", "in", "instanceof", "new", "return",
+                "switch", "this", "throw", "try", "typeof", "var", "while",
+                "let", "static", "await", "async", "null", "undefined", "true", "false",
+            ]
+            self._rules.append((re.compile(r"\b(" + "|".join(keywords) + r")\b"), kw_fmt))
+            self._rules.append((re.compile(r"//.*$"), comm_fmt))
+        elif ext in (".sql",):
+            keywords = [
+                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "JOIN",
+                "LEFT", "RIGHT", "INNER", "ON", "GROUP", "BY", "ORDER", "HAVING",
+                "LIMIT", "OFFSET", "CREATE", "TABLE", "DROP", "ALTER", "AND", "OR",
+                "NOT", "IN", "IS", "NULL", "AS", "SET", "VALUES", "KEY",
+            ]
+            self._rules.append((re.compile(r"\b(" + "|".join(keywords) + r")\b", re.IGNORECASE), kw_fmt))
+            self._rules.append((re.compile(r"--.*$"), comm_fmt))
+        elif ext in (".html", ".htm", ".xml", ".svg"):
+            self._rules.append((re.compile(r"</?[\w\-]+"), kw_fmt))
+            self._rules.append((re.compile(r"[\w\-]+="), prop_fmt))
+            self._rules.append((re.compile(r"<!--[\s\S]*?-->"), comm_fmt))
+        elif ext in (".css", ".qss"):
+            self._rules.append((re.compile(r"[\w\-]+(?=\s*:)"), prop_fmt))
+            self._rules.append((re.compile(r"/\*[\s\S]*?\*/"), comm_fmt))
+        else:
+            self._rules.append((re.compile(r"(#|//).*$"), comm_fmt))
+
+    def highlightBlock(self, text: str) -> None:
+        for pattern, fmt in self._rules:
+            for m in pattern.finditer(text):
+                self.setFormat(m.start(), m.end() - m.start(), fmt)
+
 
 
 def _format_file_size(num_bytes: int) -> str:
@@ -321,10 +416,22 @@ class QuickLookDialog(BaseDialog):
         self.setObjectName("QuickLookDialog")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.installEventFilter(self)
-        self.resize(760, 540)
-        self.setMinimumSize(740, 480)
         self._normal_size = QSize(760, 540)
         self._normal_geometry: Optional[QRect] = None
+        self._syntax_highlighter = CodeSyntaxHighlighter(self)
+
+        qs = QSettings(
+            QSettings.Format.IniFormat,
+            QSettings.Scope.UserScope,
+            app_config.get_org_name(),
+            app_config.get_app_name(),
+        )
+        saved_geom = qs.value("quick_look_geometry")
+        if isinstance(saved_geom, (bytes, bytearray)) and saved_geom:
+            self.restoreGeometry(saved_geom)
+        else:
+            self.resize(self._normal_size)
+        self.setMinimumSize(740, 480)
 
         self._on_open_callback = on_open_callback
         self._on_navigate_callback = on_navigate_callback
@@ -525,6 +632,14 @@ class QuickLookDialog(BaseDialog):
         self._copy_btn.clicked.connect(self._handle_copy_path)
         footer_layout.addWidget(self._copy_btn)
 
+        self._copy_content_btn = QPushButton(self.tr("Copy Content"))
+        self._copy_content_btn.setFixedHeight(26)
+        self._copy_content_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._copy_content_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._copy_content_btn.setToolTip(self.tr("Copy Content (Ctrl+Shift+C)"))
+        self._copy_content_btn.clicked.connect(self._handle_copy_content)
+        footer_layout.addWidget(self._copy_content_btn)
+
         self._reveal_footer_btn = QPushButton(self.tr("Open in Explorer"))
         self._reveal_footer_btn.setFixedHeight(26)
         self._reveal_footer_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -568,6 +683,25 @@ class QuickLookDialog(BaseDialog):
             if url:
                 QApplication.clipboard().setText(url)
 
+    def _handle_copy_content(self) -> None:
+        curr = self._stack.currentWidget()
+        if curr == self._text_page:
+            text = self._text_edit.toPlainText()
+            if text:
+                QApplication.clipboard().setText(text)
+        elif curr == self._table_view:
+            lines: list[str] = []
+            for r in range(self._table_view.rowCount()):
+                row_vals = []
+                for c in range(self._table_view.columnCount()):
+                    it = self._table_view.item(r, c)
+                    row_vals.append(it.text() if it else "")
+                lines.append("\t".join(row_vals))
+            if lines:
+                QApplication.clipboard().setText("\n".join(lines))
+        elif curr == self._image_page and self._current_orig_image:
+            QApplication.clipboard().setPixmap(self._current_orig_image)
+
     def _toggle_fullscreen(self) -> None:
         if self.isMaximized() or self.isFullScreen():
             self.showNormal()
@@ -589,6 +723,9 @@ class QuickLookDialog(BaseDialog):
         if hasattr(self, "_copy_btn"):
             self._copy_btn.setText(self.tr("Copy Path"))
             self._copy_btn.setToolTip(self.tr("Copy Path / URL (Ctrl+C)"))
+        if hasattr(self, "_copy_content_btn"):
+            self._copy_content_btn.setText(self.tr("Copy Content"))
+            self._copy_content_btn.setToolTip(self.tr("Copy Content (Ctrl+Shift+C)"))
         if hasattr(self, "_reveal_footer_btn"):
             self._reveal_footer_btn.setText(self.tr("Open in Explorer"))
             self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
@@ -615,6 +752,8 @@ class QuickLookDialog(BaseDialog):
                 clean_u = clean_u[8:]
             is_local = bool(clean_u and (os.path.exists(clean_u) or link_type in (LinkType.FILE, LinkType.FOLDER, LinkType.PROGRAM)))
             self._reveal_footer_btn.setVisible(is_local)
+        if hasattr(self, "_copy_content_btn"):
+            self._copy_content_btn.setVisible(False)
         self._current_orig_image = None
         self._image_zoom = 1.0
 
@@ -683,6 +822,8 @@ class QuickLookDialog(BaseDialog):
                     self._text_info_lbl.setText(
                         f"DOCX  •  {self.tr('%n paragraph(s)', '', len(paragraphs))}  •  {sz_str}"
                     )
+                    if hasattr(self, "_copy_content_btn"):
+                        self._copy_content_btn.setVisible(True)
                     return
             except Exception as e:
                 logger.debug("Failed to read docx text %s: %s", path_str, e)
@@ -706,6 +847,8 @@ class QuickLookDialog(BaseDialog):
                     self._image_info_lbl.setText(
                         f"{orig_sz.width()} × {orig_sz.height()} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
                     )
+                    if hasattr(self, "_copy_content_btn"):
+                        self._copy_content_btn.setVisible(True)
                     return
 
         if ext in (".psd", ".psb"):
@@ -734,10 +877,14 @@ class QuickLookDialog(BaseDialog):
 
         if ext == ".csv":
             if self._render_csv_preview(path_str):
+                if hasattr(self, "_copy_content_btn"):
+                    self._copy_content_btn.setVisible(True)
                 return
 
         if ext in (".xlsx", ".xlsm"):
             if self._render_xlsx_preview(path_str):
+                if hasattr(self, "_copy_content_btn"):
+                    self._copy_content_btn.setVisible(True)
                 return
 
         if ext in (".zip", ".jar", ".whl", ".apk"):
@@ -755,6 +902,8 @@ class QuickLookDialog(BaseDialog):
                     self._set_markdown_text(text)
                     sz_str = _format_file_size(path.stat().st_size)
                     self._text_info_lbl.setText(f"Markdown  •  {sz_str}")
+                    if hasattr(self, "_copy_content_btn"):
+                        self._copy_content_btn.setVisible(True)
                     return
                 except Exception as e:
                     logger.debug("Failed to read markdown file %s: %s", path_str, e)
@@ -766,15 +915,21 @@ class QuickLookDialog(BaseDialog):
                 self._stack.setCurrentWidget(self._text_page)
                 is_code = ext not in {".txt", ".log"}
                 self._is_prose_mode = not is_code
-                self._set_formatted_text(text, is_code=is_code)
+                self._set_formatted_text(text, is_code=is_code, ext=ext)
                 sz_str = _format_file_size(path.stat().st_size)
                 lines_count = text.count("\n") + 1
                 self._text_info_lbl.setText(
                     f"{self.tr('Lines')}: ~{lines_count}  •  {self.tr('Size')}: {sz_str}  •  UTF-8"
                 )
+                if hasattr(self, "_copy_content_btn"):
+                    self._copy_content_btn.setVisible(True)
                 return
             except Exception as e:
                 logger.debug("Failed to read text file %s: %s", path_str, e)
+
+        if ext in AUDIO_EXTENSIONS or ext in VIDEO_EXTENSIONS:
+            if self._render_media_preview(path_str, ext, qicon):
+                return
 
         sz_str = _format_file_size(path.stat().st_size)
         try:
@@ -1073,6 +1228,59 @@ class QuickLookDialog(BaseDialog):
             return True
         except Exception as e:
             logger.debug("Failed to read ZIP %s: %s", path_str, e)
+            return False
+
+    def _render_media_preview(self, path_str: str, ext: str, qicon: QIcon) -> bool:
+        try:
+            path = Path(path_str)
+            sz_str = _format_file_size(path.stat().st_size)
+            is_audio = ext in AUDIO_EXTENSIONS
+            title = path.stem
+            duration_str = ""
+            cover_pix: Optional[QPixmap] = None
+
+            if ext == ".wav":
+                try:
+                    with wave.open(path_str, "rb") as w:
+                        rate = w.getframerate()
+                        frames = w.getnframes()
+                        dur_sec = int(frames / float(rate)) if rate else 0
+                        duration_str = f"{dur_sec // 60}:{dur_sec % 60:02d}"
+                except Exception:
+                    pass
+            elif ext == ".mp3":
+                try:
+                    with open(path_str, "rb") as f:
+                        hdr = f.read(10)
+                        if hdr.startswith(b"ID3"):
+                            size = ((hdr[6] & 0x7F) << 21) | ((hdr[7] & 0x7F) << 14) | ((hdr[8] & 0x7F) << 7) | (hdr[9] & 0x7F)
+                            data = f.read(min(size, 1024 * 1024))
+                            apic_idx = data.find(b"APIC")
+                            if apic_idx != -1:
+                                img_data = data[apic_idx + 10:apic_idx + 10 + 262144]
+                                for magic in (b"\xff\xd8\xff", b"\x89PNG"):
+                                    m_idx = img_data.find(magic)
+                                    if m_idx != -1:
+                                        pix = QPixmap()
+                                        if pix.loadFromData(img_data[m_idx:]):
+                                            cover_pix = pix.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                                            break
+                except Exception:
+                    pass
+
+            kind_str = self.tr("Audio") if is_audio else self.tr("Video")
+            meta_parts = [kind_str, ext.upper().lstrip('.'), sz_str]
+            if duration_str:
+                meta_parts.append(f"{self.tr('Duration')}: {duration_str}")
+            info_html = (
+                f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 8px;'>{html.escape(title)}</div>"
+                f"<div style='font-size: 12px; opacity: 0.75;'>{'  •  '.join(meta_parts)}</div>"
+            )
+            icon_to_use = QIcon(cover_pix) if cover_pix else qicon
+            self._render_generic_card(icon_to_use, info_html, show_reveal=True)
+            return True
+        except Exception as e:
+            logger.debug("Failed to render media preview: %s", e)
             return False
 
     def _on_pdf_page_changed(self, page_index: int) -> None:
@@ -1404,9 +1612,15 @@ class QuickLookDialog(BaseDialog):
             self._pdf_prev_btn.setIcon(icon_cache.get_icon("left", cur_t))
             self._pdf_next_btn.setIcon(icon_cache.get_icon("right", cur_t))
 
-    def _set_formatted_text(self, text: str, is_code: bool = False) -> None:
+    def _set_formatted_text(self, text: str, is_code: bool = False, ext: str = "") -> None:
         doc = self._text_edit.document()
         doc.clear()
+
+        if is_code:
+            self._syntax_highlighter.configure(ext, self._is_dark_theme())
+            self._syntax_highlighter.setDocument(doc)
+        else:
+            self._syntax_highlighter.setDocument(None)
 
         font_name = "Consolas" if is_code else "Segoe UI"
         font_size = 11 if is_code else 13
@@ -1436,6 +1650,8 @@ class QuickLookDialog(BaseDialog):
         self._text_edit.moveCursor(QTextCursor.MoveOperation.Start)
 
     def _set_markdown_text(self, text: str) -> None:
+        if hasattr(self, "_syntax_highlighter"):
+            self._syntax_highlighter.setDocument(None)
         font = QFont("Segoe UI", 13)
         self._text_edit.setFont(font)
         doc = self._text_edit.document()
@@ -1653,6 +1869,12 @@ class QuickLookDialog(BaseDialog):
                 return True
             self._handle_copy_path()
             return True
+        elif (
+            modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+            and (key == Qt.Key.Key_C or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x43)
+        ):
+            self._handle_copy_content()
+            return True
         elif modifiers == Qt.KeyboardModifier.ControlModifier and (
             key == Qt.Key.Key_A or getattr(event, "nativeVirtualKey", lambda: 0)() == 0x41
         ):
@@ -1718,6 +1940,16 @@ class QuickLookDialog(BaseDialog):
 
     def closeEvent(self, event) -> None:
         super().closeEvent(event)
+        try:
+            qs = QSettings(
+                QSettings.Format.IniFormat,
+                QSettings.Scope.UserScope,
+                app_config.get_org_name(),
+                app_config.get_app_name(),
+            )
+            qs.setValue("quick_look_geometry", self.saveGeometry())
+        except Exception as e:
+            logger.debug("Failed to save quick look geometry: %s", e)
         if self.parent() and hasattr(self.parent(), "table"):
             table = self.parent().table
             if table:
