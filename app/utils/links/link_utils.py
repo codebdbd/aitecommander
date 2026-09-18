@@ -835,6 +835,7 @@ class ScriptLinkHandler(LinkHandler):
             ".pyw": self._create_python_command,
             ".bat": self._create_batch_command,
             ".cmd": self._create_batch_command,
+            ".sh": self._create_bash_command,
         }
 
         handler = script_handlers.get(ext)
@@ -988,6 +989,38 @@ class ScriptLinkHandler(LinkHandler):
             )
             return f'cmd.exe {flag} start "" "{safe_path}" {safe_args}'
         return f'cmd.exe {flag} start "" "{safe_path}"'
+
+    def _resolve_bash_executable(self) -> Optional[str]:
+        """Finds bash interpreter on Windows (Git Bash or WSL) or POSIX."""
+        if platform.system() != "Windows":
+            return shutil.which("bash") or shutil.which("sh")
+
+        # 1. System PATH
+        bash_on_path = shutil.which("bash")
+        if bash_on_path:
+            return bash_on_path
+
+        # 2. Common Git Bash locations
+        candidates = [
+            Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "Git" / "bin" / "bash.exe",
+            Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")) / "Git" / "bin" / "bash.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Git" / "bin" / "bash.exe",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+
+        # 3. WSL fallback
+        return shutil.which("wsl")
+
+    def _create_bash_command(self, path: str, args: list[str]) -> list[str]:
+        """Creates bash script command."""
+        bash_exe = self._resolve_bash_executable()
+        if not bash_exe:
+            raise FileNotFoundError(
+                f"Bash interpreter not found to run '{path}'. Please install Git for Windows or WSL."
+            )
+        return [bash_exe, path] + args
 
 
 class ProgramLinkHandler(LinkHandler):
