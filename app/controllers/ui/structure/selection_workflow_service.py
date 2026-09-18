@@ -286,14 +286,6 @@ class SelectionWorkflowService(QObject):
         assert index is not None
         try:
             self._tree.blockSignals(True)
-            if item_type == "section":
-                try:
-                    self._tree.expand(index)
-                except Exception:
-                    logger.debug(
-                        "SelectionWorkflowService.restore_selection_after_load: expand section failed",
-                        exc_info=True,
-                    )
             parent_index = index.parent()
             if parent_index and parent_index.isValid():
                 try:

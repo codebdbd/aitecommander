@@ -146,6 +146,10 @@ class LinkDialog(BaseDialog):
         """Return the favorites checkbox (`QCheckBox`)."""
         return self.ui.get_widget("fav_chk")
 
+    def _get_run_as_admin_chk(self) -> Optional[QCheckBox]:
+        """Return the run as administrator checkbox (`QCheckBox`)."""
+        return self.ui.get_widget("run_as_admin_chk")
+
     def _get_rotation_chk(self) -> QCheckBox:
         """Return the Chrome rotation checkbox (`QCheckBox`)."""
         return self.ui.get_widget("rotation_chk")
@@ -382,11 +386,21 @@ class LinkDialog(BaseDialog):
         if detected_profiles:
             self.selected_profiles = detected_profiles
 
+        # Extract admin flag for program/script
+        is_admin = False
+        if user_args:
+            admin_tokens = {"--run-as-admin", "--admin"}
+            tokens = user_args.split()
+            if any(t in admin_tokens for t in tokens):
+                is_admin = True
+                user_args = " ".join(t for t in tokens if t not in admin_tokens)
+
         # Prepare form data
         form_data = {
             "url_le": self.link.get("url", ""),
             "name_le": self.link.get("name", ""),
             "args_le": user_args,
+            "run_as_admin_chk": is_admin,
             "notes_te": self.link.get("notes", ""),
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }

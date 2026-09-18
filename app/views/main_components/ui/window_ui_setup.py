@@ -883,80 +883,25 @@ class WindowUISetup:
         return sep
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
-        placeholder = QWidget(self.window)
-        placeholder.setObjectName("mainSearchPlaceholder")
-        placeholder.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
-        )
+        search = QLineEdit(self.window)
+        search.setObjectName("mainSearch")
+        search.setPlaceholderText(self._get_search_placeholder_text())
+        search.setClearButtonEnabled(True)
+        search.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
         min_search_w = self._resolve_search_min_width()
         try:
-            placeholder.setMinimumWidth(min_search_w)
+            search.setMinimumWidth(min_search_w)
         except Exception:
-            logger.debug("SearchWidget: failed to set placeholder min width", exc_info=True)
-        try:
-            placeholder.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
-        except (TypeError, ValueError, RuntimeError):
-            fallback_h = app_config.ui.get_top_panel_button_size()
-            placeholder.setFixedHeight(int(fallback_h))
-            logger.warning("SearchWidget: invalid height, using fallback")
+            logger.debug("SearchWidget: failed to set min width", exc_info=True)
 
-        self.window.search = None
-        top_bar.addWidget(placeholder)
-        self._schedule_search_widget_materialization(top_bar, placeholder)
-
-    def _schedule_search_widget_materialization(
-        self, top_bar: QHBoxLayout, placeholder: QWidget
-    ) -> None:
-        """Schedule replacement of placeholder with real QLineEdit search widget.
-
-        Uses singleShot(0) to defer search field initialization to the next event
-        loop tick after the main window is shown, keeping initial paint time minimal.
-        """
-        def _apply() -> None:
-            self._materialize_search_widget(top_bar, placeholder)
-
-        try:
-            is_visible = bool(getattr(self.window, "isVisible", lambda: False)())
-        except (RuntimeError, AttributeError):
-            is_visible = False
-
-        try:
-            if is_visible:
-                # Intentional next-tick deferral to avoid blocking event loop
-                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
-            elif hasattr(self.window, "shown"):
-                self.window.shown.connect(_apply)
-            else:
-                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
-        except (RuntimeError, AttributeError):
-            logger.debug(
-                "SearchWidget: failed to schedule materialization",
-                exc_info=True,
-            )
-
-    def _materialize_search_widget(
-        self, top_bar: QHBoxLayout, placeholder: QWidget
-    ) -> None:
-        if getattr(self.window, "search", None) is not None:
-            return
-
-        search = QLineEdit(self.window)
-        search.setPlaceholderText(self._get_search_placeholder_text())
-        WidgetRegistry.register(WidgetType.SEARCH_FIELD, search)
         try:
             search.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
         except (TypeError, ValueError, RuntimeError):
             fallback_h = app_config.ui.get_top_panel_button_size()
             search.setFixedHeight(int(fallback_h))
             logger.warning("SearchWidget: invalid height, using fallback")
-        search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        min_search_w = self._resolve_search_min_width()
-        try:
-            search.setMinimumWidth(min_search_w)
-        except Exception:
-            logger.debug("SearchWidget: failed to set min width", exc_info=True)
-        search.setObjectName("mainSearch")
 
         handler = getattr(self.window, "on_search", None)
         if callable(handler):
@@ -967,56 +912,15 @@ class WindowUISetup:
         else:
             logger.warning("SearchWidget: on_search handler not found")
 
-        index = top_bar.indexOf(placeholder)
-        if index < 0:
-            logger.debug("SearchWidget: placeholder missing during materialization")
-            return
+        WidgetRegistry.register(WidgetType.SEARCH_FIELD, search)
+        try:
+            self._setup_search_context_menu(search)
+        except Exception:
+            logger.debug("SearchWidget: context menu setup failed", exc_info=True)
 
-        top_bar.removeWidget(placeholder)
-        placeholder.setParent(None)
-        placeholder.deleteLater()
-        top_bar.insertWidget(index, search)
+        top_bar.addWidget(search)
         self.window.search = search
-        self._schedule_search_widget_enhancements(search)
         self._normalize_top_bar_stretches(top_bar)
-
-        try:
-            topbar_manager = getattr(self.window, "_topbar_manager", None)
-            if topbar_manager is not None and hasattr(topbar_manager, "adjust"):
-                topbar_manager.adjust()
-        except Exception:
-            logger.debug("SearchWidget: topbar adjust after materialization failed", exc_info=True)
-
-    def _schedule_search_widget_enhancements(self, search_widget: QLineEdit) -> None:
-        """Defer cosmetic search-widget setup to keep topbar startup lighter."""
-
-        def _apply() -> None:
-            try:
-                search_widget.setClearButtonEnabled(True)
-            except Exception:
-                logger.debug("SearchWidget: failed to enable clear button", exc_info=True)
-            try:
-                self._setup_search_context_menu(search_widget)
-            except Exception:
-                logger.debug("SearchWidget: deferred context menu setup failed", exc_info=True)
-
-        try:
-            is_visible = bool(getattr(self.window, "isVisible", lambda: False)())
-        except Exception:
-            is_visible = False
-
-        try:
-            if is_visible:
-                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
-            elif hasattr(self.window, "shown"):
-                self.window.shown.connect(_apply)
-            else:
-                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, _apply)
-        except Exception:
-            logger.debug(
-                "SearchWidget: failed to schedule deferred enhancements",
-                exc_info=True,
-            )
 
     @safe_ui_operation("SearchWidget: failed to setup context menu", exc=(Exception,))
     def _setup_search_context_menu(self, search_widget: QLineEdit) -> None:

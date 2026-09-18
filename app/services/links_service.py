@@ -234,21 +234,7 @@ class LinksService:
         """Удалить несколько ссылок по IDs с очисткой осиротевших иконок."""
         self._validate_positive_int_list(link_ids, "link_ids")
 
-        # Получаем данные ссылок перед удалением
-        links_to_delete = []
-        for link_id in link_ids:
-            link = self.repo.get_link_by_id(link_id)
-            if link and link.get("icon_path"):
-                links_to_delete.append(link["icon_path"])
-
-        # Удаляем ссылки
-        deleted_count = self._bulk.delete_links_bulk(link_ids)
-
-        # Очищаем осиротевшие иконки
-        for icon_path in links_to_delete:
-            self._cleanup_orphaned_icon(icon_path)
-
-        return deleted_count
+        return self._bulk.delete_links_bulk(link_ids)
 
     def _cleanup_orphaned_icon(self, icon_path: str) -> None:
         """Очистить осиротевшую иконку, если она больше не используется."""

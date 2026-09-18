@@ -100,7 +100,12 @@ class TreeManagement(QObject):
             None if initial_load else self._state.capture_current_selection()
         )
         t_sel1 = time.perf_counter()
-        expanded_state = {} if initial_load else self._state.capture_expanded_state()
+        if initial_load and isinstance(sphere_id, int) and sphere_id > 0:
+            expanded_state = self._state.load_saved_expanded_state(sphere_id)
+        elif initial_load:
+            expanded_state = {}
+        else:
+            expanded_state = self._state.capture_expanded_state()
         t_exp1 = time.perf_counter()
 
         t_sort0 = time.perf_counter()
@@ -344,8 +349,7 @@ class TreeManagement(QObject):
         t0 = time.perf_counter()
         initial_load = self._is_initial_structure_load()
         try:
-            if not initial_load:
-                self._state.restore_expanded_state(expanded_state)
+            self._state.restore_expanded_state(expanded_state)
         except Exception:
             logger.exception(
                 "TreeManagement._after_snapshot_applied: failed to restore expanded state"

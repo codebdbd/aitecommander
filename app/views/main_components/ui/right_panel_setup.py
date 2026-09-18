@@ -136,6 +136,14 @@ class RightPanelBuilder:
         widgets.table_container = table_wrapper
         stack.addWidget(table_wrapper)
 
+        try:
+            settings = getattr(self.window, "settings", None)
+            saved = settings.get_last_tree_selection() if settings else None
+            initial_idx = 0 if (saved and saved[0] == "section") else 1
+        except Exception:
+            initial_idx = 1
+        stack.setCurrentIndex(initial_idx)
+
         if self._placeholder is not None:
             right_layout.removeWidget(self._placeholder)
             self._placeholder.setParent(None)

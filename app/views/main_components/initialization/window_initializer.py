@@ -332,15 +332,6 @@ class WindowInitializer:
                 )
 
     def _initialize_spheres(self) -> None:
-        try:
-            if hasattr(self.window, "isVisible") and self.window.isVisible():
-                QTimer.singleShot(0, self.controllers_setup.initialize_spheres)
-                return
-        except Exception:
-            logger.debug(
-                "WindowInitializer: failed to defer initial sphere loading",
-                exc_info=True,
-            )
         self.controllers_setup.initialize_spheres()
 
     def _post_status_bar_init(self) -> None:
@@ -354,50 +345,39 @@ class WindowInitializer:
 
     def _post_controllers_init(self) -> None:
         try:
-            sb = getattr(self.window, "structure_business", None)
-            ao = getattr(sb, "async_operations", None) if sb else None
-            if ao is not None:
-                curr_id = getattr(sb, "current_sphere_id", None)
-                if isinstance(curr_id, int) and curr_id > 0:
-                    self._metrics.start("async:structure_load")
-                    try:
-                        if hasattr(sb, "structure_loaded"):
+            structure_ctrl = getattr(self.window, "structure", None)
+            sphere_id = 1
+            item_to_select = None
+            if structure_ctrl is not None and hasattr(
+                structure_ctrl, "_resolve_initial_sphere_and_selection"
+            ):
+                sphere_id, item_to_select = (
+                    structure_ctrl._resolve_initial_sphere_and_selection(1)
+                )
 
-                            def _on_structure_loaded_once(*_args):
-                                try:
-                                    self._metrics.stop("async:structure_load")
-                                except Exception:
-                                    logger.debug(
-                                        "WindowInitializer: failed to stop 'async:structure_load' metric",
-                                        exc_info=False,
-                                    )
-                                try:
-                                    sb.structure_loaded.disconnect(
-                                        _on_structure_loaded_once
-                                    )
-                                except Exception:
-                                    logger.debug(
-                                        "WindowInitializer: failed to disconnect temporary structure_loaded slot",
-                                        exc_info=False,
-                                    )
+            # 1. Trigger sphere switch and structure loading immediately via controller
+            if structure_ctrl is not None:
+                structure_ctrl.switch_sphere(sphere_id, item_to_select=item_to_select)
 
-                            sb.structure_loaded.connect(_on_structure_loaded_once)
-                    except Exception:
-                        logger.debug(
-                            "WindowInitializer: failed to wire metrics to structure_loaded",
-                            exc_info=False,
-                        )
-                    try:
-                        # Kick off immediately without an extra event-loop tick to display the tree sooner
-                        ao.load_structure_async(int(curr_id))
-                        self._metrics.mark("async:load_structure_async started")
-                    except Exception:
-                        logger.exception(
-                            "WindowInitializer: failed to start load_structure_async immediately"
-                        )
+            # 2. Preload initial right panel content in parallel before window show
+            if item_to_select:
+                item_type, item_id = item_to_select
+                if structure_ctrl is not None:
+                    sel_handler = getattr(structure_ctrl, "selection_handler", None)
+                    if sel_handler is not None:
+                        sel_handler._last_handled = (item_type, item_id)
+
+                if item_type == "category":
+                    ui_state = getattr(self.window, "ui_state", None)
+                    if ui_state is not None:
+                        ui_state.load_category(int(item_id), source="startup_init")
+                elif item_type == "section":
+                    tiles_ctrl = getattr(self.window, "category_tiles_controller", None)
+                    if tiles_ctrl is not None:
+                        tiles_ctrl.refresh(int(item_id))
         except Exception:
             logger.exception(
-                "WindowInitializer: failed to schedule load_structure_async"
+                "WindowInitializer: failed to schedule early preload in _post_controllers_init"
             )
 
     def _execute_db_dependent_steps(self) -> None:
@@ -589,11 +569,22 @@ class WindowInitializer:
     def _on_window_shown(self) -> None:
         """Update status after the window is shown.
 
-        Accounts for deferred creation of the status bar by checking prerequisites.
         """
         try:
-            # Do not override the status bar message when the window is shown
-            pass
+            # Schedule background orphaned icons cleanup 5 seconds after startup
+            def _task() -> None:
+                try:
+                    from app.services.icon_reference_service import IconReferenceService
+                    if self.db is not None:
+                        svc = IconReferenceService(self.db)
+                        svc.cleanup_orphaned_icons(dry_run=False, min_age_hours=1)
+                except Exception:
+                    logger.debug("Background orphaned icons cleanup failed", exc_info=True)
+
+            from app.utils.db.api import run_db
+            QTimer.singleShot(
+                5000, lambda: run_db(_task, description="cleanup_orphaned_icons")
+            )
         except Exception:
             logger.exception(
                 "WindowInitializer: failed to update status-bar text in _on_window_shown"

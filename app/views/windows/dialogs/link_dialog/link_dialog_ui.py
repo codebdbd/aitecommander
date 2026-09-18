@@ -288,24 +288,12 @@ class LinkDialogUI:
         (QT_TRANSLATE_NOOP("LinkDialogUI", "Guest mode"),         "--guest"),
     ]
 
-    _SCRIPT_ARG_PRESETS = [
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Default"),                    ""),
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Run as administrator"),       "--run-as-admin"),
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Keep console open"),          "--keep-open"),
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Administrator + Keep open"),  "--run-as-admin --keep-open"),
-    ]
-
-    _PROGRAM_ARG_PRESETS = [
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Default"),                    ""),
-        (QT_TRANSLATE_NOOP("LinkDialogUI", "Run as administrator"),       "--run-as-admin"),
-    ]
-
     def _form_add_args_row(self) -> None:
         """Add row for launch arguments.
 
         Uses a QStackedWidget with two pages:
-        - index 0: non-editable QComboBox with browser flag presets (Web links)
-        - index 1: editable QComboBox with preset flags and free text input (Program / Script links)
+        - index 0: editable QComboBox with browser flag presets (Web links)
+        - index 1: plain QLineEdit (Program / Script links)
         """
         self.args_label = QLabel(
             QCoreApplication.translate("LinkDialogUI", "Arguments:")
@@ -318,40 +306,19 @@ class LinkDialogUI:
             translated = QCoreApplication.translate("LinkDialogUI", label)
             self.args_cb.addItem(translated, userData=value)
 
-        # Program / Script: editable PopupComboBox with presets and free text input
-        self.args_prog_cb = PopupComboBox()
-        self.args_prog_cb.setEditable(True)
-        self.args_prog_cb.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.args_prog_cb.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.args_le = self.args_prog_cb.lineEdit()
-
-        # Populate initial presets for Script/Program
-        for label, value in self._SCRIPT_ARG_PRESETS:
-            translated = QCoreApplication.translate("LinkDialogUI", label)
-            self.args_prog_cb.addItem(translated, userData=value)
-        self.args_prog_cb.setCurrentIndex(0)
-        self.args_le.clear()
-
-        # When user selects an item from dropdown, set its preset value into the lineEdit
-        def _on_prog_preset_activated(index: int) -> None:
-            if 0 <= index < self.args_prog_cb.count():
-                val = self.args_prog_cb.itemData(index)
-                if val is not None:
-                    self.args_le.setText(str(val))
-
-        self.args_prog_cb.activated.connect(_on_prog_preset_activated)
+        # Program / Script: clean reliable QLineEdit
+        self.args_le = QLineEdit()
 
         self.args_stack = QStackedWidget()
-        self.args_stack.addWidget(self.args_cb)        # index 0 → Web
-        self.args_stack.addWidget(self.args_prog_cb)   # index 1 → Program/Script
+        self.args_stack.addWidget(self.args_cb)   # index 0 → Web
+        self.args_stack.addWidget(self.args_le)   # index 1 → Program/Script
 
         self.form.addRow(self.args_label, self.args_stack)
         self.widgets.update({
-            "args_le":      self.args_le,
-            "args_cb":      self.args_cb,
-            "args_prog_cb": self.args_prog_cb,
-            "args_stack":   self.args_stack,
-            "args_label":   self.args_label,
+            "args_le":    self.args_le,
+            "args_cb":    self.args_cb,
+            "args_stack": self.args_stack,
+            "args_label": self.args_label,
         })
 
 
@@ -413,6 +380,14 @@ class LinkDialogUI:
         bottom_row.addWidget(self.fav_chk)
         bottom_row.addSpacing(16)
 
+        # Run as administrator checkbox (for Program / Script)
+        self.run_as_admin_chk = QCheckBox(
+            QCoreApplication.translate("LinkDialogUI", "Run as administrator")
+        )
+        self.run_as_admin_chk.setVisible(False)
+        bottom_row.addWidget(self.run_as_admin_chk)
+        bottom_row.addSpacing(16)
+
         # Chrome rotation checkbox + profile selection button
         self.rotation_chk = QCheckBox(
             QCoreApplication.translate("LinkDialogUI", "Rotation")
@@ -459,6 +434,7 @@ class LinkDialogUI:
         container.addLayout(bottom_row)
 
         self.widgets["fav_chk"] = self.fav_chk
+        self.widgets["run_as_admin_chk"] = self.run_as_admin_chk
         self.widgets["rotation_chk"] = self.rotation_chk
         self.widgets["rotation_profiles_btn"] = self.rotation_profiles_btn
         self.widgets["button_box"] = self.button_box
@@ -574,20 +550,6 @@ class LinkDialogUI:
                         self.args_cb.setItemText(
                             idx, QCoreApplication.translate("LinkDialogUI", label)
                         )
-            if hasattr(self, "args_prog_cb") and self.args_prog_cb is not None:
-                current_text = self.args_prog_cb.lineEdit().text()
-                # Determine current presets list by count
-                presets = (
-                    self._SCRIPT_ARG_PRESETS
-                    if self.args_prog_cb.count() == len(self._SCRIPT_ARG_PRESETS)
-                    else self._PROGRAM_ARG_PRESETS
-                )
-                for idx, (label, _) in enumerate(presets):
-                    if idx < self.args_prog_cb.count():
-                        self.args_prog_cb.setItemText(
-                            idx, QCoreApplication.translate("LinkDialogUI", label)
-                        )
-                self.args_prog_cb.lineEdit().setText(current_text)
         except Exception:
             pass
 
@@ -617,7 +579,7 @@ class LinkDialogUI:
             pass
 
     def _retranslate_notes_and_favorites(self):
-        """Retranslate notes label and favorites checkbox."""
+        """Retranslate notes label and options checkboxes."""
         try:
             if hasattr(self, "form") and self.form is not None:
                 field = getattr(self, "notes_frame", getattr(self, "notes_te", None))
@@ -630,6 +592,10 @@ class LinkDialogUI:
             if hasattr(self, "fav_chk") and self.fav_chk is not None:
                 self.fav_chk.setText(
                     QCoreApplication.translate("LinkDialogUI", "Favorites")
+                )
+            if hasattr(self, "run_as_admin_chk") and self.run_as_admin_chk is not None:
+                self.run_as_admin_chk.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Run as administrator")
                 )
             if hasattr(self, "rotation_chk") and self.rotation_chk is not None:
                 self.rotation_chk.setText(

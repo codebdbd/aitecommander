@@ -56,7 +56,7 @@ class SpheresBarController(QObject):
             )
 
     def init(self) -> None:
-        """Subscribe to spheres_loaded and start async loading."""
+        """Subscribe to spheres_loaded and initialize spheres bar."""
         sb = getattr(self.w, "structure_business", None)
         if sb is None:
             raise AttributeError("Window must expose structure_business")
@@ -69,10 +69,21 @@ class SpheresBarController(QObject):
                 "SpheresBarController.init: failed to connect spheres signals"
             )
             raise
-        sb.load_spheres_async()
         if hasattr(self.w, "spheres_bar") and self.w.spheres_bar:
             self.w.spheres_bar.setMouseTracking(True)
             self.w.spheres_bar.installEventFilter(self)
+
+        # Synchronously load spheres so buttons exist before window is shown
+        spheres: list[dict[str, Any]] | None = None
+        try:
+            spheres = sb.get_spheres()
+        except Exception:
+            logger.exception("SpheresBarController.init: sync get_spheres failed")
+
+        if spheres:
+            self.on_spheres_loaded_ui(spheres)
+        else:
+            sb.load_spheres_async()
 
     @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
