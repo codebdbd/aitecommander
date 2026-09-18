@@ -371,14 +371,13 @@ class LinkDialogUI:
         """Create bottom row with options (favorite, rotation) and OK/Cancel buttons."""
         bottom_row = QHBoxLayout()
         bottom_row.setContentsMargins(0, 0, 0, 0)
-        bottom_row.setSpacing(8)
+        bottom_row.setSpacing(12)
 
         # Favorite checkbox
         self.fav_chk = QCheckBox(
             QCoreApplication.translate("LinkDialogUI", "Favorites")
         )
         bottom_row.addWidget(self.fav_chk)
-        bottom_row.addSpacing(16)
 
         # Run as administrator checkbox (for Program / Script)
         self.run_as_admin_chk = QCheckBox(
@@ -386,7 +385,6 @@ class LinkDialogUI:
         )
         self.run_as_admin_chk.setVisible(False)
         bottom_row.addWidget(self.run_as_admin_chk)
-        bottom_row.addSpacing(16)
 
         # Chrome rotation checkbox + profile selection button
         self.rotation_chk = QCheckBox(

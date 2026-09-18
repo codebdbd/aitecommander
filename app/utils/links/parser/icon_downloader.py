@@ -248,11 +248,17 @@ def write_icon_meta(domain: str, meta: dict) -> None:
 
 
 def build_conditional_headers(domain: str, meta: dict, force_refresh: bool) -> dict:
+    d = (domain or "").strip()
+    try:
+        domain_ascii = d.encode("idna").decode("ascii")
+    except Exception:
+        domain_ascii = ""
+    referer = f"https://{domain_ascii}/" if domain_ascii else None
     return {
         "If-None-Match": None if force_refresh else meta.get("etag"),
         "If-Modified-Since": None if force_refresh else meta.get("last_modified"),
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        "Referer": f"https://{domain}/",
+        "Referer": referer,
     }
 
 

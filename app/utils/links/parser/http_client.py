@@ -147,7 +147,14 @@ def _prepare_headers(config, extra_headers):
     """Prepare request headers."""
     headers = {"User-Agent": getattr(config, "USER_AGENT", USER_AGENT)}
     if extra_headers:
-        headers.update({k: v for k, v in extra_headers.items() if v})
+        for k, v in extra_headers.items():
+            if v is not None:
+                val_str = str(v)
+                try:
+                    val_str.encode("latin-1")
+                    headers[k] = val_str
+                except UnicodeEncodeError:
+                    logger.debug("[http] Omitting header %s with non-latin1 value", k)
     return headers
 
 
