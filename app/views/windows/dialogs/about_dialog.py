@@ -22,13 +22,8 @@ from .base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "AboutDialog"
 _SUPPORT_URL = "https://codebdbd.github.io/"
 _REPOSITORY_URL = "https://github.com/codebdbd/aitecommander"
-
-
-def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
 
 
 class AboutDialog(BaseDialog):
@@ -189,32 +184,32 @@ class AboutDialog(BaseDialog):
         app_name = app_config.settings.get_app_name()
         version = app_config.settings.get_app_version()
 
-        self.setWindowTitle(_tr("About"))
+        self.setWindowTitle(self.tr("About"))
         self.title_label.setText(app_name)
         self.description_label.setText(
-            _tr(
+            self.tr(
                 "Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools."
             )
         )
 
-        self.info_group.setTitle(_tr("Information"))
-        self.version_label.setText(_tr("Version {0}").format(version))
-        self.developer_label.setText(_tr("Developer: Codebdbd"))
-        self.license_label.setText(_tr("License: MIT"))
-        self.tech_value_label.setText(_tr("Python 3.12+ · PyQt6 · SQLite"))
+        self.info_group.setTitle(self.tr("Information"))
+        self.version_label.setText(self.tr("Version {0}").format(version))
+        self.developer_label.setText(self.tr("Developer: Codebdbd"))
+        self.license_label.setText(self.tr("License: MIT"))
+        self.tech_value_label.setText(self.tr("Python 3.12+ · PyQt6 · SQLite"))
 
-        self.paths_group.setTitle(_tr("Application data"))
-        self.data_title_label.setText(_tr("Data folder"))
+        self.paths_group.setTitle(self.tr("Application data"))
+        self.data_title_label.setText(self.tr("Data folder"))
         self.data_path_label.setText(str(self._data_dir))
-        self.data_button.setText(_tr("Open data folder"))
-        self.program_title_label.setText(_tr("Program folder"))
+        self.data_button.setText(self.tr("Open data folder"))
+        self.program_title_label.setText(self.tr("Program folder"))
         self.program_path_label.setText(str(self._program_dir))
-        self.program_button.setText(_tr("Open program folder"))
+        self.program_button.setText(self.tr("Open program folder"))
 
-        self.resources_group.setTitle(_tr("Resources"))
-        self.support_button.setText(_tr("Support the project"))
-        self.repo_button.setText(_tr("GitHub repository"))
-        self.license_button.setText(_tr("Open license"))
+        self.resources_group.setTitle(self.tr("Resources"))
+        self.support_button.setText(self.tr("Support the project"))
+        self.repo_button.setText(self.tr("GitHub repository"))
+        self.license_button.setText(self.tr("Open license"))
 
     def _open_url(self, url: str, action_name: str) -> None:
         try:
@@ -223,7 +218,7 @@ class AboutDialog(BaseDialog):
         except Exception:
             logger.exception("Failed to open URL: %s", url)
         self.show_error(
-            _tr("Could not open target."),
+            self.tr("Could not open target."),
             title=action_name,
             informative_text=url,
         )
@@ -232,7 +227,7 @@ class AboutDialog(BaseDialog):
         try:
             if not path.exists():
                 self.show_error(
-                    _tr("Missing target: {0}").format(str(path)),
+                    self.tr("Missing target: {0}").format(str(path)),
                     title=action_name,
                 )
                 return
@@ -241,7 +236,7 @@ class AboutDialog(BaseDialog):
         except Exception:
             logger.exception("Failed to open local path: %s", path)
         self.show_error(
-            _tr("Could not open target."),
+            self.tr("Could not open target."),
             title=action_name,
             informative_text=str(path),
         )

@@ -9,13 +9,6 @@ from PyQt6.QtWidgets import QWidget
 
 from app.core.hotkey_manager import HotkeyManager
 
-_TR_CONTEXT = "MenuActions"
-
-
-def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +26,7 @@ class ActionBuilder:
         icon: Optional[QIcon] = None,
     ) -> QAction:
         """Create a menu action."""
-        action = QAction(_tr(text), self.parent)
+        action = QAction(QCoreApplication.translate("MenuActions", text), self.parent)
 
         if icon:
             action.setIcon(icon)
@@ -56,7 +49,7 @@ class ActionBuilder:
         except Exception as e:
             logger.exception("Menu action execution failed")
             if hasattr(self.parent, "show_error_message"):
-                self.parent.show_error_message(_tr("Error: %1").replace("%1", str(e)))
+                self.parent.show_error_message(QCoreApplication.translate("MenuActions", "Error: %1").replace("%1", str(e)))
 
 
 # Hotkey constants

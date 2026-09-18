@@ -1,10 +1,7 @@
 from PyQt6.QtCore import QCoreApplication
 
-_TR_CONTEXT = "Common"
-
-
 def tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
+    return QCoreApplication.translate("Common", text)
 
 
 # lupdate hint for common UI strings

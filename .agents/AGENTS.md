@@ -57,4 +57,16 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   6. **Запрет на локальные стили**: Запрещено возвращать локальные `bar.setStyleSheet(...)` с инлайн-стилями скроллбаров в Python-код виджетов (`StructureTreeView`, `BaseDragDropTableWidget` и др.).
 - **Strict Prohibition**: Запрещено изменять размеры, скругления, цвета, отступы скроллбаров или переопределять их локальными стилями.
 
-
+## 8. Frozen Subsystems: Browser Bookmark Import (ЗАЩИТА ИМПОРТА ЗАКЛАДОК)
+- **Status: FROZEN / READ-ONLY ARCHITECTURE**: Механизм импорта закладок браузера (`import_browser_html.py`, `import_browser_dialog.py`, методы импорта в `links_business.py`) зафиксирован.
+- **Strict Architecture Rules**:
+  1. **Разделение классов**: Класс `_NetscapeBookmarkParser(HTMLParser)` строго обязан находиться на уровне модуля **до** объявления `BrowserBookmarksImporter`. Запрещено объявлять его внутри других классов или нарушать отступы.
+  2. **Публичный интерфейс**: Класс `BrowserBookmarksImporter` обязан сохранять методы: `select_file(parent_widget)`, `parse_bookmarks(html_path) -> dict`, `sync_to_db(...)`.
+  3. **Стековый алгоритм HTML**: Разбор HTML-закладок Netscape ведётся строго через `HTMLParser` со стеком папок (`folder_stack`). При теге `<DL>` категория добавляется в стек, при `</DL>` — извлекается (`pop()`), возвращая контекст в родительскую категорию. Запрещено возвращать нестековый или DOM-рекурсивный парсинг через BeautifulSoup.
+  4. **Сохранение данных при переполнении**:
+     - `name`: при длине > 255 символов обрезается до 255, а полный исходный заголовок обязательно сохраняется в `notes`.
+     - `url`: лимит 2048 символов.
+     - `notes`: лимит 10 000 символов.
+     - `category name`: лимит 255 символов.
+  5. **Геометрия окна**: `ImportBrowserDialog` обязан иметь размер строго по содержимому через `vbox.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)`. Запрещено возвращать свободное растягивание окна пользователем или хардкод `resize()` с пустыми полями.
+- **Strict Prohibition**: Запрещено ломать иерархию классов, убирать стековый возврат из папок, удалять сохранение длинных названий в заметки или возвращать растягивание диалога.

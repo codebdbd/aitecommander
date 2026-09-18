@@ -3,8 +3,6 @@ from datetime import datetime
 
 from PyQt6.QtCore import QCoreApplication, QLocale
 
-_TR_CONTEXT = "DateUtils"
-
 _DATE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {
         "Never": "Never",
@@ -81,20 +79,12 @@ _DATE_TRANSLATIONS: dict[str, dict[str, str]] = {
 }
 
 
-def _tr(text: str) -> str:
-    locale = QLocale()
-    lang = locale.name().split("_", 1)[0].lower()
-    localized = _DATE_TRANSLATIONS.get(lang, {}).get(text)
-    if localized:
-        return localized
-    return QCoreApplication.translate(_TR_CONTEXT, text)
-
 logger = logging.getLogger(__name__)
 
 
 def format_last_used(last_used: str) -> str:
     if not last_used:
-        return _tr("Never")
+        return QCoreApplication.translate("DateUtils", "Never")
 
     def pluralize(n, one, few, many):
         if n % 10 == 1 and n % 100 != 11:
@@ -109,24 +99,24 @@ def format_last_used(last_used: str) -> str:
         now = datetime.now(last_time.tzinfo)
         delta = now - last_time
         if delta.total_seconds() < 60:
-            return _tr("Just now")
+            return QCoreApplication.translate("DateUtils", "Just now")
         minutes = int(delta.total_seconds() / 60)
         if minutes < 60:
-            unit = pluralize(minutes, _tr("min"), _tr("min"), _tr("min"))
-            return _tr("{0} {1} ago").format(minutes, unit)
+            unit = pluralize(minutes, QCoreApplication.translate("DateUtils", "min"), QCoreApplication.translate("DateUtils", "min"), QCoreApplication.translate("DateUtils", "min"))
+            return QCoreApplication.translate("DateUtils", "{0} {1} ago").format(minutes, unit)
         hours = int(minutes / 60)
         if hours < 24:
-            unit = pluralize(hours, _tr("hr"), _tr("hr"), _tr("hr"))
-            return _tr("{0} {1} ago").format(hours, unit)
+            unit = pluralize(hours, QCoreApplication.translate("DateUtils", "hr"), QCoreApplication.translate("DateUtils", "hr"), QCoreApplication.translate("DateUtils", "hr"))
+            return QCoreApplication.translate("DateUtils", "{0} {1} ago").format(hours, unit)
         days = delta.days
         if days < 7:
-            unit = pluralize(days, _tr("day"), _tr("days"), _tr("days"))
-            return _tr("{0} {1} ago").format(days, unit)
+            unit = pluralize(days, QCoreApplication.translate("DateUtils", "day"), QCoreApplication.translate("DateUtils", "days"), QCoreApplication.translate("DateUtils", "days"))
+            return QCoreApplication.translate("DateUtils", "{0} {1} ago").format(days, unit)
         elif days < 30:
             weeks = days // 7
-            unit = pluralize(weeks, _tr("week"), _tr("weeks"), _tr("weeks"))
-            return _tr("{0} {1} ago").format(weeks, unit)
+            unit = pluralize(weeks, QCoreApplication.translate("DateUtils", "week"), QCoreApplication.translate("DateUtils", "weeks"), QCoreApplication.translate("DateUtils", "weeks"))
+            return QCoreApplication.translate("DateUtils", "{0} {1} ago").format(weeks, unit)
         return last_time.strftime("%d.%m.%Y")
     except (ValueError, TypeError) as e:
         logger.error(f"[format_last_used] Time formatting error: {e}", exc_info=True)
-        return _tr("Unknown")
+        return QCoreApplication.translate("DateUtils", "Unknown")

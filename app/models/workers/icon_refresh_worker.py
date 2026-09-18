@@ -27,11 +27,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "IconRefreshWorker"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("IconRefreshWorker", text, disambiguation)
 
 
 class IconRefreshSignals(QObject):

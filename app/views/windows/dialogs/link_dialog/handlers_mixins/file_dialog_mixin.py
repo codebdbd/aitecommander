@@ -13,11 +13,8 @@ from app.utils.links.link_parser import parse_lnk
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "FileDialogMixin"
-
-
 def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+    return QCoreApplication.translate("FileDialogMixin", text, disambiguation)
 
 
 PROGRAM_FILES = QCoreApplication.translate("FileDialogMixin", "Programs (*.exe *.bat *.com *.msi *.lnk)")

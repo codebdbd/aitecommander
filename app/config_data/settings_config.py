@@ -9,11 +9,8 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
 from .base_config import BaseConfig
 
-_TR_CONTEXT = "SettingsConfig"
-
-
 def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
+    return QCoreApplication.translate("SettingsConfig", text)
 
 
 _DEFAULT_ABOUT_TITLE = QT_TRANSLATE_NOOP("SettingsConfig", "About")

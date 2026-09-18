@@ -16,9 +16,6 @@ _PROGRESS_UPDATE_INTERVAL = 0.1
 
 class FileSearchWorker(QRunnable):
     """Worker running file search in a dedicated thread."""
-
-    _TR_CONTEXT = "FileSearchWorker"
-
     def __init__(self, config: dict):
         super().__init__()
         self.config = config
@@ -39,7 +36,7 @@ class FileSearchWorker(QRunnable):
         root_cfg = self.config.get("root")
         if not isinstance(root_cfg, str) or not root_cfg.strip():
             self.signals.error_occurred.emit(
-                _tr(self._TR_CONTEXT, "Invalid search root path.")
+                QCoreApplication.translate("FileSearchWorker", "Invalid search root path.")
             )
             return None
 
@@ -50,9 +47,7 @@ class FileSearchWorker(QRunnable):
 
         if not root_path.exists() or not root_path.is_dir():
             self.signals.error_occurred.emit(
-                _tr(
-                    self._TR_CONTEXT,
-                    "Root path not found or is not a directory: {path}",
+                QCoreApplication.translate("FileSearchWorker", "Root path not found or is not a directory: {path}",
                 ).format(path=root_cfg)
             )
             return None
@@ -197,7 +192,7 @@ class FileSearchWorker(QRunnable):
             self._flush_batch()
             _tr = QCoreApplication.translate
             self.signals.error_occurred.emit(
-                _tr(self._TR_CONTEXT, "Error during search: {error}").format(
+                QCoreApplication.translate("FileSearchWorker", "Error during search: {error}").format(
                     error=str(e)
                 )
             )

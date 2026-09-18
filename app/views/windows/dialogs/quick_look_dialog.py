@@ -75,13 +75,6 @@ from app.utils.ui.menu_builders.base import get_menu_icon
 from app.views.windows.dialogs.base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
-_TR_CONTEXT = "QuickLookDialog"
-
-
-def _tr(text: str, disambiguation: str | None = None) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
-
-
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico", ".svg"}
 TEXT_EXTENSIONS = {
     ".txt", ".py", ".json", ".md", ".bat", ".ps1", ".log",
@@ -467,10 +460,10 @@ class QuickLookDialog(BaseDialog):
         self._card_desc_lbl.setStyleSheet("font-size: 13px; line-height: 1.5; border: none; background: transparent;")
         card_layout.addWidget(self._card_desc_lbl, 0, Qt.AlignmentFlag.AlignCenter)
 
-        self._reveal_btn = QPushButton(_tr("Show in Explorer"))
+        self._reveal_btn = QPushButton(self.tr("Show in Explorer"))
         self._reveal_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._reveal_btn.clicked.connect(self._handle_reveal_in_explorer)
-        self._reveal_btn.setToolTip(_tr("Show in Explorer (Ctrl+E)"))
+        self._reveal_btn.setToolTip(self.tr("Show in Explorer (Ctrl+E)"))
         card_layout.addWidget(self._reveal_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         outer_card_layout.addWidget(self._card_box, 0, Qt.AlignmentFlag.AlignCenter)
@@ -503,7 +496,7 @@ class QuickLookDialog(BaseDialog):
         self._pdf_prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pdf_prev_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pdf_prev_btn.clicked.connect(self._pdf_prev_page)
-        self._pdf_prev_btn.setToolTip(_tr("Previous Page"))
+        self._pdf_prev_btn.setToolTip(self.tr("Previous Page"))
         self._pdf_page_lbl = QLabel("1 / 1")
         self._pdf_page_lbl.setStyleSheet("font-size: 11px; opacity: 0.8;")
         self._pdf_next_btn = QPushButton()
@@ -513,7 +506,7 @@ class QuickLookDialog(BaseDialog):
         self._pdf_next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pdf_next_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pdf_next_btn.clicked.connect(self._pdf_next_page)
-        self._pdf_next_btn.setToolTip(_tr("Next Page"))
+        self._pdf_next_btn.setToolTip(self.tr("Next Page"))
         pdf_nav_layout.addWidget(self._pdf_prev_btn)
         pdf_nav_layout.addWidget(self._pdf_page_lbl)
         pdf_nav_layout.addWidget(self._pdf_next_btn)
@@ -524,18 +517,18 @@ class QuickLookDialog(BaseDialog):
         self._text_info_lbl.setStyleSheet("color: gray; font-size: 11px;")
         footer_layout.addWidget(self._text_info_lbl)
 
-        self._copy_btn = QPushButton(_tr("Copy Path"))
+        self._copy_btn = QPushButton(self.tr("Copy Path"))
         self._copy_btn.setFixedHeight(26)
         self._copy_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._copy_btn.clicked.connect(self._handle_copy_path)
         footer_layout.addWidget(self._copy_btn)
 
-        self._reveal_footer_btn = QPushButton(_tr("Open in Explorer"))
+        self._reveal_footer_btn = QPushButton(self.tr("Open in Explorer"))
         self._reveal_footer_btn.setFixedHeight(26)
         self._reveal_footer_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._reveal_footer_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._reveal_footer_btn.setToolTip(_tr("Open in Explorer (Ctrl+E)"))
+        self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
         self._reveal_footer_btn.clicked.connect(self._handle_reveal_in_explorer)
         footer_layout.addWidget(self._reveal_footer_btn)
 
@@ -592,18 +585,18 @@ class QuickLookDialog(BaseDialog):
     def retranslateUi(self) -> None:
         if not hasattr(self, "_open_btn"):
             return
-        self._open_btn.setText(_tr("Open"))
+        self._open_btn.setText(self.tr("Open"))
         if hasattr(self, "_copy_btn"):
-            self._copy_btn.setText(_tr("Copy Path"))
-            self._copy_btn.setToolTip(_tr("Copy Path / URL (Ctrl+C)"))
+            self._copy_btn.setText(self.tr("Copy Path"))
+            self._copy_btn.setToolTip(self.tr("Copy Path / URL (Ctrl+C)"))
         if hasattr(self, "_reveal_footer_btn"):
-            self._reveal_footer_btn.setText(_tr("Open in Explorer"))
-            self._reveal_footer_btn.setToolTip(_tr("Open in Explorer (Ctrl+E)"))
+            self._reveal_footer_btn.setText(self.tr("Open in Explorer"))
+            self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
 
     def set_link(self, link: dict[str, Any]) -> None:
         self._apply_preview_theme()
         self._current_link = link
-        name = str(link.get("name") or _tr("Untitled"))
+        name = str(link.get("name") or self.tr("Untitled"))
         url = str(link.get("url") or "").strip()
         raw_type = link.get("type") or "web"
         link_type = LinkType.from_value(raw_type)
@@ -656,8 +649,8 @@ class QuickLookDialog(BaseDialog):
         if not path.exists():
             if hasattr(self, "_open_btn"):
                 self._open_btn.setEnabled(False)
-            not_found = _tr("File or folder not found on disk")
-            hint = _tr("The file may have been moved, renamed, or deleted.")
+            not_found = self.tr("File or folder not found on disk")
+            hint = self.tr("The file may have been moved, renamed, or deleted.")
             self._render_generic_card(
                 qicon,
                 f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 12px;'>{html.escape(name)}</div>"
@@ -687,7 +680,7 @@ class QuickLookDialog(BaseDialog):
                     self._set_formatted_text(doc_text, is_code=False)
                     sz_str = _format_file_size(path.stat().st_size)
                     self._text_info_lbl.setText(
-                        f"DOCX  •  {len(paragraphs)} {_tr('paragraphs')}  •  {sz_str}"
+                        f"DOCX  •  {len(paragraphs)} {self.tr('paragraphs')}  •  {sz_str}"
                     )
                     return
             except Exception as e:
@@ -776,7 +769,7 @@ class QuickLookDialog(BaseDialog):
                 sz_str = _format_file_size(path.stat().st_size)
                 lines_count = text.count("\n") + 1
                 self._text_info_lbl.setText(
-                    f"{_tr('Lines')}: ~{lines_count}  •  {_tr('Size')}: {sz_str}  •  UTF-8"
+                    f"{self.tr('Lines')}: ~{lines_count}  •  {self.tr('Size')}: {sz_str}  •  UTF-8"
                 )
                 return
             except Exception as e:
@@ -787,13 +780,13 @@ class QuickLookDialog(BaseDialog):
             mtime_str = datetime.fromtimestamp(path.stat().st_mtime).strftime("%d.%m.%Y %H:%M")
         except Exception:
             mtime_str = "—"
-        fmt_name = ext.upper().lstrip(".") or _tr("File")
+        fmt_name = ext.upper().lstrip(".") or self.tr("File")
         info_html = (
             f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 12px;'>{html.escape(name)}</div>"
             f"<table style='font-size: 13px; line-height: 1.8; margin: auto;'>"
-            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{_tr('Format')}:</td><td style='text-align: left;'><b>{fmt_name}</b></td></tr>"
-            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{_tr('Size')}:</td><td style='text-align: left;'>{sz_str}</td></tr>"
-            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{_tr('Modified')}:</td><td style='text-align: left;'>{mtime_str}</td></tr>"
+            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{self.tr('Format')}:</td><td style='text-align: left;'><b>{fmt_name}</b></td></tr>"
+            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{self.tr('Size')}:</td><td style='text-align: left;'>{sz_str}</td></tr>"
+            f"<tr><td style='text-align: right; padding-right: 12px; opacity: 0.65;'>{self.tr('Modified')}:</td><td style='text-align: left;'>{mtime_str}</td></tr>"
             f"</table>"
         )
         self._render_generic_card(qicon, info_html, show_reveal=True)
@@ -822,7 +815,7 @@ class QuickLookDialog(BaseDialog):
             self._stack.setCurrentWidget(self._table_view)
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
-                f"CSV  •  {len(rows)} {_tr('preview rows')}  •  {sz_str}"
+                f"CSV  •  {len(rows)} {self.tr('preview rows')}  •  {sz_str}"
             )
             return True
         except Exception as e:
@@ -1029,7 +1022,7 @@ class QuickLookDialog(BaseDialog):
             self._stack.setCurrentWidget(self._table_view)
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
-                f"XLSX  •  {len(rows)} {_tr('preview rows')}  •  {sz_str}"
+                f"XLSX  •  {len(rows)} {self.tr('preview rows')}  •  {sz_str}"
             )
             return True
         except Exception as e:
@@ -1069,7 +1062,7 @@ class QuickLookDialog(BaseDialog):
             sz_str = _format_file_size(os.path.getsize(path_str))
             uncompressed_str = _format_file_size(total_uncompressed)
             self._folder_info_lbl.setText(
-                f"ZIP  •  {len(infolist)} {_tr('files and folders')}  •  {sz_str} ({_tr('uncompressed')}: {uncompressed_str})"
+                f"ZIP  •  {len(infolist)} {self.tr('files and folders')}  •  {sz_str} ({self.tr('uncompressed')}: {uncompressed_str})"
             )
             self._stack.setCurrentWidget(self._folder_page)
             return True
@@ -1104,7 +1097,7 @@ class QuickLookDialog(BaseDialog):
         )
         fmt_label = Path(path_str).suffix.upper().lstrip(".") or "PDF"
         self._text_info_lbl.setText(
-            f"{fmt_label}  •  {_tr('Page')} {cur_page} / {page_count}  •  {zoom_pct}%  •  {sz_str}"
+            f"{fmt_label}  •  {self.tr('Page')} {cur_page} / {page_count}  •  {zoom_pct}%  •  {sz_str}"
         )
 
     def _pdf_prev_page(self) -> None:
@@ -1480,8 +1473,8 @@ class QuickLookDialog(BaseDialog):
         if not path.exists() or not path.is_dir():
             if hasattr(self, "_open_btn"):
                 self._open_btn.setEnabled(False)
-            not_found = _tr("File or folder not found on disk")
-            hint = _tr("The file may have been moved, renamed, or deleted.")
+            not_found = self.tr("File or folder not found on disk")
+            hint = self.tr("The file may have been moved, renamed, or deleted.")
             self._render_generic_card(
                 QIcon(),
                 f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 12px;'>{html.escape(name)}</div>"
@@ -1511,9 +1504,9 @@ class QuickLookDialog(BaseDialog):
                     if items_count > 500:
                         break
         except Exception as e:
-            self._folder_list.addItem(QListWidgetItem(f"{_tr('Access error')}: {e}"))
+            self._folder_list.addItem(QListWidgetItem(f"{self.tr('Access error')}: {e}"))
 
-        self._folder_info_lbl.setText(f"{_tr('Total items in root')}: {items_count}")
+        self._folder_info_lbl.setText(f"{self.tr('Total items in root')}: {items_count}")
         self._stack.setCurrentWidget(self._folder_page)
 
     def _render_script_preview(self, path_str: str, link: dict[str, Any]) -> None:
@@ -1524,8 +1517,8 @@ class QuickLookDialog(BaseDialog):
         if not path.exists():
             if hasattr(self, "_open_btn"):
                 self._open_btn.setEnabled(False)
-            not_found = _tr("File or folder not found on disk")
-            hint = _tr("The file may have been moved, renamed, or deleted.")
+            not_found = self.tr("File or folder not found on disk")
+            hint = self.tr("The file may have been moved, renamed, or deleted.")
             self._render_generic_card(
                 QIcon(),
                 f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 12px;'>{html.escape(str(link.get('name') or path.name))}</div>"
@@ -1544,7 +1537,7 @@ class QuickLookDialog(BaseDialog):
                 self._stack.setCurrentWidget(self._text_page)
                 self._set_formatted_text(code, is_code=True)
                 self._text_info_lbl.setText(
-                    f"{_tr('Script')}: {path.name}  •  {_tr('Arguments')}: {cmd_args or _tr('None')}"
+                    f"{self.tr('Script')}: {path.name}  •  {self.tr('Arguments')}: {cmd_args or self.tr('None')}"
                 )
                 return
             except Exception:
@@ -1552,9 +1545,9 @@ class QuickLookDialog(BaseDialog):
 
         info_html = (
             f"<b>{html.escape(str(link.get('name')))}</b><br><br>"
-            f"{_tr('Script')}: {html.escape(path_str)}<br>"
-            f"{_tr('Arguments')}: {html.escape(str(cmd_args)) or '—'}<br>"
-            f"{_tr('Working Directory')}: {html.escape(str(work_dir)) or '—'}"
+            f"{self.tr('Script')}: {html.escape(path_str)}<br>"
+            f"{self.tr('Arguments')}: {html.escape(str(cmd_args)) or '—'}<br>"
+            f"{self.tr('Working Directory')}: {html.escape(str(work_dir)) or '—'}"
         )
         self._render_generic_card(QIcon(), info_html)
 
@@ -1569,8 +1562,8 @@ class QuickLookDialog(BaseDialog):
         if not is_uwp and not Path(path_str).exists():
             if hasattr(self, "_open_btn"):
                 self._open_btn.setEnabled(False)
-            not_found = _tr("File or folder not found on disk")
-            hint = _tr("The file may have been moved, renamed, or deleted.")
+            not_found = self.tr("File or folder not found on disk")
+            hint = self.tr("The file may have been moved, renamed, or deleted.")
             self._render_generic_card(
                 qicon,
                 f"<div style='font-size: 16px; font-weight: 600; margin-bottom: 12px;'>{html.escape(str(link.get('name')))}</div>"
@@ -1583,9 +1576,9 @@ class QuickLookDialog(BaseDialog):
 
         info_html = (
             f"<b>{html.escape(str(link.get('name')))}</b><br><br>"
-            f"{_tr('Program')}: {html.escape(path_str)}<br>"
-            f"{_tr('Arguments')}: {html.escape(str(cmd_args)) or '—'}<br>"
-            f"{_tr('Working Directory')}: {html.escape(str(work_dir)) or '—'}"
+            f"{self.tr('Program')}: {html.escape(path_str)}<br>"
+            f"{self.tr('Arguments')}: {html.escape(str(cmd_args)) or '—'}<br>"
+            f"{self.tr('Working Directory')}: {html.escape(str(work_dir)) or '—'}"
         )
         self._render_generic_card(qicon, info_html)
 
@@ -1595,10 +1588,10 @@ class QuickLookDialog(BaseDialog):
         info_html = (
             f"<div style='font-size: 15px; font-weight: 600; margin-bottom: 10px;'>{html.escape(str(link.get('name')))}</div>"
             f"URL: <span style='color: palette(highlight);'>{html.escape(url)}</span><br>"
-            f"{_tr('Profile')}: {html.escape(str(profile)) or _tr('Default')}"
+            f"{self.tr('Profile')}: {html.escape(str(profile)) or self.tr('Default')}"
         )
         if notes:
-            info_html += f"<br><br>{_tr('Notes')}: <i>{html.escape(str(notes))}</i>"
+            info_html += f"<br><br>{self.tr('Notes')}: <i>{html.escape(str(notes))}</i>"
         self._render_generic_card(qicon, info_html)
 
     def _render_generic_card(self, qicon: QIcon, text_html: str, show_reveal: bool = False) -> None:

@@ -23,11 +23,8 @@ from app.views.widgets.protocols import IconProviderProtocol
 
 logger = logging.getLogger(__name__)
 
-_TR_CONTEXT = "LinkButtonMixin"
-
-
 def _tr(text: str) -> str:
-    return QCoreApplication.translate(_TR_CONTEXT, text)
+    return QCoreApplication.translate("LinkButtonMixin", text)
 
 
 class LinkButtonMixin:
