@@ -698,6 +698,6 @@ class FileSearchDialog(BaseDialog):
         self.progress_bar.setVisible(False)
         count = self.model.rowCount()
         self.status_label.setText(
-            self.tr("Search finished. Files found: {count}").format(count=count)
+            self.tr("Search finished. %n file(s) found.", "", count)
         )
         self._update_buttons()

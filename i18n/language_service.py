@@ -106,14 +106,11 @@ class LanguageService(QObject):
                 QCoreApplication.installTranslator(qt_translator)
                 self._installed_translators.append(qt_translator)
 
-            # 2. Install application translator
-            app_translator = self._load_app_translator(language_code)
-            if app_translator is not None:
-                QCoreApplication.installTranslator(app_translator)
-                self._installed_translators.append(app_translator)
-            else:
-                logger.error("Failed to load application translator for: %s", language_code)
-                return False
+        # 2. Install application translator (including app_en.qm for %n plural support)
+        app_translator = self._load_app_translator(language_code)
+        if app_translator is not None:
+            QCoreApplication.installTranslator(app_translator)
+            self._installed_translators.append(app_translator)
 
         self._current_language = language_code
         self._save_language(language_code)
@@ -146,9 +143,6 @@ class LanguageService(QObject):
 
     def _load_app_translator(self, language_code: str) -> QTranslator | None:
         """Load the application translator (app_<lang>.qm) for the specified language."""
-        if language_code == "en":
-            return None
-
         if getattr(sys, "frozen", False):
             base_path = Path(getattr(sys, "_MEIPASS", "."))
         else:

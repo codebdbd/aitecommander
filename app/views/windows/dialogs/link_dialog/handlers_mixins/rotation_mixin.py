@@ -108,7 +108,7 @@ class RotationMixin:
         count = len(profiles) if profiles else 0
         if count == 0:
             return QCoreApplication.translate("LinkDialogUI", "Profiles")
-        return QCoreApplication.translate("LinkDialogUI", "Profiles ({count})").format(count=count)
+        return QCoreApplication.translate("LinkDialogUI", "%n profile(s)", "", count)
 
     @staticmethod
     def _format_rotation_tooltip(profiles: list[dict]) -> str:
@@ -116,7 +116,7 @@ class RotationMixin:
         if not profiles:
             return QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
         names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
-        lines = [QCoreApplication.translate("LinkDialogUI", "Rotation order ({count}):").format(count=len(names))]
+        lines = [QCoreApplication.translate("LinkDialogUI", "Rotation order (%n profile(s)):", "", len(names))]
         for idx, n in enumerate(names, 1):
             lines.append(f"{idx}. {n}")
         lines.append(QCoreApplication.translate("LinkDialogUI", "(Click to change)"))

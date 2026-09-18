@@ -680,7 +680,7 @@ class QuickLookDialog(BaseDialog):
                     self._set_formatted_text(doc_text, is_code=False)
                     sz_str = _format_file_size(path.stat().st_size)
                     self._text_info_lbl.setText(
-                        f"DOCX  •  {len(paragraphs)} {self.tr('paragraphs')}  •  {sz_str}"
+                        f"DOCX  •  {self.tr('%n paragraph(s)', '', len(paragraphs))}  •  {sz_str}"
                     )
                     return
             except Exception as e:
@@ -815,7 +815,7 @@ class QuickLookDialog(BaseDialog):
             self._stack.setCurrentWidget(self._table_view)
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
-                f"CSV  •  {len(rows)} {self.tr('preview rows')}  •  {sz_str}"
+                f"CSV  •  {self.tr('%n preview row(s)', '', len(rows))}  •  {sz_str}"
             )
             return True
         except Exception as e:
@@ -1022,7 +1022,7 @@ class QuickLookDialog(BaseDialog):
             self._stack.setCurrentWidget(self._table_view)
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
-                f"XLSX  •  {len(rows)} {self.tr('preview rows')}  •  {sz_str}"
+                f"XLSX  •  {self.tr('%n preview row(s)', '', len(rows))}  •  {sz_str}"
             )
             return True
         except Exception as e:
@@ -1062,7 +1062,7 @@ class QuickLookDialog(BaseDialog):
             sz_str = _format_file_size(os.path.getsize(path_str))
             uncompressed_str = _format_file_size(total_uncompressed)
             self._folder_info_lbl.setText(
-                f"ZIP  •  {len(infolist)} {self.tr('files and folders')}  •  {sz_str} ({self.tr('uncompressed')}: {uncompressed_str})"
+                f"ZIP  •  {self.tr('%n file(s) and folder(s)', '', len(infolist))}  •  {sz_str} ({self.tr('uncompressed')}: {uncompressed_str})"
             )
             self._stack.setCurrentWidget(self._folder_page)
             return True
@@ -1506,7 +1506,7 @@ class QuickLookDialog(BaseDialog):
         except Exception as e:
             self._folder_list.addItem(QListWidgetItem(f"{self.tr('Access error')}: {e}"))
 
-        self._folder_info_lbl.setText(f"{self.tr('Total items in root')}: {items_count}")
+        self._folder_info_lbl.setText(self.tr("%n item(s) in root", "", items_count))
         self._stack.setCurrentWidget(self._folder_page)
 
     def _render_script_preview(self, path_str: str, link: dict[str, Any]) -> None:
