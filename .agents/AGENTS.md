@@ -88,3 +88,18 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Dynamic Retranslation**:
   1. **Миксин `ReTranslatable`**: Виджеты и диалоги, поддерживающие смену языка на лету, обязаны наследоваться от `ReTranslatable` и реализовывать `retranslateUi()`.
   2. **Запрет на `changeEvent(LanguageChange)`**: Запрещено переопределять `changeEvent(LanguageChange)` в диалогах во избежание гонки состояний при двухэтапной установке системного (`qtbase`) и прикладного (`app`) переводчиков.
+
+## 10. Frozen Subsystems: Quick Look Architecture (ЗАЩИТА АРХИТЕКТУРЫ QUICK LOOK)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Подсистема быстрого просмотра файлов Quick Look (`quick_look_dialog.py`, методы вызова в `links/controller.py`) полностью зафиксирована.
+- **Strict Lifecycle Rules**:
+  1. **Singleton & Переиспользование**: `QuickLookDialog` создаётся один раз в контроллере (`_quick_look_dialog`) и переиспользуется через `set_link()`.
+  2. **Очистка контекстных меню**: В начале метода `set_link()` строго обязателен вызов `self._cleanup_context_menus()`. Запрещено убирать вызов очистки во избежание утечки памяти меню при навигации стрелками вверх/вниз.
+- **Strict Key Dispatching Rules**:
+  1. **Единый обработчик событий**: Обработка горячих клавиш (`Space`, `Esc`, `Enter`, `F/F11`, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+A`, `Ctrl+E`, зум `Ctrl+±/0`, `PageUp/Down`, `Home/End`, `Up/Down`) ведётся строго через `_handle_key_event(event: QKeyEvent) -> bool`. Запрещено дублировать код обработки клавиш раздельно в `eventFilter` и `keyPressEvent`.
+- **Strict Memory & I/O Protection (OOM Guard)**:
+  1. **Ограничение чтения текста**: Текстовые файлы читаются строго чанком до **64 KB** (`read(65536)`). Запрещено читать файлы целиком без лимита размера.
+  2. **Лимит строк таблиц**: Для электронных таблиц (`.xlsx`, `.csv`) лимит предпросмотра строго **100 строк**.
+  3. **Лимит списков архивов**: Для архивов (`.zip`, `.jar`) и папок лимит элементов списка строго **100 элементов**.
+- **Strict Geometry & Error Handling Rules**:
+  1. **Персистентность геометрии**: Сохранение геометрии ведётся строго в `QSettings` (`quick_look_geometry`) при `closeEvent` и восстанавливается через `restoreGeometry()`. Запрещено убирать сохранение геометрии.
+  2. **Деликатная обработка ошибок**: При отсутствии файла на диске диалог отображает информационную карточку ошибки в стеке страниц. Запрещено выбрасывать модальные `QMessageBox` или вызывать системные звуковые сигналы.
