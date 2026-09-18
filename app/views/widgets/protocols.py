@@ -401,7 +401,12 @@ class StructureTreeViewProtocol(Protocol):
 class StructureActionsProtocol(Protocol):
     """Protocol describing actions invoked during selection workflows."""
 
-    def focus_tree(self) -> None: ...
+    def focus_tree(
+        self,
+        *,
+        use_scheduler: bool = True,
+        origin: str = "user_action",
+    ) -> None: ...
 
     def clear_table_selection(self) -> None: ...
 

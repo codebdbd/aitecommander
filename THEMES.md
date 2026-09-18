@@ -9,12 +9,13 @@ The program supports two theme sources:
 - bundled themes shipped with the app in `app/resources/themes`
 - user themes installed into `%APPDATA%/Codebdbd/Aite Commander/themes`
 
-### Bundled themes (16 presets)
+### Bundled themes (17 presets)
 
 | Theme ID | Name | Mode | Description |
 |---|---|---|---|
 | `light` | Light | Light | Default clean light interface |
 | `dark` | Dark | Dark | Default high-contrast dark theme |
+| `dreamy_room` | Dreamy Room | Dark | Cozy aesthetic pastel dark palette |
 | `matrix` | Matrix | Dark | Retro hacker green-on-black terminal style |
 | `violet_pulse` | Violet Pulse | Dark | Neon dark violet glowing palette |
 | `crimson_noir` | Crimson Noir | Dark | Deep black with bold crimson accents |

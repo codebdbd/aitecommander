@@ -257,5 +257,10 @@ class SelectionHandling(QObject):
             settings = getattr(self.main, "settings", None)
             if settings and hasattr(settings, "set_last_tree_selection"):
                 settings.set_last_tree_selection(item_type, int(item_id))
+            if settings and hasattr(settings, "set_last_sphere_id"):
+                sb = getattr(self.main, "structure_business", None)
+                curr_sp = getattr(sb, "current_sphere_id", None) if sb else None
+                if isinstance(curr_sp, int) and curr_sp > 0:
+                    settings.set_last_sphere_id(curr_sp)
         except Exception:
             logger.debug("SelectionHandling: failed to save selection", exc_info=True)

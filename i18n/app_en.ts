@@ -1439,8 +1439,8 @@ Old database restored.</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\file_dialog_mixin.py" line="25" />
-            <source>Documents (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;All files (*)</source>
-            <translation>Documents (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;All files (*)</translation>
+            <source>Data files (*.txt *.md *.markdown *.pdf *.doc *.docx *.docm *.odt *.rtf *.epub *.fb2 *.mobi *.djvu *.xls *.xlsx *.xlsm *.xlsb *.csv *.tsv *.ods *.ppt *.pptx *.odp *.psd *.psb *.ai *.eps *.indd *.indt *.idml *.prproj *.aep *.sesx *.xd *.fla *.dng *.jpg *.jpeg *.png *.gif *.bmp *.webp *.svg *.ico *.tiff *.tif *.raw *.cr2 *.cr3 *.nef *.arw *.heic *.avif *.mp3 *.wav *.flac *.aac *.ogg *.m4a *.wma *.opus *.mp4 *.mkv *.avi *.mov *.wmv *.webm *.flv *.m4v *.zip *.rar *.7z *.tar *.gz *.bz2 *.xz *.iso *.img *.torrent *.json *.xml *.yaml *.yml *.toml *.ini *.cfg *.conf *.log *.sql *.db *.sqlite *.sqlite3 *.html *.htm *.css *.ttf *.otf *.woff *.woff2 *.blend *.obj *.fbx);;All files (*.*)</source>
+            <translation>Data files (*.txt *.md *.markdown *.pdf *.doc *.docx *.docm *.odt *.rtf *.epub *.fb2 *.mobi *.djvu *.xls *.xlsx *.xlsm *.xlsb *.csv *.tsv *.ods *.ppt *.pptx *.odp *.psd *.psb *.ai *.eps *.indd *.indt *.idml *.prproj *.aep *.sesx *.xd *.fla *.dng *.jpg *.jpeg *.png *.gif *.bmp *.webp *.svg *.ico *.tiff *.tif *.raw *.cr2 *.cr3 *.nef *.arw *.heic *.avif *.mp3 *.wav *.flac *.aac *.ogg *.m4a *.wma *.opus *.mp4 *.mkv *.avi *.mov *.wmv *.webm *.flv *.m4v *.zip *.rar *.7z *.tar *.gz *.bz2 *.xz *.iso *.img *.torrent *.json *.xml *.yaml *.yml *.toml *.ini *.cfg *.conf *.log *.sql *.db *.sqlite *.sqlite3 *.html *.htm *.css *.ttf *.otf *.woff *.woff2 *.blend *.obj *.fbx);;All files (*.*)</translation>
         </message>
         <message>
             <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\file_dialog_mixin.py" line="32" />

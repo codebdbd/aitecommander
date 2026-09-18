@@ -208,7 +208,7 @@ class ThemeStylesheetService:
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
         )
         combined_qss = self._adapt_qss_for_input_frames(combined_qss)
-        combined_qss = self._resolve_icon_urls(combined_qss)
+        combined_qss = self._resolve_icon_urls(combined_qss, theme_name)
 
         try:
             overrides = self._get_cached_overrides()
@@ -286,11 +286,19 @@ class ThemeStylesheetService:
         cache_dir.mkdir(parents=True, exist_ok=True)
         dest_svg = cache_dir / icon_name
         if dest_svg.exists() and dest_svg.stat().st_mtime >= base_svg.stat().st_mtime:
-            return dest_svg.as_posix()
+            try:
+                cached_content = dest_svg.read_text(encoding="utf-8")
+                if color_hex.lower() in cached_content.lower() and (
+                    'stroke="#ffffff"' not in cached_content.lower()
+                    and 'stroke="#fff"' not in cached_content.lower()
+                ):
+                    return dest_svg.as_posix()
+            except Exception:
+                pass
         raw = base_svg.read_text(encoding="utf-8")
-        if 'fill="' in raw:
-            tinted = re.sub(r'fill="[^"]*"', f'fill="{color_hex}"', raw)
-        else:
+        tinted = re.sub(r'stroke="(?!none")[^"]*"', f'stroke="{color_hex}"', raw)
+        tinted = re.sub(r'fill="(?!none")[^"]*"', f'fill="{color_hex}"', tinted)
+        if 'fill=' not in tinted and 'stroke=' not in tinted:
             tinted = raw.replace("<svg ", f'<svg fill="{color_hex}" ')
         dest_svg.write_text(tinted, encoding="utf-8")
         return dest_svg.as_posix()

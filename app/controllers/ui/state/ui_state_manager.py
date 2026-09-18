@@ -98,6 +98,14 @@ class UIStateManager:
 
             # 3. Update application state
             self.main.current_category_id = category_id
+            settings = getattr(self.main, "settings", None)
+            if settings and hasattr(settings, "set_last_tree_selection"):
+                settings.set_last_tree_selection("category", int(category_id))
+            if settings and hasattr(settings, "set_last_sphere_id"):
+                sb = getattr(self.main, "structure_business", None)
+                curr_sp = getattr(sb, "current_sphere_id", None) if sb else None
+                if isinstance(curr_sp, int) and curr_sp > 0:
+                    settings.set_last_sphere_id(curr_sp)
 
             # 4. Load data through centralized links table controller
             links_ctrl = getattr(self.main, "links_table_controller", None)
