@@ -94,6 +94,23 @@ class TypeChangeMixin:
             args_stack.setVisible(show_args)
             if show_args:
                 args_stack.setCurrentIndex(0 if lt == LinkType.WEB else 1)
+                args_prog_cb = self.dialog.ui.widgets.get("args_prog_cb")
+                if args_prog_cb is not None and lt in (LinkType.SCRIPT, LinkType.PROGRAM):
+                    # Retain user's current custom text
+                    current_text = args_le.text()
+                    args_prog_cb.blockSignals(True)
+                    args_prog_cb.clear()
+                    presets = (
+                        self.dialog.ui._SCRIPT_ARG_PRESETS
+                        if lt == LinkType.SCRIPT
+                        else self.dialog.ui._PROGRAM_ARG_PRESETS
+                    )
+                    for label, value in presets:
+                        translated = QCoreApplication.translate("LinkDialogUI", label)
+                        args_prog_cb.addItem(translated, userData=value)
+                    args_prog_cb.setCurrentIndex(0)
+                    args_prog_cb.lineEdit().setText(current_text)
+                    args_prog_cb.blockSignals(False)
         else:
             args_le.setVisible(show_args)
         args_label.setVisible(show_args)
