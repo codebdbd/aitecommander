@@ -598,6 +598,10 @@ def _add_external_services(
         return
     p = urlparse(base_url)
     host = p.netloc
+    try:
+        host = host.encode("idna").decode("ascii")
+    except Exception:
+        pass
     google_url = f"https://www.google.com/s2/favicons?domain={host}&sz={TARGET_SIZE}"
     candidates.append(
         IconCandidate(

@@ -146,6 +146,11 @@ def try_google_favicon_api(domain: str, size: int = 128) -> str:
     domain = _normalize_domain(f"https://{domain}")
     if not domain:
         domain = "example.com"
+    else:
+        try:
+            domain = domain.encode("idna").decode("ascii")
+        except Exception:
+            pass
     
     # Google Favicon API
     # sz parameter: 16, 32, 64, 128, 256
