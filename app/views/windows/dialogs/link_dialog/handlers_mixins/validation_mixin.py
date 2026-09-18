@@ -59,6 +59,7 @@ class ValidationMixin:
         field_map = {
             "name": NAME_LABEL,
             "url": URL_LABEL,
+            "path": URL_LABEL,
             "link_type": LINK_TYPE_LABEL,
             "type": LINK_TYPE_LABEL,
             "category": CATEGORY_LABEL,

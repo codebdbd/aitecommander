@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from PyQt6.QtCore import QCoreApplication
+
 from app.models.db import Database
 
 logger = logging.getLogger(__name__)
@@ -138,23 +140,33 @@ class LinkDialogController:
 
         # Check required fields
         if not form_data.get("name", "").strip():
-            errors.append("Имя ссылки не может быть пустым.")
+            errors.append(
+                QCoreApplication.translate("LinkDialogController", "Link name cannot be empty.")
+            )
 
         if not form_data.get("url", "").strip():
-            errors.append("URL/Путь не может быть пустым.")
+            errors.append(
+                QCoreApplication.translate("LinkDialogController", "URL/Path cannot be empty.")
+            )
 
         if not form_data.get("link_type"):
-            errors.append("Выберите тип ссылки.")
+            errors.append(
+                QCoreApplication.translate("LinkDialogController", "Select link type.")
+            )
 
         if not form_data.get("category_id"):
-            errors.append("Выберите категорию.")
+            errors.append(
+                QCoreApplication.translate("LinkDialogController", "Select category.")
+            )
 
         # Check file paths
         link_type = form_data.get("link_type")
         url = form_data.get("url", "").strip()
         if link_type in ("file", "folder") and url:
             if not Path(url).exists():
-                errors.append("Указанный путь не существует.")
+                errors.append(
+                    QCoreApplication.translate("LinkDialogController", "Specified path does not exist.")
+                )
 
         return {"is_valid": len(errors) == 0, "errors": errors}
 

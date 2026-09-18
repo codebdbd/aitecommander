@@ -18,7 +18,6 @@ from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
 logger = logging.getLogger(__name__)
-_TR_CTX = "LinksUIController"
 _OPEN_BATCH_SIZE = 5
 _OPEN_BATCH_DELAY_MS = 250
 _OPEN_LIMIT = 10
@@ -376,12 +375,12 @@ class LinksUIController(QObject):
     def _confirm_open_many_links(self, count: int) -> int | None:
         if count <= _OPEN_LIMIT:
             return count
-        title = QCoreApplication.translate(_TR_CTX, "Открытие ссылок")
+        title = QCoreApplication.translate("LinksUIController", "Open Links")
         text = QCoreApplication.translate(
-            _TR_CTX,
-            "Вы пытаетесь открыть более 10 ссылок одновременно.\n"
-            "В целях предотвращения проблем мы ограничиваем запуск до 10 ссылок.\n"
-            "Если хотите, мы откроем первые 10 выбранных.",
+            "LinksUIController",
+            "You are trying to open more than 10 links simultaneously.\n"
+            "To prevent performance issues, opening is limited to 10 links.\n"
+            "Would you like to open the first 10 selected links?",
         )
         limit = _OPEN_LIMIT
         parent = self.main if self.main is not None else self.table
@@ -390,11 +389,11 @@ class LinksUIController(QObject):
         box.setWindowTitle(title)
         box.setText(text)
         open_btn = box.addButton(
-            QCoreApplication.translate(_TR_CTX, "Открыть 10"),
+            QCoreApplication.translate("LinksUIController", "Open 10"),
             QMessageBox.ButtonRole.AcceptRole,
         )
         cancel_btn = box.addButton(
-            QCoreApplication.translate(_TR_CTX, "Отмена"),
+            QCoreApplication.translate("LinksUIController", "Cancel"),
             QMessageBox.ButtonRole.RejectRole,
         )
         box.setDefaultButton(cancel_btn)
