@@ -2941,8 +2941,8 @@ Would you like to open the first 10 selected links?</source>
         <translation>Удалить выбранное</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1323" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1288" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1536" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1501" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="147" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
@@ -2996,8 +2996,8 @@ Would you like to open the first 10 selected links?</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1313" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1278" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1526" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1491" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="111" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
@@ -3250,76 +3250,88 @@ Would you like to open the first 10 selected links?</source>
 </context><context>
     <name>QuickLookDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="463" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="571" />
         <source>Show in Explorer</source>
         <translation>Показать в Проводнике</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="466" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="574" />
         <source>Show in Explorer (Ctrl+E)</source>
         <translation>Показать в Проводнике (Ctrl+E)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="499" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="607" />
         <source>Previous Page</source>
         <translation>Предыдущая страница</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="509" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="617" />
         <source>Next Page</source>
         <translation>Следующая страница</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="590" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="520" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="724" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="628" />
         <source>Copy Path</source>
         <translation>Копировать путь</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="593" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="527" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="727" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="635" />
+        <source>Copy Content</source>
+        <translation>Копировать содержимое</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="728" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="639" />
+        <source>Copy Content (Ctrl+Shift+C)</source>
+        <translation>Копировать содержимое (Ctrl+Shift+C)</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="730" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="643" />
         <source>Open in Explorer</source>
         <translation>Открыть в Проводнике</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="594" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="531" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="731" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="647" />
         <source>Open in Explorer (Ctrl+E)</source>
         <translation>Открыть в Проводнике (Ctrl+E)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="588" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="722" />
         <source>Open</source>
         <translation>Открыть</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="591" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="725" />
         <source>Copy Path / URL (Ctrl+C)</source>
         <translation>Копировать путь / URL (Ctrl+C)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="599" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="737" />
         <source>Untitled</source>
         <translation>Без названия</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1565" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1520" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1476" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="652" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1786" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1741" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1697" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="792" />
         <source>File or folder not found on disk</source>
         <translation>Файл или папка не найдены на диске</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1566" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1521" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1477" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="653" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1787" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1742" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1698" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="793" />
         <source>The file may have been moved, renamed, or deleted.</source>
         <translation>Файл мог быть перемещён, переименован или удалён.</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="683" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="823" />
         <source>%n paragraph(s)</source>
         <translation>
             <numerusform>%n параграф</numerusform>
@@ -3328,34 +3340,34 @@ Would you like to open the first 10 selected links?</source>
         </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="772" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="922" />
         <source>Lines</source>
         <translation>Строк</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="788" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="772" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="944" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="922" />
         <source>Size</source>
         <translation>Размер</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="783" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="939" />
         <source>File</source>
         <translation>Файл</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="787" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="943" />
         <source>Format</source>
         <translation>Формат</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="789" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="945" />
         <source>Modified</source>
         <translation>Изменён</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1025" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="818" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1185" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="974" />
         <source>%n preview row(s)</source>
         <translation>
             <numerusform>%n строка предпросмотра</numerusform>
@@ -3364,7 +3376,7 @@ Would you like to open the first 10 selected links?</source>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1225" />
         <source>%n file(s) and folder(s)</source>
         <translation>
             <numerusform>%n файл и папка</numerusform>
@@ -3373,22 +3385,37 @@ Would you like to open the first 10 selected links?</source>
         </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1065" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1225" />
         <source>uncompressed</source>
         <translation>несжатый</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1100" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1271" />
+        <source>Audio</source>
+        <translation>Аудио</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1271" />
+        <source>Video</source>
+        <translation>Видео</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1274" />
+        <source>Duration</source>
+        <translation>Длительность</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1313" />
         <source>Page</source>
         <translation>Страница</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1507" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1728" />
         <source>Access error</source>
         <translation>Ошибка доступа</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1509" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1730" />
         <source>%n item(s) in root</source>
         <translation>
             <numerusform>%n элемент в корне</numerusform>
@@ -3397,46 +3424,46 @@ Would you like to open the first 10 selected links?</source>
         </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1548" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1540" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1769" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1761" />
         <source>Script</source>
         <translation>Скрипт</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1580" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1549" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1540" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1801" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1770" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1761" />
         <source>Arguments</source>
         <translation>Аргументы</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1540" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1761" />
         <source>None</source>
         <translation>Нет</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1581" />
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1550" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1802" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1771" />
         <source>Working Directory</source>
         <translation>Рабочая директория</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1579" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1800" />
         <source>Program</source>
         <translation>Программа</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1591" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1812" />
         <source>Profile</source>
         <translation>Профиль</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1591" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1812" />
         <source>Default</source>
         <translation>По умолчанию</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1594" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1815" />
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>

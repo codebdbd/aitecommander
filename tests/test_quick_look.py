@@ -142,6 +142,45 @@ class TestQuickLookDialog(unittest.TestCase):
         esc_event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
         self.assertTrue(self.dialog._handle_key_event(esc_event))
 
+    def test_copy_content_action(self) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            f.write("Test content to copy")
+            temp_path = f.name
+        try:
+            self.dialog.set_link({"name": "Test Copy", "url": temp_path, "type": "file"})
+            self.assertFalse(self.dialog._copy_content_btn.isHidden())
+            self.dialog._handle_copy_content()
+            self.assertEqual("Test content to copy", QApplication.clipboard().text())
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_syntax_highlighter_configured_on_code(self) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
+            f.write("def foo():\n    return True\n")
+            temp_path = f.name
+        try:
+            self.dialog.set_link({"name": "Code", "url": temp_path, "type": "file"})
+            self.assertIsNotNone(self.dialog._syntax_highlighter.document())
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_media_preview_wav(self) -> None:
+        import wave
+        with tempfile.NamedTemporaryFile("wb", suffix=".wav", delete=False) as f:
+            temp_path = f.name
+        try:
+            with wave.open(temp_path, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(44100)
+                w.writeframes(b"\x00\x00" * 44100)
+            self.dialog.set_link({"name": "Test Audio", "url": temp_path, "type": "file"})
+            self.assertEqual(self.dialog._stack.currentWidget(), self.dialog._card_page)
+            self.assertIn("WAV", self.dialog._card_desc_lbl.text())
+            self.assertIn("0:01", self.dialog._card_desc_lbl.text())
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()
