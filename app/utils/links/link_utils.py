@@ -324,6 +324,9 @@ class SecurityValidator:
                 return True
             if len(path) >= 3 and path[1:3] == ":/":
                 return True
+            # UNC network paths: \\server\share\...
+            if path.startswith("\\\\") or path.startswith("//"):
+                return True
 
         # Check path pattern match
         return bool(cls.PATH_PATTERN.match(path))
@@ -744,15 +747,32 @@ class ScriptLinkHandler(LinkHandler):
         super().__init__(logger)
         self.powershell_path = powershell_path or self._get_powershell_path()
         self.python_path = python_path or self._get_python_path()
+        self._ps_keep_open = self._get_ps_keep_open()
 
     def _get_powershell_path(self) -> str:
-        """Gets PowerShell path"""
+        """Gets PowerShell path with auto-fallback: pwsh.exe → powershell.exe."""
         try:
             from app.config_data import app_config
 
-            return app_config.get_powershell_path()
+            configured = app_config.get_powershell_path()
         except Exception:
-            return "powershell.exe"
+            configured = "powershell.exe"
+
+        # If the configured executable is available, use it directly.
+        if shutil.which(configured):
+            return configured
+
+        # Fallback cascade: PowerShell 7 Core → Windows PowerShell 5.1
+        for ps_name in ("pwsh.exe", "pwsh", "powershell.exe", "powershell"):
+            found = shutil.which(ps_name)
+            if found:
+                self.logger.info(
+                    "PowerShell '%s' not found; falling back to: %s", configured, found
+                )
+                return found
+
+        # Nothing found — return configured and let Popen fail with a clear message.
+        return configured
 
     def _get_python_path(self) -> Optional[str]:
         """Gets configured Python path, if any"""
@@ -765,6 +785,15 @@ class ScriptLinkHandler(LinkHandler):
             return str(val) if val else None
         except Exception:
             return None
+
+    def _get_ps_keep_open(self) -> bool:
+        """Returns True if PowerShell should stay open after script finishes (-NoExit)."""
+        try:
+            from app.config_data import app_config
+
+            return bool(app_config.get("ui.powershell_keep_open", False))
+        except Exception:
+            return False
 
     def can_handle(self, link_info: LinkInfo) -> bool:
         return link_info.link_type == LinkType.SCRIPT
@@ -802,7 +831,11 @@ class ScriptLinkHandler(LinkHandler):
                 # Command handled directly (e.g. via os.startfile fallback)
                 return
             flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
-            subprocess.Popen(cmd, creationflags=flags, cwd=str(path.parent.resolve()))
+            cwd = str(path.parent.resolve())
+            if isinstance(cmd, str):
+                subprocess.Popen(cmd, shell=True, creationflags=flags, cwd=cwd)
+            else:
+                subprocess.Popen(cmd, creationflags=flags, cwd=cwd)
         else:
             # For unknown extensions use system handler
             if platform.system() == "Windows":
@@ -812,12 +845,15 @@ class ScriptLinkHandler(LinkHandler):
 
     def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
         """Creates PowerShell script command"""
-        cmd_args = ["-ExecutionPolicy", "Bypass", "-File", path]
+        cmd_args = ["-ExecutionPolicy", "Bypass"]
+        if self._ps_keep_open:
+            cmd_args.append("-NoExit")
+        cmd_args += ["-File", path]
         if args:
             cmd_args.extend(args)
         return [self.powershell_path] + cmd_args
 
-    def _resolve_python_executable(self, script_path: str) -> Optional[str]:
+    def _resolve_python_executable(self, script_path: str, windowed: bool = False) -> Optional[str]:
         """Resolves the best Python executable for the script automatically.
 
         Zero-config cascade resolution order:
@@ -826,6 +862,9 @@ class ScriptLinkHandler(LinkHandler):
         3. Windows Python Launcher (py.exe).
         4. Current running Python interpreter (if running from source / virtualenv).
         5. System PATH python (python / python3), ignoring 0-byte WindowsApps stubs.
+
+        Args:
+            windowed: if True, prefer pythonw.exe (no console window) for .pyw scripts.
         """
         # 1. Configured path
         if self.python_path:
@@ -846,7 +885,11 @@ class ScriptLinkHandler(LinkHandler):
                     if not venv_dir.is_dir():
                         continue
                     if platform.system() == "Windows":
-                        candidate = venv_dir / "Scripts" / "python.exe"
+                        exe_name = "pythonw.exe" if windowed else "python.exe"
+                        candidate = venv_dir / "Scripts" / exe_name
+                        # Fall back to python.exe if pythonw.exe is absent
+                        if not candidate.is_file() and windowed:
+                            candidate = venv_dir / "Scripts" / "python.exe"
                     else:
                         candidate = venv_dir / "bin" / "python"
                     if candidate.is_file():
@@ -890,7 +933,8 @@ class ScriptLinkHandler(LinkHandler):
 
     def _create_python_command(self, path: str, args: list[str]) -> list[str]:
         """Creates Python script command with zero-config cascade resolution."""
-        python_exe = self._resolve_python_executable(path)
+        windowed = Path(path).suffix.lower() == ".pyw"
+        python_exe = self._resolve_python_executable(path, windowed=windowed)
         if python_exe:
             return [python_exe, path] + args
 
@@ -908,10 +952,21 @@ class ScriptLinkHandler(LinkHandler):
             "Please install Python (https://www.python.org/) or configure python_path in settings."
         )
 
-    def _create_batch_command(self, path: str, args: list[str]) -> list[str]:
-        """Creates batch file command with sanitized arguments to prevent shell injection"""
-        sanitized_args = [SecurityValidator.sanitize_cmd_arg(arg) for arg in args]
-        return ["cmd.exe", "/c", "start", '""', path] + sanitized_args
+    def _create_batch_command(self, path: str, args: list[str]) -> str:
+        """Creates batch file launch command via cmd.exe /c start.
+
+        Returns a raw command string (str) instead of a list to prevent
+        subprocess.list2cmdline from escaping the empty-title token ("").
+        """
+        safe_path = path.replace('"', "")
+        if args:
+            safe_args = " ".join(
+                f'"{SecurityValidator.sanitize_cmd_arg(a)}"' if " " in a
+                else SecurityValidator.sanitize_cmd_arg(a)
+                for a in args
+            )
+            return f'cmd.exe /c start "" "{safe_path}" {safe_args}'
+        return f'cmd.exe /c start "" "{safe_path}"'
 
 
 class ProgramLinkHandler(LinkHandler):
@@ -979,7 +1034,8 @@ class ProgramLinkHandler(LinkHandler):
                     )
                     raise ValueError(f"Invalid program arguments: {e}") from e
 
-            subprocess.Popen([link_info.path] + arg_list)
+            work_dir = str(Path(link_info.path).parent.resolve())
+            subprocess.Popen([link_info.path] + arg_list, cwd=work_dir)
             self.logger.info(
                 "Successfully launched program: %s",
                 link_info.path,
@@ -1232,7 +1288,7 @@ def get_link_type_from_path(path: str) -> LinkType:
             return LinkType.FOLDER
         elif Path(path).is_file():
             ext = Path(path).suffix.lower()
-            if ext in (".ps1", ".py", ".bat", ".cmd", ".sh"):
+            if ext in (".ps1", ".py", ".pyw", ".bat", ".cmd", ".sh"):
                 return LinkType.SCRIPT
             elif ext in (".exe", ".msi", ".app"):
                 return LinkType.PROGRAM

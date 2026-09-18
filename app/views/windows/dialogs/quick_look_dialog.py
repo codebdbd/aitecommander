@@ -526,16 +526,16 @@ class QuickLookDialog(BaseDialog):
 
         # Page 2: Folder Content List
         self._folder_page = QWidget()
-        folder_layout = QVBoxLayout(self._folder_page)
-        folder_layout.setContentsMargins(4, 4, 4, 4)
+        self._folder_layout = QVBoxLayout(self._folder_page)
+        self._folder_layout.setContentsMargins(4, 4, 4, 4)
         self._folder_list = QListWidget()
         self._folder_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._folder_list.installEventFilter(self)
         self._folder_list.viewport().installEventFilter(self)
-        folder_layout.addWidget(self._folder_list, 1)
+        self._folder_layout.addWidget(self._folder_list, 1)
         self._folder_info_lbl = QLabel()
         self._folder_info_lbl.setStyleSheet("color: gray; font-size: 11px;")
-        folder_layout.addWidget(self._folder_info_lbl)
+        self._folder_layout.addWidget(self._folder_info_lbl)
         self._stack.addWidget(self._folder_page)
 
         # Page 3: Generic / Web / Program Card
@@ -577,20 +577,49 @@ class QuickLookDialog(BaseDialog):
         outer_card_layout.addWidget(self._card_box, 0, Qt.AlignmentFlag.AlignCenter)
         self._stack.addWidget(self._card_page)
 
-        # Footer (Actions & Path)
-        footer_layout = QHBoxLayout()
-        footer_layout.setSpacing(8)
+        # Row 1: Action Buttons (Centered on dedicated row)
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+        buttons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._copy_btn = QPushButton(self.tr("Copy Path"))
+        self._copy_btn.setFixedHeight(28)
+        self._copy_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._copy_btn.clicked.connect(self._handle_copy_path)
+        buttons_layout.addWidget(self._copy_btn)
+
+        self._copy_content_btn = QPushButton(self.tr("Copy Content"))
+        self._copy_content_btn.setFixedHeight(28)
+        self._copy_content_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._copy_content_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._copy_content_btn.setToolTip(self.tr("Copy Content (Ctrl+Shift+C)"))
+        self._copy_content_btn.clicked.connect(self._handle_copy_content)
+        buttons_layout.addWidget(self._copy_content_btn)
+
+        self._reveal_footer_btn = QPushButton(self.tr("Open in Explorer"))
+        self._reveal_footer_btn.setFixedHeight(28)
+        self._reveal_footer_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._reveal_footer_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
+        self._reveal_footer_btn.clicked.connect(self._handle_reveal_in_explorer)
+        buttons_layout.addWidget(self._reveal_footer_btn)
+
+        self._open_btn = QPushButton()
+        self._open_btn.setFixedHeight(28)
+        self._open_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._open_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._open_btn.clicked.connect(self._handle_open)
+        buttons_layout.addWidget(self._open_btn)
+
+        root_layout.addLayout(buttons_layout)
+
+        # Row 2: Informer Info (left) & Keyboard Shortcuts Hint (right)
+        info_layout = QHBoxLayout()
+        info_layout.setSpacing(8)
 
         self._footer_icon_lbl = QLabel()
-        self._footer_icon_lbl.setFixedSize(16, 16)
-        self._footer_icon_lbl.setScaledContents(True)
-        footer_layout.addWidget(self._footer_icon_lbl)
-
         self._path_lbl = QLabel()
-        self._path_lbl.setMinimumWidth(0)
-        self._path_lbl.setStyleSheet("color: gray; font-size: 11px;")
-        self._path_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        footer_layout.addWidget(self._path_lbl, 1)
 
         # PDF Page Navigation controls
         self._pdf_nav_widget = QWidget()
@@ -619,43 +648,19 @@ class QuickLookDialog(BaseDialog):
         pdf_nav_layout.addWidget(self._pdf_page_lbl)
         pdf_nav_layout.addWidget(self._pdf_next_btn)
         self._pdf_nav_widget.setVisible(False)
-        footer_layout.addWidget(self._pdf_nav_widget)
+        info_layout.addWidget(self._pdf_nav_widget)
 
         self._text_info_lbl = QLabel()
         self._text_info_lbl.setStyleSheet("color: gray; font-size: 11px;")
-        footer_layout.addWidget(self._text_info_lbl)
+        info_layout.addWidget(self._text_info_lbl)
 
-        self._copy_btn = QPushButton(self.tr("Copy Path"))
-        self._copy_btn.setFixedHeight(26)
-        self._copy_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._copy_btn.clicked.connect(self._handle_copy_path)
-        footer_layout.addWidget(self._copy_btn)
+        info_layout.addStretch(1)
 
-        self._copy_content_btn = QPushButton(self.tr("Copy Content"))
-        self._copy_content_btn.setFixedHeight(26)
-        self._copy_content_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._copy_content_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._copy_content_btn.setToolTip(self.tr("Copy Content (Ctrl+Shift+C)"))
-        self._copy_content_btn.clicked.connect(self._handle_copy_content)
-        footer_layout.addWidget(self._copy_content_btn)
+        self._hints_lbl = QLabel()
+        self._hints_lbl.setStyleSheet("color: gray; font-size: 11px;")
+        info_layout.addWidget(self._hints_lbl)
 
-        self._reveal_footer_btn = QPushButton(self.tr("Open in Explorer"))
-        self._reveal_footer_btn.setFixedHeight(26)
-        self._reveal_footer_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._reveal_footer_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
-        self._reveal_footer_btn.clicked.connect(self._handle_reveal_in_explorer)
-        footer_layout.addWidget(self._reveal_footer_btn)
-
-        self._open_btn = QPushButton()
-        self._open_btn.setFixedHeight(26)
-        self._open_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._open_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._open_btn.clicked.connect(self._handle_open)
-        footer_layout.addWidget(self._open_btn)
-
-        root_layout.addLayout(footer_layout)
+        root_layout.addLayout(info_layout)
 
     def _handle_reveal_in_explorer(self) -> None:
         if not self._current_link:
@@ -729,6 +734,10 @@ class QuickLookDialog(BaseDialog):
         if hasattr(self, "_reveal_footer_btn"):
             self._reveal_footer_btn.setText(self.tr("Open in Explorer"))
             self._reveal_footer_btn.setToolTip(self.tr("Open in Explorer (Ctrl+E)"))
+        if hasattr(self, "_hints_lbl"):
+            self._hints_lbl.setText(
+                self.tr("Space / Esc: Close  •  Enter: Open  •  ↑ / ↓: Navigate  •  F: Fullscreen")
+            )
 
     def set_link(self, link: dict[str, Any]) -> None:
         self._cleanup_context_menus()
@@ -1224,6 +1233,7 @@ class QuickLookDialog(BaseDialog):
             self._folder_info_lbl.setText(
                 f"ZIP  •  {self.tr('%n file(s) and folder(s)', '', len(infolist))}  •  {sz_str} ({self.tr('uncompressed')}: {uncompressed_str})"
             )
+            self._update_folder_margins()
             self._stack.setCurrentWidget(self._folder_page)
             return True
         except Exception as e:
@@ -1680,14 +1690,23 @@ class QuickLookDialog(BaseDialog):
         else:
             self._text_edit.setViewportMargins(margin, 16, margin, 16)
 
+    def _update_folder_margins(self) -> None:
+        if not hasattr(self, "_folder_layout") or not hasattr(self, "_folder_page"):
+            return
+        w = self._folder_page.width() or self.width()
+        margin = max(4, (w - 768) // 2)
+        self._folder_layout.setContentsMargins(margin, 4, margin, 4)
+
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._update_text_margins()
+        self._update_folder_margins()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self._apply_preview_theme()
         self._update_text_margins()
+        self._update_folder_margins()
 
     def _render_folder_preview(self, path_str: str, name: str) -> None:
         path = Path(path_str)
@@ -1728,6 +1747,7 @@ class QuickLookDialog(BaseDialog):
             self._folder_list.addItem(QListWidgetItem(f"{self.tr('Access error')}: {e}"))
 
         self._folder_info_lbl.setText(self.tr("%n item(s) in root", "", items_count))
+        self._update_folder_margins()
         self._stack.setCurrentWidget(self._folder_page)
 
     def _render_script_preview(self, path_str: str, link: dict[str, Any]) -> None:

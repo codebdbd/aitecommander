@@ -181,6 +181,28 @@ class TestQuickLookDialog(unittest.TestCase):
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
+    def test_footer_multi_row_and_hints(self) -> None:
+        self.assertIsNotNone(self.dialog._hints_lbl)
+        self.assertIn("Space / Esc", self.dialog._hints_lbl.text())
+        self.assertEqual(28, self.dialog._copy_btn.height())
+        self.assertEqual(28, self.dialog._open_btn.height())
+
+    def test_folder_preview_margins_constrained_to_768(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            f1 = Path(tmp_dir) / "file1.txt"
+            f1.write_text("hello", encoding="utf-8")
+            self.dialog.set_link({"name": "Test Folder", "url": tmp_dir, "type": "folder"})
+            self.assertEqual(self.dialog._stack.currentWidget(), self.dialog._folder_page)
+
+            # Test wide window (e.g. 1200px)
+            self.dialog.resize(1200, 700)
+            self.dialog._update_folder_margins()
+            w = self.dialog._folder_page.width() or 1200
+            expected_margin = max(4, (w - 768) // 2)
+            margins = self.dialog._folder_layout.contentsMargins()
+            self.assertEqual(expected_margin, margins.left())
+            self.assertEqual(expected_margin, margins.right())
+
 
 if __name__ == "__main__":
     unittest.main()
