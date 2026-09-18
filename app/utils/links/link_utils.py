@@ -810,13 +810,15 @@ class ScriptLinkHandler(LinkHandler):
 
     def open(self, link_info: LinkInfo) -> None:
         """Opens script"""
-        if not SecurityValidator.is_safe_path(link_info.path):
-            raise ValueError(f"Unsafe script path: {link_info.path}")
+        raw_path = os.path.expandvars(os.path.expanduser(link_info.path)) if link_info.path else ""
+        if not SecurityValidator.is_safe_path(raw_path):
+            raise ValueError(f"Unsafe script path: {raw_path}")
 
-        if not Path(link_info.path).exists():
-            raise FileNotFoundError(f"Script not found: {link_info.path}")
+        path = Path(raw_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Script not found: {raw_path}")
 
-        path = Path(link_info.path)
+        script_path_str = str(path.resolve())
         ext = path.suffix.lower()
         try:
             expanded_args = os.path.expandvars(link_info.args) if link_info.args else ""
@@ -836,23 +838,30 @@ class ScriptLinkHandler(LinkHandler):
         }
 
         handler = script_handlers.get(ext)
-        if handler:
-            cmd = handler(link_info.path, arg_list)
-            if not cmd:
-                # Command handled directly (e.g. via os.startfile fallback)
-                return
-            flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
-            cwd = str(path.parent.resolve())
-            if isinstance(cmd, str):
-                subprocess.Popen(cmd, shell=True, creationflags=flags, cwd=cwd)
+        try:
+            if handler:
+                cmd = handler(script_path_str, arg_list)
+                if not cmd:
+                    # Command handled directly (e.g. via os.startfile fallback)
+                    return
+                flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
+                cwd = str(path.parent.resolve())
+                if isinstance(cmd, str):
+                    subprocess.Popen(cmd, shell=True, creationflags=flags, cwd=cwd)
+                else:
+                    subprocess.Popen(cmd, creationflags=flags, cwd=cwd)
             else:
-                subprocess.Popen(cmd, creationflags=flags, cwd=cwd)
-        else:
-            # For unknown extensions use system handler
-            if platform.system() == "Windows":
-                os.startfile(link_info.path)
-            else:
-                subprocess.Popen(["xdg-open", link_info.path])
+                # For unknown extensions use system handler
+                if platform.system() == "Windows":
+                    os.startfile(script_path_str)
+                else:
+                    subprocess.Popen(["xdg-open", script_path_str])
+            self.logger.info("Successfully launched script: %s", script_path_str)
+        except (OSError, subprocess.SubprocessError) as e:
+            self.logger.error(
+                "Failed to execute script '%s' (args: %s): %s", script_path_str, arg_list, e
+            )
+            raise RuntimeError(f"Failed to execute script '{script_path_str}': {e}") from e
 
     def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
         """Creates PowerShell script command"""
