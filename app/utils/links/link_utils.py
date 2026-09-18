@@ -748,6 +748,7 @@ class ScriptLinkHandler(LinkHandler):
         self.powershell_path = powershell_path or self._get_powershell_path()
         self.python_path = python_path or self._get_python_path()
         self._ps_keep_open = self._get_ps_keep_open()
+        self._batch_keep_open = self._get_batch_keep_open()
 
     def _get_powershell_path(self) -> str:
         """Gets PowerShell path with auto-fallback: pwsh.exe → powershell.exe."""
@@ -795,6 +796,15 @@ class ScriptLinkHandler(LinkHandler):
         except Exception:
             return False
 
+    def _get_batch_keep_open(self) -> bool:
+        """Returns True if Batch console should stay open after script finishes (/k)."""
+        try:
+            from app.config_data import app_config
+
+            return bool(app_config.get("ui.batch_keep_open", False))
+        except Exception:
+            return False
+
     def can_handle(self, link_info: LinkInfo) -> bool:
         return link_info.link_type == LinkType.SCRIPT
 
@@ -809,7 +819,8 @@ class ScriptLinkHandler(LinkHandler):
         path = Path(link_info.path)
         ext = path.suffix.lower()
         try:
-            arg_list = SecurityValidator.validate_args(link_info.args)
+            expanded_args = os.path.expandvars(link_info.args) if link_info.args else ""
+            arg_list = SecurityValidator.validate_args(expanded_args)
         except ValueError as e:
             self.logger.error(
                 "Failed to parse script arguments for '%s': %s", link_info.path, e
@@ -959,14 +970,15 @@ class ScriptLinkHandler(LinkHandler):
         subprocess.list2cmdline from escaping the empty-title token ("").
         """
         safe_path = path.replace('"', "")
+        flag = "/k" if self._batch_keep_open else "/c"
         if args:
             safe_args = " ".join(
                 f'"{SecurityValidator.sanitize_cmd_arg(a)}"' if " " in a
                 else SecurityValidator.sanitize_cmd_arg(a)
                 for a in args
             )
-            return f'cmd.exe /c start "" "{safe_path}" {safe_args}'
-        return f'cmd.exe /c start "" "{safe_path}"'
+            return f'cmd.exe {flag} start "" "{safe_path}" {safe_args}'
+        return f'cmd.exe {flag} start "" "{safe_path}"'
 
 
 class ProgramLinkHandler(LinkHandler):
