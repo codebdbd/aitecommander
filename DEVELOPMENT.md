@@ -169,14 +169,11 @@ aitecommander/
 │       ├── argument_parser.py        # Парсинг CLI-аргументов
 │       ├── signal_handling.py        # Обработка POSIX-сигналов
 │       └── browser_profiles_loader.py # Загрузка профилей браузеров
-├── i18n/                             # Локализация
-│   ├── app_en.ts / .qm              # Английский
-│   ├── app_ru.ts / .qm              # Русский
-│   ├── app_uk.ts / .qm              # Украинский
-│   ├── app_fr.ts / .qm              # Французский
-│   ├── app_es.ts / .qm              # Испанский
-│   ├── app_de.ts / .qm              # Немецкий
-│   ├── language_service.py           # Сервис смены языка
+├── i18n/                             # Подсистема локализации
+│   ├── app_*.ts / .qm               # Каталоги переводов (en, ru, uk, fr, es, de)
+│   ├── qtbase_*.qm                  # Системные переводы диалогов и кнопок Qt
+│   ├── cli.py / __main__.py          # Единая CLI-утилита управления (python -m i18n)
+│   ├── language_service.py           # Сервис смены языка в рантайме
 │   ├── resources_rc.py               # Скомпилированные ресурсы переводов
 │   ├── i18n.qrc                      # QRC-манифест переводов
 │   ├── locale_utils.py               # Утилиты локали
@@ -447,10 +444,36 @@ class MyWidget(QWidget):
 ```bash
 # Компиляция основных ресурсов (QSS, шрифты, базовые ассеты)
 pyrcc6 app/resources/app_resources.qrc -o app/resources/app_resources_rc.py
-
-# Компиляция переводов
-pyrcc6 i18n/i18n.qrc -o i18n/resources_rc.py
 ```
+
+### Локализация и переводы (i18n)
+
+Управление переводами осуществляется через встроенную CLI-утилиту `python -m i18n`:
+
+```bash
+# 1. Извлечь новые строки из исходного кода app/ в каталоги .ts
+python -m i18n update
+
+# 2. Скомпилировать файлы .ts в бинарные .qm каталоги
+python -m i18n compile
+
+# 3. Проверить 100% полноту, отсутствие незавершённых строк и паритет (CI Quality Gate)
+python -m i18n check
+
+# Полный цикл одной командой (update -> compile -> check)
+python -m i18n all
+
+# Добавить новый язык (например, итальянский)
+python -m i18n add-language it
+```
+
+#### Правила интернационализации кода:
+1. **Строки внутри классов Qt (`QObject`, виджеты)**: строго `self.tr("Text")`.
+2. **Строки вне классов Qt (функции, утилиты)**: строго `QCoreApplication.translate("ContextName", "Text")`.
+3. **Множественные числа (плюрализация)**: строго через маркер `%n` и передачу числа:
+   ```python
+   self.tr("%n item(s) selected", "", count)
+   ```
 
 **Инициализация ресурсов** в `app/startup/runtime.py`:
 

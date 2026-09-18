@@ -95,6 +95,9 @@ jobs:
       - name: Run test suite
         run: python -m pytest -q
 
+      - name: Validate translation integrity
+        run: python -m i18n check
+
       - name: Build Windows installer
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1
