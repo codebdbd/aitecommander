@@ -214,9 +214,11 @@ QWidget#topBarHost QComboBox#themeSelector {
 QWidget#topBarHost QToolBar {
     background: transparent;
     border: none;
+    spacing: 4px;
 }
 
 QWidget#topBarHost QToolBar::separator {
+    margin: 0 1px;
     padding: 0;
 }
 
@@ -244,6 +246,14 @@ QToolBar#topBarToolbar QToolButton[toolbar_btn="true"] {
 
 QToolBar#topBarToolbar QToolButton[toolbar_last="true"] {
     margin-right: 0px;
+}
+
+QToolBar#topBarToolbar QToolButton#quickButton::menu-indicator,
+QToolBar#topBarToolbar QToolButton#favoriteButton::menu-indicator,
+QToolBar#topBarToolbar QToolButton#recentButton::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
 }
 
 QWidget#topBarHost QPushButton {
@@ -767,4 +777,5 @@ QFocusFrame {
     background: transparent;
 
 }
+
 

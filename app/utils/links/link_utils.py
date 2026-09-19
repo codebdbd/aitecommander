@@ -1110,11 +1110,7 @@ class ProgramLinkHandler(LinkHandler):
             raise FileNotFoundError(f"Program not found: {link_info.path}")
 
         try:
-            # Windows shortcuts must be launched via shell, not as executables.
-            if platform.system() == "Windows" and link_info.path.lower().endswith(".lnk"):
-                os.startfile(link_info.path)
-                self.logger.info("Successfully launched shortcut: %s", link_info.path)
-                return
+            norm_path = os.path.normpath(link_info.path) if platform.system() == "Windows" else link_info.path
 
             # For programs use Windows argument splitting without strict Chrome validation
             arg_list = []
@@ -1132,21 +1128,39 @@ class ProgramLinkHandler(LinkHandler):
             if run_as_admin:
                 arg_list = [a for a in arg_list if a not in admin_flags]
 
-            work_dir = str(Path(link_info.path).parent.resolve())
+            work_dir = str(Path(norm_path).parent.resolve())
+
+            # Windows shortcuts must be launched via shell, respecting admin elevation & arguments
+            if platform.system() == "Windows" and norm_path.lower().endswith(".lnk"):
+                arg_str = " ".join(f'"{a}"' if " " in a else a for a in arg_list)
+                if run_as_admin or arg_str:
+                    import ctypes
+
+                    ret = ctypes.windll.shell32.ShellExecuteW(
+                        None, "runas" if run_as_admin else "open", norm_path, arg_str, work_dir, 1
+                    )
+                    if ret <= 32 and ret != 1223:
+                        raise OSError(f"ShellExecuteW failed with error code {ret}")
+                    self.logger.info("Successfully launched shortcut via ShellExecuteW: %s", norm_path)
+                else:
+                    os.startfile(norm_path)
+                    self.logger.info("Successfully launched shortcut: %s", norm_path)
+                return
+
             if run_as_admin and platform.system() == "Windows":
                 import ctypes
 
                 arg_str = " ".join(f'"{a}"' if " " in a else a for a in arg_list)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", link_info.path, arg_str, work_dir, 1)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", norm_path, arg_str, work_dir, 1)
                 if ret <= 32 and ret != 1223:
                     raise OSError(f"ShellExecuteW runas failed with error code {ret}")
-                self.logger.info("Successfully launched program as admin: %s", link_info.path)
+                self.logger.info("Successfully launched program as admin: %s", norm_path)
                 return
 
-            subprocess.Popen([link_info.path] + arg_list, cwd=work_dir)
+            subprocess.Popen([norm_path] + arg_list, cwd=work_dir)
             self.logger.info(
                 "Successfully launched program: %s",
-                link_info.path,
+                norm_path,
             )
             self.logger.debug(
                 "Program arguments for %s: %s",

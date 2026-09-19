@@ -362,10 +362,40 @@ def _handle_program_icon(
         if shortcut_app_icon:
             return shortcut_app_icon
 
-    target_path = lnk_info.get("path") if lnk_info else path
-    if target_path and target_path.lower().endswith(".exe"):
-        return _extract_icon_from_exe(target_path, icons_dir)
-    return None
+        icon_src = lnk_info.get("icon_path") if lnk_info else ""
+        if icon_src and Path(icon_src).exists():
+            icon_ext = Path(icon_src).suffix.lower()
+            if icon_ext in _IMAGE_PREVIEW_EXTENSIONS:
+                safe_stem = Path(path).stem[:40]
+                hash_val = sha1(path.encode("utf-8")).hexdigest()[:8]
+                icon_dst = Path(icons_dir) / f"lnk_{safe_stem}_{hash_val}.png"
+                try:
+                    icon_dst.parent.mkdir(parents=True, exist_ok=True)
+                    with safe_image_open(icon_src) as src_img:
+                        out = src_img.convert("RGBA") if src_img.mode != "RGBA" else src_img.copy()
+                        out.save(icon_dst, format="PNG")
+                    if is_valid_icon_file(str(icon_dst)):
+                        return str(icon_dst)
+                except Exception as e:
+                    logger.debug("Failed to copy shortcut custom icon %s: %s", icon_src, e)
+            elif icon_ext in (".exe", ".dll"):
+                extracted = _extract_icon_from_exe(icon_src, icons_dir)
+                if extracted:
+                    return extracted
+
+        target_path = lnk_info.get("path") if lnk_info else ""
+        if target_path and target_path.lower().endswith(".exe") and Path(target_path).exists():
+            extracted = _extract_icon_from_exe(target_path, icons_dir)
+            if extracted:
+                return extracted
+
+        safe_stem = Path(path).stem[:40]
+        hash_val = sha1(path.encode("utf-8")).hexdigest()[:8]
+        icon_dst = Path(icons_dir) / f"lnk_{safe_stem}_{hash_val}.png"
+        saved = _get_file_icon_with_com(path, icon_dst)
+        if saved and is_valid_icon_file(saved):
+            return saved
+        return None
 
 
 def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:

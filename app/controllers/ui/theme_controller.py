@@ -456,6 +456,24 @@ class ThemeController:
         self._rebuild_menu(mw)
         self._reload_structure_icons(mw)
         self._refresh_top_panels()
+        try:
+            quick_add = getattr(mw, "quick_add_widget", None)
+            if quick_add and hasattr(quick_add, "refresh_actions"):
+                quick_add.refresh_actions()
+        except Exception as exc:
+            logger.warning("Quick add refresh error: %s", exc, exc_info=True)
+        try:
+            recent_widget = getattr(mw, "recent_links_widget", None)
+            if recent_widget and hasattr(recent_widget, "refresh_actions"):
+                recent_widget.refresh_actions()
+        except Exception as exc:
+            logger.warning("Recent links widget refresh error: %s", exc, exc_info=True)
+        try:
+            fav_widget = getattr(mw, "fav_widget", None)
+            if fav_widget and hasattr(fav_widget, "refresh_actions"):
+                fav_widget.refresh_actions()
+        except Exception as exc:
+            logger.warning("Favorites widget refresh error: %s", exc, exc_info=True)
 
     def apply_and_refresh_ui(self) -> None:
         """Centralized UI update after theme application.

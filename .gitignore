@@ -80,4 +80,3 @@ site/
 # Tool caches
 .ruff_cache/
 .pytest_cache/
-app/resources/ui_icons/qss_cache/

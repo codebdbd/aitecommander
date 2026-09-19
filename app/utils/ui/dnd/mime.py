@@ -11,6 +11,7 @@ No CSV or legacy fallbacks are supported here.
 
 import json
 import logging
+import os
 import re
 from urllib.parse import urlparse, urlunsplit
 
@@ -244,7 +245,7 @@ def normalize_external_link_target(candidate: str) -> str:
         qurl = QUrl(value)
         if qurl.isLocalFile():
             local = qurl.toLocalFile().strip()
-            return local
+            return os.path.normpath(local)
     except Exception:
         logger.debug("Failed to normalize local URL target %s", value, exc_info=True)
 

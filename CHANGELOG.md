@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Delicate Error Handling for Missing Files**:
   - Replaced loud system chimes with silent notifications and warning cards when files are moved or deleted.
 
+### Fixed
+- **StructureTreeView Branch Indicator Alignment**:
+  - Fixed vertical alignment of tree expansion arrows using canonical `QStyle.alignedRect` and `QIcon.paint` instead of manual coordinate math.
+
+
 ---
 
 ## [1.1.8] - 2026-09-08
