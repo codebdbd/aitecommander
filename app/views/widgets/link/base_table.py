@@ -124,14 +124,6 @@ class TableDelegate(QStyledItemDelegate):
             if col == 0:
                 return
 
-            if col == 4:
-                view = self.parent() if hasattr(self, "parent") else None
-                if view is not None and hasattr(view, "horizontalHeader"):
-                    header = view.horizontalHeader()
-                    if header is not None:
-                        opt.font = QFont(header.font())
-                return
-
             val = self.col_sizes.get(col)
             if val is None:
                 if col == 2:
@@ -544,8 +536,6 @@ class LinksTableView(
             self.setColumnWidth(0, 32)
             self.setColumnWidth(1, col_widths[1])
             self.setColumnWidth(2, col_widths[2])
-            fav_w = col_widths[4] if len(col_widths) >= 5 else col_widths[3]
-            self.setColumnWidth(4, 32)
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
@@ -582,7 +572,6 @@ class LinksTableView(
             # Fallback to Fixed
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(False)
         header.sortIndicatorChanged.connect(self.sortByColumn)

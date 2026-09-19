@@ -48,7 +48,7 @@ def clear_links_table_icon_cache() -> None:
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """Data model for the links table.
 
-    Default columns: ["♥", "Name", "Last opened", "Notes"].
+    Default columns: ["Name", "Last opened", "Notes"].
     Each row is a dict containing at minimum: ``id``, ``name``, ``last_used``,
     ``notes``, ``is_favorite``, ``url``/``path``.
     """
@@ -77,7 +77,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = [""] + [self._tr(text) for text in _HEADER_TRANSLATABLE] + ["♥"]
+        self._headers = [""] + [self._tr(text) for text in _HEADER_TRANSLATABLE]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -112,8 +112,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 link.get("notes", ""), truncate=False
             )
             return display
-        if col == 4:
-            return self._star_display_text(bool(link.get("is_favorite")))
         return None
 
     def _get_decoration_data(self, col, link):
@@ -143,7 +141,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_alignment_data(self, col):
         """Get alignment data for column."""
-        if col in (0, 2, 4):
+        if col == 0:
             return int(Qt.AlignmentFlag.AlignCenter)
         return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
@@ -204,7 +202,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if 0 <= section < len(self._headers):
                     return self._headers[section]
             elif role == Qt.ItemDataRole.TextAlignmentRole:
-                if section in (0, 2, 4):
+                if section == 0:
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return super().headerData(section, orientation, role)
@@ -233,7 +231,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         1: ``name`` (str)
         2: ``last_used`` (any serializable/comparable type)
         3: ``notes`` (str)
-        4: ``is_favorite`` (bool)
         Direct replacement of the entire link is also supported via ``UserRole`` (dict value).
         """
         if not index.isValid():
@@ -277,8 +274,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                     link["last_used"] = value
                 elif col == 3:
                     link["notes"] = str(value)
-                elif col == 4:
-                    link["is_favorite"] = bool(value)
                 else:
                     return False
                 # Any change may affect visuals — clear the cached icon
@@ -448,7 +443,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         2: ``last_used`` (normalized to float timestamp; ``None`` -> ``-inf``)
         3: ``notes`` (str, casefold)
         """
-        if not self._links or column in (0, 4):
+        if not self._links or column == 0:
             return
 
         def normalize_last_used(v: Any) -> float:
@@ -490,8 +485,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return (1, normalize_last_used(last_used))
             if column == 3:
                 return str(link.get("notes", "")).casefold()
-            if column == 4:
-                return 1 if bool(link.get("is_favorite", False)) else 0
             # Unknown column - sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
             if isinstance(lid, (int, str)):
