@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QObject, QPoint, QSize, pyqtSignal
+from PyQt6.QtCore import QObject, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton, QWidget
 
@@ -119,6 +119,7 @@ class TopBarMenu(QMenu):
     def showEvent(self, event):  # noqa: N802
         super().showEvent(event)
         if self._target_button is not None and self._target_button.isVisible():
+            self._target_button.setFocus(Qt.FocusReason.MouseFocusReason)
             btn_bottom = self._target_button.mapToGlobal(
                 QPoint(0, self._target_button.height() - 1)
             ).y()
