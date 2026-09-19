@@ -56,7 +56,7 @@ QWidget#LeftPanel QToolButton:hover {
 background: #1E2633;
 }
 #spheres_bar QPushButton:hover {
-border-color: #0078d7;
+border-color: transparent;
 }
 QMenu {
 color: #D1D6E0;
@@ -137,11 +137,11 @@ QWidget#topBarHost QPushButton {
 }
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover {
-border-color: #0194F0;
+border-color: transparent;
 }
 QWidget#topBarHost QToolButton:checked,
 QWidget#topBarHost QPushButton:checked {
-border-color: #0194F0;
+border-color: transparent;
 }
 QPushButton {
 background-color: #252D3A;
@@ -149,7 +149,7 @@ border-color: #252D3A;
 }
 QPushButton:hover {
 background-color: #2E4066;
-border-color: #0194F0;
+border-color: transparent;
 }
 QToolButton {
 background-color: #252D3A;
@@ -512,35 +512,11 @@ background-color: #6A2E44;
 color: #FFFFFF;
 selection-color: #FFFFFF;
 }
-#spheres_bar QPushButton:hover,
-QPushButton:hover,
-QPushButton:pressed,
-QPushButton:checked,
-QToolButton:hover,
-QToolButton:pressed,
-QToolButton:checked,
-QDialog QPushButton:hover,
-QDialog QPushButton:pressed,
-QDialog QPushButton:checked,
-QDialog QToolButton:hover,
-QDialog QToolButton:pressed,
-QDialog QToolButton:checked,
 QDialog QPushButton:focus,
 QDialog QToolButton:focus,
 QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus,
-QDialog QToolButton#linkTypeBtn:hover,
-QDialog QToolButton#linkTypeBtn:pressed,
-QDialog QToolButton#linkTypeBtn:checked,
-QDialog QToolButton#linkTypeBtn:checked:hover,
-QWidget#topBarHost QLineEdit:hover,
 QWidget#topBarHost QLineEdit:focus,
-QWidget#topBarHost QToolButton:hover,
-QWidget#topBarHost QToolButton:pressed,
-QWidget#topBarHost QToolButton:checked,
-QWidget#topBarHost QPushButton:hover,
-QWidget#topBarHost QPushButton:pressed,
-QWidget#topBarHost QPushButton:checked,
 QLineEdit:focus,
 QTextEdit:focus,
 QPlainTextEdit:focus,
@@ -568,25 +544,43 @@ QDialog QCheckBox::indicator:hover,
 QCheckBox::indicator:checked,
 QDialog QCheckBox::indicator:checked,
 QDialog QCheckBox:focus,
-QToolButton#quickButton:hover,
-QToolButton#quickButton:pressed,
-QToolButton#quickButton:checked,
-QToolButton#favoriteButton:hover,
-QToolButton#favoriteButton:pressed,
-QToolButton#favoriteButton:checked,
-QToolButton#recentButton:hover,
-QToolButton#recentButton:pressed,
-QToolButton#recentButton:checked,
+QPushButton:focus,
+QToolButton:focus {
+border-color: #0194F0;
+}
+
+/* Buttons on hover / pressed / checked: no blue borders */
+QPushButton:hover,
+QPushButton:pressed,
+QPushButton:checked,
+QToolButton:hover,
+QToolButton:pressed,
+QToolButton:checked,
+QDialog QPushButton:hover,
+QDialog QPushButton:pressed,
+QDialog QPushButton:checked,
+QDialog QToolButton:hover,
+QDialog QToolButton:pressed,
+QDialog QToolButton:checked,
+QWidget#topBarHost QToolButton:hover,
+QWidget#topBarHost QToolButton:pressed,
+QWidget#topBarHost QToolButton:checked,
+QWidget#topBarHost QPushButton:hover,
+QWidget#topBarHost QPushButton:pressed,
+QWidget#topBarHost QPushButton:checked,
 QWidget#topBarHost QToolButton#quickButton:hover,
 QWidget#topBarHost QToolButton#quickButton:pressed,
-QWidget#topBarHost QToolButton#quickButton:checked,
 QWidget#topBarHost QToolButton#favoriteButton:hover,
 QWidget#topBarHost QToolButton#favoriteButton:pressed,
-QWidget#topBarHost QToolButton#favoriteButton:checked,
 QWidget#topBarHost QToolButton#recentButton:hover,
-QWidget#topBarHost QToolButton#recentButton:pressed,
-QWidget#topBarHost QToolButton#recentButton:checked {
-border-color: #0194F0;
+QWidget#topBarHost QToolButton#recentButton:pressed {
+border-color: transparent;
+}
+QWidget#topBarHost QToolButton#favoriteButton:checked,
+QWidget#topBarHost QToolButton#recentButton:checked,
+QWidget#topBarHost QToolButton#quickButton:checked {
+border: 1px solid #3A3E44;
+border-radius: 4px;
 }
 QMenu,
 QMenuBar,

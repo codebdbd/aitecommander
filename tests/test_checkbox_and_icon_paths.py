@@ -21,9 +21,9 @@ def test_theme_stylesheet_service_resolves_icon_urls():
     assert qss is not None
     assert ":/icons/" not in qss
 
-    icons_dir = PathManager.ui_icons_dir().as_posix()
-    assert icons_dir in qss
-    assert f"{icons_dir}/qss_cache/cyberpunk_neon/check.svg" in qss
+    cache_dir = (PathManager.cache_dir() / "qss_icons" / "cyberpunk_neon").as_posix()
+    assert cache_dir in qss
+    assert f"{cache_dir}/check.svg" in qss
 
 
 def test_common_qss_contains_checkbox_alignment_rules():

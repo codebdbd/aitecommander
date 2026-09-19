@@ -282,7 +282,7 @@ class ThemeStylesheetService:
         base_svg = PathManager.ui_icons_dir() / "base" / icon_name
         if not base_svg.exists():
             return ""
-        cache_dir = PathManager.ui_icons_dir() / "qss_cache" / theme_name
+        cache_dir = PathManager.cache_dir() / "qss_icons" / theme_name
         cache_dir.mkdir(parents=True, exist_ok=True)
         dest_svg = cache_dir / icon_name
         if dest_svg.exists() and dest_svg.stat().st_mtime >= base_svg.stat().st_mtime:

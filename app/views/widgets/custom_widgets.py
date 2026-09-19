@@ -413,25 +413,13 @@ class StructureTreeView(QTreeView):
                             closed_ic, open_ic = _get_branch_icons()
                             icon = open_ic if is_open else closed_ic
                             if not icon.isNull():
-                                rect = option.rect
-                                target_widget = widget or option.widget
-                                dpr = 1.0
-                                if target_widget is not None and hasattr(target_widget, "devicePixelRatioF"):
-                                    dpr = float(target_widget.devicePixelRatioF())
-                                elif hasattr(painter, "device") and painter.device() is not None and hasattr(painter.device(), "devicePixelRatioF"):
-                                    dpr = float(painter.device().devicePixelRatioF())
-
-                                # Logical indicator size: 16px fits standard row heights (e.g. 32px)
-                                # and aligns with the 20px branch column.
-                                side_logical = 16
-                                side_physical = max(1, int(round(side_logical * dpr)))
-                                pm = icon.pixmap(QSize(side_physical, side_physical))
-                                pm.setDevicePixelRatio(dpr)
-
-                                # Perfectly center horizontally and vertically within option.rect
-                                x = int(round(rect.center().x() - (side_logical / 2.0)))
-                                y = int(round(rect.center().y() - (side_logical / 2.0)))
-                                painter.drawPixmap(x, y, pm)
+                                target_rect = QStyle.alignedRect(
+                                    option.direction,
+                                    Qt.AlignmentFlag.AlignCenter,
+                                    QSize(16, 16),
+                                    option.rect,
+                                )
+                                icon.paint(painter, target_rect, Qt.AlignmentFlag.AlignCenter)
                                 return
                         except Exception:
                             # Fallback to default rendering

@@ -125,6 +125,15 @@ class PathManager:
         return cls._resolve_user_subdir(_USER_ICONS_SUBDIR, org_name, app_name)
 
     @classmethod
+    def cache_dir(
+        cls,
+        org_name: str | None = None,
+        app_name: str | None = None,
+    ) -> Path:
+        """Return user cache directory."""
+        return cls._resolve_user_subdir("cache", org_name, app_name)
+
+    @classmethod
     def user_themes_dir(
         cls,
         org_name: str | None = None,

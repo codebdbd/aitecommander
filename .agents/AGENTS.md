@@ -117,3 +117,13 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   2. **Запрет на принудительное раскрытие разделов**: В `SelectionWorkflowService.restore_selection_after_load` строго запрещено вызывать `self._tree.expand(index)` при выборе раздела (`item_type == "section"`). Выбор раздела отображает его плитки в правой панели, но обязан сохранять свернутое или развернутое состояние ветки в дереве без изменений.
   3. **Раскрытие только предков для дочерних категорий**: Автоматическое раскрытие (`_expand_index_path` / `expand(parent_index)`) разрешено строго для родительских узлов при выборе дочерней категории, чтобы обеспечить видимость выбранного элемента в иерархии.
 
+## 13. Frozen Subsystems: Context & Dropdown Menus Design (ЗАПРЕТ НА ИЗМЕНЕНИЕ ДИЗАЙНА МЕНЮ)
+- **Status: FROZEN / READ-ONLY**: Дизайн, стили и геометрия контекстных меню и выпадающих списков (`QMenu`, `QMenuBar`, выпадающие меню кнопок тулбара и списков) полностью зафиксированы.
+- **Strict Prohibition**: Категорически запрещено изменять стили, цвета, рамки, границы, скругления, внутренние отступы (padding/margin), фон или оформление `QMenu`, `QMenu::item`, `QMenuBar`, а также выпадающих меню кнопок. Любые изменения дизайна контекстных и выпадающих меню строго запрещены.
+
+## 14. Architecture Standards: Tree Branch Indicator Alignment (ВЫРАВНИВАНИЕ СТРЕЛКИ ДЕРЕВА)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Отрисовка индикатора раскрытия веток дерева структуры (`StructureTreeView._install_branch_proxy_style`) зафиксирована.
+- **Strict Alignment Rules**:
+  1. **Каноничное центрирование Qt**: Центрирование индикатора стрелки выполняется строго через `QStyle.alignedRect(option.direction, Qt.AlignmentFlag.AlignCenter, QSize(16, 16), option.rect)`. Запрещено производить ручной расчет координат через `rect.center().y() - side/2` или вводить эмпирические смещения/костыли.
+  2. **Нативная векторная отрисовка**: Отрисовка выполняется строго через `icon.paint(painter, target_rect, Qt.AlignmentFlag.AlignCenter)`. Запрещено генерировать промежуточные `QPixmap` с ручным вычислением `devicePixelRatioF` и вызывать `drawPixmap` по целочисленным координатам.
+

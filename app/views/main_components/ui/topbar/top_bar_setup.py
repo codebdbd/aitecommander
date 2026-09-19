@@ -12,8 +12,9 @@ from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWi
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.views.main_components.ui.topbar.toolbar_adapters import (
-    LinksToolbarAdapter,
+    FavoritesToolbarAdapter,
     QuickAddToolbarAdapter,
+    RecentHistoryToolbarAdapter,
     ToolbarSeparatorController,
 )
 from app.views.widgets.theme_selector import ThemeSelector
@@ -56,6 +57,11 @@ class TopBarToolBar(QToolBar):
             except TypeError:
                 super().__init__()
         self._button_height = max(1, int(button_height))
+        try:
+            if self.layout() is not None:
+                self.layout().setSpacing(_DEFAULT_SPACING)
+        except (RuntimeError, AttributeError):
+            pass
 
     def set_button_height(self, height: int) -> None:
         self._button_height = max(1, int(height))
@@ -160,9 +166,9 @@ class TopBarBuilder:
             try:
                 side = int(app_config.ui.get_top_bar_widgets_side_spacing())
             except (TypeError, ValueError):
-                side = 8
+                side = 6
                 logger.warning("TopPanel: invalid side spacing in config; using default 8")
-            top_bar.setContentsMargins(side, 0, side, 0)
+            top_bar.setContentsMargins(4, 0, side, 0)
             top_bar.setSpacing(0)
             top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
@@ -212,19 +218,18 @@ class TopBarBuilder:
                 category_provider=self.window,
                 separator_controller=sep_controller,
             )
-            fav_adapter = LinksToolbarAdapter(
+            fav_adapter = FavoritesToolbarAdapter(
                 toolbar,
                 insert_before=sep_fav_recent,
                 button_object_name="favoriteButton",
-                group_name="fav",
-                emit_refresh_on_click=False,
+                category_provider=self.window,
                 separator_controller=sep_controller,
             )
-            recent_adapter = LinksToolbarAdapter(
+            recent_adapter = RecentHistoryToolbarAdapter(
                 toolbar,
                 insert_before=end_marker,
                 button_object_name="recentButton",
-                group_name="recent",
+                category_provider=self.window,
                 emit_refresh_on_click=True,
                 separator_controller=sep_controller,
             )
@@ -337,11 +342,15 @@ class TopBarBuilder:
     def _apply_toolbar_spacing(
         self, toolbar: QToolBar, spacing: int, button_size: int
     ) -> None:
-        effective_spacing = max(0, spacing)
         try:
-            toolbar.setContentsMargins(0, 0, effective_spacing, 0)
+            toolbar.setContentsMargins(0, 0, 0, 0)
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to set toolbar right margin", exc_info=True)
         if isinstance(toolbar, TopBarToolBar):
             toolbar.set_button_height(button_size)
+        try:
+            if toolbar.layout() is not None:
+                toolbar.layout().setSpacing(max(0, int(spacing)))
+        except (RuntimeError, AttributeError):
+            logger.debug("TopPanel: failed to set toolbar layout spacing", exc_info=True)
 
