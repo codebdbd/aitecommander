@@ -1428,24 +1428,24 @@
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>day</source>
-        <translation>día</translation>
+        <translation>d</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>days</source>
-        <translation>días</translation>
+        <translation>d</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>week</source>
-        <translation>semana</translation>
+        <translation>sem</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>weeks</source>
-        <translation>semanas</translation>
+        <translation>sem</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="122" />

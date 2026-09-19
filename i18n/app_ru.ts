@@ -1429,24 +1429,24 @@
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>day</source>
-        <translation>день</translation>
+        <translation>д</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>days</source>
-        <translation>дней</translation>
+        <translation>д</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>week</source>
-        <translation>неделя</translation>
+        <translation>нед</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>weeks</source>
-        <translation>недель</translation>
+        <translation>нед</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="122" />

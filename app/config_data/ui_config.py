@@ -182,15 +182,13 @@ class UIConfig(BaseConfig):
 
     def get_col_widths(self) -> list:
         """Return the column widths for the links table."""
-        widths = self.get("ui.col_widths", [32, 400, 130, 100, 32])
+        widths = self.get("ui.col_widths", [32, 400, 130, 100])
         if isinstance(widths, (list, tuple)):
             if len(widths) == 3:
-                return [32, int(widths[1]), int(widths[2]), 100, 32]
-            if len(widths) == 4:
-                return [int(widths[0]), int(widths[1]), int(widths[2]), 100, int(widths[3])]
-            if len(widths) >= 5:
-                return [int(w) for w in widths]
-        return [32, 400, 130, 100, 32]
+                return [32, int(widths[1]), int(widths[2]), 100]
+            if len(widths) >= 4:
+                return [int(w) for w in widths[:4]]
+        return [32, 400, 130, 100]
 
     def get_max_favorites(self) -> int:
         """Return the maximum number of favorites."""
@@ -730,14 +728,14 @@ class UIConfig(BaseConfig):
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return ["▶", "Name", "Last opened", "Notes", "♥"]
+        return ["▶", "Name", "Last opened", "Notes"]
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
         cols = self.get("ui.links_table_columns")
-        if isinstance(cols, dict) and cols.get("favorite") == 4:
+        if isinstance(cols, dict) and "favorite" not in cols and len(cols) == 4:
             return cols
-        return {"group_launch": 0, "name": 1, "last_used": 2, "notes": 3, "favorite": 4}
+        return {"group_launch": 0, "name": 1, "last_used": 2, "notes": 3}
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""

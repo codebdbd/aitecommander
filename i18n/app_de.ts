@@ -1428,24 +1428,24 @@
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>day</source>
-        <translation>Tag</translation>
+        <translation>Tg.</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <location filename="..\app\utils\system\date_utils.py" line="113" />
         <source>days</source>
-        <translation>Tage</translation>
+        <translation>Tg.</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>week</source>
-        <translation>Woche</translation>
+        <translation>Wo.</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <location filename="..\app\utils\system\date_utils.py" line="117" />
         <source>weeks</source>
-        <translation>Wochen</translation>
+        <translation>Wo.</translation>
     </message>
     <message>
         <location filename="..\app\utils\system\date_utils.py" line="122" />

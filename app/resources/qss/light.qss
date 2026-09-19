@@ -416,69 +416,17 @@ QSplitter::handle:vertical { background-color: #B3B3B3; }
 #spheres_bar {
 }
 QWidget#topBarHost QToolButton#quickButton,
-QWidget#topBarHost QToolButton#quickButton:hover,
-QWidget#topBarHost QToolButton#quickButton:pressed,
-QWidget#topBarHost QToolButton#quickButton:checked {
-background: qlineargradient(
-x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0   #FFFFFF,
-stop: 0.5 #F4F4F4,
-stop: 1   #E6E6E6
-);
-}
 QWidget#topBarHost QToolButton#favoriteButton,
-QWidget#topBarHost QToolButton#favoriteButton:hover,
-QWidget#topBarHost QToolButton#favoriteButton:pressed,
-QWidget#topBarHost QToolButton#favoriteButton:checked {
-background: qlineargradient(
-x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0   #F7F7F7,
-stop: 0.5 #F2F2F2,
-stop: 1   #EEEEEE
-);
-}
 QWidget#topBarHost QToolButton#recentButton,
-QWidget#topBarHost QToolButton#recentButton:hover,
-QWidget#topBarHost QToolButton#recentButton:pressed,
-QWidget#topBarHost QToolButton#recentButton:checked {
-background: qlineargradient(
-x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0   #FFFFFF,
-stop: 0.5 #E6E6E6,
-stop: 1   #FFFFFF
-);
-}
+QToolBar#topBarToolbar QToolButton[toolbar_btn="true"],
 QToolButton#quickButton,
-QToolButton#quickButton:hover,
-QToolButton#quickButton:pressed,
-QToolButton#quickButton:checked {
+QToolButton#favoriteButton,
+QToolButton#recentButton {
 background: qlineargradient(
 x1: 0, y1: 0, x2: 0, y2: 1,
 stop: 0   #FFFFFF,
 stop: 0.5 #F4F4F4,
 stop: 1   #E6E6E6
-);
-}
-QToolButton#favoriteButton,
-QToolButton#favoriteButton:hover,
-QToolButton#favoriteButton:pressed,
-QToolButton#favoriteButton:checked {
-background: qlineargradient(
-x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0   #F7F7F7,
-stop: 0.5 #F2F2F2,
-stop: 1   #EEEEEE
-);
-}
-QToolButton#recentButton,
-QToolButton#recentButton:hover,
-QToolButton#recentButton:pressed,
-QToolButton#recentButton:checked {
-background: qlineargradient(
-x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0   #FFFFFF,
-stop: 0.5 #E6E6E6,
-stop: 1   #FFFFFF
 );
 }
 

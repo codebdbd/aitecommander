@@ -229,8 +229,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             logger.warning("No link found at row %s", row)
             return
 
-        # Don't open link on double-click on checkbox or favorite column
-        if column in (self.COLUMNS.get("group_launch", 0), self.COLUMNS["favorite"]):
+        # Don't open link on double-click on checkbox column
+        if column == self.COLUMNS.get("group_launch", 0):
             return
 
         if column == self.COLUMNS["notes"]:
@@ -247,41 +247,6 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if not link:
             logger.warning("No link found at row %s", row)
             return
-
-        if column == self.COLUMNS["favorite"]:
-            link_name = link.get("name", "Untitled")
-
-            # Get visible name through model (DisplayRole)
-            model = safe_call(self.table, "model", default=None)
-            idx = (
-                safe_call(model, "index", row, self.COLUMNS["name"], default=None)
-                if model is not None
-                else None
-            )
-            if idx and safe_call(idx, "isValid", default=False):
-                val = safe_call(
-                    model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None
-                )
-                visible_name = str(val) if val is not None else "Unknown"
-            else:
-                visible_name = "Unknown"
-
-            if link_name != visible_name:
-                logger.warning(
-                    "MISMATCH! Link data does not match visible content! Expected: '%s', Received: '%s'",
-                    visible_name,
-                    link_name,
-                )
-
-            # Log favorite toggle with brief context
-            logger.debug(
-                "Toggling favorite: id=%s, name=%s, current=%s",
-                link.get("id"),
-                link_name,
-                link.get("is_favorite", False),
-            )
-
-            self.controller.toggle_favorite(link)
 
     def _on_context_menu(self, pos):
         """Handle context menu."""

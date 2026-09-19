@@ -39,7 +39,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Parameters**:
   1. **Ширина левой панели**: строго **320 px** (`splitter_sizes: [320, 704]`).
   2. **Отступы и сетка**: `spheres_bar_spacing: 8`, `spheres_bar_margin_left: 8`, `spheres_bar_margin_right: 8`.
-  3. **Высота панели**: `spheres_bar_height: 96`, `spheres_layout_margins: [8, 2, 8, 4]`.
+  3. **Высота панели**: `spheres_bar_height: 104`, `spheres_layout_margins: [8, 2, 8, 4]`.
   4. **Размер кнопок**: строго **70×88 px** (`icon_w + 6, icon_h + 24`).
   5. **Масштабирование macOS Dock**: формула `size = 56.0 + 14.0 * s` (56 px в покое, 70 px на пике), базовая линия `bottom_y = rect.height() - 14`.
   6. **Индикатор активной сферы**: круглая точка диаметром **5.0 px** на `y = rect.height() - dot_d - 3.0` строго при `isChecked()`. Без фонов и рамок.
