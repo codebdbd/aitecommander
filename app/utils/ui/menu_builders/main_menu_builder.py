@@ -4,7 +4,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtCore import QCoreApplication, QPoint, QTimer
+from PyQt6.QtCore import QCoreApplication, QPoint, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QMenu, QMenuBar, QStyle, QWidget
 
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
@@ -24,6 +24,7 @@ class MenuBarMenu(QMenu):
         super().showEvent(event)
         parent_bar = self.parent()
         if isinstance(parent_bar, QMenuBar):
+            parent_bar.setFocus(Qt.FocusReason.MouseFocusReason)
             action = self.menuAction()
             act_geom = parent_bar.actionGeometry(action)
             item_bottom = parent_bar.mapToGlobal(QPoint(0, act_geom.height() - 1)).y()
