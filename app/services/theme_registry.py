@@ -82,9 +82,14 @@ class ThemeRegistry:
     def get_theme(self, theme_id: str) -> ThemeDefinition | None:
         if not theme_id:
             return None
-        theme_id = str(theme_id).strip().lower()
+        norm_id = str(theme_id).strip().lower()
+        norm_underscore = norm_id.replace(" ", "_").replace("-", "_")
         for theme in self.list_themes():
-            if theme.theme_id == theme_id:
+            if (
+                theme.theme_id == norm_id
+                or theme.theme_id == norm_underscore
+                or theme.name.lower() == norm_id
+            ):
                 return theme
         return None
 

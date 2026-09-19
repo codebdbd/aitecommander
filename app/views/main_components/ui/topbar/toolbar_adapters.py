@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import re
 from typing import Any
 
-from PyQt6.QtCore import QObject, QPoint, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtCore import QByteArray, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config
@@ -56,6 +58,99 @@ def _icon_from_path(
         except (TypeError, ValueError, RuntimeError, OSError):
             pass
         return QIcon()
+
+
+def _contrast_icon_from_path(
+    path: Path,
+    contrast_color: str = "#FFFFFF",
+) -> QIcon:
+    try:
+        raw_svg = path.read_text(encoding="utf-8")
+        tinted = re.sub(r'stroke="(?!none")[^"]*"', f'stroke="{contrast_color}"', raw_svg)
+        tinted = re.sub(r'fill="(?!none")[^"]*"', f'fill="{contrast_color}"', tinted)
+        if "fill=" not in tinted and "stroke=" not in tinted:
+            tinted = raw_svg.replace("<svg ", f'<svg fill="{contrast_color}" ')
+        renderer = QSvgRenderer(QByteArray(tinted.encode("utf-8")))
+        if not renderer.isValid():
+            return QIcon()
+        icon = QIcon()
+        for sz in (16, 20, 24, 32, 48):
+            pm = QPixmap(sz, sz)
+            pm.fill(Qt.GlobalColor.transparent)
+            p = QPainter(pm)
+            renderer.render(p)
+            p.end()
+            icon.addPixmap(pm)
+        return icon
+    except Exception:
+        return QIcon()
+
+
+def _get_theme_contrast_color(theme_name: str | None = None) -> str:
+    return "#0E1116"
+
+
+def _update_button_contrast_icon(btn: QToolButton) -> QIcon | None:
+    svg_filename = getattr(btn, "_svg_filename", None)
+    if not svg_filename:
+        return getattr(btn, "_contrast_icon", None)
+    from app.utils.ui.icon.path_service import get_current_theme
+    cur_theme = get_current_theme()
+    cached_theme = getattr(btn, "_contrast_theme", None)
+    contrast_color = _get_theme_contrast_color(cur_theme)
+    if (
+        cached_theme != cur_theme
+        or getattr(btn, "_contrast_icon", None) is None
+        or getattr(btn, "_contrast_color", None) != contrast_color
+    ):
+        svg_path = icon_path_service.get_ui_icons_dir() / "base" / svg_filename
+        btn._contrast_icon = _contrast_icon_from_path(svg_path, contrast_color)
+        btn._contrast_theme = cur_theme
+        btn._contrast_color = contrast_color
+    return getattr(btn, "_contrast_icon", None)
+
+
+class TopBarButtonHoverFilter(QObject):
+    """Event filter to invert button icon on hover/pressed while preserving normal icon."""
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        t = event.type()
+        if t in (QEvent.Type.Enter, QEvent.Type.MouseButtonPress):
+            if isinstance(obj, QToolButton):
+                contrast_icon = _update_button_contrast_icon(obj)
+                if contrast_icon and not contrast_icon.isNull():
+                    obj.setIcon(contrast_icon)
+        elif t == QEvent.Type.Leave:
+            if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
+                normal_icon = getattr(obj, "_normal_icon", None)
+                if normal_icon and not normal_icon.isNull():
+                    obj.setIcon(normal_icon)
+        elif t == QEvent.Type.MouseButtonRelease:
+            if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
+                if not obj.underMouse():
+                    normal_icon = getattr(obj, "_normal_icon", None)
+                    if normal_icon and not normal_icon.isNull():
+                        obj.setIcon(normal_icon)
+        elif t == QEvent.Type.ContextMenu:
+            return True
+        return False
+
+
+def _setup_topbar_button_contrast(
+    btn: QToolButton,
+    normal_icon: QIcon,
+    svg_filename: str,
+) -> None:
+    btn._normal_icon = normal_icon
+    btn._svg_filename = svg_filename
+    btn._contrast_icon = None
+    btn._contrast_theme = None
+    _update_button_contrast_icon(btn)
+    filt = getattr(btn, "_invert_hover_filter", None)
+    if filt is None:
+        filt = TopBarButtonHoverFilter(btn)
+        btn._invert_hover_filter = filt
+        btn.installEventFilter(filt)
 
 
 def _resolve_existing_icon_path_fast(icon_path: str | None) -> str:
@@ -120,11 +215,32 @@ class TopBarMenu(QMenu):
         super().showEvent(event)
         if self._target_button is not None and self._target_button.isVisible():
             self._target_button.setFocus(Qt.FocusReason.MouseFocusReason)
+            self._target_button.setProperty("menu_active", True)
+            contrast_icon = _update_button_contrast_icon(self._target_button)
+            if contrast_icon and not contrast_icon.isNull():
+                self._target_button.setIcon(contrast_icon)
+            self._target_button.style().unpolish(self._target_button)
+            self._target_button.style().polish(self._target_button)
             btn_bottom = self._target_button.mapToGlobal(
                 QPoint(0, self._target_button.height() - 1)
             ).y()
             if self.y() != btn_bottom:
                 self.move(self.x(), btn_bottom)
+
+    def hideEvent(self, event):  # noqa: N802
+        super().hideEvent(event)
+        if self._target_button is not None:
+            self._target_button.setProperty("menu_active", False)
+            if self._target_button.underMouse():
+                contrast_icon = _update_button_contrast_icon(self._target_button)
+                if contrast_icon and not contrast_icon.isNull():
+                    self._target_button.setIcon(contrast_icon)
+            else:
+                normal_icon = getattr(self._target_button, "_normal_icon", None)
+                if normal_icon and not normal_icon.isNull():
+                    self._target_button.setIcon(normal_icon)
+            self._target_button.style().unpolish(self._target_button)
+            self._target_button.style().polish(self._target_button)
 
 
 class ToolbarActionAdapter(QObject):
@@ -373,6 +489,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu.set_target_button(btn)
+            _setup_topbar_button_contrast(btn, add_icon, "add_link.svg")
 
         self._mark_last_button()
         self._update_global_last_button()
@@ -625,6 +742,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu.set_target_button(btn)
+            _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
 
         self._mark_last_button()
         self._update_global_last_button()
@@ -764,6 +882,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu.set_target_button(btn)
+            _setup_topbar_button_contrast(btn, history_icon, "history.svg")
 
         self._mark_last_button()
         self._update_global_last_button()

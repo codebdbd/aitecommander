@@ -847,6 +847,19 @@ def get_current_theme() -> str:
         ):
             return _CURRENT_THEME_CACHE
 
+    try:
+        from app.core.settings_manager import SettingsManager
+
+        stored_theme = SettingsManager.get("theme.name")
+        if stored_theme:
+            validated = validate_theme(stored_theme)
+            with _theme_lock:
+                _CURRENT_THEME_CACHE = validated
+                _LAST_THEME_CHECK = now
+            return validated
+    except Exception:
+        pass
+
     # Slow path: try to get from GUI without holding lock
     try:
         from typing import cast
@@ -857,6 +870,17 @@ def get_current_theme() -> str:
         if app_instance:
             app = cast(QApplication, app_instance)
             for widget in app.topLevelWidgets():
+                theme_ctrl = getattr(widget, "theme_ctrl", None)
+                if (
+                    theme_ctrl
+                    and hasattr(theme_ctrl, "settings")
+                    and hasattr(theme_ctrl.settings, "get_theme")
+                ):
+                    theme = validate_theme(theme_ctrl.settings.get_theme())
+                    with _theme_lock:
+                        _CURRENT_THEME_CACHE = theme
+                        _LAST_THEME_CHECK = now
+                    return theme
                 # expect settings.get_theme() to be available
                 settings = getattr(widget, "settings", None)
                 if settings and hasattr(settings, "get_theme"):

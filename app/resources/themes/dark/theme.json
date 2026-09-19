@@ -5,5 +5,5 @@
   "is_dark": true,
   "qss": "resources/qss/dark.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#FFFFFF"
+  "icon_color": "#0194F0"
 }

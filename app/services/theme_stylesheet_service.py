@@ -149,6 +149,8 @@ class ThemeStylesheetService:
                 exc,
             )
 
+        combined_qss = self._adapt_qss_for_topbar_buttons(combined_qss, theme_name)
+
         with self._cache_lock:
             self._qss_cache[theme_name] = combined_qss
             self._qss_cache.move_to_end(theme_name, last=True)
@@ -222,6 +224,8 @@ class ThemeStylesheetService:
                 exc,
             )
 
+        combined_qss = self._adapt_qss_for_topbar_buttons(combined_qss, theme_name)
+
         with self._cache_lock:
             self._qss_cache[theme_name] = combined_qss
             self._qss_cache.move_to_end(theme_name, last=True)
@@ -275,6 +279,46 @@ class ThemeStylesheetService:
             "QCheckBox::indicator:disabled, QTableView::indicator:disabled,",
         )
         return qss
+
+    @staticmethod
+    def _adapt_qss_for_topbar_buttons(qss: str, theme_name: str) -> str:
+        """Ensure topbar buttons inherit accent background fill on hover across all themes."""
+        try:
+            from app.services.theme_registry import theme_registry
+            theme = theme_registry.get_theme(theme_name)
+            if not theme:
+                return qss
+
+            if theme.is_dark:
+                bg_color = theme.icon_color
+                border_color = theme.icon_color
+            else:
+                bg_color = "#E6E6E6"
+                border_color = "#B3B3B3"
+
+            hover_block = (
+                f"\n\n/* ==== TopBar button hover accent fill ==== */\n"
+                f"QWidget#topBarHost QToolButton#quickButton:hover,\n"
+                f"QWidget#topBarHost QToolButton#quickButton:pressed,\n"
+                f"QWidget#topBarHost QToolButton#quickButton[menu_active=\"true\"],\n"
+                f"QWidget#topBarHost QToolButton#favoriteButton:hover,\n"
+                f"QWidget#topBarHost QToolButton#favoriteButton:pressed,\n"
+                f"QWidget#topBarHost QToolButton#favoriteButton[menu_active=\"true\"],\n"
+                f"QWidget#topBarHost QToolButton#recentButton:hover,\n"
+                f"QWidget#topBarHost QToolButton#recentButton:pressed,\n"
+                f"QWidget#topBarHost QToolButton#recentButton[menu_active=\"true\"],\n"
+                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:hover,\n"
+                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:pressed,\n"
+                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"][menu_active=\"true\"] {{\n"
+                f"    background: {bg_color};\n"
+                f"    background-color: {bg_color};\n"
+                f"    border-color: {border_color};\n"
+                f"}}\n"
+            )
+            return f"{qss}{hover_block}"
+        except Exception as exc:
+            logger.warning("ThemeStylesheetService: failed to adapt topbar button styles: %s", exc)
+            return qss
 
     @staticmethod
     def _tint_svg_for_qss(icon_name: str, color_hex: str, theme_name: str) -> str:
