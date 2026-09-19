@@ -17,6 +17,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class MenuBarMenu(QMenu):
+    """Dropdown menu for the main menu bar that seamlessly aligns its top border with the item's bottom border."""
+
+    def showEvent(self, event):  # noqa: N802
+        super().showEvent(event)
+        parent_bar = self.parent()
+        if isinstance(parent_bar, QMenuBar):
+            action = self.menuAction()
+            act_geom = parent_bar.actionGeometry(action)
+            item_bottom = parent_bar.mapToGlobal(QPoint(0, act_geom.height() - 1)).y()
+            if self.y() != item_bottom:
+                self.move(self.x(), item_bottom)
+
+
 class MainMenuBuilder:
     """Builder for the application main menu."""
 
@@ -254,7 +268,8 @@ class MainMenuBuilder:
 
     def _create_file_menu(self, menubar: QMenuBar):
         """Create the '&File' menu."""
-        file_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&File"))
+        file_menu = MenuBarMenu(QCoreApplication.translate("MainMenu", "&File"), menubar)
+        menubar.addMenu(file_menu)
 
         if file_menu is None:
             logger.warning("Main menu: failed to create File menu")
@@ -336,7 +351,8 @@ class MainMenuBuilder:
 
     def _create_data_menu(self, menubar: QMenuBar):
         """Create the '&Data' menu with Import/Export submenus."""
-        data_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Data"))
+        data_menu = MenuBarMenu(QCoreApplication.translate("MainMenu", "&Data"), menubar)
+        menubar.addMenu(data_menu)
 
         if data_menu is None:
             logger.warning("Main menu: failed to create Data menu")
@@ -426,7 +442,8 @@ class MainMenuBuilder:
 
     def _create_help_menu(self, menubar: QMenuBar):
         """Create the '&Help' menu."""
-        help_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Help"))
+        help_menu = MenuBarMenu(QCoreApplication.translate("MainMenu", "&Help"), menubar)
+        menubar.addMenu(help_menu)
 
         if help_menu is None:
             logger.warning("Main menu: failed to create Help menu")

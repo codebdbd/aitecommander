@@ -530,7 +530,6 @@ QMenu {
 }
 
 QMenuBar QMenu {
-    margin-top: -1px;
     border-top-width: 1px;
 }
 

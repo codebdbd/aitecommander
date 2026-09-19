@@ -556,7 +556,6 @@ class ThemeStylesheetService:
                 menubar_rules.append(f"font-size: {sz_val};")
         if menubar_item_height:
             menubar_rules.append(f"min-height: {menubar_item_height}px;")
-            menubar_rules.append(f"max-height: {menubar_item_height}px;")
         if menubar_rules:
             lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
 
@@ -565,7 +564,6 @@ class ThemeStylesheetService:
             item_rules.append(f"font-size: {menubar_font_size}pt;")
         if menubar_item_height:
             item_rules.append(f"min-height: {menubar_item_height}px;")
-            item_rules.append(f"max-height: {menubar_item_height}px;")
         if item_rules:
             rules = " ".join(item_rules)
             for selector in [
