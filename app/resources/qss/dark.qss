@@ -138,11 +138,11 @@ QWidget#topBarHost QPushButton {
 }
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover {
-border-color: transparent;
+border-color: #0194F0;
 }
 QWidget#topBarHost QToolButton:checked,
 QWidget#topBarHost QPushButton:checked {
-border-color: transparent;
+border-color: #0194F0;
 }
 QPushButton {
 background-color: #252D3A;
@@ -575,7 +575,7 @@ QWidget#topBarHost QToolButton#favoriteButton:hover,
 QWidget#topBarHost QToolButton#favoriteButton:pressed,
 QWidget#topBarHost QToolButton#recentButton:hover,
 QWidget#topBarHost QToolButton#recentButton:pressed {
-border-color: transparent;
+border-color: #0194F0;
 }
 QWidget#topBarHost QToolButton#favoriteButton:checked,
 QWidget#topBarHost QToolButton#recentButton:checked,

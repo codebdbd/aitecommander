@@ -16,8 +16,10 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
+from app.services.theme_registry import theme_registry
 from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
+from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
 from app.views.widgets.link.links_model import LinksTableModel
 from i18n.language_service import LanguageService
@@ -261,6 +263,27 @@ class ExplorerHeaderView(QHeaderView):
         self._hovered_section = -1
         self._hovered_toggle = False
 
+    @staticmethod
+    def _get_icon_colors() -> tuple[QColor, QColor]:
+        try:
+            cur_theme = get_current_theme()
+            normal_hex = theme_registry.get_theme_icon_color(cur_theme)
+            normal = QColor(normal_hex)
+        except Exception:
+            pal = QApplication.instance().palette() if QApplication.instance() else None
+            if pal is None:
+                return QColor("#FFFFFF"), QColor("#FFFFFF")
+            normal = pal.windowText().color()
+        hover = QColor(normal)
+        hover.setAlpha(255)
+        return normal, hover
+
+    def changeEvent(self, event):
+        t = event.type() if event is not None else None
+        if t in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange, QEvent.Type.FontChange):
+            self.viewport().update()
+        super().changeEvent(event)
+
     def mouseMoveEvent(self, event):
         pos = event.position().toPoint()
         sec = self.logicalIndexAt(pos)
@@ -295,7 +318,7 @@ class ExplorerHeaderView(QHeaderView):
             if model is not None:
                 icon = model.headerData(0, Qt.Orientation.Horizontal, Qt.ItemDataRole.DecorationRole)
                 if isinstance(icon, QIcon) and not icon.isNull():
-                    sz = 16
+                    sz = 20
                     ix = rect.x() + (rect.width() - sz) // 2
                     iy = rect.y() + (rect.height() - sz) // 2
                     icon.paint(painter, ix, iy, sz, sz, Qt.AlignmentFlag.AlignCenter)
@@ -325,26 +348,18 @@ class ExplorerHeaderView(QHeaderView):
         dark = self.palette().window().color().lightness() < 128
         is_toggle_hover = (self._hovered_section == target_sec and self._hovered_toggle)
 
-        # 1. Divider line (full header height)
-        div_color = QColor("#3A3E44") if dark else QColor("#B3B3B3")
-        p.setPen(QPen(div_color, 1))
-        p.drawLine(tx, 0, tx, h)
-
-        # 2. Toggle compartment background
+        # 1. Toggle compartment background
         if is_toggle_hover:
             bg_color = QColor(255, 255, 255, 28) if dark else QColor(0, 0, 0, 20)
         else:
             bg_color = QColor(255, 255, 255, 12) if dark else QColor(0, 0, 0, 8)
         p.fillRect(QRect(tx + 1, 0, toggle_w, h), bg_color)
 
-        # 3. Large visible chevron
+        # 2. Large visible chevron
         cx = tx + toggle_w / 2.0
         cy = h / 2.0
-        chev_color = (
-            (QColor("#FFFFFF") if is_toggle_hover else QColor("#BFC7D5"))
-            if dark
-            else (QColor("#111111") if is_toggle_hover else QColor("#555555"))
-        )
+        icon_normal, icon_hover = self._get_icon_colors()
+        chev_color = icon_hover if is_toggle_hover else icon_normal
         pen = QPen(chev_color, 1.8)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
