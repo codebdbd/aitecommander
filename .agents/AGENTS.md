@@ -6,6 +6,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 # Agent Execution Rules: High-Efficiency Mode
 
 ## 1. Algorithmic Restrictions on Terminal Commands
+- **Absolute Ban on Git Restore / Checkout / Reset (ЗАПРЕТ НА ОТКАТ ИЗ ГИТ БЕЗ СОГЛАСОВАНИЯ)**: Категорически ЗАПРЕЩЕНО выполнять `git checkout`, `git restore`, `git reset`, `git revert`, `git clean` или любые другие команды отката, сброса или восстановления файлов из git. БЕЗ ПРЯМОГО ЯВНОГО СОГЛАСОВАНИЯ ПОЛЬЗОВАТЕЛЯ ГИТ НЕ ТРОГАТЬ! Запрещено откатывать файлы через git, затирать незакоммиченные изменения или возвращать файлы из git.
 - **Git Commit Workflow**: When requested to commit, you MUST execute exactly `git add -A` followed by `git commit -m "<message>"` and `git push`. Do NOT run `git status` or `git diff` first.
 - **Banned Commands**: You MUST NEVER execute `pytest`, `ruff`, `flake8`, `mypy`, or any other linter/testing tool unless the user explicitly writes the word "проверь", "тест" or "lint".
 - **Time Limits**: For any terminal command, set `WaitMsBeforeAsync` to no more than 5000 (5 seconds). If it takes longer, it must go to the background. DO NOT loop or poll endlessly.
@@ -126,4 +127,3 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Alignment Rules**:
   1. **Каноничное центрирование Qt**: Центрирование индикатора стрелки выполняется строго через `QStyle.alignedRect(option.direction, Qt.AlignmentFlag.AlignCenter, QSize(16, 16), option.rect)`. Запрещено производить ручной расчет координат через `rect.center().y() - side/2` или вводить эмпирические смещения/костыли.
   2. **Нативная векторная отрисовка**: Отрисовка выполняется строго через `icon.paint(painter, target_rect, Qt.AlignmentFlag.AlignCenter)`. Запрещено генерировать промежуточные `QPixmap` с ручным вычислением `devicePixelRatioF` и вызывать `drawPixmap` по целочисленным координатам.
-

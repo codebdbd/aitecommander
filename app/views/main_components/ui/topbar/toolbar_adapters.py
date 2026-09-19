@@ -5,9 +5,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QObject, QSize, pyqtSignal
+from PyQt6.QtCore import QObject, QPoint, QSize, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton
+from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -104,6 +104,26 @@ class ToolbarSeparatorController:
     def _update(self) -> None:
         self._sep_quick_fav.setVisible(False)
         self._sep_fav_recent.setVisible(False)
+
+
+class TopBarMenu(QMenu):
+    """Dropdown menu for top toolbar buttons that seamlessly aligns its top border with the button's bottom border."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._target_button: QWidget | None = None
+
+    def set_target_button(self, button: QWidget) -> None:
+        self._target_button = button
+
+    def showEvent(self, event):  # noqa: N802
+        super().showEvent(event)
+        if self._target_button is not None and self._target_button.isVisible():
+            btn_bottom = self._target_button.mapToGlobal(
+                QPoint(0, self._target_button.height() - 1)
+            ).y()
+            if self.y() != btn_bottom:
+                self.move(self.x(), btn_bottom)
 
 
 class ToolbarActionAdapter(QObject):
@@ -327,7 +347,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
             add_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
             add_icon = _icon_from_path(add_icon_path, link_type="file")
 
-        menu = QMenu(self._toolbar)
+        menu = TopBarMenu(self._toolbar)
         menu.setObjectName("quickAddMenu")
 
         for code in ordered_codes:
@@ -351,6 +371,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         btn = self._toolbar.widgetForAction(main_action)
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            menu.set_target_button(btn)
 
         self._mark_last_button()
         self._update_global_last_button()
@@ -559,7 +580,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
             fav_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_favorites.svg"
             fav_icon = _icon_from_path(fav_icon_path, link_type="file")
 
-        menu = QMenu(self._toolbar)
+        menu = TopBarMenu(self._toolbar)
         menu.setObjectName("favoriteLinksMenu")
 
         if not self._last_items:
@@ -602,6 +623,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         btn = self._toolbar.widgetForAction(main_action)
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            menu.set_target_button(btn)
 
         self._mark_last_button()
         self._update_global_last_button()
@@ -694,7 +716,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
             history_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
             history_icon = _icon_from_path(history_icon_path, link_type="file")
 
-        menu = QMenu(self._toolbar)
+        menu = TopBarMenu(self._toolbar)
         menu.setObjectName("recentLinksMenu")
 
         if not self._last_items:
@@ -740,6 +762,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         btn = self._toolbar.widgetForAction(main_action)
         if isinstance(btn, QToolButton):
             btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            menu.set_target_button(btn)
 
         self._mark_last_button()
         self._update_global_last_button()

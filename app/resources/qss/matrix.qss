@@ -61,7 +61,7 @@ border-color: #3BF989;
 QMenu {
 color: #9EF4A3;
 background-color: #0A1B10;
-border-color: #0F3F24;
+border-color: #35F26D;
 }
 QMenu::item {
 color: #9EF4A3;
@@ -103,6 +103,7 @@ color: #9EF4A3;
 QMenuBar::item:hover {
 background: #0F3F24;
 color: #C9FFD8;
+border-color: #35F26D;
 }
 QMenuBar::item:selected {
 background: #0A1B10;
@@ -116,7 +117,7 @@ border-color: #35F26D;
 }
 QMenuBar QMenu {
 background-color: #0A1B10;
-border-color: #0F3F24;
+border-color: #35F26D;
 }
 QWidget#topBarHost {
 background: #000000;
@@ -589,10 +590,13 @@ QWidget#topBarHost QToolButton#recentButton:checked {
 border-color: #3BF989;
 }
 QMenu,
-QMenuBar,
 QMenuBar QMenu,
+QMenuBar::item:hover,
 QMenuBar::item:selected,
 QMenuBar::item:pressed {
+border-color: #35F26D;
+}
+QMenuBar {
 border-color: #0F3F24;
 }
 QComboBox QAbstractItemView,
