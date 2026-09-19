@@ -15,6 +15,8 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     FavoritesToolbarAdapter,
     QuickAddToolbarAdapter,
     RecentHistoryToolbarAdapter,
+    StructureActionsToolbarAdapter,
+    ToolsToolbarAdapter,
     ToolbarSeparatorController,
 )
 from app.views.widgets.theme_selector import ThemeSelector
@@ -202,42 +204,64 @@ class TopBarBuilder:
             except (TypeError, ValueError, AttributeError):
                 logger.debug("TopPanel: failed to set toolbar height", exc_info=True)
             toolbar.setContentsMargins(0, 0, 0, 0)
-            sep_quick_fav = toolbar.addSeparator()
-            sep_fav_recent = toolbar.addSeparator()
+            anchor_quick = QAction(toolbar)
+            anchor_quick.setVisible(False)
+            toolbar.addAction(anchor_quick)
 
-            # Invisible anchor action: ensures Recent actions are inserted
+            anchor_tools = QAction(toolbar)
+            anchor_tools.setVisible(False)
+            toolbar.addAction(anchor_tools)
+
+            sep_tools_recent = toolbar.addSeparator()
+            sep_recent_fav = toolbar.addSeparator()
+
+            # Invisible anchor action: ensures Favorite actions are inserted
             # before any trailing items added to the toolbar later.
             end_marker = QAction(toolbar)
             end_marker.setVisible(False)
             toolbar.addAction(end_marker)
 
-            sep_controller = ToolbarSeparatorController(sep_quick_fav, sep_fav_recent)
-            quick_adapter = QuickAddToolbarAdapter(
+            sep_controller = ToolbarSeparatorController(sep_tools_recent, sep_recent_fav)
+            structure_adapter = StructureActionsToolbarAdapter(
                 toolbar,
-                insert_before=sep_quick_fav,
+                insert_before=anchor_quick,
                 category_provider=self.window,
                 separator_controller=sep_controller,
             )
-            fav_adapter = FavoritesToolbarAdapter(
+            quick_adapter = QuickAddToolbarAdapter(
                 toolbar,
-                insert_before=sep_fav_recent,
-                button_object_name="favoriteButton",
+                insert_before=anchor_tools,
+                category_provider=self.window,
+                separator_controller=sep_controller,
+            )
+            tools_adapter = ToolsToolbarAdapter(
+                toolbar,
+                insert_before=sep_tools_recent,
                 category_provider=self.window,
                 separator_controller=sep_controller,
             )
             recent_adapter = RecentHistoryToolbarAdapter(
                 toolbar,
-                insert_before=end_marker,
+                insert_before=sep_recent_fav,
                 button_object_name="recentButton",
                 category_provider=self.window,
                 emit_refresh_on_click=True,
                 separator_controller=sep_controller,
             )
+            fav_adapter = FavoritesToolbarAdapter(
+                toolbar,
+                insert_before=end_marker,
+                button_object_name="favoriteButton",
+                category_provider=self.window,
+                separator_controller=sep_controller,
+            )
 
             self.window.top_bar_toolbar = toolbar
+            self.window.structure_actions_widget = structure_adapter
             self.window.quick_add_widget = quick_adapter
-            self.window.fav_widget = fav_adapter
+            self.window.tools_actions_widget = tools_adapter
             self.window.recent_links_widget = recent_adapter
+            self.window.fav_widget = fav_adapter
 
             # Apply cached top-panel data as soon as widgets exist, before the
             # controller and layout manager come online later in startup.

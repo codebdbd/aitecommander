@@ -457,6 +457,18 @@ class ThemeController:
         self._reload_structure_icons(mw)
         self._refresh_top_panels()
         try:
+            structure_widget = getattr(mw, "structure_actions_widget", None)
+            if structure_widget and hasattr(structure_widget, "refresh_actions"):
+                structure_widget.refresh_actions()
+        except Exception as exc:
+            logger.warning("Structure actions widget refresh error: %s", exc, exc_info=True)
+        try:
+            tools_widget = getattr(mw, "tools_actions_widget", None)
+            if tools_widget and hasattr(tools_widget, "refresh_actions"):
+                tools_widget.refresh_actions()
+        except Exception as exc:
+            logger.warning("Tools actions widget refresh error: %s", exc, exc_info=True)
+        try:
             quick_add = getattr(mw, "quick_add_widget", None)
             if quick_add and hasattr(quick_add, "refresh_actions"):
                 quick_add.refresh_actions()
