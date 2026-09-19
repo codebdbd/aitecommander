@@ -13,11 +13,12 @@ from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWi
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.views.main_components.ui.topbar.toolbar_adapters import (
     FavoritesToolbarAdapter,
+    LinksToolbarAdapter,
     QuickAddToolbarAdapter,
     RecentHistoryToolbarAdapter,
     StructureActionsToolbarAdapter,
-    ToolsToolbarAdapter,
     ToolbarSeparatorController,
+    ToolsToolbarAdapter,
 )
 from app.views.widgets.theme_selector import ThemeSelector
 
@@ -190,6 +191,7 @@ class TopBarBuilder:
             toolbar.setMovable(False)
             toolbar.setFloatable(False)
             toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            icon_size = None
             try:
                 icon_size = app_config.ui.get_top_panel_icon_size()
                 toolbar.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
@@ -248,11 +250,12 @@ class TopBarBuilder:
                 emit_refresh_on_click=True,
                 separator_controller=sep_controller,
             )
-            fav_adapter = FavoritesToolbarAdapter(
+            fav_adapter = LinksToolbarAdapter(
                 toolbar,
                 insert_before=end_marker,
                 button_object_name="favoriteButton",
-                category_provider=self.window,
+                group_name="fav",
+                emit_refresh_on_click=False,
                 separator_controller=sep_controller,
             )
 
@@ -287,9 +290,10 @@ class TopBarBuilder:
 
         # Add separator before search
         try:
-            top_bar.addSpacing(4)
+            sep_spacing = int(app_config.ui.get_topbar_separator_spacing())
+            top_bar.addSpacing(sep_spacing)
             top_bar.addWidget(self.ui._create_vertical_separator())
-            top_bar.addSpacing(4)
+            top_bar.addSpacing(sep_spacing)
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to insert toolbar/search separator", exc_info=True)
 
@@ -310,9 +314,10 @@ class TopBarBuilder:
             except (TypeError, ValueError, AttributeError):
                 pass
 
+            sep_spacing = int(app_config.ui.get_topbar_separator_spacing())
             theme_layout = QHBoxLayout()
-            theme_layout.setContentsMargins(4, 0, 0, 0)
-            theme_layout.setSpacing(4)
+            theme_layout.setContentsMargins(0, 0, 0, 0)
+            theme_layout.setSpacing(sep_spacing)
             theme_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
             theme_separator = self.ui._create_vertical_separator()
@@ -333,6 +338,7 @@ class TopBarBuilder:
             self.window.theme_selector = theme_selector
 
             theme_container.setLayout(theme_layout)
+            top_bar.addSpacing(sep_spacing)
             top_bar.addWidget(theme_container)
             self.window.theme_selector_container = theme_container
         except (RuntimeError, TypeError, AttributeError):
