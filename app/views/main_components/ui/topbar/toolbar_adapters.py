@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from PyQt6.QtCore import QByteArray, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QByteArray, QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton, QWidget
@@ -25,8 +25,10 @@ __all__ = [
     "ToolbarSeparatorController",
     "ToolbarActionAdapter",
     "QuickAddToolbarAdapter",
-    "LinksToolbarAdapter",
+    "FavoritesToolbarAdapter",
     "RecentHistoryToolbarAdapter",
+    "StructureActionsToolbarAdapter",
+    "ToolsToolbarAdapter",
 ]
 
 logger = logging.getLogger(__name__)
@@ -182,6 +184,30 @@ def _button_sizes(button_size: int | tuple[int, int], icon_size: tuple[int, int]
     iw = max(1, min(iw, bw))
     ih = max(1, min(ih, bh))
     return QSize(max(1, bw), max(1, bh)), QSize(iw, ih)
+
+
+def _resolve_theme(category_provider: Any | None = None) -> str:
+    theme = None
+    if category_provider is not None:
+        if hasattr(category_provider, "settings") and hasattr(
+            category_provider.settings, "get_theme"
+        ):
+            theme = category_provider.settings.get_theme()
+    if not theme:
+        try:
+            from app.core.settings_manager import SettingsManager
+
+            theme = SettingsManager.get("theme.name")
+        except Exception:
+            pass
+    if not theme:
+        try:
+            from app.utils.ui.icon.path_service import get_current_theme
+
+            theme = get_current_theme()
+        except Exception:
+            theme = "light"
+    return theme or "light"
 
 
 class ToolbarSeparatorController:
@@ -376,7 +402,163 @@ class ToolbarActionAdapter(QObject):
         for button in self._buttons[:-1]:
             self._set_button_last(button, False)
         self._set_button_last(new_last, True)
-        self._last_marked_button = new_last
+
+class StructureActionsToolbarAdapter(ToolbarActionAdapter):
+    """Toolbar buttons for structure operations: add section and add category."""
+
+    def __init__(
+        self,
+        toolbar: QToolBar,
+        *,
+        insert_before: QAction | None,
+        category_provider: Any | None = None,
+        separator_controller: ToolbarSeparatorController | None = None,
+    ) -> None:
+        button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
+        icon_size = runtime_app_config.ui.get_top_panel_icon_size()
+        button_size, icon_size = _button_sizes(button_size_raw, icon_size)
+        super().__init__(
+            toolbar,
+            insert_before=insert_before,
+            button_object_name="structureButton",
+            button_size=button_size,
+            icon_size=icon_size,
+        )
+        self._category_provider = category_provider
+        self._separator_controller = separator_controller
+        self._build_actions()
+
+    def refresh_actions(self) -> None:
+        self._build_actions()
+
+    def _build_actions(self) -> None:
+        self.clear_actions()
+        theme = _resolve_theme(self._category_provider)
+        from app.utils.ui.menu_builders.base import get_menu_icon
+
+        # Add section
+        sec_icon = get_menu_icon("add_section", theme)
+        if not sec_icon or sec_icon.isNull():
+            sec_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "add_section.svg")
+        sec_text = QCoreApplication.translate("MenuActions", "Add section")
+        sec_action = QAction(sec_icon, sec_text, self._toolbar)
+        sec_action.setToolTip(sec_text)
+        sec_action.triggered.connect(self._on_add_section)
+        self._add_action(sec_action)
+        btn = self._toolbar.widgetForAction(sec_action)
+        if isinstance(btn, QToolButton):
+            btn.setObjectName("topBarAddSectionButton")
+            _setup_topbar_button_contrast(btn, sec_icon, "add_section.svg")
+
+        # Add category
+        cat_icon = get_menu_icon("add_category", theme)
+        if not cat_icon or cat_icon.isNull():
+            cat_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "add_category.svg")
+        cat_text = QCoreApplication.translate("MenuActions", "Add category")
+        cat_action = QAction(cat_icon, cat_text, self._toolbar)
+        cat_action.setToolTip(cat_text)
+        cat_action.triggered.connect(self._on_add_category)
+        self._add_action(cat_action)
+        btn = self._toolbar.widgetForAction(cat_action)
+        if isinstance(btn, QToolButton):
+            btn.setObjectName("topBarAddCategoryButton")
+            _setup_topbar_button_contrast(btn, cat_icon, "add_category.svg")
+
+        self._mark_last_button()
+        self._update_global_last_button()
+
+    def _on_add_section(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
+            self._category_provider.show_section_dialog()
+
+    def _on_add_category(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "add_new_category"):
+            self._category_provider.add_new_category()
+
+
+class ToolsToolbarAdapter(ToolbarActionAdapter):
+    """Toolbar buttons for file search, bookmarks import, bad URLs check, and icon refresh."""
+
+    def __init__(
+        self,
+        toolbar: QToolBar,
+        *,
+        insert_before: QAction | None,
+        category_provider: Any | None = None,
+        separator_controller: ToolbarSeparatorController | None = None,
+    ) -> None:
+        button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
+        icon_size = runtime_app_config.ui.get_top_panel_icon_size()
+        button_size, icon_size = _button_sizes(button_size_raw, icon_size)
+        super().__init__(
+            toolbar,
+            insert_before=insert_before,
+            button_object_name="toolButton",
+            button_size=button_size,
+            icon_size=icon_size,
+        )
+        self._category_provider = category_provider
+        self._separator_controller = separator_controller
+        self._build_actions()
+
+    def refresh_actions(self) -> None:
+        self._build_actions()
+
+    def _build_actions(self) -> None:
+        self.clear_actions()
+        theme = _resolve_theme(self._category_provider)
+        from app.utils.ui.menu_builders.base import get_menu_icon
+
+        tools = [
+            ("topBarFileSearchButton", "search", "search.svg", QCoreApplication.translate("MenuActions", "Search files"), self._on_file_search),
+            ("topBarImportBookmarksButton", "import", "import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
+            ("topBarBadUrlsButton", "link_off", "link_off.svg", QCoreApplication.translate("MainMenu", "Check Bad URLs"), self._on_check_bad_urls),
+            ("topBarRefreshIconsButton", "refresh", "refresh.svg", QCoreApplication.translate("MainMenu", "Refresh Icons"), self._on_refresh_icons),
+        ]
+
+        for obj_name, icon_name, svg_file, tooltip, handler in tools:
+            icon = get_menu_icon(icon_name, theme)
+            if not icon or icon.isNull():
+                icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / svg_file)
+            action = QAction(icon, tooltip, self._toolbar)
+            action.setToolTip(tooltip)
+            action.triggered.connect(handler)
+            self._add_action(action)
+            btn = self._toolbar.widgetForAction(action)
+            if isinstance(btn, QToolButton):
+                btn.setObjectName(obj_name)
+                _setup_topbar_button_contrast(btn, icon, svg_file)
+
+        self._mark_last_button()
+        self._update_global_last_button()
+
+    def _on_file_search(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "show_file_search_dialog"):
+            self._category_provider.show_file_search_dialog()
+
+    def _on_import_bookmarks(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "handle_import_browser_bookmarks"):
+            self._category_provider.handle_import_browser_bookmarks()
+
+    def _on_check_bad_urls(self) -> None:
+        if self._category_provider:
+            sd = getattr(self._category_provider, "system_dialogs", None)
+            if sd and hasattr(sd, "handle_check_bad_urls"):
+                sd.handle_check_bad_urls()
+            elif hasattr(self._category_provider, "keyboard_manager"):
+                km = getattr(self._category_provider, "keyboard_manager", None)
+                if km and hasattr(km, "handle_check_bad_urls"):
+                    km.handle_check_bad_urls()
+
+    def _on_refresh_icons(self) -> None:
+        if self._category_provider:
+            sd = getattr(self._category_provider, "system_dialogs", None)
+            if sd and hasattr(sd, "handle_refresh_icons"):
+                sd.handle_refresh_icons()
+            elif hasattr(self._category_provider, "keyboard_manager"):
+                km = getattr(self._category_provider, "keyboard_manager", None)
+                if km and hasattr(km, "handle_refresh_icons"):
+                    km.handle_refresh_icons()
 
 
 class QuickAddToolbarAdapter(ToolbarActionAdapter):
