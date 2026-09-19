@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 # Add project root to path
@@ -45,6 +46,31 @@ def get_cached_link_ids(table):
         if link and "id" in link:
             ids.append(link["id"])
     return ids
+
+
+def test_first_run_default_sort_is_name_even_when_links_were_opened(qapp):
+    table = LinksTableView()
+
+    column, order = table._default_sort_from_links(
+        [{"id": 1, "name": "B", "last_used": "2026-01-01"}]
+    )
+
+    assert column == 1
+    assert order == Qt.SortOrder.AscendingOrder
+
+
+def test_saved_sort_is_preferred_over_first_run_default(qapp):
+    table = LinksTableView()
+    table._settings = type(
+        "SettingsStub",
+        (),
+        {"get_table_sort": lambda self: (2, Qt.SortOrder.DescendingOrder)},
+    )()
+
+    column, order = table._load_initial_sort()
+
+    assert column == 2
+    assert order == Qt.SortOrder.DescendingOrder
 
 
 def test_single_row_move_cache_rebuild(qapp):

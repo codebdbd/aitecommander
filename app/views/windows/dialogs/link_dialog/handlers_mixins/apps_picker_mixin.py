@@ -34,6 +34,7 @@ class AppsPickerMixin:
                     self.dialog.ui.set_widget_value("name_le", app_info.name)
 
                 # 3. Extract and cache application icon
+                icon_file = None
                 try:
                     icon_file = cache_app_icon(app_info)
                     if icon_file and Path(icon_file).exists():
@@ -45,6 +46,9 @@ class AppsPickerMixin:
                         app_info.name,
                         icon_err,
                     )
+                self.dialog._processing_timer.stop()
+                if not icon_file:
+                    self.trigger_link_processing(app_info.path)
 
                 # 4. If application has arguments, populate args field
                 args_widget = self.dialog._get_args_le()

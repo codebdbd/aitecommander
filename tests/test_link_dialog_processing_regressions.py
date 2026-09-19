@@ -105,6 +105,25 @@ def test_same_path_can_retry_after_processing_error(monkeypatch):
     assert len(handles) == 2
 
 
+def test_new_path_replaces_in_flight_local_icon_parse(monkeypatch):
+    handles: list[_WorkerHandleStub] = []
+
+    def fake_run_db(*_args, **_kwargs):
+        handle = _WorkerHandleStub()
+        handles.append(handle)
+        return handle
+
+    monkeypatch.setattr(link_processing_mixin, "run_db", fake_run_db)
+    handlers = LinkDialogHandlers(_DialogStub())
+
+    handlers.trigger_link_processing(r"C:\Temp\first.txt")
+    handlers.trigger_link_processing(r"C:\Temp\second.txt")
+
+    assert len(handles) == 2
+    assert handles[0].cancelled is True
+    assert handlers._last_processed_path == r"C:\Temp\second.txt"
+
+
 def test_cancel_processing_clears_last_processed_path_and_processing_state():
     handlers = LinkDialogHandlers(_DialogStub())
     worker = _WorkerHandleStub()

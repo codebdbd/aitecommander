@@ -11,6 +11,7 @@ import logging
 import os
 import platform
 import re
+import threading
 import uuid
 from ctypes import (
     Structure,
@@ -27,9 +28,8 @@ from ctypes import (
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
-import threading
 
-from PyQt6.QtCore import QObject, QFileSystemWatcher
+from PyQt6.QtCore import QFileSystemWatcher, QObject
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class InstalledAppInfo:
     app_type: str  # "desktop" or "uwp"
     description: str = ""
     icon_path: Optional[str] = None
+    icon_index: int = 0
     args: str = ""
     cached_image: Any = None
 
@@ -222,6 +223,7 @@ def _get_detailed_start_menu_shortcuts() -> tuple[dict[str, dict[str, Any]], dic
                         "target": target,
                         "args": args,
                         "icon_path": info.get("icon_path"),
+                        "icon_index": int(info.get("icon_index") or 0),
                         "lnk": str(f),
                     }
 
@@ -344,6 +346,7 @@ def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
                         resolved_raw = _resolve_known_folder_guid_path(raw_path)
                         low_name = name.lower()
                         low_raw = raw_path.lower()
+                        icon_index = 0
 
                         # Skip directories
                         try:
@@ -371,6 +374,7 @@ def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
                             app_type = "desktop"
                             args = m["args"]
                             icon_path = m["icon_path"]
+                            icon_index = int(m.get("icon_index") or 0)
                             desc = m["target"]
                         elif low_raw in lookup_shortcuts:
                             m = lookup_shortcuts[low_raw]
@@ -378,6 +382,7 @@ def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
                             app_type = "desktop"
                             args = m["args"]
                             icon_path = m["icon_path"]
+                            icon_index = int(m.get("icon_index") or 0)
                             desc = m["target"]
                         else:
                             # Case 3: UWP or packaged Windows Store application
@@ -401,6 +406,7 @@ def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
                                     app_type=app_type,
                                     description=desc,
                                     icon_path=icon_path,
+                                    icon_index=icon_index,
                                     args=args,
                                 )
                             )
@@ -427,6 +433,7 @@ def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
                     app_type="desktop",
                     description=data["target"],
                     icon_path=data["icon_path"],
+                    icon_index=int(data.get("icon_index") or 0),
                     args=data["args"],
                 )
             )
@@ -497,8 +504,22 @@ def cache_app_icon(app_info: InstalledAppInfo) -> Optional[str]:
         safe_name = re.sub(r"[^\w\-]", "_", app_info.name).strip("_") or "app"
         icon_path = Path(icons_dir) / f"app_{safe_name[:40]}.png"
 
-        # 1. If a custom icon path was specified on the shortcut and exists, try it
-        target_icon_src = app_info.icon_path if (app_info.icon_path and Path(app_info.icon_path).exists()) else app_info.path
+        from app.utils.links.link_parser import (
+            _extract_icon_from_exe,
+            _get_file_icon_with_com,
+            normalize_windows_icon_location,
+        )
+
+        icon_src, icon_index = normalize_windows_icon_location(
+            app_info.icon_path, fallback_index=app_info.icon_index
+        )
+        target_icon_src = icon_src if icon_src and Path(icon_src).exists() else app_info.path
+
+        # Preserve the resource index from shortcut locations such as imageres.dll,-102.
+        if icon_src and Path(icon_src).exists():
+            extracted = _extract_icon_from_exe(icon_src, str(icons_dir), icon_index)
+            if extracted and Path(extracted).exists():
+                return extracted
 
         # 2. Extract native Windows Shell icon (clean, no shortcut arrow)
         img = extract_shell_icon_image(target_icon_src)
@@ -508,8 +529,6 @@ def cache_app_icon(app_info: InstalledAppInfo) -> Optional[str]:
                 return str(icon_path)
 
         # 3. Fallback to _get_file_icon_with_com
-        from app.utils.links.link_parser import _get_file_icon_with_com
-
         saved = _get_file_icon_with_com(target_icon_src, icon_path)
         if saved and Path(saved).exists():
             return saved

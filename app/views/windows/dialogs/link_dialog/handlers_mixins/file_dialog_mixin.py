@@ -125,6 +125,8 @@ class FileDialogMixin:
                         self.dialog.ui.set_widget_value("args_le", lnk_info["args"])
 
             self.dialog.ui.set_widget_value("url_le", normalized_path)
+            self.dialog._processing_timer.stop()
+            self.trigger_link_processing(normalized_path)
 
             name_widget = self.dialog.ui.get_widget("name_le")
             if not name_widget.text().strip():

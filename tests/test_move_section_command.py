@@ -7,7 +7,10 @@ from PyQt6.QtWidgets import QApplication
 
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.utils.ui.dnd.mime import MimeDataParser
-from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
+from app.utils.ui.dnd.section_command import (
+    MoveSectionsToSphereCommand,
+    MoveSectionToSphereCommand,
+)
 from app.views.widgets.spheres.sphere_tool_button import SphereToolButton
 
 
@@ -144,6 +147,34 @@ class TestMoveSectionToSphereCommand(unittest.TestCase):
             1, item_to_select=("section", 10)
         )
 
+    def test_batch_command_moves_every_section_before_single_refresh(self):
+        section_data = {
+            10: {"id": 10, "name": "One", "sphere_id": 1, "position": 0},
+            20: {"id": 20, "name": "Two", "sphere_id": 1, "position": 1},
+        }
+        self.sb.get_section_data.side_effect = lambda section_id: section_data[section_id]
+        self.sb.has_duplicate_section.return_value = False
+        self.sb.get_sections.return_value = []
+        self.sb.update_section.side_effect = lambda section_id, data: {
+            "id": section_id,
+            **data,
+        }
+
+        command = MoveSectionsToSphereCommand([10, 20], 2, self.main)
+        command.redo()
+
+        moved_ids = [call.args[0] for call in self.sb.update_section.call_args_list]
+        self.assertEqual(moved_ids, [10, 20])
+        moved_positions = [
+            call.args[1]["position"] for call in self.sb.update_section.call_args_list
+        ]
+        self.assertEqual(moved_positions, [0, 1])
+        self.sb.begin_batch.assert_called_once()
+        self.sb.end_batch.assert_called_once()
+        self.structure_ctrl.switch_sphere.assert_called_once_with(
+            2, item_to_select=("section", 20)
+        )
+
 
 class TestSphereToolButton(unittest.TestCase):
     """Unit tests for SphereToolButton DnD validation."""
@@ -202,7 +233,7 @@ class TestSpheresBarControllerSectionDrops(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_multiple_section_drop_is_grouped_in_single_undo_macro(self):
+    def test_multiple_section_drop_uses_single_batch_command(self):
         window = Mock()
         window.structure_business = Mock()
         window.structure = Mock()
@@ -214,9 +245,10 @@ class TestSpheresBarControllerSectionDrops(unittest.TestCase):
         controller = SpheresBarController(window)
         controller._on_sections_dropped([10, 20, 10], 3)
 
-        window.undo_stack.begin_macro.assert_called_once()
-        self.assertEqual(window.undo_stack.push.call_count, 2)
-        window.undo_stack.end_macro.assert_called_once()
+        window.undo_stack.push.assert_called_once()
+        command = window.undo_stack.push.call_args.args[0]
+        self.assertIsInstance(command, MoveSectionsToSphereCommand)
+        self.assertEqual([cmd.section_id for cmd in command.commands], [10, 20])
 
 
 if __name__ == "__main__":

@@ -203,7 +203,10 @@ def _external_target_dedup_key(target: str) -> str:
     """
     web_url = normalize_external_web_url(target)
     if not web_url:
-        return target
+        try:
+            return os.path.normcase(os.path.normpath(target))
+        except Exception:
+            return target.casefold()
     try:
         parsed = urlparse(web_url)
         path = parsed.path or ""

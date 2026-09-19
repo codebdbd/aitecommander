@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 from contextlib import contextmanager
 from hashlib import sha1
@@ -95,14 +96,34 @@ def _get_file_icon_with_com(path: str, save_path: Path) -> Optional[str]:
     return None
 
 
+def normalize_windows_icon_location(
+    icon_location: str | None, *, fallback_index: int | str | None = None
+) -> tuple[str, int]:
+    """Split a Windows icon location into an expanded path and resource index."""
+    raw = str(icon_location or "").strip().strip('"')
+    try:
+        icon_index = int(str(fallback_index).strip()) if fallback_index not in (None, "") else 0
+    except (TypeError, ValueError):
+        icon_index = 0
+
+    match = re.match(r"^(?P<path>.*),(?P<index>-?\d+)\s*$", raw)
+    if match:
+        raw = match.group("path").strip().strip('"')
+        try:
+            icon_index = int(match.group("index"))
+        except (TypeError, ValueError):
+            pass
+    return os.path.expandvars(raw), icon_index
+
+
 def _validate_exe_path(exe_path: str) -> bool:
-    """Local EXE path validation: existence, file, extension."""
+    """Validate a Windows file that may contain icon resources."""
     if not exe_path or not isinstance(exe_path, str):
         return False
     exe_path_obj = Path(exe_path)
     if not exe_path_obj.is_file():
         return False
-    if not exe_path.lower().endswith(".exe"):
+    if Path(exe_path).suffix.lower() not in {".exe", ".dll", ".ico", ".icl"}:
         return False
     if not exe_path_obj.exists():
         return False
@@ -166,8 +187,13 @@ def _get_default_icon(icon_type: str, config) -> str:
         return ""
 
 
-def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
-    """Extracts icon from EXE file with improved error handling and Qt fallback."""
+def _extract_icon_from_exe(
+    exe_path: str, save_dir: str, icon_index: int = 0
+) -> Optional[str]:
+    """Extract an icon resource from an EXE, DLL, ICO, or ICL file."""
+    exe_path, icon_index = normalize_windows_icon_location(
+        exe_path, fallback_index=icon_index
+    )
     if not _validate_exe_path(exe_path):
         return None
     save_dir_obj = Path(save_dir)
@@ -178,7 +204,8 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
             logger.error("Cannot create icons directory %s: %s", save_dir, e)
             return None
     base_name = Path(exe_path).stem
-    save_path = save_dir_obj / f"program_{base_name}.png"
+    index_suffix = f"_{icon_index}" if icon_index else ""
+    save_path = save_dir_obj / f"program_{base_name}{index_suffix}.png"
     if is_cached_icon_valid(str(save_path), exe_path):
         logger.debug("Using cached EXE icon: %s", save_path)
         return str(save_path)
@@ -186,7 +213,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     if win32ui is not None:
         try:
             with gdi_context() as resources:
-                large, small = win32gui.ExtractIconEx(exe_path, 0)
+                large, small = win32gui.ExtractIconEx(exe_path, icon_index)
                 if large:
                     resources["icons"] = large + small
                     hicon = large[0]
@@ -316,7 +343,9 @@ def _handle_shortcut_app_icon(lnk_info: dict[str, str], icons_dir: str) -> Optio
     if is_valid_icon_file(str(icon_dst)):
         logger.debug("Using cached shortcut app icon: %s", icon_dst)
         return str(icon_dst)
-    icon_src = lnk_info.get("icon_path")
+    icon_src, _ = normalize_windows_icon_location(
+        lnk_info.get("icon_path"), fallback_index=lnk_info.get("icon_index")
+    )
     if icon_src and Path(icon_src).exists():
         try:
             icon_dst.parent.mkdir(parents=True, exist_ok=True)
@@ -362,7 +391,10 @@ def _handle_program_icon(
         if shortcut_app_icon:
             return shortcut_app_icon
 
-        icon_src = lnk_info.get("icon_path") if lnk_info else ""
+        icon_src, icon_index = normalize_windows_icon_location(
+            lnk_info.get("icon_path") if lnk_info else "",
+            fallback_index=lnk_info.get("icon_index") if lnk_info else None,
+        )
         if icon_src and Path(icon_src).exists():
             icon_ext = Path(icon_src).suffix.lower()
             if icon_ext in _IMAGE_PREVIEW_EXTENSIONS:
@@ -379,7 +411,7 @@ def _handle_program_icon(
                 except Exception as e:
                     logger.debug("Failed to copy shortcut custom icon %s: %s", icon_src, e)
             elif icon_ext in (".exe", ".dll"):
-                extracted = _extract_icon_from_exe(icon_src, icons_dir)
+                extracted = _extract_icon_from_exe(icon_src, icons_dir, icon_index)
                 if extracted:
                     return extracted
 

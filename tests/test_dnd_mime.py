@@ -12,3 +12,16 @@ def test_extract_external_link_targets_deduplicates_browser_url_variants() -> No
     targets = MimeDataParser.extract_external_link_targets(mime)
 
     assert targets == ["https://chatgpt.com"]
+
+
+def test_extract_external_link_targets_deduplicates_windows_path_variants() -> None:
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(r"C:\Temp\Example.LNK")])
+    mime.setData(
+        "text/uri-list",
+        QByteArray(b"file:///C:/Temp/Example.LNK\r\nfile:///c:/temp/example.lnk\r\n"),
+    )
+
+    targets = MimeDataParser.extract_external_link_targets(mime)
+
+    assert len(targets) == 1

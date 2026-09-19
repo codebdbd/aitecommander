@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import QCoreApplication, QObject, QTimer
+from PyQt6.QtCore import QCoreApplication, QObject, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from app.controllers.business.links_business import LinksBusinessLogic
@@ -92,7 +92,10 @@ class LinksUIController(QObject):
             logger.debug("Failed to connect table_populated: %s", e)
         try:
             if hasattr(self.table, "externalLinkDropped"):
-                self.table.externalLinkDropped.connect(self.on_external_link_dropped)
+                self.table.externalLinkDropped.connect(
+                    self.on_external_link_dropped,
+                    type=Qt.ConnectionType.UniqueConnection,
+                )
         except Exception as e:
             logger.debug("Failed to connect externalLinkDropped: %s", e)
 
@@ -196,9 +199,16 @@ class LinksUIController(QObject):
         targets = payload.get("targets", payload.get("urls"))
         if not isinstance(targets, list):
             return
-        link_targets = [
-            target for target in targets if isinstance(target, str) and target.strip()
-        ]
+        link_targets: list[str] = []
+        seen_targets: set[str] = set()
+        for target in targets:
+            if not isinstance(target, str) or not target.strip():
+                continue
+            key = target.strip().casefold()
+            if key in seen_targets:
+                continue
+            seen_targets.add(key)
+            link_targets.append(target)
         if not link_targets:
             return
 

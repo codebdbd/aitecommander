@@ -235,28 +235,19 @@ class SpheresBarController(QObject):
                 clean_ids,
                 target_sphere_id,
             )
-            from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
+            from app.utils.ui.dnd.section_command import (
+                MoveSectionsToSphereCommand,
+                MoveSectionToSphereCommand,
+            )
 
             undo_stack = getattr(self.w, "undo_stack", None)
             if undo_stack:
-                if (
-                    len(clean_ids) > 1
-                    and hasattr(undo_stack, "begin_macro")
-                    and hasattr(undo_stack, "end_macro")
-                ):
-                    undo_stack.begin_macro(
-                        QCoreApplication.translate(
-                            "SpheresBarController", "Move sections to sphere"
+                if len(clean_ids) > 1:
+                    undo_stack.push(
+                        MoveSectionsToSphereCommand(
+                            clean_ids, target_sphere_id, self.w
                         )
                     )
-                    try:
-                        for section_id in clean_ids:
-                            cmd = MoveSectionToSphereCommand(
-                                section_id, target_sphere_id, self.w
-                            )
-                            undo_stack.push(cmd)
-                    finally:
-                        undo_stack.end_macro()
                 else:
                     cmd = MoveSectionToSphereCommand(
                         clean_ids[0], target_sphere_id, self.w

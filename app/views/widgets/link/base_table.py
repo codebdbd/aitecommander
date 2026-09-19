@@ -3,8 +3,26 @@
 
 import logging
 
-from PyQt6.QtCore import QEvent, QModelIndex, QPointF, QRect, QSize, Qt, pyqtProperty, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon, QKeyEvent, QPainter, QPalette, QPen, QPolygonF
+from PyQt6.QtCore import (
+    QEvent,
+    QModelIndex,
+    QPointF,
+    QRect,
+    QSize,
+    Qt,
+    pyqtProperty,
+    pyqtSignal,
+)
+from PyQt6.QtGui import (
+    QColor,
+    QFont,
+    QIcon,
+    QKeyEvent,
+    QPainter,
+    QPalette,
+    QPen,
+    QPolygonF,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -463,7 +481,6 @@ class LinksTableView(
         self._current_font_size = font_size
 
         # Create a new font instance and apply it to the table
-        from PyQt6.QtGui import QFont
 
         font = QFont(self.font().family(), font_size)
         self.setFont(font)
@@ -883,15 +900,7 @@ class LinksTableView(
     def _default_sort_from_links(
         self, links: list[dict] | None
     ) -> tuple[int, Qt.SortOrder]:
-        """Pick default sort: name asc or last_used asc when any launch info exists."""
-        try:
-            if links and any(
-                link.get("last_used") for link in links if isinstance(link, dict)
-            ):
-                # Ascending keeps most recently opened at bottom
-                return 2, Qt.SortOrder.AscendingOrder
-        except Exception:
-            logger.debug("LinksTableView: default sort detection failed", exc_info=True)
+        """Use name ascending when no persisted user preference exists."""
         return 1, Qt.SortOrder.AscendingOrder
 
     def ensure_initial_sort(self, links: list[dict] | None = None) -> None:

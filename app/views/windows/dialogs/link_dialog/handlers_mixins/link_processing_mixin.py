@@ -37,7 +37,7 @@ class LinkProcessingMixin:
 
     def trigger_link_processing(self, path: str) -> None:
         """Start link info processing."""
-        if not path or self._is_processing:
+        if not path:
             return
 
         if path == self._last_processed_path:

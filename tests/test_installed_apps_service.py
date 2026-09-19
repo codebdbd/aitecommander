@@ -2,16 +2,66 @@
 
 import platform
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from app.utils.links.link_parser import normalize_windows_icon_location
 from app.utils.system.installed_apps_service import (
     InstalledAppInfo,
+    cache_app_icon,
     get_installed_apps,
     get_start_menu_shortcuts,
 )
 
 _VALID_PROGRAM_EXTS = {".exe", ".bat", ".cmd", ".ps1", ".msc", ".cpl"}
+
+
+def test_normalize_windows_icon_location_keeps_negative_resource_index(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("TEST_ICON_ROOT", r"C:\Windows")
+
+    path, index = normalize_windows_icon_location(
+        r"%TEST_ICON_ROOT%\System32\imageres.dll,-102"
+    )
+
+    assert path == r"C:\Windows\System32\imageres.dll"
+    assert index == -102
+
+
+def test_cache_app_icon_uses_shortcut_resource_index(tmp_path: Path) -> None:
+    icon_source = tmp_path / "app-icons.dll"
+    icon_source.write_bytes(b"icon resources")
+    icons_dir = tmp_path / "icons"
+    extracted = icons_dir / "program_app-icons_-4.png"
+    app = InstalledAppInfo(
+        name="Example",
+        path=str(tmp_path / "app.exe"),
+        app_type="desktop",
+        icon_path=str(icon_source),
+        icon_index=-4,
+    )
+
+    def fake_extract(_path: str, _save_dir: str, _index: int) -> str:
+        icons_dir.mkdir()
+        extracted.write_bytes(b"png")
+        return str(extracted)
+
+    with (
+        patch(
+            "app.utils.ui.icon.path_service.icon_path_service.get_user_icons_dir",
+            return_value=icons_dir,
+        ),
+        patch(
+            "app.utils.links.link_parser._extract_icon_from_exe",
+            side_effect=fake_extract,
+        ) as extract,
+    ):
+        result = cache_app_icon(app)
+
+    assert result == str(extracted)
+    extract.assert_called_once_with(str(icon_source), str(icons_dir), -4)
 
 
 @pytest.mark.skipif(platform.system() != "Windows", reason="Windows specific test")

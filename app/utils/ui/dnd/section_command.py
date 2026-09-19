@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
+from app.controllers.ui.undo.base import BaseCommand
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
 
@@ -202,3 +203,81 @@ class MoveSectionToSphereCommand(BaseBulkCommand):
                 logger.warning(
                     "Failed to switch sphere and focus moved section: %s", e
                 )
+
+
+class MoveSectionsToSphereCommand(BaseCommand):
+    """Move multiple sections as one undoable operation and refresh the UI once."""
+
+    def __init__(
+        self, section_ids: list[int], target_sphere_id: int, main_window: object
+    ) -> None:
+        super().__init__("Move sections to sphere", main_window)
+        self.target_sphere_id = int(target_sphere_id)
+        self.commands = [
+            MoveSectionToSphereCommand(section_id, target_sphere_id, main_window)
+            for section_id in section_ids
+        ]
+        self._target_positions_prepared = False
+
+    def _run_batched(self, operation: str) -> bool:
+        sb = _require_structure_business(self.main)
+        begin_batch = getattr(sb, "begin_batch", None)
+        end_batch = getattr(sb, "end_batch", None)
+        if callable(begin_batch):
+            begin_batch()
+        completed: list[MoveSectionToSphereCommand] = []
+        try:
+            sequence = (
+                self.commands
+                if operation == "redo"
+                else list(reversed(self.commands))
+            )
+            next_target_position: int | None = None
+            if operation == "redo" and not self._target_positions_prepared:
+                existing = sb.get_sections(self.target_sphere_id) or []
+                next_target_position = (
+                    max(
+                        (int(item.get("position", 0) or 0) for item in existing),
+                        default=-1,
+                    )
+                    + 1
+                )
+            for command in sequence:
+                command.prepare_if_needed()
+                if next_target_position is not None:
+                    command.new_position = next_target_position
+                    next_target_position += 1
+                ok = (
+                    command._execute_operation()
+                    if operation == "redo"
+                    else command._restore_original_state()
+                )
+                if not ok:
+                    if operation == "redo":
+                        for applied in reversed(completed):
+                            applied._restore_original_state()
+                    return False
+                completed.append(command)
+            if operation == "redo":
+                self._target_positions_prepared = True
+            return True
+        finally:
+            if callable(end_batch):
+                end_batch()
+
+    def _refresh_once(self, operation: str) -> None:
+        if not self.commands:
+            return
+        command = self.commands[-1] if operation == "redo" else self.commands[0]
+        command._last_operation = operation
+        command._refresh_ui()
+
+    def redo(self) -> None:
+        if self._run_batched("redo"):
+            self._refresh_once("redo")
+        else:
+            self.set_obsolete(True)
+
+    def undo(self) -> None:
+        if self._run_batched("undo"):
+            self._refresh_once("undo")
