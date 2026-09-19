@@ -5,6 +5,8 @@ from unittest.mock import Mock
 
 from PyQt6.QtWidgets import QApplication
 
+from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+from app.utils.ui.dnd.mime import MimeDataParser
 from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
 from app.views.widgets.spheres.sphere_tool_button import SphereToolButton
 
@@ -156,8 +158,6 @@ class TestSphereToolButton(unittest.TestCase):
         self.assertEqual(btn.sphere_id, 3)
 
     def test_is_valid_drop_rejects_same_sphere(self):
-        from app.utils.ui.dnd.mime import MimeDataParser
-
         btn = SphereToolButton(sphere_id=3)
         btn.setChecked(False)
 
@@ -174,8 +174,6 @@ class TestSphereToolButton(unittest.TestCase):
         self.assertTrue(btn._is_valid_drop(event_diff))
 
     def test_is_valid_drop_rejects_when_checked(self):
-        from app.utils.ui.dnd.mime import MimeDataParser
-
         btn = SphereToolButton(sphere_id=2)
         btn.setChecked(True)  # Active sphere
 
@@ -184,6 +182,41 @@ class TestSphereToolButton(unittest.TestCase):
         event.mimeData.return_value = mime
 
         self.assertFalse(btn._is_valid_drop(event))
+
+    def test_extract_section_info_keeps_all_section_ids(self):
+        btn = SphereToolButton(sphere_id=2)
+        mime = MimeDataParser.create_section_mime_data([5, 6, 7], source_sphere_id=1)
+        event = Mock()
+        event.mimeData.return_value = mime
+
+        section_ids, source_sphere = btn._extract_section_info(event)
+
+        self.assertEqual(section_ids, [5, 6, 7])
+        self.assertEqual(source_sphere, 1)
+
+
+class TestSpheresBarControllerSectionDrops(unittest.TestCase):
+    """Unit tests for section drops onto sphere buttons."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_multiple_section_drop_is_grouped_in_single_undo_macro(self):
+        window = Mock()
+        window.structure_business = Mock()
+        window.structure = Mock()
+        window.sphere_group = Mock()
+        window.spheres_bar = Mock()
+        window.sphere_buttons = {}
+        window.undo_stack = Mock()
+
+        controller = SpheresBarController(window)
+        controller._on_sections_dropped([10, 20, 10], 3)
+
+        window.undo_stack.begin_macro.assert_called_once()
+        self.assertEqual(window.undo_stack.push.call_count, 2)
+        window.undo_stack.end_macro.assert_called_once()
 
 
 if __name__ == "__main__":

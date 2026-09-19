@@ -31,6 +31,7 @@ class SphereToolButton(QToolButton):
     """Tool button representing a sphere, supporting Drag & Drop of sections."""
 
     section_dropped = pyqtSignal(int, int)  # (section_id, target_sphere_id)
+    sections_dropped = pyqtSignal(list, int)  # (section_ids, target_sphere_id)
 
     def __init__(self, sphere_id: int, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -70,35 +71,41 @@ class SphereToolButton(QToolButton):
         """Smooth animation compatibility."""
         self.set_target_scale(target)
 
-    def _extract_section_info(self, event: Any) -> tuple[int | None, int | None]:
+    def _extract_section_info(self, event: Any) -> tuple[list[int], int | None]:
         mime = event.mimeData() if hasattr(event, "mimeData") else None
         if not mime:
-            return None, None
+            return [], None
 
         # 1. Primary: dedicated section MIME type
         sec_mime = get_section_mime_type()
         if mime.hasFormat(sec_mime):
             ids, source_sphere = MimeDataParser.extract_section_payload(mime)
             if ids:
-                return ids[0], source_sphere
+                return ids, source_sphere
 
         # 2. Fallback: application/x-structure-tree-index
         if mime.hasFormat("application/x-structure-tree-index"):
             try:
                 raw = bytes(mime.data("application/x-structure-tree-index")).decode("utf-8")
                 data = json.loads(raw)
-                if isinstance(data, list) and data:
-                    item_type, item_id = data[0]
-                    if item_type == "section" and isinstance(item_id, int):
-                        return item_id, None
+                if isinstance(data, list):
+                    section_ids = []
+                    for item in data:
+                        if not (isinstance(item, list) and len(item) == 2):
+                            continue
+                        item_type, item_id = item
+                        if item_type == "section" and isinstance(item_id, int):
+                            section_ids.append(item_id)
+                    if section_ids:
+                        return section_ids, None
             except Exception:
                 pass
 
-        return None, None
+        return [], None
 
     def _is_valid_drop(self, event: Any) -> bool:
-        sec_id, source_sphere = self._extract_section_info(event)
-        if sec_id is None:
+        section_ids, source_sphere = self._extract_section_info(event)
+        if not section_ids:
             return False
         # Do not allow drop if section is from the same sphere
         if source_sphere is not None and source_sphere == self.sphere_id:
@@ -133,10 +140,12 @@ class SphereToolButton(QToolButton):
     def dropEvent(self, event: QDropEvent) -> None:
         self._set_drag_over(False)
         if self._is_valid_drop(event):
-            sec_id, _ = self._extract_section_info(event)
-            if sec_id is not None:
+            section_ids, _ = self._extract_section_info(event)
+            if section_ids:
                 event.acceptProposedAction()
-                self.section_dropped.emit(sec_id, self.sphere_id)
+                self.sections_dropped.emit(section_ids, self.sphere_id)
+                for section_id in section_ids:
+                    self.section_dropped.emit(section_id, self.sphere_id)
                 return
         event.ignore()
 

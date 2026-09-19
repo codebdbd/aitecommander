@@ -170,7 +170,7 @@ class SpheresBarController(QObject):
         btn.setProperty("sphereName", sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(partial(self._on_button_clicked, sphere_id))
-        btn.section_dropped.connect(self._on_section_dropped)
+        btn.sections_dropped.connect(self._on_sections_dropped)
         btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         btn.customContextMenuRequested.connect(partial(self._on_context_menu, sphere_id))
         # Ensure there are no graphics effects (neon, etc.) on the button
@@ -211,27 +211,69 @@ class SpheresBarController(QObject):
     @pyqtSlot(int, int)
     def _on_section_dropped(self, section_id: int, target_sphere_id: int) -> None:
         """Handle dropping a section onto a sphere button."""
+        self._on_sections_dropped([section_id], target_sphere_id)
+
+    @pyqtSlot(list, int)
+    def _on_sections_dropped(self, section_ids: list[int], target_sphere_id: int) -> None:
+        """Handle dropping one or more sections onto a sphere button."""
         try:
+            clean_ids: list[int] = []
+            seen: set[int] = set()
+            for section_id in section_ids or []:
+                if not isinstance(section_id, int) or isinstance(section_id, bool):
+                    continue
+                section_id = int(section_id)
+                if section_id in seen:
+                    continue
+                seen.add(section_id)
+                clean_ids.append(section_id)
+            if not clean_ids:
+                return
+
             logger.info(
-                "SpheresBarController: moving section %s to sphere %s",
-                section_id,
+                "SpheresBarController: moving sections %s to sphere %s",
+                clean_ids,
                 target_sphere_id,
             )
             from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
 
             undo_stack = getattr(self.w, "undo_stack", None)
             if undo_stack:
-                cmd = MoveSectionToSphereCommand(section_id, target_sphere_id, self.w)
-                undo_stack.push(cmd)
+                if (
+                    len(clean_ids) > 1
+                    and hasattr(undo_stack, "begin_macro")
+                    and hasattr(undo_stack, "end_macro")
+                ):
+                    undo_stack.begin_macro(
+                        QCoreApplication.translate(
+                            "SpheresBarController", "Move sections to sphere"
+                        )
+                    )
+                    try:
+                        for section_id in clean_ids:
+                            cmd = MoveSectionToSphereCommand(
+                                section_id, target_sphere_id, self.w
+                            )
+                            undo_stack.push(cmd)
+                    finally:
+                        undo_stack.end_macro()
+                else:
+                    cmd = MoveSectionToSphereCommand(
+                        clean_ids[0], target_sphere_id, self.w
+                    )
+                    undo_stack.push(cmd)
             else:
                 logger.warning(
                     "SpheresBarController: undo_stack not found, executing move directly"
                 )
-                cmd = MoveSectionToSphereCommand(section_id, target_sphere_id, self.w)
-                cmd.redo()
+                for section_id in clean_ids:
+                    cmd = MoveSectionToSphereCommand(
+                        section_id, target_sphere_id, self.w
+                    )
+                    cmd.redo()
         except Exception as e:
             logger.exception(
-                "SpheresBarController: failed to execute move section to sphere: %s",
+                "SpheresBarController: failed to execute move sections to sphere: %s",
                 e,
             )
 
