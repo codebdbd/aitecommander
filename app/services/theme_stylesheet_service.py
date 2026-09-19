@@ -724,26 +724,30 @@ class ThemeStylesheetService:
         self._generate_widget_styles(lines, sizes, units)
         try:
             sep_width = int(self._app_config.ui.get_separator_width())
-            sep_spacing = int(self._app_config.ui.get_topbar_separator_spacing())
             lines.append(
                 "QWidget#topBarHost QToolBar::separator { "
-                f"width: {sep_width}px; margin: 0 {sep_spacing}px; "
+                f"width: {sep_width}px; margin: 0px; padding: 0; "
+                "}"
+            )
+        except Exception:
+            pass
+        try:
+            toolbar_spacing = int(self._app_config.ui.get_top_bar_buttons_spacing())
+            lines.append(
+                "QWidget#topBarHost QToolBar { "
+                f"spacing: {toolbar_spacing}px; "
                 "}"
             )
         except Exception:
             pass
         try:
             btn_size = int(self._app_config.ui.get_top_panel_button_size())
-            btn_spacing = max(0, int(self._app_config.ui.get_top_bar_buttons_spacing()))
             lines.append(
                 "QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"] { "
                 f"min-width: {btn_size}px; max-width: {btn_size}px; "
                 f"min-height: {btn_size}px; max-height: {btn_size}px; "
-                f"margin-right: {btn_spacing}px; "
+                "margin: 0px; "
                 "}"
-            )
-            lines.append(
-                "QToolBar#topBarToolbar QToolButton[toolbar_last=\"true\"] { margin-right: 0px; }"
             )
         except Exception:
             pass

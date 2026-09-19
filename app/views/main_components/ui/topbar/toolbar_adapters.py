@@ -9,7 +9,7 @@ from typing import Any
 from PyQt6.QtCore import QByteArray, QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QMenu, QToolBar, QToolButton, QWidget
+from PyQt6.QtWidgets import QMenu, QSizePolicy, QToolBar, QToolButton, QWidget, QWidgetAction
 
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -24,6 +24,7 @@ from app.views.widgets.panels.recent_panel_widget import RECENT_LINKS_LIMIT
 __all__ = [
     "ToolbarSeparatorController",
     "ToolbarActionAdapter",
+    "LinksToolbarAdapter",
     "QuickAddToolbarAdapter",
     "FavoritesToolbarAdapter",
     "RecentHistoryToolbarAdapter",
@@ -211,20 +212,35 @@ def _resolve_theme(category_provider: Any | None = None) -> str:
 
 
 class ToolbarSeparatorController:
-    def __init__(self, sep_quick_fav: QAction, sep_fav_recent: QAction) -> None:
-        self._sep_quick_fav = sep_quick_fav
-        self._sep_fav_recent = sep_fav_recent
-        self._sep_quick_fav.setVisible(False)
-        self._sep_fav_recent.setVisible(False)
-        self._counts: dict[str, int] = {"quick": 0, "fav": 0, "recent": 0}
+    def __init__(self, sep_tools_recent: QAction, sep_recent_fav: QAction) -> None:
+        self._sep_tools_recent = sep_tools_recent
+        self._sep_recent_fav = sep_recent_fav
+        self._sep_tools_recent.setVisible(False)
+        self._sep_recent_fav.setVisible(False)
+        self._counts: dict[str, int] = {
+            "structure": 0,
+            "quick": 0,
+            "tools": 0,
+            "fav": 0,
+            "recent": 0,
+        }
 
     def set_group_count(self, name: str, count: int) -> None:
         self._counts[name] = max(0, int(count))
         self._update()
 
     def _update(self) -> None:
-        self._sep_quick_fav.setVisible(False)
-        self._sep_fav_recent.setVisible(False)
+        structure = self._counts.get("structure", 0)
+        quick = self._counts.get("quick", 0)
+        tools = self._counts.get("tools", 0)
+        recent = self._counts.get("recent", 0)
+        fav = self._counts.get("fav", 0)
+
+        left_block = structure + quick + tools
+        if self._sep_tools_recent is not None:
+            self._sep_tools_recent.setVisible(left_block > 0 and recent > 0)
+        if self._sep_recent_fav is not None:
+            self._sep_recent_fav.setVisible(recent > 0 and fav > 0)
 
 
 class TopBarMenu(QMenu):
@@ -464,8 +480,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
             btn.setObjectName("topBarAddCategoryButton")
             _setup_topbar_button_contrast(btn, cat_icon, "add_category.svg")
 
-        self._mark_last_button()
         self._update_global_last_button()
+        if self._separator_controller is not None:
+            self._separator_controller.set_group_count("structure", len(self._actions))
 
     def _on_add_section(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
@@ -529,8 +546,9 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
                 btn.setObjectName(obj_name)
                 _setup_topbar_button_contrast(btn, icon, svg_file)
 
-        self._mark_last_button()
         self._update_global_last_button()
+        if self._separator_controller is not None:
+            self._separator_controller.set_group_count("tools", len(self._actions))
 
     def _on_file_search(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_file_search_dialog"):
@@ -570,10 +588,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         category_provider: Any | None,
         separator_controller: ToolbarSeparatorController | None = None,
     ) -> None:
-        try:
-            button_size_raw = runtime_app_config.ui.get_quick_add_button_size()
-        except (TypeError, ValueError, AttributeError):
-            button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
+        button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
         icon_size = runtime_app_config.ui.get_top_panel_icon_size()
         button_size, icon_size = _button_sizes(button_size_raw, icon_size)
         super().__init__(
@@ -929,7 +944,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         self._mark_last_button()
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count("fav", 1 if self._last_items else 0)
+            self._separator_controller.set_group_count("fav", len(self._actions))
 
     def _on_link(self, link_data: dict[str, Any]) -> None:
         self.actionRequested.emit({"type": "open_link", "link": link_data})
@@ -1069,7 +1084,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         self._mark_last_button()
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count("recent", 1 if self._last_items else 0)
+            self._separator_controller.set_group_count("recent", len(self._actions))
 
     def _on_link(self, link_data: dict[str, Any]) -> None:
         self.actionRequested.emit({"type": "open_link", "link": link_data})
