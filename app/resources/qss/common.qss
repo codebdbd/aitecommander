@@ -623,7 +623,7 @@ QWidget#bottomBarContainer QPushButton {
     border-right: 1px solid;
     border-right-color: transparent;
     margin: 0;
-    padding: 0 8px;
+    padding: 2px 8px 6px 8px;
 }
 
 QWidget#bottomBarContainer QPushButton[last="1"] {

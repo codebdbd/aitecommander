@@ -51,13 +51,15 @@ class ItemBuildersMixin:
         self, notes: str, truncate: bool = False
     ) -> tuple[str, str]:
         """Return the ``(display, tooltip)`` pair for notes."""
-        text = str(notes or "")
+        raw_text = str(notes or "")
+        clean_text = " ".join(raw_text.split())
         # Visual indicator in front of notes text (emoji icon)
-        has_text = bool(text)
+        has_text = bool(clean_text)
         prefix = "📝 " if has_text else ""
-        if truncate and len(text) > MAX_NOTES_LENGTH:
-            return prefix + text[:MAX_NOTES_LENGTH] + "...", text
-        return prefix + text, (text or "")
+        tooltip = raw_text.strip()
+        if truncate and len(clean_text) > MAX_NOTES_LENGTH:
+            return prefix + clean_text[:MAX_NOTES_LENGTH] + "...", tooltip
+        return prefix + clean_text, tooltip
 
     def _path_display_and_tooltip(self, link: dict) -> tuple[str, str]:
         """Return the ``(display, tooltip)`` pair for path/URL."""
