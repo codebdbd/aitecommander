@@ -450,11 +450,11 @@ class ExplorerHeaderView(QHeaderView):
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
         cx = tx + toggle_w / 2.0
-        cy = h / 2.0
+        cy = h / 2.0 + 1.0
         if sorted_here and self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
-            pts = [QPointF(cx - 5, cy + 2.5), QPointF(cx, cy - 2.5), QPointF(cx + 5, cy + 2.5)]
+            pts = [QPointF(cx - 4, cy + 2), QPointF(cx, cy - 2), QPointF(cx + 4, cy + 2)]
         else:
-            pts = [QPointF(cx - 5, cy - 2.5), QPointF(cx, cy + 2.5), QPointF(cx + 5, cy - 2.5)]
+            pts = [QPointF(cx - 4, cy - 2), QPointF(cx, cy + 2), QPointF(cx + 4, cy - 2)]
         p.drawPolyline(QPolygonF(pts))
         p.end()
 
