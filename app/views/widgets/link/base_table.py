@@ -418,9 +418,6 @@ class ExplorerHeaderView(QHeaderView):
             table_hover_color = hc
 
         bg = pal.window().color()
-        separator_color = pal.color(QPalette.ColorRole.Dark)
-        if not separator_color.isValid() or separator_color.rgb() == 0xFF000000:
-            separator_color = bg.lighter(150) if bg.lightness() < 128 else bg.darker(150)
 
         sec = hovered_sec
         sec_x = self.sectionViewportPosition(sec)
@@ -438,10 +435,6 @@ class ExplorerHeaderView(QHeaderView):
         p.fillRect(QRect(sec_x, 0, sec_w, h), table_hover_color)
 
         tx = sec_x + sec_w - toggle_w
-        separator_pen = QPen(separator_color, 1)
-        separator_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
-        p.setPen(separator_pen)
-        p.drawLine(QPointF(tx, 2), QPointF(tx, h - 2))
 
         icon_normal, icon_hover = self._get_icon_colors()
         chev_color = icon_hover
