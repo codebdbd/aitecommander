@@ -2622,14 +2622,50 @@ Are you sure you want to continue?</source>
     </message>
     <message>
         <location filename="..\app\views\widgets\link\links_model.py" line="25" />
-        <source>Last opened</source>
-        <translation>Відкрита</translation>
+        <source>Order</source>
+        <translation>Порядок</translation>
     </message>
     <message>
         <location filename="..\app\views\widgets\link\links_model.py" line="26" />
+        <source>Launch</source>
+        <translation>Запуск</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="27" />
         <source>Notes</source>
         <translation>Нотатки</translation>
     </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="28" />
+        <source>Type</source>
+        <translation>Тип</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="32" />
+        <source>Custom order</source>
+        <translation>Користувацький порядок</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="33" />
+        <source>Last launch</source>
+        <translation>Останній запуск</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="34" />
+        <source>Resource type</source>
+        <translation>Тип ресурсу</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="142" />
+        <source>Position: {position}</source>
+        <translation>Позиція: {position}</translation>
+    </message>
+
+
+
+
+
+
 </context><context>
     <name>LinksUI</name>
     <message>

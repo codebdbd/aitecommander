@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PyQt6.QtWidgets import QApplication
@@ -37,6 +37,96 @@ def test_link_dialog_apps_btn_toggle(qapp):
     assert apps_btn.isHidden()
 
     dialog.close()
+
+
+def test_link_dialog_edit_mode_shows_only_current_link_type(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+        link={"type": "program"},
+    )
+
+    type_buttons = dialog._get_type_group().buttons()
+    assert len(type_buttons) == 1
+    assert type_buttons[0].property("link_type") == "program"
+
+    dialog.close()
+
+
+def test_link_dialog_fixed_type_shows_only_quick_add_type(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+        link=None,
+        fixed_link_type="web",
+    )
+
+    type_buttons = dialog._get_type_group().buttons()
+    assert len(type_buttons) == 1
+    assert type_buttons[0].property("link_type") == "web"
+
+    dialog.close()
+
+
+def test_link_dialog_type_section_has_no_label_and_compact_height(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+        link={"type": "web"},
+    )
+
+    assert not hasattr(dialog.ui, "lbl_link_type")
+    assert dialog.height() == 494
+
+    dialog.close()
+
+
+def test_link_dialog_programmatic_type_change_collects_string_code(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+        link=None,
+        fixed_link_type="web",
+    )
+
+    dialog.set_link_type(LinkType.WEB)
+    form_data = dialog.handlers._collect_form_data()
+
+    assert form_data["link_type"] == "web"
+
+    dialog.close()
+
+
+def test_link_dialog_defers_sphere_icon_loading_until_after_show(qapp):
+    init_data = {
+        "category_hierarchy": {},
+        "spheres": [
+            {"id": 1, "name": "Work", "icon_path": "work.png"},
+            {"id": 2, "name": "Home", "icon_path": "home.png"},
+        ],
+    }
+
+    with patch(
+        "app.views.windows.dialogs.link_dialog.link_dialog.get_cached_icon_with_fallback"
+    ) as icon_loader:
+        icon_loader.return_value = None
+        dialog = LinkDialog(
+            initialization_data=init_data,
+            dialog_controller=MagicMock(),
+            link={"type": "web"},
+        )
+
+        assert dialog._get_sphere_cb().count() == 2
+        icon_loader.assert_not_called()
+
+        dialog._apply_sphere_icons()
+
+        assert icon_loader.call_count == 2
+        dialog.close()
 
 
 def test_installed_apps_dialog_bottom_layout(qapp):
@@ -102,5 +192,3 @@ def test_link_dialog_button_widths_adjust(qapp):
     assert profile_btn.width() >= profile_btn.fontMetrics().horizontalAdvance(profile_btn.text()) + 20
 
     dialog.close()
-
-

@@ -17,7 +17,7 @@ class TypeChangeMixin:
     def on_type_changed(self, link_type) -> None:
         """Handle link type change."""
         lt = LinkType.from_value(link_type)
-        self.dialog.link_type = lt
+        self.dialog.link_type = lt.value
 
         # Clear fields when type changes
         self.dialog.ui.set_widget_value("url_le", "")

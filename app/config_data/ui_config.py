@@ -516,7 +516,7 @@ class UIConfig(BaseConfig):
 
     def get_link_dialog_height(self) -> int:
         """Return the height for the add/edit link dialog."""
-        return self.get("ui.link_dialog_height", 520)
+        return self.get("ui.link_dialog_height", 494)
 
     def get_link_dialog_margins(self) -> int:
         """Return link dialog margins."""
@@ -728,14 +728,21 @@ class UIConfig(BaseConfig):
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return ["▶", "Name", "Last opened", "Notes"]
+        return ["▶", "Name", "Order", "Launch", "Notes", "Type"]
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
         cols = self.get("ui.links_table_columns")
-        if isinstance(cols, dict) and "favorite" not in cols and len(cols) == 4:
+        if isinstance(cols, dict) and "favorite" not in cols and len(cols) >= 6:
             return cols
-        return {"group_launch": 0, "name": 1, "last_used": 2, "notes": 3}
+        return {
+            "group_launch": 0,
+            "name": 1,
+            "order": 2,
+            "last_used": 3,
+            "notes": 4,
+            "type": 5,
+        }
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""

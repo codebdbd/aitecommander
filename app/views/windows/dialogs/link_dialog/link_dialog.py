@@ -170,10 +170,11 @@ class LinkDialog(BaseDialog):
         category_id: Optional[int] = None,
         parent: Optional[QWidget] = None,
         link_controller: Optional[LinkDataControllerProtocol] = None,
+        fixed_link_type: Optional[str] = None,
     ):
         # Prepare core properties before BaseDialog/ReTranslatable hooks
         self._init_core_properties(
-            initialization_data, dialog_controller, link, category_id
+            initialization_data, dialog_controller, link, category_id, fixed_link_type
         )
 
         super().__init__(parent)
@@ -183,11 +184,9 @@ class LinkDialog(BaseDialog):
         except AttributeError:
             pass
 
-        # Ensure user icons directory exists (moved from module scope to avoid import side-effects)
-        icon_path_service.ensure_user_icons_dir()
-
         # Obtain link types from configuration
         self.link_types = app_config.settings.get_link_types()
+        self._visible_link_types = self._get_visible_link_types()
 
         # Optional MVC controller
         self.link_controller = link_controller
@@ -216,24 +215,40 @@ class LinkDialog(BaseDialog):
         dialog_controller,
         link: Optional[dict],
         category_id: Optional[int],
+        fixed_link_type: Optional[str] = None,
     ) -> None:
         """Initialise the dialog core properties."""
         self.initialization_data = initialization_data
         self.dialog_controller = dialog_controller
         self.link = link.copy() if link else {}
         self.initial_category = category_id
-        self.link_type = self.link.get("type", "web")
+        self._is_type_fixed = bool(link) or bool(fixed_link_type)
+        self.link_type = LinkType.from_value(
+            self.link.get("type") or fixed_link_type or "web"
+        ).value
         self.icon_name = self.link.get("icon_path", "")
         self.selected_profiles: list[dict] = []
         self.rotation_profiles: list[dict] = []
         self._profiles_explicitly_changed = False
         self._processing_cleanup_done = False
 
+    def _get_visible_link_types(self) -> list[tuple[str, str]]:
+        """Return link type buttons visible in this dialog context."""
+        if not getattr(self, "_is_type_fixed", False):
+            return self.link_types
+
+        current_type = LinkType.from_value(self.link_type).value
+        for code, title in self.link_types:
+            if LinkType.from_value(code).value == current_type:
+                return [(code, title)]
+
+        return [(current_type, current_type)]
+
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
         # UI components
         self.ui = LinkDialogUI(self)
-        self.ui.build_ui(self.link_types)
+        self.ui.build_ui(self._visible_link_types)
 
         # Event handlers
         self.handlers = LinkDialogHandlers(self)
@@ -444,9 +459,6 @@ class LinkDialog(BaseDialog):
             
         self._update_profile_button_state()
 
-        # Restore Chrome rotation state
-        self._load_rotation_state()
-
         # Update UI state
         self.handlers._update_ui_state()
 
@@ -607,7 +619,7 @@ class LinkDialog(BaseDialog):
                         self._select_first_if_unset(category_cb)
 
     def _populate_spheres(self) -> None:
-        """Populate the sphere list from `initialization_data` with icons."""
+        """Populate the sphere list from `initialization_data` without disk I/O."""
         sphere_cb = self._get_sphere_cb()
         sphere_cb.clear()
         for sp in self.initialization_data.get("spheres", []):
@@ -617,9 +629,7 @@ class LinkDialog(BaseDialog):
             sphere_id = sp.get("id")
             if name is None or sphere_id is None:
                 continue
-            icon_path = str(sp.get("icon_path", ""))
-            icon = get_cached_icon_with_fallback(icon_path, "sphere", entity_data=sp)
-            add_combo_item(sphere_cb, name, sphere_id, icon=icon)
+            add_combo_item(sphere_cb, name, sphere_id)
 
     def _apply_sphere_icons(self) -> None:
         """Apply sphere icons after the dialog becomes visible."""
@@ -627,20 +637,11 @@ class LinkDialog(BaseDialog):
             return
         self._sphere_icons_applied = True
 
-        sphere_cb = self._get_sphere_cb()
-        spheres = self.initialization_data.get("spheres", [])
-        spheres_by_id = {
-            sp.get("id"): sp
-            for sp in spheres
-            if isinstance(sp, dict) and sp.get("id") is not None
-        }
-        for idx in range(sphere_cb.count()):
-            sphere_id = sphere_cb.itemData(idx)
-            sp = spheres_by_id.get(sphere_id) or {}
-            icon_path = str(sp.get("icon_path", ""))
-            icon = get_cached_icon_with_fallback(icon_path, "sphere", entity_data=sp)
-            if icon:
-                sphere_cb.setItemIcon(idx, icon)
+        self._apply_combo_icons_in_batches(
+            self._get_sphere_cb(),
+            self.initialization_data.get("spheres", []),
+            "sphere",
+        )
 
     def update_sphere_icon_in_combo(self, sphere_id: int, icon_path: str = "") -> None:
         """Update the icon for a specific sphere in the combo box immediately."""
@@ -657,43 +658,63 @@ class LinkDialog(BaseDialog):
 
     def _apply_current_hierarchy_icons(self) -> None:
         """Apply section/category icons after the first paint."""
-        if self._hierarchy_icons_applied or not self.dialog_controller:
+        if self._hierarchy_icons_applied:
             return
         self._hierarchy_icons_applied = True
 
-        sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
+        self._apply_combo_icons_in_batches(
+            section_cb,
+            getattr(self.handlers, "_current_sections", []),
+            "section",
+        )
+        self._apply_combo_icons_in_batches(
+            category_cb,
+            getattr(self.handlers, "_current_categories", []),
+            "category",
+        )
 
-        sphere_id = sphere_cb.currentData()
-        if sphere_id:
-            sections = self.dialog_controller.get_sections_for_sphere(sphere_id)
-            section_icons = {
-                sec.get("id"): str(sec.get("icon_path", ""))
-                for sec in sections
-                if isinstance(sec, dict) and sec.get("id") is not None
-            }
-            for idx in range(section_cb.count()):
-                section_id = section_cb.itemData(idx)
-                icon_path = section_icons.get(section_id, "")
-                icon = get_cached_icon_with_fallback(icon_path, "section")
-                if icon:
-                    section_cb.setItemIcon(idx, icon)
+    def _apply_combo_icons_in_batches(
+        self, combo: Any, entries: Any, entity_type: str, start: int = 0
+    ) -> None:
+        """Load combo icons in small GUI-thread batches after the first paint."""
+        if getattr(self, "_is_closing", False) or combo is None:
+            return
 
-        section_id = section_cb.currentData()
-        if section_id:
-            categories = self.dialog_controller.get_categories_for_section(section_id)
-            category_icons = {
-                cat.get("id"): str(cat.get("icon_path", ""))
-                for cat in categories
-                if isinstance(cat, dict) and cat.get("id") is not None
-            }
-            for idx in range(category_cb.count()):
-                category_id = category_cb.itemData(idx)
-                icon_path = category_icons.get(category_id, "")
-                icon = get_cached_icon_with_fallback(icon_path, "category")
+        valid_entries = [
+            entry
+            for entry in entries or []
+            if isinstance(entry, dict) and entry.get("id") is not None
+        ]
+        if not valid_entries:
+            return
+
+        entries_by_id = {entry["id"]: entry for entry in valid_entries}
+        batch_size = 16
+        try:
+            end = min(start + batch_size, combo.count())
+            for idx in range(start, end):
+                entry = entries_by_id.get(combo.itemData(idx))
+                if entry is None:
+                    continue
+                icon = get_cached_icon_with_fallback(
+                    str(entry.get("icon_path", "")),
+                    entity_type,
+                    entity_data=entry if entity_type == "sphere" else None,
+                )
                 if icon:
-                    category_cb.setItemIcon(idx, icon)
+                    combo.setItemIcon(idx, icon)
+        except RuntimeError:
+            return
+
+        if end < combo.count():
+            QTimer.singleShot(
+                0,
+                lambda: self._apply_combo_icons_in_batches(
+                    combo, valid_entries, entity_type, end
+                ),
+            )
 
     def _apply_type_icons(self) -> None:
         """Apply link type button icons after the first paint."""
@@ -747,7 +768,9 @@ class LinkDialog(BaseDialog):
         count = len(profiles) if profiles else 0
         if count == 0:
             return self.tr("Profile")
-        return self.tr("%n profile(s)", "", count)
+        if count == 1:
+            return self.tr("Profile ({count})").format(count=count)
+        return self.tr("Profiles ({count})").format(count=count)
 
     def _format_profile_tooltip(self, profiles: list[dict]) -> str:
         """Format detailed tooltip for selected profiles button."""
@@ -756,7 +779,7 @@ class LinkDialog(BaseDialog):
         names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
         if len(names) == 1:
             return self.tr("Selected profile: {name}\n(Click to change)").format(name=names[0])
-        lines = [self.tr("%n selected profile(s):", "", len(names))]
+        lines = [self.tr("Selected profiles ({count}):").format(count=len(names))]
         for n in names:
             lines.append(f"• {n}")
         lines.append(self.tr("(Click to change)"))

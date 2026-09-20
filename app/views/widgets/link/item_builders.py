@@ -1,12 +1,13 @@
 """Utilities for generating display text and tooltips for model roles (``QAbstractTableModel``)."""
 
+from app.utils.links.type_labels import translate_link_type_label
+
 # Constants for magic numbers
 MAX_NOTES_LENGTH = 462
 # Favorite marker: heart symbol instead of the default star
 STAR_SYMBOL = "♥"
 STAR_COLOR = "#FFD700"
 PATH_SEPARATOR = " → "
-
 
 class ItemBuildersMixin:
     """Utility mixin for building model role data.
@@ -47,6 +48,17 @@ class ItemBuildersMixin:
         except Exception:
             return ""
 
+    def _last_used_tooltip(self, last_used) -> str:
+        """Return a full local timestamp tooltip for the last-used value."""
+        if not last_used:
+            return ""
+        try:
+            from datetime import datetime
+
+            return datetime.fromisoformat(str(last_used)).strftime("%d.%m.%Y %H:%M:%S")
+        except Exception:
+            return str(last_used)
+
     def _notes_display_and_tooltip(
         self, notes: str, truncate: bool = False
     ) -> tuple[str, str]:
@@ -65,6 +77,19 @@ class ItemBuildersMixin:
         """Return the ``(display, tooltip)`` pair for path/URL."""
         url_or_path = link.get("url", "") or link.get("path", "")
         return url_or_path, (url_or_path or "")
+
+    def _type_display_text(self, link: dict) -> str:
+        """Return localized display text for the resource type."""
+        return translate_link_type_label(link.get("type"))
+
+    def _type_tooltip(self, link: dict) -> str:
+        """Return resource address/details for the type column tooltip."""
+        link_type = str(link.get("type") or "web").strip().lower()
+        value = str(link.get("url") or link.get("path") or "").strip()
+        if value:
+            return value
+        notes = str(link.get("notes") or "").strip()
+        return notes[:200]
 
     def _name_tooltip(self, link: dict) -> str:
         """Return tooltip for the name column (URL/Path)."""

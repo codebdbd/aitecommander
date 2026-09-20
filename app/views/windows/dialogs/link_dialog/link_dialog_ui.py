@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.links.type_labels import LINK_TYPE_LABELS as _LINK_TYPE_FALLBACK_LABELS
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -37,14 +38,6 @@ from app.utils.ui.qt.combo_helpers import PopupComboBox
 from app.views.widgets.input_frame import InputFrame
 
 logger = logging.getLogger(__name__)
-
-_LINK_TYPE_FALLBACK_LABELS: dict[str, str] = {
-    "web": QT_TRANSLATE_NOOP("LinkDialogUI", "Web link"),
-    "file": QT_TRANSLATE_NOOP("LinkDialogUI", "File"),
-    "program": QT_TRANSLATE_NOOP("LinkDialogUI", "Application"),
-    "script": QT_TRANSLATE_NOOP("LinkDialogUI", "Script"),
-    "folder": QT_TRANSLATE_NOOP("LinkDialogUI", "Folder"),
-}
 
 # lupdate hint for dynamic link type labels
 if False:  # pragma: no cover
@@ -122,10 +115,6 @@ class LinkDialogUI:
         self._link_type_titles.clear()
         self._type_buttons.clear()
         self._type_button_codes.clear()
-        self.lbl_link_type = QLabel(
-            QCoreApplication.translate("LinkDialogUI", "Link type:")
-        )
-        container.addWidget(self.lbl_link_type)
         self.type_group = QButtonGroup(self.parent)
         hl_type = QHBoxLayout()
 
@@ -486,10 +475,6 @@ class LinkDialogUI:
     def _retranslate_type_section(self):
         """Retranslate type section label."""
         try:
-            if hasattr(self, "lbl_link_type") and self.lbl_link_type is not None:
-                self.lbl_link_type.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Link type:")
-                )
             self._apply_link_type_translations()
         except Exception:
             pass

@@ -53,6 +53,15 @@ from .row_operations import RowOperationsMixin
 logger = logging.getLogger(__name__)
 
 
+def _header_text_width(header: QHeaderView, text: str, *, min_width: int) -> int:
+    """Return a header column width that leaves room for text and sort toggle."""
+    try:
+        text_width = header.fontMetrics().horizontalAdvance(str(text))
+        return max(min_width, text_width + 40)
+    except Exception:
+        return min_width
+
+
 class TableDelegate(QStyledItemDelegate):
     """Unified delegate: row hover highlight and character-based elision for the ``Name`` column."""
 
@@ -82,8 +91,8 @@ class TableDelegate(QStyledItemDelegate):
             self._font_units = "px"
 
         # Individual column sizes (backward compatibility)
-        self.col_opened_px = _get_px("table_opened_col_px")  # "Opened" column (index=2)
-        self.col_notes_px = _get_px("table_notes_col_px")  # "Notes" column (index=3)
+        self.col_opened_px = _get_px("table_opened_col_px")  # "Launch" column (index=3)
+        self.col_notes_px = _get_px("table_notes_col_px")  # "Notes" column (index=4)
 
         # Modern approach: array of sizes for all columns
         self.col_sizes: dict[int, int] = {}
@@ -144,9 +153,9 @@ class TableDelegate(QStyledItemDelegate):
 
             val = self.col_sizes.get(col)
             if val is None:
-                if col == 2:
+                if col == 3:
                     val = self.col_opened_px
-                elif col == 3:
+                elif col == 4:
                     val = self.col_notes_px
             if val and int(val) > 0:
                 f = opt.font
@@ -202,9 +211,9 @@ class TableDelegate(QStyledItemDelegate):
         col = index.column()
         self._apply_column_font_size(opt, col)
 
-        if col == 2:
+        if col == 3:
             self._apply_column_color(opt, col, "openedColColor")
-        elif col == 3:
+        elif col == 4:
             self._apply_column_color(opt, col, "notesColColor")
 
         if col == 1:
@@ -298,7 +307,7 @@ class ExplorerHeaderView(QHeaderView):
         pos = event.position().toPoint()
         sec = self.logicalIndexAt(pos)
         on_toggle = False
-        if sec >= 0 and sec not in (0, 4):
+        if sec >= 0 and sec != 0:
             sec_x = self.sectionViewportPosition(sec)
             sec_w = self.sectionSize(sec)
             if pos.x() >= sec_x + sec_w - 24:
@@ -341,7 +350,7 @@ class ExplorerHeaderView(QHeaderView):
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
 
         target_sec = sorted_sec if sorted_sec >= 0 else self._hovered_section
-        if target_sec < 0 or target_sec in (0, 4):
+        if target_sec < 0 or target_sec == 0:
             return
 
         sec_x = self.sectionViewportPosition(target_sec)
@@ -550,14 +559,22 @@ class LinksTableView(
         header.setSectionsClickable(True)
         col_widths = app_config.ui.get_col_widths()
         try:
+            order_header = model.headerData(
+                2, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole
+            )
             self.setColumnWidth(0, 32)
             self.setColumnWidth(1, col_widths[1])
-            self.setColumnWidth(2, col_widths[2])
+            self.setColumnWidth(
+                2,
+                _header_text_width(header, str(order_header or "Order"), min_width=112),
+            )
+            self.setColumnWidth(3, col_widths[2])
+            self.setColumnWidth(5, 104)
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
             )
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
         _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
@@ -569,7 +586,7 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to set resize mode for column 0/1", exc_info=True
             )
-        # Column 2 ("Opened") resize mode is driven by config
+        # Column 3 ("Launch") resize mode is driven by config
         try:
             col2_mode = str(
                 app_config.ui.get("ui.links_table_col2_mode", "fixed")
@@ -578,17 +595,19 @@ class LinksTableView(
             col2_mode = "fixed"
         try:
             if col2_mode in ("fixed", "f"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
             elif col2_mode in ("interactive", "i"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
             elif col2_mode in ("contents", "content", "auto", "resizetocontents"):
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
             else:
-                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         except Exception:
             # Fallback to Fixed
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(False)
         header.sortIndicatorChanged.connect(self.sortByColumn)
@@ -654,6 +673,12 @@ class LinksTableView(
             model.rowsRemoved.connect(self._on_model_data_changed)
         except Exception:
             pass
+        try:
+            model.orderEdited.connect(self.links_reordered.emit)
+        except Exception:
+            logger.debug(
+                "LinksTableView: failed to connect orderEdited", exc_info=True
+            )
 
     def _on_model_data_changed(self, *args, **kwargs) -> None:
         try:
@@ -770,7 +795,7 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
-        if logical_index in (0, 4):
+        if logical_index == 0:
             return
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
@@ -869,10 +894,7 @@ class LinksTableView(
 
     def _load_initial_sort(self) -> tuple[int, Qt.SortOrder]:
         """Return initial sort (saved or default)."""
-        col, order = self._load_sort_from_settings()
-        if isinstance(col, int) and isinstance(order, Qt.SortOrder):
-            return col, order
-        return 1, Qt.SortOrder.AscendingOrder
+        return 2, Qt.SortOrder.AscendingOrder
 
     def _save_sort_to_settings(self, col: int, order: Qt.SortOrder) -> None:
         if not getattr(self, "_allow_sort_persist", False):
@@ -900,17 +922,20 @@ class LinksTableView(
     def _default_sort_from_links(
         self, links: list[dict] | None
     ) -> tuple[int, Qt.SortOrder]:
-        """Use name ascending when no persisted user preference exists."""
-        return 1, Qt.SortOrder.AscendingOrder
+        """Use saved user order when no persisted user preference exists."""
+        return 2, Qt.SortOrder.AscendingOrder
+
+    def reset_default_sort_for_next_populate(self) -> None:
+        """Force the next normal load to start from the saved user order."""
+        self._sort_initialized = False
+        self._allow_sort_persist = False
 
     def ensure_initial_sort(self, links: list[dict] | None = None) -> None:
-        """Apply initial sort once, preferring saved settings then heuristics."""
+        """Apply initial sort once, always defaulting to user order."""
         if self._sort_initialized:
             return
         self._sort_initialized = True
-        col, order = self._load_sort_from_settings()
-        if not (isinstance(col, int) and isinstance(order, Qt.SortOrder)):
-            col, order = self._default_sort_from_links(links)
+        col, order = self._default_sort_from_links(links)
         self._apply_sort(col, order)
         self._allow_sort_persist = True
         try:

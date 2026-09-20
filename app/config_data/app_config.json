@@ -34,10 +34,12 @@
     ],
     "fixed_button_width": 100,
     "links_table_columns": {
-      "favorite": 0,
+      "group_launch": 0,
       "name": 1,
-      "last_used": 2,
-      "notes": 3
+      "order": 2,
+      "last_used": 3,
+      "notes": 4,
+      "type": 5
     },
     "max_favorites": 10,
     "top_bar_height": 40,
@@ -125,7 +127,7 @@
     ],
     "path_label_min_width": 350,
     "link_dialog_width": 600,
-    "link_dialog_height": 520,
+    "link_dialog_height": 494,
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
     "dialogs": {

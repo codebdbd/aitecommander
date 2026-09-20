@@ -2615,14 +2615,50 @@ Are you sure you want to continue?</translation>
     </message>
     <message>
         <location filename="..\app\views\widgets\link\links_model.py" line="25" />
-        <source>Last opened</source>
-        <translation>Last opened</translation>
+        <source>Order</source>
+        <translation>Order</translation>
     </message>
     <message>
         <location filename="..\app\views\widgets\link\links_model.py" line="26" />
+        <source>Launch</source>
+        <translation>Launch</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="27" />
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="28" />
+        <source>Type</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="32" />
+        <source>Custom order</source>
+        <translation>Custom order</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="33" />
+        <source>Last launch</source>
+        <translation>Last launch</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="34" />
+        <source>Resource type</source>
+        <translation>Resource type</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\links_model.py" line="142" />
+        <source>Position: {position}</source>
+        <translation>Position: {position}</translation>
+    </message>
+
+
+
+
+
+
 </context><context>
     <name>LinksUI</name>
     <message>

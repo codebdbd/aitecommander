@@ -281,7 +281,13 @@ class LinkModel(DatabaseBase):
         try:
             if data["id"]:
                 if data["position"] is None:
-                    data["position"] = 0
+                    existing = self.get_link_by_id(int(data["id"]))
+                    if existing and existing.get("position") is not None:
+                        data["position"] = int(existing.get("position", 0) or 0)
+                    else:
+                        data["position"] = self._get_next_position(
+                            "link", "category_id", data["category_id"]
+                        )
 
                 update_fields = [f for f in all_possible_fields if f != "id"]
                 update_placeholders = ", ".join([f"{f}=?" for f in update_fields])

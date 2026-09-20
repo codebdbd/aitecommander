@@ -7,6 +7,11 @@ from PyQt6.QtWidgets import QDialog
 
 logger = logging.getLogger(__name__)
 
+
+def _tr(text: str, disambiguation: str | None = None, n: int = -1) -> str:
+    return QCoreApplication.translate("LinkDialogUI", text, disambiguation, n)
+
+
 class RotationMixin:
     """Handles the Chrome rotation checkbox and rotation profile selection."""
 
@@ -107,19 +112,19 @@ class RotationMixin:
         """Format display text for rotation profiles button."""
         count = len(profiles) if profiles else 0
         if count == 0:
-            return QCoreApplication.translate("LinkDialogUI", "Profiles")
-        return QCoreApplication.translate("LinkDialogUI", "%n profile(s)", "", count)
+            return _tr("Select profiles...")
+        return _tr("Profiles ({count})").format(count=count)
 
     @staticmethod
     def _format_rotation_tooltip(profiles: list[dict]) -> str:
         """Format detailed tooltip for rotation profiles button."""
         if not profiles:
-            return QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
+            return _tr("Select profiles for rotation")
         names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
-        lines = [QCoreApplication.translate("LinkDialogUI", "Rotation order (%n profile(s)):", "", len(names))]
+        lines = [_tr("Rotation order ({count}):").format(count=len(names))]
         for idx, n in enumerate(names, 1):
             lines.append(f"{idx}. {n}")
-        lines.append(QCoreApplication.translate("LinkDialogUI", "(Click to change)"))
+        lines.append(_tr("(Click to change)"))
         return "\n".join(lines)
 
     @classmethod

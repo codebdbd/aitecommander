@@ -232,6 +232,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
         # Don't open link on double-click on checkbox column
         if column == self.COLUMNS.get("group_launch", 0):
             return
+        if column == self.COLUMNS.get("order", 2):
+            return
 
         if column == self.COLUMNS["notes"]:
             self.controller.show_note_dialog(link)

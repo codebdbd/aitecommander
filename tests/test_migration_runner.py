@@ -3,7 +3,9 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import uuid
+from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,8 +30,8 @@ def test_real_migrations_apply_and_required_indexes_exist() -> None:
     runner = MigrationRunner(conn, Path("app/models/migrations"))
 
     applied = runner.run_all_pending()
-    assert applied == 8
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
+    assert applied == 10
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 10
 
     index_names = {
         row["name"]
@@ -53,6 +55,40 @@ def test_real_migrations_apply_and_required_indexes_exist() -> None:
     assert required.issubset(index_names)
 
     assert runner.run_all_pending() == 0
+
+
+def test_link_position_migration_renumbers_per_category() -> None:
+    conn = _conn()
+    conn.executescript(
+        """
+        CREATE TABLE link (
+            id INTEGER PRIMARY KEY,
+            category_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        INSERT INTO link (id, category_id, name, position) VALUES
+            (1, 10, 'Beta', 0),
+            (2, 10, 'Alpha', 0),
+            (3, 10, 'Gamma', 5),
+            (4, 20, 'Second', 0),
+            (5, 20, 'First', 0);
+        """
+    )
+    migration = import_module("app.models.migrations.0010_renumber_link_positions")
+
+    migration.migrate(conn, SimpleNamespace(info=lambda *_args, **_kwargs: None))
+
+    rows = conn.execute(
+        "SELECT id, category_id, position FROM link ORDER BY category_id, position"
+    ).fetchall()
+    assert [(row["id"], row["category_id"], row["position"]) for row in rows] == [
+        (2, 10, 0),
+        (1, 10, 1),
+        (3, 10, 2),
+        (5, 20, 0),
+        (4, 20, 1),
+    ]
 
 
 def test_runner_failure_does_not_advance_version_and_allows_recovery() -> None:

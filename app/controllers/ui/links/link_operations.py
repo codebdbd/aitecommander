@@ -48,6 +48,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             category_id=cat_id,
             parent=self.main,
             link_controller=link_controller,
+            fixed_link_type=link_type,
         )
 
         # Set link type

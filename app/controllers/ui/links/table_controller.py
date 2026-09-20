@@ -198,6 +198,8 @@ class LinksTableController(QObject):
                 return
             if _DIAG_TABLE_POPULATE:
                 t0 = time.perf_counter()
+                if hasattr(self.table, "reset_default_sort_for_next_populate"):
+                    self.table.reset_default_sort_for_next_populate()
                 self.table.populate(links)
                 elapsed_ms = (time.perf_counter() - t0) * 1000
                 if elapsed_ms >= 50:
@@ -208,6 +210,8 @@ class LinksTableController(QObject):
                         category_id,
                     )
             else:
+                if hasattr(self.table, "reset_default_sort_for_next_populate"):
+                    self.table.reset_default_sort_for_next_populate()
                 self.table.populate(links)
 
             self._trigger_background_icon_enrichment(links)

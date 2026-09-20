@@ -22,9 +22,17 @@ from app.views.widgets.link.item_builders import ItemBuildersMixin
 
 _HEADER_TRANSLATABLE = [
     QT_TRANSLATE_NOOP("LinksTableModel", "Name"),
-    QT_TRANSLATE_NOOP("LinksTableModel", "Last opened"),
+    QT_TRANSLATE_NOOP("LinksTableModel", "Order"),
+    QT_TRANSLATE_NOOP("LinksTableModel", "Launch"),
     QT_TRANSLATE_NOOP("LinksTableModel", "Notes"),
+    QT_TRANSLATE_NOOP("LinksTableModel", "Type"),
 ]
+
+_HEADER_TOOLTIPS = {
+    2: QT_TRANSLATE_NOOP("LinksTableModel", "Custom order"),
+    3: QT_TRANSLATE_NOOP("LinksTableModel", "Last launch"),
+    5: QT_TRANSLATE_NOOP("LinksTableModel", "Resource type"),
+}
 
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
@@ -48,13 +56,14 @@ def clear_links_table_icon_cache() -> None:
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """Data model for the links table.
 
-    Default columns: ["Name", "Last opened", "Notes"].
+    Default columns: ["Name", "Order", "Launch", "Notes", "Type"].
     Each row is a dict containing at minimum: ``id``, ``name``, ``last_used``,
     ``notes``, ``is_favorite``, ``url``/``path``.
     """
 
     MAX_ICON_CACHE = 500  # Icon cache size limit
     groupLaunchToggled = pyqtSignal(int, int)  # link_id, val_int
+    orderEdited = pyqtSignal(list)  # link IDs in the new order
 
     def __init__(
         self,
@@ -106,12 +115,16 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         if col == 1:
             return self._name_display_text(link, mode="normal")
         if col == 2:
-            return self._last_used_display_text(link.get("last_used"))
+            return self._display_position(link)
         if col == 3:
+            return self._last_used_display_text(link.get("last_used"))
+        if col == 4:
             display, _ = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )
             return display
+        if col == 5:
+            return self._type_display_text(link)
         return None
 
     def _get_decoration_data(self, col, link):
@@ -131,19 +144,34 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             tip = self._name_tooltip(link)
             if tip:
                 return tip
+        if col == 2:
+            return self._tr("Position: {position}").format(
+                position=self._display_position(link)
+            )
         if col == 3:
+            return self._last_used_tooltip(link.get("last_used"))
+        if col == 4:
             _, tip = self._notes_display_and_tooltip(
                 link.get("notes", ""), truncate=False
             )
             if tip:
                 return tip
+        if col == 5:
+            return self._type_tooltip(link)
         return None
 
     def _get_alignment_data(self, col):
         """Get alignment data for column."""
-        if col == 0:
+        if col in (0, 2):
             return int(Qt.AlignmentFlag.AlignCenter)
         return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+    def _display_position(self, link: dict[str, Any]) -> int:
+        """Return one-based position for UI display."""
+        try:
+            return int(link.get("position", 0) or 0) + 1
+        except Exception:
+            return 1
 
     def data(
         self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
@@ -205,12 +233,15 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if section == 0:
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            elif role == Qt.ItemDataRole.ToolTipRole:
+                text = _HEADER_TOOLTIPS.get(section)
+                if text:
+                    return self._tr(text)
         return super().headerData(section, orientation, role)
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
-        # By default the table is not editable via delegates
         base_flags = (
             Qt.ItemFlag.ItemIsSelectable
             | Qt.ItemFlag.ItemIsEnabled
@@ -219,6 +250,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         )
         if index.column() == 0:
             base_flags |= Qt.ItemFlag.ItemIsUserCheckable
+        if index.column() == 2:
+            base_flags |= Qt.ItemFlag.ItemIsEditable
         return base_flags
 
     def setData(
@@ -229,8 +262,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         Allowed column updates:
         0: ``is_group_launch`` (bool / check state)
         1: ``name`` (str)
-        2: ``last_used`` (any serializable/comparable type)
-        3: ``notes`` (str)
+        2: ``position`` (one-based UI number)
+        3: ``last_used`` (any serializable/comparable type)
+        4: ``notes`` (str)
         Direct replacement of the entire link is also supported via ``UserRole`` (dict value).
         """
         if not index.isValid():
@@ -270,9 +304,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if col == 1:
                     link["name"] = str(value)
                 elif col == 2:
+                    return self._set_display_position(row, value)
+                elif col == 3:
                     # Store as-is; sort() performs normalization for ordering
                     link["last_used"] = value
-                elif col == 3:
+                elif col == 4:
                     link["notes"] = str(value)
                 else:
                     return False
@@ -286,6 +322,39 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return False
 
         return False
+
+    def _set_display_position(self, row: int, value: Any) -> bool:
+        """Move row to the requested one-based position and renumber all links."""
+        try:
+            requested = int(str(value).strip())
+        except Exception:
+            return False
+        if requested <= 0 or not (0 <= row < len(self._links)):
+            return False
+
+        target = max(0, min(requested - 1, len(self._links) - 1))
+        if target == row:
+            return True
+
+        self.layoutAboutToBeChanged.emit()
+        link = self._links.pop(row)
+        self._links.insert(target, link)
+        self._renumber_positions()
+        self.layoutChanged.emit()
+        self.orderEdited.emit(self.link_ids_in_order())
+        return True
+
+    def _renumber_positions(self) -> None:
+        for index, link in enumerate(self._links):
+            link["position"] = index
+
+    def link_ids_in_order(self) -> list[int]:
+        ids: list[int] = []
+        for link in self._links:
+            link_id = link.get("id")
+            if isinstance(link_id, int):
+                ids.append(link_id)
+        return ids
 
     def supportedDropActions(self) -> Qt.DropAction:  # type: ignore[override]
         # Support moving rows only
@@ -394,6 +463,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 insert_row -= last - first + 1
             for i, item in enumerate(segment):
                 self._links.insert(insert_row + i, item)
+            self._renumber_positions()
             self.endMoveRows()
             return
 
@@ -426,6 +496,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 else:
                     to_indexes.append(p_idx)
             self._links = new_links
+            self._renumber_positions()
             if old_parents:
                 self.changePersistentIndexList(old_parents, to_indexes)
         finally:
@@ -438,10 +509,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         """Sort table data in response to ``QTableView`` header clicks.
 
         Supported columns:
-        0: ``is_favorite`` (bool)
+        0: ``is_group_launch`` (bool)
         1: ``name`` (str, casefold)
-        2: ``last_used`` (normalized to float timestamp; ``None`` -> ``-inf``)
-        3: ``notes`` (str, casefold)
+        2: ``position`` (int)
+        3: ``last_used`` (normalized to float timestamp; ``None`` -> ``-inf``)
+        4: ``notes`` (str, casefold)
+        5: ``type`` (localized label)
         """
         if not self._links or column == 0:
             return
@@ -478,13 +551,20 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             if column == 1:
                 return str(link.get("name", "")).casefold()
             if column == 2:
+                try:
+                    return int(link.get("position", 0) or 0)
+                except Exception:
+                    return 0
+            if column == 3:
                 last_used = link.get("last_used")
                 if last_used in (None, ""):
                     # Never opened: keep alphabetical order within this bucket
                     return (0, str(link.get("name", "")).casefold())
                 return (1, normalize_last_used(last_used))
-            if column == 3:
+            if column == 4:
                 return str(link.get("notes", "")).casefold()
+            if column == 5:
+                return self._type_display_text(link).casefold()
             # Unknown column - sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
             if isinstance(lid, (int, str)):

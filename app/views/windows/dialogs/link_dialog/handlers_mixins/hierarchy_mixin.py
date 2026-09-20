@@ -32,6 +32,7 @@ class HierarchyMixin:
         section_cb.clear()
         sphere_id = sphere_cb.currentData()
 
+        sections = []
         if sphere_id and self.dialog.dialog_controller:
             sections = self.dialog.dialog_controller.get_sections_for_sphere(sphere_id)
             for sec in sections:
@@ -44,6 +45,7 @@ class HierarchyMixin:
                     with_icons,
                     entity_type="section",
                 )
+        self._current_sections = sections
 
         self._update_categories(with_icons=with_icons)
 
@@ -55,6 +57,7 @@ class HierarchyMixin:
         category_cb.clear()
         section_id = section_cb.currentData()
 
+        categories = []
         if section_id and self.dialog.dialog_controller:
             categories = self.dialog.dialog_controller.get_categories_for_section(
                 section_id
@@ -69,6 +72,7 @@ class HierarchyMixin:
                     with_icons,
                     entity_type="category",
                 )
+        self._current_categories = categories
 
     def _add_item(
         self,
