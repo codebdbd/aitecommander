@@ -34,6 +34,9 @@ _HEADER_TOOLTIPS = {
     5: QT_TRANSLATE_NOOP("LinksTableModel", "Resource type"),
 }
 
+HEADER_CHEVRON_PADDING_ROLE = int(Qt.ItemDataRole.UserRole) + 101
+_CHEVRON_PADDING_SECTIONS = frozenset((2, 3))
+
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
 @lru_cache(maxsize=100)
@@ -233,6 +236,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if section in (0, 2, 3):
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            elif role == HEADER_CHEVRON_PADDING_ROLE:
+                return section in _CHEVRON_PADDING_SECTIONS
             elif role == Qt.ItemDataRole.ToolTipRole:
                 text = _HEADER_TOOLTIPS.get(section)
                 if text:

@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHeaderView,
+    QProxyStyle,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionHeader,
@@ -39,7 +40,7 @@ from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
 from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
-from app.views.widgets.link.links_model import LinksTableModel
+from app.views.widgets.link.links_model import HEADER_CHEVRON_PADDING_ROLE, LinksTableModel
 from i18n.language_service import LanguageService
 
 from .data_management import DataManagementMixin
@@ -272,8 +273,56 @@ class TableDelegate(QStyledItemDelegate):
         # are rendered via QSS (`QTableView QTableCornerButton::section`) in `dark.qss`
         return super().editorEvent(event, model, option, index)
 
+class ExplorerHeaderStyle(QProxyStyle):
+    """Proxy style that narrows label geometry for header sections with a
+    right-hand sort-chevron compartment.
+
+    The style itself has zero knowledge about concrete column indexes. Instead,
+    it asks the attached model via ``HEADER_CHEVRON_PADDING_ROLE`` whether a
+    given section needs symmetric label padding. Padding width is read from
+    the owning ``ExplorerHeaderView.CHEVRON_COMPARTMENT_WIDTH`` class-level
+    constant, so it stays single source of truth for both the chevron painter
+    and the label-layout engine.
+    """
+
+    def __init__(self, header: "ExplorerHeaderView", base_style: QStyle | None = None):
+        super().__init__(base_style)
+        self._header = header
+
+    def subElementRect(
+        self, element: QStyle.SubElement, opt: QStyleOptionHeader, widget=None
+    ) -> QRect:
+        rect = super().subElementRect(element, opt, widget)
+        if element != QStyle.SubElement.SE_HeaderLabel:
+            return rect
+        section = getattr(opt, "section", -1)
+        header = self._header
+        model = header.model() if header is not None else None
+        if model is None:
+            return rect
+        try:
+            needs_padding = bool(
+                model.headerData(
+                    section,
+                    Qt.Orientation.Horizontal,
+                    HEADER_CHEVRON_PADDING_ROLE,
+                )
+            )
+        except Exception:
+            needs_padding = False
+        if needs_padding:
+            try:
+                px = int(header.CHEVRON_COMPARTMENT_WIDTH)
+            except Exception:
+                px = 24
+            rect = rect.adjusted(px, 0, -px, 0)
+        return rect
+
+
 class ExplorerHeaderView(QHeaderView):
     """Header view with Windows Explorer style split-button sort toggles."""
+
+    CHEVRON_COMPARTMENT_WIDTH = 24
 
     def __init__(self, orientation: Qt.Orientation, parent=None):
         super().__init__(orientation, parent)
@@ -281,6 +330,10 @@ class ExplorerHeaderView(QHeaderView):
         self.setSectionsClickable(True)
         self._hovered_section = -1
         self._hovered_toggle = False
+        try:
+            self.setStyle(ExplorerHeaderStyle(self, self.style()))
+        except Exception:
+            pass
 
     @staticmethod
     def _get_icon_colors() -> tuple[QColor, QColor]:
@@ -310,7 +363,7 @@ class ExplorerHeaderView(QHeaderView):
         if sec >= 0 and sec != 0:
             sec_x = self.sectionViewportPosition(sec)
             sec_w = self.sectionSize(sec)
-            if pos.x() >= sec_x + sec_w - 24:
+            if pos.x() >= sec_x + sec_w - self.CHEVRON_COMPARTMENT_WIDTH:
                 on_toggle = True
         if sec != self._hovered_section or on_toggle != self._hovered_toggle:
             self._hovered_section = sec
@@ -343,44 +396,6 @@ class ExplorerHeaderView(QHeaderView):
                     icon.paint(painter, ix, iy, sz, sz, Qt.AlignmentFlag.AlignCenter)
             return
 
-        if logicalIndex in (2, 3):
-            opt = QStyleOptionHeader()
-            self.initStyleOption(opt)
-            opt.rect = rect
-            opt.section = logicalIndex
-            opt.text = ""
-            opt.icon = QIcon()
-            self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
-            model = self.model()
-            if model is not None:
-                text = model.headerData(
-                    logicalIndex, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole
-                )
-                if isinstance(text, str) and text:
-                    text_rect = rect.adjusted(24, 0, -24, 0)
-                    align = model.headerData(
-                        logicalIndex,
-                        Qt.Orientation.Horizontal,
-                        Qt.ItemDataRole.TextAlignmentRole,
-                    )
-                    try:
-                        alignment = Qt.AlignmentFlag(int(align)) if align is not None else Qt.AlignmentFlag.AlignCenter
-                    except Exception:
-                        alignment = Qt.AlignmentFlag.AlignCenter
-                    painter.save()
-                    try:
-                        pal = self.palette()
-                        color = (
-                            pal.brightText().color()
-                            if opt.state & QStyle.StateFlag.State_Sunken
-                            else pal.windowText().color()
-                        )
-                        painter.setPen(color)
-                        painter.drawText(text_rect, int(alignment) | int(Qt.TextFlag.TextSingleLine), text)
-                    finally:
-                        painter.restore()
-            return
-
         super().paintSection(painter, rect, logicalIndex)
 
     def paintEvent(self, event):
@@ -395,10 +410,11 @@ class ExplorerHeaderView(QHeaderView):
         sec_x = self.sectionViewportPosition(target_sec)
         sec_w = self.sectionSize(target_sec)
         h = self.viewport().height()
-        if sec_w < 36:
+        min_w = 3 * self.CHEVRON_COMPARTMENT_WIDTH
+        if sec_w < min_w:
             return
 
-        toggle_w = 24
+        toggle_w = self.CHEVRON_COMPARTMENT_WIDTH
         tx = sec_x + sec_w - toggle_w
         p = QPainter(self.viewport())
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
