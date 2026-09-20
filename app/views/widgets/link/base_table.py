@@ -402,9 +402,17 @@ class ExplorerHeaderView(QHeaderView):
         super().paintEvent(event)
         is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
+        hovered_sec = self._hovered_section
 
-        target_sec = sorted_sec if sorted_sec >= 0 else self._hovered_section
-        if target_sec < 0 or target_sec == 0:
+        def should_render_for(sec: int) -> bool:
+            if sec <= 0:
+                return False
+            if sec == sorted_sec:
+                return True
+            return sec == hovered_sec
+
+        target_sec = sorted_sec if should_render_for(sorted_sec) else hovered_sec
+        if not should_render_for(target_sec):
             return
 
         sec_x = self.sectionViewportPosition(target_sec)
@@ -420,16 +428,15 @@ class ExplorerHeaderView(QHeaderView):
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         dark = self.palette().window().color().lightness() < 128
-        is_toggle_hover = (self._hovered_section == target_sec and self._hovered_toggle)
+        is_toggle_hover = (
+            target_sec == hovered_sec and bool(self._hovered_toggle)
+        )
+        sorted_here = is_sorted and target_sec == sorted_sec
 
-        # 1. Toggle compartment background
         if is_toggle_hover:
             bg_color = QColor(255, 255, 255, 28) if dark else QColor(0, 0, 0, 20)
-        else:
-            bg_color = QColor(255, 255, 255, 12) if dark else QColor(0, 0, 0, 8)
-        p.fillRect(QRect(tx + 1, 0, toggle_w, h), bg_color)
+            p.fillRect(QRect(tx + 1, 0, toggle_w, h), bg_color)
 
-        # 2. Large visible chevron
         cx = tx + toggle_w / 2.0
         cy = h / 2.0
         icon_normal, icon_hover = self._get_icon_colors()
@@ -439,7 +446,7 @@ class ExplorerHeaderView(QHeaderView):
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
 
-        if is_sorted and target_sec == sorted_sec:
+        if sorted_here:
             if self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
                 pts = [QPointF(cx - 5, cy + 2.5), QPointF(cx, cy - 2.5), QPointF(cx + 5, cy + 2.5)]
             else:
