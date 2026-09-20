@@ -359,12 +359,7 @@ class ExplorerHeaderView(QHeaderView):
     def mouseMoveEvent(self, event):
         pos = event.position().toPoint()
         sec = self.logicalIndexAt(pos)
-        on_toggle = False
-        if sec >= 0 and sec != 0:
-            sec_x = self.sectionViewportPosition(sec)
-            sec_w = self.sectionSize(sec)
-            if pos.x() >= sec_x + sec_w - self.CHEVRON_COMPARTMENT_WIDTH:
-                on_toggle = True
+        on_toggle = bool(sec >= 0 and sec != 0)
         if sec != self._hovered_section or on_toggle != self._hovered_toggle:
             self._hovered_section = sec
             self._hovered_toggle = on_toggle
@@ -403,54 +398,61 @@ class ExplorerHeaderView(QHeaderView):
         is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
         hovered_sec = self._hovered_section
-
-        def should_render_for(sec: int) -> bool:
-            if sec <= 0:
-                return False
-            if sec == sorted_sec:
-                return True
-            return sec == hovered_sec
-
-        target_sec = sorted_sec if should_render_for(sorted_sec) else hovered_sec
-        if not should_render_for(target_sec):
+        if hovered_sec <= 0:
             return
+        pal = self.palette()
 
-        sec_x = self.sectionViewportPosition(target_sec)
-        sec_w = self.sectionSize(target_sec)
-        h = self.viewport().height()
-        min_w = 3 * self.CHEVRON_COMPARTMENT_WIDTH
+        parent_table = self.parent()
+        table_hover_color: QColor | None = None
+        try:
+            if hasattr(parent_table, "property"):
+                v = parent_table.property("hoverRowColor")
+                if isinstance(v, QColor) and v.isValid():
+                    table_hover_color = QColor(v)
+                    table_hover_color.setAlpha(70)
+        except Exception:
+            table_hover_color = None
+        if table_hover_color is None:
+            hc = pal.color(QPalette.ColorRole.Highlight)
+            hc.setAlpha(40)
+            table_hover_color = hc
+
+        bg = pal.window().color()
+        separator_color = pal.color(QPalette.ColorRole.Dark)
+        if not separator_color.isValid() or separator_color.rgb() == 0xFF000000:
+            separator_color = bg.lighter(150) if bg.lightness() < 128 else bg.darker(150)
+
+        sec = hovered_sec
+        sec_x = self.sectionViewportPosition(sec)
+        sec_w = self.sectionSize(sec)
+        toggle_w = self.CHEVRON_COMPARTMENT_WIDTH
+        min_w = 3 * toggle_w
         if sec_w < min_w:
             return
+        h = self.viewport().height()
+        sorted_here = is_sorted and sec == sorted_sec
 
-        toggle_w = self.CHEVRON_COMPARTMENT_WIDTH
-        tx = sec_x + sec_w - toggle_w
         p = QPainter(self.viewport())
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        dark = self.palette().window().color().lightness() < 128
-        is_toggle_hover = (
-            target_sec == hovered_sec and bool(self._hovered_toggle)
-        )
-        sorted_here = is_sorted and target_sec == sorted_sec
+        p.fillRect(QRect(sec_x, 0, sec_w, h), table_hover_color)
 
-        if is_toggle_hover:
-            bg_color = QColor(255, 255, 255, 28) if dark else QColor(0, 0, 0, 20)
-            p.fillRect(QRect(tx + 1, 0, toggle_w, h), bg_color)
+        tx = sec_x + sec_w - toggle_w
+        separator_pen = QPen(separator_color, 1)
+        separator_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        p.setPen(separator_pen)
+        p.drawLine(QPointF(tx, 2), QPointF(tx, h - 2))
 
-        cx = tx + toggle_w / 2.0
-        cy = h / 2.0
         icon_normal, icon_hover = self._get_icon_colors()
-        chev_color = icon_hover if is_toggle_hover else icon_normal
+        chev_color = icon_hover
         pen = QPen(chev_color, 1.8)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
-
-        if sorted_here:
-            if self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
-                pts = [QPointF(cx - 5, cy + 2.5), QPointF(cx, cy - 2.5), QPointF(cx + 5, cy + 2.5)]
-            else:
-                pts = [QPointF(cx - 5, cy - 2.5), QPointF(cx, cy + 2.5), QPointF(cx + 5, cy - 2.5)]
+        cx = tx + toggle_w / 2.0
+        cy = h / 2.0
+        if sorted_here and self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
+            pts = [QPointF(cx - 5, cy + 2.5), QPointF(cx, cy - 2.5), QPointF(cx + 5, cy + 2.5)]
         else:
             pts = [QPointF(cx - 5, cy - 2.5), QPointF(cx, cy + 2.5), QPointF(cx + 5, cy - 2.5)]
         p.drawPolyline(QPolygonF(pts))
