@@ -342,6 +342,45 @@ class ExplorerHeaderView(QHeaderView):
                     iy = rect.y() + (rect.height() - sz) // 2
                     icon.paint(painter, ix, iy, sz, sz, Qt.AlignmentFlag.AlignCenter)
             return
+
+        if logicalIndex in (2, 3):
+            opt = QStyleOptionHeader()
+            self.initStyleOption(opt)
+            opt.rect = rect
+            opt.section = logicalIndex
+            opt.text = ""
+            opt.icon = QIcon()
+            self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
+            model = self.model()
+            if model is not None:
+                text = model.headerData(
+                    logicalIndex, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole
+                )
+                if isinstance(text, str) and text:
+                    text_rect = rect.adjusted(24, 0, -24, 0)
+                    align = model.headerData(
+                        logicalIndex,
+                        Qt.Orientation.Horizontal,
+                        Qt.ItemDataRole.TextAlignmentRole,
+                    )
+                    try:
+                        alignment = Qt.AlignmentFlag(int(align)) if align is not None else Qt.AlignmentFlag.AlignCenter
+                    except Exception:
+                        alignment = Qt.AlignmentFlag.AlignCenter
+                    painter.save()
+                    try:
+                        pal = self.palette()
+                        color = (
+                            pal.brightText().color()
+                            if opt.state & QStyle.StateFlag.State_Sunken
+                            else pal.windowText().color()
+                        )
+                        painter.setPen(color)
+                        painter.drawText(text_rect, int(alignment) | int(Qt.TextFlag.TextSingleLine), text)
+                    finally:
+                        painter.restore()
+            return
+
         super().paintSection(painter, rect, logicalIndex)
 
     def paintEvent(self, event):

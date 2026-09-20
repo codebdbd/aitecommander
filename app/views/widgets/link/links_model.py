@@ -162,7 +162,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _get_alignment_data(self, col):
         """Get alignment data for column."""
-        if col in (0, 2):
+        if col in (0, 2, 3):
             return int(Qt.AlignmentFlag.AlignCenter)
         return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
@@ -230,7 +230,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if 0 <= section < len(self._headers):
                     return self._headers[section]
             elif role == Qt.ItemDataRole.TextAlignmentRole:
-                if section == 0:
+                if section in (0, 2, 3):
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             elif role == Qt.ItemDataRole.ToolTipRole:
