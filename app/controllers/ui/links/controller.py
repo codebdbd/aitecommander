@@ -5,6 +5,7 @@ import logging
 from PyQt6.QtCore import QCoreApplication, QObject, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
+from app.config_data import app_config
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
 from app.utils.common import safe_call
@@ -18,9 +19,16 @@ from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
 logger = logging.getLogger(__name__)
-_OPEN_BATCH_SIZE = 5
-_OPEN_BATCH_DELAY_MS = 250
-_OPEN_LIMIT = 10
+
+_DEFAULT_OPEN_LIMIT = 10
+_DEFAULT_DELAY_MAP: dict[str, int] = {
+    "file": 0,
+    "folder": 0,
+    "web": 40,
+    "program": 60,
+    "script": 100,
+    "default": 20,
+}
 
 
 class LinksUIController(QObject):
@@ -364,7 +372,7 @@ class LinksUIController(QObject):
         if len(links) == 1:
             self.link_ops._open_link(links[0])
             return
-        self._open_links_in_batches(links, max_total=limit)
+        self._open_links_sequentially(links, max_total=limit)
 
     def open_selected_links(self) -> None:
         """Open all currently selected links."""
@@ -380,57 +388,97 @@ class LinksUIController(QObject):
         if len(links) == 1:
             self.link_ops._open_link(links[0])
             return
-        self._open_links_in_batches(links, max_total=limit)
+        self._open_links_sequentially(links, max_total=limit)
+
+    def _get_open_limit(self) -> int:
+        try:
+            val = app_config.get("settings.open_links_confirm_limit", _DEFAULT_OPEN_LIMIT)
+            if isinstance(val, int) and val > 0:
+                return val
+        except Exception as e:
+            logger.debug("Failed to read open_links_confirm_limit from config: %s", e)
+        return _DEFAULT_OPEN_LIMIT
+
+    def _get_delay_ms_for_link(self, link: dict) -> int:
+        type_val = link.get("type")
+        type_str: str
+        if type_val is None:
+            type_str = "default"
+        elif hasattr(type_val, "value"):
+            type_str = str(type_val.value)
+        else:
+            type_str = str(type_val)
+        try:
+            cfg_map = app_config.get(
+                "settings.launch_delay_ms_by_type", _DEFAULT_DELAY_MAP
+            )
+            if isinstance(cfg_map, dict):
+                if type_str in cfg_map:
+                    raw = cfg_map[type_str]
+                    if isinstance(raw, int) and raw >= 0:
+                        return raw
+                if "default" in cfg_map:
+                    raw = cfg_map["default"]
+                    if isinstance(raw, int) and raw >= 0:
+                        return raw
+        except Exception as e:
+            logger.debug("Failed to read launch_delay_ms_by_type from config: %s", e)
+        if type_str in _DEFAULT_DELAY_MAP:
+            return _DEFAULT_DELAY_MAP[type_str]
+        return _DEFAULT_DELAY_MAP.get("default", 0)
 
     def _confirm_open_many_links(self, count: int) -> int | None:
-        if count <= _OPEN_LIMIT:
+        limit = self._get_open_limit()
+        if count <= limit:
             return count
         title = QCoreApplication.translate("LinksUIController", "Open Links")
-        text = QCoreApplication.translate(
+        open_x = QCoreApplication.translate(
+            "LinksUIController", "Open {limit}"
+        ).replace("{limit}", str(limit))
+        cancel = QCoreApplication.translate("LinksUIController", "Cancel")
+        text_tpl = QCoreApplication.translate(
             "LinksUIController",
-            "You are trying to open more than 10 links simultaneously.\n"
-            "To prevent performance issues, opening is limited to 10 links.\n"
-            "Would you like to open the first 10 selected links?",
+            "You are trying to open more than {limit} links simultaneously.\n"
+            "To prevent performance issues, opening is limited to {limit} links.\n"
+            "Would you like to open the first {limit} selected links?",
         )
-        limit = _OPEN_LIMIT
+        text = text_tpl.replace("{limit}", str(limit))
         parent = self.main if self.main is not None else self.table
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Information)
         box.setWindowTitle(title)
         box.setText(text)
-        open_btn = box.addButton(
-            QCoreApplication.translate("LinksUIController", "Open 10"),
-            QMessageBox.ButtonRole.AcceptRole,
-        )
-        cancel_btn = box.addButton(
-            QCoreApplication.translate("LinksUIController", "Cancel"),
-            QMessageBox.ButtonRole.RejectRole,
-        )
+        open_btn = box.addButton(open_x, QMessageBox.ButtonRole.AcceptRole)
+        cancel_btn = box.addButton(cancel, QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(cancel_btn)
         box.exec()
         if box.clickedButton() is not open_btn:
             return None
         return limit
 
-    def _open_links_in_batches(self, links: list[dict], *, max_total: int | None) -> None:
+    def _open_links_sequentially(self, links: list[dict], *, max_total: int | None) -> None:
         pending = list(links)
         opened = 0
 
-        def _open_next_batch() -> None:
+        def _open_next() -> None:
             nonlocal opened
             if max_total is not None and opened >= max_total:
                 return
-            batch = pending[:_OPEN_BATCH_SIZE]
-            del pending[:_OPEN_BATCH_SIZE]
-            for link in batch:
-                if max_total is not None and opened >= max_total:
-                    break
-                self.link_ops._open_link(link)
-                opened += 1
-            if pending:
-                QTimer.singleShot(_OPEN_BATCH_DELAY_MS, _open_next_batch)
+            if not pending:
+                return
+            link = pending.pop(0)
+            if max_total is not None and opened >= max_total:
+                return
+            self.link_ops._open_link(link)
+            opened += 1
+            if not pending:
+                return
+            if max_total is not None and opened >= max_total:
+                return
+            delay = self._get_delay_ms_for_link(link)
+            QTimer.singleShot(delay, _open_next)
 
-        _open_next_batch()
+        _open_next()
 
     def toggle_favorite(self, link: dict | None = None) -> None:
         """Toggle favorite status."""

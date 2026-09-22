@@ -584,6 +584,15 @@
     "favicon_cache_max_size": 5000,
     "favicon_cache_cleanup_interval": 300.0,
     "favicon_cache_persistent": false,
-    "pixmap_cache_size_kb": 20480
+    "pixmap_cache_size_kb": 20480,
+    "open_links_confirm_limit": 10,
+    "launch_delay_ms_by_type": {
+      "file": 0,
+      "folder": 0,
+      "web": 40,
+      "program": 60,
+      "script": 100,
+      "default": 20
+    }
   }
 }
