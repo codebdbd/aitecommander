@@ -220,6 +220,33 @@ class TableDelegate(QStyledItemDelegate):
         if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
             option.features &= ~QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
 
+    def drawDisplay(self, painter, option, rect, text):
+        """Override text rendering to enforce theme colors.
+
+        QSS cascade prioritizes inherited ``QWidget { color: }`` over
+        ``option.palette`` passed to ``drawControl``. Direct ``setPen``
+        on the painter wins over any QSS rule, so theme-aware colors
+        (``qproperty-primaryCellTextColor`` / ``openedColColor`` etc.)
+        are applied here for non-selected rows. Selected rows keep the
+        QSS rule ``QTableView::item:selected { color: }`` intact.
+        """
+        col = getattr(self, "_current_paint_col", -1)
+        is_selected = bool(
+            getattr(self, "_current_paint_selected", False)
+            or (option.state & QStyle.StateFlag.State_Selected)
+        )
+        if not is_selected:
+            color = self._resolve_column_color(col)
+            if isinstance(color, QColor) and color.isValid():
+                old_pen = painter.pen()
+                painter.setPen(color)
+                try:
+                    super().drawDisplay(painter, option, rect, text)
+                finally:
+                    painter.setPen(old_pen)
+                return
+        super().drawDisplay(painter, option, rect, text)
+
     def paint(self, painter, option, index):
         self._paint_hover_highlight(painter, option, index)
 
@@ -234,7 +261,15 @@ class TableDelegate(QStyledItemDelegate):
         if is_column(col, LinkTableColumn.NAME):
             self._apply_name_column_elision(opt)
 
-        super().paint(painter, opt, index)
+        try:
+            self._current_paint_col = col
+            self._current_paint_selected = bool(
+                opt.state & QStyle.StateFlag.State_Selected
+            )
+            super().paint(painter, opt, index)
+        finally:
+            self._current_paint_col = -1
+            self._current_paint_selected = False
 
         if is_column(col, LinkTableColumn.GROUP_LAUNCH):
             widget = option.widget
@@ -338,6 +373,47 @@ class ExplorerHeaderView(QHeaderView):
 
     CHEVRON_COMPARTMENT_WIDTH = 24
 
+    @staticmethod
+    def _global_row_height() -> int:
+        try:
+            from app.config_data import app_config
+
+            return int(app_config.ui.get_row_height())
+        except Exception:
+            return 32
+
+    def _sync_row_height(self) -> None:
+        """Pin header height exactly to ``ui.row_height`` (body row height).
+
+        ``QHeaderView`` derives section heights from ``fontMetrics + QSS``
+        which commonly diverges from the explicit body row height used for
+        vertical sections. Fix by clamping all relevant sizes:
+        ``defaultSectionSize``, ``minimumSectionSize``, widget-level fixed
+        height. Also re-apply after Style/Font/Layout events since QSS
+        re-application can reset geometry hints.
+        """
+        h = self._global_row_height()
+        try:
+            self.setDefaultSectionSize(h)
+        except Exception:
+            pass
+        try:
+            self.setMinimumSectionSize(h)
+        except Exception:
+            pass
+        try:
+            self.setFixedHeight(h)
+        except Exception:
+            try:
+                self.setMinimumHeight(h)
+                self.setMaximumHeight(h)
+            except Exception:
+                pass
+        try:
+            self.updateGeometry()
+        except Exception:
+            pass
+
     def __init__(self, orientation: Qt.Orientation, parent=None):
         super().__init__(orientation, parent)
         self.setMouseTracking(True)
@@ -348,6 +424,10 @@ class ExplorerHeaderView(QHeaderView):
             style = ExplorerHeaderStyle(self)
             style.setParent(self)
             self.setStyle(style)
+        except Exception:
+            pass
+        try:
+            self._sync_row_height()
         except Exception:
             pass
 
@@ -369,8 +449,19 @@ class ExplorerHeaderView(QHeaderView):
     def changeEvent(self, event):
         t = event.type() if event is not None else None
         if t in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange, QEvent.Type.FontChange):
+            try:
+                self._sync_row_height()
+            except Exception:
+                pass
             self.viewport().update()
         super().changeEvent(event)
+
+    def resizeEvent(self, event):
+        try:
+            self._sync_row_height()
+        except Exception:
+            pass
+        super().resizeEvent(event)
 
     def mouseMoveEvent(self, event):
         pos = event.position().toPoint()
@@ -522,6 +613,65 @@ class LinksTableView(
         if viewport is not None:
             viewport.update()
 
+    def changeEvent(self, event) -> None:
+        """Reset theme properties on style change.
+
+        When the app calls ``QApplication.setStyleSheet()`` to switch themes,
+        Qt re-evaluates QSS and calls each ``qproperty-`` setter. However,
+        primary/secondary colors are only explicitly defined in a subset of
+        themes — most rely on ``openedColColor``/``notesColColor`` fallbacks.
+        Without resetting primary/secondary defaults here, a previous theme's
+        explicit primary/secondary value would stick forever (since isValid()
+        skips the legacy assignment), producing stale colors on light themes.
+        Also re-syncs header row height because QSS re-application can reset
+        ``QHeaderView`` geometry hints (font metrics + padding recalculated).
+        """
+        try:
+            et = event.type() if event is not None else None
+            if et in (
+                QEvent.Type.StyleChange,
+                QEvent.Type.PaletteChange,
+                QEvent.Type.FontChange,
+            ):
+                try:
+                    if hasattr(self, "_primary_cell_text_color"):
+                        self._primary_cell_text_color = QColor()
+                    if hasattr(self, "_secondary_cell_text_color"):
+                        self._secondary_cell_text_color = QColor()
+                except Exception:
+                    pass
+                try:
+                    header = (
+                        self.horizontalHeader()
+                        if hasattr(self, "horizontalHeader")
+                        else None
+                    )
+                    if header is not None and hasattr(header, "_sync_row_height"):
+                        header._sync_row_height()
+                except Exception:
+                    pass
+                try:
+                    vh = (
+                        self.verticalHeader()
+                        if hasattr(self, "verticalHeader")
+                        else None
+                    )
+                    if vh is not None:
+                        try:
+                            from app.config_data import app_config
+
+                            vh.setDefaultSectionSize(
+                                int(app_config.ui.get_row_height())
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                self._update_viewport_after_style_change()
+        except Exception:
+            pass
+        super().changeEvent(event)
+
     # qproperty: color for header text/glyphs/sort arrow
     def _get_table_header_text_color(self) -> QColor:
         try:
@@ -589,8 +739,12 @@ class LinksTableView(
         try:
             color = self._coerce_color(value)
             self._opened_col_color = color
-            if not self._get_secondary_cell_text_color().isValid():
-                self._secondary_cell_text_color = color
+            # Legacy fallback: openedColColor always feeds secondaryCellTextColor
+            # so themes that only define openedColColor/notesColColor keep working.
+            # NOTE: always overwrite, never skip by isValid() — otherwise a
+            # previous theme's value leaks across setStyleSheet() calls.
+            if isinstance(color, QColor) and color.isValid():
+                self._secondary_cell_text_color = QColor(color)
             self._update_viewport_after_style_change()
         except Exception:
             pass
@@ -610,8 +764,11 @@ class LinksTableView(
         try:
             color = self._coerce_color(value)
             self._notes_col_color = color
-            if not self._get_primary_cell_text_color().isValid():
-                self._primary_cell_text_color = color
+            # Legacy fallback: notesColColor always feeds primaryCellTextColor.
+            # Always overwrite — never skip by isValid() to avoid stale values
+            # leaking from a previously applied theme.
+            if isinstance(color, QColor) and color.isValid():
+                self._primary_cell_text_color = QColor(color)
             self._update_viewport_after_style_change()
         except Exception:
             pass
@@ -747,6 +904,11 @@ class LinksTableView(
         _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
+        try:
+            if hasattr(header, "_sync_row_height"):
+                header._sync_row_height()
+        except Exception:
+            pass
         header.setStretchLastSection(False)
         try:
             for descriptor in LINK_TABLE_COLUMNS:

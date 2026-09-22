@@ -418,9 +418,13 @@ QTableView QTableCornerButton::section:first {
 
 QTableView QHeaderView::section:horizontal {
     border-top: none;
-    border-bottom: none;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
     border-left: none;
-    border-right: 1px solid #3A3E44;
+    border-right-width: 1px;
+    border-right-style: solid;
+    /* border-bottom-color and border-right-color are defined per-theme
+       inside ::section:horizontal blocks in dark.qss, light.qss, etc. */
     padding: 2px 12px;
 }
 

@@ -214,6 +214,7 @@ border-bottom-color: #1E3A28;
 QTableView QHeaderView::section:horizontal {
 background-color: #0A100C;
 border-right-color: #1E3A28;
+border-bottom-color: #1E3A28;
 color: #39FF88;
 }
 QTableView QHeaderView {

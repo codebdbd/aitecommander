@@ -183,23 +183,7 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
     path_obj = Path(file_path)
 
     if path_obj.suffix.lower() == ".svg":
-        from app.services.theme_registry import theme_registry
-        from app.utils.ui.icon.path_service import get_current_theme
-        theme = get_current_theme()
-        theme_color = theme_registry.get_theme_icon_color(theme)
-        return await run_in_gui_thread_async(
-            lambda: _create_tinted_svg_icon(str(path_obj), theme_color)
-        )
-
-        # Fallback to PNG version of icon
-        png_path = path_obj.with_suffix(".png")
-        if png_path.exists() and is_valid_icon_file(str(png_path)):
-            logger.debug("Falling back to PNG version: %s", png_path)
-            # Create icon strictly in GUI thread
-            return await run_in_gui_thread_async(lambda: QIcon(str(png_path)))
-
-        # If PNG version unavailable, return empty icon
-        return QIcon()
+        return await run_in_gui_thread_async(lambda: _create_svg_icon(str(path_obj)))
     else:
         # Regular image formats - create strictly in GUI thread
         return await run_in_gui_thread_async(
@@ -561,11 +545,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         if _should_use_fast_path(path_obj):
             icon = _create_png_icon_fast(icon_path, app_config.get_default_icon_size())
         elif path_obj.suffix.lower() == ".svg":
-            from app.services.theme_registry import theme_registry
-            from app.utils.ui.icon.path_service import get_current_theme
-            theme = get_current_theme()
-            theme_color = theme_registry.get_theme_icon_color(theme)
-            icon = _create_tinted_svg_icon(icon_path, theme_color)
+            icon = _create_svg_icon(icon_path)
         else:
             icon = _create_icon_from_file_path(icon_path)
 
