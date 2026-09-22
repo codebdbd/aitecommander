@@ -160,11 +160,9 @@ class LinksTableController(QObject):
 
     def _on_group_launch_toggled(self, link_id: int, val_int: int) -> None:
         try:
-            from app.core.worker_manager import worker_manager
-            worker_manager.submit(
-                self._update_group_launch_task, link_id, val_int, 
-                task_name=f"update_group_launch_{link_id}"
-            )
+            from app.core.worker_manager import WorkerManager
+
+            WorkerManager.run(self._update_group_launch_task, link_id, val_int)
         except Exception as e:
             logger.warning("LinksTableController: Failed to dispatch is_group_launch update: %s", e)
 

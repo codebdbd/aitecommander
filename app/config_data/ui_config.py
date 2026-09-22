@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
     {
+        "id": "switch_sphere",
+        "handler": "switch_to_next_sphere",
+        "shortcut": "F6",
+    },
+    {
         "id": "add_section",
         "handler": "show_section_dialog",
         "shortcut": "F3",
@@ -24,19 +29,9 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "shortcut": "F4",
     },
     {
-        "id": "launch_marked",
-        "handler": "launch_marked_links",
-        "shortcut": "F5",
-    },
-    {
         "id": "add_link",
         "handler": "show_link_dialog",
         "shortcut": "F1",
-    },
-    {
-        "id": "launch_marked",
-        "handler": "launch_marked_links",
-        "shortcut": "F5",
     },
     {
         "id": "edit_link",
@@ -47,6 +42,11 @@ _DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
         "id": "delete_link",
         "handler": "delete_current",
         "shortcut": "Del",
+    },
+    {
+        "id": "launch_marked",
+        "handler": "launch_marked_links",
+        "shortcut": "F5",
     },
 )
 
@@ -706,43 +706,33 @@ class UIConfig(BaseConfig):
         if not normalized:
             normalized = _default_bottom_actions()
         else:
-            launch_action = None
-            for idx, a in enumerate(normalized):
-                if a.get("id") == "launch_marked":
-                    launch_action = normalized.pop(idx)
-                    break
-            if not launch_action:
-                launch_action = {
-                    "id": "launch_marked",
-                    "handler": "launch_marked_links",
-                    "shortcut": "F5",
-                }
-            insert_idx = len(normalized)
-            for idx, a in enumerate(normalized):
-                if a.get("id") == "add_link":
-                    insert_idx = idx + 1
-                    break
-            normalized.insert(insert_idx, launch_action)
+            required_ids = ("launch_marked",)
+            present_ids = {a.get("id") for a in normalized}
+            for req_id in required_ids:
+                if req_id not in present_ids:
+                    template = next(
+                        (a for a in _DEFAULT_BOTTOM_ACTIONS if a["id"] == req_id),
+                        None,
+                    )
+                    if template is not None:
+                        normalized.append(dict(template))
 
         return normalized
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
-        return ["▶", "Name", "Order", "Launch", "Notes", "Type"]
+        from app.views.widgets.link.columns import LINK_TABLE_COLUMNS
+
+        return [descriptor.header_source for descriptor in LINK_TABLE_COLUMNS]
 
     def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
+        from app.views.widgets.link.columns import LINK_TABLE_COLUMN_MAP
+
         cols = self.get("ui.links_table_columns")
-        if isinstance(cols, dict) and "favorite" not in cols and len(cols) >= 6:
-            return cols
-        return {
-            "group_launch": 0,
-            "name": 1,
-            "order": 2,
-            "last_used": 3,
-            "notes": 4,
-            "type": 5,
-        }
+        if isinstance(cols, dict):
+            return {key: int(cols[key]) for key in LINK_TABLE_COLUMN_MAP}
+        return dict(LINK_TABLE_COLUMN_MAP)
 
     def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""

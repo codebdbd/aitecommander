@@ -6,6 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
+from PyQt6 import sip
 from PyQt6.QtCore import (
     QCoreApplication,
     QLibraryInfo,
@@ -75,6 +76,8 @@ class LanguageService(QObject):
     @classmethod
     def instance(cls) -> LanguageService:
         """Get the singleton instance."""
+        if cls._instance is not None and sip.isdeleted(cls._instance):
+            cls._instance = None
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

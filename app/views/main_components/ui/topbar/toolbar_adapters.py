@@ -628,7 +628,9 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
             label = tooltips.get(code, tooltip) or code
             type_dict[code] = (icon_name, label)
 
-        ordered_codes = ["web", "file", "folder", "program", "script"]
+        from app.utils.links.type_labels import LINK_TYPE_DESCRIPTORS
+
+        ordered_codes = [descriptor.key for descriptor in LINK_TYPE_DESCRIPTORS]
         for code in type_dict:
             if code not in ordered_codes:
                 ordered_codes.append(code)

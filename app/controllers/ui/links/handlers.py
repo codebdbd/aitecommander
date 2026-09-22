@@ -4,6 +4,7 @@ from typing import Optional
 from PyQt6.QtCore import Qt
 
 from app.utils.common import safe_call
+from app.views.widgets.link.columns import LinkTableColumn, is_column
 
 from .base_component import BaseLinksUIComponent
 
@@ -230,19 +231,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
             return
 
         # Don't open link on double-click on checkbox column
-        if column == self.COLUMNS.get("group_launch", 0):
+        if is_column(column, LinkTableColumn.GROUP_LAUNCH):
             return
-        if column == self.COLUMNS.get("order", 2):
+        if is_column(column, LinkTableColumn.ORDER):
             return
 
-        if column == self.COLUMNS["notes"]:
+        if is_column(column, LinkTableColumn.NOTES):
             self.controller.show_note_dialog(link)
         else:
             self.controller.open_link(link)
 
     def _on_cell_clicked(self, row: int, column: int):
         """Handle cell click."""
-        if column == self.COLUMNS.get("group_launch", 0):
+        if is_column(column, LinkTableColumn.GROUP_LAUNCH):
             return
 
         link = self.controller.get_link_at(row)

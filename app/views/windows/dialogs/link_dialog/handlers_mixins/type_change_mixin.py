@@ -132,6 +132,8 @@ class TypeChangeMixin:
                     target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
                 else:
                     target = self.dialog._get_browse_btn()
+                    if target is None or not target.isVisible():
+                        target = self.dialog._get_url_le()
                     target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
                 # Hold preferred focus briefly so hierarchy updates do not steal it
                 try:

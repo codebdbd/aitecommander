@@ -40,7 +40,14 @@ from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
 from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
+from app.views.widgets.link.columns import (
+    LINK_TABLE_COLUMNS,
+    LinkTableColumn,
+    is_column,
+    resize_mode_name_for_descriptor,
+)
 from app.views.widgets.link.links_model import HEADER_CHEVRON_PADDING_ROLE, LinksTableModel
+from app.views.widgets.link.sort_controller import LinkSortAction, LinkTableSortController
 from i18n.language_service import LanguageService
 
 from .data_management import DataManagementMixin
@@ -53,6 +60,11 @@ from .row_operations import RowOperationsMixin
 # Module-level logger
 logger = logging.getLogger(__name__)
 
+_PRIMARY_TEXT_COLUMNS = frozenset((int(LinkTableColumn.NAME), int(LinkTableColumn.NOTES)))
+_SECONDARY_TEXT_COLUMNS = frozenset(
+    (int(LinkTableColumn.ORDER), int(LinkTableColumn.LAUNCH), int(LinkTableColumn.TYPE))
+)
+
 
 def _header_text_width(header: QHeaderView, text: str, *, min_width: int) -> int:
     """Return a header column width that leaves room for text and sort toggle."""
@@ -61,6 +73,17 @@ def _header_text_width(header: QHeaderView, text: str, *, min_width: int) -> int
         return max(min_width, text_width + 40)
     except Exception:
         return min_width
+
+
+def _qt_resize_mode(mode_name: str) -> QHeaderView.ResizeMode:
+    """Map declarative column resize policy to Qt resize modes."""
+    modes = {
+        "fixed": QHeaderView.ResizeMode.Fixed,
+        "interactive": QHeaderView.ResizeMode.Interactive,
+        "stretch": QHeaderView.ResizeMode.Stretch,
+        "resize_to_contents": QHeaderView.ResizeMode.ResizeToContents,
+    }
+    return modes.get(mode_name, QHeaderView.ResizeMode.Interactive)
 
 
 class TableDelegate(QStyledItemDelegate):
@@ -91,28 +114,7 @@ class TableDelegate(QStyledItemDelegate):
         if self._font_units not in ("px", "pt"):
             self._font_units = "px"
 
-        # Individual column sizes (backward compatibility)
-        self.col_opened_px = _get_px("table_opened_col_px")  # "Launch" column (index=3)
-        self.col_notes_px = _get_px("table_notes_col_px")  # "Notes" column (index=4)
-
-        # Modern approach: array of sizes for all columns
-        self.col_sizes: dict[int, int] = {}
-        try:
-            arr = app_config.ui.get(
-                "ui.fonts.table_cols_px"
-            )  # expected to be a list of numbers or None
-        except Exception:
-            arr = None
-        if isinstance(arr, (list, tuple)):
-            for i, v in enumerate(arr):
-                try:
-                    if v is None:
-                        continue
-                    iv = int(v)
-                    if iv > 0:
-                        self.col_sizes[i] = iv
-                except Exception:
-                    continue
+        self.body_font_size = _get_px("table_row_px")
 
     def update_column_sizes(self, font_size: int):
         """Update column font sizes based on new base font size.
@@ -120,15 +122,7 @@ class TableDelegate(QStyledItemDelegate):
         Scales all column sizes proportionally to the new font size.
         """
         try:
-            # Update individual column sizes
-            if self.col_opened_px:
-                self.col_opened_px = font_size
-            if self.col_notes_px:
-                self.col_notes_px = font_size
-            
-            # Update column sizes dict
-            for col in self.col_sizes:
-                self.col_sizes[col] = font_size
+            self.body_font_size = font_size
                 
         except Exception as e:
             logger.debug("TableDelegate.update_column_sizes failed: %s", e)
@@ -146,18 +140,16 @@ class TableDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, hover_color)
             painter.restore()
 
-    def _apply_column_font_size(self, opt, col):
-        """Apply font size for specific column."""
-        try:
-            if col == 0:
-                return
+    def _body_font_size_for_column(self, col: int) -> int | None:
+        """Return the unified body font size for a table column."""
+        if is_column(col, LinkTableColumn.GROUP_LAUNCH):
+            return None
+        return self.body_font_size
 
-            val = self.col_sizes.get(col)
-            if val is None:
-                if col == 3:
-                    val = self.col_opened_px
-                elif col == 4:
-                    val = self.col_notes_px
+    def _apply_column_font_size(self, opt, col):
+        """Apply the same body font size to every text cell."""
+        try:
+            val = self._body_font_size_for_column(col)
             if val and int(val) > 0:
                 f = opt.font
                 if self._font_units == "pt":
@@ -168,13 +160,38 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-    def _apply_column_color(self, opt, col, color_attr):
-        """Apply text color for specific column."""
+    def _color_attr_for_column(self, col: int) -> str | None:
+        """Return the table text color role for a body column."""
+        if col in _PRIMARY_TEXT_COLUMNS:
+            return "primaryCellTextColor"
+        if col in _SECONDARY_TEXT_COLUMNS:
+            return "secondaryCellTextColor"
+        return None
+
+    def _fallback_color_attr_for_column(self, col: int) -> str | None:
+        """Return legacy color property used until every theme defines roles."""
+        if col in _PRIMARY_TEXT_COLUMNS:
+            return "notesColColor"
+        if col in _SECONDARY_TEXT_COLUMNS:
+            return "openedColColor"
+        return None
+
+    def _resolve_column_color(self, col: int) -> QColor | None:
+        view = self.parent() if hasattr(self, "parent") else None
+        if view is None:
+            return None
+        for attr in (self._color_attr_for_column(col), self._fallback_color_attr_for_column(col)):
+            if not attr or not hasattr(view, attr):
+                continue
+            color = getattr(view, attr)
+            if isinstance(color, QColor) and color.isValid():
+                return color
+        return None
+
+    def _apply_column_color(self, opt, col):
+        """Apply role-based table text color for body columns."""
         try:
-            view = self.parent() if hasattr(self, "parent") else None
-            color = None
-            if view is not None and hasattr(view, color_attr):
-                color = getattr(view, color_attr)
+            color = self._resolve_column_color(col)
             if isinstance(color, QColor) and color.isValid():
                 pal = QPalette(opt.palette)
                 pal.setColor(QPalette.ColorRole.Text, color)
@@ -200,7 +217,7 @@ class TableDelegate(QStyledItemDelegate):
 
     def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         super().initStyleOption(option, index)
-        if index.column() == 0:
+        if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
             option.features &= ~QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
 
     def paint(self, painter, option, index):
@@ -212,17 +229,14 @@ class TableDelegate(QStyledItemDelegate):
         col = index.column()
         self._apply_column_font_size(opt, col)
 
-        if col == 3:
-            self._apply_column_color(opt, col, "openedColColor")
-        elif col == 4:
-            self._apply_column_color(opt, col, "notesColColor")
+        self._apply_column_color(opt, col)
 
-        if col == 1:
+        if is_column(col, LinkTableColumn.NAME):
             self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
 
-        if col == 0:
+        if is_column(col, LinkTableColumn.GROUP_LAUNCH):
             widget = option.widget
             style = widget.style() if widget else QApplication.style()
             check_opt = QStyleOptionViewItem(option)
@@ -254,7 +268,7 @@ class TableDelegate(QStyledItemDelegate):
             )
 
     def editorEvent(self, event, model, option, index):
-        if index.column() == 0:
+        if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
             if (
                 event.type() == QEvent.Type.MouseButtonRelease
                 and event.button() == Qt.MouseButton.LeftButton
@@ -331,7 +345,9 @@ class ExplorerHeaderView(QHeaderView):
         self._hovered_section = -1
         self._hovered_toggle = False
         try:
-            self.setStyle(ExplorerHeaderStyle(self, self.style()))
+            style = ExplorerHeaderStyle(self)
+            style.setParent(self)
+            self.setStyle(style)
         except Exception:
             pass
 
@@ -372,6 +388,36 @@ class ExplorerHeaderView(QHeaderView):
         self.viewport().update()
         super().leaveEvent(event)
 
+    def _resolve_header_text_color(self) -> QColor:
+        """Return the color used for header text, glyphs, and sort arrows."""
+        parent_table = self.parent()
+        try:
+            color = getattr(parent_table, "tableHeaderTextColor", QColor())
+            if isinstance(color, QColor) and color.isValid():
+                return color
+        except Exception:
+            pass
+        normal, _hover = self._get_icon_colors()
+        return normal
+
+    @staticmethod
+    def _paint_tinted_icon(
+        painter: QPainter, icon: QIcon, x: int, y: int, size: int, color: QColor
+    ) -> None:
+        """Paint a monochrome icon using the header text role."""
+        pixmap = icon.pixmap(size, size)
+        if pixmap.isNull() or not color.isValid():
+            icon.paint(painter, x, y, size, size, Qt.AlignmentFlag.AlignCenter)
+            return
+        tinted = pixmap.copy()
+        tint_painter = QPainter(tinted)
+        try:
+            tint_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+            tint_painter.fillRect(tinted.rect(), color)
+        finally:
+            tint_painter.end()
+        painter.drawPixmap(x, y, tinted)
+
     def paintSection(self, painter, rect, logicalIndex):
         if logicalIndex == 0:
             opt = QStyleOptionHeader()
@@ -383,12 +429,18 @@ class ExplorerHeaderView(QHeaderView):
             self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
             model = self.model()
             if model is not None:
-                icon = model.headerData(0, Qt.Orientation.Horizontal, Qt.ItemDataRole.DecorationRole)
+                icon = model.headerData(
+                    int(LinkTableColumn.GROUP_LAUNCH),
+                    Qt.Orientation.Horizontal,
+                    Qt.ItemDataRole.DecorationRole,
+                )
                 if isinstance(icon, QIcon) and not icon.isNull():
                     sz = 20
                     ix = rect.x() + (rect.width() - sz) // 2
                     iy = rect.y() + (rect.height() - sz) // 2
-                    icon.paint(painter, ix, iy, sz, sz, Qt.AlignmentFlag.AlignCenter)
+                    self._paint_tinted_icon(
+                        painter, icon, ix, iy, sz, self._resolve_header_text_color()
+                    )
             return
 
         super().paintSection(painter, rect, logicalIndex)
@@ -398,7 +450,7 @@ class ExplorerHeaderView(QHeaderView):
         is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
         hovered_sec = self._hovered_section
-        if hovered_sec <= 0:
+        if hovered_sec <= int(LinkTableColumn.GROUP_LAUNCH):
             return
         pal = self.palette()
 
@@ -436,8 +488,7 @@ class ExplorerHeaderView(QHeaderView):
 
         tx = sec_x + sec_w - toggle_w
 
-        icon_normal, icon_hover = self._get_icon_colors()
-        chev_color = icon_hover
+        chev_color = self._resolve_header_text_color()
         pen = QPen(chev_color, 1.8)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -462,8 +513,70 @@ class LinksTableView(
 ):
     """Primary links table view with modular architecture."""
 
-    _sort_initialized: bool = False
-    _allow_sort_persist: bool = False
+    @staticmethod
+    def _coerce_color(value) -> QColor:
+        return QColor(value) if isinstance(value, QColor) else QColor(str(value))
+
+    def _update_viewport_after_style_change(self) -> None:
+        viewport = self.viewport()
+        if viewport is not None:
+            viewport.update()
+
+    # qproperty: color for header text/glyphs/sort arrow
+    def _get_table_header_text_color(self) -> QColor:
+        try:
+            return getattr(self, "_table_header_text_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_table_header_text_color(self, value) -> None:
+        try:
+            self._table_header_text_color = self._coerce_color(value)
+            header = self.horizontalHeader() if hasattr(self, "horizontalHeader") else None
+            if header is not None:
+                header.viewport().update()
+        except Exception:
+            pass
+
+    tableHeaderTextColor = pyqtProperty(
+        QColor, fget=_get_table_header_text_color, fset=_set_table_header_text_color
+    )
+
+    # qproperty: color for primary cell text (Name, Notes)
+    def _get_primary_cell_text_color(self) -> QColor:
+        try:
+            return getattr(self, "_primary_cell_text_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_primary_cell_text_color(self, value) -> None:
+        try:
+            self._primary_cell_text_color = self._coerce_color(value)
+            self._update_viewport_after_style_change()
+        except Exception:
+            pass
+
+    primaryCellTextColor = pyqtProperty(
+        QColor, fget=_get_primary_cell_text_color, fset=_set_primary_cell_text_color
+    )
+
+    # qproperty: color for secondary cell text (Order, Launch, Type)
+    def _get_secondary_cell_text_color(self) -> QColor:
+        try:
+            return getattr(self, "_secondary_cell_text_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_secondary_cell_text_color(self, value) -> None:
+        try:
+            self._secondary_cell_text_color = self._coerce_color(value)
+            self._update_viewport_after_style_change()
+        except Exception:
+            pass
+
+    secondaryCellTextColor = pyqtProperty(
+        QColor, fget=_get_secondary_cell_text_color, fset=_set_secondary_cell_text_color
+    )
 
     # qproperty: color for the "Opened" column (QSS: ``qproperty-openedColColor``)
     def _get_opened_col_color(self) -> QColor:
@@ -474,13 +587,11 @@ class LinksTableView(
 
     def _set_opened_col_color(self, value) -> None:
         try:
-            if isinstance(value, QColor):
-                self._opened_col_color = value
-            else:
-                self._opened_col_color = QColor(str(value))
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            color = self._coerce_color(value)
+            self._opened_col_color = color
+            if not self._get_secondary_cell_text_color().isValid():
+                self._secondary_cell_text_color = color
+            self._update_viewport_after_style_change()
         except Exception:
             pass
 
@@ -497,13 +608,11 @@ class LinksTableView(
 
     def _set_notes_col_color(self, value) -> None:
         try:
-            if isinstance(value, QColor):
-                self._notes_col_color = value
-            else:
-                self._notes_col_color = QColor(str(value))
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            color = self._coerce_color(value)
+            self._notes_col_color = color
+            if not self._get_primary_cell_text_color().isValid():
+                self._primary_cell_text_color = color
+            self._update_viewport_after_style_change()
         except Exception:
             pass
 
@@ -520,13 +629,8 @@ class LinksTableView(
 
     def _set_hover_row_color(self, value) -> None:
         try:
-            if isinstance(value, QColor):
-                self._hover_row_color = value
-            else:
-                self._hover_row_color = QColor(str(value))
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            self._hover_row_color = self._coerce_color(value)
+            self._update_viewport_after_style_change()
         except Exception:
             pass
 
@@ -585,8 +689,7 @@ class LinksTableView(
         self._current_mode = "normal"  # Active presentation mode
         self._rebuild_in_progress = False
         self._cleanup_done = False
-        self._sort_initialized = False
-        self._allow_sort_persist = False
+        self._sort_controller = LinkTableSortController()
         self._setup_table()
 
         # Forward base-class signal to our alias for compatibility
@@ -616,17 +719,26 @@ class LinksTableView(
         header.setSectionsClickable(True)
         col_widths = app_config.ui.get_col_widths()
         try:
-            order_header = model.headerData(
-                2, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole
-            )
-            self.setColumnWidth(0, 32)
-            self.setColumnWidth(1, col_widths[1])
-            self.setColumnWidth(
-                2,
-                _header_text_width(header, str(order_header or "Order"), min_width=112),
-            )
-            self.setColumnWidth(3, col_widths[2])
-            self.setColumnWidth(5, 104)
+            for descriptor in LINK_TABLE_COLUMNS:
+                width = descriptor.fallback_width
+                if descriptor.config_width_index is not None:
+                    try:
+                        width = col_widths[descriptor.config_width_index]
+                    except Exception:
+                        pass
+                if descriptor.min_width:
+                    header_text = model.headerData(
+                        descriptor.index,
+                        Qt.Orientation.Horizontal,
+                        Qt.ItemDataRole.DisplayRole,
+                    )
+                    width = _header_text_width(
+                        header,
+                        str(header_text or descriptor.header_source),
+                        min_width=descriptor.min_width,
+                    )
+                if width:
+                    self.setColumnWidth(descriptor.index, int(width))
         except Exception:
             logger.debug(
                 "LinksTableView: failed to set column widths", exc_info=True
@@ -637,39 +749,30 @@ class LinksTableView(
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
         header.setStretchLastSection(False)
         try:
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+            for descriptor in LINK_TABLE_COLUMNS:
+                configured_mode = None
+                if descriptor.resize_mode_config_key:
+                    configured_mode = app_config.ui.get(
+                        descriptor.resize_mode_config_key,
+                        descriptor.resize_mode,
+                    )
+                mode_name = resize_mode_name_for_descriptor(
+                    descriptor,
+                    configured_mode,
+                )
+                header.setSectionResizeMode(
+                    descriptor.index,
+                    _qt_resize_mode(mode_name),
+                )
         except Exception:
             logger.debug(
-                "LinksTableView: failed to set resize mode for column 0/1", exc_info=True
+                "LinksTableView: failed to apply column resize policy",
+                exc_info=True,
             )
-        # Column 3 ("Launch") resize mode is driven by config
-        try:
-            col2_mode = str(
-                app_config.ui.get("ui.links_table_col2_mode", "fixed")
-            ).lower()
-        except Exception:
-            col2_mode = "fixed"
-        try:
-            if col2_mode in ("fixed", "f"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-            elif col2_mode in ("interactive", "i"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-            elif col2_mode in ("contents", "content", "auto", "resizetocontents"):
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-            else:
-                header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        except Exception:
-            # Fallback to Fixed
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(False)
         header.sortIndicatorChanged.connect(self.sortByColumn)
-        initial_col, initial_order = self._load_initial_sort()
-        self._apply_sort(initial_col, initial_order)
+        self._apply_sort_action(self._sort_controller.initial_sort())
         self.delegate = TableDelegate(self)
         self.setItemDelegate(self.delegate)
         # Global table settings: no word wrap, elide on the right
@@ -852,11 +955,15 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
-        if logical_index == 0:
+        action = self._sort_controller.header_click_action(
+            logical_index,
+            sorting_enabled=self.isSortingEnabled(),
+        )
+        if action is None:
             return
         header = self.horizontalHeader()
-        if not self.isSortingEnabled():
-            self.setSortingEnabled(True)
+        self.setSortingEnabled(True)
+        if not action.show_indicator:
             try:
                 header.setSortIndicatorShown(False)
             except Exception:
@@ -864,13 +971,12 @@ class LinksTableView(
                     "LinksTableView: failed to setSortIndicatorShown(False)",
                     exc_info=True,
                 )
-            # Execute a single ascending sort; Qt will handle subsequent toggles
-            try:
-                self.sortByColumn(logical_index, Qt.SortOrder.AscendingOrder)
-            except Exception:
-                logger.debug(
-                    "LinksTableView: sortByColumn on header click failed", exc_info=True
-                )
+        try:
+            self._apply_sort_action(action)
+        except Exception:
+            logger.debug(
+                "LinksTableView: sortByColumn on header click failed", exc_info=True
+            )
 
     def _on_rows_moved(self, *_args) -> None:
         """Handle rows moved signal to rebuild cache."""
@@ -951,10 +1057,10 @@ class LinksTableView(
 
     def _load_initial_sort(self) -> tuple[int, Qt.SortOrder]:
         """Return initial sort (saved or default)."""
-        return 2, Qt.SortOrder.AscendingOrder
+        return self._sort_controller.default_sort()
 
     def _save_sort_to_settings(self, col: int, order: Qt.SortOrder) -> None:
-        if not getattr(self, "_allow_sort_persist", False):
+        if not self._sort_controller.should_persist():
             return
         settings = getattr(self, "_settings", None)
         if settings and hasattr(settings, "set_table_sort"):
@@ -976,29 +1082,60 @@ class LinksTableView(
         except Exception:
             logger.debug("LinksTableView: applying sort failed", exc_info=True)
 
+    def _apply_sort_action(self, action: LinkSortAction | None) -> None:
+        """Apply a sort action produced by the view-level sort controller."""
+        if action is None:
+            return
+        self._apply_sort(action.column, action.order)
+        if not action.show_indicator:
+            try:
+                self.horizontalHeader().setSortIndicatorShown(False)
+            except Exception:
+                logger.debug(
+                    "LinksTableView: failed to hide sort indicator",
+                    exc_info=True,
+                )
+        self._sort_controller.mark_action_applied(action)
+        if action.persist_after_apply:
+            self._save_sort_to_settings(action.column, action.order)
+
     def _default_sort_from_links(
         self, links: list[dict] | None
     ) -> tuple[int, Qt.SortOrder]:
         """Use saved user order when no persisted user preference exists."""
-        return 2, Qt.SortOrder.AscendingOrder
+        return int(LinkTableColumn.ORDER), Qt.SortOrder.AscendingOrder
 
     def reset_default_sort_for_next_populate(self) -> None:
         """Force the next normal load to start from the saved user order."""
-        self._sort_initialized = False
-        self._allow_sort_persist = False
+        self._sort_controller.reset_for_category_load()
+
+    def should_apply_initial_sort_for_mode(self, mode: str) -> bool:
+        """Return whether a populate mode should apply the initial default sort."""
+        return self._sort_controller.should_apply_initial_sort_for_mode(mode)
 
     def ensure_initial_sort(self, links: list[dict] | None = None) -> None:
         """Apply initial sort once, always defaulting to user order."""
-        if self._sort_initialized:
-            return
-        self._sort_initialized = True
-        col, order = self._default_sort_from_links(links)
-        self._apply_sort(col, order)
-        self._allow_sort_persist = True
         try:
-            self._save_sort_to_settings(col, order)
+            self._apply_sort_action(self._sort_controller.ensure_initial_sort())
         except Exception:
             logger.debug("LinksTableView: failed to persist initial sort", exc_info=True)
+
+    def restore_sort_after_populate(
+        self,
+        sort_col: int,
+        sort_order: Qt.SortOrder,
+        total_columns: int,
+    ) -> bool:
+        """Restore a captured sort state after model data changes."""
+        action = self._sort_controller.restore_after_populate_action(
+            sort_col,
+            sort_order,
+            total_columns=total_columns,
+        )
+        if action is None:
+            return False
+        self._apply_sort_action(action)
+        return True
 
     def _on_sort_indicator_changed(
         self, logical_index: int, order: Qt.SortOrder

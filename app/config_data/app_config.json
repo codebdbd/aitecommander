@@ -110,11 +110,6 @@
         "shortcut": "F1"
       },
       {
-        "id": "launch_marked",
-        "handler": "launch_marked_links",
-        "shortcut": "F5"
-      },
-      {
         "id": "edit_link",
         "handler": "edit_current",
         "shortcut": "F2"
@@ -123,6 +118,11 @@
         "id": "delete_link",
         "handler": "delete_current",
         "shortcut": "Del"
+      },
+      {
+        "id": "launch_marked",
+        "handler": "launch_marked_links",
+        "shortcut": "F5"
       }
     ],
     "path_label_min_width": 350,
@@ -314,8 +314,6 @@
       "units": "pt",
       "table_header_px": 10,
       "table_row_px": 11,
-      "table_opened_col_px": 11,
-      "table_notes_col_px": 11,
       "notes_editor_px": 13,
       "button_text_px": 10,
       "bottom_bar_button_px": 11,
@@ -327,12 +325,6 @@
       "tiles_px": 10,
       "form_label_px": 10,
       "form_field_px": 10,
-      "table_cols_px": [
-        11,
-        11,
-        10,
-        10
-      ],
       "link_type_button_px": 11
     },
     "colors": {
@@ -425,6 +417,7 @@
       "script": "script_icon.png",
       "chrome": "chrome_icon.png",
       "file": "documents_icon.png",
+      "note": "documents_icon.png",
       "category": "category.png",
       "section": "section.png",
       "ai": "ai_icon.png",

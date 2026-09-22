@@ -235,7 +235,13 @@ class LinkDialog(BaseDialog):
     def _get_visible_link_types(self) -> list[tuple[str, str]]:
         """Return link type buttons visible in this dialog context."""
         if not getattr(self, "_is_type_fixed", False):
-            return self.link_types
+            # Notes belong to the dedicated note editor, not to link creation.
+            # Keep the stored type available in edit mode below for legacy notes.
+            return [
+                (code, title)
+                for code, title in self.link_types
+                if LinkType.from_value(code) is not LinkType.NOTE
+            ]
 
         current_type = LinkType.from_value(self.link_type).value
         for code, title in self.link_types:
@@ -476,7 +482,10 @@ class LinkDialog(BaseDialog):
                             Qt.FocusReason.ActiveWindowFocusReason
                         )
                     else:
-                        self._get_browse_btn().setFocus(
+                        target = self._get_browse_btn()
+                        if target is None or not target.isVisible():
+                            target = self._get_url_le()
+                        target.setFocus(
                             Qt.FocusReason.ActiveWindowFocusReason
                         )
                 except Exception:

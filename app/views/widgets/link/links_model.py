@@ -5,7 +5,6 @@ from functools import lru_cache
 from typing import Any
 
 from PyQt6.QtCore import (
-    QT_TRANSLATE_NOOP,
     QAbstractTableModel,
     QCoreApplication,
     QModelIndex,
@@ -18,24 +17,35 @@ from PyQt6.QtWidgets import QWidget
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.common.retranslatable import ReTranslatable
+from app.views.widgets.link.columns import (
+    LinkTableColumn,
+    centered_columns,
+    chevron_padding_columns,
+    descriptor_for_column,
+    header_sources,
+    header_tooltips,
+    is_column,
+)
 from app.views.widgets.link.item_builders import ItemBuildersMixin
+from app.views.widgets.link.order_utils import move_link_position, move_rows_for_drop
+from app.views.widgets.link.sort_utils import sorted_links
 
-_HEADER_TRANSLATABLE = [
-    QT_TRANSLATE_NOOP("LinksTableModel", "Name"),
-    QT_TRANSLATE_NOOP("LinksTableModel", "Order"),
-    QT_TRANSLATE_NOOP("LinksTableModel", "Launch"),
-    QT_TRANSLATE_NOOP("LinksTableModel", "Notes"),
-    QT_TRANSLATE_NOOP("LinksTableModel", "Type"),
-]
+_HEADER_TRANSLATABLE = header_sources()
+_HEADER_TOOLTIPS = header_tooltips()
 
-_HEADER_TOOLTIPS = {
-    2: QT_TRANSLATE_NOOP("LinksTableModel", "Custom order"),
-    3: QT_TRANSLATE_NOOP("LinksTableModel", "Last launch"),
-    5: QT_TRANSLATE_NOOP("LinksTableModel", "Resource type"),
-}
+if False:  # pragma: no cover - lupdate hints for descriptor-backed headers
+    QCoreApplication.translate("LinksTableModel", "Name")
+    QCoreApplication.translate("LinksTableModel", "Order")
+    QCoreApplication.translate("LinksTableModel", "Launch")
+    QCoreApplication.translate("LinksTableModel", "Notes")
+    QCoreApplication.translate("LinksTableModel", "Type")
+    QCoreApplication.translate("LinksTableModel", "Custom order")
+    QCoreApplication.translate("LinksTableModel", "Last launch")
+    QCoreApplication.translate("LinksTableModel", "Resource type")
 
 HEADER_CHEVRON_PADDING_ROLE = int(Qt.ItemDataRole.UserRole) + 101
-_CHEVRON_PADDING_SECTIONS = frozenset((2, 3))
+_CHEVRON_PADDING_SECTIONS = frozenset(chevron_padding_columns())
+_CENTERED_SECTIONS = frozenset(centered_columns())
 
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
@@ -89,7 +99,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = [""] + [self._tr(text) for text in _HEADER_TRANSLATABLE]
+        self._headers = [self._tr(text) if text else "" for text in _HEADER_TRANSLATABLE]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -111,61 +121,85 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return 0
         return len(self._headers)
 
+    def _call_column_builder(
+        self,
+        col: int,
+        link: dict[str, Any],
+        builder_attr: str,
+    ) -> Any:
+        descriptor = descriptor_for_column(col)
+        if descriptor is None:
+            return None
+        builder_name = getattr(descriptor, builder_attr)
+        if not builder_name:
+            return None
+        builder = getattr(self, builder_name, None)
+        if builder is None:
+            return None
+        return builder(link)
+
+    def _display_name(self, link: dict[str, Any]) -> str:
+        return self._name_display_text(link, mode="normal")
+
+    def _display_order(self, link: dict[str, Any]) -> int:
+        return self._display_position(link)
+
+    def _display_launch(self, link: dict[str, Any]) -> str:
+        return self._last_used_display_text(link.get("last_used"))
+
+    def _display_notes(self, link: dict[str, Any]) -> str:
+        display, _ = self._notes_display_and_tooltip(
+            link.get("notes", ""), truncate=False
+        )
+        return display
+
+    def _display_type(self, link: dict[str, Any]) -> str:
+        return self._type_display_text(link)
+
+    def _tooltip_name(self, link: dict[str, Any]) -> str:
+        return self._name_tooltip(link)
+
+    def _tooltip_order(self, link: dict[str, Any]) -> str:
+        return self._tr("Position: {position}").format(
+            position=self._display_position(link)
+        )
+
+    def _tooltip_launch(self, link: dict[str, Any]) -> str:
+        return self._last_used_tooltip(link.get("last_used"))
+
+    def _tooltip_notes(self, link: dict[str, Any]) -> str:
+        _, tip = self._notes_display_and_tooltip(
+            link.get("notes", ""), truncate=False
+        )
+        return tip
+
+    def _tooltip_type(self, link: dict[str, Any]) -> str:
+        return self._type_tooltip(link)
+
+    def _decoration_name(self, link: dict[str, Any]) -> QIcon | None:
+        try:
+            resolved_path = resolve_icon_for_link(link)
+            if resolved_path:
+                return self._get_cached_icon(resolved_path)
+        except Exception:
+            pass
+        return None
+
     def _get_display_data(self, col, link):
         """Get display data for column."""
-        if col == 0:
-            return None
-        if col == 1:
-            return self._name_display_text(link, mode="normal")
-        if col == 2:
-            return self._display_position(link)
-        if col == 3:
-            return self._last_used_display_text(link.get("last_used"))
-        if col == 4:
-            display, _ = self._notes_display_and_tooltip(
-                link.get("notes", ""), truncate=False
-            )
-            return display
-        if col == 5:
-            return self._type_display_text(link)
-        return None
+        return self._call_column_builder(col, link, "display_builder")
 
     def _get_decoration_data(self, col, link):
         """Get decoration data for column."""
-        if col == 1:
-            try:
-                resolved_path = resolve_icon_for_link(link)
-                if resolved_path:
-                    return self._get_cached_icon(resolved_path)
-            except Exception:
-                pass
-        return None
+        return self._call_column_builder(col, link, "decoration_builder")
 
     def _get_tooltip_data(self, col, link):
         """Get tooltip data for column."""
-        if col == 1:
-            tip = self._name_tooltip(link)
-            if tip:
-                return tip
-        if col == 2:
-            return self._tr("Position: {position}").format(
-                position=self._display_position(link)
-            )
-        if col == 3:
-            return self._last_used_tooltip(link.get("last_used"))
-        if col == 4:
-            _, tip = self._notes_display_and_tooltip(
-                link.get("notes", ""), truncate=False
-            )
-            if tip:
-                return tip
-        if col == 5:
-            return self._type_tooltip(link)
-        return None
+        return self._call_column_builder(col, link, "tooltip_builder")
 
     def _get_alignment_data(self, col):
         """Get alignment data for column."""
-        if col in (0, 2, 3):
+        if col in _CENTERED_SECTIONS:
             return int(Qt.AlignmentFlag.AlignCenter)
         return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
@@ -175,6 +209,24 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return int(link.get("position", 0) or 0) + 1
         except Exception:
             return 1
+
+    @staticmethod
+    def _coerce_group_launch(value: Any) -> int:
+        """Normalize persisted group-launch settings to database-compatible int."""
+        if isinstance(value, str):
+            return 1 if value.strip().lower() in {"1", "true", "yes", "on"} else 0
+        return 1 if bool(value) else 0
+
+    def _normalize_link(self, link: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
+        """Return a row dict with canonical group-launch setting fields."""
+        normalized = dict(link)
+        has_group_launch = "is_group_launch" in normalized or "group_launch" in normalized
+        if has_group_launch or not partial:
+            value = normalized.get("is_group_launch", normalized.get("group_launch", 0))
+            val_int = self._coerce_group_launch(value)
+            normalized["is_group_launch"] = val_int
+            normalized["group_launch"] = bool(val_int)
+        return normalized
 
     def data(
         self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
@@ -192,7 +244,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return link
 
         if role == Qt.ItemDataRole.CheckStateRole:
-            if col == 0:
+            if is_column(col, LinkTableColumn.GROUP_LAUNCH):
                 return (
                     Qt.CheckState.Checked
                     if bool(link.get("is_group_launch"))
@@ -225,7 +277,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:  # type: ignore[override]
         if orientation == Qt.Orientation.Horizontal:
-            if role == Qt.ItemDataRole.DecorationRole and section == 0:
+            if role == Qt.ItemDataRole.DecorationRole and is_column(section, LinkTableColumn.GROUP_LAUNCH):
                 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 
                 return icon_cache.get_icon("list_start")
@@ -233,7 +285,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 if 0 <= section < len(self._headers):
                     return self._headers[section]
             elif role == Qt.ItemDataRole.TextAlignmentRole:
-                if section in (0, 2, 3):
+                if section in _CENTERED_SECTIONS:
                     return int(Qt.AlignmentFlag.AlignCenter)
                 return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             elif role == HEADER_CHEVRON_PADDING_ROLE:
@@ -253,9 +305,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             | Qt.ItemFlag.ItemIsDragEnabled
             | Qt.ItemFlag.ItemIsDropEnabled
         )
-        if index.column() == 0:
+        if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
             base_flags |= Qt.ItemFlag.ItemIsUserCheckable
-        if index.column() == 2:
+        if is_column(index.column(), LinkTableColumn.ORDER):
             base_flags |= Qt.ItemFlag.ItemIsEditable
         return base_flags
 
@@ -283,11 +335,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         try:
             if role == Qt.ItemDataRole.UserRole and isinstance(value, dict):
                 # Replace the link dict entirely
-                new_link = dict(value)
+                new_link = self._normalize_link(value)
                 # Remove any external icon cache entry
                 new_link.pop("_icon", None)
                 self._links[row] = new_link
-                top_left = self.index(row, 0)
+                top_left = self.index(row, int(LinkTableColumn.GROUP_LAUNCH))
                 bottom_right = self.index(row, len(self._headers) - 1)
                 # Indicate that decorations (icons) might have changed
                 self.dataChanged.emit(
@@ -295,10 +347,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 )
                 return True
 
-            if role == Qt.ItemDataRole.CheckStateRole and col == 0:
+            if role == Qt.ItemDataRole.CheckStateRole and is_column(col, LinkTableColumn.GROUP_LAUNCH):
                 checked = (value == Qt.CheckState.Checked.value) or (value == Qt.CheckState.Checked)
                 val_int = 1 if checked else 0
                 link["is_group_launch"] = val_int
+                link["group_launch"] = bool(val_int)
                 self.dataChanged.emit(index, index, [Qt.ItemDataRole.CheckStateRole])
                 link_id = link.get("id")
                 if link_id:
@@ -306,14 +359,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return True
 
             if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
-                if col == 1:
+                if is_column(col, LinkTableColumn.NAME):
                     link["name"] = str(value)
-                elif col == 2:
+                elif is_column(col, LinkTableColumn.ORDER):
                     return self._set_display_position(row, value)
-                elif col == 3:
+                elif is_column(col, LinkTableColumn.LAUNCH):
                     # Store as-is; sort() performs normalization for ordering
                     link["last_used"] = value
-                elif col == 4:
+                elif is_column(col, LinkTableColumn.NOTES):
                     link["notes"] = str(value)
                 else:
                     return False
@@ -330,21 +383,17 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def _set_display_position(self, row: int, value: Any) -> bool:
         """Move row to the requested one-based position and renumber all links."""
-        try:
-            requested = int(str(value).strip())
-        except Exception:
+        if not (0 <= row < len(self._links)):
             return False
-        if requested <= 0 or not (0 <= row < len(self._links)):
+        link_id = self._links[row].get("id")
+        result = move_link_position(self._links, link_id, value)
+        if result is None:
             return False
-
-        target = max(0, min(requested - 1, len(self._links) - 1))
-        if target == row:
+        if not result.moved and result.links == self._links:
             return True
 
         self.layoutAboutToBeChanged.emit()
-        link = self._links.pop(row)
-        self._links.insert(target, link)
-        self._renumber_positions()
+        self._links = result.links
         self.layoutChanged.emit()
         self.orderEdited.emit(self.link_ids_in_order())
         return True
@@ -383,13 +432,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     def set_links(self, links: Sequence[dict[str, Any]]) -> None:
         self.beginResetModel()
         # Clone data (icons now live in the LRU cache, not inside dicts)
-        self._links = [dict(link_item) for link_item in links]
+        self._links = [self._normalize_link(link_item) for link_item in links]
         self.endResetModel()
 
     def insert_link(self, pos: int, link: dict[str, Any]) -> bool:
         pos = max(0, min(pos, len(self._links)))
         self.beginInsertRows(QModelIndex(), pos, pos)
-        self._links.insert(pos, dict(link))
+        self._links.insert(pos, self._normalize_link(link))
         self.endInsertRows()
         return True
 
@@ -407,11 +456,20 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     def update_link(self, row: int, new_data: dict[str, Any]) -> bool:
         if not (0 <= row < len(self._links)):
             return False
-        self._links[row].update(new_data)
-        # Icon refresh happens automatically through the LRU cache
-        top_left = self.index(row, 0)
+        self._links[row].update(self._normalize_link(new_data, partial=True))
+        top_left = self.index(row, int(LinkTableColumn.GROUP_LAUNCH))
         bottom_right = self.index(row, len(self._headers) - 1)
-        self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
+        self.dataChanged.emit(
+            top_left,
+            bottom_right,
+            [
+                Qt.ItemDataRole.DisplayRole,
+                Qt.ItemDataRole.EditRole,
+                Qt.ItemDataRole.ToolTipRole,
+                Qt.ItemDataRole.DecorationRole,
+                Qt.ItemDataRole.CheckStateRole,
+            ],
+        )
         return True
 
     # --- Helper methods ---
@@ -433,59 +491,30 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         For a single continuous range use ``beginMoveRows``/``endMoveRows``.
         For sparse indices perform sequential moves.
         """
-        if not source_rows:
+        result = move_rows_for_drop(self._links, source_rows, target_row)
+        if result is None or not result.moved:
             return
-        n = len(self._links)
-        src = [r for r in sorted(set(source_rows)) if 0 <= r < n]
-        if not src:
-            return
-        # Normalize target
-        target_row = max(0, min(target_row, n))
-
-        # When the rows form one contiguous range — use an atomic move
-        def is_contiguous(rows: list[int]) -> bool:
-            """Check whether rows form a contiguous range."""
-            return all(b - a == 1 for a, b in zip(rows, rows[1:]))
-
-        if len(src) == 1 or is_contiguous(src):
-            first = src[0]
-            last = src[-1]
-            # Adjust the target when moving downward
-            insert_row = target_row
-            if first < insert_row <= last + 1:
-                # If the target falls inside the range, treat as no-op
+        if result.contiguous:
+            if result.first is None or result.last is None or result.destination_child is None:
                 return
-
             if not self.beginMoveRows(
-                QModelIndex(), first, last, QModelIndex(), insert_row
+                QModelIndex(),
+                result.first,
+                result.last,
+                QModelIndex(),
+                result.destination_child,
             ):
                 return
-            # Extract the segment and insert it at the new location
-            segment = self._links[first : last + 1]
-            del self._links[first : last + 1]
-            # Adjust insert position after deletion
-            if insert_row > first:
-                insert_row -= last - first + 1
-            for i, item in enumerate(segment):
-                self._links.insert(insert_row + i, item)
-            self._renumber_positions()
+            self._links = result.links
             self.endMoveRows()
             return
 
-        # Sparse set: reorder via a single ``layoutChanged`` pass
-        # Semantics: remove selected rows, then insert them (in original order)
-        # at ``target_row`` among remaining elements WITHOUT subtracting removals before target.
-        # Matches user expectation of "insert before the item that was at target_row prior to move".
-        src_set = set(src)
-        remaining: list[dict[str, Any]] = [
-            item for i, item in enumerate(self._links) if i not in src_set
-        ]
-        segment_items: list[dict[str, Any]] = [self._links[i] for i in src]
-        insert_at = max(0, min(target_row, len(remaining)))
-        new_links = remaining[:insert_at] + segment_items + remaining[insert_at:]
-        
-        id_to_new_row = {item.get("id"): r for r, item in enumerate(new_links) if item.get("id") is not None}
-        
+        id_to_new_row = {
+            item.get("id"): row
+            for row, item in enumerate(result.links)
+            if item.get("id") is not None
+        }
+
         self.layoutAboutToBeChanged.emit()
         try:
             old_parents = self.persistentIndexList()
@@ -500,8 +529,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                         to_indexes.append(p_idx)
                 else:
                     to_indexes.append(p_idx)
-            self._links = new_links
-            self._renumber_positions()
+            self._links = result.links
             if old_parents:
                 self.changePersistentIndexList(old_parents, to_indexes)
         finally:
@@ -521,67 +549,17 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         4: ``notes`` (str, casefold)
         5: ``type`` (localized label)
         """
-        if not self._links or column == 0:
+        if not self._links or is_column(column, LinkTableColumn.GROUP_LAUNCH):
             return
-
-        def normalize_last_used(v: Any) -> float:
-            """Return numeric timestamp for ``last_used``.
-            Returns ``-inf`` when value is missing or cannot be parsed.
-            """
-            from math import inf
-
-            if v is None:
-                return -inf
-            # Already numeric
-            try:
-                return float(v)  # type: ignore[arg-type]
-            except Exception:
-                pass
-            # ISO datetime string
-            try:
-                from datetime import datetime
-
-                return datetime.fromisoformat(str(v)).timestamp()
-            except Exception:
-                pass
-            # Fallback: hash-stabilized string representation -> number (deterministic)
-            try:
-                return float(abs(hash(str(v))))
-            except Exception:
-                return -inf
-
-        def key_for(link: dict[str, Any]) -> Any:
-            if column == 0:
-                return 1 if bool(link.get("is_group_launch", False)) else 0
-            if column == 1:
-                return str(link.get("name", "")).casefold()
-            if column == 2:
-                try:
-                    return int(link.get("position", 0) or 0)
-                except Exception:
-                    return 0
-            if column == 3:
-                last_used = link.get("last_used")
-                if last_used in (None, ""):
-                    # Never opened: keep alphabetical order within this bucket
-                    return (0, str(link.get("name", "")).casefold())
-                return (1, normalize_last_used(last_used))
-            if column == 4:
-                return str(link.get("notes", "")).casefold()
-            if column == 5:
-                return self._type_display_text(link).casefold()
-            # Unknown column - sort by stable ``id`` if available, otherwise index order
-            lid = link.get("id")
-            if isinstance(lid, (int, str)):
-                try:
-                    return int(lid)
-                except ValueError:
-                    pass
-            return self._links.index(link)
 
         reverse = order == Qt.SortOrder.DescendingOrder
         self.layoutAboutToBeChanged.emit()
-        self._links.sort(key=key_for, reverse=reverse)
+        self._links = sorted_links(
+            self._links,
+            column,
+            descending=reverse,
+            type_label_getter=self._type_display_text,
+        )
         self.layoutChanged.emit()
 
     def _get_cached_icon(self, icon_path: str) -> QIcon | None:

@@ -163,7 +163,12 @@ class RowOperationsMixin:
 
             # Refresh cache (legacy compatibility)
             try:
-                self._link_cache[row] = link
+                merged_link = (
+                    model.get_link(row)
+                    if model is not None and hasattr(model, "get_link")
+                    else None
+                )
+                self._link_cache[row] = dict(merged_link or link)
             except Exception:
                 logger.debug(
                     "[LinksTableView] Failed to refresh cache for row %s",

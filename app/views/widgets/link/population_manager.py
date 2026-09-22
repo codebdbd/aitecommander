@@ -222,7 +222,10 @@ class PopulationManagerMixin:
 
         with suspend_updates(table):
             try:
-                if hasattr(table, "ensure_initial_sort"):
+                should_initial_sort = True
+                if hasattr(table, "should_apply_initial_sort_for_mode"):
+                    should_initial_sort = table.should_apply_initial_sort_for_mode(mode)
+                if should_initial_sort and hasattr(table, "ensure_initial_sort"):
                     table.ensure_initial_sort(links)
             except Exception:
                 self.logger.debug(
@@ -331,12 +334,26 @@ class PopulationManagerMixin:
             table = self._link_table()
             model = table.model()
             total_cols = model.columnCount() if model is not None else 0
-            if sort_col != -1 and sort_col < total_cols:
-                # Use ``sortByColumn`` for QTableView
+            restored_sort = False
+            if hasattr(table, "restore_sort_after_populate"):
+                try:
+                    restored_sort = bool(
+                        table.restore_sort_after_populate(
+                            sort_col,
+                            sort_order,
+                            total_cols,
+                        )
+                    )
+                except Exception:
+                    restored_sort = False
+            elif sort_col != -1 and sort_col < total_cols:
                 try:
                     table.sortByColumn(sort_col, sort_order)
+                    restored_sort = True
                 except Exception:
-                    pass
+                    restored_sort = False
+
+            if restored_sort:
                 # IMPORTANT: sorting reindexes rows — sync ``_current_links`` with items
                 # to avoid visual duplicates and incorrect updates
                 try:

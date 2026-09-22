@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -17,6 +18,44 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 I18N_DIR = PROJECT_ROOT / "i18n"
 APP_DIR = PROJECT_ROOT / "app"
 DEFAULT_LANGUAGES = ["en", "ru", "de", "es", "fr", "uk"]
+
+
+def tool_env() -> dict[str, str]:
+    """Return a subprocess environment that keeps Qt i18n tools Unicode-safe."""
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    return env
+
+
+def run_pylupdate(cmd: list[str], lang: str) -> tuple[int, str]:
+    """Run pylupdate6 with file-backed output to avoid Windows pipe encoding bugs."""
+    log_path: Path | None = None
+    try:
+        fd, name = tempfile.mkstemp(
+            dir=I18N_DIR,
+            prefix=f".pylupdate_{lang}_",
+            suffix=".log",
+            text=True,
+        )
+        os.close(fd)
+        log_path = Path(name)
+        with log_path.open("w", encoding="utf-8") as log_file:
+            res = subprocess.run(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=tool_env(),
+            )
+        output = log_path.read_text(encoding="utf-8", errors="replace")
+        return res.returncode, output
+    finally:
+        if log_path is not None:
+            try:
+                log_path.unlink()
+            except OSError:
+                pass
 
 
 def get_pylupdate() -> Path | str:
@@ -164,13 +203,13 @@ def cmd_update(args: argparse.Namespace) -> int:
 
     for lang in languages:
         ts_path = I18N_DIR / f"app_{lang}.ts"
-        cmd = [str(pylupdate), str(APP_DIR), "--ts", str(ts_path)]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode != 0:
-            print(f"[{lang.upper()}] ERROR: {res.stderr.strip()}")
+        cmd = [str(pylupdate), str(APP_DIR), "--no-obsolete", "--ts", str(ts_path)]
+        returncode, output = run_pylupdate(cmd, lang)
+        if returncode != 0:
+            print(f"[{lang.upper()}] ERROR: {output.strip()}")
             has_errors = True
         else:
-            summary = [l.strip() for l in res.stdout.splitlines() if l.strip()]
+            summary = [l.strip() for l in output.splitlines() if l.strip()]
             short_summary = "; ".join(summary) if summary else "No changes"
             print(f"[{lang.upper()}] {short_summary}")
 
@@ -189,7 +228,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
         ts_path = I18N_DIR / f"app_{lang}.ts"
         qm_path = I18N_DIR / f"app_{lang}.qm"
         cmd = [str(lrelease), str(ts_path), "-qm", str(qm_path)]
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, env=tool_env())
         if res.returncode != 0:
             print(f"[{lang.upper()}] ERROR: {res.stderr.strip()}")
             has_errors = True
@@ -242,7 +281,10 @@ def cmd_add_language(args: argparse.Namespace) -> int:
 
     # Populate from source code via pylupdate
     pylupdate = get_pylupdate()
-    subprocess.run([str(pylupdate), str(APP_DIR), "--ts", str(ts_path)], capture_output=True)
+    run_pylupdate(
+        [str(pylupdate), str(APP_DIR), "--no-obsolete", "--ts", str(ts_path)],
+        code,
+    )
     print(f"Extracted source strings into {ts_path.name}")
     print(f"\nLanguage '{code}' initialized. Next steps:")
     print(f"1. Add '{code}' to LanguageService._languages in i18n/language_service.py")

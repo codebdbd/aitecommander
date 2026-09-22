@@ -199,7 +199,7 @@ aitecommander/
 ├── .python-version                   # Версия Python (3.12)
 ├── .gitignore
 ├── uv.lock                           # Lock-файл uv
-├── LICENSE                           # MIT License
+├── LICENSE                           # GNU General Public License v3.0
 ├── README.md
 ├── CAPABILITIES.md                   # Описание возможностей
 └── THEME_AUDIT_DETAILED.md           # Аудит тем оформления

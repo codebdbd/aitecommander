@@ -11,7 +11,7 @@ from app.utils.common import safe_call
 from app.utils.links.dropped_web_link import build_dropped_link_payload
 from app.utils.ui.focus import get_focus_manager
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
-from app.views.widgets.link import LinksTableView
+from app.views.widgets.link import LinkTableColumn, LinksTableView
 
 from .clipboard import LinksUIClipboard
 from .handlers import LinksUIHandlers
@@ -178,7 +178,7 @@ class LinksUIController(QObject):
             model = self.table.model()
             if model is None:
                 return
-            index = model.index(row, 0)
+            index = model.index(row, int(LinkTableColumn.GROUP_LAUNCH))
             if index and index.isValid():
                 self.table.scrollTo(index)
         except (AttributeError, RuntimeError) as e:
@@ -327,7 +327,7 @@ class LinksUIController(QObject):
         next_row = max(0, min(model.rowCount() - 1, current_row + delta))
         if next_row != current_row:
             self.table.selectRow(next_row)
-            idx = model.index(next_row, 1)
+            idx = model.index(next_row, int(LinkTableColumn.NAME))
             self.table.setCurrentIndex(idx)
             link = self.get_link_at(next_row)
             if link and self._quick_look_dialog and self._quick_look_dialog.isVisible():
@@ -499,7 +499,7 @@ class LinksUIController(QObject):
                     model = self.table.model()
                     selection = QItemSelection()
                     for row in rows_to_select:
-                        left_idx = model.index(row, 0)
+                        left_idx = model.index(row, int(LinkTableColumn.GROUP_LAUNCH))
                         right_idx = model.index(row, model.columnCount() - 1)
                         selection.select(left_idx, right_idx)
                         
@@ -507,7 +507,7 @@ class LinksUIController(QObject):
                     
                     # Set current index without clearing the selection we just made
                     first_row = rows_to_select[0]
-                    first_idx = model.index(first_row, 0)
+                    first_idx = model.index(first_row, int(LinkTableColumn.GROUP_LAUNCH))
                     if first_idx.isValid():
                         sel_model.setCurrentIndex(first_idx, QItemSelectionModel.SelectionFlag.NoUpdate)
                 else:

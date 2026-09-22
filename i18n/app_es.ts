@@ -1532,15 +1532,28 @@
     <name>DragDrop</name>
     <message>
         <location filename="..\app\views\widgets\tiles\list_view.py" line="183" />
-        <location filename="..\app\views\widgets\custom_widgets.py" line="520" />
+        <location filename="..\app\views\widgets\custom_widgets.py" line="508" />
         <source>Dragging {total} items — {shown} and {remaining} more</source>
         <translation>Arrastrando {total} elementos — {shown} y {remaining} más</translation>
     </message>
     <message>
         <location filename="..\app\views\widgets\tiles\list_view.py" line="186" />
-        <location filename="..\app\views\widgets\custom_widgets.py" line="523" />
+        <location filename="..\app\views\widgets\custom_widgets.py" line="511" />
         <source>Dragging {total} items — {shown}</source>
         <translation>Arrastrando {total} elementos — {shown}</translation>
+    </message>
+</context><context>
+    <name>FavoritesToolbarAdapter</name>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="904" />
+        <source>No favorite links</source>
+        <translation>No hay enlaces favoritos</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="936" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="935" />
+        <source>Favorites</source>
+        <translation>Favoritos</translation>
     </message>
 </context><context>
     <name>FileDialogMixin</name>
@@ -2217,81 +2230,80 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinkDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="292" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="317" />
         <source>Icon configuration is invalid.</source>
         <translation>La configuración del icono es inválida.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="318" />
         <source>Configuration error</source>
         <translation>Error de configuración</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="294" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="319" />
         <source>Icons directory is not set. Specify the path in the application settings or config.</source>
         <translation>No se ha establecido el directorio de iconos. Especifique la ruta en la configuración de la aplicación.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="297" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="322" />
         <source>Configuration parameter for icons is missing or empty.</source>
         <translation>El parámetro de configuración de los íconos falta o está vacío.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="511" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="546" />
         <source>Default icon not found.</source>
         <translation>No se encontró el ícono predeterminado.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="512" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="547" />
         <source>Icon issue</source>
         <translation>Problema con el icono</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="513" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="548" />
         <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
         <translation>El botón se mostrará sin icono. Proporcione una ruta válida en la configuración.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="516" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="551" />
         <source>Expected file: {path}</source>
         <translation>Archivo esperado: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="41" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="735" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="46" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="779" />
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
-    <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="736" />
-        <source>%n profile(s)</source>
-        <translation>
-            <numerusform>%n perfil</numerusform>
-            <numerusform>%n perfiles</numerusform>
-        </translation>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="781" />
+        <source>Profile ({count})</source>
+        <translation>Perfil ({count})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="741" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="782" />
+        <source>Profiles ({count})</source>
+        <translation>Perfiles ({count})</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="787" />
         <source>Select browser profile</source>
         <translation>Seleccionar perfil de navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="744" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="790" />
         <source>Selected profile: {name}
 (Click to change)</source>
         <translation>Perfil seleccionado: {name}
 (Haga clic para cambiar)</translation>
     </message>
-    <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="745" />
-        <source>%n selected profile(s):</source>
-        <translation>
-            <numerusform>%n perfil seleccionado:</numerusform>
-            <numerusform>%n perfiles seleccionados:</numerusform>
-        </translation>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="791" />
+        <source>Selected profiles ({count}):</source>
+        <translation>Perfiles seleccionados ({count}):</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="748" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="794" />
         <source>(Click to change)</source>
         <translation>(Haga clic para cambiar)</translation>
     </message>
@@ -2343,208 +2355,175 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinkDialogUI</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="51" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="42" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="44" />
         <source>Web link</source>
         <translation>Enlace web</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="52" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="43" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="45" />
         <source>File</source>
         <translation>Archivo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="53" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="44" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="46" />
         <source>Application</source>
         <translation>Aplicación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="54" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="45" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="47" />
         <source>Script</source>
         <translation>Script</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="55" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="46" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="48" />
         <source>Folder</source>
         <translation>Carpeta</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="299" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="292" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="284" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="59" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="49" />
+        <source>Note</source>
+        <translation>Nota</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="274" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="53" />
         <source>Default</source>
         <translation>Predeterminado</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="285" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="60" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="275" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="54" />
         <source>As application</source>
         <translation>Como aplicación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="286" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="61" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="276" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="55" />
         <source>Incognito</source>
         <translation>Incógnito</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="287" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="62" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="277" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="56" />
         <source>New window</source>
         <translation>Nueva ventana</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="288" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="63" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="278" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="57" />
         <source>Guest mode</source>
         <translation>Modo invitado</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="300" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="293" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="64" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="582" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="374" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="58" />
         <source>Run as administrator</source>
         <translation>Ejecutar como administrador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="294" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="65" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="59" />
         <source>Keep console open</source>
         <translation>Mantener la consola abierta</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="295" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="66" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="60" />
         <source>Administrator + Keep open</source>
         <translation>Administrador + Mantener abierta</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="70" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="64" />
         <source>Chrome rotation</source>
         <translation>Rotación de Chrome</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="71" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="65" />
         <source>Select profiles...</source>
         <translation>Seleccionar perfiles...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="636" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="418" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="72" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="586" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="381" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="66" />
         <source>Rotation</source>
         <translation>Rotación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="110" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="73" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="67" />
         <source>Profiles</source>
         <translation>Perfiles</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="632" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="411" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="74" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="578" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="368" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="68" />
         <source>Favorites</source>
         <translation>Favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="517" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="126" />
-        <source>Link type:</source>
-        <translation>Tipo de enlace:</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="528" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="230" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="488" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="220" />
         <source>Browse...</source>
         <translation>Examinar...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="533" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="236" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="493" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="226" />
         <source>Apps</source>
         <translation>Aplicaciones</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="541" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="538" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="243" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="501" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="498" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="233" />
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="246" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="236" />
         <source>Select browser profile</source>
         <translation>Seleccionar perfil de navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="252" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="242" />
         <source>URL/Path:</source>
         <translation>URL/Ruta:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="569" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="311" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="529" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="289" />
         <source>Arguments:</source>
         <translation>Argumentos:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="602" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="372" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="548" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="329" />
         <source>Sphere:</source>
         <translation>Esfera:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="608" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="375" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="554" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="332" />
         <source>Section:</source>
         <translation>Sección:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="614" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="378" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="560" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="335" />
         <source>Category:</source>
         <translation>Categoría:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="628" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="398" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="574" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="355" />
         <source>Notes:</source>
         <translation>Notas:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="117" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="641" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="422" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="591" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="385" />
         <source>Select profiles for rotation</source>
         <translation>Seleccionar perfiles para rotación</translation>
-    </message>
-    <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="111" />
-        <source>%n profile(s)</source>
-        <translation>
-            <numerusform>%n perfil</numerusform>
-            <numerusform>%n perfiles</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="119" />
-        <source>Rotation order (%n profile(s)):</source>
-        <translation>
-            <numerusform>Orden de rotación (%n perfil):</numerusform>
-            <numerusform>Orden de rotación (%n perfiles):</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="122" />
-        <source>(Click to change)</source>
-        <translation>(Haga clic para cambiar)</translation>
     </message>
 </context><context>
     <name>LinkOperations</name>
@@ -2609,56 +2588,45 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinksTableModel</name>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="24" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="37" />
         <source>Name</source>
         <translation>Nombre</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="25" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="38" />
         <source>Order</source>
         <translation>Orden</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="26" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="39" />
         <source>Launch</source>
         <translation>Inicio</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="27" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="40" />
         <source>Notes</source>
         <translation>Notas</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="28" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="41" />
         <source>Type</source>
         <translation>Tipo</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="32" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="42" />
         <source>Custom order</source>
         <translation>Orden personalizado</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="33" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="43" />
         <source>Last launch</source>
         <translation>Último inicio</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="34" />
+        <location filename="..\app\views\widgets\link\links_model.py" line="44" />
         <source>Resource type</source>
         <translation>Tipo de recurso</translation>
     </message>
-    <message>
-        <location filename="..\app\views\widgets\link\links_model.py" line="142" />
-        <source>Position: {position}</source>
-        <translation>Posición: {position}</translation>
-    </message>
-
-
-
-
-
-
 </context><context>
     <name>LinksUI</name>
     <message>
@@ -2734,12 +2702,12 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinksUIController</name>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="378" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="388" />
         <source>Open Links</source>
         <translation>Abrir enlaces</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="379" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="389" />
         <source>You are trying to open more than 10 links simultaneously.
 To prevent performance issues, opening is limited to 10 links.
 Would you like to open the first 10 selected links?</source>
@@ -2748,39 +2716,41 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
 ¿Desea abrir los primeros 10 seleccionados?</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="392" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="402" />
         <source>Open 10</source>
         <translation>Abrir 10</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="396" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="406" />
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
 </context><context>
     <name>MainMenu</name>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="257" />
+        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="272" />
         <source>&amp;File</source>
         <translation>&amp;Archivo</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="339" />
+        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="355" />
         <source>&amp;Data</source>
         <translation>&amp;Datos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="384" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="532" />
+        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="401" />
         <source>Check Bad URLs</source>
         <translation>Comprobar URLs defectuosas</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="420" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="533" />
+        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="437" />
         <source>Refresh Icons</source>
         <translation>Actualizar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="429" />
+        <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="446" />
         <source>&amp;Help</source>
         <translation>A&amp;yuda</translation>
     </message>
@@ -2842,12 +2812,14 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
         <translation>Error: %1</translation>
     </message>
     <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="459" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="155" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Agregar sección</translation>
     </message>
     <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="473" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="156" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
@@ -2897,6 +2869,7 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
         <translation>Importar base de datos</translation>
     </message>
     <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="531" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
         <source>Import Bookmarks</source>
@@ -2915,6 +2888,7 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
         <translation>Importar iconos</translation>
     </message>
     <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="530" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
         <source>Search files</source>
@@ -3276,19 +3250,19 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
 </context><context>
     <name>ProfilesMixin</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="62" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="67" />
         <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="29" />
         <source>Profile selection module is unavailable.</source>
         <translation>El módulo de selección de perfiles no está disponible.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="63" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="68" />
         <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="30" />
         <source>Browser profiles</source>
         <translation>Perfiles del navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="64" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="69" />
         <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="31" />
         <source>Failed to load browser profile selection dialog. Ensure the component is installed and accessible.</source>
         <translation>Error al cargar el diálogo de selección de perfiles del navegador. Asegúrese de que el componente esté instalado y accesible.</translation>
@@ -3297,6 +3271,14 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
         <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="73" />
         <source>Profile</source>
         <translation>Perfil</translation>
+    </message>
+</context><context>
+    <name>QuickAddToolbarAdapter</name>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="683" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="682" />
+        <source>Add Link...</source>
+        <translation>Agregar enlace...</translation>
     </message>
 </context><context>
     <name>QuickLookDialog</name>
@@ -3520,6 +3502,19 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
         <translation>Notas</translation>
     </message>
 </context><context>
+    <name>RecentHistoryToolbarAdapter</name>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1041" />
+        <source>No recent links</source>
+        <translation>No hay enlaces recientes</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1076" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1075" />
+        <source>Recent Links</source>
+        <translation>Enlaces recientes</translation>
+    </message>
+</context><context>
     <name>RestoreDbDialog</name>
     <message>
         <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="315" />
@@ -3614,53 +3609,18 @@ Para evitar problemas, limitamos la apertura a 10 enlaces.
 </context><context>
     <name>SettingsConfig</name>
     <message>
-        <location filename="..\app\config_data\settings_config.py" line="16" />
+        <location filename="..\app\config_data\settings_config.py" line="18" />
         <source>About</source>
         <translation>Acerca de</translation>
     </message>
     <message>
-        <location filename="..\app\config_data\settings_config.py" line="17" />
+        <location filename="..\app\config_data\settings_config.py" line="19" />
         <source>Link Manager
 Version 1.0
 © MyCompany</source>
         <translation>Gestor de enlaces
 Versión 1.0
 © MyCompany</translation>
-    </message>
-    <message>
-        <location filename="..\app\config_data\settings_config.py" line="34" />
-        <location filename="..\app\config_data\settings_config.py" line="27" />
-        <location filename="..\app\config_data\settings_config.py" line="20" />
-        <source>Web Link</source>
-        <translation>Enlace web</translation>
-    </message>
-    <message>
-        <location filename="..\app\config_data\settings_config.py" line="36" />
-        <location filename="..\app\config_data\settings_config.py" line="29" />
-        <location filename="..\app\config_data\settings_config.py" line="21" />
-        <source>File</source>
-        <translation>Archivo</translation>
-    </message>
-    <message>
-        <location filename="..\app\config_data\settings_config.py" line="37" />
-        <location filename="..\app\config_data\settings_config.py" line="30" />
-        <location filename="..\app\config_data\settings_config.py" line="22" />
-        <source>Program</source>
-        <translation>Programa</translation>
-    </message>
-    <message>
-        <location filename="..\app\config_data\settings_config.py" line="35" />
-        <location filename="..\app\config_data\settings_config.py" line="28" />
-        <location filename="..\app\config_data\settings_config.py" line="23" />
-        <source>Script</source>
-        <translation>Script</translation>
-    </message>
-    <message>
-        <location filename="..\app\config_data\settings_config.py" line="38" />
-        <location filename="..\app\config_data\settings_config.py" line="31" />
-        <location filename="..\app\config_data\settings_config.py" line="24" />
-        <source>Folder</source>
-        <translation>Carpeta</translation>
     </message>
 </context><context>
     <name>SettingsDialog</name>
@@ -3773,51 +3733,51 @@ Versión 1.0
 </context><context>
     <name>SpheresBarController</name>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="245" />
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="153" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="289" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="164" />
         <source>AI</source>
         <translation>IA</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="246" />
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="154" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="290" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="165" />
         <source>Work</source>
         <translation>Trabajo</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="247" />
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="155" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="291" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="166" />
         <source>Study</source>
         <translation>Estudio</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="248" />
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="156" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="292" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="167" />
         <source>Personal</source>
         <translation>Personal</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="279" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="323" />
         <source>Change Icon...</source>
         <translation>Cambiar icono...</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="286" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="330" />
         <source>Reset to Default Icon</source>
         <translation>Restablecer icono predeterminado</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="300" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="344" />
         <source>Rename Sphere...</source>
         <translation>Renombrar esfera...</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="307" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="351" />
         <source>Reset to Default Name</source>
         <translation>Restablecer nombre predeterminado</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="390" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="434" />
         <source>Select Icon</source>
         <translation>Seleccionar icono</translation>
     </message>

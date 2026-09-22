@@ -5,6 +5,7 @@ from PyQt6.QtCore import QItemSelectionModel
 from PyQt6.QtWidgets import QApplication
 
 from app.controllers.ui.links.controller import LinksUIController
+from app.views.widgets.link.columns import LinkTableColumn
 
 
 class TestLinksUiFocus(unittest.TestCase):
@@ -54,7 +55,10 @@ class TestLinksUiFocus(unittest.TestCase):
             # 2. Current index should be set to first row (index 2) without update flag
             sel_model.setCurrentIndex.assert_called_once()
             call_args = sel_model.setCurrentIndex.call_args[0]
-            self.assertEqual(call_args[0], model.index(2, 0))  # check index
+            self.assertEqual(
+                call_args[0],
+                model.index(2, int(LinkTableColumn.GROUP_LAUNCH)),
+            )
             # Check NoUpdate flag was used
             self.assertEqual(call_args[1], QItemSelectionModel.SelectionFlag.NoUpdate)
             
@@ -99,3 +103,41 @@ class TestLinksUiFocus(unittest.TestCase):
                 self.assertEqual(controller._row_by_link_id, {201: 0})
                 self.assertIsNone(controller._pending_focus_link_ids)
                 mock_timer.assert_called_once()
+
+    def test_quick_look_navigation_sets_current_name_cell(self):
+        table_widget = Mock()
+        table_widget.currentIndex.return_value.isValid.return_value = True
+        table_widget.currentIndex.return_value.row.return_value = 1
+
+        from PyQt6.QtGui import QStandardItemModel
+
+        model = QStandardItemModel(5, 5)
+        table_widget.model.return_value = model
+
+        business_logic = Mock()
+        main_window = Mock()
+        main_window.ui_state = None
+
+        with patch('app.controllers.ui.links.controller.LinksUIHandlers'), \
+             patch('app.controllers.ui.links.controller.LinksUIClipboard'), \
+             patch('app.controllers.ui.links.controller.LinksUILinkOperations'):
+
+            controller = LinksUIController(
+                table_widget=table_widget,
+                business_logic=business_logic,
+                main_window=main_window,
+                link_operations=Mock(),
+                links_table_controller=Mock()
+            )
+            controller.get_link_at = Mock(return_value={"id": 102, "name": "Next"})
+            controller._quick_look_dialog = Mock()
+            controller._quick_look_dialog.isVisible.return_value = True
+
+            controller._on_quick_look_navigate(1)
+
+            table_widget.setCurrentIndex.assert_called_once_with(
+                model.index(2, int(LinkTableColumn.NAME))
+            )
+            controller._quick_look_dialog.set_link.assert_called_once_with(
+                {"id": 102, "name": "Next"}
+            )

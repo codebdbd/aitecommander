@@ -8,6 +8,7 @@ from PyQt6.QtCore import QCoreApplication, QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
+from app.utils.links.type_labels import normalize_link_type_key
 
 from .base import create_context_action, get_menu_icon
 
@@ -281,15 +282,11 @@ class LinksMenuBuilder:
             logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
 
     def _is_web_link(self, link: dict) -> bool:
-        """Check if link is a web link (http/https)."""
+        """Check if link is a stored web-link resource."""
         if not isinstance(link, dict):
             return False
         try:
-            url = link.get("url") or link.get("href")
-            if not isinstance(url, str):
-                return False
-            low = url.strip().lower()
-            return low.startswith("http://") or low.startswith("https://")
+            return normalize_link_type_key(str(link.get("type") or "")) == "web"
         except Exception:
             return False
 

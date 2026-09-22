@@ -7,6 +7,8 @@ from typing import Any
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
+from app.utils.links.type_labels import LINK_TYPE_DESCRIPTORS
+
 from .base_config import BaseConfig
 
 def _tr(text: str) -> str:
@@ -16,26 +18,12 @@ def _tr(text: str) -> str:
 _DEFAULT_ABOUT_TITLE = QT_TRANSLATE_NOOP("SettingsConfig", "About")
 _DEFAULT_ABOUT_TEXT = QT_TRANSLATE_NOOP("SettingsConfig", "Link Manager\nVersion 1.0\n\u00a9 MyCompany"
 )
-_DEFAULT_LINK_TYPES = [
-    ["web", QT_TRANSLATE_NOOP("SettingsConfig", "Web Link")],
-    ["file", QT_TRANSLATE_NOOP("SettingsConfig", "File")],
-    ["program", QT_TRANSLATE_NOOP("SettingsConfig", "Program")],
-    ["script", QT_TRANSLATE_NOOP("SettingsConfig", "Script")],
-    ["folder", QT_TRANSLATE_NOOP("SettingsConfig", "Folder")],
-]
+_DEFAULT_LINK_TYPES = [[item.key, item.label_source] for item in LINK_TYPE_DESCRIPTORS]
 _DEFAULT_QUICK_TYPES = [
-    ["web", "web_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Web Link")],
-    ["script", "script_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Script")],
-    ["file", "documents_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "File")],
-    ["program", "program_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Program")],
-    ["folder", "folder_icon.png", QT_TRANSLATE_NOOP("SettingsConfig", "Folder")],
+    [item.key, item.default_icon, item.label_source] for item in LINK_TYPE_DESCRIPTORS
 ]
 _DEFAULT_QUICK_TYPE_TOOLTIPS = {
-    "web": QT_TRANSLATE_NOOP("SettingsConfig", "Web Link"),
-    "script": QT_TRANSLATE_NOOP("SettingsConfig", "Script"),
-    "file": QT_TRANSLATE_NOOP("SettingsConfig", "File"),
-    "program": QT_TRANSLATE_NOOP("SettingsConfig", "Program"),
-    "folder": QT_TRANSLATE_NOOP("SettingsConfig", "Folder"),
+    item.key: item.label_source for item in LINK_TYPE_DESCRIPTORS
 }
 
 
@@ -145,7 +133,7 @@ class SettingsConfig(BaseConfig):
             val = self.get("ui.link_types")
         if val is None:
             val = _DEFAULT_LINK_TYPES
-            return [[key, _tr(label)] for key, label in val]
+            return [[key, QCoreApplication.translate("LinkDialogUI", label)] for key, label in val]
         return [list(item) for item in val]
 
     def get_default_icons(self) -> dict:
@@ -161,6 +149,7 @@ class SettingsConfig(BaseConfig):
                     "script": "script_icon.png",
                     "chrome": "chrome_icon.png",
                     "file": "documents_icon.png",
+                    "note": "documents_icon.png",
                     "category": "category.png",
                     "section": "section.png",
                     "ai": "ai_icon.png",
@@ -178,7 +167,10 @@ class SettingsConfig(BaseConfig):
             val = self.get("ui.quick_types")
         if val is None:
             val = _DEFAULT_QUICK_TYPES
-            return [[t, icon, _tr(label)] for t, icon, label in val]
+            return [
+                [t, icon, QCoreApplication.translate("LinkDialogUI", label)]
+                for t, icon, label in val
+            ]
         return [list(item) for item in val]
 
     def get_quick_type_tooltips(self) -> dict[str, str]:
@@ -187,7 +179,10 @@ class SettingsConfig(BaseConfig):
         if val is None:
             val = self.get("ui.quick_type_tooltips")
         if val is None:
-            return {key: _tr(text) for key, text in _DEFAULT_QUICK_TYPE_TOOLTIPS.items()}
+            return {
+                key: QCoreApplication.translate("LinkDialogUI", text)
+                for key, text in _DEFAULT_QUICK_TYPE_TOOLTIPS.items()
+            }
         return dict(val)
 
     def get_default_browse_paths(self) -> dict[str, str]:

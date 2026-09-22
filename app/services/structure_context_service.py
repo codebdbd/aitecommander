@@ -18,6 +18,7 @@ from app.models.types.constants import CATEGORY_BULK_UUID_FIELD
 from app.services.links_service import LinksService
 from app.services.protocols import DatabaseProtocol
 from app.services.structure_service import StructureService
+from app.utils.links.type_labels import normalize_link_type_key
 
 logger = logging.getLogger(__name__)
 
@@ -564,7 +565,7 @@ class StructureContextService:
     def _link_key_from_record(self, record: dict) -> tuple[str, str, str, str]:
         return (
             str(record.get("url") or ""),
-            str(record.get("type") or ""),
+            normalize_link_type_key(str(record.get("type") or "")),
             str(record.get("args") or ""),
             str(record.get("name") or ""),
         )
@@ -580,7 +581,7 @@ class StructureContextService:
             "category_id": category_id,
             "name": name,
             "url": url,
-            "type": link.get("type") or "web",
+            "type": normalize_link_type_key(str(link.get("type") or "")),
             "notes": link.get("notes") or "",
             "is_favorite": int(link.get("is_favorite") or 0),
             "icon_path": link.get("icon_path") or "",
@@ -736,7 +737,7 @@ class StructureContextService:
             url = src.get("url") or ""
             if not name or not url:
                 continue
-            ltype = src.get("type") or "web"
+            ltype = normalize_link_type_key(str(src.get("type") or ""))
             notes = src.get("notes") or ""
             is_favorite = int(src.get("is_favorite") or 0)
             icon_path = src.get("icon_path") or ""

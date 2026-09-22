@@ -54,6 +54,36 @@ def test_link_dialog_edit_mode_shows_only_current_link_type(qapp):
     dialog.close()
 
 
+def test_link_dialog_new_link_hides_note_type(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+    )
+
+    type_codes = [
+        button.property("link_type") for button in dialog._get_type_group().buttons()
+    ]
+
+    assert "note" not in type_codes
+    assert set(type_codes) == {"web", "file", "folder", "program", "script"}
+    dialog.close()
+
+
+def test_link_dialog_edit_mode_keeps_legacy_note_type(qapp):
+    init_data = {"category_hierarchy": {}, "spheres": []}
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+        link={"type": "note"},
+    )
+
+    type_buttons = dialog._get_type_group().buttons()
+    assert len(type_buttons) == 1
+    assert type_buttons[0].property("link_type") == "note"
+    dialog.close()
+
+
 def test_link_dialog_fixed_type_shows_only_quick_add_type(qapp):
     init_data = {"category_hierarchy": {}, "spheres": []}
     dialog = LinkDialog(

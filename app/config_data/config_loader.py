@@ -12,6 +12,47 @@ from .settings_config import SettingsConfig
 from .ui_config import UIConfig
 from .utils import get_by_path
 
+_LEGACY_TABLE_FONT_KEYS = (
+    "table_opened_col_px",
+    "table_notes_col_px",
+    "table_cols_px",
+)
+
+
+def normalize_app_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Normalize legacy configuration shapes once after loading."""
+    if not isinstance(config, dict):
+        return config
+
+    ui = config.setdefault("ui", {})
+    if not isinstance(ui, dict):
+        return config
+
+    from app.views.widgets.link.columns import LINK_TABLE_COLUMN_MAP
+
+    current_columns = dict(LINK_TABLE_COLUMN_MAP)
+    configured_columns = ui.get("links_table_columns")
+    normalized_columns: dict[str, int] | None = None
+    if isinstance(configured_columns, dict):
+        try:
+            normalized_columns = {
+                key: int(configured_columns[key]) for key in current_columns
+            }
+        except (KeyError, TypeError, ValueError):
+            normalized_columns = None
+
+    if normalized_columns != current_columns:
+        ui["links_table_columns"] = current_columns
+    else:
+        ui["links_table_columns"] = normalized_columns
+
+    fonts = ui.get("fonts")
+    if isinstance(fonts, dict):
+        for key in _LEGACY_TABLE_FONT_KEYS:
+            fonts.pop(key, None)
+
+    return config
+
 
 class AppConfig:
     """Access application configuration backed by a JSON file."""
@@ -59,7 +100,7 @@ class AppConfig:
 
             raw = get_data(__package__, "app_config.json")
             if raw is not None:
-                return json.loads(raw.decode("utf-8"))
+                return normalize_app_config(json.loads(raw.decode("utf-8")))
         except Exception:
             pass
 
@@ -70,14 +111,14 @@ class AppConfig:
             cfg_resource = resources.files(__package__).joinpath("app_config.json")
             with resources.as_file(cfg_resource) as cfg_path:
                 with cfg_path.open("r", encoding="utf-8") as handle:
-                    return json.load(handle)
+                    return normalize_app_config(json.load(handle))
         except Exception:
             pass
 
         # 3) Direct filesystem path (development mode)
         try:
             with open(self._config_path, encoding="utf-8") as handle:
-                return json.load(handle)
+                return normalize_app_config(json.load(handle))
         except (FileNotFoundError, PermissionError):
             pass
 
@@ -85,7 +126,7 @@ class AppConfig:
         candidate = PathManager.config_data_root() / "app_config.json"
         try:
             with candidate.open("r", encoding="utf-8") as handle:
-                return json.load(handle)
+                return normalize_app_config(json.load(handle))
         except (FileNotFoundError, PermissionError):
             pass
 
@@ -93,7 +134,7 @@ class AppConfig:
         try:
             from .app_config_payload import APP_CONFIG_JSON
 
-            return json.loads(APP_CONFIG_JSON)
+            return normalize_app_config(json.loads(APP_CONFIG_JSON))
         except Exception as exc:
             raise FileNotFoundError(
                 f"Configuration file not found: {self._config_path}"

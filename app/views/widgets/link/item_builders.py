@@ -1,6 +1,6 @@
 """Utilities for generating display text and tooltips for model roles (``QAbstractTableModel``)."""
 
-from app.utils.links.type_labels import translate_link_type_label
+from app.utils.links.type_labels import link_type_address_tooltip, translate_link_type_label
 
 # Constants for magic numbers
 MAX_NOTES_LENGTH = 462
@@ -84,12 +84,7 @@ class ItemBuildersMixin:
 
     def _type_tooltip(self, link: dict) -> str:
         """Return resource address/details for the type column tooltip."""
-        link_type = str(link.get("type") or "web").strip().lower()
-        value = str(link.get("url") or link.get("path") or "").strip()
-        if value:
-            return value
-        notes = str(link.get("notes") or "").strip()
-        return notes[:200]
+        return link_type_address_tooltip(link)
 
     def _name_tooltip(self, link: dict) -> str:
         """Return tooltip for the name column (URL/Path)."""

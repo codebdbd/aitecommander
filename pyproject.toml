@@ -7,7 +7,7 @@ name = "aitecommander"
 version = "1.1.8"
 description = "Hierarchical bookmark and link manager with 4-level organization, 17 themes, 6 languages, and full import/export support"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-only"
 requires-python = ">=3.12"
 authors = [
     { name = "Codebdbd" },
@@ -16,7 +16,7 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

@@ -28,7 +28,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
-from app.utils.links.type_labels import LINK_TYPE_LABELS as _LINK_TYPE_FALLBACK_LABELS
+from app.utils.links.type_labels import link_type_label_source
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -46,6 +46,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Application")
     QCoreApplication.translate("LinkDialogUI", "Script")
     QCoreApplication.translate("LinkDialogUI", "Folder")
+    QCoreApplication.translate("LinkDialogUI", "Note")
 
 # lupdate hint for Web argument preset labels
 if False:  # pragma: no cover
@@ -631,11 +632,10 @@ class LinkDialogUI:
 
     def _translate_link_type_title(self, code: str, original: str) -> str:
         """Return translated title for link type with graceful fallback."""
-        label_key = _LINK_TYPE_FALLBACK_LABELS.get(code)
-        if label_key:
-            translated = QCoreApplication.translate("LinkDialogUI", label_key)
-            if translated != label_key or not original or original == label_key:
-                return translated
+        label_key = link_type_label_source(code)
+        translated = QCoreApplication.translate("LinkDialogUI", label_key)
+        if translated != label_key or not original or original == label_key:
+            return translated
         # Fallback: try translating original value; if unavailable, return original
         translated_original = (
             QCoreApplication.translate("LinkDialogUI", original) if original else ""
