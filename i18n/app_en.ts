@@ -30,8 +30,8 @@
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\about_dialog.py" line="198" />
-        <source>License: MIT</source>
-        <translation>License: MIT</translation>
+        <source>License: GPL-3.0</source>
+        <translation>License: GPL-3.0</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\about_dialog.py" line="199" />

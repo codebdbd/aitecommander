@@ -195,7 +195,7 @@ class AboutDialog(BaseDialog):
         self.info_group.setTitle(self.tr("Information"))
         self.version_label.setText(self.tr("Version {0}").format(version))
         self.developer_label.setText(self.tr("Developer: Codebdbd"))
-        self.license_label.setText(self.tr("License: MIT"))
+        self.license_label.setText(self.tr("License: GPL-3.0"))
         self.tech_value_label.setText(self.tr("Python 3.12+ · PyQt6 · SQLite"))
 
         self.paths_group.setTitle(self.tr("Application data"))
