@@ -143,3 +143,10 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict In-Memory Caching & Invalidation Rules**:
   1. **Кэширование путей файловой системы**: Метод `_resolve_filesystem` в `icon_resolver.py` обязан быть декорирован `@lru_cache(maxsize=1024)`. Запрещено убирать LRU-кэширование во избежание деградации рендеринга дерева до ~450 мс.
   2. **Обязательная инвалидация**: Метод `clear_icon_resolver_cache()` обязан вызываться при любой мутации иконок на диске (сохранение загрузчиком `IconDownloader`, выбор/конвертация в `IconFileService`, системная очистка `clear_icon_cache()`).
+
+## 16. Architecture Standards: Category Tiles Icon Loading Policy (СТАНДАРТ ЗАГРУЗКИ ИКОНОК ПЛИТОК КАТЕГОРИЙ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Политика загрузки иконок в плитках категорий (`app/utils/ui/icon/loading_policy.py`, `app/views/models/categories_list_model.py`) зафиксирована для исключения блокировок главного UI-потока.
+- **Strict Prefetch & Batch Rules**:
+  1. **Лимит синхронного префетча**: `sync_cap` (и `_sync_prefetch_cap`) строго ограничен значением **6** (первый видимый ряд плиток). Запрещено увеличивать синхронный префетч в UI-потоке во избежание фризов UI до ~190 мс при выборе разделов с большим количеством категорий.
+  2. **Размер фонового батча**: `batch_size` (и `_icon_batch_size`) строго ограничен значением **8**. Запрещено поднимать размер порции до 32, чтобы исключить задержки обработки событий интерфейса при фоновой догрузке.
+

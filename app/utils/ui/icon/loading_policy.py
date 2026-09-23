@@ -59,14 +59,14 @@ def get_tiles_icon_loading_policy() -> TilesIconLoadingPolicy:
     try:
         sync_cap = max(
             0,
-            int(app_config.ui.get("ui.tiles_icon_sync_prefetch_cap", prefetch)),
+            int(app_config.ui.get("ui.tiles_icon_sync_prefetch_cap", 6)),
         )
     except Exception:
-        sync_cap = prefetch
+        sync_cap = 6
     try:
-        batch_size = max(1, int(app_config.ui.get("ui.tiles_icon_batch_size", 32)))
+        batch_size = max(1, int(app_config.ui.get("ui.tiles_icon_batch_size", 8)))
     except Exception:
-        batch_size = 32
+        batch_size = 8
 
     return TilesIconLoadingPolicy(
         lazy=lazy,

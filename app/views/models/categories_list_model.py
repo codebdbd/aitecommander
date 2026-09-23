@@ -50,9 +50,9 @@ class CategoriesListModel(QAbstractListModel):
             self._icon_batch_size = int(policy.batch_size)
         except Exception:
             self._lazy_icons_enabled = True
-            self._icon_prefetch = 24
-            self._sync_prefetch_cap = 24
-            self._icon_batch_size = 32
+            self._icon_prefetch = 6
+            self._sync_prefetch_cap = 6
+            self._icon_batch_size = 8
 
     # --- data API ---
     def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]

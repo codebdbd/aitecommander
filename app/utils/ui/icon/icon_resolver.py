@@ -131,56 +131,36 @@ def _type_default_path(type_key: str) -> str:
 def resolve_section_icon_path(icon_path: Optional[str]) -> str:
     """Resolve section icon path with fallback to configured section icon."""
     if icon_path:
-        p = Path(icon_path)
-        if p.is_absolute():
-            if p.exists() and is_valid_icon_file(str(p)):
-                return str(p)
-        else:
-            rel = _resolve_filesystem(icon_path)
-            if rel:
-                return rel
+        rel = _resolve_filesystem(icon_path)
+        if rel:
+            return rel
     return _type_default_path("section")
 
 
 def resolve_category_icon_path(icon_path: Optional[str]) -> str:
     """Resolve category icon path with fallback to configured category icon."""
     if icon_path:
-        p = Path(icon_path)
-        if p.is_absolute():
-            if p.exists() and is_valid_icon_file(str(p)):
-                return str(p)
-        else:
-            rel = _resolve_filesystem(icon_path)
-            if rel:
-                return rel
+        rel = _resolve_filesystem(icon_path)
+        if rel:
+            return rel
     return _type_default_path("category")
 
 
 def resolve_folder_icon_path(icon_path: Optional[str]) -> str:
     """Resolve folder icon path with fallback to configured folder icon."""
     if icon_path:
-        p = Path(icon_path)
-        if p.is_absolute():
-            if p.exists() and is_valid_icon_file(str(p)):
-                return str(p)
-        else:
-            rel = _resolve_filesystem(icon_path)
-            if rel:
-                return rel
+        rel = _resolve_filesystem(icon_path)
+        if rel:
+            return rel
     return _type_default_path("folder")
 
 
 def resolve_link_type_icon_path(icon_path: Optional[str], link_type: str) -> str:
     """Resolve link icon path with fallback to type-specific default."""
     if icon_path:
-        p = Path(icon_path)
-        if p.is_absolute():
-            if p.exists() and is_valid_icon_file(str(p)):
-                return str(p)
-        else:
-            rel = _resolve_filesystem(icon_path)
-            if rel:
-                return rel
+        rel = _resolve_filesystem(icon_path)
+        if rel:
+            return rel
     return _type_default_path(((link_type or "file").strip() or "file").lower())
 
 
@@ -269,17 +249,9 @@ def resolve_sphere_icon_path(
 ) -> str:
     """Resolve sphere icon path with fallback to default sphere icon."""
     if icon_path:
-        p = Path(icon_path)
-        if p.is_absolute():
-            if p.exists() and is_valid_icon_file(str(p)):
-                return str(p)
-            rel = _resolve_filesystem(p.name)
-            if rel:
-                return rel
-        else:
-            rel = _resolve_filesystem(icon_path)
-            if rel:
-                return rel
+        rel = _resolve_filesystem(icon_path)
+        if rel:
+            return rel
     default_name = get_default_sphere_icon_name(sphere, position)
     if default_name:
         resolved = _resolve_filesystem(default_name)
