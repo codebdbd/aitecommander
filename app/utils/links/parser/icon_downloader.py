@@ -442,6 +442,9 @@ class IconDownloader:
 
                 if img.mode != "RGBA":
                     img = img.convert("RGBA")
+                if max(img.size) > 128:
+                    img.thumbnail((128, 128), Image.Resampling.LANCZOS)
+                    width, height = img.size
                 buf = BytesIO()
                 img.save(buf, format="PNG")
                 _atomic_write_bytes(path_obj, buf.getvalue())

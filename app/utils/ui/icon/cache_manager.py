@@ -569,11 +569,16 @@ class ThreadSafeIconCache:
                 return
             # Get the first available pixmap from the icon
             sizes = icon.availableSizes()
-            if sizes:
-                pixmap = icon.pixmap(sizes[0])
-                if not pixmap.isNull():
-                    # Use our cache key for QPixmapCache
-                    QPixmapCache.insert(f"icon:{key}", pixmap)
+            if not sizes:
+                return
+            target_size = sizes[0]
+            # Do not decode massive raw bitmaps (e.g. 1254x1254) into QPixmapCache
+            if target_size.width() > 64 or target_size.height() > 64:
+                return
+            pixmap = icon.pixmap(target_size)
+            if not pixmap.isNull():
+                # Use our cache key for QPixmapCache
+                QPixmapCache.insert(f"icon:{key}", pixmap)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to store pixmap in QPixmapCache for %s: %s", key, exc)
 

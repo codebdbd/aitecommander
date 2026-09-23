@@ -58,6 +58,22 @@ def copy_icon_smart(src_path: str, dest_dir: Path) -> str:
             counter += 1
 
     try:
+        if src_path_obj.suffix.lower() != ".svg":
+            try:
+                with safe_image_open(src_path_obj) as img:
+                    if max(img.size) > 128:
+                        resized = img.copy()
+                        if src_path_obj.suffix.lower() in (".jpg", ".jpeg"):
+                            if resized.mode != "RGB":
+                                resized = resized.convert("RGB")
+                        elif resized.mode not in ("RGB", "RGBA"):
+                            resized = resized.convert("RGBA")
+                        resized.thumbnail((128, 128), Resampling.LANCZOS)
+                        resized.save(dst)
+                        logger.debug("Downscaled icon to: %s (max 128px)", dst.name)
+                        return dst.name
+            except Exception:
+                pass
         shutil.copyfile(src_path_obj, dst)
         logger.debug("Copied icon to: %s", dst.name)
     except OSError as exc:

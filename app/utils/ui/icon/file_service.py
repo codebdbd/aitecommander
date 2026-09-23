@@ -89,8 +89,30 @@ class IconFileService:
         # Find unique filename
         dst = self._unique_path(target_dir, src.stem, src.suffix)
         
-        # Copy file
+        # Copy file or downscale if raster > 128px
         try:
+            if src.suffix.lower() != ".svg":
+                try:
+                    with safe_image_open(src) as img:
+                        if max(img.size) > 128:
+                            resized = img.copy()
+                            if src.suffix.lower() in (".jpg", ".jpeg"):
+                                if resized.mode != "RGB":
+                                    resized = resized.convert("RGB")
+                            elif resized.mode not in ("RGB", "RGBA"):
+                                resized = resized.convert("RGBA")
+                            resized.thumbnail((128, 128), Image.Resampling.LANCZOS)
+                            resized.save(dst)
+                            logger.info("Downscaled and saved icon from %s to %s (max 128px)", src, dst)
+                            try:
+                                from .icon_resolver import clear_icon_resolver_cache
+
+                                clear_icon_resolver_cache()
+                            except Exception:
+                                pass
+                            return dst
+                except Exception:
+                    pass
             shutil.copy2(src, dst)
             logger.info("Copied icon from %s to %s", src, dst)
             try:

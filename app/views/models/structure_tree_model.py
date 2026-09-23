@@ -330,29 +330,12 @@ class StructureTreeModel(QAbstractItemModel):
         if not trimmed:
             return None
 
-        is_absolute = (
-            trimmed.startswith(":/")
-            or trimmed.startswith("qrc:/")
-            or trimmed.startswith("qresource:")
-            or trimmed.startswith("/")
-            or trimmed.startswith("\\")
-            or (len(trimmed) > 2 and trimmed[1] == ":" and trimmed[2] in ("\\", "/"))
-        )
-        if is_absolute:
+        if trimmed.startswith((":/", "qrc:/", "qresource:")):
             icon = icon_loading_service.get_path_icon(trimmed)
             return icon if not icon.isNull() else None
 
         if not self._is_theme_icon_path(trimmed):
-            try:
-                icon = icon_loading_service.get_path_icon(trimmed)
-            except Exception:
-                logger.debug(
-                    "StructureTreeModel._load_icon_immediately_if_safe: resolve/load failed for %s",
-                    trimmed,
-                    exc_info=True,
-                )
-                return None
-            return icon if not icon.isNull() else None
+            return None
 
         try:
             from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
@@ -1067,6 +1050,10 @@ class StructureTreeModel(QAbstractItemModel):
         self._tree_snapshot_icons_ready = False
         self._tree_snapshot_icons_expected = 0
         self._tree_snapshot_icons_warmed = 0
+        self._snapshot_icon_load_token += 1
+        with self._active_icon_lock:
+            self._icon_waiters_by_path.clear()
+            self._active_icon_tasks.clear()
         self._deferred_categories_by_section.clear()
         self._deferred_category_parent_by_id.clear()
         self.beginResetModel()
@@ -1221,8 +1208,8 @@ class StructureTreeModel(QAbstractItemModel):
         finally:
             self.endInsertRows()
 
-        if deferred_category_icon_loads:
-            self._schedule_snapshot_icon_loads(deferred_category_icon_loads)
+        for cat_node, pending_cat_path in deferred_category_icon_loads:
+            self._start_icon_loading(cat_node, pending_cat_path)
 
     def populate_section_categories_by_id(self, section_id: int) -> bool:
         """Materialize deferred categories for a section if they were loaded lazily."""
@@ -1265,7 +1252,6 @@ class StructureTreeModel(QAbstractItemModel):
         if not pending_loads or self._shutdown:
             return
         try:
-            self._snapshot_icon_load_token += 1
             token = int(self._snapshot_icon_load_token)
         except Exception:
             token = 0

@@ -80,3 +80,20 @@ site/
 # Tool caches
 .ruff_cache/
 .pytest_cache/
+
+# Design files
+*.ai
+*.psd
+
+# Additional archives
+*.tar
+*.tar.gz
+
+# Crash and runtime
+crash_reports/
+logs/
+*.tmp.*
+
+# Root plans
+*_PLAN.md
+PANEL_ARCHITECTURE_LEVEL3.md
