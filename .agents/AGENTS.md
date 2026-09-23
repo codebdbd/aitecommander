@@ -127,3 +127,19 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Alignment Rules**:
   1. **Каноничное центрирование Qt**: Центрирование индикатора стрелки выполняется строго через `QStyle.alignedRect(option.direction, Qt.AlignmentFlag.AlignCenter, QSize(16, 16), option.rect)`. Запрещено производить ручной расчет координат через `rect.center().y() - side/2` или вводить эмпирические смещения/костыли.
   2. **Нативная векторная отрисовка**: Отрисовка выполняется строго через `icon.paint(painter, target_rect, Qt.AlignmentFlag.AlignCenter)`. Запрещено генерировать промежуточные `QPixmap` с ручным вычислением `devicePixelRatioF` и вызывать `drawPixmap` по целочисленным координатам.
+
+## 15. Architecture Standards: Icon Pipeline & Favicon Discovery (АРХИТЕКТУРНЫЙ СТАНДАРТ ПАЙПЛАЙНА ИКОНОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура обнаружения, ранжирования, загрузки и кэширования иконок закладок (`app/utils/links/parser/`, `app/utils/ui/icon/`) полностью зафиксирована.
+- **Strict Format Ranking Rules**:
+  1. **Приоритет форматов по качеству**: Маппинг `FORMAT_RANK` обязан строго соблюдать порядок: `SVG (10) > PNG (8) > WebP (7) > ICO (5) > JPG (3) > GIF (2) > BMP (1) > Unknown (0)`. Запрещено поднимать устаревшие растровые форматы (`bmp`, `ico`) выше современных (`svg`, `png`, `webp`).
+- **Strict Candidate Hierarchy Rules**:
+  1. **Явные теги автора (Tier 0)**: Ссылки на иконки из HTML-разметки (`<link rel="apple-touch-icon">`, `<link rel="icon">`) обязаны иметь высший приоритет (`base_priority = 0`). Запрещено снижать приоритет Retina/Apple-touch иконок в пользу спекулятивных догадок.
+  2. **Маскированные иконки (Tier 1)**: `mask-icon` имеет приоритет `base_priority = 1`.
+  3. **Иконки веб-манифеста (Tier 2)**: Иконки из `manifest.json` имеют приоритет `base_priority = 2`. Опрос манифеста разрешен строго для базового хоста; запрещено слать избыточные сетевые запросы к `www`-манифестам.
+  4. **Спекулятивные догадки (Tier 3 & Tier 4)**: Стандартный путь `/favicon.ico` имеет резервный приоритет: базовый хост — `base_priority = 5` (Tier 3), `www`-вариант — `base_priority = 6` (Tier 4).
+- **Strict Network Deduplication Rules**:
+  1. **Однократный опрос кандидатов**: Вторая фаза параллельного скачивания (`pick_icon_parallel`) обязана исключать кандидатов первой фазы (`urls_to_try = [u for u in icon_urls[batch_size:] if u not in seen_urls]`).
+  2. **Запрет повторных циклов**: Запрещено внедрять последовательные fallback-циклы, повторно опрашивающие кандидатов, которые уже завершились неудачей в параллельных фазах.
+- **Strict In-Memory Caching & Invalidation Rules**:
+  1. **Кэширование путей файловой системы**: Метод `_resolve_filesystem` в `icon_resolver.py` обязан быть декорирован `@lru_cache(maxsize=1024)`. Запрещено убирать LRU-кэширование во избежание деградации рендеринга дерева до ~450 мс.
+  2. **Обязательная инвалидация**: Метод `clear_icon_resolver_cache()` обязан вызываться при любой мутации иконок на диске (сохранение загрузчиком `IconDownloader`, выбор/конвертация в `IconFileService`, системная очистка `clear_icon_cache()`).

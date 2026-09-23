@@ -1,3 +1,4 @@
+from functools import lru_cache
 import re
 from pathlib import Path
 from typing import Optional
@@ -8,6 +9,7 @@ from .path_service import icon_path_service
 from .validation import is_valid_icon_file
 
 
+@lru_cache(maxsize=1024)
 def _resolve_filesystem(icon_name: str) -> str:
     """Resolve icon by checking user dir then UI icons dir. Returns path or ''."""
     if not icon_name:
@@ -45,6 +47,11 @@ def _resolve_filesystem(icon_name: str) -> str:
         pass
 
     return ""
+
+
+def clear_icon_resolver_cache() -> None:
+    """Clear in-memory icon path resolution cache."""
+    _resolve_filesystem.cache_clear()
 
 
 def resolve_icon_path(icon_path: Optional[str]) -> str:

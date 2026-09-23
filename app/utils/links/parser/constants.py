@@ -3,8 +3,9 @@
 import logging
 
 try:
+    import lxml  # noqa: F401
     BS_PARSER = "lxml"
-except Exception:
+except ImportError:
     BS_PARSER = "html.parser"
 
 # --- Constants ---
@@ -25,16 +26,17 @@ DEFAULT_JITTER_PCT = 0.15
 MIN_GOOD_SIZE = 16
 TARGET_SIZE = 64
 FORMAT_RANK = {
-    "ico": 0,
-    "png": 1,
-    "apng": 1,  # Animated PNG: treat the same priority as PNG
-    "webp": 2,
-    "avif": 2,  # Modern format; availability depends on PIL plugins
-    "gif": 3,
-    "jpg": 4,
-    "bmp": 5,
-    "svg": 9,  # SVG last
-    "unknown": 6,
+    "svg": 10,
+    "png": 8,
+    "apng": 8,
+    "webp": 7,
+    "avif": 7,
+    "ico": 5,
+    "jpg": 3,
+    "jpeg": 3,
+    "gif": 2,
+    "bmp": 1,
+    "unknown": 0,
 }
 
 # Logger

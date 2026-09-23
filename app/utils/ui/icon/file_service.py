@@ -78,6 +78,12 @@ class IconFileService:
             safe_dst = self._convert_ico_to_safe_png(src, target_dir)
             if safe_dst is not None:
                 logger.info("Converted ICO to safe PNG: %s -> %s", src, safe_dst)
+                try:
+                    from .icon_resolver import clear_icon_resolver_cache
+
+                    clear_icon_resolver_cache()
+                except Exception:
+                    pass
                 return safe_dst
 
         # Find unique filename
@@ -87,6 +93,12 @@ class IconFileService:
         try:
             shutil.copy2(src, dst)
             logger.info("Copied icon from %s to %s", src, dst)
+            try:
+                from .icon_resolver import clear_icon_resolver_cache
+
+                clear_icon_resolver_cache()
+            except Exception:
+                pass
             return dst
         except (OSError, PermissionError) as e:
             logger.error("Failed to copy icon from %s to %s: %s", src, dst, e)

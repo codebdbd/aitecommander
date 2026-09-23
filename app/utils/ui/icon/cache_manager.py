@@ -756,6 +756,12 @@ def clear_icon_cache() -> None:
         icon_loading_service.clear()
     except Exception:
         logger.debug("Failed to clear icon loading service cache", exc_info=True)
+    try:
+        from .icon_resolver import clear_icon_resolver_cache
+
+        clear_icon_resolver_cache()
+    except Exception:
+        logger.debug("Failed to clear icon resolver cache", exc_info=True)
 
 
 def get_icon_cache_stats() -> dict[str, int | float]:

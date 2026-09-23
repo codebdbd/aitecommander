@@ -261,12 +261,12 @@ def _collect_link_icons(
                 manifest_links.append(link)
 
             if has_apple:
-                _add_link_candidate(link, "apple-touch-icon", 2)
+                _add_link_candidate(link, "apple-touch-icon", 0)
                 continue
 
             if has_icon:
                 if has_mask:
-                    _add_link_candidate(link, "mask-icon", 4)
+                    _add_link_candidate(link, "mask-icon", 1)
                 else:
                     _add_link_candidate(link, "link-icon", 0)
 
@@ -427,7 +427,7 @@ def _create_icon_candidate(i_url: str, size_str: str | None, fmt: str) -> IconCa
         size=parse_icon_size(size_str) if size_str else 0,
         format=fmt,
         format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
-        base_priority=1,
+        base_priority=2,
         media_priority=0,
         kind="manifest",
     )
@@ -524,16 +524,16 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
     """
     p = urlparse(base_url)
     host = p.netloc
-    hosts = {host}
+    hosts: list[tuple[str, int]] = [(host, 5)]
     # Hosts for fallback:
     # - If starts with www., add base host without www.
     # - If it's a likely root domain (exactly one dot), add www.<host>.
     # - If explicit subdomain (>=2 dots and doesn't start with www.), DO NOT add www.<host> to avoid noisy 404s.
     if host.startswith("www."):
-        hosts.add(host[4:])
+        hosts.append((host[4:], 6))
     else:
         if host.count(".") == 1:
-            hosts.add("www." + host)
+            hosts.append(("www." + host, 6))
 
     fallback_paths = [
         "/favicon.ico",
@@ -542,7 +542,7 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
         "/apple-touch-icon.png",
         "/apple-touch-icon-precomposed.png",
     ]
-    for h in hosts:
+    for h, base_pri in hosts:
         base = f"{p.scheme}://{h}"
         for path in fallback_paths:
             url = urljoin(base + "/", path.lstrip("/"))
@@ -553,7 +553,7 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
                     size=0,
                     format=fmt,
                     format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
-                    base_priority=1,
+                    base_priority=base_pri,
                     media_priority=0,
                     kind="fallback",
                 )
@@ -561,27 +561,19 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
 
 
 def _add_manifest_fallback_urls(base_url: str, manifest_urls: list[str]) -> None:
-    """Adds common root manifest locations for main and www/non-www host variants."""
+    """Adds common root manifest locations for main host."""
     p = urlparse(base_url)
     host = p.netloc
     if not host:
         return
 
-    hosts = {host}
-    if host.startswith("www."):
-        hosts.add(host[4:])
-    elif host.count(".") == 1:
-        hosts.add("www." + host)
-
+    base = f"{p.scheme}://{host}"
     manifest_paths = [
         "/site.webmanifest",
-        "/manifest.webmanifest",
         "/manifest.json",
     ]
-    for h in hosts:
-        base = f"{p.scheme}://{h}"
-        for path in manifest_paths:
-            manifest_urls.append(urljoin(base + "/", path.lstrip("/")))
+    for path in manifest_paths:
+        manifest_urls.append(urljoin(base + "/", path.lstrip("/")))
 
 
 def _add_external_services(

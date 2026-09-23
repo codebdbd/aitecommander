@@ -76,7 +76,10 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             # Update link via business logic
             try:
                 # Business layer emits link_updated itself inside save_link()
-                self.business.save_link(link_copy)
+                if hasattr(self.business, "save_link_async"):
+                    self.business.save_link_async(link_copy)
+                else:
+                    self.business.save_link(link_copy)
                 logger.debug("Note saved for link: %s", link_copy.get("name"))
             except DatabaseError as e:
                 logger.error("Database error saving note: %s", e)

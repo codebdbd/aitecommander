@@ -378,12 +378,7 @@ class LinkOperationsController(QObject):
         )
         self.undo_stack.push(cmd)
 
-        # Handle favorite toggle
-        if isinstance(data, dict) and ("is_favorite" in data):
-            try:
-                self.on_favorite_toggled(None)
-            except Exception:
-                logger.exception("show_link_dialog(single): on_favorite_toggled failed")
+        # Favorite and top panels refresh is handled asynchronously by SaveLinkCmd._emit_top_panels_refresh
 
         # Schedule focus
         logger.debug(

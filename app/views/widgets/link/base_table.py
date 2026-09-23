@@ -515,6 +515,8 @@ class ExplorerHeaderView(QHeaderView):
             self.initStyleOption(opt)
             opt.rect = rect
             opt.section = logicalIndex
+            opt.orientation = Qt.Orientation.Horizontal
+            opt.position = QStyleOptionHeader.SectionPosition.Beginning
             opt.text = ""
             opt.icon = QIcon()
             self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)

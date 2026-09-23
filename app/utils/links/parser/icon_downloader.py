@@ -631,6 +631,12 @@ class IconDownloader:
                 etag = resp.headers.get("ETag")
                 lm = resp.headers.get("Last-Modified")
                 w, h = img.size
+                try:
+                    from app.utils.ui.icon.icon_resolver import clear_icon_resolver_cache
+
+                    clear_icon_resolver_cache()
+                except Exception:
+                    pass
                 logger.info(
                     "[icon] saved path=%s size=%sx%s url=%s status=%s ct=%s len=%s etag=%s lm=%s",
                     path,
@@ -1300,41 +1306,24 @@ def pick_icon_parallel(
 
     max_elapsed = float(getattr(config, "ICON_PICK_MAX_SECONDS", 6.0))
     finish_by = time.monotonic() + max(0.05, max_elapsed)
-    tried_urls = set(candidates)
+    tried_urls = set()
 
     # PHASE 1: Try top-3 primary candidates first (fast path)
     phase1_timeout = min(2.0, max_elapsed * 0.4)  # 40% of total time or 2s
     phase1_finish = time.monotonic() + phase1_timeout
-    saved_path = _phase1_try_top3(candidates, domain, config, force_refresh, phase1_finish, cancel_event)
+    phase1_candidates = candidates[:3]
+    tried_urls.update(phase1_candidates)
+    saved_path = _phase1_try_top3(phase1_candidates, domain, config, force_refresh, phase1_finish, cancel_event)
     if saved_path:
         return saved_path
 
     # PHASE 2: Try all remaining candidates if phase 1 failed
-    saved_path = _phase2_try_all(candidates, domain, config, force_refresh, finish_by, cancel_event)
-    if saved_path:
-        return saved_path
-    
-    # Fallback mode: accept smaller icons
-    logger.debug(
-        "No icons ≥%spx found, trying fallback mode for %s",
-        MIN_GOOD_SIZE,
-        domain,
-    )
-    saved_path = _try_candidates_parallel_impl(
-        candidates,
-        domain,
-        config,
-        True,
-        force_refresh,
-        finish_by,
-        cancel_event=cancel_event,
-    )
-    if saved_path:
-        logger.info(
-            "Successfully saved fallback icon %s for domain %s", saved_path, domain
-        )
-        return saved_path
-
+    remaining_candidates = [c for c in candidates if c not in tried_urls]
+    tried_urls.update(remaining_candidates)
+    if remaining_candidates:
+        saved_path = _phase2_try_all(remaining_candidates, domain, config, force_refresh, finish_by, cancel_event)
+        if saved_path:
+            return saved_path
     # External services as last resort
     saved_path = _try_external_candidates(
         config,

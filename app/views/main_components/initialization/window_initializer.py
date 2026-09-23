@@ -577,7 +577,7 @@ class WindowInitializer:
                     from app.services.icon_reference_service import IconReferenceService
                     if self.db is not None:
                         svc = IconReferenceService(self.db)
-                        svc.cleanup_orphaned_icons(dry_run=False, min_age_hours=1)
+                        svc.cleanup_orphaned_icons(dry_run=False, min_age_hours=168)
                 except Exception:
                     logger.debug("Background orphaned icons cleanup failed", exc_info=True)
 
