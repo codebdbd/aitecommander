@@ -2420,8 +2420,8 @@ Are you sure you want to continue?</translation>
     <name>LinkDialogUI</name>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="44" />
-        <source>Web link</source>
-        <translation>Web link</translation>
+        <source>Web</source>
+        <translation>Web</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="45" />
@@ -2442,11 +2442,6 @@ Are you sure you want to continue?</translation>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="48" />
         <source>Folder</source>
         <translation>Folder</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="49" />
-        <source>Note</source>
-        <translation>Note</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="306" />

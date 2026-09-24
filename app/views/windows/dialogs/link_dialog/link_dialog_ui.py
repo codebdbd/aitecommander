@@ -41,12 +41,11 @@ logger = logging.getLogger(__name__)
 
 # lupdate hint for dynamic link type labels
 if False:  # pragma: no cover
-    QCoreApplication.translate("LinkDialogUI", "Web link")
+    QCoreApplication.translate("LinkDialogUI", "Web")
     QCoreApplication.translate("LinkDialogUI", "File")
     QCoreApplication.translate("LinkDialogUI", "Application")
     QCoreApplication.translate("LinkDialogUI", "Script")
     QCoreApplication.translate("LinkDialogUI", "Folder")
-    QCoreApplication.translate("LinkDialogUI", "Note")
 
 # lupdate hint for Web argument preset labels
 if False:  # pragma: no cover

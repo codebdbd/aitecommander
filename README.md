@@ -5,14 +5,14 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 ## Features
 
 - **4-level hierarchy** — Spheres, Sections, Categories, Links with drag & drop reordering
-- **5 link types** — Web, File, Folder, Program, Script
+- **6 link types** — Web, File, Folder, Program, Script, Note
 - **macOS-style Quick Look** — Instant Spacebar preview for images, PDF, spreadsheets, DOCX, archives, code, and folders with zoom and navigation
 - **Favorites & Recents** — Quick-access panels in the top bar
 - **Full-text search** — Search by name, URL, notes, and arguments
 - **Group Launch** — Select multiple links with checkboxes and launch them simultaneously
 - **Undo/Redo** — Full undo stack for all operations
 - **Drag & Drop** — Move items between categories and reorder within the tree
-- **17 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, Dreamy Room, and 11 more bundled presets
+- **16 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, Crimson Noir, and 10 more bundled presets
 - **6 languages** — English, Ukrainian, Russian, French, Spanish, German
 - **40+ keyboard shortcuts** — Fully customizable hotkeys
 - **Browser import** — Import bookmarks from Chrome, Edge, Firefox HTML exports

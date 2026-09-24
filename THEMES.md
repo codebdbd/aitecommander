@@ -9,27 +9,26 @@ The program supports two theme sources:
 - bundled themes shipped with the app in `app/resources/themes`
 - user themes installed into `%APPDATA%/Codebdbd/Aite Commander/themes`
 
-### Bundled themes (17 presets)
+### Bundled themes (16 presets)
 
 | Theme ID | Name | Mode | Description |
 |---|---|---|---|
 | `light` | Light | Light | Default clean light interface |
 | `dark` | Dark | Dark | Default high-contrast dark theme |
-| `dreamy_room` | Dreamy Room | Dark | Cozy aesthetic pastel dark palette |
 | `matrix` | Matrix | Dark | Retro hacker green-on-black terminal style |
 | `violet_pulse` | Violet Pulse | Dark | Neon dark violet glowing palette |
 | `crimson_noir` | Crimson Noir | Dark | Deep black with bold crimson accents |
 | `cyberpunk_neon` | Cyberpunk Neon | Dark | High-voltage cyberpunk palette |
 | `ghost_terminal` | Ghost Terminal | Dark | Minimalist monochrome terminal style |
 | `industrial_yellow` | Industrial Yellow | Dark | Charcoal and hazard yellow accents |
-| `love` | Love | Light | Warm romantic pastel palette |
+| `love` | Love | Dark | Warm romantic pastel palette |
 | `nord_light` | Nord Light | Light | Cool Arctic Nordic light theme |
 | `obsidian_luxe` | Obsidian Luxe | Dark | Premium obsidian dark palette |
 | `pastel_bloom` | Pastel Bloom | Light | Floral spring pastel tones |
 | `pearl_gray` | Pearl Gray | Light | Balanced neutral pearl gray theme |
 | `rasta_royale` | Rasta Royale | Dark | Vibrant tri-color aesthetic |
 | `sage_light` | Sage Light | Light | Calming earthy sage green palette |
-| `sakura_anime` | Sakura Anime | Light | Soft pink Japanese cherry blossom style |
+| `sakura_anime` | Sakura Anime | Dark | Soft pink Japanese cherry blossom style |
 
 Theme installation in the UI is implemented by:
 

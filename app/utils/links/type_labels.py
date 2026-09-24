@@ -23,7 +23,7 @@ class LinkTypeDescriptor:
 LINK_TYPE_DESCRIPTORS: tuple[LinkTypeDescriptor, ...] = (
     LinkTypeDescriptor(
         key="web",
-        label_source="Web link",
+        label_source="Web",
         default_icon="web_icon.png",
         args_enabled=True,
         profile_enabled=True,
@@ -53,11 +53,6 @@ LINK_TYPE_DESCRIPTORS: tuple[LinkTypeDescriptor, ...] = (
         default_icon="script_icon.png",
         browse_enabled=True,
         args_enabled=True,
-    ),
-    LinkTypeDescriptor(
-        key="note",
-        label_source="Note",
-        default_icon="documents_icon.png",
     ),
 )
 
@@ -170,13 +165,6 @@ def link_type_address_tooltip(link: dict) -> str:
         rows.append(
             f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
             f"<td>{act_text}</td></tr>"
-        )
-    elif descriptor.key == "note":
-        notes_len = len(str(link.get("notes") or ""))
-        lbl_size = QCoreApplication.translate("TypeLabels", "Characters:")
-        rows.append(
-            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_size}</td>"
-            f"<td>{notes_len}</td></tr>"
         )
 
     table_content = "".join(rows)

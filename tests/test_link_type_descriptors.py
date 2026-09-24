@@ -40,15 +40,3 @@ def test_quick_types_follow_same_descriptor_order_and_icons() -> None:
         ]
         for descriptor in LINK_TYPE_DESCRIPTORS
     ]
-
-
-def test_note_type_tooltip_prefers_note_text() -> None:
-    tooltip = link_type_address_tooltip(
-        {
-            "type": "note",
-            "url": "https://example.invalid",
-            "notes": "Important note body",
-        }
-    )
-
-    assert tooltip == "Important note body"

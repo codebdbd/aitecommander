@@ -122,7 +122,7 @@ def test_type_column_uses_link_dialog_labels(qapp):
 
     assert model.data(
         model.index(0, int(LinkTableColumn.TYPE)), Qt.ItemDataRole.DisplayRole
-    ) == QCoreApplication.translate("LinkDialogUI", "Web link")
+    ) == QCoreApplication.translate("LinkDialogUI", "Web")
     assert model.data(
         model.index(1, int(LinkTableColumn.TYPE)), Qt.ItemDataRole.DisplayRole
     ) == QCoreApplication.translate("LinkDialogUI", "Application")

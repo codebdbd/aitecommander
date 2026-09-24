@@ -2420,8 +2420,8 @@ Tous les liens imbriqués seront définitivement supprimés !
     <name>LinkDialogUI</name>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="44" />
-        <source>Web link</source>
-        <translation>Lien web</translation>
+        <source>Web</source>
+        <translation>Web</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="45" />
@@ -2442,11 +2442,6 @@ Tous les liens imbriqués seront définitivement supprimés !
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="48" />
         <source>Folder</source>
         <translation>Dossier</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="49" />
-        <source>Note</source>
-        <translation>Note</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="306" />

@@ -10,7 +10,6 @@ class LinkType(Enum):
     FOLDER = "folder"
     PROGRAM = "program"
     SCRIPT = "script"
-    NOTE = "note"
 
     @classmethod
     def from_value(cls, value: Any) -> LinkType:

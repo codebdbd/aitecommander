@@ -15,7 +15,7 @@ def test_prepare_link_payload_normalizes_unknown_link_type() -> None:
     assert payload["type"] == "web"
 
 
-def test_prepare_link_payload_preserves_note_link_type() -> None:
+def test_prepare_link_payload_normalizes_legacy_note_link_type() -> None:
     service = StructureContextService.__new__(StructureContextService)
 
     payload = service._prepare_link_payload(
@@ -29,7 +29,7 @@ def test_prepare_link_payload_preserves_note_link_type() -> None:
     )
 
     assert payload is not None
-    assert payload["type"] == "note"
+    assert payload["type"] == "web"
     assert payload["notes"] == "body"
 
 

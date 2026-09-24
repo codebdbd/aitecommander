@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unified Browser Profile Selection (`BrowserProfileDialog`)**:
+  - Interactive profile selector supporting three distinct modes: Single Profile, Profile Rotation, and Batch Launch.
+  - Live rotation order numbering (`1`, `2`, `3`...) inside indicators with dynamic count status (`Selected: N of M`).
+  - Read-only profile preview field in `LinkDialog` with one-click clear button and direct selector trigger.
+- **Informative Table Tooltips**:
+  - Structured HTML card tooltip for the "Name" column with full title, un-squeezed path/URL, arguments, browser profile, and administrator execution status (`🛡️ Run as administrator`).
+  - Contextual launcher card for the "Type" column detailing the action, domain/target, format, or character count.
 - **macOS-style Quick Look Dialog (`Space`)**:
   - Instant preview for table items triggered by pressing `Space`.
   - Native PDF document viewer powered by `QtPdf` with multi-page navigation (`Page Up`, `Page Down`, `Home`, `End`) and interactive footer switcher (`◀ N / M ▶`).
@@ -22,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced loud system chimes with silent notifications and warning cards when files are moved or deleted.
 
 ### Fixed
+- **Checkbox Indicator Contrast across 16 Themes**:
+  - Implemented WCAG relative luminance standard (`lum = 0.299*R + 0.587*G + 0.114*B`) for custom checkbox indicators, eliminating invisible white marks on bright yellow, green, pink, and cyan backgrounds.
+  - Dynamically tinted `check.svg` in `ThemeStylesheetService` to match theme indicator backgrounds (including high-contrast `#FFFFFF` for dark brown in `industrial_yellow`, and `#121212` for `matrix` and pastel light themes).
 - **StructureTreeView Branch Indicator Alignment**:
   - Fixed vertical alignment of tree expansion arrows using canonical `QStyle.alignedRect` and `QIcon.paint` instead of manual coordinate math.
 

@@ -149,7 +149,6 @@ class SettingsConfig(BaseConfig):
                     "script": "script_icon.png",
                     "chrome": "chrome_icon.png",
                     "file": "documents_icon.png",
-                    "note": "documents_icon.png",
                     "category": "category.png",
                     "section": "section.png",
                     "ai": "ai_icon.png",

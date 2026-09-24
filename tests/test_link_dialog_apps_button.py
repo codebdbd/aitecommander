@@ -70,7 +70,7 @@ def test_link_dialog_new_link_hides_note_type(qapp):
     dialog.close()
 
 
-def test_link_dialog_edit_mode_keeps_legacy_note_type(qapp):
+def test_link_dialog_edit_mode_normalizes_legacy_note_type(qapp):
     init_data = {"category_hierarchy": {}, "spheres": []}
     dialog = LinkDialog(
         initialization_data=init_data,
@@ -80,7 +80,7 @@ def test_link_dialog_edit_mode_keeps_legacy_note_type(qapp):
 
     type_buttons = dialog._get_type_group().buttons()
     assert len(type_buttons) == 1
-    assert type_buttons[0].property("link_type") == "note"
+    assert type_buttons[0].property("link_type") == "web"
     dialog.close()
 
 
