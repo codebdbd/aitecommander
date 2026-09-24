@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlsplit
 
 from PyQt6.QtCore import QCoreApplication
 
@@ -94,11 +97,87 @@ def translate_link_type_label(link_type: str | None) -> str:
 
 
 def link_type_address_tooltip(link: dict) -> str:
-    """Return the resource address/details shown by the Type column tooltip."""
-    descriptor = link_type_descriptor(str(link.get("type") or "web"))
-    if descriptor.key == "note":
-        return str(link.get("notes") or link.get("url") or link.get("path") or "").strip()[:200]
-    value = str(link.get("url") or link.get("path") or "").strip()
-    if value:
-        return value
-    return str(link.get("notes") or "").strip()[:200]
+    """Return structured launcher context tooltip for the Type column."""
+    raw_type = str(link.get("type") or "web")
+    descriptor = link_type_descriptor(raw_type)
+    type_title = translate_link_type_label(descriptor.key)
+    url_or_path = str(link.get("url", "") or link.get("path", "")).strip()
+
+    rows: list[str] = [
+        f"<tr><td colspan='2' style='font-weight: bold; font-size: 12px; padding-bottom: 4px;'>{html.escape(type_title)}</td></tr>"
+    ]
+
+    lbl_action = QCoreApplication.translate("TypeLabels", "Action:")
+    lbl_target = QCoreApplication.translate("TypeLabels", "Target:")
+
+    if descriptor.key == "web":
+        domain = ""
+        if url_or_path:
+            try:
+                domain = urlsplit(url_or_path).netloc
+            except Exception:
+                pass
+        if domain:
+            rows.append(
+                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_target}</td>"
+                f"<td>{html.escape(domain)}</td></tr>"
+            )
+        browser_prof = str(link.get("browser_key") or "").strip()
+        if browser_prof:
+            lbl_prof = QCoreApplication.translate("TypeLabels", "Profile:")
+            rows.append(
+                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_prof}</td>"
+                f"<td>{html.escape(browser_prof)}</td></tr>"
+            )
+        act_text = QCoreApplication.translate("TypeLabels", "Open web page in browser")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
+            f"<td>{act_text}</td></tr>"
+        )
+    elif descriptor.key == "file":
+        ext = Path(url_or_path).suffix.lower() if url_or_path else ""
+        if ext:
+            lbl_format = QCoreApplication.translate("TypeLabels", "Format:")
+            rows.append(
+                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_format}</td>"
+                f"<td>{html.escape(ext)}</td></tr>"
+            )
+        act_text = QCoreApplication.translate("TypeLabels", "Open in default application")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
+            f"<td>{act_text}</td></tr>"
+        )
+    elif descriptor.key == "folder":
+        act_text = QCoreApplication.translate("TypeLabels", "Open in Windows Explorer")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
+            f"<td>{act_text}</td></tr>"
+        )
+    elif descriptor.key == "program":
+        exe_name = Path(url_or_path).name if url_or_path else ""
+        if exe_name:
+            rows.append(
+                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_target}</td>"
+                f"<td>{html.escape(exe_name)}</td></tr>"
+            )
+        act_text = QCoreApplication.translate("TypeLabels", "Launch executable application")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
+            f"<td>{act_text}</td></tr>"
+        )
+    elif descriptor.key == "script":
+        act_text = QCoreApplication.translate("TypeLabels", "Execute script file")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_action}</td>"
+            f"<td>{act_text}</td></tr>"
+        )
+    elif descriptor.key == "note":
+        notes_len = len(str(link.get("notes") or ""))
+        lbl_size = QCoreApplication.translate("TypeLabels", "Characters:")
+        rows.append(
+            f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_size}</td>"
+            f"<td>{notes_len}</td></tr>"
+        )
+
+    table_content = "".join(rows)
+    return f"<table style='min-width: 240px; max-width: 480px; margin: 2px;'>{table_content}</table>"

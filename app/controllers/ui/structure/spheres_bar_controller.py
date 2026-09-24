@@ -320,7 +320,7 @@ class SpheresBarController(QObject):
         # 1. Change sphere icon action
         change_icon_action = menu.addAction(
             get_menu_icon("add_ico", theme),
-            QCoreApplication.translate("SpheresBarController", "Change Icon..."),
+            QCoreApplication.translate("SpheresBarController", "Change Icon"),
         )
         change_icon_action.triggered.connect(partial(self._change_sphere_icon, sphere_id))
 
@@ -341,7 +341,7 @@ class SpheresBarController(QObject):
         # 4. Rename sphere action
         rename_action = menu.addAction(
             get_menu_icon("edit", theme),
-            QCoreApplication.translate("SpheresBarController", "Rename Sphere..."),
+            QCoreApplication.translate("SpheresBarController", "Rename Sphere"),
         )
         rename_action.triggered.connect(partial(self._rename_sphere, sphere_id))
 

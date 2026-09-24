@@ -975,7 +975,7 @@ class SettingsDialog(BaseDialog):
                     label.setText(self.tr("Max backups:"))
 
         if self.theme_import_btn is not None:
-            self.theme_import_btn.setText(self.tr("Import theme..."))
+            self.theme_import_btn.setText(self.tr("Import theme"))
         if self.remove_theme_btn is not None:
             self.remove_theme_btn.setText(self.tr("Remove theme"))
 

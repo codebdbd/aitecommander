@@ -5,6 +5,9 @@ Contains logic for processing user actions.
 
 import logging
 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QLineEdit, QToolButton
+
 from .handlers_mixins.apps_picker_mixin import AppsPickerMixin
 from .handlers_mixins.file_dialog_mixin import FileDialogMixin
 from .handlers_mixins.form_data_mixin import FormDataMixin
@@ -86,16 +89,14 @@ class LinkDialogHandlers(
         apps_btn = self.dialog._get_apps_btn()
         if apps_btn is not None:
             apps_btn.clicked.connect(self._on_apps_picker)
-        self.dialog._get_profile_btn().clicked.connect(self._on_profile)
+        profile_select_btn = self.dialog._get_profile_select_btn()
+        if profile_select_btn is not None:
+            profile_select_btn.clicked.connect(self._on_select_profile_clicked)
+        profile_le = self.dialog._get_profile_le()
+        if profile_le is not None:
+            profile_le.setCursor(Qt.CursorShape.PointingHandCursor)
+            profile_le.mousePressEvent = self._on_profile_le_clicked
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
-
-        # Chrome rotation
-        rotation_chk = self.dialog._get_rotation_chk()
-        if rotation_chk is not None:
-            rotation_chk.toggled.connect(self._on_rotation_toggled)
-        rotation_btn = self.dialog._get_rotation_profiles_btn()
-        if rotation_btn is not None:
-            rotation_btn.clicked.connect(self._on_rotation_select_profiles)
 
         # Hierarchy combo boxes
         self.dialog._get_sphere_cb().currentIndexChanged.connect(self._update_sections)
@@ -212,3 +213,14 @@ class LinkDialogHandlers(
             "LinkDialogHandlers.cancel_processing: completed next_task_id=%s",
             self._worker_task_id,
         )
+
+    def _on_profile_le_clicked(self, event) -> None:
+        """Open profile selection dialog when clicking anywhere on the profile line edit."""
+        profile_le = self.dialog._get_profile_le()
+        if profile_le is not None:
+            clear_btn = profile_le.findChild(QToolButton)
+            if clear_btn and clear_btn.geometry().contains(event.pos()):
+                QLineEdit.mousePressEvent(profile_le, event)
+                return
+            QLineEdit.mousePressEvent(profile_le, event)
+        self._on_select_profile_clicked()

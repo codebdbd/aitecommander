@@ -53,7 +53,16 @@ class FormDataMixin:
             "is_favorite": self.dialog._get_fav_chk().isChecked(),
             "icon_name": self.dialog.icon_name,
             "notes": self.dialog._get_notes_te().toPlainText().strip(),
-            "selected_profiles": self.dialog.selected_profiles,
+            "profile_mode": (
+                self.dialog._get_profile_mode_cb().currentData()
+                if getattr(self.dialog, "_get_profile_mode_cb", lambda: None)()
+                else getattr(self.dialog, "profile_mode", "none")
+            ),
+            "selected_profiles": (
+                getattr(self.dialog, "selected_profiles", [])
+                if getattr(self.dialog, "profile_mode", "none") in ("single", "batch")
+                else []
+            ),
             "profiles_explicitly_changed": bool(
                 getattr(self.dialog, "_profiles_explicitly_changed", False)
             ),
@@ -65,11 +74,12 @@ class FormDataMixin:
             "_reparse_icon": bool(
                 getattr(self.dialog, "_reparse_icon_requested", False)
             ),
-            "chrome_rotation": bool(
-                getattr(self.dialog, "_get_rotation_chk", lambda: None)()
-                and self.dialog._get_rotation_chk().isChecked()
+            "chrome_rotation": getattr(self.dialog, "profile_mode", "none") == "rotation",
+            "rotation_profiles": (
+                getattr(self.dialog, "rotation_profiles", [])
+                if getattr(self.dialog, "profile_mode", "none") == "rotation"
+                else []
             ),
-            "rotation_profiles": getattr(self.dialog, "rotation_profiles", []) or [],
             "rotation_index": self.dialog.link.get("rotation_index", 0) if self.dialog.link else 0,
         }
 

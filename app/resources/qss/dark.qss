@@ -369,6 +369,21 @@ QDialog QCheckBox::indicator:disabled {
 border-color: #3A3F47;
 background: #2C2F36;
 }
+QRadioButton::indicator,
+QDialog QRadioButton::indicator {
+border: 1px solid #3A3F47;
+border-radius: 7px;
+background: #1A1F26;
+}
+QRadioButton::indicator:hover,
+QDialog QRadioButton::indicator:hover {
+border-color: #0194F0;
+}
+QRadioButton::indicator:checked,
+QDialog QRadioButton::indicator:checked {
+border: 1px solid #0194F0;
+background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.45, fx: 0.5, fy: 0.5, stop: 0 #FFFFFF, stop: 0.45 #FFFFFF, stop: 0.55 #0194F0, stop: 1.0 #0194F0);
+}
 QDialog QCheckBox:focus {
 border-color: #0194F0;
 }

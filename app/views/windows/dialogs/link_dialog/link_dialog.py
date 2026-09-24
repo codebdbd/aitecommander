@@ -105,9 +105,17 @@ class LinkDialog(BaseDialog):
         """Return the group of link type buttons (`QButtonGroup`)."""
         return self.ui.get_widget("type_group")
 
-    def _get_profile_btn(self) -> QPushButton:
+    def _get_profile_mode_cb(self) -> Optional[QComboBox]:
+        """Return the profile mode combo box (`QComboBox`) if present."""
+        return self.ui.widgets.get("profile_mode_cb")
+
+    def _get_profile_le(self) -> QLineEdit:
+        """Return the profile display line edit (`QLineEdit`)."""
+        return self.ui.get_widget("profile_le")
+
+    def _get_profile_select_btn(self) -> QPushButton:
         """Return the profile selection button (`QPushButton`)."""
-        return self.ui.get_widget("profile_btn")
+        return self.ui.get_widget("profile_select_btn")
 
     # Additional getters for unified UI access
     def _get_url_le(self) -> QLineEdit:
@@ -149,14 +157,6 @@ class LinkDialog(BaseDialog):
     def _get_run_as_admin_chk(self) -> Optional[QCheckBox]:
         """Return the run as administrator checkbox (`QCheckBox`)."""
         return self.ui.get_widget("run_as_admin_chk")
-
-    def _get_rotation_chk(self) -> QCheckBox:
-        """Return the Chrome rotation checkbox (`QCheckBox`)."""
-        return self.ui.get_widget("rotation_chk")
-
-    def _get_rotation_profiles_btn(self) -> QPushButton:
-        """Return the rotation profiles selection button (`QPushButton`)."""
-        return self.ui.get_widget("rotation_profiles_btn")
 
     def _get_notes_te(self) -> QTextEdit:
         """Return the notes text edit (`QTextEdit`)."""
@@ -227,6 +227,7 @@ class LinkDialog(BaseDialog):
             self.link.get("type") or fixed_link_type or "web"
         ).value
         self.icon_name = self.link.get("icon_path", "")
+        self.profile_mode = "none"
         self.selected_profiles: list[dict] = []
         self.rotation_profiles: list[dict] = []
         self._profiles_explicitly_changed = False
@@ -402,9 +403,13 @@ class LinkDialog(BaseDialog):
                 btn.setChecked(True)
                 break
 
+        # Initialize profile modes in UI
+        self.handlers.init_profile_modes()
+
         # Extract profiles and user args
         detected_profiles, user_args = self._extract_profile_and_user_args()
         if detected_profiles:
+            self.profile_mode = "single"
             self.selected_profiles = detected_profiles
 
         # Extract admin flag for program/script
@@ -448,8 +453,8 @@ class LinkDialog(BaseDialog):
         finally:
             self._suspend_auto_processing = False
 
-        # Load Chrome rotation state
-        self._load_rotation_state()
+        # Load profile state (single / rotation / none)
+        self._load_profile_state()
 
         logger.debug("Initial values applied to UI; continuing with icon setup")
 
@@ -495,23 +500,17 @@ class LinkDialog(BaseDialog):
         except Exception:
             pass
 
-    def _load_rotation_state(self) -> None:
-        """Restore Chrome rotation state from saved link data."""
+    def _load_profile_state(self) -> None:
+        """Restore profile and rotation state from saved link data."""
         import json
 
         if not self.link:
+            self.handlers.sync_profile_mode_to_ui()
             return
 
         chrome_rotation = bool(self.link.get("chrome_rotation", 0))
-        rotation_chk = self._get_rotation_chk()
-        rotation_btn = self._get_rotation_profiles_btn()
-        profile_btn = self._get_profile_btn()
-
-        if rotation_chk is None:
-            return
-
         if chrome_rotation:
-            # Restore rotation profiles from JSON
+            self.profile_mode = "rotation"
             raw = self.link.get("rotation_profiles")
             if raw:
                 try:
@@ -520,20 +519,12 @@ class LinkDialog(BaseDialog):
                     self.rotation_profiles = []
             else:
                 self.rotation_profiles = []
-
-            rotation_chk.setChecked(True)
-            profile_btn.setEnabled(False)
-            if rotation_btn is not None:
-                rotation_btn.setEnabled(True)
-                from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
-                    RotationMixin,
-                )
-                RotationMixin._update_rotation_btn_text(
-                    rotation_btn, self.rotation_profiles, self
-                )
+        elif self.selected_profiles:
+            self.profile_mode = "single"
         else:
-            if self.selected_profiles:
-                rotation_chk.setVisible(False)
+            self.profile_mode = "none"
+
+        self.handlers.sync_profile_mode_to_ui()
 
     def _set_initial_icon(self) -> None:
         """Set initial icon."""
@@ -795,14 +786,9 @@ class LinkDialog(BaseDialog):
         return "\n".join(lines)
 
     def _update_profile_button_state(self) -> None:
-        """Update top profile button text and tooltip."""
-        profile_btn = self._get_profile_btn()
-        if profile_btn is None:
-            return
-        profile_btn.setText(self._format_profile_text(self.selected_profiles))
-        profile_btn.setToolTip(self._format_profile_tooltip(self.selected_profiles))
-        if hasattr(self, "ui") and hasattr(self.ui, "adjust_button_width"):
-            self.ui.adjust_button_width(profile_btn)
+        """Update profile button text and tooltip."""
+        if hasattr(self, "handlers") and hasattr(self.handlers, "_update_profile_ui_state"):
+            self.handlers._update_profile_ui_state()
 
     def _cleanup_processing(self) -> None:
         """Stop delayed/background link processing before dialog teardown."""
@@ -885,16 +871,8 @@ class LinkDialog(BaseDialog):
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()
-        # Profile and rotation button texts and tooltips
+        # Profile button texts and tooltips
         try:
             self._update_profile_button_state()
-            rotation_btn = self._get_rotation_profiles_btn()
-            if rotation_btn is not None:
-                from app.views.windows.dialogs.link_dialog.handlers_mixins.rotation_mixin import (
-                    RotationMixin,
-                )
-                RotationMixin._update_rotation_btn_text(
-                    rotation_btn, self.rotation_profiles, self
-                )
         except Exception:
             pass

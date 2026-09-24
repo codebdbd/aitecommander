@@ -1,7 +1,9 @@
-"""Mixin handling browser profile selection inside `LinkDialogHandlers`."""
+"""Mixin handling browser profile modes and selection inside `LinkDialogHandlers`."""
 
 import logging
+from typing import Any
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QDialog
 
 from app.models.types.link_type import LinkType
@@ -15,14 +17,40 @@ logger = logging.getLogger(__name__)
 
 
 class ProfilesMixin:
-    def _on_profile(self) -> None:
-        """Handle profile selection button."""
+    def init_profile_modes(self) -> None:
+        """Initialize profile line edit and UI state."""
+        profile_le = getattr(self.dialog, "_get_profile_le", lambda: None)()
+        if profile_le is not None:
+            try:
+                profile_le.textChanged.connect(self._on_profile_text_changed)
+            except Exception:
+                pass
+        self._update_profile_ui_state()
+
+    def _on_profile_text_changed(self, text: str) -> None:
+        """Handle clearing the profile line edit via its clear button."""
+        if not text:
+            self.dialog.profile_mode = "none"
+            self.dialog.selected_profiles = []
+            self.dialog.rotation_profiles = []
+            self.dialog._profiles_explicitly_changed = True
+            self._update_profile_ui_state()
+
+    def sync_profile_mode_to_ui(self) -> None:
+        """Synchronize dialog.profile_mode to the UI states."""
+        self._update_profile_ui_state()
+
+    def _on_select_profile_clicked(self) -> None:
+        """Open profile selection dialog."""
+        self._open_profile_dialog()
+
+    def _open_profile_dialog(self) -> None:
+        """Open BrowserProfileDialog."""
         try:
             from app.views.windows.dialogs.browser_profile_dialog import (
                 BrowserProfileDialog,
             )
         except ImportError as exc:
-            # Log root cause and show friendly message to user
             logger.error("BrowserProfileDialog unavailable: %s", exc)
             try:
                 self.dialog.show_warning(
@@ -33,53 +61,129 @@ class ProfilesMixin:
                     ),
                     details=str(exc),
                 )
-            except (AttributeError, RuntimeError):
-                # If show_warning is unavailable just exit quietly
+            except Exception:
                 pass
             return
 
-        initial_keys = self._initial_profile_selection_keys()
+        current_mode = getattr(self.dialog, "profile_mode", "none")
+        target_mode = "single" if current_mode == "none" else current_mode
+
+        if target_mode == "rotation":
+            profiles = getattr(self.dialog, "rotation_profiles", [])
+        else:
+            profiles = getattr(self.dialog, "selected_profiles", [])
+
+        initial_keys = {profile_selection_key(p) for p in (profiles or []) if p}
+        if not initial_keys and self._is_web_link_dialog():
+            initial_keys = self._initial_profile_selection_keys()
+
         dlg = BrowserProfileDialog(
             self.dialog,
             initial_selected_profile_keys=initial_keys,
+            mode="single" if target_mode == "single" else "multi",
+            allow_mode_change=True,
+            profile_mode=target_mode,
+            allow_batch=True,
         )
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.dialog.selected_profiles = dlg.get_selected_profiles()
+            results = dlg.get_selected_profiles()
+            chosen_mode = dlg.get_profile_mode()
+            self.dialog.profile_mode = chosen_mode
             self.dialog._profiles_explicitly_changed = True
-            if self._is_web_link_dialog():
-                save_last_web_link_profile_keys(self.dialog.selected_profiles)
-            logger.debug(
-                f"_on_profile: got {len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0} selected profiles"
+
+            if chosen_mode == "single":
+                self.dialog.selected_profiles = results[:1]
+                self.dialog.rotation_profiles = []
+                if self._is_web_link_dialog() and self.dialog.selected_profiles:
+                    save_last_web_link_profile_keys(self.dialog.selected_profiles)
+            elif chosen_mode == "rotation":
+                self.dialog.rotation_profiles = results
+                self.dialog.selected_profiles = []
+            elif chosen_mode == "batch":
+                self.dialog.selected_profiles = results
+                self.dialog.rotation_profiles = []
+
+            self._update_profile_ui_state()
+
+    def _update_profile_ui_state(self) -> None:
+        """Update line edit, button text, and tooltips based on current profile mode and selections."""
+        mode = getattr(self.dialog, "profile_mode", "none")
+        btn = getattr(self.dialog, "_get_profile_select_btn", lambda: None)()
+        le = getattr(self.dialog, "_get_profile_le", lambda: None)()
+
+        if btn is not None:
+            btn.setEnabled(True)
+            btn.setText(QCoreApplication.translate("LinkDialogUI", "Select"))
+            btn.setToolTip(
+                QCoreApplication.translate("LinkDialogUI", "Select browser profile")
             )
-            if self.dialog.selected_profiles:
-                # Persist selected profiles
-                for i, profile in enumerate(self.dialog.selected_profiles):
-                    logger.debug(
-                        f"_on_profile: profile {i}: name={profile.get('name')}, browser_key={profile.get('browser_key')}"
-                    )
+            if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):
+                self.dialog.ui.adjust_button_width(btn)
 
-                if hasattr(self.dialog, "_update_profile_button_state"):
-                    self.dialog._update_profile_button_state()
-                else:
-                    profile_btn = self.dialog._get_profile_btn()
-                    profile_btn.setText(
-                        self.dialog._format_profile_text(self.dialog.selected_profiles)
-                    )
+        if le is None:
+            return
+
+        le.blockSignals(True)
+        if mode == "none":
+            le.clear()
+            le.setToolTip("")
+        elif mode == "single":
+            profiles = getattr(self.dialog, "selected_profiles", [])
+            if profiles:
+                p = profiles[0]
+                b_name = (p.get("browser_key") or "Browser").title()
+                p_name = p.get("name") or p.get("email") or p.get("directory", "?")
+                display_text = f"{b_name}: {p_name}"
+                le.setText(display_text)
+                le.setToolTip(f"{b_name} - {p_name}")
             else:
-                if hasattr(self.dialog, "_update_profile_button_state"):
-                    self.dialog._update_profile_button_state()
-                else:
-                    profile_btn = self.dialog._get_profile_btn()
-                    profile_btn.setText(self.dialog.tr("Profile"))
-
-            # Mutual exclusion: hide rotation checkbox when profile is selected (only for web links)
-            try:
-                rotation_chk = self.dialog._get_rotation_chk()
-                if rotation_chk is not None:
-                    is_web = self._is_web_link_dialog()
-                    rotation_chk.setVisible(is_web and not bool(self.dialog.selected_profiles))
-            except (AttributeError, RuntimeError):
-                pass
+                le.clear()
+                le.setToolTip("")
+        elif mode == "rotation":
+            profiles = getattr(self.dialog, "rotation_profiles", [])
+            count = len(profiles)
+            if count == 0:
+                le.clear()
+                le.setToolTip("")
+            else:
+                rot_title = QCoreApplication.translate("LinkDialogUI", "Rotation")
+                le.setText(f"{rot_title} ({count})")
+                names = [
+                    f"{(p.get('browser_key') or 'Browser').title()}: {p.get('name') or p.get('email') or p.get('directory', '?')}"
+                    for p in profiles
+                ]
+                lines = [
+                    QCoreApplication.translate(
+                        "LinkDialogUI", "Rotation order ({count}):"
+                    ).format(count=len(names))
+                ]
+                for idx, n in enumerate(names, 1):
+                    lines.append(f"{idx}. {n}")
+                le.setToolTip("\n".join(lines))
+        elif mode == "batch":
+            profiles = getattr(self.dialog, "selected_profiles", [])
+            count = len(profiles)
+            if count == 0:
+                le.clear()
+                le.setToolTip("")
+            else:
+                batch_title = QCoreApplication.translate(
+                    "LinkDialogUI", "Create for each profile"
+                )
+                le.setText(f"{batch_title} ({count})")
+                names = [
+                    f"{(p.get('browser_key') or 'Browser').title()}: {p.get('name') or p.get('email') or p.get('directory', '?')}"
+                    for p in profiles
+                ]
+                lines = [
+                    QCoreApplication.translate(
+                        "LinkDialogUI", "Selected profiles ({count}):"
+                    ).format(count=len(names))
+                ]
+                for n in names:
+                    lines.append(f"• {n}")
+                le.setToolTip("\n".join(lines))
+        le.blockSignals(False)
 
     def _initial_profile_selection_keys(self) -> set[str]:
         current_profiles = getattr(self.dialog, "selected_profiles", []) or []

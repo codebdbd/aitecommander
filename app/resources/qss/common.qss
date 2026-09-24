@@ -639,6 +639,14 @@ QMessageBox QPushButton {
     min-width: 100px;
 }
 
+QLineEdit QToolButton,
+QDialog QLineEdit QToolButton {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
 QDialog QToolButton {
     border: 1px solid;
     border-color: transparent;

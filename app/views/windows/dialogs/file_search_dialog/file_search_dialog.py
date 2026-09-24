@@ -176,6 +176,7 @@ class FileSearchDialog(BaseDialog):
         name_row_layout = QHBoxLayout(name_row)
         name_row_layout.setContentsMargins(0, 0, 0, 0)
         self.regex_le = QLineEdit()
+        self.regex_le.setClearButtonEnabled(True)
         self.regex_le.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -279,6 +280,7 @@ class FileSearchDialog(BaseDialog):
         self.lbl_content = QLabel(self.tr("With text:"))
         pattern_row_layout.addWidget(self.lbl_content)
         self.content_le = QLineEdit()
+        self.content_le.setClearButtonEnabled(True)
         self.content_le.setMinimumWidth(app_config.ui.get_file_search_content_min_width())
         self.content_le.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed

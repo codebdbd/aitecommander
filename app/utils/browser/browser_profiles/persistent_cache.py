@@ -53,6 +53,11 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
         """
         return self._default_ttl
 
+    def has_persisted_data(self) -> bool:
+        """Return True if cache file exists on disk and is non-empty."""
+        with self._lock:
+            return bool(self._store) or (self._path.exists() and self._path.stat().st_size > 2)
+
     # --- file operations ---
     def _load_from_disk(self) -> None:
         try:
@@ -135,8 +140,8 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
             rec = self._store.get(key)
             if rec is None:
                 return None
-            # check TTL
-            if not rec.is_valid():
+            # check TTL only if set
+            if rec.ttl is not None and not rec.is_valid():
                 # Expired — remove from memory and mark need for deferred write
                 self._store.pop(key, None)
                 self._mark_dirty_locked()

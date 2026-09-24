@@ -59,13 +59,17 @@ class TypeChangeMixin:
         lt = LinkType.from_value(self.dialog.link_type)
         is_web = lt == LinkType.WEB
         is_program = lt == LinkType.PROGRAM
-        profile_btn = self.dialog._get_profile_btn()
+        profile_label = self.dialog.ui.widgets.get("profile_label")
+        profile_container = self.dialog.ui.widgets.get("profile_container")
         browse_btn = self.dialog._get_browse_btn()
         apps_btn = self.dialog._get_apps_btn()
         args_le = self.dialog._get_args_le()
         args_label = self.dialog._get_args_label()
+        if profile_label is not None:
+            profile_label.setVisible(is_web)
+        if profile_container is not None:
+            profile_container.setVisible(is_web)
 
-        profile_btn.setVisible(is_web)
         if apps_btn is not None:
             apps_btn.setVisible(is_program)
             if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):
@@ -106,21 +110,6 @@ class TypeChangeMixin:
                 admin_chk.setVisible(is_admin_supported)
                 if not is_admin_supported:
                     admin_chk.setChecked(False)
-        except (AttributeError, RuntimeError):
-            pass
-
-        # Chrome rotation: visible only for Web links when no profiles are selected
-        try:
-            rotation_chk = self.dialog._get_rotation_chk()
-            rotation_btn = self.dialog._get_rotation_profiles_btn()
-            if rotation_chk is not None:
-                has_profiles = bool(getattr(self.dialog, "selected_profiles", None))
-                rotation_chk.setVisible(is_web and not has_profiles)
-                if not is_web:
-                    rotation_chk.setChecked(False)
-            if rotation_btn is not None:
-                rotation_btn.setVisible(is_web and not has_profiles)
-                rotation_btn.setEnabled(rotation_chk is not None and rotation_chk.isChecked())
         except (AttributeError, RuntimeError):
             pass
 

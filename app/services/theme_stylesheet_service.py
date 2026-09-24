@@ -326,6 +326,15 @@ class ThemeStylesheetService:
         base_svg = PathManager.ui_icons_dir() / "base" / icon_name
         if not base_svg.exists():
             return ""
+        if icon_name == "check.svg":
+            from app.services.theme_registry import theme_registry
+            theme_def = theme_registry.get_theme(theme_name)
+            if theme_name in ("matrix", "nord_light", "sage_light", "pearl_gray", "pastel_bloom"):
+                color_hex = "#121212"
+            elif (theme_def and theme_def.is_dark) or theme_name == "dark":
+                color_hex = "#FFFFFF"
+            else:
+                color_hex = "#FFFFFF"
         cache_dir = PathManager.cache_dir() / "qss_icons" / theme_name
         cache_dir.mkdir(parents=True, exist_ok=True)
         dest_svg = cache_dir / icon_name

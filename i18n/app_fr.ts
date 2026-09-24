@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="fr_FR">
     <context>
     <name>AboutDialog</name>
@@ -732,22 +731,22 @@
 </context><context>
     <name>BaseDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="307" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="310" />
         <source>Information</source>
         <translation>Information</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="332" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="335" />
         <source>Warning</source>
         <translation>Avertissement</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="357" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="360" />
         <source>Error</source>
         <translation>Erreur</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="381" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="384" />
         <source>Confirmation</source>
         <translation>Confirmation</translation>
     </message>
@@ -878,69 +877,98 @@
 </context><context>
     <name>BrowserProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="286" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="278" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="591" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="706" />
         <source>Unnamed</source>
         <translation>Sans nom</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="148" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="67" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="421" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="273" />
+        <source>Mode:</source>
+        <translation>Mode :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="424" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="281" />
+        <source>Single profile</source>
+        <translation>Profil unique</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="425" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="282" />
+        <source>Rotation</source>
+        <translation>Rotation</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="426" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="285" />
+        <source>Create for each profile</source>
+        <translation>Créer pour chaque profil</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="433" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="295" />
         <source>Browsers:</source>
         <translation>Navigateurs :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="150" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="72" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="435" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="306" />
         <source>Refresh</source>
         <translation>Actualiser</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="152" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="80" />
-        <source>Search by name/email…</source>
-        <translation>Rechercher par nom/e-mail…</translation>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="437" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="320" />
+        <source>Search by name/email</source>
+        <translation>Rechercher par nom/e-mail</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="154" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="115" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="439" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="368" />
         <source>Add all</source>
         <translation>Tout ajouter</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="156" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="118" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="441" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="372" />
         <source>Clear selection</source>
         <translation>Effacer la sélection</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="244" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="200" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="567" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="485" />
         <source>No profiles found</source>
         <translation>Aucun profil trouvé</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="326" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="207" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="746" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="497" />
         <source>Loading profiles…</source>
         <translation>Chargement des profils…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="398" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="213" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="818" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="503" />
         <source>Failed to start loading</source>
         <translation>Impossible de lancer le chargement</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="390" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="306" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="810" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="726" />
         <source>Failed to load profiles</source>
         <translation>Impossible de charger les profils</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="378" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="798" />
         <source>{operation} ({current}/{total})…</source>
         <translation>{operation} ({current}/{total})…</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="866" />
+        <source>Selected: {0} of {1}</source>
+        <translation>Sélectionnés : {0} sur {1}</translation>
     </message>
 </context><context>
     <name>BrowserProfiles</name>
@@ -1596,137 +1624,137 @@
 </context><context>
     <name>FileSearchDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="358" />
         <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="174" />
         <source>Search files:</source>
         <translation>Rechercher des fichiers :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="367" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="183" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="369" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="184" />
         <source>Search</source>
         <translation>Rechercher</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="369" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="185" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="371" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="186" />
         <source>Stop</source>
         <translation>Arrêter</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="354" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="193" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="194" />
         <source>Search in:</source>
         <translation>Rechercher dans :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="199" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="200" />
         <source>Browse</source>
         <translation>Parcourir</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="358" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="206" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="360" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="207" />
         <source>Extension:</source>
         <translation>Extension :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="365" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="269" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="367" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="270" />
         <source>Quickly apply an extension mask</source>
         <translation>Appliquer rapidement un masque d’extension</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="360" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="279" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="362" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="280" />
         <source>With text:</source>
         <translation>Avec texte :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="382" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="316" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="384" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="318" />
         <source>Ready to search</source>
         <translation>Prêt pour la recherche</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="371" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="321" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="373" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="323" />
         <source>Add as link</source>
         <translation>Ajouter comme lien</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="373" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="325" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="375" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="327" />
         <source>Open in file explorer</source>
         <translation>Ouvrir dans l’explorateur</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="329" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="331" />
         <source>Close</source>
         <translation>Fermer</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="461" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="463" />
         <source>File not found: {path}</source>
         <translation>Fichier introuvable : {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="528" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="530" />
         <source>Failed to open file in explorer: {error}</source>
         <translation>Impossible d’ouvrir le fichier dans l’explorateur : {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="532" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="534" />
         <source>Opening the file explorer timed out: {error}</source>
         <translation>Délai dépassé lors de l'ouverture de l'explorateur de fichiers : {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="537" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="539" />
         <source>Unexpected error: {error}</source>
         <translation>Erreur inattendue : {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="550" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="552" />
         <source>Select folder for search</source>
         <translation>Sélectionnez un dossier à parcourir</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="559" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="561" />
         <source>Specify a folder to search.</source>
         <translation>Indiquez un dossier à parcourir.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="565" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="567" />
         <source>The folder does not exist: {path}</source>
         <translation>Le dossier n’existe pas : {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="571" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="573" />
         <source>The specified path is not a folder: {path}</source>
         <translation>Le chemin indiqué n’est pas un dossier : {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="584" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="586" />
         <source>Invalid regular expression for name: {error}</source>
         <translation>Expression rationnelle invalide pour le nom : {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="608" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="610" />
         <source>Searching…</source>
         <translation>Recherche…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="674" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="676" />
         <source>Searching… Files: {files}, Directories: {dirs}</source>
         <translation>Recherche… Fichiers : {files}, Dossiers : {dirs}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="681" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="683" />
         <source>Search error</source>
         <translation>Erreur de recherche</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="701" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="703" />
         <source>Search finished. %n file(s) found.</source>
         <translation>
             <numerusform>Recherche terminée. %n fichier trouvé.</numerusform>
@@ -2094,6 +2122,28 @@ Ignorés : {2}
         <translation>Affiché : %1 sur %2</translation>
     </message>
 </context><context>
+    <name>ItemBuilders</name>
+    <message>
+        <location filename="..\app\views\widgets\link\item_builders.py" line="106" />
+        <source>Path/URL:</source>
+        <translation>Chemin/URL :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\item_builders.py" line="116" />
+        <source>Arguments:</source>
+        <translation>Arguments :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\item_builders.py" line="124" />
+        <source>Profile:</source>
+        <translation>Profil :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\widgets\link\item_builders.py" line="131" />
+        <source>🛡️ Run as administrator</source>
+        <translation>🛡️ Exécuter en tant qu'administrateur</translation>
+    </message>
+</context><context>
     <name>ItemDialogService</name>
     <message>
         <location filename="..\app\controllers\ui\structure\item_dialogs_service.py" line="15" />
@@ -2230,80 +2280,79 @@ Tous les liens imbriqués seront définitivement supprimés !
 </context><context>
     <name>LinkDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="317" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="318" />
         <source>Icon configuration is invalid.</source>
         <translation>La configuration de l’icône est invalide.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="318" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="319" />
         <source>Configuration error</source>
         <translation>Erreur de configuration</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="319" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="320" />
         <source>Icons directory is not set. Specify the path in the application settings or config.</source>
         <translation>Le dossier des icônes n’est pas défini. Indiquez le chemin dans les paramètres ou la configuration.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="322" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="323" />
         <source>Configuration parameter for icons is missing or empty.</source>
         <translation>Le paramètre de configuration des icônes est manquant ou vide.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="546" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="537" />
         <source>Default icon not found.</source>
         <translation>Icône par défaut introuvable.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="547" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="538" />
         <source>Icon issue</source>
         <translation>Problème d’icône</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="548" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="539" />
         <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
         <translation>Le bouton sera affiché sans icône. Indiquez un chemin valide dans les paramètres.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="551" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="542" />
         <source>Expected file: {path}</source>
         <translation>Fichier attendu : {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="46" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="779" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="770" />
         <source>Profile</source>
         <translation>Profil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="781" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="772" />
         <source>Profile ({count})</source>
         <translation>Profil ({count})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="782" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="773" />
         <source>Profiles ({count})</source>
         <translation>Profils ({count})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="787" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="778" />
         <source>Select browser profile</source>
         <translation>Sélectionner un profil de navigateur</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="790" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="781" />
         <source>Selected profile: {name}
 (Click to change)</source>
         <translation>Profil sélectionné : {name}
 (Cliquer pour modifier)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="791" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="782" />
         <source>Selected profiles ({count}):</source>
         <translation>Profils sélectionnés ({count}) :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="794" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="785" />
         <source>(Click to change)</source>
         <translation>(Cliquer pour modifier)</translation>
     </message>
@@ -2333,6 +2382,21 @@ Tous les liens imbriqués seront définitivement supprimés !
         <location filename="..\app\controllers\ui\dialogs\link_dialog_controller.py" line="168" />
         <source>Specified path does not exist.</source>
         <translation>Le chemin spécifié n'existe pas.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\link_dialog_controller.py" line="176" />
+        <source>Please select a browser profile.</source>
+        <translation>Veuillez sélectionner un profil de navigateur.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\link_dialog_controller.py" line="184" />
+        <source>Rotation requires at least 2 profiles.</source>
+        <translation>La rotation nécessite au moins 2 profils.</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\link_dialog_controller.py" line="191" />
+        <source>Please select at least one profile for batch creation.</source>
+        <translation>Veuillez sélectionner au moins un profil pour la création par lots.</translation>
     </message>
 </context><context>
     <name>LinkDialogIconUtils</name>
@@ -2385,38 +2449,38 @@ Tous les liens imbriqués seront définitivement supprimés !
         <translation>Note</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="274" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="306" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="53" />
         <source>Default</source>
         <translation>Par défaut</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="275" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="307" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="54" />
         <source>As application</source>
         <translation>Comme application</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="276" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="308" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="55" />
         <source>Incognito</source>
         <translation>Incognito</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="277" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="309" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="56" />
         <source>New window</source>
         <translation>Nouvelle fenêtre</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="278" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="310" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="57" />
         <source>Guest mode</source>
         <translation>Mode invité</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="582" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="374" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="607" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="406" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="58" />
         <source>Run as administrator</source>
         <translation>Exécuter en tant qu'administrateur</translation>
@@ -2432,98 +2496,112 @@ Tous les liens imbriqués seront définitivement supprimés !
         <translation>Administrateur + Garder ouverte</translation>
     </message>
     <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="580" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="278" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="64" />
-        <source>Chrome rotation</source>
-        <translation>Rotation Chrome</translation>
+        <source>No profile</source>
+        <translation>Aucun profil</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="65" />
-        <source>Select profiles...</source>
-        <translation>Sélectionner des profils...</translation>
+        <source>Single profile</source>
+        <translation>Profil unique</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="586" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="381" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="170" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="66" />
+        <source>Create for each profile</source>
+        <translation>Créer pour chaque profil</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="149" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="67" />
         <source>Rotation</source>
         <translation>Rotation</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="67" />
-        <source>Profiles</source>
-        <translation>Profils</translation>
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="116" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="584" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="282" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="68" />
+        <source>Select</source>
+        <translation>Sélectionner</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="578" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="368" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="68" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="576" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="267" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="69" />
+        <source>Profile:</source>
+        <translation>Profil :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="603" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="400" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="70" />
         <source>Favorites</source>
         <translation>Favoris</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="488" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="220" />
-        <source>Browse...</source>
-        <translation>Parcourir...</translation>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="502" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="223" />
+        <source>Browse</source>
+        <translation>Parcourir</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="493" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="226" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="507" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="229" />
         <source>Apps</source>
         <translation>Applications</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="501" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="498" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="233" />
-        <source>Profile</source>
-        <translation>Profil</translation>
-    </message>
-    <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="236" />
-        <source>Select browser profile</source>
-        <translation>Sélectionner un profil de navigateur</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="242" />
         <source>URL/Path:</source>
         <translation>URL/Chemin :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="529" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="289" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="535" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="321" />
         <source>Arguments:</source>
         <translation>Arguments :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="548" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="329" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="554" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="361" />
         <source>Sphere:</source>
         <translation>Sphere :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="554" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="332" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="560" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="364" />
         <source>Section:</source>
         <translation>Section :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="560" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="335" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="566" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="367" />
         <source>Category:</source>
         <translation>Catégorie :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="574" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="355" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="599" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="387" />
         <source>Notes:</source>
         <translation>Notes :</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="591" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="385" />
-        <source>Select profiles for rotation</source>
-        <translation>Sélectionner les profils pour la rotation</translation>
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="118" />
+        <source>Select browser profile</source>
+        <translation>Sélectionner un profil de navigateur</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="156" />
+        <source>Rotation order ({count}):</source>
+        <translation>Ordre de rotation ({count}) :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="179" />
+        <source>Selected profiles ({count}):</source>
+        <translation>Profils sélectionnés ({count}) :</translation>
     </message>
 </context><context>
     <name>LinkOperations</name>
@@ -2702,28 +2780,28 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinksUIController</name>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="388" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="434" />
         <source>Open Links</source>
         <translation>Ouvrir les liens</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="389" />
-        <source>You are trying to open more than 10 links simultaneously.
-To prevent performance issues, opening is limited to 10 links.
-Would you like to open the first 10 selected links?</source>
-        <translation>Vous essayez d'ouvrir plus de 10 liens simultanément.
-Pour éviter tout problème, l'ouverture est limitée à 10 liens.
-Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
+        <location filename="..\app\controllers\ui\links\controller.py" line="435" />
+        <source>Open {limit}</source>
+        <translation>Ouvrir {limit}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="402" />
-        <source>Open 10</source>
-        <translation>Ouvrir 10</translation>
-    </message>
-    <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="406" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="438" />
         <source>Cancel</source>
         <translation>Annuler</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\controller.py" line="439" />
+        <source>You are trying to open more than {limit} links simultaneously.
+To prevent performance issues, opening is limited to {limit} links.
+Would you like to open the first {limit} selected links?</source>
+        <translation>Vous essayez d'ouvrir plus de {limit} liens simultanément.
+Pour éviter les problèmes de performances, l'ouverture est limitée à {limit} liens.
+Souhaitez-vous ouvrir les {limit} premiers liens sélectionnés ?</translation>
     </message>
 </context><context>
     <name>MainMenu</name>
@@ -2913,7 +2991,7 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
         <translation>Modifier la catégorie</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="127" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="130" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="124" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
@@ -2946,7 +3024,7 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
         <translation>Copier la section</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="104" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="107" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
@@ -2968,7 +3046,7 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
     <message>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1546" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1511" />
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="147" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="150" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
@@ -2983,14 +3061,14 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
         <translation>Effacer la sélection</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="88" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="91" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
         <source>&amp;Undo</source>
         <translation>&amp;Annuler</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="95" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="98" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="117" />
         <source>&amp;Redo</source>
@@ -3014,7 +3092,7 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
         <translation>Modifier</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="137" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="140" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="122" />
         <source>Delete</source>
@@ -3023,7 +3101,7 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
     <message>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1536" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1501" />
-        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="111" />
+        <location filename="..\app\views\windows\dialogs\base_dialog.py" line="114" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>Copy</source>
@@ -3250,35 +3328,27 @@ Souhaitez-vous ouvrir les 10 premiers sélectionnés ?</translation>
 </context><context>
     <name>ProfilesMixin</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="67" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="29" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="57" />
         <source>Profile selection module is unavailable.</source>
         <translation>Le module de sélection de profil n'est pas disponible.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="68" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="30" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="58" />
         <source>Browser profiles</source>
         <translation>Profils de navigateur</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\rotation_mixin.py" line="69" />
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="31" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="59" />
         <source>Failed to load browser profile selection dialog. Ensure the component is installed and accessible.</source>
         <translation>Échec du chargement de la boîte de dialogue de sélection de profil de navigateur. Assurez-vous que le composant est installé et accessible.</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="73" />
-        <source>Profile</source>
-        <translation>Profil</translation>
     </message>
 </context><context>
     <name>QuickAddToolbarAdapter</name>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="683" />
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="682" />
-        <source>Add Link...</source>
-        <translation>Ajouter un lien...</translation>
+        <source>Add Link</source>
+        <translation>Ajouter un lien</translation>
     </message>
 </context><context>
     <name>QuickLookDialog</name>
@@ -3712,8 +3782,8 @@ Version 1.0
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="978" />
-        <source>Import theme...</source>
-        <translation>Importer un thème...</translation>
+        <source>Import theme</source>
+        <translation>Importer un thème</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1041" />
@@ -3758,8 +3828,8 @@ Version 1.0
     </message>
     <message>
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="323" />
-        <source>Change Icon...</source>
-        <translation>Changer l'icône...</translation>
+        <source>Change Icon</source>
+        <translation>Changer l'icône</translation>
     </message>
     <message>
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="330" />
@@ -3768,8 +3838,8 @@ Version 1.0
     </message>
     <message>
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="344" />
-        <source>Rename Sphere...</source>
-        <translation>Renommer la sphère...</translation>
+        <source>Rename Sphere</source>
+        <translation>Renommer la sphère</translation>
     </message>
     <message>
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="351" />
@@ -4105,6 +4175,58 @@ Tous les liens imbriqués seront définitivement supprimés !
         <location filename="..\app\views\widgets\theme_selector.py" line="70" />
         <source>Theme Selector</source>
         <translation>Sélecteur de thème</translation>
+    </message>
+</context><context>
+    <name>TypeLabels</name>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="110" />
+        <source>Action:</source>
+        <translation>Action :</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="111" />
+        <source>Target:</source>
+        <translation>Cible :</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="127" />
+        <source>Profile:</source>
+        <translation>Profil :</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="132" />
+        <source>Open web page in browser</source>
+        <translation>Ouvrir la page web dans le navigateur</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="140" />
+        <source>Format:</source>
+        <translation>Format :</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="145" />
+        <source>Open in default application</source>
+        <translation>Ouvrir dans l'application par défaut</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="151" />
+        <source>Open in Windows Explorer</source>
+        <translation>Ouvrir dans l'Explorateur Windows</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="163" />
+        <source>Launch executable application</source>
+        <translation>Lancer l'application exécutable</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="169" />
+        <source>Execute script file</source>
+        <translation>Exécuter le fichier de script</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\links\type_labels.py" line="176" />
+        <source>Characters:</source>
+        <translation>Caractères :</translation>
     </message>
 </context><context>
     <name>UndoCommands</name>

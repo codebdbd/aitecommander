@@ -54,6 +54,9 @@ def apply_uniform_height(dialog: QDialog):
         )
     )
     for widget in widgets_to_resize:
+        # Exclude clear buttons embedded inside QLineEdit
+        if isinstance(widget, QToolButton) and isinstance(widget.parent(), QLineEdit):
+            continue
         # Exclude the large link type selector buttons in LinkDialog
         if isinstance(widget, QToolButton) and widget.property("link_type"):
             continue

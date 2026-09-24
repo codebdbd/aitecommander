@@ -679,8 +679,8 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
             )
             menu.addAction(sub_action)
 
-        main_action = QAction(add_icon, self.tr("Add Link..."), self._toolbar)
-        main_action.setToolTip(self.tr("Add Link..."))
+        main_action = QAction(add_icon, self.tr("Add Link"), self._toolbar)
+        main_action.setToolTip(self.tr("Add Link"))
         main_action.setMenu(menu)
         self._add_action(main_action)
 

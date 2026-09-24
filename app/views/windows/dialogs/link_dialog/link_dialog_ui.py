@@ -59,12 +59,14 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Keep console open")
     QCoreApplication.translate("LinkDialogUI", "Administrator + Keep open")
 
-# lupdate hint for Chrome rotation labels
+# lupdate hint for browser profile labels
 if False:  # pragma: no cover
-    QCoreApplication.translate("LinkDialogUI", "Chrome rotation")
-    QCoreApplication.translate("LinkDialogUI", "Select profiles...")
+    QCoreApplication.translate("LinkDialogUI", "No profile")
+    QCoreApplication.translate("LinkDialogUI", "Single profile")
+    QCoreApplication.translate("LinkDialogUI", "Create for each profile")
     QCoreApplication.translate("LinkDialogUI", "Rotation")
-    QCoreApplication.translate("LinkDialogUI", "Profiles")
+    QCoreApplication.translate("LinkDialogUI", "Select")
+    QCoreApplication.translate("LinkDialogUI", "Profile:")
     QCoreApplication.translate("LinkDialogUI", "Favorites")
 
 
@@ -171,6 +173,7 @@ class LinkDialogUI:
         # Build form rows
         self._form_add_path_row()
         self._form_add_name_row()
+        self._form_add_profile_row()
         self._form_add_args_row()
         self._form_add_hierarchy_section()
         self._form_add_notes_and_fav()
@@ -217,7 +220,7 @@ class LinkDialogUI:
         hl_path.addWidget(self.url_le, 1)
 
         self.browse_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Browse...")
+            QCoreApplication.translate("LinkDialogUI", "Browse")
         )
         self.adjust_button_width(self.browse_btn)
         hl_path.addWidget(self.browse_btn)
@@ -229,15 +232,6 @@ class LinkDialogUI:
         self.apps_btn.setVisible(False)
         hl_path.addWidget(self.apps_btn)
 
-        self.profile_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Profile")
-        )
-        self.profile_btn.setToolTip(
-            QCoreApplication.translate("LinkDialogUI", "Select browser profile")
-        )
-        self.adjust_button_width(self.profile_btn)
-        hl_path.addWidget(self.profile_btn)
-
         self.form.addRow(
             QCoreApplication.translate("LinkDialogUI", "URL/Path:"), hl_path
         )
@@ -246,7 +240,6 @@ class LinkDialogUI:
                 "url_le": self.url_le,
                 "browse_btn": self.browse_btn,
                 "apps_btn": self.apps_btn,
-                "profile_btn": self.profile_btn,
             }
         )
 
@@ -267,6 +260,45 @@ class LinkDialogUI:
 
         self.form.addRow(tr_common("Name:"), hl_name)
         self.widgets.update({"name_le": self.name_le, "icon_btn": self.icon_btn})
+
+    def _form_add_profile_row(self) -> None:
+        """Add dedicated row for browser profile selection and display."""
+        self.profile_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Profile:")
+        )
+        hl_profile = QHBoxLayout()
+        hl_profile.setContentsMargins(0, 0, 0, 0)
+        hl_profile.setSpacing(8)
+
+        self.profile_le = QLineEdit()
+        self.profile_le.setReadOnly(True)
+        self.profile_le.setClearButtonEnabled(True)
+        self.profile_le.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.profile_le.setPlaceholderText(
+            QCoreApplication.translate("LinkDialogUI", "No profile")
+        )
+
+        self.profile_select_btn = QPushButton(
+            QCoreApplication.translate("LinkDialogUI", "Select")
+        )
+        self.adjust_button_width(self.profile_select_btn)
+        self.profile_select_btn.setEnabled(True)
+
+        hl_profile.addWidget(self.profile_le, 1)
+        hl_profile.addWidget(self.profile_select_btn, 0)
+
+        self.profile_container = QWidget()
+        self.profile_container.setLayout(hl_profile)
+
+        self.form.addRow(self.profile_label, self.profile_container)
+        self.widgets.update(
+            {
+                "profile_label": self.profile_label,
+                "profile_container": self.profile_container,
+                "profile_le": self.profile_le,
+                "profile_select_btn": self.profile_select_btn,
+            }
+        )
 
     # Predefined browser launch flags for Web links.
     # Stored as (translation_key, flag_value). Empty flag = open normally.
@@ -376,22 +408,6 @@ class LinkDialogUI:
         self.run_as_admin_chk.setVisible(False)
         bottom_row.addWidget(self.run_as_admin_chk)
 
-        # Chrome rotation checkbox + profile selection button
-        self.rotation_chk = QCheckBox(
-            QCoreApplication.translate("LinkDialogUI", "Rotation")
-        )
-        self.rotation_profiles_btn = QPushButton()
-        self.rotation_profiles_btn.setToolTip(
-            QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
-        )
-        self.rotation_profiles_btn.setIcon(icon_cache.get_icon("account", get_current_theme()))
-        self.rotation_profiles_btn.setIconSize(QSize(18, 18))
-        self.rotation_profiles_btn.setFixedWidth(32)
-        self.rotation_profiles_btn.setVisible(False)
-        self.rotation_profiles_btn.setEnabled(False)
-        bottom_row.addWidget(self.rotation_chk)
-        bottom_row.addWidget(self.rotation_profiles_btn)
-
         bottom_row.addStretch(1)
 
         self.button_box = QDialogButtonBox(
@@ -423,8 +439,6 @@ class LinkDialogUI:
 
         self.widgets["fav_chk"] = self.fav_chk
         self.widgets["run_as_admin_chk"] = self.run_as_admin_chk
-        self.widgets["rotation_chk"] = self.rotation_chk
-        self.widgets["rotation_profiles_btn"] = self.rotation_profiles_btn
         self.widgets["button_box"] = self.button_box
         self.widgets["ok_btn"] = ok_btn
 
@@ -485,7 +499,7 @@ class LinkDialogUI:
         try:
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
                 self.browse_btn.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Browse...")
+                    QCoreApplication.translate("LinkDialogUI", "Browse")
                 )
                 self.adjust_button_width(self.browse_btn)
             if hasattr(self, "apps_btn") and self.apps_btn is not None:
@@ -493,14 +507,6 @@ class LinkDialogUI:
                     QCoreApplication.translate("LinkDialogUI", "Apps")
                 )
                 self.adjust_button_width(self.apps_btn)
-            if hasattr(self, "profile_btn") and self.profile_btn is not None:
-                if not self.profile_btn.text() or self.profile_btn.text() == (
-                    QCoreApplication.translate("LinkDialogUI", "Profile")
-                ):
-                    self.profile_btn.setText(
-                        QCoreApplication.translate("LinkDialogUI", "Profile")
-                    )
-                self.adjust_button_width(self.profile_btn)
         except Exception:
             pass
 
@@ -562,6 +568,25 @@ class LinkDialogUI:
         except Exception:
             pass
 
+    def _retranslate_profile_row(self):
+        """Retranslate profile row label, placeholder, and button."""
+        try:
+            if hasattr(self, "profile_label") and self.profile_label is not None:
+                self.profile_label.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Profile:")
+                )
+            if hasattr(self, "profile_le") and self.profile_le is not None:
+                self.profile_le.setPlaceholderText(
+                    QCoreApplication.translate("LinkDialogUI", "No profile")
+                )
+            if hasattr(self, "profile_select_btn") and self.profile_select_btn is not None:
+                self.profile_select_btn.setText(
+                    QCoreApplication.translate("LinkDialogUI", "Select")
+                )
+                self.adjust_button_width(self.profile_select_btn)
+        except Exception:
+            pass
+
     def _retranslate_notes_and_favorites(self):
         """Retranslate notes label and options checkboxes."""
         try:
@@ -581,16 +606,6 @@ class LinkDialogUI:
                 self.run_as_admin_chk.setText(
                     QCoreApplication.translate("LinkDialogUI", "Run as administrator")
                 )
-            if hasattr(self, "rotation_chk") and self.rotation_chk is not None:
-                self.rotation_chk.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Rotation")
-                )
-            if hasattr(self, "rotation_profiles_btn") and self.rotation_profiles_btn is not None:
-                self.rotation_profiles_btn.setText("")
-                self.rotation_profiles_btn.setToolTip(
-                    QCoreApplication.translate("LinkDialogUI", "Select profiles for rotation")
-                )
-                self.rotation_profiles_btn.setIcon(icon_cache.get_icon("account", get_current_theme()))
         except Exception:
             pass
 
@@ -614,6 +629,7 @@ class LinkDialogUI:
         self._retranslate_type_section()
         self._retranslate_path_row()
         self._retranslate_name_row()
+        self._retranslate_profile_row()
         self._retranslate_args_row()
         self._retranslate_hierarchy()
         self._retranslate_notes_and_favorites()

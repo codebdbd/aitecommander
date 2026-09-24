@@ -168,40 +168,63 @@ class LinkDialogController:
                     QCoreApplication.translate("LinkDialogController", "Specified path does not exist.")
                 )
 
+        # Validate profile modes for web links
+        if link_type == "web":
+            profile_mode = form_data.get("profile_mode", "none")
+            if profile_mode == "single" and not form_data.get("selected_profiles"):
+                errors.append(
+                    QCoreApplication.translate(
+                        "LinkDialogController", "Please select a browser profile."
+                    )
+                )
+            elif profile_mode == "rotation":
+                rot_profiles = form_data.get("rotation_profiles") or []
+                if len(rot_profiles) < 2:
+                    errors.append(
+                        QCoreApplication.translate(
+                            "LinkDialogController",
+                            "Rotation requires at least 2 profiles.",
+                        )
+                    )
+            elif profile_mode == "batch" and not form_data.get("selected_profiles"):
+                errors.append(
+                    QCoreApplication.translate(
+                        "LinkDialogController",
+                        "Please select at least one profile for batch creation.",
+                    )
+                )
+
         return {"is_valid": len(errors) == 0, "errors": errors}
 
     def _prepare_links_data(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Prepares link data for saving."""
         links_data = []
+        profile_mode = form_data.get("profile_mode", "none")
 
-        # Chrome rotation: always save as a single record with rotation_profiles JSON
-        if form_data.get("chrome_rotation") and form_data.get("rotation_profiles"):
+        # 1. Chrome rotation mode: save as a single record with rotation_profiles JSON
+        if profile_mode == "rotation" or (
+            form_data.get("chrome_rotation") and form_data.get("rotation_profiles")
+        ):
             links_data.append(self._prepare_regular_link(form_data))
             return links_data
 
-        # Edit mode: if web and profiles are set —
-        # uses profile processing (will update current and add missing);
-        # otherwise — one record
+        # 2. Batch creation mode: create separate links for each profile (only when creating new links)
+        if profile_mode == "batch" and form_data.get("selected_profiles"):
+            links_data.extend(self._prepare_profile_links(form_data))
+            return links_data
+
+        # 3. Single profile mode or No profile mode: single record
         is_edit = form_data.get("link_id") is not None
-        if is_edit:
-            if (
-                form_data.get("link_type") == "web"
-                and form_data.get("selected_profiles")
-                and form_data.get("profiles_explicitly_changed")
-            ):
-                links_data.extend(self._prepare_profile_links(form_data))
-            else:
-                links_data.append(self._prepare_regular_link(form_data))
+        if (
+            is_edit
+            and profile_mode != "single"
+            and form_data.get("link_type") == "web"
+            and form_data.get("selected_profiles")
+            and form_data.get("profiles_explicitly_changed")
+        ):
+            links_data.extend(self._prepare_profile_links(form_data))
         else:
-            # Режим создания: сохраняем текущее поведение —
-            #   web + выбранные профили -> несколько записей;
-            #   иначе -> одна запись
-            if form_data.get("link_type") == "web" and form_data.get(
-                "selected_profiles"
-            ):
-                links_data.extend(self._prepare_profile_links(form_data))
-            else:
-                links_data.append(self._prepare_regular_link(form_data))
+            links_data.append(self._prepare_regular_link(form_data))
 
         return links_data
 

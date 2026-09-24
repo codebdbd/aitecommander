@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class BrowserProfilesLoader:
     """Manage loading of browser profiles."""
 
-    _INITIAL_LOAD_DELAY_MS = 250
+    _INITIAL_LOAD_DELAY_MS = 1500
 
     def __init__(self, main_window: Any):
         """Initialize the loader.
@@ -52,7 +52,7 @@ class BrowserProfilesLoader:
     def _save_profiles_to_cache(self, all_profiles, _pc):
         """Save profiles to persistent cache."""
         try:
-            cache = _pc.PersistentProfileCache(default_ttl=3600)
+            cache = _pc.PersistentProfileCache(default_ttl=None)
             for key, profiles in (all_profiles or {}).items():
                 try:
                     cache.set(key, profiles)
@@ -123,7 +123,7 @@ class BrowserProfilesLoader:
     def _load_profiles_from_cache(self, _pc, _pm):
         """Load profiles from existing cache."""
         try:
-            cache = _pc.PersistentProfileCache(default_ttl=3600)
+            cache = _pc.PersistentProfileCache(default_ttl=None)
             mgr = _pm.get_profile_manager()
 
             loaded_any = False
@@ -186,7 +186,7 @@ class BrowserProfilesLoader:
             )
             return
 
-        if not cache_path.exists():
+        if not cache_path.exists() or cache_path.stat().st_size <= 2:
             try:
                 async_mgr = _apm.get_async_profile_manager()
             except Exception as e:

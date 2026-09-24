@@ -77,22 +77,16 @@ class BrowserProfileManager:
             "yandex": YandexProfileFinder(),
         }
 
-        # Unified profile cache: persistent JSON + TTL
-        self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
+        # Unified profile cache: persistent JSON
+        self.cache = PersistentProfileCache(default_ttl=None)
 
         logger.info("Initialized profile manager for %s browsers", len(self.finders))
 
         # Persistent cache loads data from disk during initialization
 
-    def _get_cache_timeout(self) -> int:
-        """Gets cache timeout from configuration."""
-        try:
-            from app.config_data import app_config
-
-            settings = app_config.get_browser_profile_settings()
-            return settings.get("cache_timeout", 300)
-        except ImportError:
-            return 300  # 5 minutes by default
+    def _get_cache_timeout(self) -> None:
+        """Cache TTL is disabled; profiles are persisted until manual refresh."""
+        return None
 
     def get_all_profiles(self) -> dict[str, list[dict]]:
         """Gets profiles of all browsers."""
