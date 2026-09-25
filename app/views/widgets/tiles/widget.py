@@ -31,6 +31,7 @@ class CategoryTiles(QWidget):
     deleteRequested: pyqtSignal = pyqtSignal(int)
     addLinkRequested: pyqtSignal = pyqtSignal(int)
     contextMenuRequested: pyqtSignal = pyqtSignal(int, QPoint)
+    addCategoryRequested: pyqtSignal = pyqtSignal()
 
     def _setup_viewport(self, vp):
         """Setup viewport mouse tracking and event filter."""
@@ -143,6 +144,12 @@ class CategoryTiles(QWidget):
             logger.warning("Failed to connect enterActivated: %s", e)
         except Exception:
             logger.exception("Unexpected error connecting enterActivated")
+        try:
+            self.view.blankAreaDoubleClicked.connect(self.addCategoryRequested.emit)
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Failed to connect blankAreaDoubleClicked: %s", e)
+        except Exception:
+            logger.exception("Unexpected error connecting blankAreaDoubleClicked")
 
     def _on_index_clicked(self, index: QModelIndex) -> None:
         """Track current tile on single click without activating it."""

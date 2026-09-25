@@ -148,6 +148,11 @@ class StructureUIController(QObject):
             self.tree.externalLinkDropped.connect(self._on_external_link_dropped)
         except Exception:
             logger.debug("Failed to connect externalLinkDropped", exc_info=True)
+        try:
+            if hasattr(self.tree, "blankAreaDoubleClicked"):
+                self.tree.blankAreaDoubleClicked.connect(self.add_new_section)
+        except Exception:
+            logger.debug("Failed to connect blankAreaDoubleClicked", exc_info=True)
         # Selection handling for QTreeView via QItemSelectionModel
         sel_model = getattr(self.tree, "selectionModel", None)
         if callable(sel_model):

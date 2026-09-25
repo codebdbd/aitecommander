@@ -13,7 +13,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
+from PyQt6.QtGui import QDrag, QDropEvent, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -288,6 +288,7 @@ class BaseDragDropTableWidget(QTableView):
     """Base ``QTableView`` with drag-and-drop support."""
 
     items_reordered: pyqtSignal = pyqtSignal(list)
+    blankAreaDoubleClicked: pyqtSignal = pyqtSignal()
 
     MIME_TYPE = get_link_mime()
 
@@ -359,6 +360,15 @@ class BaseDragDropTableWidget(QTableView):
                 self.dropEvent(event)  # type: ignore[arg-type]
                 return event.isAccepted()
         return super().eventFilter(obj, event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            idx = self.indexAt(event.position().toPoint())
+            if not idx.isValid():
+                self.blankAreaDoubleClicked.emit()
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
 
     def mimeTypes(self) -> list[str]:
         """Return supported MIME types."""

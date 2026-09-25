@@ -196,3 +196,12 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict QSS Protection Rules**:
   1. **Защита движка `QStyleSheetStyle`**: В Qt/PyQt вызов `widget.setStyle(QProxyStyle/QStyle)` на отдельном экземпляре виджета, стилизуемом через QSS, полностью отключает и разрушает внутреннюю обертку `QStyleSheetStyle`. Это приводит к полному слету и разрушению оформления темы (границы, скругления, фон, отступы, состояния hover/focus).
   2. **Категорический запрет на `setStyle()` для QSS-виджетов**: Категорически запрещено вызывать `.setStyle()` на `QComboBox`, `PopupComboBox` и любых других QSS-виджетах для кастомизации подэлементов (включая стрелки/шевроны). Кастомизация обязана производиться строго средствами QSS (`::drop-down`, `::down-arrow`) либо через специализированные сервисы тем без подмены стиля виджета.
+
+## 24. Architecture Standards: Blank Area Double-Click Creation (СОЗДАНИЕ СУЩНОСТЕЙ ПО ДВОЙНОМУ КЛИКУ НА ПУСТОМ МЕСТЕ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Механизм быстрого создания сущностей (раздел, категория, ссылка) при двойном клике ЛКМ по пустой области зафиксирован.
+- **Strict Blank Area Double-Click Rules**:
+  1. **Дерево структуры (`StructureTreeView`)**: Двойной клик ЛКМ по пустой области вьюпорта (`not indexAt(pos).isValid()`) строго испускает сигнал `blankAreaDoubleClicked`, подключенный к открытию диалога создания раздела (`add_new_section`).
+  2. **Плитка категорий (`CategoryTiles` / `CategoryListView`)**: Двойной клик ЛКМ по пустому фону контейнера плиток строго испускает сигнал `blankAreaDoubleClicked` / `addCategoryRequested`, подключенный к созданию категории в текущем разделе (`add_new_category`).
+  3. **Таблица ссылок (`BaseDragDropTableWidget` / `LinksTableView`)**: Двойной клик ЛКМ по свободной области таблицы строго испускает сигнал `blankAreaDoubleClicked`, подключенный к созданию ссылки в текущей категории (`show_link_dialog`).
+  4. **Изоляция и Zero Regression**: Проверка `if event.button() == Qt.MouseButton.LeftButton:` и `not idx.isValid()` строго обязательна. При клике на существующий элемент управление передается в `super().mouseDoubleClickEvent(event)` без перехвата. Запрещено блокировать или ломать стандартную активацию элементов, выделение или перетаскивание (DnD).
+

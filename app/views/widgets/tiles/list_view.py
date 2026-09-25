@@ -30,6 +30,7 @@ class CategoryListView(QListView):
     MIME_TYPE = app_config.settings.get_category_mime_type()
     # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
+    blankAreaDoubleClicked = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -97,6 +98,15 @@ class CategoryListView(QListView):
         except Exception:
             logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            idx = self.indexAt(event.position().toPoint())
+            if not idx.isValid():
+                self.blankAreaDoubleClicked.emit()
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
 
     def startDrag(self, supportedActions: Qt.DropAction) -> None:  # type: ignore[override]
         index = self.currentIndex()

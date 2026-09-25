@@ -10,7 +10,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDrag, QIcon
+from PyQt6.QtGui import QDrag, QIcon, QMouseEvent
 from PyQt6.QtWidgets import (
     QProxyStyle,
     QStyle,
@@ -245,6 +245,7 @@ class StructureTreeView(QTreeView):
     invalidDrop: pyqtSignal = pyqtSignal(str)
     dragFeedback: pyqtSignal = pyqtSignal(object)
     externalLinkDropped: pyqtSignal = pyqtSignal(object)
+    blankAreaDoubleClicked: pyqtSignal = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -511,6 +512,15 @@ class StructureTreeView(QTreeView):
         return QCoreApplication.translate(
             "DragDrop", "Dragging {total} items — {shown}"
         ).format(total=total, shown=", ".join(shown))
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            idx = self.indexAt(event.position().toPoint())
+            if not idx.isValid():
+                self.blankAreaDoubleClicked.emit()
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
 
     def _safe_emit(
         self, signal, payload, *, fallback=None, signal_name: str = ""

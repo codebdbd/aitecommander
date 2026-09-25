@@ -137,6 +137,7 @@ def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
         tiles.addLinkRequested.connect(dialog_provider.show_link_dialog_for_category)
+        tiles.addCategoryRequested.connect(structure_ctrl.add_new_category)
     except (AttributeError, TypeError) as e:
         logger.error("Failed to connect CategoryTiles signals: %s", e, exc_info=True)
         raise SetupError("Failed to connect CategoryTiles signals") from e

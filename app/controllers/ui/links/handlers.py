@@ -309,6 +309,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self.table.clicked.connect(
                 lambda idx: self._on_cell_clicked(idx.row(), idx.column())
             )
+            if hasattr(self.table, "blankAreaDoubleClicked"):
+                self.table.blankAreaDoubleClicked.connect(
+                    lambda: safe_call(self.main, "show_link_dialog")
+                )
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to connect table index signals: {e}") from e
 
