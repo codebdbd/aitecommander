@@ -516,7 +516,7 @@ class UIConfig(BaseConfig):
 
     def get_link_dialog_height(self) -> int:
         """Return the height for the add/edit link dialog."""
-        return self.get("ui.link_dialog_height", 494)
+        return self.get("ui.link_dialog_height", 411)
 
     def get_link_dialog_margins(self) -> int:
         """Return link dialog margins."""

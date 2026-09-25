@@ -113,6 +113,13 @@ class TypeChangeMixin:
         except (AttributeError, RuntimeError):
             pass
 
+        try:
+            if self.dialog.layout():
+                self.dialog.layout().activate()
+            self.dialog.adjustSize()
+        except Exception:
+            pass
+
         # Focus depending on type: WEB -> URL field, otherwise -> "Browse" button
         def _apply_focus():
             try:
@@ -176,11 +183,16 @@ class TypeChangeMixin:
         if lt.value not in codes:
             return
 
-        type_group = self.dialog.ui.widgets["type_group"]
-        for btn in type_group.buttons():
-            if btn.property("link_type") == lt.value:
-                btn.setChecked(True)
-                break
+        # In fixed-type mode (e.g. edit mode), link type is immutable
+        if getattr(self.dialog, "_is_type_fixed", False):
+            return
+
+        type_group = self.dialog.ui.widgets.get("type_group")
+        if type_group is not None:
+            for btn in type_group.buttons():
+                if btn.property("link_type") == lt.value:
+                    btn.setChecked(True)
+                    break
 
         # Preserve backward compatibility: call handler with the original value
         # (string) because tests expect a string argument.

@@ -205,3 +205,11 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   3. **Таблица ссылок (`BaseDragDropTableWidget` / `LinksTableView`)**: Двойной клик ЛКМ по свободной области таблицы строго испускает сигнал `blankAreaDoubleClicked`, подключенный к созданию ссылки в текущей категории (`show_link_dialog`).
   4. **Изоляция и Zero Regression**: Проверка `if event.button() == Qt.MouseButton.LeftButton:` и `not idx.isValid()` строго обязательна. При клике на существующий элемент управление передается в `super().mouseDoubleClickEvent(event)` без перехвата. Запрещено блокировать или ломать стандартную активацию элементов, выделение или перетаскивание (DnD).
 
+## 25. Architecture Standards: Link Dialog Geometry & Content-Driven Sizing (СТАНДАРТ ГЕОМЕТРИИ ДИАЛОГА ССЫЛОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура адаптивного подгона геометрии диалога добавления и редактирования ссылок (`LinkDialog`, `LinkDialogUI`, `TypeChangeMixin`) полностью зафиксирована.
+- **Strict Geometry & Adaptive Sizing Rules**:
+  1. **Фиксированная ширина**: Диалог обязан иметь строгую ширину **600 px** (`self.setFixedWidth(app_config.ui.get_link_dialog_width())`). Запрещено произвольно менять или сжимать ширину окна.
+  2. **Адаптивная высота по контенту**: Высота диалога рассчитывается строго автоматически по фактическому содержимому через `self.adjustSize()` без жестко захардкоженных ограничений `setFixedSize(w, h)` или хардкодных раздутых высот.
+  3. **Фиксация кнопок типов**: Кнопки выбора типа ссылки `linkTypeBtn` обязаны иметь вертикальную политику `QSizePolicy.Policy.Fixed` (`btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)`), исключающую вертикальное вытягивание кнопок.
+  4. **Мгновенный одноэтапный ресайз**: При переключении типа ссылки в `TypeChangeMixin._update_ui_state` перед вызовом `adjustSize()` строго обязателен вызов `self.dialog.layout().activate()` для немедленного сброса кэша скрытых строк `QFormLayout` и мгновенного изменения размера окна в 1 этап с первого клика.
+

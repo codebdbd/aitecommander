@@ -26,6 +26,8 @@ from PyQt6.QtWidgets import (
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.models.types.link_type import LinkType
 from app.utils.i18n.common import tr as tr_common
+from app.utils.links.type_labels import translate_link_type_label
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
@@ -158,8 +160,8 @@ class LinkDialog(BaseDialog):
         """Return the run as administrator checkbox (`QCheckBox`)."""
         return self.ui.get_widget("run_as_admin_chk")
 
-    def _get_notes_te(self) -> QTextEdit:
-        """Return the notes text edit (`QTextEdit`)."""
+    def _get_notes_te(self) -> Optional[QTextEdit]:
+        """Return the notes text edit (`QTextEdit`), if present."""
         return self.ui.get_widget("notes_te")
 
     def __init__(
@@ -237,19 +239,23 @@ class LinkDialog(BaseDialog):
         """Return link type buttons visible in this dialog context."""
         if not getattr(self, "_is_type_fixed", False):
             return list(self.link_types)
-
-        current_type = LinkType.from_value(self.link_type).value
-        for code, title in self.link_types:
-            if LinkType.from_value(code).value == current_type:
-                return [(code, title)]
-
-        return [(current_type, current_type)]
+        return []
 
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
         # UI components
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self._visible_link_types)
+
+        # Set window icon to match link type
+        try:
+            icon_path = resolve_icon_for_link({"type": self.link_type, "icon_path": ""})
+            if icon_path:
+                icon = create_icon_from_path(str(icon_path))
+                if icon and not icon.isNull():
+                    self.setWindowIcon(icon)
+        except Exception:
+            pass
 
         # Event handlers
         self.handlers = LinkDialogHandlers(self)
@@ -325,10 +331,8 @@ class LinkDialog(BaseDialog):
     def _setup_ui_properties(self) -> None:
         """Configure dialog UI properties."""
         # Window title is updated in retranslateUi()
-        self.setFixedSize(
-            app_config.ui.get_link_dialog_width(),
-            app_config.ui.get_link_dialog_height(),
-        )
+        self.setFixedWidth(app_config.ui.get_link_dialog_width())
+        self.adjustSize()
 
     def _extract_profile_and_user_args(self) -> tuple[list[dict], str]:
         """Parses `self.link.get("args")` to detect selected profiles
@@ -391,11 +395,12 @@ class LinkDialog(BaseDialog):
 
         # Set link type button
         type_group = self._get_type_group()
-        _lt = LinkType.from_value(self.link_type)
-        for btn in type_group.buttons():
-            if btn.property("link_type") == _lt.value:
-                btn.setChecked(True)
-                break
+        if type_group is not None:
+            _lt = LinkType.from_value(self.link_type)
+            for btn in type_group.buttons():
+                if btn.property("link_type") == _lt.value:
+                    btn.setChecked(True)
+                    break
 
         # Initialize profile modes in UI
         self.handlers.init_profile_modes()
@@ -421,7 +426,6 @@ class LinkDialog(BaseDialog):
             "name_le": self.link.get("name", ""),
             "args_le": user_args,
             "run_as_admin_chk": is_admin,
-            "notes_te": self.link.get("notes", ""),
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }
 
@@ -859,9 +863,11 @@ class LinkDialog(BaseDialog):
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
         # Window title
-        self.setWindowTitle(
-            tr_common("Edit link") if self.link else tr_common("Add link")
-        )
+        if getattr(self, "link", None):
+            type_title = translate_link_type_label(getattr(self, "link_type", "web"))
+            self.setWindowTitle(f"{tr_common('Edit link')} — {type_title}")
+        else:
+            self.setWindowTitle(tr_common("Add link"))
         # Delegate to UI component
         if hasattr(self, "ui") and self.ui is not None:
             self.ui.retranslate()

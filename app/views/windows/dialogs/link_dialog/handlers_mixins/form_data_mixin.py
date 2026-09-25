@@ -52,7 +52,11 @@ class FormDataMixin:
             "args": collected_args,
             "is_favorite": self.dialog._get_fav_chk().isChecked(),
             "icon_name": self.dialog.icon_name,
-            "notes": self.dialog._get_notes_te().toPlainText().strip(),
+            "notes": (
+                self.dialog._get_notes_te().toPlainText().strip()
+                if self.dialog._get_notes_te() is not None
+                else str(self.dialog.link.get("notes", "") or "")
+            ),
             "profile_mode": (
                 self.dialog._get_profile_mode_cb().currentData()
                 if getattr(self.dialog, "_get_profile_mode_cb", lambda: None)()

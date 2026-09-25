@@ -82,6 +82,7 @@ class LinkDialogUI:
         self._link_type_titles: dict[str, str] = {}
         self._type_buttons: dict[str, QToolButton] = {}
         self._type_button_codes: list[str] = []
+        self.type_group: QButtonGroup | None = None
 
     def build_ui(self, link_types: list[tuple[str, str]]) -> None:
         """Build the UI.
@@ -94,7 +95,8 @@ class LinkDialogUI:
         vbox.setSpacing(app_config.ui.get_link_dialog_spacing())
 
         # UI sections
-        self._build_type_section(vbox, link_types)
+        if link_types:
+            self._build_type_section(vbox, link_types)
         self._build_form_section(vbox)
         self._build_buttons(vbox)
 
@@ -140,7 +142,7 @@ class LinkDialogUI:
             # Height by content. Width expands to share space equally.
             btn.setObjectName("linkTypeBtn")
             btn.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
             )
             self.type_group.addButton(btn)
             btn.setProperty("link_type", code)
@@ -175,7 +177,6 @@ class LinkDialogUI:
         self._form_add_profile_row()
         self._form_add_args_row()
         self._form_add_hierarchy_section()
-        self._form_add_notes_and_fav()
 
         container.addLayout(self.form)
 
@@ -374,20 +375,6 @@ class LinkDialogUI:
             }
         )
 
-    def _form_add_notes_and_fav(self) -> None:
-        """Add notes field to form section."""
-        self.notes_te = QTextEdit()
-        try:
-            self.notes_te.setTabChangesFocus(True)
-        except (AttributeError, RuntimeError) as e:
-            logger.warning("Failed to set tabChangesFocus for notes_te: %s", e)
-        self.notes_frame = InputFrame(self.notes_te)
-        self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "Notes:"), self.notes_frame
-        )
-        self.widgets["notes_te"] = self.notes_te
-        self.widgets["notes_frame"] = self.notes_frame
-
     def _build_buttons(self, container: QVBoxLayout) -> None:
         """Create bottom row with options (favorite, rotation) and OK/Cancel buttons."""
         bottom_row = QHBoxLayout()
@@ -487,7 +474,7 @@ class LinkDialogUI:
 
     # --- Runtime i18n -------------------------------------------------------
     def _retranslate_type_section(self):
-        """Retranslate type section label."""
+        """Retranslate type section buttons."""
         try:
             self._apply_link_type_translations()
         except Exception:
@@ -587,16 +574,8 @@ class LinkDialogUI:
             pass
 
     def _retranslate_notes_and_favorites(self):
-        """Retranslate notes label and options checkboxes."""
+        """Retranslate options checkboxes."""
         try:
-            if hasattr(self, "form") and self.form is not None:
-                field = getattr(self, "notes_frame", getattr(self, "notes_te", None))
-                if field is not None:
-                    notes_label = self.form.labelForField(field)
-                    if notes_label is not None:
-                        notes_label.setText(
-                            QCoreApplication.translate("LinkDialogUI", "Notes:")
-                        )
             if hasattr(self, "fav_chk") and self.fav_chk is not None:
                 self.fav_chk.setText(
                     QCoreApplication.translate("LinkDialogUI", "Favorites")

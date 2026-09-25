@@ -67,9 +67,10 @@ class LinkDialogHandlers(
     def connect_signals(self) -> None:
         """Wire dialog widgets to handlers."""
         # Link type selection
-        self.dialog.ui.type_group.buttonClicked.connect(
-            lambda b: self.on_type_changed(b.property("link_type"))
-        )
+        if getattr(self.dialog.ui, "type_group", None) is not None:
+            self.dialog.ui.type_group.buttonClicked.connect(
+                lambda b: self.on_type_changed(b.property("link_type"))
+            )
 
         # URL change
         url_widget = self.dialog._get_url_le()
