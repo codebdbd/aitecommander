@@ -335,6 +335,11 @@ class ThemeStylesheetService:
                 color_hex = "#FFFFFF"
             else:
                 color_hex = "#FFFFFF"
+        elif icon_name in ("chevron_down.svg", "chevron_up.svg", "down.svg", "up.svg"):
+            from app.services.theme_registry import theme_registry
+            theme_def = theme_registry.get_theme(theme_name)
+            is_dark = (theme_def and theme_def.is_dark) or theme_name == "dark"
+            color_hex = "#9AA0A6" if is_dark else "#5F6368"
         cache_dir = PathManager.cache_dir() / "qss_icons" / theme_name
         cache_dir.mkdir(parents=True, exist_ok=True)
         dest_svg = cache_dir / icon_name
