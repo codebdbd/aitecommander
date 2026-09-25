@@ -512,18 +512,6 @@ class LinkModel(DatabaseBase):
             logger.error("Error selecting links by args pattern: %s", e)
             raise
 
-    def update_link_notes(self, link_id: int, new_notes: str) -> None:
-        """Update notes field for specified link."""
-        try:
-            self._execute_with_error_handling(
-                "UPDATE link SET notes = ? WHERE id = ?",
-                (new_notes, link_id),
-            )
-
-        except Exception as e:
-            logger.error("Error updating notes for link %s: %s", link_id, e)
-            raise
-
     def get_links_args_nonempty(self) -> list[dict[str, Any]]:
         """Return rows with non-empty args."""
         try:

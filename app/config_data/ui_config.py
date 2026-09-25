@@ -641,12 +641,6 @@ class UIConfig(BaseConfig):
         """Return settings dialog action-row spacing."""
         return int(self.get("ui.dialogs.settings.actions_spacing", 8))
 
-    def get_notes_dialog_size(self) -> tuple[int, int]:
-        """Return the notes dialog size."""
-        width = int(self.get("ui.dialogs.notes.width", 400))
-        height = int(self.get("ui.dialogs.notes.height", 300))
-        return (width, height)
-
     def get_chrome_profile_dialog_base_size(self) -> tuple[int, int]:
         """Return the base size for the Chrome profile dialog."""
         width = int(self.get("ui.dialogs.chrome_profiles.base_width", 600))

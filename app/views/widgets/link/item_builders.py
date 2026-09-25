@@ -7,7 +7,7 @@ from PyQt6.QtCore import QCoreApplication
 from app.utils.links.type_labels import link_type_address_tooltip, translate_link_type_label
 
 # Constants for magic numbers
-MAX_NOTES_LENGTH = 462
+MAX_NOTES_DISPLAY_LENGTH = 462
 # Favorite marker: heart symbol instead of the default star
 STAR_SYMBOL = "♥"
 STAR_COLOR = "#FFD700"
@@ -73,8 +73,8 @@ class ItemBuildersMixin:
         has_text = bool(clean_text)
         prefix = "📝 " if has_text else ""
         tooltip = raw_text.strip()
-        if truncate and len(clean_text) > MAX_NOTES_LENGTH:
-            return prefix + clean_text[:MAX_NOTES_LENGTH] + "...", tooltip
+        if truncate and len(clean_text) > MAX_NOTES_DISPLAY_LENGTH:
+            return prefix + clean_text[:MAX_NOTES_DISPLAY_LENGTH] + "...", tooltip
         return prefix + clean_text, tooltip
 
     def _path_display_and_tooltip(self, link: dict) -> tuple[str, str]:

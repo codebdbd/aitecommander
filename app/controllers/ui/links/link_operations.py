@@ -12,7 +12,7 @@ from app.utils.links.link_utils import (
     sanitize_link_dict_for_log,
     sanitize_url_for_logging,
 )
-from app.views.windows.dialogs.entity_dialogs import NoteDialog
+from app.views.windows.dialogs.note_dialog import NoteDialog
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import DatabaseError, LinkValidationError
@@ -68,22 +68,23 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         if not link:
             return
 
-        # Create link copy for safety
-        link_copy = link.copy()
+        initial_notes = str(link.get("notes") or "")
+        link_name = str(link.get("name") or "")
 
-        dlg = NoteDialog(link_copy, parent=self.main)
+        dlg = NoteDialog(initial_text=initial_notes, title=link_name, parent=self.main)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            # Update link via business logic
+            new_notes = dlg.get_notes_text()
+            # Check if notes were actually changed
+            if new_notes == initial_notes.strip():
+                return
             try:
-                # Business layer emits link_updated itself inside save_link()
-                if hasattr(self.business, "save_link_async"):
-                    self.business.save_link_async(link_copy)
-                else:
-                    self.business.save_link(link_copy)
-                logger.debug("Note saved for link: %s", link_copy.get("name"))
-            except DatabaseError as e:
-                logger.error("Database error saving note: %s", e)
-                self._show_error(f"{self.get_message('database_error')}: {str(e)}")
+                link_copy = link.copy()
+                link_copy["notes"] = new_notes
+                cmd = SaveLinkCmd(
+                    new_data=link_copy, old_data=link, main_window=self.main
+                )
+                self.main.undo_stack.push(cmd)
+                logger.debug("Note save command enqueued for link: %s", link.get("name"))
             except Exception as e:
                 logger.error("Unexpected error saving note: %s", e)
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")

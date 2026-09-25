@@ -6,6 +6,8 @@ from typing import Any
 
 from PyQt6.QtCore import (
     QCoreApplication,
+    QEvent,
+    QPoint,
     QRunnable,
     QSize,
     Qt,
@@ -13,8 +15,25 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QColor,
+    QDesktopServices,
+    QFont,
+    QIcon,
+    QKeyEvent,
+    QMouseEvent,
+    QPalette,
+    QTextBlockFormat,
+    QTextCharFormat,
+    QTextCursor,
+    QTextFormat,
+    QTextListFormat,
+    QWheelEvent,
+)
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
@@ -23,12 +42,15 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
+    QFrame,
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -42,7 +64,10 @@ from app.services.theme_import_service import (
 )
 from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+from app.utils.ui.icon.icon_operations.creators import (
+    _create_tinted_svg_icon,
+    create_icon_from_path,
+)
 from app.utils.ui.icon.icon_resolver import (
     resolve_category_icon_path,
     resolve_section_icon_path,
@@ -654,69 +679,6 @@ class CategoryDialog(BaseEntityDialog):
                     current_data=section_id,
                     fallback_to_first=False,
                 )
-
-
-class NoteDialog(BaseDialog):
-    def __init__(self, link: dict, parent=None):
-        self.link = link
-        self._button_box: QDialogButtonBox | None = None
-        self.notes_te: QTextEdit | None = None
-
-        super().__init__(parent)
-        width, height = app_config.ui.get_notes_dialog_size()
-        self.resize(width, height)
-        self._init_ui()
-
-        # Translate after widgets are created
-        self.retranslateUi()
-
-    def _init_ui(self):
-        """Initialize the notes dialog UI."""
-        vbox = QVBoxLayout(self)
-
-        self.notes_te = QTextEdit(self.link.get("notes", ""))
-        try:
-            self.notes_te.setTabChangesFocus(True)
-        except Exception:
-            pass
-        self.notes_frame = InputFrame(self.notes_te)
-        vbox.addWidget(self.notes_frame)
-
-        bb = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        bb.accepted.connect(self._on_accept)
-        bb.rejected.connect(self.reject)
-        vbox.addWidget(bb)
-        self._button_box = bb
-
-    def retranslateUi(self) -> None:
-        self.setWindowTitle(tr_common("Notes"))
-        if self.notes_te is not None:
-            self.notes_te.setPlaceholderText(self.tr("Enter notes here"))
-        if self._button_box is not None:
-            ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
-            cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
-            if ok_btn is not None:
-                ok_btn.setText(tr_common("Save"))
-            if cancel_btn is not None:
-                cancel_btn.setText(tr_common("Cancel"))
-
-    def _on_accept(self):
-        """Update notes in the link object."""
-        try:
-            notes = self.notes_te.toPlainText()
-            self.link["notes"] = notes
-            self.accept()
-        except Exception as e:
-            self.show_error(
-                self.tr("Failed to update notes."),
-                self.tr("Notes update error"),
-                informative_text=self.tr(
-                    "Close and reopen the dialog, then try again."
-                ),
-                details=str(e),
-            )
 
 
 class SettingsDialog(BaseDialog):

@@ -366,12 +366,6 @@ class EditingKeyHandler(BaseKeyHandler):
             selected_links = self._safe_call(la, "get_selected_links")
             if selected_links:
                 self._safe_call(la, "show_note_dialog", selected_links[0])
-            return
-        links = self._safe_getattr(self.main_window, "links")
-        if links:
-            selected_links = self._safe_call(links, "get_selected_links")
-            if selected_links:
-                self._safe_call(links, "show_note_dialog", selected_links[0])
 
     def handle_toggle_favorite(self) -> None:
         la = self._safe_getattr(self.main_window, "links_actions")

@@ -115,6 +115,23 @@ class ThemeRegistry:
             return "#1F2430"
         return "#FFFFFF"
 
+    def get_theme_separator_color(self, theme_id: str) -> str:
+        """Return separator color hex for the specified theme."""
+        theme = self.get_theme(theme_id)
+        if not theme or not theme.qss_path.exists():
+            return "#3A3E44" if (theme and theme.is_dark) else "#B3B3B3"
+        try:
+            content = theme.qss_path.read_text(encoding="utf-8")
+            match = re.search(
+                r'QWidget\[class="separator"\]\s*\{\s*background-color:\s*(#[0-9a-fA-F]{3,8});',
+                content,
+            )
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+        return "#3A3E44" if theme.is_dark else "#B3B3B3"
+
     def get_required_icon_names(self, *, base_theme_id: str = "light") -> set[str]:
         with self._lock:
             if self._required_icons_cache is not None:

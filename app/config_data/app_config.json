@@ -187,10 +187,6 @@
       "chrome_profiles": {
         "base_width": 600,
         "base_height": 500
-      },
-      "notes": {
-        "width": 400,
-        "height": 300
       }
     },
     "tree_icon_size": 24,

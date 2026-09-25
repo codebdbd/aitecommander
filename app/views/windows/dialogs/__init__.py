@@ -40,7 +40,7 @@ def __getattr__(name: str) -> Any:
         "BaseEntityDialog": ".entity_dialogs",
         "SectionDialog": ".entity_dialogs",
         "CategoryDialog": ".entity_dialogs",
-        "NoteDialog": ".entity_dialogs",
+        "NoteDialog": ".note_dialog",
         "SettingsDialog": ".entity_dialogs",
         "ChromeProfileDialog": ".entity_dialogs",
         "SphereRenameDialog": ".entity_dialogs",
