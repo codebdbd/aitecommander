@@ -395,7 +395,9 @@ QDialog QComboBox::drop-down {
 
 QComboBox::down-arrow,
 QDialog QComboBox::down-arrow {
-    margin-right: 6px;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
     margin-top: 1px;
 }
 
