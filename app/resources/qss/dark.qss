@@ -167,19 +167,16 @@ QListView#categoryTiles::item {
 background: transparent;
 border-color: transparent;
 }
-QListWidget#categoryTiles::item:hover,
 QListView#categoryTiles::item:hover {
-background: #1E2633;
-border-color: #FFFFFF;
+background: rgba(255, 255, 255, 0.05);
+border-color: transparent;
 }
-QListWidget#categoryTiles::item:selected,
 QListView#categoryTiles::item:selected {
-background: #1E2633;
+background: rgba(255, 255, 255, 0.08);
 border-color: #0194F0;
 }
-QListWidget#categoryTiles::item:selected:hover,
 QListView#categoryTiles::item:selected:hover {
-background: #1E2633;
+background: rgba(255, 255, 255, 0.12);
 border-color: #0194F0;
 }
 QToolButton:hover {
@@ -457,8 +454,6 @@ QDialog QToolButton:hover,
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover,
 QWidget#bottomBarContainer QPushButton:hover,
-QListWidget#categoryTiles::item:hover,
-QListView#categoryTiles::item:hover,
 QTreeView::item:!selected:hover,
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
@@ -468,11 +463,7 @@ color: #FFFFFF;
 }
 QTreeView::item:selected,
 QTableView::item:selected,
-QTableWidget::item:selected,
-QListWidget#categoryTiles::item:selected,
-QListView#categoryTiles::item:selected,
-QListWidget#categoryTiles::item:selected:hover,
-QListView#categoryTiles::item:selected:hover {
+QTableWidget::item:selected {
 background-color: #6A2E44;
 color: #FFFFFF;
 selection-color: #FFFFFF;
@@ -498,12 +489,6 @@ QDialog QSpinBox:focus,
 QDialog QDoubleSpinBox:focus,
 QDialog QDateEdit:focus,
 QDialog QTimeEdit:focus,
-QListWidget#categoryTiles::item:hover,
-QListView#categoryTiles::item:hover,
-QListWidget#categoryTiles::item:selected,
-QListView#categoryTiles::item:selected,
-QListWidget#categoryTiles::item:selected:hover,
-QListView#categoryTiles::item:selected:hover,
 QCheckBox::indicator:hover,
 QDialog QCheckBox::indicator:hover,
 QCheckBox::indicator:checked,

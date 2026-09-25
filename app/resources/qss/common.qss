@@ -586,30 +586,29 @@ QListView#categoryTiles {
 QListWidget#categoryTiles::item,
 QListView#categoryTiles::item {
     background: transparent;
-    border: 1px solid;
-    border-color: transparent;
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: palette(text);
 }
 
 QListWidget#categoryTiles::item:hover,
 QListView#categoryTiles::item:hover {
-    border: 1px solid;
-    border-color: transparent;
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
 }
 
 QListWidget#categoryTiles::item:selected,
 QListView#categoryTiles::item:selected {
-    border: 1px solid;
-    border-color: transparent;
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: palette(text);
 }
 
 QListWidget#categoryTiles::item:selected:hover,
 QListView#categoryTiles::item:selected:hover {
-    border: 1px solid;
-    border-color: transparent;
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: palette(text);
 }
 
 
