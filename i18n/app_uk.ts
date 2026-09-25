@@ -3766,7 +3766,7 @@ Version 1.0
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="833" />
         <source>Import theme</source>
-        <translation>Імпорт теми</translation>
+        <translation>Імпортувати тему</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="835" />

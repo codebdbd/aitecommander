@@ -72,7 +72,7 @@ except ImportError:
 from app.core.hotkey_manager import HotkeyManager
 from app.models.types.link_type import LinkType
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.icon_service import get_icon
 from app.utils.ui.icon.path_service import get_current_theme

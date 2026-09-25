@@ -130,9 +130,15 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
         def setVisible(self, value):
             self.visible = value
 
-    class FakeToolBar:
+    from PyQt6.QtWidgets import QWidget
+
+    class FakeToolBar(QWidget):
         def __init__(self, *_args, **_kwargs):
-            self.actions = []
+            super().__init__()
+            self._actions = []
+
+        def actions(self):
+            return self._actions
 
         def setObjectName(self, *_args, **_kwargs):
             pass
@@ -160,11 +166,18 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
 
         def addSeparator(self):
             token = object()
-            self.actions.append(token)
+            self._actions.append(token)
             return token
 
         def addAction(self, action):
-            self.actions.append(action)
+            self._actions.append(action)
+
+        def insertAction(self, before, action):
+            self._actions.append(action)
+            return action
+
+        def widgetForAction(self, action):
+            return None
 
         def setStyleSheet(self, *_args, **_kwargs):
             pass
@@ -215,6 +228,9 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
 
     class SeparatorControllerStub:
         def __init__(self, *args, **kwargs):
+            pass
+
+        def set_group_count(self, *args, **kwargs):
             pass
 
     class ConfigStub:
@@ -302,8 +318,8 @@ def test_shutdown_controller_cleanup_marks_ownership_and_calls_sync(monkeypatch)
 
     monkeypatch.setattr(initializer, "_cleanup_sync", fake_cleanup_sync)
 
-    assert initializer._cleanup_via_shutdown_controller(3000) is True
-    assert initializer._shutdown_cleanup_started is True
+    assert initializer.cleanup(async_cleanup=False) is True
+    assert initializer._cleanup_done is True
     assert calls == ["cleanup"]
 
 
@@ -316,8 +332,7 @@ def test_shutdown_controller_cleanup_returns_false_when_cleanup_not_done(monkeyp
 
     monkeypatch.setattr(initializer, "_cleanup_sync", fake_cleanup_sync)
 
-    assert initializer._cleanup_via_shutdown_controller(3000) is False
-    assert initializer._shutdown_cleanup_started is False
+    assert initializer.cleanup(async_cleanup=False) is False
     assert initializer._cleanup_done is False
     assert calls == ["cleanup"]
 
@@ -354,8 +369,7 @@ def test_failed_shutdown_controller_cleanup_allows_followup_direct_cleanup(monke
 
     monkeypatch.setattr(initializer, "_cleanup_sync", fake_cleanup_sync)
 
-    assert initializer._cleanup_via_shutdown_controller(3000) is False
-    assert initializer._shutdown_cleanup_started is False
+    assert initializer.cleanup(async_cleanup=False) is False
     assert initializer._cleanup_done is False
 
     assert initializer.cleanup(async_cleanup=False) is True

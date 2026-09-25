@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -120,7 +121,11 @@ class LinkDialogUI:
         self._type_buttons.clear()
         self._type_button_codes.clear()
         self.type_group = QButtonGroup(self.parent)
-        hl_type = QHBoxLayout()
+        type_frame = QFrame()
+        type_frame.setObjectName("linkTypeContainer")
+        hl_type = QHBoxLayout(type_frame)
+        hl_type.setContentsMargins(0, 0, 0, 0)
+        hl_type.setSpacing(0)
 
         for code, txt in link_types:
             btn = QToolButton()
@@ -149,7 +154,7 @@ class LinkDialogUI:
             self._type_buttons[code] = btn
             hl_type.addWidget(btn, 1)
 
-        container.addLayout(hl_type)
+        container.addWidget(type_frame)
         self.widgets["type_group"] = self.type_group
         self._apply_link_type_translations()
 

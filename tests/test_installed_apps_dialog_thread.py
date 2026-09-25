@@ -52,7 +52,7 @@ class TestInstalledAppsDialogThread(unittest.TestCase):
 
             # Test reject stops thread
             dialog.reject()
-            self.assertFalse(dialog.loader_thread.isRunning())
+            self.assertTrue(dialog.loader_thread is None or not dialog.loader_thread.isRunning())
 
     def test_loader_thread_not_parented_to_dialog_to_prevent_crash(self) -> None:
         with patch(

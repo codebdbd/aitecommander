@@ -376,7 +376,7 @@ class ExplorerHeaderView(QHeaderView):
     @staticmethod
     def _global_row_height() -> int:
         try:
-            from app.config_data import app_config
+            from app.config_data.runtime_config import runtime_app_config as app_config
 
             return int(app_config.ui.get_row_height())
         except Exception:
@@ -660,7 +660,7 @@ class LinksTableView(
                     )
                     if vh is not None:
                         try:
-                            from app.config_data import app_config
+                            from app.config_data.runtime_config import runtime_app_config as app_config
 
                             vh.setDefaultSectionSize(
                                 int(app_config.ui.get_row_height())

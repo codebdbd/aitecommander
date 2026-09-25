@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS link (
     icon_path    TEXT    NOT NULL DEFAULT '',
     args         TEXT    DEFAULT '',
     browser_key  TEXT    DEFAULT NULL,
-    is_group_launch INTEGER NOT NULL DEFAULT 0,
     position     INTEGER NOT NULL DEFAULT 0,
     UNIQUE(category_id, name, url, args)
 );

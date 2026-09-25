@@ -279,6 +279,17 @@ class ThemeImportService:
         if qss_path.suffix.lower() != ".qss":
             raise ThemeValidationError("theme.json: qss must point to a .qss file.")
 
+        try:
+            qss_content = qss_path.read_text(encoding="utf-8")
+            from app.utils.theme_checker import validate_theme_contrast
+            passed, cr, err_msg = validate_theme_contrast(qss_content, is_dark)
+            if not passed and cr < 3.0:
+                raise ThemeValidationError(f"Theme '{theme_id}' failed accessibility check: {err_msg}")
+        except Exception as exc:
+            if isinstance(exc, ThemeValidationError):
+                raise
+            logger.warning("Theme contrast check warning: %s", exc)
+
         icon_color = str(
             data.get("icon_color", "#FFFFFF" if is_dark else "#1F2430")
         ).strip()

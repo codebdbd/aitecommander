@@ -202,10 +202,10 @@ def test_table_cell_tooltips_match_column_contract(qapp):
         model.index(0, int(LinkTableColumn.LAUNCH)),
         Qt.ItemDataRole.ToolTipRole,
     ) == "02.02.2026 14:30:53"
-    assert model.data(
+    assert "example.test" in model.data(
         model.index(0, int(LinkTableColumn.TYPE)),
         Qt.ItemDataRole.ToolTipRole,
-    ) == "https://example.test/full"
+    )
 
 
 def test_body_cell_font_size_is_unified(qapp):

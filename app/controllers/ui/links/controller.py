@@ -5,7 +5,7 @@ import logging
 from PyQt6.QtCore import QCoreApplication, QObject, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
 from app.utils.common import safe_call

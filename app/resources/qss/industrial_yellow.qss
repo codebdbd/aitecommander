@@ -394,19 +394,30 @@ QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus {
 border-color: #FFCD11;
 }
+QFrame#linkTypeContainer {
+border-color: #333333;
+}
+QDialog QToolButton#linkTypeBtn {
+color: #F3F3F3;
+}
 QDialog QToolButton#linkTypeBtn:hover {
-border-color: #FFCD11;
-background: #161616;
+background: rgba(255, 255, 255, 0.05);
+border-bottom: 2px solid transparent;
+color: #F3F3F3;
 }
 QDialog QToolButton#linkTypeBtn:checked {
-background: #161616;
-border-color: #FFCD11;
+background: rgba(255, 255, 255, 0.08);
+border-bottom: 2px solid #FFCD11;
+color: #F3F3F3;
 }
 QDialog QToolButton#linkTypeBtn:checked:hover {
-border-color: #FFCD11;
+background: rgba(255, 255, 255, 0.12);
+border-bottom: 2px solid #FFCD11;
+color: #F3F3F3;
 }
 QDialog QToolButton#linkTypeBtn[_neon_on="true"] {
-border-color: #FFCD11;
+border-bottom: 2px solid #FFCD11;
+color: #F3F3F3;
 }
 QSplitter::handle { background-color: #4A4A4A; }
 QSplitter::handle:horizontal { background-color: #4A4A4A; }
@@ -470,10 +481,6 @@ QDialog QPushButton:focus,
 QDialog QToolButton:focus,
 QDialog QPushButton:default:focus,
 QDialog QPushButton:autoDefault:focus,
-QDialog QToolButton#linkTypeBtn:hover,
-QDialog QToolButton#linkTypeBtn:pressed,
-QDialog QToolButton#linkTypeBtn:checked,
-QDialog QToolButton#linkTypeBtn:checked:hover,
 QWidget#topBarHost QLineEdit:hover,
 QWidget#topBarHost QLineEdit:focus,
 QWidget#topBarHost QToolButton:hover,

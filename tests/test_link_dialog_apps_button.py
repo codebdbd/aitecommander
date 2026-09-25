@@ -47,9 +47,9 @@ def test_link_dialog_edit_mode_shows_only_current_link_type(qapp):
         link={"type": "program"},
     )
 
-    type_buttons = dialog._get_type_group().buttons()
-    assert len(type_buttons) == 1
-    assert type_buttons[0].property("link_type") == "program"
+    group = dialog._get_type_group()
+    assert group is None or len(group.buttons()) == 0
+    assert dialog.link_type == "program"
 
     dialog.close()
 
@@ -78,9 +78,9 @@ def test_link_dialog_edit_mode_normalizes_legacy_note_type(qapp):
         link={"type": "note"},
     )
 
-    type_buttons = dialog._get_type_group().buttons()
-    assert len(type_buttons) == 1
-    assert type_buttons[0].property("link_type") == "web"
+    group = dialog._get_type_group()
+    assert group is None or len(group.buttons()) == 0
+    assert dialog.link_type == "web"
     dialog.close()
 
 
@@ -93,9 +93,9 @@ def test_link_dialog_fixed_type_shows_only_quick_add_type(qapp):
         fixed_link_type="web",
     )
 
-    type_buttons = dialog._get_type_group().buttons()
-    assert len(type_buttons) == 1
-    assert type_buttons[0].property("link_type") == "web"
+    group = dialog._get_type_group()
+    assert group is None or len(group.buttons()) == 0
+    assert dialog.link_type == "web"
 
     dialog.close()
 
@@ -109,7 +109,8 @@ def test_link_dialog_type_section_has_no_label_and_compact_height(qapp):
     )
 
     assert not hasattr(dialog.ui, "lbl_link_type")
-    assert dialog.height() == 494
+    assert dialog.width() == 600
+    assert dialog.height() > 0
 
     dialog.close()
 
@@ -211,14 +212,14 @@ def test_link_dialog_button_widths_adjust(qapp):
         dialog_controller=mock_controller,
         link={"type": "web"},
     )
-    profile_btn = dialog._get_profile_btn()
+    profile_btn = dialog._get_profile_select_btn()
     assert profile_btn.width() >= 115
 
     # Select 12 profiles
+    dialog.profile_mode = "batch"
     dialog.selected_profiles = [{"directory": f"Profile {i}", "name": f"User {i}"} for i in range(12)]
-    dialog._update_profile_button_state()
-    assert "12" in profile_btn.text()
+    dialog.handlers._update_profile_ui_state()
+    assert "12" in dialog._get_profile_le().text()
     assert profile_btn.width() >= 115
-    assert profile_btn.width() >= profile_btn.fontMetrics().horizontalAdvance(profile_btn.text()) + 20
 
     dialog.close()

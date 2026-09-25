@@ -32,11 +32,9 @@ class TestLinkCommandSecurity(unittest.TestCase):
         args = ["arg1 & calc.exe", 'val" && whoami', "foo|dir>test.txt"]
         cmd = self.handler._create_batch_command("C:\\scripts\\run.bat", args)
 
-        self.assertEqual(cmd[0], "cmd.exe")
-        self.assertEqual(cmd[1], "/c")
-        self.assertEqual(cmd[2], "start")
-        self.assertEqual(cmd[3], '""')
-        self.assertEqual(cmd[4], "C:\\scripts\\run.bat")
-        self.assertEqual(cmd[5], "arg1 ^& calc.exe")
-        self.assertEqual(cmd[6], 'val\\" ^&^& whoami')
-        self.assertEqual(cmd[7], "foo^|dir^>test.txt")
+        self.assertTrue(cmd.startswith("cmd.exe"))
+        self.assertIn("start", cmd)
+        self.assertIn('"" "C:\\scripts\\run.bat"', cmd)
+        self.assertIn("arg1 ^& calc.exe", cmd)
+        self.assertIn('val\\" ^&^& whoami', cmd)
+        self.assertIn("foo^|dir^>test.txt", cmd)

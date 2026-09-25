@@ -656,13 +656,22 @@ QDialog QToolButton {
     padding: 0 8px;
 }
 
+QFrame#linkTypeContainer {
+    border: 1px solid;
+    border-radius: 0;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+}
+
 QDialog QToolButton#linkTypeBtn {
     border-radius: 0;
-    padding: 8px 6px;
+    padding: 7px 6px 5px 6px;
     margin: 0;
     background: transparent;
-    border: 1px solid;
-    border-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    outline: none;
 }
 
 QDialog QPushButton:hover,

@@ -86,5 +86,5 @@ def test_links_menu_web_actions_are_based_on_link_type() -> None:
     builder = LinksMenuBuilder(SimpleNamespace(), _main_window_stub())
 
     assert builder._is_web_link({"type": "web", "url": "https://example.com"})
-    assert not builder._is_web_link({"type": "note", "url": "https://example.com"})
-    assert not builder._is_web_link({"type": "file", "url": "https://example.com"})
+    assert not builder._is_web_link({"type": "file", "url": "C:/test.txt"})
+    assert not builder._is_web_link({"type": "program", "url": "C:/app.exe"})

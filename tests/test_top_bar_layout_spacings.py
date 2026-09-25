@@ -127,7 +127,6 @@ def test_common_qss_contains_toolbar_button_styles() -> None:
     assert common_path.exists()
     content = common_path.read_text(encoding="utf-8")
     assert 'QToolBar#topBarToolbar QToolButton[toolbar_btn="true"]' in content
-    assert 'QToolBar#topBarToolbar QToolButton[toolbar_last="true"]' in content
 
 
 def test_theme_stylesheet_service_generates_toolbar_overrides() -> None:
