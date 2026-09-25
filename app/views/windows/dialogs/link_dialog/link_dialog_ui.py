@@ -357,23 +357,44 @@ class LinkDialogUI:
         except Exception:
             pass
 
-        self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "Sphere:"), self.sphere_cb
+        self.sphere_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Sphere:")
         )
-        self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "Section:"), self.section_cb
+        self.section_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Section:")
         )
-        self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "Category:"), self.category_cb
+        self.category_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "Category:")
         )
+
+        self.form.addRow(self.sphere_label, self.sphere_cb)
+        self.form.addRow(self.section_label, self.section_cb)
+        self.form.addRow(self.category_label, self.category_cb)
 
         self.widgets.update(
             {
+                "sphere_label": self.sphere_label,
                 "sphere_cb": self.sphere_cb,
+                "section_label": self.section_label,
                 "section_cb": self.section_cb,
+                "category_label": self.category_label,
                 "category_cb": self.category_cb,
             }
         )
+
+    def set_hierarchy_visible(self, visible: bool) -> None:
+        """Show or hide the Sphere, Section, and Category rows."""
+        for name in (
+            "sphere_label",
+            "sphere_cb",
+            "section_label",
+            "section_cb",
+            "category_label",
+            "category_cb",
+        ):
+            w = self.widgets.get(name)
+            if w is not None:
+                w.setVisible(visible)
 
     def _build_buttons(self, container: QVBoxLayout) -> None:
         """Create bottom row with options (favorite, rotation) and OK/Cancel buttons."""

@@ -211,6 +211,10 @@ class LinkDialog(BaseDialog):
         # Initial translation pass
         self.retranslateUi()
 
+        if not self._show_hierarchy:
+            self.ui.set_hierarchy_visible(False)
+            self.adjustSize()
+
     def _init_core_properties(
         self,
         initialization_data: dict,
@@ -225,6 +229,7 @@ class LinkDialog(BaseDialog):
         self.link = link.copy() if link else {}
         self.initial_category = category_id
         self._is_type_fixed = bool(link) or bool(fixed_link_type)
+        self._show_hierarchy = bool(link) or (category_id is None)
         self.link_type = LinkType.from_value(
             self.link.get("type") or fixed_link_type or "web"
         ).value
@@ -863,9 +868,11 @@ class LinkDialog(BaseDialog):
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""
         # Window title
+        type_title = translate_link_type_label(getattr(self, "link_type", "web"))
         if getattr(self, "link", None):
-            type_title = translate_link_type_label(getattr(self, "link_type", "web"))
             self.setWindowTitle(f"{tr_common('Edit link')} — {type_title}")
+        elif getattr(self, "_is_type_fixed", False):
+            self.setWindowTitle(f"{tr_common('Add link')} — {type_title}")
         else:
             self.setWindowTitle(tr_common("Add link"))
         # Delegate to UI component

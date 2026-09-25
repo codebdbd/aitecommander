@@ -70,6 +70,9 @@ class TypeChangeMixin:
         if profile_container is not None:
             profile_container.setVisible(is_web)
 
+        if hasattr(self.dialog, "_show_hierarchy") and hasattr(self.dialog.ui, "set_hierarchy_visible"):
+            self.dialog.ui.set_hierarchy_visible(self.dialog._show_hierarchy)
+
         if apps_btn is not None:
             apps_btn.setVisible(is_program)
             if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):

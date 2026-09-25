@@ -48,7 +48,13 @@ class FormDataMixin:
             "name": collected_name,
             "url": self.dialog._get_url_le().text().strip(),
             "link_type": self.dialog.link_type,
-            "category_id": self.dialog._get_category_cb().currentData(),
+            "category_id": (
+                self.dialog._get_category_cb().currentData()
+                if self.dialog._get_category_cb() is not None
+                and self.dialog._get_category_cb().currentData()
+                else getattr(self.dialog, "initial_category", None)
+                or (self.dialog.link.get("category_id") if self.dialog.link else None)
+            ),
             "args": collected_args,
             "is_favorite": self.dialog._get_fav_chk().isChecked(),
             "icon_name": self.dialog.icon_name,

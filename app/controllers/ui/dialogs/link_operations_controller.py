@@ -250,7 +250,7 @@ class LinkOperationsController(QObject):
                 cat_id = first_cat_id
         return cat_id
 
-    def _create_link_dialog(self, link, cat_id):
+    def _create_link_dialog(self, link, cat_id, explicit_category_id=None):
         """Create and configure link dialog."""
         from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
@@ -268,7 +268,7 @@ class LinkOperationsController(QObject):
             initialization_data=init_data,
             dialog_controller=self,
             link=link,
-            category_id=cat_id,
+            category_id=explicit_category_id,
             parent=self.main_window,
             link_controller=link_controller,
         )
@@ -396,11 +396,13 @@ class LinkOperationsController(QObject):
 
     def show_link_dialog(self, link=None, category_id=None):
         """Show link creation/editing dialog."""
-        # Get valid category ID
-        cat_id = self._get_valid_category_id(category_id)
+        active_cat_id = category_id or self.main_window.get_current_category_id()
+        cat_id = active_cat_id or self.db.categories.get_first_category_id()
 
         # Create and show dialog
-        dlg, link_controller = self._create_link_dialog(link, cat_id)
+        dlg, link_controller = self._create_link_dialog(
+            link, cat_id, explicit_category_id=active_cat_id
+        )
         result = dlg.exec() == QDialog.DialogCode.Accepted
 
         if not result:

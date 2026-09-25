@@ -27,7 +27,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         """Quick add link."""
         # Always try to open dialog, even if no category is selected
         # The dialog will handle the case when no category is available
-        cat_id = self._validate_category_exists(category_id)
+        active_cat_id = category_id or (
+            self.main.get_current_category_id()
+            if hasattr(self.main, "get_current_category_id")
+            else None
+        )
+        cat_id = self._validate_category_exists(active_cat_id)
 
         # Create dialog controller
         from PyQt6.QtWidgets import QDialog
@@ -45,7 +50,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             initialization_data=init_data,
             dialog_controller=link_controller,
             link=None,
-            category_id=cat_id,
+            category_id=active_cat_id,
             parent=self.main,
             link_controller=link_controller,
             fixed_link_type=link_type,
