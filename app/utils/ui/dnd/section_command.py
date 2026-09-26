@@ -281,3 +281,171 @@ class MoveSectionsToSphereCommand(BaseCommand):
     def undo(self) -> None:
         if self._run_batched("undo"):
             self._refresh_once("undo")
+
+
+class ReorderSectionsCommand(BaseBulkCommand):
+    """Command for reordering sections within their sphere with Undo/Redo."""
+
+    def __init__(
+        self, section_ids: list[int], target_row: int, main_window: object
+    ) -> None:
+        super().__init__("Reorder sections", main_window, "section")
+        self.section_ids = [int(sid) for sid in section_ids]
+        self.target_row = int(target_row)
+        self.sphere_id: int | None = None
+        self._old_positions: dict[int, int] = {}
+        self._new_positions: dict[int, int] = {}
+        self._sections_meta: dict[int, dict[str, Any]] = {}
+        self._prepared = False
+
+    def _prepare_data(self) -> None:
+        if self._prepared or not self.section_ids:
+            return
+
+        sb = _require_structure_business(self.main)
+        first_sec = sb.get_section_data(self.section_ids[0])
+        if first_sec is None:
+            raise ValueError(f"Section {self.section_ids[0]} not found")
+
+        self.sphere_id = int(first_sec["sphere_id"])
+        all_sections = sb.get_sections(self.sphere_id) or []
+        all_sections.sort(
+            key=lambda s: (int(s.get("position", 0) or 0), int(s.get("id", 0) or 0))
+        )
+
+        all_ids = [int(s["id"]) for s in all_sections]
+        moving_set = set(self.section_ids)
+        moving_ids = [sid for sid in all_ids if sid in moving_set]
+        remaining_ids = [sid for sid in all_ids if sid not in moving_set]
+
+        items_before_target = sum(
+            1 for idx, sid in enumerate(all_ids) if sid in moving_set and idx < self.target_row
+        )
+        insert_idx = max(0, min(self.target_row - items_before_target, len(remaining_ids)))
+        reordered_ids = remaining_ids[:insert_idx] + moving_ids + remaining_ids[insert_idx:]
+
+        for s in all_sections:
+            sid = int(s["id"])
+            self._sections_meta[sid] = dict(s)
+            self._old_positions[sid] = int(s.get("position", 0) or 0)
+
+        for pos, sid in enumerate(reordered_ids):
+            self._new_positions[sid] = pos
+
+        self._prepared = True
+
+    def _execute_operation(self) -> bool:
+        try:
+            self._prepare_data()
+            if self.sphere_id is None or self._old_positions == self._new_positions:
+                return True
+
+            sb = _require_structure_business(self.main)
+            begin_batch = getattr(sb, "begin_batch", None)
+            end_batch = getattr(sb, "end_batch", None)
+            if callable(begin_batch):
+                begin_batch()
+            try:
+                for sid, pos in self._new_positions.items():
+                    if self._old_positions.get(sid) != pos:
+                        meta = self._sections_meta.get(sid, {})
+                        payload = {
+                            "name": meta.get("name", ""),
+                            "sphere_id": self.sphere_id,
+                            "icon_path": meta.get("icon_path", ""),
+                            "position": pos,
+                        }
+                        sb.update_section(sid, payload)
+            finally:
+                if callable(end_batch):
+                    end_batch()
+
+            self._invalidate_caches(sb, [self.sphere_id])
+            return True
+        except Exception as e:
+            context = {
+                "operation": "reorder_sections",
+                "section_ids": self.section_ids,
+                "target_row": self.target_row,
+            }
+            error_handler.handle_error(e, context)
+            return False
+
+    def _restore_original_state(self) -> bool:
+        try:
+            if self.sphere_id is None or self._old_positions == self._new_positions:
+                return True
+
+            sb = _require_structure_business(self.main)
+            begin_batch = getattr(sb, "begin_batch", None)
+            end_batch = getattr(sb, "end_batch", None)
+            if callable(begin_batch):
+                begin_batch()
+            try:
+                for sid, pos in self._old_positions.items():
+                    if self._new_positions.get(sid) != pos:
+                        meta = self._sections_meta.get(sid, {})
+                        payload = {
+                            "name": meta.get("name", ""),
+                            "sphere_id": self.sphere_id,
+                            "icon_path": meta.get("icon_path", ""),
+                            "position": pos,
+                        }
+                        sb.update_section(sid, payload)
+            finally:
+                if callable(end_batch):
+                    end_batch()
+
+            self._invalidate_caches(sb, [self.sphere_id])
+            return True
+        except Exception as e:
+            context = {
+                "operation": "undo_reorder_sections",
+                "section_ids": self.section_ids,
+            }
+            error_handler.handle_error(e, context)
+            return False
+
+    def _invalidate_caches(
+        self, sb: StructureBusinessLogic, sphere_ids: list[int | None]
+    ) -> None:
+        cache_service = getattr(sb, "cache_service", None)
+        if cache_service and hasattr(cache_service, "invalidate_structure_cache"):
+            for sid in sphere_ids:
+                if isinstance(sid, int):
+                    try:
+                        cache_service.invalidate_structure_cache(sid)
+                    except Exception:
+                        pass
+
+    def _refresh_ui(self, affected_items: list | None = None) -> None:
+        if self.sphere_id is None:
+            return
+        main_window = _require_main(self.main)
+        structure_ctrl = getattr(main_window, "structure", None)
+        tree = getattr(structure_ctrl, "tree", None) if structure_ctrl else None
+        model = tree.model() if tree and hasattr(tree, "model") else None
+
+        target_positions = (
+            self._new_positions
+            if getattr(self, "_last_operation", "redo") != "undo"
+            else self._old_positions
+        )
+        ordered_ids = [
+            sid for sid, _ in sorted(target_positions.items(), key=lambda item: item[1])
+        ]
+
+        if model and hasattr(model, "reorder_sections") and model.reorder_sections(ordered_ids):
+            focus_id = self.section_ids[0] if self.section_ids else None
+            if focus_id and hasattr(model, "index_for") and tree:
+                idx = model.index_for("section", focus_id)
+                if idx and idx.isValid():
+                    tree.setCurrentIndex(idx)
+        elif structure_ctrl and hasattr(structure_ctrl, "load"):
+            focus_id = self.section_ids[0] if self.section_ids else None
+            item_to_select = ("section", focus_id) if focus_id else None
+            try:
+                structure_ctrl.load(item_to_select=item_to_select)
+            except Exception as e:
+                logger.warning("Failed to refresh structure after reordering sections: %s", e)
+

@@ -621,8 +621,8 @@ class CategoryModel(DatabaseBase):
         ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
 
         existing_names_rows = self._execute_with_error_handling(
-            "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
-            (target_section_id,),
+            f"SELECT LOWER(name) AS name FROM category WHERE section_id = ? AND id NOT IN ({placeholders})",
+            (target_section_id, *unique_ids),
             fetch_method="all",
         )
         existing_names = {
@@ -662,22 +662,33 @@ class CategoryModel(DatabaseBase):
         ]
 
         with self.transaction():
-            updates = []
-            pos = int(base_row) if isinstance(base_row, int) and base_row >= 0 else 0
-            for cid in to_move_ids:
-                updates.append((target_section_id, pos, cid))
-                pos += 1
+            all_target_rows = self._execute_with_error_handling(
+                "SELECT id FROM category WHERE section_id = ? ORDER BY position, id",
+                (target_section_id,),
+                fetch_method="all",
+            )
+            all_target_ids = [int(r["id"]) for r in self._ensure_row_list(all_target_rows)]
+            moving_set = set(to_move_ids)
+            remaining_ids = [cid for cid in all_target_ids if cid not in moving_set]
+
+            items_before_target = sum(
+                1 for idx, cid in enumerate(all_target_ids) if cid in moving_set and idx < int(base_row)
+            )
+            insert_pos = max(0, min(int(base_row) - items_before_target, len(remaining_ids)))
+            new_order = remaining_ids[:insert_pos] + to_move_ids + remaining_ids[insert_pos:]
+
+            updates = [(pos, cid) for pos, cid in enumerate(new_order)]
             self._execute_many_with_error_handling(
-                "UPDATE category SET section_id = ?, position = ? WHERE id = ?",
+                f"UPDATE category SET section_id = {target_section_id}, position = ? WHERE id = ?",
                 updates,
             )
 
             try:
-                all_affected = source_sections + [target_section_id]
-                self._reindex_positions_bulk(all_affected)
+                for sid in source_sections:
+                    super()._reindex_positions("category", "section_id", sid)
             except Exception as e:
                 logger.warning(
-                    "Failed to reindex positions after bulk move: %s",
+                    "Failed to reindex positions in source sections after bulk move: %s",
                     e,
                     exc_info=True,
                 )

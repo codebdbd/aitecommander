@@ -17,7 +17,10 @@ from app.utils.ui.dnd.base import TreeHandlerBase
 from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
 from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
-from app.utils.ui.dnd.section_command import MoveSectionToSphereCommand
+from app.utils.ui.dnd.section_command import (
+    MoveSectionToSphereCommand,
+    ReorderSectionsCommand,
+)
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -159,6 +162,34 @@ class MoveOperationsHandler(TreeHandlerBase):
             ),
         )
         logger.warning("Undo stack not found for moving a section")
+        return False
+
+    def execute_reorder_sections_command(
+        self, section_ids: list[int], target_row: int
+    ) -> bool:
+        """Execute command to reorder sections in tree as a single undo record."""
+        main_win = self.tree_widget.window()
+        undo_stack = getattr(main_win, "undo_stack", None)
+
+        if undo_stack is not None:
+            undo_stack.push(
+                ReorderSectionsCommand(section_ids, target_row, main_win)
+            )
+            logger.info(
+                "ReorderSectionsCommand executed: sections %s -> target_row=%s",
+                section_ids,
+                target_row,
+            )
+            return True
+
+        self._show_warning(
+            self.tr("Undo history is unavailable. Move canceled."),
+            self.tr("Undo history unavailable"),
+            informative_text=self.tr(
+                "Enable undo/redo support or initialize undo_stack in the main window."
+            ),
+        )
+        logger.warning("Undo stack not found for reordering sections")
         return False
 
     def execute_move_categories_command(

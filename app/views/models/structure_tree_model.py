@@ -999,16 +999,67 @@ class StructureTreeModel(QAbstractItemModel):
             else self.createIndex(dst_parent.row(), 0, dst_parent)
         )
         src_row = cat_node.row()
-        if src_parent is dst_parent and new_row > src_row:
-            new_row -= 1
+        if src_parent is dst_parent and new_row == src_row:
+            return True
+
+        dest_child = (
+            new_row + 1
+            if (src_parent is dst_parent and new_row > src_row)
+            else new_row
+        )
         if not self.beginMoveRows(
-            src_parent_index, src_row, src_row, dst_parent_index, new_row
+            src_parent_index, src_row, src_row, dst_parent_index, dest_child
         ):
             return False
         src_parent.children.pop(src_row)
         cat_node.parent = dst_parent
         dst_parent.children.insert(new_row, cat_node)
         self.endMoveRows()
+        return True
+
+    def reorder_categories(
+        self, section_id: int, ordered_category_ids: list[int]
+    ) -> bool:
+        """Reorder categories in section in-place according to ordered_category_ids."""
+        if not ordered_category_ids:
+            return False
+        sec_node = self._section_by_id.get(int(section_id))
+        if sec_node is None or not sec_node.children:
+            return False
+        existing_nodes = {
+            node.id: node for node in sec_node.children if node.id is not None
+        }
+        new_children = []
+        for cid in ordered_category_ids:
+            if cid in existing_nodes:
+                new_children.append(existing_nodes[cid])
+        for node in sec_node.children:
+            if node not in new_children:
+                new_children.append(node)
+        if new_children == sec_node.children:
+            return True
+        self.layoutAboutToBeChanged.emit()
+        sec_node.children = new_children
+        self.layoutChanged.emit()
+        return True
+
+    def reorder_sections(self, ordered_section_ids: list[int]) -> bool:
+        """Reorder sections in-place according to ordered_section_ids."""
+        if not ordered_section_ids or not self._root.children:
+            return False
+        existing_nodes = {node.id: node for node in self._root.children if node.id is not None}
+        new_children = []
+        for sid in ordered_section_ids:
+            if sid in existing_nodes:
+                new_children.append(existing_nodes[sid])
+        for node in self._root.children:
+            if node not in new_children:
+                new_children.append(node)
+        if new_children == self._root.children:
+            return True
+        self.layoutAboutToBeChanged.emit()
+        self._root.children = new_children
+        self.layoutChanged.emit()
         return True
 
     def set_snapshot(

@@ -427,6 +427,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
                 return
         except Exception:
             return
+        touched_sections: set[int] = set()
         for st in self._last_target_states:
             cid = st.get("id")
             if not isinstance(cid, int) or cid not in self._last_moved_ids:
@@ -434,6 +435,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
             section_id = st.get("section_id")
             if not isinstance(section_id, int):
                 continue
+            touched_sections.add(section_id)
             try:
                 new_row = int(st.get("position", 0) or 0)
             except Exception:
@@ -447,6 +449,19 @@ class MoveCategoriesCommand(BaseBulkCommand):
                     section_id,
                     exc_info=True,
                 )
+        if hasattr(model, "reorder_categories") and hasattr(self.main, "structure_business"):
+            sb = getattr(self.main, "structure_business", None)
+            if sb and hasattr(sb, "get_categories"):
+                for sid in touched_sections:
+                    try:
+                        cats = sb.get_categories(sid) or []
+                        ordered_ids = [
+                            int(c["id"]) for c in cats if isinstance(c.get("id"), int)
+                        ]
+                        if ordered_ids:
+                            model.reorder_categories(sid, ordered_ids)
+                    except Exception:
+                        pass
 
     def _maybe_schedule_tree_focus(self, tree, focus_category_id, target_section_id=None) -> None:
         """Schedule restoring tree selection and focus if possible."""

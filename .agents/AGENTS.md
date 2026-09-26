@@ -235,5 +235,12 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   3. **Соответствие флага `is_dark`**: Флаг темы `is_dark` обязан строго соответствовать реальной вычисленной яркости фона (фон < 0.5 для тёмных тем, >= 0.5 для светлых тем).
   4. **Автоматический запуск**: Доступна CLI-проверка `python -m app.utils.theme_checker`, проверяющая все темы репозитория со 100% успехом.
 
-
-
+## 28. Architecture Standards: Tree & Category Drag-and-Drop Architecture (АРХИТЕКТУРНЫЙ СТАНДАРТ ПЕРЕТАСКИВАНИЯ В ДЕРЕВЕ СТРУКТУРЫ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура перетаскивания (DnD) элементов дерева структуры (`app/utils/ui/dnd/tree.py`, `app/utils/ui/dnd/categories_command.py`, `StructureTreeModel`) полностью зафиксирована.
+- **Strict DnD Priority & Targeting Rules**:
+  1. **Приоритет внутреннего перетаскивания**: В `DragDropHandler.handle_drop_event` проверка внутреннего источника `event.source() == self.tree_widget` обязана выполняться на первом месте до любых проверок MIME-типов (`get_category_mime_type()`). Внутренний сброс строго направляется в `_handle_internal_drop_event_index`. Внешний обработчик `_handle_category_drop_index` вызывается строго при `event.source() != self.tree_widget` (дроп из плиток категорий).
+  2. **Симметричный расчет направления UP/DOWN**: При наведении на категорию или раздел `determine_target` рассчитывает позицию по вертикальной половине элемента:
+     - Верхняя половина (`is_upper_half` / `AboveItem`): целевая строка строго `base_row = target_row` (перемещение выше целевого элемента).
+     - Нижняя половина (`not is_upper_half` / `BelowItem`): целевая строка строго `base_row = target_row + 1` (перемещение ниже целевого элемента).
+  3. **Синхронизация семантики Qt `beginMoveRows`**: В `StructureTreeModel.move_category` при перемещении вниз внутри одного раздела (`src_parent is dst_parent and new_row > src_row`) параметр `dest_child` в Qt `beginMoveRows` строго равен `new_row + 1`, а вставка в `dst_parent.children` выполняется по индексу `new_row`. При перемещении вверх `dest_child` строго равен `new_row`.
+  4. **Атомарная синхронизация порядка категорий (`reorder_categories`)**: Для множественного перетаскивания и исключения рассинхрона между БД и UI модель дерева обязана предоставлять метод `reorder_categories(section_id, ordered_category_ids)`. В `CategoriesCommand._apply_tree_model_moves` порядок в затронутых разделах синхронизируется вызовом `model.reorder_categories` с актуальным списком ID из базы данных.

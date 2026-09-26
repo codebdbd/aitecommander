@@ -10,6 +10,7 @@ from app.utils.ui.dnd.mime import MimeDataParser
 from app.utils.ui.dnd.section_command import (
     MoveSectionsToSphereCommand,
     MoveSectionToSphereCommand,
+    ReorderSectionsCommand,
 )
 from app.views.widgets.spheres.sphere_tool_button import SphereToolButton
 
@@ -249,6 +250,65 @@ class TestSpheresBarControllerSectionDrops(unittest.TestCase):
         command = window.undo_stack.push.call_args.args[0]
         self.assertIsInstance(command, MoveSectionsToSphereCommand)
         self.assertEqual([cmd.section_id for cmd in command.commands], [10, 20])
+
+
+class TestReorderSectionsCommand(unittest.TestCase):
+    """Unit tests for ReorderSectionsCommand."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.main = Mock()
+        self.sb = Mock()
+        self.structure_ctrl = Mock()
+        self.main.structure_business = self.sb
+        self.main.structure = self.structure_ctrl
+        self.sb.cache_service = Mock()
+
+    def test_reorder_sections_forward(self):
+        self.sb.get_section_data.return_value = {"id": 10, "sphere_id": 1, "position": 0}
+        self.sb.get_sections.return_value = [
+            {"id": 10, "sphere_id": 1, "position": 0},
+            {"id": 20, "sphere_id": 1, "position": 1},
+            {"id": 30, "sphere_id": 1, "position": 2},
+        ]
+        # Move section 10 to row 2 (below section 20)
+        cmd = ReorderSectionsCommand([10], 2, self.main)
+        success = cmd._execute_operation()
+        self.assertTrue(success)
+        self.assertEqual(cmd._new_positions, {20: 0, 10: 1, 30: 2})
+
+        # Undo
+        undo_success = cmd._restore_original_state()
+        self.assertTrue(undo_success)
+        self.assertEqual(cmd._old_positions, {10: 0, 20: 1, 30: 2})
+
+    def test_reorder_sections_backward(self):
+        self.sb.get_section_data.return_value = {"id": 30, "sphere_id": 1, "position": 2}
+        self.sb.get_sections.return_value = [
+            {"id": 10, "sphere_id": 1, "position": 0},
+            {"id": 20, "sphere_id": 1, "position": 1},
+            {"id": 30, "sphere_id": 1, "position": 2},
+        ]
+        # Move section 30 to row 0 (above section 10)
+        cmd = ReorderSectionsCommand([30], 0, self.main)
+        success = cmd._execute_operation()
+        self.assertTrue(success)
+        self.assertEqual(cmd._new_positions, {30: 0, 10: 1, 20: 2})
+
+    def test_reorder_sections_no_op(self):
+        self.sb.get_section_data.return_value = {"id": 20, "sphere_id": 1, "position": 1}
+        self.sb.get_sections.return_value = [
+            {"id": 10, "sphere_id": 1, "position": 0},
+            {"id": 20, "sphere_id": 1, "position": 1},
+        ]
+        # Move section 20 to row 1 (its current position)
+        cmd = ReorderSectionsCommand([20], 1, self.main)
+        success = cmd._execute_operation()
+        self.assertTrue(success)
+        self.assertEqual(cmd._old_positions, cmd._new_positions)
 
 
 if __name__ == "__main__":

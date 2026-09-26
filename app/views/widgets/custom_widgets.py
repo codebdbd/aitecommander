@@ -4,14 +4,16 @@ from PyQt6.QtCore import (
     QCoreApplication,
     QModelIndex,
     QPersistentModelIndex,
+    QPoint,
     QRect,
     QSize,
     Qt,
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDrag, QIcon, QMouseEvent
+from PyQt6.QtGui import QBrush, QColor, QDrag, QIcon, QMouseEvent, QPainter, QPalette, QPen
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QProxyStyle,
     QStyle,
     QStyledItemDelegate,
@@ -92,26 +94,29 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
 
         # Draw drag highlight background first so text/icon remain visible
         widget = option.widget
+        drop_pos = None
         if isinstance(widget, StructureTreeView):
             highlight_index = widget.drag_highlight_index()
             if highlight_index is not None and highlight_index == index:
-                painter.save()
-                temp_option = QStyleOptionViewItem(option)
-                temp_option.state |= QStyle.StateFlag.State_Selected
-                temp_option.state |= QStyle.StateFlag.State_Active
-                full_rect = QRect(option.rect)
-                if widget:
-                    full_rect.setLeft(0)
-                    full_rect.setWidth(widget.width())
-                temp_option.rect = full_rect
-                if widget and widget.style():
-                    widget.style().drawPrimitive(
-                        QStyle.PrimitiveElement.PE_PanelItemViewItem,
-                        temp_option,
-                        painter,
-                        widget
-                    )
-                painter.restore()
+                drop_pos = widget.drag_drop_position()
+                if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+                    painter.save()
+                    temp_option = QStyleOptionViewItem(option)
+                    temp_option.state |= QStyle.StateFlag.State_Selected
+                    temp_option.state |= QStyle.StateFlag.State_Active
+                    full_rect = QRect(option.rect)
+                    if widget:
+                        full_rect.setLeft(0)
+                        full_rect.setWidth(widget.width())
+                    temp_option.rect = full_rect
+                    if widget and widget.style():
+                        widget.style().drawPrimitive(
+                            QStyle.PrimitiveElement.PE_PanelItemViewItem,
+                            temp_option,
+                            painter,
+                            widget
+                        )
+                    painter.restore()
 
         # Get icon from model
         icon = index.data(Qt.ItemDataRole.DecorationRole)
@@ -217,6 +222,40 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             # Draw without icon
             super().paint(painter, option, index)
 
+        # Draw drop indicator line for Above/Below drops on top of item
+        if (
+            isinstance(widget, StructureTreeView)
+            and drop_pos in (
+                QAbstractItemView.DropIndicatorPosition.AboveItem,
+                QAbstractItemView.DropIndicatorPosition.BelowItem,
+            )
+        ):
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            accent_color = option.palette.color(QPalette.ColorRole.Highlight)
+            line_y = (
+                option.rect.top()
+                if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem
+                else option.rect.bottom()
+            )
+            left_x = 4
+            right_x = max(left_x + 10, widget.viewport().width() - 4)
+
+            # Soft ambient glow (1px above and below)
+            glow_color = QColor(accent_color)
+            glow_color.setAlpha(60)
+            glow_pen = QPen(glow_color, 4)
+            glow_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(glow_pen)
+            painter.drawLine(QPoint(left_x, line_y), QPoint(right_x, line_y))
+
+            # Main crisp 2px accent line
+            pen = QPen(accent_color, 2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(QPoint(left_x, line_y), QPoint(right_x, line_y))
+            painter.restore()
+
         # No hover outline for the tree per UX requirements
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
@@ -254,8 +293,9 @@ class StructureTreeView(QTreeView):
         # Integrate handlers for compatibility with previous API
         self.move_operations_handler = MoveOperationsHandler(self)
         self.drag_drop_handler = DragDropHandler(self)
-        # Drag highlight state (doesn't interfere with selection)
+        # Drag highlight and drop position state (doesn't interfere with selection)
         self._drag_highlight_index: QPersistentModelIndex | None = None
+        self._drag_drop_position: QAbstractItemView.DropIndicatorPosition | None = None
         self._schedule_branch_proxy_style()
 
     def update_font_size(self, font_size: int):
@@ -287,18 +327,29 @@ class StructureTreeView(QTreeView):
                 e,
             )
 
-    def set_drag_highlight_index(self, index: QModelIndex | None) -> None:
-        """Set the index to highlight during drag operations."""
+    def set_drag_drop_feedback(
+        self,
+        index: QModelIndex | None,
+        position: QAbstractItemView.DropIndicatorPosition = QAbstractItemView.DropIndicatorPosition.OnItem,
+    ) -> None:
+        """Set the index and position to highlight during drag operations."""
         if index is None or not index.isValid():
             self._drag_highlight_index = None
+            self._drag_drop_position = None
         else:
             self._drag_highlight_index = QPersistentModelIndex(index)
+            self._drag_drop_position = position
         self.viewport().update()
+
+    def set_drag_highlight_index(self, index: QModelIndex | None) -> None:
+        """Set the index to highlight during drag operations."""
+        self.set_drag_drop_feedback(index, QAbstractItemView.DropIndicatorPosition.OnItem)
 
     def clear_drag_highlight(self) -> None:
         """Clear drag highlight."""
-        if self._drag_highlight_index is not None:
+        if self._drag_highlight_index is not None or getattr(self, "_drag_drop_position", None) is not None:
             self._drag_highlight_index = None
+            self._drag_drop_position = None
             self.viewport().update()
 
     def drag_highlight_index(self) -> QModelIndex | None:
@@ -312,6 +363,10 @@ class StructureTreeView(QTreeView):
                     self._drag_highlight_index.parent(),
                 )
         return None
+
+    def drag_drop_position(self) -> QAbstractItemView.DropIndicatorPosition | None:
+        """Get the current drop indicator position."""
+        return getattr(self, "_drag_drop_position", None)
 
     def _setup_tree_view(self):
         """Configure QTreeView parameters according to current UX requirements."""

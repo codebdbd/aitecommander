@@ -158,7 +158,10 @@ class StructureCoordinator:
         try:
             payload = dict(data) if data else {}
             payload["id"] = section_id
-            self.upsert_section(payload)
+            if "name" in payload and "sphere_id" in payload:
+                self.upsert_section(payload)
+            else:
+                self.db.sections.update_section(section_id, payload)
             return True
         except Exception as e:
             self.logger.error(

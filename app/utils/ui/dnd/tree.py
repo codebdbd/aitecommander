@@ -7,7 +7,7 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, Qt
+from PyQt6.QtCore import QModelIndex, QRect, Qt
 from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QAbstractItemView
 
@@ -28,6 +28,7 @@ class DragDropHandler(TreeHandlerBase):
         return (
             mime.hasFormat(app_config.get_link_mime_type())
             or mime.hasFormat(app_config.get_category_mime_type())
+            or mime.hasFormat(app_config.get_section_mime_type())
             or bool(self._extract_external_link_targets(mime))
         )
 
@@ -52,9 +53,13 @@ class DragDropHandler(TreeHandlerBase):
                 and self._is_valid_drop_index(src_index, event)
             ):
                 # Highlight target without changing selection
-                target_index = self._resolve_internal_target_index(event)
-                self.tree_widget.set_drag_highlight_index(target_index)
-                event.accept()
+                target_index, drop_pos = self._resolve_internal_target(event)
+                if target_index:
+                    self.tree_widget.set_drag_drop_feedback(target_index, drop_pos)
+                    event.accept()
+                else:
+                    self.tree_widget.clear_drag_highlight()
+                    event.ignore()
             else:
                 self.tree_widget.clear_drag_highlight()
                 event.ignore()
@@ -62,39 +67,55 @@ class DragDropHandler(TreeHandlerBase):
             self._handle_external_drag_move_index(event, mime)
         return
 
-    def _resolve_internal_target_index(self, event: QDropEvent) -> QModelIndex | None:
-        """Resolve which index should be highlighted during internal drag."""
+    def _resolve_internal_target(
+        self, event: QDropEvent
+    ) -> tuple[QModelIndex | None, QAbstractItemView.DropIndicatorPosition]:
+        """Resolve target index and drop position (Above, Below, OnItem) for internal drag."""
         try:
             target_index: QModelIndex = self.tree_widget.indexAt(
                 event.position().toPoint()
             )
         except Exception as e:
             logger.debug("Failed to resolve target index: %s", e, exc_info=True)
-            return None
+            return None, QAbstractItemView.DropIndicatorPosition.OnItem
 
         if not target_index or not target_index.isValid():
-            return None
+            return None, QAbstractItemView.DropIndicatorPosition.OnItem
 
-        drop_pos = self.tree_widget.dropIndicatorPosition()
         ttuple = get_tree_tuple(target_index, 0)
         if not ttuple:
-            return None
+            return None, QAbstractItemView.DropIndicatorPosition.OnItem
 
         target_type, _ = ttuple
+        rect = self.tree_widget.visualRect(target_index) if hasattr(self.tree_widget, "visualRect") else None
+        if isinstance(rect, QRect) and rect.height() > 0:
+            pos_y = event.position().toPoint().y() - rect.top()
+            is_upper_half = pos_y < (rect.height() / 2)
+        else:
+            drop_pos = getattr(self.tree_widget, "dropIndicatorPosition", lambda: None)()
+            is_upper_half = drop_pos != QAbstractItemView.DropIndicatorPosition.BelowItem
 
-        # OnItem drops: highlight the target itself
-        if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-            return target_index if target_type in ("section", "category") else None
+        pos = (
+            QAbstractItemView.DropIndicatorPosition.AboveItem
+            if is_upper_half
+            else QAbstractItemView.DropIndicatorPosition.BelowItem
+        )
 
-        # Above/Below drops on categories: highlight parent section
-        if target_type == "category":
-            parent_index = target_index.parent()
-            if parent_index.isValid():
-                parent_tuple = get_tree_tuple(parent_index, 0)
-                if parent_tuple and parent_tuple[0] == "section":
-                    return parent_index
+        cur_tuple = get_tree_tuple(self.tree_widget.currentIndex(), 0)
+        source_type = cur_tuple[0] if cur_tuple else None
 
-        return None
+        if source_type == "section":
+            if target_type == "section":
+                return target_index, pos
+            return None, QAbstractItemView.DropIndicatorPosition.OnItem
+
+        if source_type == "category":
+            if target_type == "section":
+                return target_index, QAbstractItemView.DropIndicatorPosition.OnItem
+            if target_type == "category":
+                return target_index, pos
+
+        return None, QAbstractItemView.DropIndicatorPosition.OnItem
 
 
 
@@ -107,6 +128,10 @@ class DragDropHandler(TreeHandlerBase):
         """Main drop event handler."""
         try:
             mime = event.mimeData()
+
+            if event.source() == self.tree_widget:
+                self._handle_internal_drop_event_index(event)
+                return
 
             target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
             if mime.hasFormat(app_config.get_category_mime_type()):
@@ -127,9 +152,6 @@ class DragDropHandler(TreeHandlerBase):
                     event.accept()
                 else:
                     event.ignore()
-                return
-            if event.source() == self.tree_widget:
-                self._handle_internal_drop_event_index(event)
                 return
             event.ignore()
         finally:
@@ -171,7 +193,9 @@ class DragDropHandler(TreeHandlerBase):
             event.ignore()
         if valid_drop:
             # Use highlight instead of focus for external drags too
-            self.tree_widget.set_drag_highlight_index(target_index)
+            self.tree_widget.set_drag_drop_feedback(
+                target_index, QAbstractItemView.DropIndicatorPosition.OnItem
+            )
         else:
             self.tree_widget.clear_drag_highlight()
 
@@ -252,7 +276,35 @@ class DragDropHandler(TreeHandlerBase):
         category_indices.sort(key=lambda i: i.row())
         return category_indices
 
-    def _determine_for_section_target(self, target_index: QModelIndex, model, drop_pos):
+    def get_selected_sections(self) -> list[QModelIndex]:
+        """Returns list of selected section indexes (column 0).
+
+        Fallback: if multiple selection is empty — uses current index.
+        """
+        selection_model = getattr(self.tree_widget, "selectionModel", lambda: None)()
+        selected_indexes: list[QModelIndex] = []
+        if selection_model and hasattr(selection_model, "selectedRows"):
+            try:
+                selected_indexes = selection_model.selectedRows(0) or []
+            except Exception as e:
+                logger.debug("Failed to get selected rows: %s", e, exc_info=True)
+                selected_indexes = []
+
+        if not selected_indexes:
+            cur = self.tree_widget.currentIndex()
+            if cur and cur.isValid():
+                selected_indexes = [cur]
+
+        section_indices: list[QModelIndex] = []
+        for idx in selected_indexes:
+            t = get_tree_tuple(idx, 0)
+            if t and t[0] == "section":
+                section_indices.append(idx)
+        # Stable order: by ascending row in current view
+        section_indices.sort(key=lambda i: i.row())
+        return section_indices
+
+    def _determine_for_section_target(self, target_index: QModelIndex, model, is_upper_half: bool = False):
         """Compute target data when dropping OnItem over a section."""
         new_section_index = target_index
         new_section_tuple = get_tree_tuple(new_section_index, 0)
@@ -261,7 +313,7 @@ class DragDropHandler(TreeHandlerBase):
         parent_for_count = new_section_index
         return new_section_id, base_row, parent_for_count
 
-    def _determine_for_category_target(self, target_index: QModelIndex, model, drop_pos):
+    def _determine_for_category_target(self, target_index: QModelIndex, model, is_upper_half: bool):
         """Compute target data when dropping around/on a category."""
         parent_index = target_index.parent()
         parent_tuple = get_tree_tuple(parent_index, 0)
@@ -269,13 +321,10 @@ class DragDropHandler(TreeHandlerBase):
             raise ValueError("invalid target")
         new_section_id = parent_tuple[1]
         tgt_row = target_index.row()
-        if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
+        if is_upper_half:
             base_row = tgt_row
-        elif drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
-            base_row = tgt_row + 1
         else:
-            # OnItem or OnViewport fallback: append to section
-            base_row = model.rowCount(parent_index)
+            base_row = tgt_row + 1
         parent_for_count = parent_index
         return new_section_id, base_row, parent_for_count
 
@@ -285,7 +334,6 @@ class DragDropHandler(TreeHandlerBase):
         Returns (section_id, base_row) or raises ValueError for ignored cases.
         """
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
-        drop_pos = self.tree_widget.dropIndicatorPosition()
         if not target_index or not target_index.isValid():
             raise ValueError("invalid target")
 
@@ -295,14 +343,21 @@ class DragDropHandler(TreeHandlerBase):
         target_type, _ = ttuple
 
         model = self.tree_widget.model()
+        rect = self.tree_widget.visualRect(target_index) if hasattr(self.tree_widget, "visualRect") else None
+        if isinstance(rect, QRect) and rect.height() > 0:
+            pos_y = event.position().toPoint().y() - rect.top()
+            is_upper_half = pos_y < (rect.height() / 2)
+        else:
+            drop_pos = getattr(self.tree_widget, "dropIndicatorPosition", lambda: None)()
+            is_upper_half = drop_pos != QAbstractItemView.DropIndicatorPosition.BelowItem
 
         if target_type == "section":
             new_section_id, base_row, parent_for_count = self._determine_for_section_target(
-                target_index, model, drop_pos
+                target_index, model, is_upper_half
             )
         elif target_type == "category":
             new_section_id, base_row, parent_for_count = self._determine_for_category_target(
-                target_index, model, drop_pos
+                target_index, model, is_upper_half
             )
         else:
             raise ValueError("invalid target")
@@ -329,6 +384,15 @@ class DragDropHandler(TreeHandlerBase):
         """Extract integer category IDs from indexes in stable order."""
         ids: list[int] = []
         for idx in category_indices:
+            st = get_tree_tuple(idx, 0)
+            if st and isinstance(st[1], int):
+                ids.append(int(st[1]))
+        return ids
+
+    def _collect_section_ids(self, section_indices: list[QModelIndex]) -> list[int]:
+        """Extract integer section IDs from indexes in stable order."""
+        ids: list[int] = []
+        for idx in section_indices:
             st = get_tree_tuple(idx, 0)
             if st and isinstance(st[1], int):
                 ids.append(int(st[1]))
@@ -422,11 +486,16 @@ class DragDropHandler(TreeHandlerBase):
         return 0
 
     def _handle_internal_drop_event_index(self, event) -> None:
-        """Internal drop for QTreeView: moving categories between/within sections.
+        """Internal drop for QTreeView: moving categories between/within sections or reordering sections.
 
         Simplified to orchestration: selection, target calculation, move execution,
         basic error handling and signals.
         """
+        section_indices = self.get_selected_sections()
+        if section_indices:
+            self._handle_section_reorder_index(event, section_indices)
+            return
+
         # 1) Выбор категорий
         category_indices = self.get_selected_categories()
         if not category_indices:
@@ -466,6 +535,49 @@ class DragDropHandler(TreeHandlerBase):
             except Exception as e:
                 logger.debug("Failed to emit invalidDrop signal: %s", e, exc_info=True)
             event.ignore()
+
+    def _handle_section_reorder_index(
+        self, event: QDropEvent, section_indices: list[QModelIndex]
+    ) -> None:
+        """Handle internal drag & drop reordering of sections."""
+        target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
+        model = self.tree_widget.model()
+        if not model:
+            event.ignore()
+            return
+
+        total_sections = model.rowCount(QModelIndex())
+        if not target_index or not target_index.isValid():
+            target_row = total_sections
+        else:
+            ttuple = get_tree_tuple(target_index, 0)
+            if not ttuple or ttuple[0] != "section":
+                event.ignore()
+                return
+            rect = self.tree_widget.visualRect(target_index) if hasattr(self.tree_widget, "visualRect") else None
+            if isinstance(rect, QRect) and rect.height() > 0:
+                pos_y = event.position().toPoint().y() - rect.top()
+                is_lower_half = pos_y >= (rect.height() / 2)
+            else:
+                drop_pos = getattr(self.tree_widget, "dropIndicatorPosition", lambda: None)()
+                is_lower_half = drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem
+            if is_lower_half:
+                target_row = target_index.row() + 1
+            else:
+                target_row = target_index.row()
+
+        target_row = max(0, min(target_row, total_sections))
+        section_ids = self._collect_section_ids(section_indices)
+        if not section_ids:
+            event.ignore()
+            return
+
+        handler = getattr(self.tree_widget, "move_operations_handler", None)
+        if handler and hasattr(handler, "execute_reorder_sections_command"):
+            if handler.execute_reorder_sections_command(section_ids, target_row):
+                event.accept()
+                return
+        event.ignore()
 
     def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> bool:
         """Moving one or multiple categories (from tiles) to section for QTreeView.
@@ -617,8 +729,13 @@ class DragDropHandler(TreeHandlerBase):
         source_type, _ = stuple
         target_index = self.tree_widget.indexAt(event.position().toPoint())
         if source_type == "section":
-            # Sections not supported for moving yet
-            return False
+            if not target_index or not target_index.isValid():
+                return True
+            ttuple = get_tree_tuple(target_index, 0)
+            if not ttuple:
+                return False
+            target_type, _ = ttuple
+            return target_type == "section"
         elif source_type == "category":
             if not target_index or not target_index.isValid():
                 return False
