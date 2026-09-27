@@ -45,6 +45,10 @@ class CategoryMenuBuilder:
         except Exception:
             logger.debug("[CtxMenu] Failed to update global action states", exc_info=True)
 
+        if not item_id:
+            self._add_empty_area_actions(menu)
+            return menu, None, None, None
+
         edit_action = self.actions.create(
             MenuTexts.EDIT_CATEGORY,
             lambda: edit_cb(item_id),
@@ -78,6 +82,69 @@ class CategoryMenuBuilder:
         delete_action = self._add_common_actions(menu, None) or delete_action
 
         return menu, edit_action, add_link_action, delete_action or edit_action
+
+    def _add_empty_area_actions(self, menu: QMenu) -> None:
+        """Add context menu actions for empty area of the category tiles."""
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.ADD_CATEGORY,
+                self.main_window.add_new_category,
+                Shortcuts.ADD_CATEGORY,
+                self._get_icon("add_category"),
+            )
+        )
+        import_handler = getattr(
+            self.main_window, "import_category_to_current_section", None
+        )
+        if import_handler is not None:
+            menu.addAction(
+                self.actions.create(
+                    MenuTexts.IMPORT_CATEGORY,
+                    import_handler,
+                    None,
+                    self._get_icon("import_category"),
+                )
+            )
+        menu.addSeparator()
+
+        paste_action = self._create_context_action(
+            MenuTexts.PASTE, "paste_current", Shortcuts.CTRL_V, "paste", "paste_action"
+        )
+        if paste_action is not None:
+            menu.addAction(paste_action)
+
+        menu.addSeparator()
+
+        select_all_action = self._create_context_action(
+            MenuTexts.SELECT_ALL,
+            "select_all_current",
+            Shortcuts.CTRL_A,
+            "select_all",
+            "select_all_action",
+        )
+        clear_action = self.actions.create(
+            MenuTexts.CLEAR_SELECTION,
+            self._clear_tiles_selection,
+            Shortcuts.CLEAR_SELECTION,
+            self._get_icon("deselect_all"),
+        )
+        if self._tiles_selection_count() > 1:
+            menu.addAction(clear_action)
+        elif select_all_action is not None:
+            menu.addAction(select_all_action)
+
+        menu.addSeparator()
+
+        undo_action = self._create_context_action(
+            MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
+        )
+        redo_action = self._create_context_action(
+            MenuTexts.REDO, "redo_current", "edit.redo", "redo", "redo_action"
+        )
+        if undo_action is not None:
+            menu.addAction(undo_action)
+        if redo_action is not None:
+            menu.addAction(redo_action)
 
     def _add_common_actions(self, menu: QMenu, edit_action: QAction | None) -> QAction | None:
         cut_action = self._create_context_action(

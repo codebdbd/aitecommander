@@ -417,13 +417,31 @@ class CategoryTiles(QWidget):
                 logger.debug("Context menu fallback mapping from cursor failed: %s", e)
             except Exception:
                 logger.exception("Unexpected error during context menu cursor mapping")
+        # Determine global coordinates for display
+        if source == "viewport":
+            global_pos = self.view.viewport().mapToGlobal(pos)
+        elif source == "view":
+            global_pos = self.view.mapToGlobal(pos)
+        else:
+            global_pos = QCursor.pos()
+
         if not index.isValid():
-            logger.debug("Invalid index at position")
+            logger.debug("Invalid index at position, requesting blank area context menu")
+            self._current_item_id = None
+            try:
+                self.contextMenuRequested.emit(0, global_pos)
+            except Exception as e:
+                logger.warning("Failed to emit contextMenuRequested for blank area: %s", e)
             return
 
         item_id = index.data(Qt.ItemDataRole.UserRole)
         if item_id is None:
-            logger.debug("No item_id found in UserRole")
+            logger.debug("No item_id found in UserRole, requesting blank area context menu")
+            self._current_item_id = None
+            try:
+                self.contextMenuRequested.emit(0, global_pos)
+            except Exception as e:
+                logger.warning("Failed to emit contextMenuRequested for blank area: %s", e)
             return
 
         self._current_item_id = int(item_id)
@@ -432,13 +450,6 @@ class CategoryTiles(QWidget):
             item_id,
             index.data(Qt.ItemDataRole.DisplayRole),
         )
-        # Determine global coordinates for display
-        if source == "viewport":
-            global_pos = self.view.viewport().mapToGlobal(pos)
-        elif source == "view":
-            global_pos = self.view.mapToGlobal(pos)
-        else:
-            global_pos = QCursor.pos()
 
         # Purely signal-based: external controller builds the menu
         try:

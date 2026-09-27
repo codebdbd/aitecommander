@@ -5,7 +5,7 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 ## Features
 
 - **4-level hierarchy** — Spheres, Sections, Categories, Links with drag & drop reordering
-- **6 link types** — Web, File, Folder, Program, Script, Note
+- **5 link types** — Web, File, Folder, Program, Script (with rich attached Notes and dedicated editor)
 - **macOS-style Quick Look** — Instant Spacebar preview for images, PDF, spreadsheets, DOCX, archives, code, and folders with zoom and navigation
 - **Favorites & Recents** — Quick-access panels in the top bar
 - **Full-text search** — Search by name, URL, notes, and arguments
@@ -19,8 +19,10 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Social sharing** — Share links via Telegram, X, Facebook, LinkedIn, WhatsApp, Email
 - **Favicon auto-fetch** — Background icon downloading for web links
 - **Bad URL checking** — Detect and remove unreachable links
-- **Database backup/restore** — Automatic backups with configurable limits
-- **Import/Export** — Full structure, section-level, or category-level as ZIP archives
+- **Database backup/restore** — Unified portable ZIP bundle (database, manifest, and referenced icons) with automated staging rollback
+- **Structure Share Packages** — Export and import `.aitesec`, `.aitecat`, and `.aitelink` packages with workspace files, Zip Slip & OOM protection
+- **Windows Shell Integration** — File associations for `.aitesec`/`.aitecat`/`.aitelink` packages, package icons, and single-instance IPC launch
+- **Context Menus & Blank Area Creation** — Full context menu parity on empty space; instant entity creation on blank area double-click (Tree, Tiles, Table)
 - **HiDPI support** — High DPI scaling
 
 ## Documentation
@@ -65,6 +67,7 @@ Or run `.\.venv\Scripts\python.exe main.py`, or double-click `aitecommander.bat`
 
 | Option | Description |
 |--------|-------------|
+| `[file]` | Optional path to an `.aitesec`, `.aitecat`, or `.aitelink` package to import on startup |
 | `--debug` | Enable debug mode |
 | `--log-level LEVEL` | Set log level (DEBUG, INFO, WARNING, ERROR) |
 | `--no-gui` | Run without graphical interface |

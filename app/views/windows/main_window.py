@@ -551,6 +551,27 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Import a category archive into a specific section."""
         self._import_structure_package("category", int(section_id))
 
+    def import_category_to_current_section(self) -> None:
+        """Import a category archive into the current section context."""
+        section_id = None
+        structure_ctrl = getattr(self, "structure", None)
+        if structure_ctrl and hasattr(structure_ctrl, "item_ops"):
+            try:
+                section_id = structure_ctrl.item_ops.ensure_section_for_category()
+            except Exception:
+                section_id = None
+        if not section_id:
+            sb = getattr(self, "structure_business", None)
+            if sb and hasattr(sb, "get_target_section_id"):
+                try:
+                    section_id = sb.get_target_section_id()
+                except Exception:
+                    section_id = None
+        if not section_id:
+            return
+
+        self.import_category_to_section(int(section_id))
+
     def import_section_to_current_sphere(self) -> None:
         """Import a section archive into the current sphere context."""
         sphere_id = None

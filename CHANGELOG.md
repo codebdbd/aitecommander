@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Structure Share System & Safe Packaging (`.aitesec`, `.aitecat`, `.aitelink`)**:
+  - Native export and import of structure packages for sections (`.aitesec`), categories (`.aitecat`), and individual links (`.aitelink`).
+  - Packaging and automated extraction of associated workspace files (`workspace_files/`) with local path remapping.
+  - Strict OOM & Zip Slip guards: 50 MB total uncompressed limit, 15 MB per-file limit, 1 MB manifest limit, and path normalization via `Path(name).name`.
+  - Messenger sharing via Windows clipboard (`CF_HDROP`) for Telegram, WhatsApp, Viber, and Email.
+- **Windows File Associations & SingleInstance IPC**:
+  - Registered file associations for `.aitesec`, `.aitecat`, and `.aitelink` in `HKCU\Software\Classes` with dedicated `package_icon.ico` and Inno Setup integration.
+  - SingleInstanceGuard local socket IPC protocol (`OPEN:<path>`) for opening packages in already-running instances without duplicate processes.
+  - Positional CLI argument `[file]` support for importing packages on cold startup.
+- **Interactive Name Conflict Resolution (`ImportConflictDialog`)**:
+  - Unified dialog for resolving name collisions during `import`, `move`, and `copy` operations.
+  - Three canonical strategies: `merge` (merge child items into existing container), `copy` (keep both with automatic unique suffix), and `cancel`.
+  - Decoupled `conflict_resolver` callback contract isolating UI from core business services.
+- **Unified Backup & Restore Bundle**:
+  - Single portable `.zip` backup archive combining `database.db`, `manifest.json`, and referenced `icons/` extracted via `IconReferenceService`.
+  - Isolated two-phase staging (`.restore_staging_{uuid}`) with SQLite integrity pre-verification and `.orig_bak` automatic rollback guard.
+- **Empty Area Context Menus & Action Parity**:
+  - Full context menu parity across all three workspace views: Structure Tree, Category Tiles, and Links Table.
+  - Signal contract `contextMenuRequested(0, pos)` in `CategoryTiles` wiring to `CategoryMenuBuilder` empty area actions.
+  - Blank area double-click entity creation (Section in Tree, Category in Tiles, Link in Table).
 - **Unified Browser Profile Selection (`BrowserProfileDialog`)**:
   - Interactive profile selector supporting three distinct modes: Single Profile, Profile Rotation, and Batch Launch.
   - Live rotation order numbering (`1`, `2`, `3`...) inside indicators with dynamic count status (`Selected: N of M`).
@@ -25,10 +45,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fullscreen / maximize toggle via `F` or `F11` across all keyboard layouts.
 
 ### Improved
+- **Icon Subsystem Modernization & Cache Integrity**:
+  - Canonicalized favicon cache path to relative `icon_cache/favicon_cache.db`.
+  - Implemented Cache Poisoning Guard preventing `isNull()` icons from being stored in memory or disk cache.
+  - Isolated category cache namespace with `cat_{path}` prefix.
+  - Multi-tiered LRU caching: 1024 items in links model, 512 pixmaps in `HighQualityTreeDelegate` with ID collision prevention.
+  - Removed ~250 lines of dead QRC code and obsolete Qt classes (`QDir`, `QFile`) from `path_service.py`.
+- **LinkDialog Geometry & Adaptive Sizing**:
+  - Modern segmented link type container (`QFrame#linkTypeContainer`) with accent bottom border.
+  - Single-stage content-driven adaptive window resizing via `layout().activate()` and `adjustSize()`.
+  - Context-aware hierarchy row visibility and fixed-type window titles.
+- **Theme Quality Gate**:
+  - Automated WCAG 2.1 relative luminance and contrast ratio verification (>= 4.5:1) for bundled and imported ZIP/QSS themes via `python -m app.utils.theme_checker`.
 - **Delicate Error Handling for Missing Files**:
   - Replaced loud system chimes with silent notifications and warning cards when files are moved or deleted.
 
 ### Fixed
+- **Tree Category Drag & Drop Priority**:
+  - Fixed internal vs external drop dispatch order in `DragDropHandler.handle_drop_event`.
+  - Symmetrical UP/DOWN target row calculation and Qt `beginMoveRows` contract synchronization with `reorder_categories`.
 - **Checkbox Indicator Contrast across 16 Themes**:
   - Implemented WCAG relative luminance standard (`lum = 0.299*R + 0.587*G + 0.114*B`) for custom checkbox indicators, eliminating invisible white marks on bright yellow, green, pink, and cyan backgrounds.
   - Dynamically tinted `check.svg` in `ThemeStylesheetService` to match theme indicator backgrounds (including high-contrast `#FFFFFF` for dark brown in `industrial_yellow`, and `#121212` for `matrix` and pastel light themes).

@@ -31,7 +31,7 @@ aitecommander/
 │   │   ├── workers/                  # base_worker, backup, bad_url_check, export,
 │   │   │                             #   icon_refresh, import, initialization
 │   │   ├── base/                     # db_base.py, db_connection_protocol.py
-│   │   ├── migrations/               # SQL/Python миграции (0001_init.sql — 0009_add_group_launch.py)
+│   │   ├── migrations/               # SQL/Python миграции (0001_init.sql — 0010_renumber_link_positions.py)
 │   │   ├── protocols/                # bulk_operations.py
 │   │   ├── types/                    # link_type, link_types, category_types, constants
 │   │   ├── utils/                    # link_validators, link_bulk_upsert_service, structure_stats
@@ -78,7 +78,8 @@ aitecommander/
 │   │   │   ├── main_window_protocol.py
 │   │   │   └── dialogs/
 │   │   │       ├── base_dialog.py
-│   │   │       ├── entity_dialogs.py
+│   │   │       ├── note_dialog.py    # Редактор заметок
+│   │   │       ├── entity_dialogs.py # SectionDialog, CategoryDialog, ImportConflictDialog
 │   │   │       ├── database_dialogs.py
 │   │   │       ├── browser_profile_dialog.py
 │   │   │       ├── import_browser_dialog.py
@@ -125,11 +126,12 @@ aitecommander/
 │   │   ├── theme_registry.py         # Реестр тем
 │   │   ├── theme_stylesheet_service.py
 │   │   ├── theme_import_service.py
+│   │   ├── file_association_service.py # Системные файловые ассоциации ОС
 │   │   ├── share_service.py          # Социальный шеринг
 │   │   ├── bulk_operation_service.py # Массовые операции
 │   │   ├── structure_service.py      # Сервис структуры
 │   │   ├── structure_context_service.py
-│   │   ├── structure_share_service.py
+│   │   ├── structure_share_service.py # Пакеты .aitesec/.aitecat/.aitelink
 │   │   ├── links_service.py          # Сервис ссылок
 │   │   ├── db_ui_adapter.py          # Адаптер БД ↔ UI
 │   │   ├── database_restore_worker.py
@@ -137,6 +139,7 @@ aitecommander/
 │   │   ├── protocols.py
 │   │   └── uow.py                    # Unit of Work
 │   ├── utils/                        # Утилиты
+│   │   ├── theme_checker.py          # Автоматический контроль контрастности тем (WCAG 2.1)
 │   │   ├── browser/                  # import_browser_html.py, browser_profiles/
 │   │   ├── links/                    # link_parser, link_factory, link_utils, parser/
 │   │   ├── ui/                       # async_helpers, clipboard, db_tasks, db_sync,
