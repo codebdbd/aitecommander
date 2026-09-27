@@ -99,9 +99,12 @@ class MoveLinksCommand(BaseBulkCommand):
             candidate = dict(original)
             candidate["category_id"] = self.new_category_id
             candidate["position"] = start_pos + offset
-            if not self._is_duplicate(candidate, existing_links):
-                prepared.append(candidate)
-                existing_links.append(candidate)
+            if self._is_duplicate(candidate, existing_links):
+                from app.services.structure_share_service import generate_unique_name
+                existing_names = [get_value(l, "name", "") for l in existing_links]
+                candidate["name"] = generate_unique_name(existing_names, candidate.get("name", ""))
+            prepared.append(candidate)
+            existing_links.append(candidate)
         self._new_states = prepared
         self._prepared = True
 

@@ -9,7 +9,7 @@ import zipfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from uuid import uuid4
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -25,9 +25,35 @@ MAX_MANIFEST_SIZE = 1 * 1024 * 1024  # 1 MB
 MAX_DATA_JSON_SIZE = 20 * 1024 * 1024  # 20 MB
 MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
 MAX_TOTAL_UNCOMPRESSED_SIZE = 50 * 1024 * 1024  # 50 MB total for archive
+MAX_WORKSPACE_FILE_SIZE = 15 * 1024 * 1024  # 15 MB per workspace file
+ALLOWED_WORKSPACE_EXTENSIONS = frozenset(
+    {
+        ".py",
+        ".bat",
+        ".cmd",
+        ".ps1",
+        ".sh",
+        ".sql",
+        ".docx",
+        ".xlsx",
+        ".pdf",
+        ".txt",
+        ".json",
+        ".csv",
+        ".md",
+    }
+)
 
-ALLOWED_ICON_EXTENSIONS = frozenset({".ico", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"})
+ALLOWED_ICON_EXTENSIONS = frozenset({".ico", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".svg"})
 _ALLOWED_IMAGE_FORMATS = ("PNG", "ICO", "JPEG", "BMP", "GIF", "WEBP")
+
+
+def get_user_workspace_files_dir() -> Path:
+    """Directory for storing imported workspace files and scripts."""
+    icons_dir = icon_path_service.ensure_user_icons_dir()
+    workspace_dir = icons_dir.parent / "workspace_files"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    return workspace_dir
 
 
 def _has_image_magic_bytes(blob: bytes) -> bool:
@@ -95,6 +121,10 @@ def _sanitize_icon_path(
                 return bare_name
         except Exception:
             pass
+        from app.utils.ui.icon.icon_resolver import resolve_icon_path
+
+        if resolve_icon_path(bare_name):
+            return bare_name
         return default
 
     return bare_name
@@ -114,44 +144,155 @@ class StructureShareService:
         tree = self._ss.export_category_tree(int(category_id))
         self._write_archive("category", tree, dest_path)
 
-    def import_section_archive(self, path: Path, target_sphere_id: int) -> None:
-        manifest, data, icons = self._read_archive(path)
+    def import_section_archive(
+        self,
+        path: Path,
+        target_sphere_id: int,
+        conflict_resolver: Callable[[str, str, str], str] | None = None,
+    ) -> bool:
+        manifest, data, icons, workspace_files = self._read_archive(path, include_workspace=True)
         self._validate_manifest(manifest, expected_type="section")
         valid_icons = self._install_icons(icons)
-        tree = self._prepare_section_tree_for_import(data, target_sphere_id, valid_icons=valid_icons)
-        self._ss.import_section_tree(tree)
+        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
 
-    def import_category_archive(self, path: Path, target_section_id: int) -> None:
-        manifest, data, icons = self._read_archive(path)
+        section = data.get("section") or {}
+        section_name = (section.get("name") or "").strip()
+        existing_sections = self._ss.get_sections(target_sphere_id)
+        existing_sec = next(
+            (s for s in existing_sections if str(s.get("name", "")).strip().casefold() == section_name.casefold()),
+            None,
+        )
+
+        action = "copy"
+        if existing_sec:
+            existing_names = {str(s.get("name", "")) for s in existing_sections}
+            copy_name = generate_unique_name(existing_names, section_name)
+            if conflict_resolver:
+                action = conflict_resolver("section", section_name, copy_name)
+            if action == "cancel":
+                return False
+            if action == "copy":
+                data["section"]["name"] = copy_name
+
+        if existing_sec and action == "merge":
+            target_section_id = int(existing_sec["id"])
+            for cat_item in data.get("categories") or []:
+                if not isinstance(cat_item, dict):
+                    continue
+                cat = cat_item.get("category") or {}
+                cat_name = (cat.get("name") or "").strip()
+                existing_cats = self._ss.get_categories(target_section_id)
+                existing_cat = next(
+                    (c for c in existing_cats if str(c.get("name", "")).strip().casefold() == cat_name.casefold()),
+                    None,
+                )
+                if existing_cat:
+                    cat_id = int(existing_cat["id"])
+                    raw_links = self._sanitize_links(
+                        cat_item.get("links") or [],
+                        valid_icons=valid_icons,
+                        workspace_dir=workspace_dir,
+                    )
+                    for link in raw_links:
+                        link["category_id"] = cat_id
+                    if raw_links:
+                        self._ss.db.links._upsert_links_no_tx(raw_links)
+                else:
+                    cat_tree = self._prepare_category_tree_for_import(
+                        cat_item,
+                        target_section_id,
+                        valid_icons=valid_icons,
+                        workspace_dir=workspace_dir,
+                    )
+                    self._ss.import_category_tree(cat_tree)
+            return True
+
+        tree = self._prepare_section_tree_for_import(
+            data, target_sphere_id, valid_icons=valid_icons, workspace_dir=workspace_dir
+        )
+        self._ss.import_section_tree(tree)
+        return True
+
+    def import_category_archive(
+        self,
+        path: Path,
+        target_section_id: int,
+        conflict_resolver: Callable[[str, str, str], str] | None = None,
+    ) -> bool:
+        manifest, data, icons, workspace_files = self._read_archive(path, include_workspace=True)
         self._validate_manifest(manifest, expected_type="category")
         valid_icons = self._install_icons(icons)
-        tree = self._prepare_category_tree_for_import(data, target_section_id, valid_icons=valid_icons)
-        self._ss.import_category_tree(tree)
+        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
 
+        category = data.get("category") or {}
+        cat_name = (category.get("name") or "").strip()
+        existing_cats = self._ss.get_categories(target_section_id)
+        existing_cat = next(
+            (c for c in existing_cats if str(c.get("name", "")).strip().casefold() == cat_name.casefold()),
+            None,
+        )
+
+        action = "copy"
+        if existing_cat:
+            existing_names = {str(c.get("name", "")) for c in existing_cats}
+            copy_name = generate_unique_name(existing_names, cat_name)
+            if conflict_resolver:
+                action = conflict_resolver("category", cat_name, copy_name)
+            if action == "cancel":
+                return False
+            if action == "copy":
+                data["category"]["name"] = copy_name
+
+        if existing_cat and action == "merge":
+            cat_id = int(existing_cat["id"])
+            raw_links = self._sanitize_links(
+                data.get("links") or [],
+                valid_icons=valid_icons,
+                workspace_dir=workspace_dir,
+            )
+            for link in raw_links:
+                link["category_id"] = cat_id
+            if raw_links:
+                self._ss.db.links._upsert_links_no_tx(raw_links)
+            return True
+
+        tree = self._prepare_category_tree_for_import(
+            data, target_section_id, valid_icons=valid_icons, workspace_dir=workspace_dir
+        )
+        self._ss.import_category_tree(tree)
+        return True
 
     def build_filename(self, package_type: str, name: str) -> str:
         safe_name = _normalize_ascii_name(name)
-        type_suffix = {"section": "sec", "category": "cat"}.get(
-            package_type, package_type
-        )
+        ext = "aitesec" if package_type == "section" else "aitecat"
         date_part = datetime.now().strftime("%Y%m%d%H%M")
-        return f"{safe_name}_{type_suffix}_{date_part}.zip"
+        return f"{safe_name}_{date_part}.{ext}"
+
+
+    def inspect_package(self, archive_path: Path) -> dict[str, Any]:
+        """Read and validate the manifest of an archive package without full extraction."""
+        with zipfile.ZipFile(archive_path, "r") as zf:
+            if "manifest.json" not in zf.namelist():
+                raise ValueError("Not a valid share package (missing manifest.json)")
+            return json.loads(zf.read("manifest.json").decode("utf-8"))
 
     def _write_archive(self, package_type: str, data: dict, dest_path: Path) -> None:
         payload = deepcopy(data) if isinstance(data, dict) else {}
         icon_files = self._collect_icon_files(payload)
+        workspace_files = self._collect_workspace_files(payload)
+        all_files = {**icon_files, **workspace_files}
         data_bytes = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-        manifest = self._build_manifest(package_type, data_bytes, icon_files)
+        manifest = self._build_manifest(package_type, data_bytes, all_files)
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(dest_path, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("manifest.json", json.dumps(manifest, indent=2))
             zf.writestr("data.json", data_bytes)
-            for rel, src in icon_files.items():
+            for rel, src in all_files.items():
                 try:
                     zf.write(str(src), rel)
                 except OSError:
-                    logger.warning("Failed to add icon to archive: %s", src)
+                    logger.warning("Failed to add file to archive: %s", src)
 
     def _build_manifest(
         self, package_type: str, data_bytes: bytes, files: dict[str, Path]
@@ -186,6 +327,9 @@ class StructureShareService:
         category = data.get("category") or {}
         if isinstance(category, dict):
             candidates.append(category.get("icon_path") or "")
+        single_link = data.get("link") or {}
+        if isinstance(single_link, dict):
+            candidates.append(single_link.get("icon_path") or "")
         for item in data.get("categories") or []:
             if not isinstance(item, dict):
                 continue
@@ -200,6 +344,42 @@ class StructureShareService:
                 candidates.append(link.get("icon_path") or "")
         return candidates
 
+    def _collect_workspace_files(self, data: dict) -> dict[str, Path]:
+        """Collect local scripts/documents referenced by links in payload."""
+        files: dict[str, Path] = {}
+        links: list[dict] = []
+        single = data.get("link")
+        if isinstance(single, dict):
+            links.append(single)
+        if isinstance(data.get("links"), list):
+            links.extend(data["links"])
+        for item in data.get("categories") or []:
+            if isinstance(item, dict) and isinstance(item.get("links"), list):
+                links.extend(item["links"])
+
+        for link in links:
+            if not isinstance(link, dict):
+                continue
+            url = str(link.get("url") or "").strip()
+            if not url:
+                continue
+            try:
+                p = Path(url)
+                if not p.is_file():
+                    continue
+                if p.suffix.lower() not in ALLOWED_WORKSPACE_EXTENSIONS:
+                    continue
+                size = p.stat().st_size
+                if size <= 0 or size > MAX_WORKSPACE_FILE_SIZE:
+                    continue
+                safe_name = _normalize_ascii_name(p.stem) + p.suffix.lower()
+                rel = (Path("files") / "workspace" / safe_name).as_posix()
+                files.setdefault(rel, p)
+                link["workspace_file"] = safe_name
+            except Exception as e:
+                logger.debug("Skipping workspace file candidate %s: %s", url, e)
+        return files
+
     def _resolve_icon_candidates(self, candidates: list[str], icons_dir: Path) -> dict[str, Path]:
         """Resolve candidates strictly within user icons directory and build archive-relative map."""
         resolved_icons_dir = icons_dir.resolve()
@@ -211,23 +391,21 @@ class StructureShareService:
             if not name_stripped:
                 continue
 
-            # Reject path traversal and drive indicators
-            if ".." in name_stripped or ":" in name_stripped:
+            # Reject path traversal
+            if ".." in name_stripped:
                 continue
 
             candidate_name = Path(name_stripped).name
             if not candidate_name:
                 continue
 
-            src = (resolved_icons_dir / candidate_name).resolve()
-            try:
-                if not src.is_relative_to(resolved_icons_dir):
-                    continue
-            except AttributeError:
-                try:
-                    src.relative_to(resolved_icons_dir)
-                except ValueError:
-                    continue
+            from app.utils.ui.icon.icon_resolver import resolve_icon_path
+
+            resolved = resolve_icon_path(name_stripped)
+            if resolved and Path(resolved).is_file():
+                src = Path(resolved).resolve()
+            else:
+                src = (resolved_icons_dir / candidate_name).resolve()
 
             if not src.is_file():
                 continue
@@ -259,8 +437,8 @@ class StructureShareService:
         return b"".join(chunks)
 
     def _read_archive(
-        self, path: Path
-    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, bytes]]:
+        self, path: Path, include_workspace: bool = False
+    ) -> Any:
         with zipfile.ZipFile(path, "r") as zf:
             infos = zf.infolist()
             if len(infos) > MAX_ARCHIVE_ENTRIES:
@@ -283,6 +461,10 @@ class StructureShareService:
                     raise ValueError(
                         f"Icon {info.filename} declared size ({info.file_size}) exceeds limit ({MAX_ICON_FILE_SIZE})"
                     )
+                if info.filename.startswith("files/workspace/") and info.file_size > MAX_WORKSPACE_FILE_SIZE:
+                    raise ValueError(
+                        f"Workspace file {info.filename} declared size ({info.file_size}) exceeds limit ({MAX_WORKSPACE_FILE_SIZE})"
+                    )
 
             if total_declared_uncompressed > MAX_TOTAL_UNCOMPRESSED_SIZE:
                 raise ValueError(
@@ -299,22 +481,31 @@ class StructureShareService:
             data = json.loads(data_raw.decode("utf-8"))
 
             icon_entries: dict[str, bytes] = {}
+            workspace_entries: dict[str, bytes] = {}
             for info in infos:
                 name = info.filename
-                if not name.startswith("files/icons/"):
-                    continue
                 if ".." in Path(name).parts:
                     continue
-                icon_blob = self._safe_read_entry(zf, name, MAX_ICON_FILE_SIZE)
-                cumulative_size += len(icon_blob)
-                if cumulative_size > MAX_TOTAL_UNCOMPRESSED_SIZE:
-                    raise ValueError("Total uncompressed size exceeds archive limit")
-                icon_entries[Path(name).name] = icon_blob
+                if name.startswith("files/icons/"):
+                    icon_blob = self._safe_read_entry(zf, name, MAX_ICON_FILE_SIZE)
+                    cumulative_size += len(icon_blob)
+                    if cumulative_size > MAX_TOTAL_UNCOMPRESSED_SIZE:
+                        raise ValueError("Total uncompressed size exceeds archive limit")
+                    icon_entries[Path(name).name] = icon_blob
+                elif name.startswith("files/workspace/"):
+                    ws_blob = self._safe_read_entry(zf, name, MAX_WORKSPACE_FILE_SIZE)
+                    cumulative_size += len(ws_blob)
+                    if cumulative_size > MAX_TOTAL_UNCOMPRESSED_SIZE:
+                        raise ValueError("Total uncompressed size exceeds archive limit")
+                    workspace_entries[Path(name).name] = ws_blob
 
-            self._validate_checksums(manifest, data_raw, zf, icon_entries)
+            all_entries = {**icon_entries, **workspace_entries}
+            self._validate_checksums(manifest, data_raw, zf, all_entries)
 
         if not isinstance(manifest, dict) or not isinstance(data, dict):
             raise ValueError("Invalid package format")
+        if include_workspace:
+            return manifest, data, icon_entries, workspace_entries
         return manifest, data, icon_entries
 
     def _validate_manifest(self, manifest: dict[str, Any], expected_type: str) -> None:
@@ -394,18 +585,50 @@ class StructureShareService:
             installed_or_valid.add(safe_name)
         return installed_or_valid
 
+    def _install_workspace_files(
+        self, package_name: str, workspace_files: dict[str, bytes]
+    ) -> Path | None:
+        if not workspace_files:
+            return None
+        safe_dir_name = _normalize_ascii_name(package_name) or "package"
+        target_dir = get_user_workspace_files_dir() / safe_dir_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        resolved_target = target_dir.resolve()
+
+        for name, blob in workspace_files.items():
+            safe_name = Path(name).name
+            if not safe_name or ".." in name or ":" in name:
+                continue
+            if Path(safe_name).suffix.lower() not in ALLOWED_WORKSPACE_EXTENSIONS:
+                continue
+            dest = (target_dir / safe_name).resolve()
+            try:
+                if not dest.is_relative_to(resolved_target):
+                    continue
+            except AttributeError:
+                try:
+                    dest.relative_to(resolved_target)
+                except ValueError:
+                    continue
+            try:
+                dest.write_bytes(blob)
+            except OSError as err:
+                logger.warning("Failed to write workspace file %s: %s", dest, err)
+        return target_dir
+
     def _prepare_section_tree_for_import(
         self,
         data: dict[str, Any],
         sphere_id: int,
         valid_icons: set[str] | None = None,
+        workspace_dir: Path | None = None,
     ) -> dict[str, Any]:
         tree = deepcopy(data)
         section = dict(tree.get("section") or {})
         section.pop("id", None)
         section["sphere_id"] = int(sphere_id)
         section["icon_path"] = _sanitize_icon_path(
-            section.get("icon_path"), valid_icons=valid_icons, default=""
+            section.get("icon_path"), valid_icons=valid_icons, default="section.png"
         )
         tree["section"] = section
 
@@ -417,9 +640,13 @@ class StructureShareService:
             cat.pop("id", None)
             cat.pop("section_id", None)
             cat["icon_path"] = _sanitize_icon_path(
-                cat.get("icon_path"), valid_icons=valid_icons, default=""
+                cat.get("icon_path"), valid_icons=valid_icons, default="category.png"
             )
-            links = self._sanitize_links(item.get("links") or [], valid_icons=valid_icons)
+            links = self._sanitize_links(
+                item.get("links") or [],
+                valid_icons=valid_icons,
+                workspace_dir=workspace_dir,
+            )
             prepared_categories.append({"category": cat, "links": links})
         tree["categories"] = prepared_categories
         return tree
@@ -429,22 +656,28 @@ class StructureShareService:
         data: dict[str, Any],
         section_id: int,
         valid_icons: set[str] | None = None,
+        workspace_dir: Path | None = None,
     ) -> dict[str, Any]:
         tree = deepcopy(data)
         cat = dict(tree.get("category") or {})
         cat.pop("id", None)
         cat["section_id"] = int(section_id)
         cat["icon_path"] = _sanitize_icon_path(
-            cat.get("icon_path"), valid_icons=valid_icons, default=""
+            cat.get("icon_path"), valid_icons=valid_icons, default="category.png"
         )
         tree["category"] = cat
-        tree["links"] = self._sanitize_links(tree.get("links") or [], valid_icons=valid_icons)
+        tree["links"] = self._sanitize_links(
+            tree.get("links") or [],
+            valid_icons=valid_icons,
+            workspace_dir=workspace_dir,
+        )
         return tree
 
     def _sanitize_links(
         self,
         links: list[Any],
         valid_icons: set[str] | None = None,
+        workspace_dir: Path | None = None,
     ) -> list[dict[str, Any]]:
         sanitized: list[dict[str, Any]] = []
         for link in links:
@@ -453,11 +686,31 @@ class StructureShareService:
             item = dict(link)
             item.pop("id", None)
             item.pop("category_id", None)
+            link_type = str(item.get("type") or "file").strip().lower()
+            fallback_default = "web_icon.png" if link_type == "web" else "documents_icon.png"
             item["icon_path"] = _sanitize_icon_path(
-                item.get("icon_path"), valid_icons=valid_icons, default="default.ico"
+                item.get("icon_path"), valid_icons=valid_icons, default=fallback_default
             )
+            ws_file = item.pop("workspace_file", None)
+            if ws_file and workspace_dir:
+                local_file = (workspace_dir / Path(ws_file).name).resolve()
+                if local_file.is_file():
+                    item["url"] = str(local_file)
             sanitized.append(item)
         return sanitized
+
+
+def generate_unique_name(existing_names: set[str], base_name: str) -> str:
+    """Generate a unique name: 'Base', 'Base (1)', 'Base (2)', etc."""
+    lower_existing = {n.strip().casefold() for n in existing_names}
+    if base_name.strip().casefold() not in lower_existing:
+        return base_name
+    match = re.match(r"^(.*?)\s*\((\d+)\)$", base_name.strip())
+    prefix = match.group(1) if match else base_name.strip()
+    counter = 1
+    while f"{prefix} ({counter})".casefold() in lower_existing:
+        counter += 1
+    return f"{prefix} ({counter})"
 
 
 def _sha256_bytes(blob: bytes) -> str:

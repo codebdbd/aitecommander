@@ -124,7 +124,6 @@ class LinksMenuBuilder:
         if self._is_web_link(link):
             menu.addSeparator()
             self._add_share_submenu(menu, link)
-            menu.addSeparator()
 
     def _add_common_actions(self, menu: QMenu, link: dict) -> None:
         cut_action = self._create_context_action(
@@ -147,26 +146,29 @@ class LinksMenuBuilder:
             "select_all_action",
         )
 
-        for action in (cut_action, copy_action, paste_action, delete_action):
+        for action in (cut_action, copy_action, paste_action):
             if action is not None:
                 menu.addAction(action)
 
         menu.addSeparator()
 
-        menu.addSeparator()
-
-        if select_all_action is not None:
-            menu.addAction(select_all_action)
         clear_action = self.actions.create(
             MenuTexts.CLEAR_SELECTION,
             self._clear_table_selection,
             Shortcuts.CLEAR_SELECTION,
             get_menu_icon("deselect_all", self.theme),
         )
-        clear_action.setVisible(self._table_selection_count() > 1)
-        menu.addAction(clear_action)
+
+        if self._table_selection_count() > 1:
+            menu.addAction(clear_action)
+        elif select_all_action is not None:
+            menu.addAction(select_all_action)
 
         menu.addSeparator()
+
+        if delete_action is not None:
+            menu.addAction(delete_action)
+            menu.addSeparator()
 
         undo_action = self._create_context_action(
             MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
@@ -282,13 +284,8 @@ class LinksMenuBuilder:
             logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
 
     def _is_web_link(self, link: dict) -> bool:
-        """Check if link is a stored web-link resource."""
-        if not isinstance(link, dict):
-            return False
-        try:
-            return normalize_link_type_key(str(link.get("type") or "")) == "web"
-        except Exception:
-            return False
+        """Check if link type is web."""
+        return isinstance(link, dict) and link.get("type") == "web"
 
     def _add_empty_area_actions(self, menu: QMenu, paste_link_cb: Callable):
         """Add actions for empty area of the table."""
@@ -331,16 +328,16 @@ class LinksMenuBuilder:
             "select_all",
             "select_all_action",
         )
-        if select_all_action is not None:
-            menu.addAction(select_all_action)
         clear_action = self.actions.create(
             MenuTexts.CLEAR_SELECTION,
             self._clear_table_selection,
             Shortcuts.CLEAR_SELECTION,
             get_menu_icon("deselect_all", self.theme),
         )
-        clear_action.setVisible(self._table_selection_count() > 1)
-        menu.addAction(clear_action)
+        if self._table_selection_count() > 1:
+            menu.addAction(clear_action)
+        elif select_all_action is not None:
+            menu.addAction(select_all_action)
 
         menu.addSeparator()
 

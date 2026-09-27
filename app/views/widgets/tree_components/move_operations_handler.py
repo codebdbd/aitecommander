@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QDialog, QMessageBox
 
 from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.controllers.ui.undo.commands import MacroCommand
@@ -98,26 +98,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
     def execute_move_category_command(self, category_id: int, target_id: int) -> None:
         """Execute the command to move a category."""
-        main_win = self.tree_widget.window()
-
-        if hasattr(main_win, "undo_stack"):
-            main_win.undo_stack.push(
-                MoveCategoryCommand(category_id, target_id, main_win)
-            )
-            logger.info(
-                "MoveCategoryCommand executed: category %s -> section %s",
-                category_id,
-                target_id,
-            )
-        else:
-            self._show_warning(
-                self.tr("Undo history is unavailable. Move canceled."),
-                self.tr("Undo history unavailable"),
-                informative_text=self.tr(
-                    "Enable undo/redo support or initialize undo_stack in the main window."
-                ),
-            )
-            logger.warning("Undo stack not found for moving a category")
+        self.execute_move_categories_command([category_id], target_id, 0)
 
     def execute_move_links_command(
         self, link_ids: list[int], new_category_id: int
@@ -197,15 +178,114 @@ class MoveOperationsHandler(TreeHandlerBase):
     ) -> bool:
         """Execute batch command to move categories as a single undo record."""
         main_win = self.tree_widget.window()
+        sb = getattr(main_win, "structure_business", None)
+        if sb is None:
+            return False
+
+        target_categories = sb.get_categories(new_section_id) or []
+        existing_names = [c.get("name", "") for c in target_categories]
+
+        to_move_ids: list[int] = []
+        for cid in list(category_ids):
+            cat_data = sb.get_category_data(cid)
+            if not cat_data:
+                continue
+
+            old_sec_id = cat_data.get("section_id")
+            cat_name = cat_data.get("name", "")
+
+            if old_sec_id == new_section_id:
+                to_move_ids.append(cid)
+                continue
+
+            colliding = next(
+                (
+                    c
+                    for c in target_categories
+                    if str(c.get("name", "")).strip().lower()
+                    == str(cat_name).strip().lower()
+                    and int(c.get("id", 0)) != cid
+                ),
+                None,
+            )
+
+            if colliding is not None:
+                from app.services.structure_share_service import generate_unique_name
+                from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
+                copy_name = generate_unique_name(existing_names, cat_name)
+                dlg = ImportConflictDialog(
+                    entity_type="category",
+                    name=cat_name,
+                    copy_name=copy_name,
+                    parent=main_win,
+                    operation="move",
+                )
+                if dlg.exec() != QDialog.DialogCode.Accepted:
+                    return False
+
+                action = dlg.get_action()
+                if action == "copy":
+                    sb.update_category(cid, {"name": copy_name})
+                    existing_names.append(copy_name)
+                    to_move_ids.append(cid)
+                elif action == "merge":
+                    target_cat_id = int(colliding["id"])
+                    lb = getattr(main_win, "links_business", None)
+                    if lb is not None:
+                        target_links = lb.get_links(target_cat_id) or []
+                        target_keys = {
+                            (
+                                str(l.get("name", "")),
+                                str(l.get("url", "")),
+                                str(l.get("args", "")),
+                            )
+                            for l in target_links
+                        }
+                        source_links = lb.get_links(cid) or []
+                        links_to_move: list[int] = []
+                        links_to_delete: list[int] = []
+                        for sl in source_links:
+                            s_key = (
+                                str(sl.get("name", "")),
+                                str(sl.get("url", "")),
+                                str(sl.get("args", "")),
+                            )
+                            if s_key in target_keys:
+                                links_to_delete.append(int(sl["id"]))
+                            else:
+                                links_to_move.append(int(sl["id"]))
+                                target_keys.add(s_key)
+
+                        if links_to_delete:
+                            lb.batch_delete_links(links_to_delete)
+                        if links_to_move:
+                            lb.move_links_bulk(links_to_move, target_cat_id)
+
+                    sb.delete_category(cid)
+            else:
+                to_move_ids.append(cid)
+
+        if not to_move_ids:
+            facade = getattr(main_win, "_facade", None)
+            if facade and hasattr(facade, "refresh_structure_after_import"):
+                facade.refresh_structure_after_import(sb, new_section_id)
+            else:
+                try:
+                    sb.section_selected.emit(int(new_section_id))
+                except Exception:
+                    pass
+            return True
+
         undo_stack = getattr(main_win, "undo_stack", None)
 
         if undo_stack is not None:
             undo_stack.push(
-                MoveCategoriesCommand(category_ids, new_section_id, base_row, main_win)
+                MoveCategoriesCommand(to_move_ids, new_section_id, base_row, main_win)
             )
             logger.info(
                 "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
-                category_ids,
+                to_move_ids,
                 new_section_id,
                 base_row,
             )
@@ -326,23 +406,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Invalid target parent data for category move")
             return
         new_section_id = parent_id
-
-        if hasattr(main_win, "undo_stack"):
-            main_win.undo_stack.push(
-                MoveCategoryCommand(source_id, new_section_id, main_win)
-            )
-            logger.info("Category moved: %s -> section %s", source_id, new_section_id)
-        else:
-            self._show_warning(
-                self.tr("History is unavailable. Move between sections canceled."),
-                self.tr("Undo history unavailable"),
-                informative_text=self.tr(
-                    "Enable undo/redo support or initialize undo_stack in the main window."
-                ),
-            )
-            logger.warning(
-                "Undo stack not found for moving a category between sections"
-            )
+        self.execute_move_categories_command([source_id], new_section_id, 0)
 
     def _handle_category_section_move(self, source_id: int, parent, main_win) -> None:
         """Internal method to handle moving a category between sections."""

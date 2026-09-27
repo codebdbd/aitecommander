@@ -26,6 +26,7 @@ from .constants import BS_PARSER, CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 from .domain import apply_jitter, base_domain, sanitize_domain_for_filename
 from .http_client import http_request
 from .icon_downloader import pick_icon_parallel, save_icon
+from .icon_fallback import clear_domain_failed, is_domain_failed, mark_domain_failed
 from .title_parser import (
     get_provider_title_fast,
     get_title,
@@ -245,14 +246,29 @@ def _try_direct_favicon_on_block(
     try:
         from .icon_downloader import _phase4_google_api
         logger.debug("[fetch] direct favicon fallback exhausted, trying Google Favicon API for host=%s", host)
-        return _phase4_google_api(
+        google_icon = _phase4_google_api(
             host,
             config=config,
             force_refresh=force_refresh,
             cancel_event=cancel_event,
         )
+        if google_icon:
+            return google_icon
     except Exception:
         logger.debug("google favicon fallback failed for %s", sanitize_url_for_logging(url), exc_info=True)
+
+    try:
+        soup = BeautifulSoup("", BS_PARSER)
+        return pick_icon_parallel(
+            soup,
+            url,
+            host,
+            config,
+            force_refresh=force_refresh,
+            cancel_event=cancel_event,
+        )
+    except Exception:
+        logger.debug("full icon pipeline fallback failed for %s", sanitize_url_for_logging(url), exc_info=True)
     return None
 
 

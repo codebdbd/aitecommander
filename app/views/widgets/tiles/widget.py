@@ -36,6 +36,7 @@ class CategoryTiles(QWidget):
     def _setup_viewport(self, vp):
         """Setup viewport mouse tracking and event filter."""
         try:
+            vp.setAcceptDrops(True)
             vp.setMouseTracking(True)
             vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         except (AttributeError, RuntimeError) as e:
@@ -111,7 +112,8 @@ class CategoryTiles(QWidget):
     def _setup_drag_drop(self):
         """Setup drag and drop settings."""
         self.view.setDragEnabled(True)
-        self.view.setAcceptDrops(False)
+        self.view.setAcceptDrops(True)
+        self.view.viewport().setAcceptDrops(True)
         self.view.setDropIndicatorShown(False)
         self.view.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -173,6 +175,7 @@ class CategoryTiles(QWidget):
     ):
         """Simple UI component for displaying category tiles."""
         super().__init__(parent)
+        self.setAcceptDrops(True)
 
         self._current_item_id = None
         self.structure_controller = structure_controller
@@ -217,9 +220,45 @@ class CategoryTiles(QWidget):
         self.layout.addWidget(self.view, 1)
         # Explicitly enable DragOnly mode for stable DnD behavior
         try:
-            self.view.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
+            self.view.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+            self.view.viewport().setAcceptDrops(True)
         except Exception as e:
             logger.debug("Failed to set DragOnly mode: %s", e)
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            from pathlib import Path
+
+            main = self.window()
+            if hasattr(main, "import_archive_file"):
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
+                main.import_archive_file(Path(targets[0]))
+                return
+        super().dropEvent(event)
 
     def update_font_size(self, fs: int) -> None:
         """Apply centralized font size to category tiles.

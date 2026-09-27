@@ -721,18 +721,9 @@ class StructureTreeModel(QAbstractItemModel):
                 icon = icon_value
             else:
                 icon_path_raw = c.get("icon_path") or c.get("icon")
-                if isinstance(icon_path_raw, str):
-                    icon_path = icon_path_raw.strip()
-                    if icon_path:
-                        try:
-                            icon = icon_loading_service.get_path_icon(icon_path)
-                            if icon.isNull():
-                                icon = self._placeholder_icon
-                        except Exception:
-                            icon = self._placeholder_icon
-                    else:
-                        icon = self._placeholder_icon
-                else:
+                resolved_path = resolve_category_icon_path(icon_path_raw) if icon_path_raw else resolve_category_icon_path(None)
+                icon = icon_loading_service.get_path_icon(resolved_path) if resolved_path else self._placeholder_icon
+                if icon.isNull():
                     icon = self._placeholder_icon
 
             cat_node = TreeNode(
@@ -1375,7 +1366,24 @@ class StructureTreeModel(QAbstractItemModel):
             waiters = self._icon_waiters_by_path.pop(icon_path, [])
             self._active_icon_tasks.discard(icon_path)
 
+        from app.utils.ui.icon.icon_service import get_icon
+
         for node in waiters:
+            fallback_path = (
+                resolve_section_icon_path(None)
+                if getattr(node, "type", None) == "section"
+                else resolve_category_icon_path(None)
+            )
+            fallback_icon = get_icon(fallback_path) if fallback_path else self._placeholder_icon
+            node.icon = fallback_icon
+            if node.parent is not None:
+                try:
+                    row = node.parent.children.index(node)
+                    idx = self.createIndex(row, 0, node)
+                    if idx.isValid():
+                        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+                except (ValueError, AttributeError):
+                    pass
             self.icon_failed.emit(node, _message)
 
     def _start_icon_loading(self, node: TreeNode, icon_path: str | None) -> None:

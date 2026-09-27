@@ -19,6 +19,8 @@ datas = [
     (str(ROOT / "app" / "resources" / "ui_icons"), "app/resources/ui_icons"),
     # Logo
     (str(ROOT / "app" / "resources" / "logo"), "app/resources/logo"),
+    # Package file icon
+    (str(ROOT / "app" / "resources" / "package_icon.ico"), "app/resources"),
     # Compiled translations
     (str(ROOT / "i18n" / "*.qm"), "i18n"),
     # Config files

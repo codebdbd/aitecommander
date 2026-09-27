@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="ru_RU">
     <context>
     <name>AboutDialog</name>
@@ -982,97 +981,112 @@
 </context><context>
     <name>CategoryDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="650" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="545" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="672" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="548" />
         <source>Sphere:</source>
         <translation>Сфера:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="653" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="548" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="675" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="551" />
         <source>Section:</source>
         <translation>Раздел:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="575" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="578" />
         <source>Failed to load sections.</source>
         <translation>Не удалось загрузить разделы.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="576" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="579" />
         <source>Error loading sections</source>
         <translation>Ошибка загрузки разделов</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="577" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="580" />
         <source>Check database connection and try again.</source>
         <translation>Проверьте подключение к базе данных и попробуйте снова.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="587" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="590" />
         <source>Category not found.</source>
         <translation>Категория не найдена.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="588" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="591" />
         <source>Category unavailable</source>
         <translation>Категория недоступна</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="589" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="592" />
         <source>The category might have been deleted. ID: %1</source>
         <translation>Категория могла быть удалена. ID: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="633" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="636" />
         <source>Section not selected.</source>
         <translation>Раздел не выбран.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="634" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="637" />
         <source>Section selection required</source>
         <translation>Требуется выбрать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="635" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="638" />
         <source>Choose a section from the list and press "Save".</source>
         <translation>Выберите раздел из списка и нажмите "Сохранить".</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="651" />
+        <source>A category with the same name already exists in the selected section.</source>
+        <translation>Категория с таким именем уже существует в выбранном разделе.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="654" />
+        <source>Category duplicate</source>
+        <translation>Дубликат категории</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="655" />
+        <source>Change the name or select another section.</source>
+        <translation>Измените имя или выберите другой раздел.</translation>
     </message>
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1143" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1195" />
         <source>Choose a Chrome profile:</source>
         <translation>Выберите профиль Chrome:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1145" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1197" />
         <source>Select all</source>
         <translation>Выделить все</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1147" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1199" />
         <source>Deselect all</source>
         <translation>Снять выделение</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1165" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1149" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1217" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1201" />
         <source>Refresh profiles</source>
         <translation>Обновить профили</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1163" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1215" />
         <source>Loading...</source>
         <translation>Загрузка...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1187" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1239" />
         <source>Chrome profiles not found</source>
         <translation>Профили Chrome не найдены</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1194" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1246" />
         <source>(no email)</source>
         <translation>(без email)</translation>
     </message>
@@ -1196,171 +1210,187 @@
 </context><context>
     <name>DatabaseController</name>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="53" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="55" />
         <source>Done</source>
         <translation>Готово</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="56" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="58" />
         <source>Error</source>
         <translation>Ошибка</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="62" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="64" />
         <source>Database path not found.</source>
         <translation>Путь к базе данных не найден.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="87" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="89" />
         <source>Database restoration is already in progress.</source>
         <translation>Восстановление базы данных уже выполняется.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="119" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="121" />
         <source>Database restored from backup:
 {backup_name}</source>
         <translation>База данных восстановлена из резервной копии:
 {backup_name}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="130" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="132" />
         <source>Restore error: {error}</source>
         <translation>Ошибка восстановления: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="181" />
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="136" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="183" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="138" />
         <source>Database operation is already in progress.</source>
         <translation>Операция с базой данных уже выполняется.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="164" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="166" />
         <source>Database connected from:
 {file_name}</source>
         <translation>База данных подключена из:
 {file_name}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="175" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="177" />
         <source>Database connection error: {error}</source>
         <translation>Ошибка подключения к базе данных: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="233" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="239" />
         <source>Database copy saved:
 {path}</source>
         <translation>Копия базы данных сохранена:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="242" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="318" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="248" />
         <source>Save error: {error}</source>
         <translation>Ошибка сохранения: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="250" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="309" />
+        <source>Database backup saved:
+{path}</source>
+        <translation>Резервная копия базы данных сохранена:
+{path}</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="328" />
         <source>Icons folder not found: {path}</source>
         <translation>Папка иконок не найдена: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="266" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="344" />
         <source>Icon archive saved to:
 {path}</source>
         <translation>Архив иконок сохранен в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="270" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="348" />
         <source>Archive creation error: {error}</source>
         <translation>Ошибка создания архива: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="290" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="368" />
         <source>Icons successfully added to: {path}</source>
         <translation>Иконки успешно добавлены в: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="296" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="374" />
         <source>Archive load error: {error}</source>
         <translation>Ошибка загрузки архива: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="355" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="433" />
         <source>File {name} exceeds maximum allowed size ({size} MB)</source>
         <translation>Файл {name} превышает максимально допустимый размер ({size} МБ)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="363" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="441" />
         <source>Archive exceeds total allowed icon size ({size} MB)</source>
         <translation>Архив превышает допустимый размер иконок ({size} МБ)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="371" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="449" />
         <source>Archive contains too many icons ({count} &gt; {limit})</source>
         <translation>Архив содержит слишком много иконок ({count} &gt; {limit})</translation>
     </message>
 </context><context>
     <name>DatabaseDialogs</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="36" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="29" />
         <source>Do you really want to clear favorites?</source>
         <translation>Вы действительно хотите очистить избранное?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="38" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="31" />
         <source>This action cannot be undone. All Favorite marks will be removed.</source>
         <translation>Это действие нельзя отменить. Все отметки «Избранное» будут удалены.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="54" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="47" />
         <source>Restore the database from the selected backup?</source>
         <translation>Восстановить базу данных из выбранной резервной копии?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="56" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="49" />
         <source>The current database will be replaced. A backup will be created before the restore.</source>
         <translation>Текущая база данных будет заменена. Перед восстановлением будет создана резервная копия.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="61" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="54" />
         <source>Backup file: {name}</source>
         <translation>Файл резервной копии: {name}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="76" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="69" />
         <source>Select a backup file to restore</source>
         <translation>Выберите файл резервной копии для восстановления</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="103" />
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="90" />
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="78" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="71" />
         <source>SQLite DB (*.db);;All files (*)</source>
         <translation>SQLite DB (*.db);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="88" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="81" />
         <source>Select a database file to connect</source>
         <translation>Выберите файл базы данных для подключения</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="101" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="83" />
+        <source>Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
+        <translation>Архив резервной копии или БД SQLite (*.zip *.db);;Архив ZIP (*.zip);;БД SQLite (*.db);;Все файлы (*)</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="94" />
         <source>Save database copy</source>
         <translation>Сохранить копию базы данных</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="116" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="96" />
+        <source>Backup archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
+        <translation>Архив резервной копии (*.zip);;БД SQLite (*.db);;Все файлы (*)</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="109" />
         <source>Save icons archive</source>
         <translation>Сохранить архив иконок</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="130" />
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="118" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="123" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="111" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP архив (*.zip);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="128" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="121" />
         <source>Select an icons archive to import</source>
         <translation>Выберите архив иконок для импорта</translation>
     </message>
@@ -1397,27 +1427,32 @@
 </context><context>
     <name>DatabaseRestoreWorker</name>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="143" />
+        <location filename="..\app\services\database_restore_worker.py" line="159" />
         <source>Restored database failed verification: {error}</source>
         <translation>Восстановленная база данных не прошла проверку: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="221" />
+        <location filename="..\app\services\database_restore_worker.py" line="217" />
+        <source>Archive does not contain a valid database file.</source>
+        <translation>Архив не содержит корректного файла базы данных.</translation>
+    </message>
+    <message>
+        <location filename="..\app\services\database_restore_worker.py" line="321" />
         <source>Cannot restore database: WAL file {file_name} is locked. Please close all connections and try again.</source>
         <translation>Невозможно восстановить базу данных: файл WAL {file_name} заблокирован. Закройте все подключения и попробуйте снова.</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="352" />
+        <location filename="..\app\services\database_restore_worker.py" line="452" />
         <source>Backup file does not exist: {path}</source>
         <translation>Файл резервной копии не существует: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="360" />
+        <location filename="..\app\services\database_restore_worker.py" line="460" />
         <source>Backup file is empty: {path}</source>
         <translation>Файл резервной копии пуст: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="419" />
+        <location filename="..\app\services\database_restore_worker.py" line="519" />
         <source>Backup integrity check failed: {error}</source>
         <translation>Проверка целостности резервной копии не удалась: {error}</translation>
     </message>
@@ -1561,13 +1596,13 @@
 </context><context>
     <name>DragDrop</name>
     <message>
-        <location filename="..\app\views\widgets\tiles\list_view.py" line="193" />
+        <location filename="..\app\views\widgets\tiles\list_view.py" line="196" />
         <location filename="..\app\views\widgets\custom_widgets.py" line="564" />
         <source>Dragging {total} items — {shown} and {remaining} more</source>
         <translation>Перетаскивается {total} элементов — {shown} и еще {remaining}</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tiles\list_view.py" line="196" />
+        <location filename="..\app\views\widgets\tiles\list_view.py" line="199" />
         <location filename="..\app\views\widgets\custom_widgets.py" line="567" />
         <source>Dragging {total} items — {shown}</source>
         <translation>Перетаскивается {total} элементов — {shown}</translation>
@@ -2038,6 +2073,88 @@ Failed: {3}</source>
         <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="461" />
         <source>Try selecting the section again or refresh the sections list.</source>
         <translation>Попробуйте выбрать раздел снова или обновить список разделов.</translation>
+    </message>
+</context><context>
+    <name>ImportConflictDialog</name>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1471" />
+        <source>Move</source>
+        <translation>Перемещение</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1472" />
+        <source>Copy</source>
+        <translation>Копирование</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1473" />
+        <source>Import</source>
+        <translation>Импорт</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1480" />
+        <source>Section «{name}» already exists in this sphere.</source>
+        <translation>Раздел «{name}» уже есть в этой сфере.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1516" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1484" />
+        <source>Merge contents</source>
+        <translation>Объединить содержимое</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1485" />
+        <source>Move all items into the existing section without overwriting.</source>
+        <translation>Перенести все элементы в существующий раздел без перезаписи.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1521" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1505" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1489" />
+        <source>Keep both (create copy «{name}»)</source>
+        <translation>Оставить оба (создать копию «{name}»)</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1524" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1508" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1492" />
+        <source>Save alongside under a unique name.</source>
+        <translation>Сохранить рядом под уникальным именем.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1496" />
+        <source>Link «{name}» already exists in this category.</source>
+        <translation>Ссылка «{name}» уже есть в этой категории.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1500" />
+        <source>Replace existing</source>
+        <translation>Заменить существующую</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1501" />
+        <source>Update the existing link with new parameters.</source>
+        <translation>Обновить данные существующей ссылки.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1512" />
+        <source>Category «{name}» already exists in this section.</source>
+        <translation>Категория «{name}» уже есть в этом разделе.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1517" />
+        <source>Move all items into the existing category without overwriting.</source>
+        <translation>Перенести все элементы в существующую категорию без перезаписи.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1531" />
+        <source>Choose what to do:</source>
+        <translation>Что сделать:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1541" />
+        <source>Apply</source>
+        <translation>Применить</translation>
     </message>
 </context><context>
     <name>ImportExportProgress</name>
@@ -2622,6 +2739,37 @@ Are you sure you want to continue?</source>
         <source>This action is irreversible.</source>
         <translation>Это действие необратимо.</translation>
     </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="265" />
+        <source>File or Program Not Found</source>
+        <translation>Файл или программа не найдены</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="266" />
+        <source>The file or program for '{name}' was not found at:
+{path}
+
+Would you like to locate it on this computer?</source>
+        <translation>Файл или программа для «{name}» не найдены по пути:
+{path}
+
+Хотите указать расположение на этом компьютере?</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="285" />
+        <source>Select Folder</source>
+        <translation>Выбор папки</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="291" />
+        <source>Select File or Program</source>
+        <translation>Выбор файла или программы</translation>
+    </message>
+    <message>
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="293" />
+        <source>All Files (*.*)</source>
+        <translation>Все файлы (*.*)</translation>
+    </message>
 </context><context>
     <name>LinkProcessingMixin</name>
     <message>
@@ -2773,22 +2921,22 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>LinksUIController</name>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="434" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="446" />
         <source>Open Links</source>
         <translation>Открытие ссылок</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="435" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="447" />
         <source>Open {limit}</source>
         <translation>Открыть {limit}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="438" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="450" />
         <source>Cancel</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="439" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="451" />
         <source>You are trying to open more than {limit} links simultaneously.
 To prevent performance issues, opening is limited to {limit} links.
 Would you like to open the first {limit} selected links?</source>
@@ -2826,13 +2974,13 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="482" />
+        <location filename="..\app\views\windows\main_window.py" line="483" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="21" />
         <source>Switch Sphere (F6)</source>
         <translation>Переключить сферу (F6)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="483" />
+        <location filename="..\app\views\windows\main_window.py" line="484" />
         <location filename="..\app\controllers\system\window_setup\ui.py" line="22" />
         <source>Switch to next available sphere</source>
         <translation>Переключить на следующую доступную сферу</translation>
@@ -2875,27 +3023,27 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>MenuActions</name>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="52" />
         <source>Error: %1</source>
         <translation>Ошибка: %1</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="157" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="159" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Добавить раздел</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="158" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
         <translation>Добавить категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="159" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="90" />
         <source>Add link</source>
@@ -2907,13 +3055,13 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Очистить избранное</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="92" />
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
         <source>Settings</source>
         <translation>Настройки</translation>
@@ -2924,7 +3072,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Сохранить базу данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
         <source>Restore Database</source>
         <translation>Восстановить базу данных</translation>
@@ -2936,7 +3084,7 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="551" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
         <source>Import Bookmarks</source>
         <translation>Импортировать закладки</translation>
@@ -2963,32 +3111,32 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="550" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
         <source>Search files</source>
         <translation>Поиск файлов</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>About</source>
         <translation>О программе</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
         <source>Edit section</source>
         <translation>Редактировать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
         <source>Edit category</source>
         <translation>Редактировать категорию</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="130" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
@@ -2996,45 +3144,45 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Вставить</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
         <source>Paste section</source>
         <translation>Вставить раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
         <source>Delete section</source>
         <translation>Удалить раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
         <source>Copy category</source>
         <translation>Копировать категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
         <source>Copy section</source>
         <translation>Копировать раздел</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="107" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
         <source>Cut</source>
         <translation>Вырезать</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
         <source>Delete category</source>
         <translation>Удалить категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
         <source>Delete selected</source>
         <translation>Удалить выбранное</translation>
@@ -3043,14 +3191,14 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1546" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1511" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="150" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
         <source>Select all</source>
         <translation>Выделить всё</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
         <source>Clear selection</source>
@@ -3058,20 +3206,20 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="91" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="118" />
         <source>&amp;Undo</source>
         <translation>&amp;Отменить</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="98" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="119" />
         <source>&amp;Redo</source>
         <translation>&amp;Повторить</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="121" />
         <source>Open</source>
         <translation>Открыть</translation>
@@ -3082,14 +3230,14 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Запустить отмеченные</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>Edit</source>
         <translation>Редактировать</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="140" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="124" />
         <source>Delete</source>
         <translation>Удалить</translation>
@@ -3098,153 +3246,153 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1536" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1501" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="114" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <source>Copy</source>
-        <translation>Копировать</translation>
+        <translation>Копирование</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
         <source>Edit note</source>
         <translation>Редактировать примечание</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
         <source>Add note</source>
         <translation>Добавить заметку</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="134" />
         <source>Add to favorites</source>
         <translation>Добавить в избранное</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
         <source>Remove from favorites</source>
         <translation>Удалить из избранного</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="137" />
         <source>Share</source>
         <translation>Поделиться</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
         <source>Email</source>
         <translation>Почта</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="139" />
         <source>Telegram</source>
         <translation>Телеграм</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
         <source>WhatsApp</source>
         <translation>Ватсап</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
         <source>Viber</source>
         <translation>Вайбер</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
         <source>X (Twitter)</source>
         <translation>X (Твиттер)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
         <source>Facebook</source>
         <translation>Фейсбук</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
         <source>LinkedIn</source>
         <translation>Линкедин</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
         <source>Pinterest</source>
         <translation>Пинтерест</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
         <source>Via Gmail</source>
         <translation>Через Gmail</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
         <source>Via default client (mailto)</source>
         <translation>Через почтовый клиент (mailto)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
         <source>Copy as email message</source>
         <translation>Скопировать как письмо</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
-        <source>Share category</source>
-        <translation>Поделиться категорией</translation>
-    </message>
-    <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
-        <source>Share section</source>
-        <translation>Поделиться разделом</translation>
-    </message>
-    <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
-        <source>Import category</source>
-        <translation>Импорт категории</translation>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
+        <source>Export category</source>
+        <translation>Экспортировать категорию</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="152" />
-        <source>Import section</source>
-        <translation>Импорт раздела</translation>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
+        <source>Export section</source>
+        <translation>Экспортировать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="153" />
+        <source>Import category</source>
+        <translation>Импортировать категорию</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
+        <source>Import section</source>
+        <translation>Импортировать раздел</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
         <source>Clear favorites</source>
         <translation>Очистить избранное</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <source>Export Database</source>
         <translation>Экспорт базы данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
         <source>Import Database</source>
         <translation>Импорт базы данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
         <source>Export icons</source>
         <translation>Экспорт иконок</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
         <source>Import icons</source>
         <translation>Импорт иконок</translation>
     </message>
@@ -3263,67 +3411,57 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>MoveOperationsHandler</name>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="186" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="158" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="114" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="167" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="139" />
         <source>Undo history is unavailable. Move canceled.</source>
         <translation>История отмены недоступна. Перемещение отменено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="338" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="216" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="187" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="159" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="115" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="296" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="168" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="140" />
         <source>Undo history unavailable</source>
         <translation>История отмены недоступна</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="339" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="217" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="188" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="160" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="116" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="297" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="169" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="141" />
         <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
         <translation>Включите поддержку отмены/повтора или инициализируйте undo_stack в главном окне.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="215" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="295" />
         <source>Undo history is unavailable. Batch move canceled.</source>
         <translation>История отмены недоступна. Пакетное перемещение отменено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="337" />
-        <source>History is unavailable. Move between sections canceled.</source>
-        <translation>История недоступна. Перемещение между разделами отменено.</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="554" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="618" />
         <source>A category with the same name already exists in the selected section.</source>
         <translation>Категория с таким именем уже существует в выбранном разделе.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="557" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="621" />
         <source>Category duplicate</source>
         <translation>Дубликат категории</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="558" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="622" />
         <source>Rename the category or choose another section.</source>
         <translation>Переименуйте категорию или выберите другой раздел.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="570" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="634" />
         <source>Failed to update item positions.</source>
         <translation>Не удалось обновить позиции элементов.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="571" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="635" />
         <source>Database error during move</source>
         <translation>Ошибка базы данных при перемещении</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="572" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="636" />
         <source>Position changes were not saved.</source>
         <translation>Изменения позиций не сохранены.</translation>
     </message>
@@ -3352,7 +3490,7 @@ Would you like to open the first {limit} selected links?</source>
     <message>
         <location filename="..\app\views\windows\dialogs\note_dialog.py" line="344" />
         <source>Copy</source>
-        <translation>Копировать</translation>
+        <translation>Копирование</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\note_dialog.py" line="352" />
@@ -3672,53 +3810,53 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>SectionDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="503" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="423" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="506" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="426" />
         <source>Sphere:</source>
         <translation>Сфера:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="445" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="448" />
         <source>Section not found.</source>
         <translation>Раздел не найден.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="446" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="449" />
         <source>Section unavailable</source>
         <translation>Раздел недоступен</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="447" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="450" />
         <source>The section might have been deleted. ID: %1</source>
         <translation>Раздел мог быть удален. ID: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="468" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="471" />
         <source>Sphere not selected.</source>
         <translation>Сфера не выбрана.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="469" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="472" />
         <source>Sphere selection required</source>
         <translation>Требуется выбор сферы</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="470" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="473" />
         <source>Choose a sphere from the list and press "Save".</source>
         <translation>Выберите сферу из списка и нажмите "Сохранить".</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="483" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="486" />
         <source>Section with this name already exists in the selected sphere.</source>
         <translation>Раздел с таким именем уже существует в выбранной сфере.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="484" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="487" />
         <source>Duplicate section name</source>
         <translation>Дубликат имени раздела</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="485" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="488" />
         <source>Please choose a different name or edit the existing section.</source>
         <translation>Пожалуйста, выберите другое имя или отредактируйте существующий раздел.</translation>
     </message>
@@ -3753,110 +3891,123 @@ Version 1.0
 </context><context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="925" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="728" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="972" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="751" />
         <source>Language:</source>
         <translation>Язык:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="929" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="734" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="976" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="757" />
         <source>Theme:</source>
         <translation>Тема:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="947" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="751" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="999" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="774" />
         <source>Theme actions:</source>
         <translation>Действия с темой:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="933" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="764" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="980" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="787" />
         <source>Font size:</source>
         <translation>Размер шрифта:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="937" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="777" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="984" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="800" />
         <source>Max backups:</source>
         <translation>Резервные копии:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="833" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="869" />
         <source>Import theme</source>
         <translation>Импорт темы</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="835" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="871" />
         <source>Theme files (*.zip *.qss);;Stylesheets (*.qss);;Theme packages (*.zip);;All files (*)</source>
         <translation>Файлы тем (*.zip *.qss);;Таблицы стилей (*.qss);;Пакеты тем (*.zip);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="845" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="881" />
         <source>Theme '%1' already exists. What would you like to do?</source>
         <translation>Тема '%1' уже существует. Что вы хотите сделать?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="848" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="884" />
         <source>Replace</source>
         <translation>Заменить</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="849" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="885" />
         <source>Rename</source>
         <translation>Переименовать</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="865" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="901" />
         <source>Failed to import theme.</source>
         <translation>Не удалось импортировать тему.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="866" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="902" />
         <source>Theme import error</source>
         <translation>Ошибка импорта темы</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="894" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="930" />
         <source>Remove theme '%1'?</source>
         <translation>Удалить тему '%1'?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="942" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="895" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="994" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="931" />
         <source>Remove theme</source>
         <translation>Удалить тему</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="903" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="939" />
         <source>Failed to remove theme.</source>
         <translation>Не удалось удалить тему.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="904" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="940" />
         <source>Theme remove error</source>
         <translation>Ошибка удаления темы</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="940" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="988" />
+        <source>Associate .aitepack files</source>
+        <translation>Ассоциировать файлы .aitepack</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="992" />
         <source>Import theme</source>
         <translation>Импортировать тему</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1003" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1055" />
         <source>Failed to save settings.</source>
         <translation>Не удалось сохранить настройки.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1004" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1056" />
         <source>Settings save error</source>
         <translation>Ошибка сохранения настроек</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1005" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1057" />
         <source>Check the values and try again.</source>
         <translation>Проверьте значения и попробуйте снова.</translation>
+    </message>
+</context><context>
+    <name>ShareService</name>
+    <message>
+        <location filename="..\app\services\share_service.py" line="50" />
+        <location filename="..\app\services\share_service.py" line="45" />
+        <source>I recommend:</source>
+        <translation>Рекомендую:</translation>
     </message>
 </context><context>
     <name>SpheresBarController</name>
@@ -3910,7 +4061,7 @@ Version 1.0
         <translation>Выбрать иконку</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1289" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1341" />
         <source>Rename Sphere</source>
         <translation>Переименовать сферу</translation>
     </message>
@@ -4030,77 +4181,87 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="565" />
+        <location filename="..\app\views\windows\main_window.py" line="566" />
         <source>Sphere not selected.</source>
         <translation>Сфера не выбрана.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="568" />
+        <location filename="..\app\views\windows\main_window.py" line="569" />
         <source>Select a sphere and try again.</source>
         <translation>Выберите сферу и попробуйте снова.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="610" />
-        <location filename="..\app\views\windows\main_window.py" line="582" />
+        <location filename="..\app\views\windows\main_window.py" line="613" />
+        <location filename="..\app\views\windows\main_window.py" line="585" />
         <source>Export error</source>
         <translation>Ошибка экспорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="607" />
+        <location filename="..\app\views\windows\main_window.py" line="610" />
         <source>Failed to export archive: {error}</source>
         <translation>Не удалось экспортировать архив: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="622" />
+        <location filename="..\app\views\windows\main_window.py" line="625" />
         <source>Archive saved to:
 {path}</source>
         <translation>Архив сохранен в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="625" />
+        <location filename="..\app\views\windows\main_window.py" line="628" />
         <source>Export complete</source>
         <translation>Экспорт завершен</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="645" />
+        <location filename="..\app\views\windows\main_window.py" line="634" />
         <source>Choose where to save the archive</source>
         <translation>Выберите место для сохранения архива</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="683" />
-        <location filename="..\app\views\windows\main_window.py" line="648" />
-        <source>ZIP archive (*.zip);;All files (*)</source>
-        <translation>ZIP архив (*.zip);;Все файлы (*)</translation>
+        <location filename="..\app\views\windows\main_window.py" line="667" />
+        <location filename="..\app\views\windows\main_window.py" line="638" />
+        <source>Section Archive (*.aitesec);;All files (*)</source>
+        <translation>Архив раздела (*.aitesec);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="707" />
-        <location filename="..\app\views\windows\main_window.py" line="668" />
+        <location filename="..\app\views\windows\main_window.py" line="671" />
+        <location filename="..\app\views\windows\main_window.py" line="642" />
+        <source>Category Archive (*.aitecat);;All files (*)</source>
+        <translation>Архив категории (*.aitecat);;Все файлы (*)</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="837" />
+        <location filename="..\app\views\windows\main_window.py" line="697" />
+        <location filename="..\app\views\windows\main_window.py" line="656" />
         <source>Import error</source>
         <translation>Ошибка импорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="680" />
+        <location filename="..\app\views\windows\main_window.py" line="663" />
         <source>Select an archive to import</source>
         <translation>Выберите архив для импорта</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="704" />
+        <location filename="..\app\views\windows\main_window.py" line="834" />
+        <location filename="..\app\views\windows\main_window.py" line="694" />
         <source>Failed to import archive: {error}</source>
         <translation>Не удалось импортировать архив: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="716" />
+        <location filename="..\app\views\windows\main_window.py" line="844" />
+        <location filename="..\app\views\windows\main_window.py" line="706" />
         <source>Import completed.</source>
         <translation>Импорт завершен.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="717" />
+        <location filename="..\app\views\windows\main_window.py" line="845" />
+        <location filename="..\app\views\windows\main_window.py" line="707" />
         <source>Import complete</source>
         <translation>Импорт завершен</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="800" />
+        <location filename="..\app\views\windows\main_window.py" line="940" />
         <source>Structure service unavailable.</source>
         <translation>Сервис структуры недоступен.</translation>
     </message>

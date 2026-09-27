@@ -63,25 +63,23 @@ class CategoryMenuBuilder:
         )
 
         menu.addAction(add_link_action)
-        menu.addSeparator()
         menu.addAction(edit_action)
+        menu.addSeparator()
         menu.addAction(
             self.actions.create(
-                MenuTexts.SHARE_CATEGORY,
+                MenuTexts.EXPORT_CATEGORY,
                 lambda: self.main_window.share_category(int(item_id)),
                 None,
-                self._get_icon("share"),
+                self._get_icon("save_db"),
             )
         )
         menu.addSeparator()
 
-        self._add_common_actions(menu, None)
+        delete_action = self._add_common_actions(menu, None) or delete_action
 
-        # Order: add_link, share, [sep], cut/copy/paste, [sep], edit, [sep], delete,
-        # [sep], select_all/clear, [sep], undo/redo
         return menu, edit_action, add_link_action, delete_action or edit_action
 
-    def _add_common_actions(self, menu: QMenu, edit_action: QAction | None) -> None:
+    def _add_common_actions(self, menu: QMenu, edit_action: QAction | None) -> QAction | None:
         cut_action = self._create_context_action(
             MenuTexts.CUT, "cut_current", Shortcuts.CTRL_X, "cut", "cut_action"
         )
@@ -95,7 +93,7 @@ class CategoryMenuBuilder:
             MenuTexts.DELETE, "delete_current", Shortcuts.DELETE, "delete", "delete_action"
         )
 
-        for action in (cut_action, copy_action, paste_action, delete_action):
+        for action in (cut_action, copy_action, paste_action):
             if action is not None:
                 menu.addAction(action)
 
@@ -103,8 +101,7 @@ class CategoryMenuBuilder:
 
         if edit_action is not None:
             menu.addAction(edit_action)
-
-        menu.addSeparator()
+            menu.addSeparator()
 
         select_all_action = self._create_context_action(
             MenuTexts.SELECT_ALL,
@@ -113,18 +110,22 @@ class CategoryMenuBuilder:
             "select_all",
             "select_all_action",
         )
-        if select_all_action is not None:
-            menu.addAction(select_all_action)
         clear_action = self.actions.create(
             MenuTexts.CLEAR_SELECTION,
             self._clear_tiles_selection,
             Shortcuts.CLEAR_SELECTION,
             self._get_icon("deselect_all"),
         )
-        clear_action.setVisible(self._tiles_selection_count() > 1)
-        menu.addAction(clear_action)
+        if self._tiles_selection_count() > 1:
+            menu.addAction(clear_action)
+        elif select_all_action is not None:
+            menu.addAction(select_all_action)
 
         menu.addSeparator()
+
+        if delete_action is not None:
+            menu.addAction(delete_action)
+            menu.addSeparator()
 
         undo_action = self._create_context_action(
             MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
@@ -136,6 +137,8 @@ class CategoryMenuBuilder:
             menu.addAction(undo_action)
         if redo_action is not None:
             menu.addAction(redo_action)
+
+        return delete_action
 
     def _create_context_action(
         self,

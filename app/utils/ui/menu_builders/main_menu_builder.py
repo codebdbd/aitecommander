@@ -365,7 +365,7 @@ class MainMenuBuilder:
                 MenuTexts.SAVE_DATABASE,
                 self._save_database,
                 Shortcuts.CTRL_ALT_S,
-                icon_name="export",
+                icon_name="save_db",
             )
         )
         data_menu.addAction(

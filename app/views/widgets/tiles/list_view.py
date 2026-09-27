@@ -36,6 +36,9 @@ class CategoryListView(QListView):
         super().__init__(parent)
         self._press_pos: QPoint | None = None
         self._selected_text_color = QColor()
+        self.setAcceptDrops(True)
+        if self.viewport() is not None:
+            self.viewport().setAcceptDrops(True)
         self._normalize_scrollbars()
 
     def _get_selected_text_color(self) -> QColor:
@@ -196,6 +199,42 @@ class CategoryListView(QListView):
         return QCoreApplication.translate(
             "DragDrop", "Dragging {total} items — {shown}"
         ).format(total=total, shown=", ".join(shown))
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # type: ignore[override]
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            from pathlib import Path
+
+            main = self.window()
+            if hasattr(main, "import_archive_file"):
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
+                pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+                idx = self.indexAt(pos)
+                cat_id = idx.data(Qt.ItemDataRole.UserRole) if idx.isValid() else None
+                main.import_archive_file(
+                    Path(targets[0]),
+                    target_type="category" if cat_id else None,
+                    target_id=int(cat_id) if cat_id else None,
+                )
+                return
+        super().dropEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         # Explicitly start DnD when cursor moved enough

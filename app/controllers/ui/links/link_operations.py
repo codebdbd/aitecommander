@@ -167,21 +167,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         except FileNotFoundError as e:
             raw_path = target_link.get("url", "")
             logger.warning("File or folder not found: %s", raw_path)
-            from app.controllers.ui.dialogs import DialogManager
-
-            hint_text = self.get_message("file_not_found_hint")
-            info_text = f"{hint_text}\n\n{raw_path}" if raw_path else hint_text
-            DialogManager.show_info(
-                parent=self.main,
-                title=self.get_message("not_found_title", "File Not Found"),
-                message=self.get_message(
-                    "file_not_found_message",
-                    "The file or folder could not be found on disk.",
-                ),
-                informative_text=info_text,
-                details=str(raw_path) if raw_path else None,
-                silent=True,
-            )
+            self._prompt_relocate_missing_link(target_link, raw_path)
         except OSError as e:
             if getattr(e, "winerror", None) in (2, 3):
                 raw_path = target_link.get("url", "")
@@ -190,21 +176,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                     getattr(e, "winerror", None),
                     raw_path,
                 )
-                from app.controllers.ui.dialogs import DialogManager
-
-                hint_text = self.get_message("file_not_found_hint")
-                info_text = f"{hint_text}\n\n{raw_path}" if raw_path else hint_text
-                DialogManager.show_info(
-                    parent=self.main,
-                    title=self.get_message("not_found_title", "File Not Found"),
-                    message=self.get_message(
-                        "file_not_found_message",
-                        "The file or folder could not be found on disk.",
-                    ),
-                    informative_text=info_text,
-                    details=str(raw_path) if raw_path else None,
-                    silent=True,
-                )
+                self._prompt_relocate_missing_link(target_link, raw_path)
             else:
                 logger.error(
                     "Error opening link %s: %s", link.get("url", link), e, exc_info=True
@@ -283,3 +255,51 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link = selected_links[0]
 
         self.business.toggle_favorite(link)
+
+    def _prompt_relocate_missing_link(self, link: dict, raw_path: str) -> None:
+        """Prompt user to relocate a missing file or application on disk."""
+        from PyQt6.QtCore import QCoreApplication
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+        name = link.get("name") or "Item"
+        title = QCoreApplication.translate("LinkOperations", "File or Program Not Found")
+        msg = QCoreApplication.translate(
+            "LinkOperations",
+            "The file or program for '{name}' was not found at:\n{path}\n\nWould you like to locate it on this computer?",
+        ).format(name=name, path=raw_path)
+
+        reply = QMessageBox.question(
+            self.main,
+            title,
+            msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        is_folder = link.get("type") == "folder"
+        if is_folder:
+            new_path = QFileDialog.getExistingDirectory(
+                self.main,
+                QCoreApplication.translate("LinkOperations", "Select Folder"),
+                "",
+            )
+        else:
+            new_path, _ = QFileDialog.getOpenFileName(
+                self.main,
+                QCoreApplication.translate("LinkOperations", "Select File or Program"),
+                "",
+                QCoreApplication.translate("LinkOperations", "All Files (*.*)"),
+            )
+
+        if not new_path:
+            return
+
+        try:
+            link["url"] = new_path
+            if self.business and hasattr(self.business, "save_link"):
+                self.business.save_link(link)
+            self._open_link(link)
+        except Exception as exc:
+            logger.warning("Failed to update relocated link path: %s", exc)

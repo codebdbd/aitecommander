@@ -49,7 +49,7 @@ _CENTERED_SECTIONS = frozenset(centered_columns())
 
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
-@lru_cache(maxsize=100)
+@lru_cache(maxsize=1024)
 def _get_icon_cached(icon_path: str) -> QIcon | None:
     """Global icon cache function to avoid memory leaks."""
     if not icon_path:
@@ -74,7 +74,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     ``notes``, ``is_favorite``, ``url``/``path``.
     """
 
-    MAX_ICON_CACHE = 500  # Icon cache size limit
     groupLaunchToggled = pyqtSignal(int, int)  # link_id, val_int
     orderEdited = pyqtSignal(list)  # link IDs in the new order
 

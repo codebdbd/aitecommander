@@ -162,6 +162,11 @@ class DragDropHandler(TreeHandlerBase):
     def _handle_external_drag_move_index(self, event, mime) -> None:
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         if not target_index or not target_index.isValid():
+            targets = self._extract_external_link_targets(mime)
+            if len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack")):
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
+                return
             event.ignore()
             return
         ttuple = get_tree_tuple(target_index, 0)
@@ -183,7 +188,9 @@ class DragDropHandler(TreeHandlerBase):
             else:
                 event.ignore()
         elif self._extract_external_link_targets(mime):
-            if target_type == "category":
+            targets = self._extract_external_link_targets(mime)
+            is_archive = len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack"))
+            if target_type == "category" or (target_type == "section" and is_archive):
                 valid_drop = True
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
@@ -678,9 +685,23 @@ class DragDropHandler(TreeHandlerBase):
         return True
 
     def _handle_external_url_drop_index(self, mime, target_index: QModelIndex) -> bool:
-        """Request creating links in the target category from external drops."""
+        """Request creating links or importing packages from external drops."""
         ttuple = get_tree_tuple(target_index, 0)
-        if not (ttuple and ttuple[0] == "category" and isinstance(ttuple[1], int)):
+        if not (ttuple and ttuple[0] in ("category", "section") and isinstance(ttuple[1], int)):
+            targets = self._extract_external_link_targets(mime)
+            if len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack")):
+                self.tree_widget.externalLinkDropped.emit(
+                    {
+                        "type": "external_link_to_category",
+                        "item_type": None,
+                        "item_id": None,
+                        "category_id": None,
+                        "targets": targets,
+                        "urls": targets,
+                        "title": "",
+                    }
+                )
+                return True
             return False
         targets = self._extract_external_link_targets(mime)
         if not targets:
@@ -689,7 +710,9 @@ class DragDropHandler(TreeHandlerBase):
             self.tree_widget.externalLinkDropped.emit(
                 {
                     "type": "external_link_to_category",
-                    "category_id": int(ttuple[1]),
+                    "item_type": ttuple[0],
+                    "item_id": int(ttuple[1]),
+                    "category_id": int(ttuple[1]) if ttuple[0] == "category" else None,
                     "targets": targets,
                     "urls": targets,
                     "title": target_index.data(),
@@ -697,7 +720,8 @@ class DragDropHandler(TreeHandlerBase):
             )
         except Exception:
             logger.warning(
-                "Failed to emit external URL drop for category %s",
+                "Failed to emit external URL drop for %s %s",
+                ttuple[0],
                 ttuple[1],
                 exc_info=True,
             )

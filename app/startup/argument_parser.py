@@ -11,6 +11,7 @@ class AppArguments(NamedTuple):
     debug: bool
     log_level: str | None
     no_gui: bool
+    file: str | None = None
 
 
 def parse_arguments() -> AppArguments:
@@ -39,12 +40,19 @@ def parse_arguments() -> AppArguments:
         action="store_true",
         help="Run without initializing GUI (for certain testing scenarios)",
     )
+    parser.add_argument(
+        "file",
+        nargs="?",
+        default=None,
+        help="Archive package (.aitepack, .zip) to import",
+    )
     args = parser.parse_args()
 
     return AppArguments(
         debug=args.debug,
         log_level=args.log_level,
         no_gui=args.no_gui,
+        file=args.file,
     )
 
 

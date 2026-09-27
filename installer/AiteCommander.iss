@@ -64,3 +64,19 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\.aitesec"; ValueType: string; ValueName: ""; ValueData: "AiteCommander.Section"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Section"; ValueType: string; ValueName: ""; ValueData: "AiteCommander Section"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Section\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\_internal\app\resources\package_icon.ico,0"
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Section\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.aitecat"; ValueType: string; ValueName: ""; ValueData: "AiteCommander.Category"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Category"; ValueType: string; ValueName: ""; ValueData: "AiteCommander Category"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Category\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\_internal\app\resources\package_icon.ico,0"
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Category\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.aitepack"; ValueType: string; ValueName: ""; ValueData: "AiteCommander.Package"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Package"; ValueType: string; ValueName: ""; ValueData: "AiteCommander Package"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Package\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\_internal\app\resources\package_icon.ico,0"
+Root: HKCU; Subkey: "Software\Classes\AiteCommander.Package\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+

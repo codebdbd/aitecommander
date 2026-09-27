@@ -403,10 +403,18 @@ class StructureContextService:
         sid = int(section_id)
         prepared: list[dict] = []
         bindings: list[tuple[str, dict]] = []
+        from app.services.structure_share_service import generate_unique_name
+        existing = self._ss.get_categories(sid) or []
+        existing_names = [c.get("name", "") for c in existing]
 
         for tree in trees:
             tree_dict = dict(tree or {})
             src_cat = dict(tree_dict.get("category", {}) or {})
+            name = str(src_cat.get("name", "")).strip()
+            if name:
+                unique_name = generate_unique_name(existing_names, name)
+                src_cat["name"] = unique_name
+                existing_names.append(unique_name)
             # exclude service fields
             new_cat = {
                 k: v for k, v in src_cat.items() if k not in {"id", "section_id"}

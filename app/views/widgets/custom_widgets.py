@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import logging
 
 from PyQt6.QtCore import (
@@ -49,6 +50,8 @@ class NoFocusRectDelegate(QStyledItemDelegate):
 class HighQualityTreeDelegate(QStyledItemDelegate):
     """Delegate providing high-quality icon rendering in the structure tree."""
 
+    _PIXMAP_CACHE_LIMIT = 512
+
     def __init__(self, item_height: int | None = None, parent=None):
         super().__init__(parent)
         try:
@@ -62,7 +65,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             self._item_height = None
         # Cache of prepared pixmaps: key = (icon_cache_key, width, height, dpr)
         # This significantly reduces recalculations and allocations in paint()
-        self._pixmap_cache: dict[tuple, QIcon] = {}
+        self._pixmap_cache: OrderedDict[tuple, QIcon] = OrderedDict()
 
     def clear_cache(self):
         """Clear icon cache (e.g., when size/scale parameters change)."""
@@ -73,7 +76,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                 "HighQualityTreeDelegate.clear_cache: cache attribute missing, recreating: %s",
                 e,
             )
-            self._pixmap_cache = {}
+            self._pixmap_cache = OrderedDict()
 
     def set_item_height(self, item_height: int | None):
         """Set new item height and clear cache."""
@@ -160,20 +163,21 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             # Cache key: use QIcon.cacheKey(), dimensions and DPR
             try:
                 icon_key = icon.cacheKey()  # int
-            except AttributeError as e:
-                logger.warning(
-                    "HighQualityTreeDelegate.paint: icon has no cacheKey(), using id(): %s",
-                    e,
-                )
-                icon_key = id(icon)
-            cache_key = (
-                icon_key,
-                icon_size.width(),
-                icon_size.height(),
-                float(device_pixel_ratio),
-            )
+            except (AttributeError, RuntimeError):
+                icon_key = 0
 
-            cached_icon = self._pixmap_cache.get(cache_key)
+            cache_key = None
+            if icon_key:
+                cache_key = (
+                    icon_key,
+                    icon_size.width(),
+                    icon_size.height(),
+                    float(device_pixel_ratio),
+                )
+
+            cached_icon = self._pixmap_cache.get(cache_key) if cache_key else None
+            if cached_icon is not None and cache_key:
+                self._pixmap_cache.move_to_end(cache_key)
             if cached_icon is None:
                 # Create a temporary option with high-quality icon
                 temp_option = QStyleOptionViewItem(option)
@@ -211,7 +215,11 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                 # Build QIcon from prepared pixmap and put into cache
                 high_quality_icon = QIcon()
                 high_quality_icon.addPixmap(pixmap)
-                self._pixmap_cache[cache_key] = high_quality_icon
+                if cache_key:
+                    self._pixmap_cache[cache_key] = high_quality_icon
+                    self._pixmap_cache.move_to_end(cache_key)
+                    while len(self._pixmap_cache) > self._PIXMAP_CACHE_LIMIT:
+                        self._pixmap_cache.popitem(last=False)
                 cached_icon = high_quality_icon
 
             # Draw using cached icon with the standard method

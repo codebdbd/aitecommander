@@ -24,6 +24,7 @@ from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 logger = logging.getLogger(__name__)
 
 _ACTIVATE_CMD = b"ACTIVATE\n"
+_OPEN_PREFIX = b"OPEN:"
 _SOCKET_CONNECT_TIMEOUT_MS = 2000
 
 
@@ -54,9 +55,11 @@ class SingleInstanceGuard:
         self,
         server_name: str,
         activate_callback: Callable[[], None],
+        open_file_callback: Callable[[str], None] | None = None,
     ) -> None:
         self._server_name = server_name
         self._activate = activate_callback
+        self._open_file = open_file_callback
         self._server: QLocalServer | None = None
         self._is_owner = False
 
@@ -67,7 +70,7 @@ class SingleInstanceGuard:
     def is_owner(self) -> bool:
         return self._is_owner
 
-    def acquire(self) -> bool:
+    def acquire(self, file_to_open: str | None = None) -> bool:
         """Attempt to become the single running instance.
 
         Returns
@@ -78,7 +81,12 @@ class SingleInstanceGuard:
             it to activate its main window; caller should exit cleanly.
         """
         # Phase 1: try to connect to a running server (we are the second copy)
-        if self._try_notify_running_instance():
+        payload = (
+            f"OPEN:{file_to_open}\n".encode("utf-8")
+            if file_to_open
+            else _ACTIVATE_CMD
+        )
+        if self._try_notify_running_instance(payload):
             logger.info(
                 "Single-instance guard: detected running instance, "
                 "requested main window activation, exiting"
@@ -121,8 +129,8 @@ class SingleInstanceGuard:
     # ------------------------------------------------------------------
     # Internal helpers — client side (second instance)
     # ------------------------------------------------------------------
-    def _try_notify_running_instance(self) -> bool:
-        """Try to connect to an existing server and send ACTIVATE.
+    def _try_notify_running_instance(self, message: bytes = _ACTIVATE_CMD) -> bool:
+        """Try to connect to an existing server and send command.
 
         Returns ``True`` on success (another instance is alive).
         """
@@ -140,7 +148,7 @@ class SingleInstanceGuard:
                     )
                 return False
 
-            socket.write(QByteArray(_ACTIVATE_CMD))
+            socket.write(QByteArray(message))
             if not socket.waitForBytesWritten(1500):
                 logger.debug("SingleInstanceGuard write timeout")
             return True
@@ -183,9 +191,8 @@ class SingleInstanceGuard:
             client = self._server.nextPendingConnection()
             if client is None:
                 break
-            # Read the payload (optional; we always do the same action)
             try:
-                client.readyRead.connect(lambda c=client: self._drain_socket(c))
+                client.readyRead.connect(lambda c=client: self._handle_client_data(c))
                 client.disconnected.connect(client.deleteLater)
             except Exception:
                 pass
@@ -199,11 +206,18 @@ class SingleInstanceGuard:
         except Exception as exc:  # pragma: no cover - defensive
             logger.error("SingleInstanceGuard activate callback failed: %s", exc, exc_info=True)
 
-    @staticmethod
-    def _drain_socket(socket: QLocalSocket) -> None:
+    def _handle_client_data(self, socket: QLocalSocket) -> None:
         try:
             if socket.bytesAvailable():
-                socket.readAll()
+                data = bytes(socket.readAll())
+                for line in data.splitlines():
+                    if line.startswith(_OPEN_PREFIX):
+                        path_str = line[len(_OPEN_PREFIX):].decode("utf-8", errors="replace").strip()
+                        if path_str and self._open_file:
+                            try:
+                                self._open_file(path_str)
+                            except Exception as exc:
+                                logger.error("Open file callback error: %s", exc)
         except Exception:
             pass
 

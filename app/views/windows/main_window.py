@@ -57,6 +57,7 @@ from app.utils.ui.updates import suspend_updates
 from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
 from app.views.main_components.ui.window_widgets import MainWindowWidgets
 from app.views.widgets.status_bar import update_status_bar as _update_status_bar
+from app.views.widgets.status_bar import set_status_message
 
 logger = logging.getLogger(__name__)
 
@@ -384,6 +385,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         # Разрешаем QSS прокрашивать фон всего окна, иначе остаётся системная рамка
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # Prevent resize artifacts by ensuring proper paint events
+        self.setAcceptDrops(True)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         self.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors, True)
         self.setAutoFillBackground(True)
@@ -572,7 +574,9 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
         self._import_structure_package("section", int(sphere_id))
 
-    def _export_structure_package(self, package_type: str, item_id: int) -> None:
+    def _export_structure_package(
+        self, package_type: str, item_id: int
+    ) -> None:
 
         from PyQt6.QtCore import QCoreApplication
 
@@ -628,26 +632,17 @@ class MainWindow(QMainWindow, ReTranslatable):
     def _resolve_export_path(self, package_type: str, filename: str) -> Path | None:
         from PyQt6.QtCore import QCoreApplication
 
-        from app.utils.share_paths import (
-            ensure_service_root,
-            get_desktop_dir,
-            get_export_dir,
-        )
-
-        desktop = get_desktop_dir()
-        if desktop:
-            root = ensure_service_root(desktop)
-            if root:
-                export_dir = get_export_dir(root, package_type)
-                export_dir.mkdir(parents=True, exist_ok=True)
-                return _unique_path(export_dir / filename)
-
         dialog_title = QCoreApplication.translate(
             "StructureShare", "Choose where to save the archive"
         )
-        file_filter = QCoreApplication.translate(
-            "StructureShare", "ZIP archive (*.zip);;All files (*)"
-        )
+        if package_type == "section":
+            file_filter = QCoreApplication.translate(
+                "StructureShare", "Section Archive (*.aitesec);;All files (*)"
+            )
+        else:
+            file_filter = QCoreApplication.translate(
+                "StructureShare", "Category Archive (*.aitecat);;All files (*)"
+            )
         return self._choose_archive_save_path(
             dialog_title=dialog_title,
             default_name=filename,
@@ -658,12 +653,6 @@ class MainWindow(QMainWindow, ReTranslatable):
         from PyQt6.QtCore import QCoreApplication
 
         from app.controllers.ui.dialogs import DialogManager
-        from app.utils.share_paths import (
-            ensure_service_root,
-            get_desktop_dir,
-            get_import_dir,
-        )
-
         sb, service = self._get_structure_share_service(
             QCoreApplication.translate("StructureShare", "Import error")
         )
@@ -671,18 +660,18 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
 
         start_dir = ""
-        desktop = get_desktop_dir()
-        if desktop:
-            root = ensure_service_root(desktop)
-            if root:
-                start_dir = str(get_import_dir(root, package_type))
 
         dialog_title = QCoreApplication.translate(
             "StructureShare", "Select an archive to import"
         )
-        file_filter = QCoreApplication.translate(
-            "StructureShare", "ZIP archive (*.zip);;All files (*)"
-        )
+        if package_type == "section":
+            file_filter = QCoreApplication.translate(
+                "StructureShare", "Section Archive (*.aitesec);;All files (*)"
+            )
+        else:
+            file_filter = QCoreApplication.translate(
+                "StructureShare", "Category Archive (*.aitecat);;All files (*)"
+            )
         archive_path = self._choose_archive_open_path(
             dialog_title=dialog_title,
             start_dir=start_dir,
@@ -692,12 +681,14 @@ class MainWindow(QMainWindow, ReTranslatable):
             return
 
         try:
-            self._import_archive(
+            imported = self._import_archive(
                 service=service,
                 package_type=package_type,
                 archive_path=archive_path,
                 target_id=int(target_id),
             )
+            if not imported:
+                return
         except Exception as exc:
             DialogManager.show_error(
                 self,
@@ -711,10 +702,9 @@ class MainWindow(QMainWindow, ReTranslatable):
         self._refresh_structure_after_import(
             section_id=int(target_id) if package_type == "category" else None
         )
-        DialogManager.show_info(
+        set_status_message(
             self,
             QCoreApplication.translate("StructureShare", "Import completed."),
-            QCoreApplication.translate("StructureShare", "Import complete"),
         )
 
     def _export_archive(
@@ -737,11 +727,156 @@ class MainWindow(QMainWindow, ReTranslatable):
         package_type: str,
         archive_path: Path,
         target_id: int,
-    ) -> None:
+    ) -> bool:
         if package_type == "section":
-            service.import_section_archive(archive_path, target_id)
+            return bool(
+                service.import_section_archive(
+                    archive_path, target_id, conflict_resolver=self._resolve_import_conflict
+                )
+            )
+        return bool(
+            service.import_category_archive(
+                archive_path, target_id, conflict_resolver=self._resolve_import_conflict
+            )
+        )
+
+    def _resolve_import_conflict(self, entity_type: str, name: str, copy_name: str) -> str:
+        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+        from PyQt6.QtWidgets import QDialog
+
+        dlg = ImportConflictDialog(entity_type, name, copy_name, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            return dlg.get_action()
+        return "cancel"
+
+    def import_archive_file(
+        self,
+        archive_path: Path,
+        target_type: str | None = None,
+        target_id: int | None = None,
+    ) -> bool:
+        """Auto-import an archive package (.zip, .aitepack) dropped onto tree or opened."""
+        from PyQt6.QtCore import QCoreApplication
+
+        from app.controllers.ui.dialogs import DialogManager
+        from app.services.structure_share_service import StructureShareService
+
+        sb = getattr(self, "structure_business", None)
+        if not sb or not hasattr(sb, "structure_service"):
+            return False
+
+        service = StructureShareService(sb.structure_service)
+
+        try:
+            manifest = service.inspect_package(archive_path)
+            package_type = manifest.get("package_type")
+        except Exception:
+            return False
+
+        if package_type not in ("section", "category"):
+            return False
+
+        resolved_target_id = None
+        refresh_section_id = None
+
+        if package_type == "section":
+            if hasattr(sb, "get_current_sphere_id"):
+                try:
+                    resolved_target_id = sb.get_current_sphere_id()
+                except Exception:
+                    resolved_target_id = None
+        elif package_type == "category":
+            if target_type == "section" and isinstance(target_id, int):
+                resolved_target_id = target_id
+            elif target_type == "category" and isinstance(target_id, int):
+                hier = sb.get_category_hierarchy(target_id)
+                if hier and isinstance(hier.get("section_id"), int):
+                    resolved_target_id = hier["section_id"]
+            if resolved_target_id is None:
+                try:
+                    tree = getattr(self, "tree", None) or getattr(getattr(self, "widgets", None), "tree", None)
+                    if tree and hasattr(tree, "currentIndex"):
+                        cur = tree.currentIndex()
+                        if cur.isValid():
+                            from app.utils.ui.qt.roles import get_tree_tuple
+                            ttuple = get_tree_tuple(cur, 0)
+                            if ttuple:
+                                if ttuple[0] == "section":
+                                    resolved_target_id = ttuple[1]
+                                elif ttuple[0] == "category":
+                                    hier = sb.get_category_hierarchy(ttuple[1])
+                                    if hier and isinstance(hier.get("section_id"), int):
+                                        resolved_target_id = hier["section_id"]
+                except Exception:
+                    pass
+            if resolved_target_id is None and hasattr(sb, "get_target_section_id"):
+                try:
+                    resolved_target_id = sb.get_target_section_id()
+                except Exception:
+                    resolved_target_id = None
+            refresh_section_id = resolved_target_id
+
+        if not resolved_target_id:
+            return False
+
+        try:
+            imported = self._import_archive(
+                service=service,
+                package_type=package_type,
+                archive_path=archive_path,
+                target_id=int(resolved_target_id),
+            )
+            if not imported:
+                return True
+        except Exception as exc:
+            DialogManager.show_error(
+                self,
+                QCoreApplication.translate(
+                    "StructureShare", "Failed to import archive: {error}"
+                ).format(error=exc),
+                QCoreApplication.translate("StructureShare", "Import error"),
+            )
+            return True
+
+        self._refresh_structure_after_import(section_id=refresh_section_id)
+        set_status_message(
+            self,
+            QCoreApplication.translate("StructureShare", "Import completed."),
+        )
+        return True
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
             return
-        service.import_category_archive(archive_path, target_id)
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        from app.utils.ui.dnd.mime import MimeDataParser
+
+        targets = MimeDataParser.extract_external_link_targets(event.mimeData())
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+            from pathlib import Path
+
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            self.import_archive_file(Path(targets[0]))
+            return
+        super().dropEvent(event)
 
     def _refresh_structure_after_import(self, section_id: int | None = None) -> None:
         business = getattr(self, "structure_business", None)
@@ -763,12 +898,16 @@ class MainWindow(QMainWindow, ReTranslatable):
     ) -> Path | None:
         from PyQt6.QtWidgets import QFileDialog
 
-        path_str, _ = QFileDialog.getSaveFileName(
+        path_str, selected_filter = QFileDialog.getSaveFileName(
             self, dialog_title, default_name, file_filter
         )
         if not path_str:
             return None
-        return Path(path_str)
+        dest = Path(path_str)
+        if not dest.suffix:
+            ext = ".zip" if "ZIP" in selected_filter else ".aitepack"
+            dest = dest.with_suffix(ext)
+        return dest
 
     def _choose_archive_open_path(
         self,

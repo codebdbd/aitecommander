@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.utils.i18n.common import tr as tr_common
-from app.utils.share_paths import ensure_service_root, get_desktop_dir, get_entity_dir
 from app.views.windows.dialogs.base_dialog import apply_uniform_height_to_message_box
 
 def _tr(text: str, disambiguation: str | None = None) -> str:
@@ -19,13 +18,7 @@ class DatabaseDialogs(QObject):
     """Dialogs for database operations."""
 
     def _get_service_dir(self, entity: str) -> str:
-        desktop = get_desktop_dir()
-        if not desktop:
-            return ""
-        root = ensure_service_root(desktop)
-        if not root:
-            return ""
-        return str(get_entity_dir(root, entity))
+        return ""
 
     def confirm_clear_favorites(self) -> bool:
         """Ask the user to confirm clearing favorites."""

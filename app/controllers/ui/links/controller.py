@@ -220,6 +220,18 @@ class LinksUIController(QObject):
         if not link_targets:
             return
 
+        if len(link_targets) == 1:
+            from pathlib import Path
+
+            first = link_targets[0]
+            if first.lower().endswith((".aitepack", ".aitesec", ".aitecat", ".zip")):
+                p = Path(first)
+                if p.is_file() and hasattr(self.main, "import_archive_file"):
+                    if self.main.import_archive_file(
+                        p, target_type="category", target_id=self._get_current_category_id_for_drop()
+                    ):
+                        return
+
         category_id = self._get_current_category_id_for_drop()
         if not isinstance(category_id, int) or category_id <= 0:
             logger.warning("Cannot add dropped target: no current category selected")

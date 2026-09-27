@@ -82,31 +82,30 @@ class StructureMenuBuilder:
         )
         menu.addAction(
             self.actions.create(
-                MenuTexts.IMPORT_CATEGORY,
-                lambda: self.main_window.import_category_to_section(int(section_id)),
-                None,
-                get_menu_icon("component_exchange", self.theme),
-            )
-        )
-        menu.addSeparator()
-
-        menu.addAction(
-            self.actions.create(
                 MenuTexts.EDIT_SECTION,
                 lambda: self.main_window.edit_structure_item(item),
                 Shortcuts.EDIT,
                 get_menu_icon("edit", self.theme),
             )
         )
+        menu.addSeparator()
+
         menu.addAction(
             self.actions.create(
-                MenuTexts.SHARE_SECTION,
+                MenuTexts.EXPORT_SECTION,
                 lambda: self.main_window.share_section(int(section_id)),
                 None,
-                get_menu_icon("share", self.theme),
+                get_menu_icon("save_db", self.theme),
             )
         )
-
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.IMPORT_CATEGORY,
+                lambda: self.main_window.import_category_to_section(int(section_id)),
+                None,
+                get_menu_icon("import_category", self.theme),
+            )
+        )
         menu.addSeparator()
 
         self._add_common_actions(menu, edit_action=None)
@@ -134,7 +133,6 @@ class StructureMenuBuilder:
                 get_menu_icon("add_link", self.theme),
             )
         )
-        menu.addSeparator()
         menu.addAction(
             self.actions.create(
                 MenuTexts.EDIT_CATEGORY,
@@ -143,12 +141,14 @@ class StructureMenuBuilder:
                 get_menu_icon("edit", self.theme),
             )
         )
+        menu.addSeparator()
+
         menu.addAction(
             self.actions.create(
-                MenuTexts.SHARE_CATEGORY,
+                MenuTexts.EXPORT_CATEGORY,
                 lambda: self.main_window.share_category(int(category_id)),
                 None,
-                get_menu_icon("share", self.theme),
+                get_menu_icon("save_db", self.theme),
             )
         )
         menu.addSeparator()
@@ -224,7 +224,7 @@ class StructureMenuBuilder:
             MenuTexts.DELETE, "delete_current", Shortcuts.DELETE, "delete", "delete_action"
         )
 
-        for action in (cut_action, copy_action, paste_action, delete_action):
+        for action in (cut_action, copy_action, paste_action):
             if action is not None:
                 menu.addAction(action)
 
@@ -232,8 +232,7 @@ class StructureMenuBuilder:
 
         if edit_action is not None:
             menu.addAction(edit_action)
-
-        menu.addSeparator()
+            menu.addSeparator()
 
         select_all_action = self._create_context_action(
             MenuTexts.SELECT_ALL,
@@ -242,18 +241,22 @@ class StructureMenuBuilder:
             "select_all",
             "select_all_action",
         )
-        if select_all_action is not None:
-            menu.addAction(select_all_action)
         clear_action = self.actions.create(
             MenuTexts.CLEAR_SELECTION,
             self._clear_tree_selection,
             Shortcuts.CLEAR_SELECTION,
             get_menu_icon("deselect_all", self.theme),
         )
-        clear_action.setVisible(self._tree_selection_count() > 1)
-        menu.addAction(clear_action)
+        if self._tree_selection_count() > 1:
+            menu.addAction(clear_action)
+        elif select_all_action is not None:
+            menu.addAction(select_all_action)
 
         menu.addSeparator()
+
+        if delete_action is not None:
+            menu.addAction(delete_action)
+            menu.addSeparator()
 
         undo_action = self._create_context_action(
             MenuTexts.UNDO, "undo_current", "edit.undo", "undo", "undo_action"
@@ -284,3 +287,4 @@ class StructureMenuBuilder:
             state_attr=state_attr,
             icon_getter=lambda name: get_menu_icon(name, self.theme),
         )
+

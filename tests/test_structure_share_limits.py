@@ -262,8 +262,8 @@ def test_import_sanitizes_external_icon_path(tmp_path: Path) -> None:
     # External path on category should be stripped to empty default
     assert prepared["category"]["icon_path"] == ""
 
-    # External path on link should be sanitized to default.ico
-    assert prepared["links"][0]["icon_path"] == "default.ico"
+    # External path on link should be sanitized to default icon
+    assert prepared["links"][0]["icon_path"] in ("documents_icon.png", "web_icon.png")
 
     # Valid installed icon should be preserved
     assert prepared["links"][1]["icon_path"] == "installed.png"

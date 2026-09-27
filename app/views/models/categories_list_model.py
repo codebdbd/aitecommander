@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon.loading_policy import get_tiles_icon_loading_policy
 from app.utils.ui.icon.loading_service import icon_loading_service
+from app.utils.ui.icon.icon_resolver import resolve_category_icon_path
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,8 @@ class CategoriesListModel(QAbstractListModel):
                     exc_info=False,
                 )
                 continue
-            icon_path = cat.get("icon_path", "") or ""
+            raw_icon = cat.get("icon_path", "") or ""
+            icon_path = resolve_category_icon_path(raw_icon) or raw_icon
             item = {
                 "id": cat_id,
                 "name": name,
@@ -255,7 +257,8 @@ class CategoriesListModel(QAbstractListModel):
                 changed = True
 
         if "icon_path" in category_data or "icon" in category_data:
-            new_icon_path = str(category_data.get("icon_path", "") or "")
+            raw_icon = str(category_data.get("icon_path", "") or "")
+            new_icon_path = resolve_category_icon_path(raw_icon) or raw_icon
             if new_icon_path != item.get("icon_path") or item.get("_icon") is None:
                 item["icon_path"] = new_icon_path
                 icon = icon_loading_service.get_path_icon(new_icon_path, category=True)

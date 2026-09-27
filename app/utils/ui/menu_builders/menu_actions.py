@@ -146,8 +146,10 @@ class MenuTexts:
     EMAIL_VIA_GMAIL = QT_TRANSLATE_NOOP("MenuActions", "Via Gmail")
     EMAIL_VIA_CLIENT = QT_TRANSLATE_NOOP("MenuActions", "Via default client (mailto)")
     EMAIL_COPY_AS_MESSAGE = QT_TRANSLATE_NOOP("MenuActions", "Copy as email message")
-    SHARE_CATEGORY = QT_TRANSLATE_NOOP("MenuActions", "Share category")
-    SHARE_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Share section")
+    EXPORT_CATEGORY = QT_TRANSLATE_NOOP("MenuActions", "Export category")
+    EXPORT_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Export section")
+    SHARE_CATEGORY = EXPORT_CATEGORY
+    SHARE_SECTION = EXPORT_SECTION
     IMPORT_CATEGORY = QT_TRANSLATE_NOOP("MenuActions", "Import category")
     IMPORT_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Import section")
 
@@ -202,8 +204,8 @@ if False:  # pragma: no cover
     QCoreApplication.translate("MenuActions", "Via Gmail")
     QCoreApplication.translate("MenuActions", "Via default client (mailto)")
     QCoreApplication.translate("MenuActions", "Copy as email message")
-    QCoreApplication.translate("MenuActions", "Share category")
-    QCoreApplication.translate("MenuActions", "Share section")
+    QCoreApplication.translate("MenuActions", "Export category")
+    QCoreApplication.translate("MenuActions", "Export section")
     QCoreApplication.translate("MenuActions", "Import category")
     QCoreApplication.translate("MenuActions", "Import section")
     QCoreApplication.translate("MenuActions", "Error: %1")

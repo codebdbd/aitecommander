@@ -575,6 +575,25 @@ def _activate_owned_main_window(
         logger.error("Failed to activate main window: %s", exc, exc_info=True)
 
 
+def _handle_open_file_ipc(
+    initializer_ref: list[ApplicationInitializer | None],
+    file_path: str,
+) -> None:
+    """Import package requested by a secondary instance via IPC."""
+    _activate_owned_main_window(initializer_ref)
+    initializer = initializer_ref[0] if initializer_ref else None
+    window = getattr(initializer, "main_window", None) if initializer else None
+    if window is None or not hasattr(window, "import_archive_file"):
+        logger.warning("Main window not ready to import file: %s", file_path)
+        return
+    from pathlib import Path
+
+    try:
+        window.import_archive_file(Path(file_path))
+    except Exception as exc:
+        logger.error("Failed to import archive file from IPC: %s", exc)
+
+
 def _log_system_info() -> None:
     """Log system information for debugging."""
     try:
@@ -620,6 +639,7 @@ def log_shutdown() -> None:
 def run(options: StartupOptions | None = None) -> int:
     """Application runtime entry point."""
     options = options or StartupOptions()
+    args = parse_arguments()
     options = _setup_logging_and_args(options)
     SettingsManager.load()
     DatabaseManager.configure()
@@ -652,8 +672,9 @@ def run(options: StartupOptions | None = None) -> int:
             single_instance_guard = SingleInstanceGuard(
                 _single_instance_server_name(),
                 lambda: _activate_owned_main_window(initializer_ref),
+                open_file_callback=lambda p: _handle_open_file_ipc(initializer_ref, p),
             )
-            if not single_instance_guard.acquire():
+            if not single_instance_guard.acquire(file_to_open=args.file):
                 resolved_exit = ExitCode.SUCCESS
                 return resolved_exit
 
@@ -675,6 +696,16 @@ def run(options: StartupOptions | None = None) -> int:
 
         _initialize_database_and_profiles(initializer, options)
         _schedule_auto_quit(app, options)
+
+        if args.file and options.mode == StartupMode.GUI:
+            from pathlib import Path
+
+            target_path = Path(args.file)
+            window = getattr(initializer, "main_window", None)
+            if window is not None and hasattr(window, "import_archive_file"):
+                QTimer.singleShot(
+                    200, lambda: window.import_archive_file(target_path)
+                )
 
         exit_code = app.exec()
         resolved_exit = _handle_exit_code(exit_code)

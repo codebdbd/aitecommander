@@ -194,13 +194,13 @@ class StructureUIController(QObject):
         menu.popup(self.tree.viewport().mapToGlobal(pos))
 
     def _on_external_link_dropped(self, payload: object) -> None:
-        """Create links when external targets are dropped on a category."""
+        """Create links or import packages when external targets are dropped on a tree item."""
         if not isinstance(payload, dict):
             return
+        item_type = payload.get("item_type")
+        item_id = payload.get("item_id")
         category_id = payload.get("category_id")
         targets = payload.get("targets", payload.get("urls"))
-        if not isinstance(category_id, int) or category_id <= 0:
-            return
         if not isinstance(targets, list):
             return
 
@@ -208,6 +208,21 @@ class StructureUIController(QObject):
             target for target in targets if isinstance(target, str) and target.strip()
         ]
         if not link_targets:
+            return
+
+        if len(link_targets) == 1:
+            from pathlib import Path
+
+            first_target = link_targets[0]
+            if first_target.lower().endswith((".zip", ".aitepack", ".aitesec", ".aitecat")):
+                p = Path(first_target)
+                if p.is_file() and hasattr(self.main, "import_archive_file"):
+                    if self.main.import_archive_file(
+                        p, target_type=item_type, target_id=item_id
+                    ):
+                        return
+
+        if not isinstance(category_id, int) or category_id <= 0:
             return
 
         undo_stack = getattr(self.main, "undo_stack", None)

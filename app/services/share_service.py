@@ -2,7 +2,7 @@ import logging
 from typing import Optional, cast
 from urllib.parse import quote_plus
 
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QCoreApplication, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication
 
@@ -42,21 +42,22 @@ def _clipboard_copy(text: str) -> None:
 
 
 def build_share_text(name: Optional[str], url: str) -> str:
-    safe_name = name.strip() if isinstance(name, str) else "Link"
-    return f"I recommend: {safe_name}\n{url}"
+    prefix = QCoreApplication.translate("ShareService", "I recommend:")
+    return f"{prefix} {url}"
 
 
 def share_via_telegram(name: Optional[str], url: str) -> bool:
+    prefix = QCoreApplication.translate("ShareService", "I recommend:")
     text = build_share_text(name, url)
     # First web — guaranteed prefill
-    web = f"https://t.me/share/url?url={quote_plus(url)}&text={quote_plus(text)}"
+    web = f"https://t.me/share/url?url={quote_plus(url)}&text={quote_plus(prefix)}"
     if _open_url(web):
         return True
     # If for some reason web didn't open — try client via deeplink
     candidates = [
         f"tg://msg?text={quote_plus(text)}",
-        f"tg://msg_url?url={quote_plus(url)}&text={quote_plus(text)}",
-        f"tg://share?url={quote_plus(url)}&text={quote_plus(text)}",
+        f"tg://msg_url?url={quote_plus(url)}&text={quote_plus(prefix)}",
+        f"tg://share?url={quote_plus(url)}&text={quote_plus(prefix)}",
     ]
     for deep in candidates:
         if _open_url(deep):

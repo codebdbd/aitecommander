@@ -37,10 +37,13 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
+    QGroupBox,
+    QRadioButton,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QMenu,
     QMessageBox,
@@ -638,6 +641,25 @@ class CategoryDialog(BaseEntityDialog):
             )
             return
 
+        # Check for duplicate category name in target section
+        category_name = base_result["name"]
+        try:
+            if self.structure_business.has_duplicate_category(
+                section_id, category_name, exclude_id=self.entity_id
+            ):
+                self.show_warning(
+                    self.tr(
+                        "A category with the same name already exists in the selected section."
+                    ),
+                    self.tr("Category duplicate"),
+                    informative_text=self.tr(
+                        "Change the name or select another section."
+                    ),
+                )
+                return
+        except Exception as e:
+            logger.warning("Failed to check duplicate category: %s", e, exc_info=True)
+
         self._result = base_result
         self._result["section_id"] = section_id
         self.accept()
@@ -694,6 +716,7 @@ class SettingsDialog(BaseDialog):
         self._theme_actions_row: QWidget | None = None
         self.font_size_combo: QComboBox | None = None
         self.max_backups_combo: QComboBox | None = None
+        self.file_assoc_checkbox: QCheckBox | None = None
         self._theme_importer = ThemeImportService()
 
         super().__init__(parent)
@@ -775,6 +798,19 @@ class SettingsDialog(BaseDialog):
         except Exception:
             self.max_backups_combo.setCurrentIndex(9)
         form.addRow(self.tr("Max backups:"), self.max_backups_combo)
+
+        # File associations (Windows only)
+        import sys
+
+        if sys.platform == "win32":
+            from app.services.file_association_service import (
+                is_file_association_registered,
+            )
+
+            self.file_assoc_checkbox = QCheckBox(self)
+            self.file_assoc_checkbox.setChecked(is_file_association_registered())
+            self.file_assoc_checkbox.toggled.connect(self._on_file_assoc_toggled)
+            form.addRow(self.file_assoc_checkbox)
 
         vbox.addLayout(form)
 
@@ -915,6 +951,17 @@ class SettingsDialog(BaseDialog):
 
         self._refresh_theme_list(keep_selection=False)
 
+    def _on_file_assoc_toggled(self, checked: bool) -> None:
+        from app.services.file_association_service import (
+            register_file_associations,
+            unregister_file_associations,
+        )
+
+        if checked:
+            register_file_associations()
+        else:
+            unregister_file_associations()
+
     def retranslateUi(self) -> None:
         self.setWindowTitle(tr_common("Settings"))
 
@@ -935,6 +982,11 @@ class SettingsDialog(BaseDialog):
                 label = self._form_layout.labelForField(self.max_backups_combo)
                 if label is not None:
                     label.setText(self.tr("Max backups:"))
+
+        if self.file_assoc_checkbox is not None:
+            self.file_assoc_checkbox.setText(
+                self.tr("Associate .aitepack files")
+            )
 
         if self.theme_import_btn is not None:
             self.theme_import_btn.setText(self.tr("Import theme"))
@@ -1325,4 +1377,176 @@ class SphereRenameDialog(BaseDialog):
 
     def get_name(self) -> str:
         return self.name_le.text().strip() if self.name_le else ""
+
+
+class ImportConflictDialog(BaseDialog):
+    """Dialog for resolving name collision when moving, copying, or importing items."""
+
+    _TR_CONTEXT = "ImportConflictDialog"
+
+    def __init__(
+        self,
+        entity_type: str,
+        name: str,
+        copy_name: str,
+        parent: QWidget | None = None,
+        operation: str = "import",
+    ) -> None:
+        self._entity_type = entity_type
+        self._name = name
+        self._copy_name = copy_name
+        self._operation = operation
+        self._info_label: QLabel | None = None
+        self._question_label: QLabel | None = None
+        self._radio_merge: QRadioButton | None = None
+        self._merge_desc: QLabel | None = None
+        self._radio_copy: QRadioButton | None = None
+        self._copy_desc: QLabel | None = None
+        self._button_box: QDialogButtonBox | None = None
+        super().__init__(parent)
+        self.setFixedWidth(520)
+        self._init_ui()
+        self.retranslateUi()
+
+    def _init_ui(self) -> None:
+        vbox = QVBoxLayout(self)
+        vbox.setContentsMargins(20, 20, 20, 20)
+        vbox.setSpacing(14)
+
+        self._info_label = QLabel()
+        font = self._info_label.font()
+        font.setPointSize(font.pointSize() + 1)
+        font.setBold(True)
+        self._info_label.setFont(font)
+        self._info_label.setWordWrap(True)
+        vbox.addWidget(self._info_label)
+
+        self._question_label = QLabel()
+        self._question_label.setWordWrap(True)
+        vbox.addWidget(self._question_label)
+
+        options_layout = QVBoxLayout()
+        options_layout.setSpacing(10)
+        self._radio_merge = QRadioButton()
+        self._radio_merge.setChecked(True)
+        self._merge_desc = QLabel()
+        self._merge_desc.setWordWrap(True)
+        self._merge_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
+
+        self._radio_copy = QRadioButton()
+        self._copy_desc = QLabel()
+        self._copy_desc.setWordWrap(True)
+        self._copy_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
+
+        options_layout.addWidget(self._radio_merge)
+        options_layout.addWidget(self._merge_desc)
+        options_layout.addSpacing(4)
+        options_layout.addWidget(self._radio_copy)
+        options_layout.addWidget(self._copy_desc)
+        vbox.addLayout(options_layout)
+
+        vbox.addSpacing(6)
+        bb = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        self._button_box = bb
+        ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_btn is not None:
+            ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+            ok_btn.setDefault(True)
+        cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        vbox.addWidget(bb)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.adjustSize()
+
+    def retranslateUi(self) -> None:
+        op_titles = {
+            "move": QCoreApplication.translate("ImportConflictDialog", "Move"),
+            "copy": QCoreApplication.translate("ImportConflictDialog", "Copy"),
+            "import": QCoreApplication.translate("ImportConflictDialog", "Import"),
+        }
+        self.setWindowTitle(op_titles.get(self._operation, op_titles["import"]))
+        if not hasattr(self, "_info_label") or self._info_label is None:
+            return
+
+        if self._entity_type == "section":
+            info_text = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Section «{name}» already exists in this sphere.",
+            ).format(name=self._name)
+            merge_title = QCoreApplication.translate("ImportConflictDialog", "Merge contents")
+            merge_desc = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Move all items into the existing section without overwriting.",
+            )
+            copy_title = QCoreApplication.translate(
+                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+            ).format(name=self._copy_name)
+            copy_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Save alongside under a unique name."
+            )
+        elif self._entity_type == "link":
+            info_text = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Link «{name}» already exists in this category.",
+            ).format(name=self._name)
+            merge_title = QCoreApplication.translate("ImportConflictDialog", "Replace existing")
+            merge_desc = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Update the existing link with new parameters.",
+            )
+            copy_title = QCoreApplication.translate(
+                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+            ).format(name=self._copy_name)
+            copy_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Save alongside under a unique name."
+            )
+        else:  # category
+            info_text = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Category «{name}» already exists in this section.",
+            ).format(name=self._name)
+            merge_title = QCoreApplication.translate("ImportConflictDialog", "Merge contents")
+            merge_desc = QCoreApplication.translate(
+                "ImportConflictDialog",
+                "Move all items into the existing category without overwriting.",
+            )
+            copy_title = QCoreApplication.translate(
+                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+            ).format(name=self._copy_name)
+            copy_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Save alongside under a unique name."
+            )
+
+        self._info_label.setText(info_text)
+        if self._question_label is not None:
+            self._question_label.setText(
+                QCoreApplication.translate("ImportConflictDialog", "Choose what to do:")
+            )
+        self._radio_merge.setText(merge_title)
+        self._merge_desc.setText(merge_desc)
+        self._radio_copy.setText(copy_title)
+        self._copy_desc.setText(copy_desc)
+
+        if self._button_box is not None:
+            ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
+            if ok_btn is not None:
+                ok_btn.setText(QCoreApplication.translate("ImportConflictDialog", "Apply"))
+            cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
+            if cancel_btn is not None:
+                cancel_btn.setText(tr_common("Cancel"))
+
+    def get_action(self) -> str:
+        return "merge" if self._radio_merge.isChecked() else "copy"
+
+
+DuplicateItemDialog = ImportConflictDialog
+
 

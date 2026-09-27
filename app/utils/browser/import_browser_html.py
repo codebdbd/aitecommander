@@ -171,23 +171,10 @@ class BrowserBookmarksImporter:
         """Opens HTML file selection dialog. Returns path or empty string."""
         from PyQt6.QtWidgets import QFileDialog
 
-        from app.utils.share_paths import (
-            ensure_service_root,
-            get_desktop_dir,
-            get_entity_dir,
-        )
-
-        start_dir = ""
-        desktop = get_desktop_dir()
-        if desktop:
-            root = ensure_service_root(desktop)
-            if root:
-                start_dir = str(get_entity_dir(root, "links"))
-
         path, _ = QFileDialog.getOpenFileName(
             parent_widget,
             _tr_import(_IMPORT_TITLE),
-            start_dir,
+            "",
             _tr_import(_HTML_FILTER),
         )
         return path or ""

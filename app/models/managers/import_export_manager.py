@@ -186,11 +186,37 @@ class ImportExportManager:
                     (name, sphere_id, icon_path, position, sec_id),
                 )
                 if cur.rowcount == 0:
+                    collision = self.db.connection.execute(
+                        "SELECT id FROM section WHERE sphere_id=? AND name=?",
+                        (sphere_id, name),
+                    ).fetchone()
+                    if collision:
+                        from app.services.structure_share_service import generate_unique_name
+                        existing_names = {
+                            row[0]
+                            for row in self.db.connection.execute(
+                                "SELECT name FROM section WHERE sphere_id=?", (sphere_id,)
+                            ).fetchall()
+                        }
+                        name = generate_unique_name(existing_names, name)
                     self.db.connection.execute(
                         "INSERT INTO section (id, name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                         (sec_id, name, sphere_id, icon_path, position),
                     )
             else:
+                collision = self.db.connection.execute(
+                    "SELECT id FROM section WHERE sphere_id=? AND name=?",
+                    (sphere_id, name),
+                ).fetchone()
+                if collision:
+                    from app.utils.naming import generate_unique_name
+                    existing_names = {
+                        row[0]
+                        for row in self.db.connection.execute(
+                            "SELECT name FROM section WHERE sphere_id=?", (sphere_id,)
+                        ).fetchall()
+                    }
+                    name = generate_unique_name(existing_names, name)
                 cur = self.db.connection.execute(
                     "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
                     (name, sphere_id, icon_path, position),
@@ -215,6 +241,19 @@ class ImportExportManager:
                         (c_name, c_section_id, c_icon_path, c_position, cat_id),
                     )
                     if ccur.rowcount == 0:
+                        cat_collision = self.db.connection.execute(
+                            "SELECT id FROM category WHERE section_id=? AND name=?",
+                            (c_section_id, c_name),
+                        ).fetchone()
+                        if cat_collision:
+                            from app.utils.naming import generate_unique_name
+                            existing_cat_names = {
+                                row[0]
+                                for row in self.db.connection.execute(
+                                    "SELECT name FROM category WHERE section_id=?", (c_section_id,)
+                               ).fetchall()
+                            }
+                            c_name = generate_unique_name(existing_cat_names, c_name)
                         self.db.connection.execute(
                             "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                             (cat_id, c_name, c_section_id, c_icon_path, c_position),

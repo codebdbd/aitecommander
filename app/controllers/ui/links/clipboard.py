@@ -174,11 +174,21 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 new_data.get("name", ""),
             )
 
-            if candidate_key not in existing_keys:
-                new_links.append(new_data)
-                existing_keys.add(candidate_key)  # Add for next checks
-            else:
-                filtered_count += 1
+            if candidate_key in existing_keys:
+                from app.services.structure_share_service import generate_unique_name
+                existing_names = [l.get("name", "") for l in existing_links] + [l.get("name", "") for l in new_links]
+                new_data["name"] = generate_unique_name(existing_names, new_data.get("name", ""))
+                candidate_key = (
+                    new_data.get("url", ""),
+                    new_data.get("type", ""),
+                    new_data.get("args", ""),
+                    new_data.get("name", ""),
+                )
+            new_links.append(new_data)
+            existing_keys.add(candidate_key)
+
+
+
 
         if filtered_count:
             logger.info(

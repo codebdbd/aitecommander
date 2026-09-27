@@ -928,11 +928,14 @@ def get_cached_category_icon(path: str) -> QIcon:
         return cached_icon
 
     # ✅ Safe to create QIcon here - we verified GUI thread above
+    if not Path(path).exists():
+        return QIcon()
+
     try:
-        icon = QIcon(str(path)) if Path(path).exists() else QIcon()
+        icon = QIcon(str(path))
     except Exception as exc:
         logger.warning("Failed to create QIcon from path %s: %s", path, exc)
-        icon = QIcon()
+        return QIcon()
 
     _icon_manager.set_icon(cache_key, "__category__", icon)
     return icon

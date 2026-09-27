@@ -100,6 +100,8 @@ class IconLoadingService:
     def resolve_path(self, icon_path: str | None, *, category: bool = False) -> str:
         normalized = _normalize_icon_ref(icon_path)
         if not normalized:
+            if category:
+                return resolve_category_icon_path(None) or ""
             return ""
 
         cache = (
@@ -119,6 +121,9 @@ class IconLoadingService:
     def peek_path_icon(self, icon_path: str | None, *, category: bool = False) -> QIcon | None:
         normalized = _normalize_icon_ref(icon_path)
         if not normalized:
+            if category:
+                default_path = resolve_category_icon_path(None)
+                return peek_cached_category_icon(default_path) if default_path else None
             return None
         resolved = (
             normalized
@@ -128,7 +133,12 @@ class IconLoadingService:
         if not resolved:
             return None
         try:
-            icon = peek_cached_category_icon(resolved)
+            if category:
+                icon = peek_cached_category_icon(resolved)
+            else:
+                from .cache_manager import get_icon
+
+                icon = get_icon(f"__abs__::{resolved}", "__abs__")
         except Exception:
             return None
         return icon if icon is not None and not icon.isNull() else None
@@ -136,6 +146,9 @@ class IconLoadingService:
     def get_path_icon(self, icon_path: str | None, *, category: bool = False) -> QIcon:
         normalized = _normalize_icon_ref(icon_path)
         if not normalized:
+            if category:
+                default_path = resolve_category_icon_path(None)
+                return self.get_path_icon(default_path, category=True) if default_path else QIcon()
             return QIcon()
         resolved = (
             normalized
@@ -145,7 +158,11 @@ class IconLoadingService:
         if not resolved:
             return QIcon()
         try:
-            return get_cached_category_icon(resolved)
+            if category:
+                return get_cached_category_icon(resolved)
+            from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+
+            return create_icon_from_path(resolved)
         except Exception:
             return QIcon()
 

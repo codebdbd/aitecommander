@@ -126,7 +126,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
             painter.setPen(QPen(dark))
             painter.drawEllipse(icon_rect)
             try:
-                placeholder_font = QFont(painter.font())
+                painter.save()
+                placeholder_font = QFont(option.font)
                 placeholder_font.setBold(True)
                 placeholder_font.setPointSize(
                     max(8, int(self.icon_size.height() * 0.45))
@@ -142,8 +143,11 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 painter.drawText(QPoint(cx, cy), qmark)
             except (RuntimeError, ValueError) as e:
                 logger.debug("Placeholder '?' draw skipped: %s", e)
+            finally:
+                painter.restore()
 
         if text:
+            painter.setFont(option.font)
             # Font size diagnostics removed; sizes are centralized via QSS
             text_rect = QRect(
                 rect.left() + self.padding,
