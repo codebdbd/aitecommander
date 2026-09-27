@@ -119,7 +119,7 @@ class CategoryMenuBuilder:
             MenuTexts.CLEAR_SELECTION,
             self._clear_tiles_selection,
             Shortcuts.CLEAR_SELECTION,
-            self._get_icon("select_all"),
+            self._get_icon("deselect_all"),
         )
         clear_action.setVisible(self._tiles_selection_count() > 1)
         menu.addAction(clear_action)

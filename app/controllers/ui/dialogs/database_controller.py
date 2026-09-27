@@ -1,5 +1,6 @@
 # app/controllers/database_controller.py
 
+import json
 import logging
 import os
 import shutil
@@ -18,6 +19,7 @@ from PyQt6.QtCore import (
 
 from app.core.worker_manager import WorkerManager
 from app.services.database_restore_worker import DatabaseRestoreWorker
+from app.services.icon_reference_service import IconReferenceService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.icon.file_lock import icon_files_lock
 from app.utils.ui.icon.path_service import icon_path_service
@@ -189,7 +191,7 @@ class DatabaseController(QObject):
         if not db_path:
             return
 
-        default_name = f"aite_db_{datetime.now().strftime('%Y%m%d_%H%M')}.db"
+        default_name = f"aite_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
         save_path = self.dialogs.get_save_location(default_name)
         self._run_if_path_selected(
             save_path,
@@ -198,6 +200,10 @@ class DatabaseController(QObject):
 
     def _save_database_copy(self, db_path: str, save_path: str) -> None:
         target_path = Path(save_path).resolve()
+        if target_path.suffix.lower() == ".zip":
+            self._save_unified_backup(db_path, str(target_path))
+            return
+
         temp_path = target_path.with_name(f".{target_path.name}.tmp")
         try:
             from app.core.database_manager import DatabaseManager
@@ -241,6 +247,78 @@ class DatabaseController(QObject):
             self._emit_error(
                 self.tr("Save error: {error}").format(error=e),
             )
+
+    def _save_unified_backup(self, db_path: str, save_path: str) -> None:
+        """Save unified backup archive containing database, manifest and referenced icons."""
+        target_path = Path(save_path).resolve()
+        temp_archive = target_path.with_name(f".{target_path.name}.tmp")
+        staging_dir = Path(db_path).resolve().parent / f".staging_{uuid4().hex}"
+        try:
+            from app.core.database_manager import DatabaseManager
+            from app.utils.db.synchronization import db_lock
+
+            staging_dir.mkdir(parents=True, exist_ok=True)
+            staged_db = staging_dir / "database.db"
+
+            with db_lock:
+                conn = getattr(self.db, "connection", None)
+                if conn is None:
+                    conn = DatabaseManager.get_connection()
+                try:
+                    conn.execute("PRAGMA wal_checkpoint(FULL)")
+                except Exception as cp_err:
+                    logger.debug("WAL checkpoint prior to unified backup warning: %s", cp_err)
+
+                dest_conn = sqlite3.connect(str(staged_db))
+                try:
+                    conn.backup(dest_conn)
+                finally:
+                    dest_conn.close()
+
+                ref_service = IconReferenceService(self.db)
+                referenced_names = {Path(p).name.lower() for p in ref_service.get_referenced_icons()}
+
+            user_icons_dir = Path(self._get_user_icons_dir())
+            manifest_data = {
+                "format_version": "1.0",
+                "created_at": datetime.now().isoformat(),
+                "db_filename": "database.db",
+                "icons_count": len(referenced_names),
+            }
+
+            with zipfile.ZipFile(temp_archive, "w", zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(str(staged_db), "database.db")
+                zipf.writestr("manifest.json", json.dumps(manifest_data, indent=2, ensure_ascii=False))
+                if user_icons_dir.is_dir():
+                    with icon_files_lock():
+                        for icon_file in user_icons_dir.iterdir():
+                            if icon_file.is_file() and icon_file.name.lower() in referenced_names:
+                                zipf.write(str(icon_file), f"icons/{icon_file.name}")
+
+            try:
+                os.replace(temp_archive, target_path)
+            except OSError:
+                shutil.copy2(temp_archive, target_path)
+                try:
+                    temp_archive.unlink()
+                except OSError:
+                    pass
+
+            self.database_saved.emit(str(target_path))
+            self._emit_success(
+                self.tr("Database backup saved:\n{path}").format(path=str(target_path)),
+            )
+        except Exception as e:
+            if temp_archive.exists():
+                try:
+                    temp_archive.unlink()
+                except OSError:
+                    pass
+            self._emit_error(
+                self.tr("Save error: {error}").format(error=e),
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
     def handle_save_icons(self):
         """Icon archive save handler."""

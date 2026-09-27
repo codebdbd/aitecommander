@@ -212,11 +212,21 @@ def _resolve_theme(category_provider: Any | None = None) -> str:
 
 
 class ToolbarSeparatorController:
-    def __init__(self, sep_tools_recent: QAction, sep_recent_fav: QAction) -> None:
+    def __init__(
+        self,
+        sep_add_tools: QAction | None = None,
+        sep_tools_recent: QAction | None = None,
+        sep_recent_fav: QAction | None = None,
+    ) -> None:
+        self._sep_add_tools = sep_add_tools
         self._sep_tools_recent = sep_tools_recent
         self._sep_recent_fav = sep_recent_fav
-        self._sep_tools_recent.setVisible(False)
-        self._sep_recent_fav.setVisible(False)
+        if self._sep_add_tools is not None:
+            self._sep_add_tools.setVisible(False)
+        if self._sep_tools_recent is not None:
+            self._sep_tools_recent.setVisible(False)
+        if self._sep_recent_fav is not None:
+            self._sep_recent_fav.setVisible(False)
         self._counts: dict[str, int] = {
             "structure": 0,
             "quick": 0,
@@ -236,9 +246,11 @@ class ToolbarSeparatorController:
         recent = self._counts.get("recent", 0)
         fav = self._counts.get("fav", 0)
 
-        left_block = structure + quick + tools
+        add_block = structure + quick
+        if self._sep_add_tools is not None:
+            self._sep_add_tools.setVisible(add_block > 0 and (tools > 0 or recent > 0 or fav > 0))
         if self._sep_tools_recent is not None:
-            self._sep_tools_recent.setVisible(left_block > 0 and recent > 0)
+            self._sep_tools_recent.setVisible(tools > 0 and (recent > 0 or fav > 0))
         if self._sep_recent_fav is not None:
             self._sep_recent_fav.setVisible(recent > 0 and fav > 0)
 
@@ -349,6 +361,14 @@ class ToolbarActionAdapter(QObject):
                 self._buttons.append(button)
         except (RuntimeError, AttributeError):
             logger.debug("TopBarToolbar: failed to configure button", exc_info=True)
+
+    def _add_separator(self) -> QAction:
+        if self._insert_before is not None:
+            sep = self._toolbar.insertSeparator(self._insert_before)
+        else:
+            sep = self._toolbar.addSeparator()
+        self._actions.append(sep)
+        return sep
 
     def _set_button_last(self, button: QToolButton, is_last: bool) -> None:
         if bool(button.property("toolbar_last")) == is_last:
@@ -528,7 +548,7 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
 
         tools = [
             ("topBarFileSearchButton", "search", "search.svg", QCoreApplication.translate("MenuActions", "Search files"), self._on_file_search),
-            ("topBarImportBookmarksButton", "import", "import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
+            ("topBarImportBookmarksButton", "bookmark_import", "bookmark_import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
             ("topBarBadUrlsButton", "link_off", "link_off.svg", QCoreApplication.translate("MainMenu", "Check Bad URLs"), self._on_check_bad_urls),
             ("topBarRefreshIconsButton", "refresh", "refresh.svg", QCoreApplication.translate("MainMenu", "Refresh Icons"), self._on_refresh_icons),
         ]
@@ -545,10 +565,12 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
             if isinstance(btn, QToolButton):
                 btn.setObjectName(obj_name)
                 _setup_topbar_button_contrast(btn, icon, svg_file)
+            if obj_name == "topBarImportBookmarksButton":
+                self._add_separator()
 
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count("tools", len(self._actions))
+            self._separator_controller.set_group_count("tools", len(self._buttons))
 
     def _on_file_search(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_file_search_dialog"):

@@ -161,7 +161,7 @@ class LinksMenuBuilder:
             MenuTexts.CLEAR_SELECTION,
             self._clear_table_selection,
             Shortcuts.CLEAR_SELECTION,
-            get_menu_icon("select_all", self.theme),
+            get_menu_icon("deselect_all", self.theme),
         )
         clear_action.setVisible(self._table_selection_count() > 1)
         menu.addAction(clear_action)
@@ -271,7 +271,7 @@ class LinksMenuBuilder:
                     MenuTexts.EMAIL_COPY_AS_MESSAGE,
                     lambda: self.main_window.links_actions.copy_email_template(link),
                     None,
-                    get_menu_icon("copy", self.theme),
+                    get_menu_icon("copy_link", self.theme),
                 )
             )
 
@@ -337,7 +337,7 @@ class LinksMenuBuilder:
             MenuTexts.CLEAR_SELECTION,
             self._clear_table_selection,
             Shortcuts.CLEAR_SELECTION,
-            get_menu_icon("select_all", self.theme),
+            get_menu_icon("deselect_all", self.theme),
         )
         clear_action.setVisible(self._table_selection_count() > 1)
         menu.addAction(clear_action)

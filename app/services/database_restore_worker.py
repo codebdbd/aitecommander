@@ -5,9 +5,12 @@ from __future__ import annotations
 import gc
 import logging
 import os
+import shutil
 import sqlite3
 import time
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
+from uuid import uuid4
 
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, pyqtSignal
 
@@ -15,6 +18,9 @@ from app.core.database_manager import DatabaseManager
 from app.core.paths.path_manager import PathManager
 from app.models.db import Database
 from app.utils.db.migrations import MigrationRunner
+from app.utils.ui.icon.cache_manager import clear_icon_cache
+from app.utils.ui.icon.file_lock import icon_files_lock
+from app.utils.ui.icon.path_service import icon_path_service
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +80,17 @@ class DatabaseRestoreWorker(QRunnable):
         db_path = Path(DatabaseManager.get_db_path())
         backup_path = Path(backup_path)
 
-        self._verify_backup_integrity(backup_path)
+        is_zip = zipfile.is_zipfile(backup_path)
+        source_db_file = backup_path
+        staging_root: Path | None = None
+        staged_icons_dir: Path | None = None
+
+        if is_zip:
+            staging_root = db_path.parent / f".restore_staging_{uuid4().hex}"
+            staging_root.mkdir(parents=True, exist_ok=True)
+            source_db_file, staged_icons_dir = self._extract_bundle_staging(backup_path, staging_root)
+
+        self._verify_backup_integrity(source_db_file)
 
         logger.info(f"Starting database restore from: {backup_path}")
 
@@ -92,7 +108,7 @@ class DatabaseRestoreWorker(QRunnable):
 
         try:
             # 1. Copy backup to temporary staging file first
-            self._copy_backup_with_retries(backup_path, tmp_target)
+            self._copy_backup_with_retries(source_db_file, tmp_target)
 
             # 2. Verify integrity of the staged temporary file
             self._verify_backup_integrity(tmp_target)
@@ -153,6 +169,10 @@ class DatabaseRestoreWorker(QRunnable):
                 except Exception:
                     pass
 
+            # 7. Atomically publish staged bundle icons if present
+            if staged_icons_dir and staged_icons_dir.exists():
+                self._publish_staged_icons(staged_icons_dir)
+
             logger.info("Creating new Database object")
             new_db = Database()
 
@@ -164,6 +184,86 @@ class DatabaseRestoreWorker(QRunnable):
                     tmp_target.unlink(missing_ok=True)
                 except Exception:
                     pass
+            if staging_root and staging_root.exists():
+                try:
+                    shutil.rmtree(staging_root, ignore_errors=True)
+                except Exception:
+                    pass
+
+    def _extract_bundle_staging(self, bundle_path: Path, staging_root: Path) -> tuple[Path, Path]:
+        """Safely extract database and icons from zip into a local staging directory."""
+        MAX_ICON_FILES = 2000
+        MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
+        MAX_TOTAL_EXTRACTED_SIZE = 100 * 1024 * 1024  # 100 MB max icons
+        allowed_suffixes = {s.lower() for s in icon_path_service.get_supported_icon_formats()}
+
+        staged_db = staging_root / "extracted_database.db"
+        staged_icons = staging_root / "icons"
+        staged_icons.mkdir(parents=True, exist_ok=True)
+
+        with zipfile.ZipFile(bundle_path, "r") as zipf:
+            infolist = zipf.infolist()
+            db_member = None
+
+            # Find database member (database.db or root *.db)
+            for member in infolist:
+                norm_name = member.filename.replace("\\", "/")
+                if norm_name == "database.db" or (not "/" in norm_name and norm_name.lower().endswith(".db")):
+                    db_member = member
+                    break
+
+            if not db_member:
+                raise ValueError(
+                    QCoreApplication.translate(
+                        "DatabaseRestoreWorker",
+                        "Archive does not contain a valid database file.",
+                    )
+                )
+
+            with zipf.open(db_member, "r") as src, open(staged_db, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+
+            # Safely extract icons without directory traversal
+            total_size = 0
+            icon_count = 0
+            for member in infolist:
+                if member.is_dir():
+                    continue
+                parts = PurePosixPath(member.filename.replace("\\", "/")).parts
+                if len(parts) == 2 and parts[0] == "icons":
+                    fname = parts[1]
+                    if not fname or fname.startswith(".") or fname in (".", ".."):
+                        continue
+                    if Path(fname).suffix.lower() not in allowed_suffixes:
+                        continue
+                    if member.file_size > MAX_ICON_FILE_SIZE:
+                        continue
+                    total_size += member.file_size
+                    if total_size > MAX_TOTAL_EXTRACTED_SIZE:
+                        break
+                    icon_count += 1
+                    if icon_count > MAX_ICON_FILES:
+                        break
+                    target_dest = staged_icons / fname
+                    with zipf.open(member, "r") as src, open(target_dest, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+
+        return staged_db, staged_icons
+
+    def _publish_staged_icons(self, staged_icons_dir: Path) -> None:
+        """Publish staged icons into the live user icons directory."""
+        user_icons_dir = Path(icon_path_service.get_user_icons_dir()).resolve()
+        user_icons_dir.mkdir(parents=True, exist_ok=True)
+
+        with icon_files_lock():
+            for icon_path in staged_icons_dir.iterdir():
+                if icon_path.is_file():
+                    dest = user_icons_dir / icon_path.name
+                    try:
+                        os.replace(icon_path, dest)
+                    except OSError:
+                        shutil.copy2(icon_path, dest)
+            clear_icon_cache()
 
     def _prepare_target_database_for_restore(self, db_path) -> None:
         """Prepare DB files/handles before replacing file from backup."""

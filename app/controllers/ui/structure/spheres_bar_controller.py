@@ -319,14 +319,14 @@ class SpheresBarController(QObject):
 
         # 1. Change sphere icon action
         change_icon_action = menu.addAction(
-            get_menu_icon("add_ico", theme),
+            get_menu_icon("replace_image", theme),
             QCoreApplication.translate("SpheresBarController", "Change Icon"),
         )
         change_icon_action.triggered.connect(partial(self._change_sphere_icon, sphere_id))
 
         # 2. Reset sphere icon action
         reset_icon_action = menu.addAction(
-            get_menu_icon("refresh", theme),
+            get_menu_icon("reset_image", theme),
             QCoreApplication.translate("SpheresBarController", "Reset to Default Icon"),
         )
         default_icon_name = self._get_default_icon_name_for_sphere(sphere)
@@ -347,7 +347,7 @@ class SpheresBarController(QObject):
 
         # 5. Reset sphere name action
         reset_name_action = menu.addAction(
-            get_menu_icon("refresh", theme),
+            get_menu_icon("reset_name", theme),
             QCoreApplication.translate("SpheresBarController", "Reset to Default Name"),
         )
         default_canonical_name = self._get_default_name_for_sphere(sphere)

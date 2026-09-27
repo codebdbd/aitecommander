@@ -367,7 +367,7 @@ class NoteDialog(BaseDialog):
 
         # Note actions
         menu.addAction(
-            self._get_action_icon("copy.svg"),
+            self._get_action_icon("copy_all.svg"),
             self.tr("Copy All Text"),
             self._copy_all_text,
         )

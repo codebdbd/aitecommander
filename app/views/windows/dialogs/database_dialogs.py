@@ -87,7 +87,7 @@ class DatabaseDialogs(QObject):
             parent,
             QCoreApplication.translate("DatabaseDialogs", "Select a database file to connect"),
             start_dir,
-            QCoreApplication.translate("DatabaseDialogs", "SQLite DB (*.db);;All files (*)"),
+            QCoreApplication.translate("DatabaseDialogs", "Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)"),
         )
         return Path(file_path) if file_path else None
 
@@ -100,7 +100,7 @@ class DatabaseDialogs(QObject):
             parent,
             QCoreApplication.translate("DatabaseDialogs", "Save database copy"),
             start_path,
-            QCoreApplication.translate("DatabaseDialogs", "SQLite DB (*.db);;All files (*)"),
+            QCoreApplication.translate("DatabaseDialogs", "Backup archive (*.zip);;SQLite DB (*.db);;All files (*)"),
         )
         return Path(save_path) if save_path else None
 

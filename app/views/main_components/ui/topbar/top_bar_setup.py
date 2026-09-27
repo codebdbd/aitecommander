@@ -210,10 +210,7 @@ class TopBarBuilder:
             anchor_quick.setVisible(False)
             toolbar.addAction(anchor_quick)
 
-            anchor_tools = QAction(toolbar)
-            anchor_tools.setVisible(False)
-            toolbar.addAction(anchor_tools)
-
+            sep_add_tools = toolbar.addSeparator()
             sep_tools_recent = toolbar.addSeparator()
             sep_recent_fav = toolbar.addSeparator()
 
@@ -223,7 +220,9 @@ class TopBarBuilder:
             end_marker.setVisible(False)
             toolbar.addAction(end_marker)
 
-            sep_controller = ToolbarSeparatorController(sep_tools_recent, sep_recent_fav)
+            sep_controller = ToolbarSeparatorController(
+                sep_add_tools, sep_tools_recent, sep_recent_fav
+            )
             structure_adapter = StructureActionsToolbarAdapter(
                 toolbar,
                 insert_before=anchor_quick,
@@ -232,7 +231,7 @@ class TopBarBuilder:
             )
             quick_adapter = QuickAddToolbarAdapter(
                 toolbar,
-                insert_before=anchor_tools,
+                insert_before=sep_add_tools,
                 category_provider=self.window,
                 separator_controller=sep_controller,
             )

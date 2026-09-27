@@ -85,7 +85,7 @@ class StructureMenuBuilder:
                 MenuTexts.IMPORT_CATEGORY,
                 lambda: self.main_window.import_category_to_section(int(section_id)),
                 None,
-                get_menu_icon("import_category", self.theme),
+                get_menu_icon("component_exchange", self.theme),
             )
         )
         menu.addSeparator()
@@ -173,7 +173,7 @@ class StructureMenuBuilder:
                 MenuTexts.IMPORT_SECTION,
                 self.main_window.import_section_to_current_sphere,
                 None,
-                get_menu_icon("import_sections", self.theme),
+                get_menu_icon("import_section", self.theme),
             )
         )
 
@@ -248,7 +248,7 @@ class StructureMenuBuilder:
             MenuTexts.CLEAR_SELECTION,
             self._clear_tree_selection,
             Shortcuts.CLEAR_SELECTION,
-            get_menu_icon("select_all", self.theme),
+            get_menu_icon("deselect_all", self.theme),
         )
         clear_action.setVisible(self._tree_selection_count() > 1)
         menu.addAction(clear_action)

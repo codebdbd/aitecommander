@@ -1,0 +1,455 @@
+app\config_data\ui_config.py::get_widget_icon_fallback_size:0 | def get_widget_icon_fallback_size(self) -> int:
+app\config_data\ui_config.py::get_widget_icon_fallback_size:2 | return int(self.get("ui.widget_icon_fallback_size", 16))
+app\config_data\ui_config.py::get_icon_size:0 | def get_icon_size(self) -> list[int]:
+app\config_data\ui_config.py::get_icon_refresh_dialog_min_width:0 | def get_icon_refresh_dialog_min_width(self) -> int:
+app\config_data\ui_config.py::get_icon_refresh_buttons_spacing:0 | def get_icon_refresh_buttons_spacing(self) -> int:
+app\config_data\ui_config.py::get_menu_icon_size:0 | def get_menu_icon_size(self) -> int:
+app\controllers\structure_modules\operations\async_operations.py::stop:4 | def _create_metrics() -> _MetricsProtocol:
+app\controllers\structure_modules\operations\async_operations.py::stop:13 | metrics: _MetricsProtocol = _create_metrics()
+app\controllers\structure_modules\operations\async_operations.py::cleanup:22 | "item_created",
+app\controllers\structure_modules\operations\async_operations.py::connect_signal_handlers:21 | self._worker_signals.item_created.connect(handlers.on_item_created)
+app\controllers\structure_modules\operations\async_operations.py::disconnect_signal_handlers:61 | self._worker_signals.item_created, handlers.on_item_created, "item_created"
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:0 | def create_section_async(self, data: dict[str, Any]) -> None:
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:11 | self.logger.error("Sphere ID must be greater than 0 to create a section")
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:30 | def _create():
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:32 | item_id = service.create_section(dict(data))
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:44 | def _on_section_created(res: tuple) -> None:
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:45 | self._worker_signals.item_created.emit(*res)
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:46 | self._worker_signals.operation_finished.emit(self.tr("Section created"))
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:49 | _create,
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:50 | description=f"create_section(name={name!r})",
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:52 | on_finished=_on_section_created,
+app\controllers\structure_modules\operations\async_operations.py::create_section_async:55 | self.tr("Failed to create section: {error}").format(error=e),
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:0 | def create_category_async(self, data: dict[str, Any]) -> None:
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:11 | self.logger.error("Section ID must be greater than 0 to create a category")
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:14 | def _create():
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:16 | item_id = service.create_category(dict(data))
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:28 | def _on_category_created(res: tuple) -> None:
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:29 | self._worker_signals.item_created.emit(*res)
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:30 | self._worker_signals.operation_finished.emit(self.tr("Category created"))
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:33 | _create,
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:34 | description=f"create_category(name={name!r})",
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:36 | on_finished=_on_category_created,
+app\controllers\structure_modules\operations\async_operations.py::create_category_async:39 | self.tr("Failed to create category: {error}").format(error=e),
+app\controllers\ui\action_controller.py::setup_global_actions:38 | self.main_window.addAction(action)
+app\controllers\ui\action_controller.py::refresh_action_icons:12 | action.setIcon(
+app\controllers\ui\action_controller.py::refresh_action_icons:13 | icon_cache.get_icon(icon_name, theme, source="global_actions")
+app\controllers\ui\dialogs\dialog_manager.py::show_error:17 | msg_box.setIcon(QMessageBox.Icon.Critical)
+app\controllers\ui\dialogs\dialog_manager.py::show_warning:17 | msg_box.setIcon(QMessageBox.Icon.Warning)
+app\controllers\ui\dialogs\dialog_manager.py::show_info:22 | msg_box.setIcon(
+app\controllers\ui\dialogs\dialog_manager.py::ask_confirmation:22 | msg_box.setIcon(QMessageBox.Icon.Question)
+app\controllers\ui\dialogs\dialog_manager.py::show_custom:24 | msg_box.setIcon(icon)
+app\controllers\ui\links\controller.py::_confirm_open_many_links:18 | box.setIcon(QMessageBox.Icon.Information)
+app\controllers\ui\structure\spheres_bar_controller.py::_get_default_icon_for_sphere:5 | return create_icon_from_path(str(icons_dir / icon_name))
+app\controllers\ui\structure\spheres_bar_controller.py::_resolve_sphere_icon:5 | icon = create_icon_from_path(resolved)
+app\controllers\ui\structure\spheres_bar_controller.py::_build_button:5 | btn.setIcon(self._resolve_sphere_icon(sphere))
+app\controllers\ui\structure\spheres_bar_controller.py::_build_button:15 | btn.setIconSize(QSize(icon_w, icon_h))
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:25 | change_icon_action = menu.addAction(
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:26 | get_menu_icon("add_ico", theme),
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:32 | reset_icon_action = menu.addAction(
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:33 | get_menu_icon("refresh", theme),
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:46 | rename_action = menu.addAction(
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:47 | get_menu_icon("edit", theme),
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:53 | reset_name_action = menu.addAction(
+app\controllers\ui\structure\spheres_bar_controller.py::_on_context_menu:54 | get_menu_icon("refresh", theme),
+app\controllers\ui\structure\spheres_bar_controller.py::_change_sphere_icon:19 | button.setIcon(icon)
+app\controllers\ui\structure\spheres_bar_controller.py::_reset_sphere_icon:25 | default_icon = create_icon_from_path(
+app\controllers\ui\structure\spheres_bar_controller.py::_reset_sphere_icon:28 | button.setIcon(default_icon)
+app\controllers\ui\structure\spheres_bar_controller.py::_on_sphere_updated:8 | button.setIcon(icon)
+app\controllers\ui\structure\structure_ui_controller.py::_schedule_selection_reconnect:1 | """Defer selection model rebinding to allow QTreeView to recreate it."""
+app\controllers\ui\structure\structure_ui_controller.py::_setup_tree:5 | self.tree.setIconSize(QSize(int(w), int(h)))
+app\controllers\ui\structure\structure_ui_controller.py::_setup_tree:8 | self.tree.setIconSize(QSize(int(w), int(h)))
+app\controllers\ui\structure\structure_ui_controller.py::_on_context_menu:9 | menu = self.main.menu_controller.create_structure_context_menu(
+app\services\theme_stylesheet_service.py::_tint_svg_for_qss:1 | """Get or create tinted SVG on disk for QSS and return its path."""
+app\services\theme_stylesheet_service.py::_collect_menu_params:15 | "menu_icon_size": _safe_int(app_config.ui.get_menu_icon_size),
+app\utils\ui\icon\ui_helpers.py::set_icon_to_button:9 | icon = create_icon_from_path(str(icon_path))
+app\utils\ui\icon\ui_helpers.py::set_icon_to_button:10 | button.setIcon(icon)
+app\utils\ui\icon\ui_helpers.py::set_icon_to_button:12 | button.setIcon(QIcon())  # Empty icon
+app\utils\ui\menu_builders\base.py::get_menu_icon:0 | def get_menu_icon(name: str, theme: str, source: str = "context_menu"):
+app\utils\ui\menu_builders\base.py::get_menu_icon:6 | return icon_cache.get_icon(name, theme, source)
+app\utils\ui\menu_builders\base.py::get_menu_icon:9 | def create_context_action(
+app\utils\ui\menu_builders\base.py::get_menu_icon:28 | action = actions_builder.create(
+app\utils\ui\menu_builders\category_menu_builder.py::build:20 | edit_action = self.actions.create(
+app\utils\ui\menu_builders\category_menu_builder.py::build:24 | self._get_icon("edit"),
+app\utils\ui\menu_builders\category_menu_builder.py::build:26 | delete_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::build:30 | add_link_action = self.actions.create(
+app\utils\ui\menu_builders\category_menu_builder.py::build:34 | self._get_icon("add_link"),
+app\utils\ui\menu_builders\category_menu_builder.py::build:37 | menu.addAction(add_link_action)
+app\utils\ui\menu_builders\category_menu_builder.py::build:39 | menu.addAction(edit_action)
+app\utils\ui\menu_builders\category_menu_builder.py::build:40 | menu.addAction(
+app\utils\ui\menu_builders\category_menu_builder.py::build:41 | self.actions.create(
+app\utils\ui\menu_builders\category_menu_builder.py::build:45 | self._get_icon("share"),
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:1 | cut_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:4 | copy_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:7 | paste_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:10 | delete_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:16 | menu.addAction(action)
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:21 | menu.addAction(edit_action)
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:25 | select_all_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:33 | menu.addAction(select_all_action)
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:34 | clear_action = self.actions.create(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:38 | self._get_icon("select_all"),
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:41 | menu.addAction(clear_action)
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:45 | undo_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:48 | redo_action = self._create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:52 | menu.addAction(undo_action)
+app\utils\ui\menu_builders\category_menu_builder.py::_add_common_actions:54 | menu.addAction(redo_action)
+app\utils\ui\menu_builders\category_menu_builder.py::_create_context_action:0 | def _create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_create_context_action:8 | return create_context_action(
+app\utils\ui\menu_builders\category_menu_builder.py::_create_context_action:16 | icon_getter=self._get_icon,
+app\utils\ui\menu_builders\category_menu_builder.py::_get_icon:0 | def _get_icon(self, name: str):
+app\utils\ui\menu_builders\category_menu_builder.py::_get_icon:2 | return get_menu_icon(name, self.theme)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:3 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:4 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:10 | get_menu_icon("add_link", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:13 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:14 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:18 | get_menu_icon("edit", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:23 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:24 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:28 | get_menu_icon("run", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:33 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:34 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:38 | get_menu_icon("list_start", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:49 | get_menu_icon("delete_favorites", self.theme)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:51 | else get_menu_icon("add_favorites", self.theme)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:54 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:55 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:65 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:66 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_link_item_actions:70 | get_menu_icon("edit_note", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:1 | cut_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:4 | copy_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:7 | paste_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:10 | delete_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:13 | select_all_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:23 | menu.addAction(action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:30 | menu.addAction(select_all_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:31 | clear_action = self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:35 | get_menu_icon("select_all", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:38 | menu.addAction(clear_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:42 | undo_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:45 | redo_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:49 | menu.addAction(undo_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_common_actions:51 | menu.addAction(redo_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:9 | share_menu.setIcon(get_menu_icon("share", self.theme))
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:11 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:12 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:16 | get_menu_icon("telegram", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:19 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:20 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:24 | get_menu_icon("whatsapp", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:27 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:28 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:32 | get_menu_icon("viber", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:35 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:36 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:40 | get_menu_icon("x", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:43 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:44 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:48 | get_menu_icon("facebook", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:51 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:52 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:56 | get_menu_icon("linkedin", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:59 | share_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:60 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:64 | get_menu_icon("pinterest", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:70 | email_menu.setIcon(get_menu_icon("email", self.theme))
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:71 | email_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:72 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:76 | get_menu_icon("gmail", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:79 | email_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:80 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:84 | get_menu_icon("email_client", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:87 | email_menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:88 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_share_submenu:92 | get_menu_icon("copy", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:4 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:5 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:11 | get_menu_icon("add_link", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:15 | menu.addAction(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:16 | self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:20 | get_menu_icon("list_start", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:26 | paste_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:30 | menu.addAction(paste_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:34 | select_all_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:42 | menu.addAction(select_all_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:43 | clear_action = self.actions.create(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:47 | get_menu_icon("select_all", self.theme),
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:50 | menu.addAction(clear_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:54 | undo_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:57 | redo_action = self._create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:61 | menu.addAction(undo_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_add_empty_area_actions:63 | menu.addAction(redo_action)
+app\utils\ui\menu_builders\links_menu_builder.py::_create_context_action:0 | def _create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_create_context_action:8 | return create_context_action(
+app\utils\ui\menu_builders\links_menu_builder.py::_create_context_action:16 | icon_getter=lambda name: get_menu_icon(name, self.theme),
+app\utils\ui\menu_builders\main_menu_builder.py::build:7 | undo_action, redo_action = self.main_window.create_undo_redo_actions()
+app\utils\ui\menu_builders\main_menu_builder.py::build:12 | self.main_window.addAction(undo_action)
+app\utils\ui\menu_builders\main_menu_builder.py::build:17 | self.main_window.addAction(redo_action)
+app\utils\ui\menu_builders\main_menu_builder.py::build:20 | self._create_file_menu(menubar)
+app\utils\ui\menu_builders\main_menu_builder.py::build:21 | self._create_data_menu(menubar)
+app\utils\ui\menu_builders\main_menu_builder.py::build:22 | self._create_help_menu(menubar)
+app\utils\ui\menu_builders\main_menu_builder.py::_create_action:0 | def _create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_action:7 | action = self.actions.create(text, callback, shortcut, icon=None)
+app\utils\ui\menu_builders\main_menu_builder.py::_schedule_deferred_icon_apply:8 | action.setIcon(get_menu_icon(icon_name, self.theme, "main_menu"))
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:0 | def _create_file_menu(self, menubar: QMenuBar):
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:6 | logger.warning("Main menu: failed to create File menu")
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:10 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:11 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:20 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:21 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:40 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:41 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:50 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:51 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:62 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:63 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:74 | file_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_file_menu:75 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:0 | def _create_data_menu(self, menubar: QMenuBar):
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:6 | logger.warning("Main menu: failed to create Data menu")
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:10 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:11 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:18 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:19 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:26 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:27 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:38 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:39 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:46 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:47 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:54 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:55 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:66 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:67 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:74 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:75 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:82 | data_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_data_menu:83 | self._create_action(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_help_menu:0 | def _create_help_menu(self, menubar: QMenuBar):
+app\utils\ui\menu_builders\main_menu_builder.py::_create_help_menu:6 | logger.warning("Main menu: failed to create Help menu")
+app\utils\ui\menu_builders\main_menu_builder.py::_create_help_menu:8 | help_menu.addAction(
+app\utils\ui\menu_builders\main_menu_builder.py::_create_help_menu:9 | self._create_action(
+app\utils\ui\menu_builders\menu_actions.py::create:0 | def create(
+app\utils\ui\menu_builders\menu_actions.py::create:11 | action.setIcon(icon)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:4 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:5 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:9 | get_menu_icon("add_category", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:12 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:13 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:17 | get_menu_icon("import_category", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:22 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:23 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:27 | get_menu_icon("edit", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:30 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:31 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_section_actions:35 | get_menu_icon("share", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:15 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:16 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:20 | get_menu_icon("add_link", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:24 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:25 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:29 | get_menu_icon("edit", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:32 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:33 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_category_actions:37 | get_menu_icon("share", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:2 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:3 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:7 | get_menu_icon("add_section", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:12 | menu.addAction(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:13 | self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_root_actions:17 | get_menu_icon("import_sections", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:1 | cut_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:4 | copy_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:7 | paste_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:10 | delete_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:16 | menu.addAction(action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:21 | menu.addAction(edit_action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:25 | select_all_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:33 | menu.addAction(select_all_action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:34 | clear_action = self.actions.create(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:38 | get_menu_icon("select_all", self.theme),
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:41 | menu.addAction(clear_action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:45 | undo_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:48 | redo_action = self._create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:52 | menu.addAction(undo_action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_add_common_actions:54 | menu.addAction(redo_action)
+app\utils\ui\menu_builders\structure_menu_builder.py::_create_context_action:0 | def _create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_create_context_action:8 | return create_context_action(
+app\utils\ui\menu_builders\structure_menu_builder.py::_create_context_action:16 | icon_getter=lambda name: get_menu_icon(name, self.theme),
+app\utils\ui\qt\combo_helpers.py::setIconSize:0 | def setIconSize(self, size: QSize) -> None:  # type: ignore[override]
+app\utils\ui\qt\combo_helpers.py::setIconSize:1 | super().setIconSize(size)
+app\utils\ui\qt\combo_helpers.py::setIconSize:2 | self._popup_view.setIconSize(size)
+app\utils\ui\qt\combo_helpers.py::_install_popup_model:3 | self._popup_view.setIconSize(self.iconSize())
+app\views\main_components\ui\window_ui_setup.py::setup_menu:4 | menu_bar = self.window.menu_controller.create_main_menu()
+app\views\main_components\ui\window_ui_setup.py::_create_top_bar_host:0 | def _create_top_bar_host(
+app\views\main_components\ui\window_ui_setup.py::_create_widget_by_mode:0 | def _create_widget_by_mode(self, mode: PanelMode | str) -> QWidget:
+app\views\main_components\ui\window_ui_setup.py::_create_top_panel_widget:0 | def _create_top_panel_widget(
+app\views\main_components\ui\window_ui_setup.py::_create_top_panel_widget:9 | widget = self._create_widget_by_mode(mode)
+app\views\main_components\ui\window_ui_setup.py::_create_top_panel_widget:16 | logger.exception(f"TopPanel: failed to create {log_label} widget")
+app\views\main_components\ui\window_ui_setup.py::setup_top_bar_widgets:7 | self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
+app\views\main_components\ui\window_ui_setup.py::setup_top_bar_widgets:12 | top_bar.addWidget(self._create_vertical_separator())
+app\views\main_components\ui\window_ui_setup.py::setup_top_bar_widgets:19 | top_bar.addWidget(self._create_vertical_separator())
+app\views\main_components\ui\window_ui_setup.py::setup_top_bar_widgets:26 | @safe_ui_operation("TopPanel: failed to create vertical separator", exc=(Exception,))
+app\views\main_components\ui\window_ui_setup.py::_create_vertical_separator:0 | def _create_vertical_separator(self) -> QWidget:
+app\views\main_components\ui\window_ui_setup.py::_show_search_context_menu:2 | from app.views.windows.dialogs.base_dialog import create_context_menu
+app\views\main_components\ui\window_ui_setup.py::_show_search_context_menu:4 | menu = create_context_menu(widget)
+app\views\main_components\ui\window_ui_setup.py::setup_left_panel:20 | self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
+app\views\main_components\ui\window_ui_setup.py::_apply_window_icon:4 | self.window.setWindowIcon(create_icon_from_path(logo_path))
+app\views\main_components\ui\topbar\toolbar_adapters.py::_icon_from_path:6 | icon = create_icon_from_path(str(path))
+app\views\main_components\ui\topbar\toolbar_adapters.py::_icon_from_path:9 | icon = create_icon_from_path(str(fallback))
+app\views\main_components\ui\topbar\toolbar_adapters.py::_icon_from_path:13 | icon = create_icon_from_path(str(fallback_path))
+app\views\main_components\ui\topbar\toolbar_adapters.py::_icon_from_path:18 | return create_icon_from_path(str(fallback))
+app\views\main_components\ui\topbar\toolbar_adapters.py::_icon_from_path:22 | return create_icon_from_path(str(fallback_path))
+app\views\main_components\ui\topbar\toolbar_adapters.py::eventFilter:6 | obj.setIcon(contrast_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::eventFilter:11 | obj.setIcon(normal_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::eventFilter:17 | obj.setIcon(normal_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::showEvent:7 | self._target_button.setIcon(contrast_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::hideEvent:7 | self._target_button.setIcon(contrast_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::hideEvent:11 | self._target_button.setIcon(normal_icon)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_add_action:4 | self._toolbar.addAction(action)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_add_action:11 | button.setIconSize(self._icon_size)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_actions:3 | from app.utils.ui.menu_builders.base import get_menu_icon
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_actions:6 | sec_icon = get_menu_icon("add_section", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_actions:20 | cat_icon = get_menu_icon("add_category", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_actions:3 | from app.utils.ui.menu_builders.base import get_menu_icon
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_actions:13 | icon = get_menu_icon(icon_name, theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_quick_actions:38 | from app.utils.ui.menu_builders.base import get_menu_icon
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_quick_actions:40 | add_icon = get_menu_icon("add_link", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_build_quick_actions:59 | menu.addAction(sub_action)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:4 | from app.utils.ui.menu_builders.base import get_menu_icon
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:6 | fav_icon = get_menu_icon("add_favorites", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:8 | fav_icon = get_menu_icon("fav_ok", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:19 | menu.addAction(empty_action)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:46 | menu.addAction(action)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:4 | from app.utils.ui.menu_builders.base import get_menu_icon
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:6 | history_icon = get_menu_icon("history", theme)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:17 | menu.addAction(empty_action)
+app\views\main_components\ui\topbar\toolbar_adapters.py::_rebuild_menu:47 | menu.addAction(action)
+app\views\main_components\ui\topbar\top_bar_setup.py::build:70 | toolbar.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
+app\views\main_components\ui\topbar\top_bar_setup.py::build:84 | toolbar.addAction(anchor_quick)
+app\views\main_components\ui\topbar\top_bar_setup.py::build:94 | toolbar.addAction(end_marker)
+app\views\main_components\ui\topbar\top_bar_setup.py::build:159 | top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)
+app\views\main_components\ui\topbar\top_bar_setup.py::build:167 | top_bar.addWidget(self.ui._create_vertical_separator())
+app\views\main_components\ui\topbar\top_bar_setup.py::build:195 | theme_separator = self.ui._create_vertical_separator()
+app\views\widgets\link_button_mixin.py::_create_link_button:0 | def _create_link_button(self, link_data: dict[str, Any]) -> QToolButton:
+app\views\widgets\link_button_mixin.py::_create_link_button:7 | button.setIconSize(QSize(icon_size[0], icon_size[1]))
+app\views\widgets\link_button_mixin.py::_create_link_button:11 | icon = create_icon_from_path(resolved_path)
+app\views\widgets\link_button_mixin.py::_create_link_button:12 | # Fallback: if icon not created or is empty — use default
+app\views\widgets\link_button_mixin.py::_create_link_button:15 | "Icon not created/empty for link %r (path=%s)",
+app\views\widgets\link_button_mixin.py::_create_link_button:19 | button.setIcon(icon)
+app\views\widgets\link_button_mixin.py::_create_link_button:47 | "Failed to create icon for link '%s': %s",
+app\views\widgets\link\base_table.py::_get_icon_colors:0 | def _get_icon_colors() -> tuple[QColor, QColor]:
+app\views\widgets\link\base_table.py::_resolve_header_text_color:9 | normal, _hover = self._get_icon_colors()
+app\views\widgets\link\base_table.py::_setup_table:45 | _icon_sz = app_config.ui.get_icon_size()
+app\views\widgets\link\base_table.py::_setup_table:46 | self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
+app\views\widgets\panels\quick_add_panel_widget.py::_setup_quick_buttons:44 | btn.setIconSize(QSize(iw, ih))
+app\views\widgets\panels\quick_add_panel_widget.py::_setup_quick_buttons:50 | btn.setIcon(create_icon_from_path(str(icon_path)))
+app\views\widgets\tree_components\move_operations_handler.py::_show_message:15 | msg.setIcon(QMessageBox.Icon.Information)
+app\views\widgets\tree_components\move_operations_handler.py::_show_message:17 | msg.setIcon(QMessageBox.Icon.Warning)
+app\views\widgets\tree_components\move_operations_handler.py::_show_message:19 | msg.setIcon(QMessageBox.Icon.Critical)
+app\views\windows\dialogs\bad_url_cleanup_dialog.py::_on_context_menu:25 | menu.addAction(open_action)
+app\views\windows\dialogs\bad_url_cleanup_dialog.py::_on_context_menu:29 | menu.addAction(copy_action)
+app\views\windows\dialogs\bad_url_cleanup_dialog.py::closeEvent:13 | msg_box.setIcon(QMessageBox.Icon.Warning)
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:40 | def create_context_menu(widget):
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:52 | menu.addAction(get_menu_icon("undo", theme_name), QCoreApplication.translate("MenuActions", "&Undo")),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:59 | menu.addAction(get_menu_icon("redo", theme_name), QCoreApplication.translate("MenuActions", "&Redo")),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:68 | menu.addAction(get_menu_icon("cut", theme_name), QCoreApplication.translate("MenuActions", "Cut")),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:75 | menu.addAction(get_menu_icon("copy", theme_name), QCoreApplication.translate("MenuActions", "Copy")),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:89 | menu.addAction(
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:90 | get_menu_icon("paste", theme_name),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:101 | menu.addAction(get_menu_icon("delete", theme_name), QCoreApplication.translate("MenuActions", "Delete")),
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:110 | menu.addAction(
+app\views\windows\dialogs\base_dialog.py::apply_uniform_height:111 | get_menu_icon("select_all", theme_name), QCoreApplication.translate("MenuActions", "Select all")
+app\views\windows\dialogs\base_dialog.py::__init__:3 | self._context_menus: list = []  # Track created context menus for cleanup
+app\views\windows\dialogs\base_dialog.py::_cleanup_context_menus:1 | """Cleanup all created context menus."""
+app\views\windows\dialogs\base_dialog.py::_setup_russian_context_menus:5 | # Track created menus for cleanup
+app\views\windows\dialogs\base_dialog.py::_apply_combo_popup_styles:16 | target_icon = int(round(24 * scale))
+app\views\windows\dialogs\base_dialog.py::_apply_combo_popup_styles:27 | combo.setIconSize(QSize(target_icon, target_icon))
+app\views\windows\dialogs\base_dialog.py::_apply_combo_popup_styles:30 | view.setIconSize(QSize(target_icon, target_icon))
+app\views\windows\dialogs\base_dialog.py::_show_context_menu:3 | menu = create_context_menu(widget)
+app\views\windows\dialogs\base_dialog.py::show_info:10 | mb.setIcon(QMessageBox.Icon.Information)
+app\views\windows\dialogs\base_dialog.py::show_warning:10 | mb.setIcon(QMessageBox.Icon.Warning)
+app\views\windows\dialogs\base_dialog.py::show_error:10 | mb.setIcon(QMessageBox.Icon.Critical)
+app\views\windows\dialogs\base_dialog.py::show_confirmation:9 | mb.setIcon(QMessageBox.Icon.Question)
+app\views\windows\dialogs\browser_profile_dialog.py::_setup_ui:48 | refresh_icon = get_menu_icon("refresh", theme)
+app\views\windows\dialogs\browser_profile_dialog.py::_setup_ui:50 | self.refresh_btn.setIcon(refresh_icon)
+app\views\windows\dialogs\database_dialogs.py::confirm_clear_favorites:4 | box.setIcon(QMessageBox.Icon.Warning)
+app\views\windows\dialogs\database_dialogs.py::confirm_database_restore:4 | box.setIcon(QMessageBox.Icon.Question)
+app\views\windows\dialogs\database_dialogs.py::confirm_database_restore:10 | "A backup will be created before the restore."
+app\views\windows\dialogs\database_dialogs.py::get_icons_archive_location:0 | def get_icons_archive_location(
+app\views\windows\dialogs\database_dialogs.py::get_icons_archive_to_load:0 | def get_icons_archive_to_load(self) -> Optional[Path]:
+app\views\windows\dialogs\entity_dialogs.py::_init_common_ui:14 | self.icon_btn.setIconSize(QSize(*app_config.ui.get_dialog_icon_size()))
+app\views\windows\dialogs\entity_dialogs.py::_init_common_ui:15 | self.icon_btn.setIcon(
+app\views\windows\dialogs\entity_dialogs.py::_init_common_ui:16 | create_icon_from_path(
+app\views\windows\dialogs\entity_dialogs.py::_create_button_box:0 | def _create_button_box(self):
+app\views\windows\dialogs\entity_dialogs.py::_get_icon_path:0 | def _get_icon_path(self, icon_filename: str) -> Path:
+app\views\windows\dialogs\entity_dialogs.py::_choose_icon:10 | self.icon_btn.setIcon(
+app\views\windows\dialogs\entity_dialogs.py::_choose_icon:11 | create_icon_from_path(str(self._get_icon_path(self._icon_filename)))
+app\views\windows\dialogs\entity_dialogs.py::_choose_icon:15 | self.icon_btn.setIcon(icon)
+app\views\windows\dialogs\entity_dialogs.py::_init_ui:18 | vbox.addWidget(self._create_button_box())
+app\views\windows\dialogs\entity_dialogs.py::_load_section:18 | icon_path = self._get_icon_path(icon)
+app\views\windows\dialogs\entity_dialogs.py::_load_section:19 | self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
+app\views\windows\dialogs\entity_dialogs.py::_init_ui:20 | vbox.addWidget(self._create_button_box())
+app\views\windows\dialogs\entity_dialogs.py::_load_category:41 | icon_path = self._get_icon_path(icon)
+app\views\windows\dialogs\entity_dialogs.py::_load_category:42 | self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
+app\views\windows\dialogs\entity_dialogs.py::__init__:14 | # Translate after widgets are created
+app\views\windows\dialogs\installed_apps_dialog.py::_setup_ui:28 | self.apps_list.setIconSize(QSize(32, 32))
+app\views\windows\dialogs\installed_apps_dialog.py::_on_icon_loaded:6 | item.setIcon(QIcon(QPixmap.fromImage(img)))
+app\views\windows\dialogs\note_dialog.py::_get_action_icon:0 | def _get_action_icon(self, icon_name: str) -> QIcon:
+app\views\windows\dialogs\note_dialog.py::_get_action_icon:9 | return _create_tinted_svg_icon(str(p), icon_color)
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:10 | act_undo = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:11 | self._get_action_icon("undo.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:18 | act_redo = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:19 | self._get_action_icon("redo.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:32 | act_cut = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:33 | self._get_action_icon("cut.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:40 | act_copy = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:41 | self._get_action_icon("copy.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:48 | act_paste = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:49 | self._get_action_icon("paste.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:57 | act_sel_all = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:58 | self._get_action_icon("select_all.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:67 | menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:68 | self._get_action_icon("copy.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:73 | act_clear = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:74 | self._get_action_icon("clear_note.svg"),
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:83 | act_close = menu.addAction(
+app\views\windows\dialogs\note_dialog.py::_show_context_menu:84 | self._get_action_icon("exit.svg"),
+app\views\windows\dialogs\quick_look_dialog.py::_setup_ui:180 | self._pdf_prev_btn.setIconSize(QSize(12, 12))
+app\views\windows\dialogs\quick_look_dialog.py::_setup_ui:190 | self._pdf_next_btn.setIconSize(QSize(12, 12))
+app\views\windows\dialogs\quick_look_dialog.py::set_link:28 | qicon = get_icon(raw_icon) if raw_icon else QIcon()
+app\views\windows\dialogs\quick_look_dialog.py::set_link:32 | qicon = get_icon(resolved)
+app\views\windows\dialogs\quick_look_dialog.py::_show_table_context_menu:13 | copy_act = menu.addAction(
+app\views\windows\dialogs\quick_look_dialog.py::_show_table_context_menu:14 | get_menu_icon("copy", theme_name),
+app\views\windows\dialogs\quick_look_dialog.py::_show_table_context_menu:23 | select_all_act = menu.addAction(
+app\views\windows\dialogs\quick_look_dialog.py::_show_table_context_menu:24 | get_menu_icon("select_all", theme_name),
+app\views\windows\dialogs\quick_look_dialog.py::_show_context_menu:14 | copy_act = menu.addAction(
+app\views\windows\dialogs\quick_look_dialog.py::_show_context_menu:15 | get_menu_icon("copy", theme_name),
+app\views\windows\dialogs\quick_look_dialog.py::_show_context_menu:24 | select_all_act = menu.addAction(
+app\views\windows\dialogs\quick_look_dialog.py::_show_context_menu:25 | get_menu_icon("select_all", theme_name),
+app\views\windows\dialogs\quick_look_dialog.py::_apply_preview_theme:4 | self._pdf_prev_btn.setIcon(icon_cache.get_icon("left", cur_t))
+app\views\windows\dialogs\quick_look_dialog.py::_apply_preview_theme:5 | self._pdf_next_btn.setIcon(icon_cache.get_icon("right", cur_t))
+app\views\windows\dialogs\link_dialog\link_dialog_ui.py::_build_type_section:27 | btn.setIconSize(QSize(type_icon_size, type_icon_size))
+app\views\windows\dialogs\link_dialog\link_dialog_ui.py::apply_deferred_type_icons:9 | btn.setIcon(create_icon_from_path(str(icon_path)))
+app\views\windows\dialogs\link_dialog\link_dialog_ui.py::_form_add_name_row:9 | self.icon_btn.setIconSize(QSize(default_icon, default_icon))
+app\views\windows\dialogs\link_dialog\handlers_mixins\icons_mixin.py::_on_choose_icon:11 | btn = self.dialog._get_icon_btn()
+app\views\windows\dialogs\link_dialog\handlers_mixins\icons_mixin.py::_on_choose_icon:12 | btn.setIcon(icon if icon else QIcon())
+app\views\windows\dialogs\link_dialog\handlers_mixins\icons_mixin.py::_reset_icon_to_default:13 | button = self.dialog._get_icon_btn()
+app\views\windows\dialogs\link_dialog\handlers_mixins\icons_mixin.py::_reset_icon_to_default:17 | button.setIcon(QIcon())
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:14 | task_created_ts = time.perf_counter()
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:16 | "[Trace] link_info task_created id=%s type=%s path=%s processing=%s",
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:50 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:60 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:72 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:82 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:93 | (work_t0 - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:102 | (fetch_t0 - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:119 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::trigger_link_processing:134 | (time.perf_counter() - task_created_ts) * 1000.0,
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::_on_link_info_fetched:24 | set_icon_to_button(self.dialog._get_icon_btn(), icon_path_str)
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::_on_link_info_fetched:38 | set_icon_to_button(self.dialog._get_icon_btn(), resolved_icon_path)
+app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py::_on_link_info_fetched:40 | self.dialog._get_icon_btn().setIcon(QIcon())
+app\views\windows\dialogs\link_dialog\handlers_mixins\type_change_mixin.py::on_type_changed:34 | set_icon_to_button(self.dialog._get_icon_btn(), resolved_icon_path)
+app\views\windows\dialogs\link_dialog\handlers_mixins\type_change_mixin.py::on_type_changed:36 | self.dialog._get_icon_btn().setIcon(QIcon())

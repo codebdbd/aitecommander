@@ -362,18 +362,18 @@ class MainMenuBuilder:
         # Database
         data_menu.addAction(
             self._create_action(
-                MenuTexts.CONNECT_DATABASE,
-                self._connect_database,
-                Shortcuts.CTRL_ALT_D,
-                icon_name="import",
-            )
-        )
-        data_menu.addAction(
-            self._create_action(
                 MenuTexts.SAVE_DATABASE,
                 self._save_database,
                 Shortcuts.CTRL_ALT_S,
                 icon_name="export",
+            )
+        )
+        data_menu.addAction(
+            self._create_action(
+                MenuTexts.CONNECT_DATABASE,
+                self._connect_database,
+                Shortcuts.CTRL_ALT_D,
+                icon_name="database_add",
             )
         )
         data_menu.addAction(
@@ -387,41 +387,21 @@ class MainMenuBuilder:
 
         data_menu.addSeparator()
 
-        # Links
+        # Import & Export
         data_menu.addAction(
             self._create_action(
                 MenuTexts.IMPORT_BROWSER,
                 self.main_window.handle_import_browser_bookmarks,
                 Shortcuts.CTRL_ALT_C,
-                icon_name="import",
+                icon_name="bookmark_import",
             )
         )
-        data_menu.addAction(
-            self._create_action(
-                QCoreApplication.translate("MainMenu", "Check Bad URLs"),
-                self._check_bad_urls,
-                Shortcuts.CTRL_ALT_U,
-                icon_name="link_off",
-            )
-        )
-        data_menu.addAction(
-            self._create_action(
-                MenuTexts.CLEAR_FAVORITES,
-                self._clear_favorites,
-                Shortcuts.CTRL_ALT_F,
-                icon_name="delete",
-            )
-        )
-
-        data_menu.addSeparator()
-
-        # Icons
         data_menu.addAction(
             self._create_action(
                 MenuTexts.IMPORT_ICONS,
                 self._load_icons,
                 Shortcuts.CTRL_ALT_I,
-                icon_name="add_ico",
+                icon_name="import_image",
             )
         )
         data_menu.addAction(
@@ -432,12 +412,36 @@ class MainMenuBuilder:
                 icon_name="zip_ico",
             )
         )
+
+        data_menu.addSeparator()
+
+        # Diagnostics & Maintenance
         data_menu.addAction(
             self._create_action(
-                QCoreApplication.translate("MainMenu", "Refresh Icons"),
+                MenuTexts.CHECK_LINKS,
+                self._check_bad_urls,
+                Shortcuts.CTRL_ALT_U,
+                icon_name="link_off",
+            )
+        )
+        data_menu.addAction(
+            self._create_action(
+                MenuTexts.REFRESH_ICONS,
                 self._refresh_icons,
                 Shortcuts.CTRL_ALT_H,
                 icon_name="refresh",
+            )
+        )
+
+        data_menu.addSeparator()
+
+        # Danger Zone
+        data_menu.addAction(
+            self._create_action(
+                MenuTexts.CLEAR_FAVORITES,
+                self._clear_favorites,
+                Shortcuts.CTRL_ALT_F,
+                icon_name="favorite_clear",
             )
         )
 
