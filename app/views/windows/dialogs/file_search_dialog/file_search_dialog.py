@@ -196,11 +196,11 @@ class FileSearchDialog(BaseDialog):
         location_row_layout = QHBoxLayout(location_row)
         location_row_layout.setContentsMargins(0, 0, 0, 0)
         self.root_le = QLineEdit(str(Path.home()))
-        self.root_le.setMinimumWidth(app_config.ui.get_file_search_root_min_width())
-        browse_btn = QPushButton(self.tr("Browse"))
-        browse_btn.clicked.connect(self._choose_root)
+        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.adjust_button_width(self.browse_btn, min_width=app_config.ui.get_fixed_button_width())
+        self.browse_btn.clicked.connect(self._choose_root)
         location_row_layout.addWidget(self.root_le, 1)
-        location_row_layout.addWidget(browse_btn)
+        location_row_layout.addWidget(self.browse_btn)
         form.addRow(self.lbl_search_location, location_row)
 
         # Third row: extension + content
@@ -365,10 +365,15 @@ class FileSearchDialog(BaseDialog):
         """Translate button texts and tooltips."""
         if hasattr(self, "pattern_combo") and self.pattern_combo is not None:
             self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
+        if hasattr(self, "browse_btn") and self.browse_btn is not None:
+            self.browse_btn.setText(self.tr("Browse"))
+            self.adjust_button_width(self.browse_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "search_btn") and self.search_btn is not None:
             self.search_btn.setText(self.tr("Search"))
+            self.adjust_button_width(self.search_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "stop_btn") and self.stop_btn is not None:
             self.stop_btn.setText(self.tr("Stop"))
+            self.adjust_button_width(self.stop_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "add_link_btn") and self.add_link_btn is not None:
             self.add_link_btn.setText(self.tr("Add as link"))
         if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:

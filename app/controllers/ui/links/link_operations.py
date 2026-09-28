@@ -268,13 +268,38 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             "The file or program for '{name}' was not found at:\n{path}\n\nWould you like to locate it on this computer?",
         ).format(name=name, path=raw_path)
 
-        reply = QMessageBox.question(
-            self.main,
-            title,
-            msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
+        parts = msg.split("\n\n")
+        if len(parts) == 2 and "\n" in parts[0]:
+            header, _ = parts[0].split("\n", 1)
+            question = parts[1]
+            formatted_msg = (
+                f"<div style='font-size: 13px; line-height: 1.35;'>"
+                f"<div style='font-weight: 600; margin-bottom: 6px;'>{header}</div>"
+                f"<div style='background: rgba(128, 128, 128, 0.12); padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 11px; margin-bottom: 8px; word-break: break-all;'>{raw_path}</div>"
+                f"<div>{question}</div>"
+                f"</div>"
+            )
+        else:
+            formatted_msg = msg
+
+        from app.controllers.ui.dialogs.dialog_manager import (
+            localize_message_box_buttons,
         )
+        from app.views.windows.dialogs.base_dialog import (
+            apply_uniform_height_to_message_box,
+        )
+
+        msg_box = QMessageBox(self.main)
+        msg_box.setIcon(QMessageBox.Icon.NoIcon)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(formatted_msg)
+        msg_box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
+        apply_uniform_height_to_message_box(msg_box)
+        localize_message_box_buttons(msg_box)
+        reply = msg_box.exec()
         if reply != QMessageBox.StandardButton.Yes:
             return
 

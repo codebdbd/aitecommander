@@ -188,35 +188,13 @@ class LinkDialogUI:
     @staticmethod
     def adjust_button_width(
         btn: QPushButton | None,
-        min_width: int = 115,
-        padding: int = 28,
+        min_width: int = 100,
+        padding: int = 24,
     ) -> int:
-        """Adjust button width dynamically based on its text and font metrics.
+        """Delegate to BaseDialog.adjust_button_width for uniform button widths."""
+        from app.views.windows.dialogs.base_dialog import BaseDialog
 
-        Ensures text is never clipped regardless of language, font, or DPI scaling,
-        while maintaining a clean minimum width for visual consistency.
-        """
-        if btn is None:
-            return 0
-        try:
-            text = btn.text()
-            fm = btn.fontMetrics()
-            text_width = fm.horizontalAdvance(text) if text else 0
-            icon_width = 0
-            if hasattr(btn, "icon") and not btn.icon().isNull():
-                icon_size = btn.iconSize()
-                icon_width = (icon_size.width() if icon_size.isValid() else 16) + 8
-            required_width = int(text_width) + int(icon_width) + padding
-            target_width = max(min_width, required_width)
-            btn.setFixedWidth(target_width)
-            return target_width
-        except Exception as e:
-            logger.debug("Failed to adjust button width: %s", e)
-            try:
-                btn.setFixedWidth(min_width)
-            except Exception:
-                pass
-            return min_width
+        return BaseDialog.adjust_button_width(btn, min_width=min_width, padding=padding)
 
     def _form_add_path_row(self) -> None:
         """Add URL/Path row with Browse/Profile buttons."""
@@ -434,7 +412,6 @@ class LinkDialogUI:
             ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to configure focus for OK button: %s", e)
-        ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText(tr_common("Cancel"))
@@ -444,7 +421,12 @@ class LinkDialogUI:
             cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to configure focus for Cancel button: %s", e)
-        cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+
+        from app.views.windows.dialogs.base_dialog import BaseDialog
+
+        BaseDialog.equalize_button_box(
+            self.button_box, min_width=app_config.ui.get_fixed_button_width()
+        )
 
         bottom_row.addWidget(self.button_box)
         container.addLayout(bottom_row)
@@ -625,6 +607,11 @@ class LinkDialogUI:
                     ok_btn.setText(tr_common("Save"))
                 if cancel_btn is not None:
                     cancel_btn.setText(tr_common("Cancel"))
+                from app.views.windows.dialogs.base_dialog import BaseDialog
+
+                BaseDialog.equalize_button_box(
+                    self.button_box, min_width=app_config.ui.get_fixed_button_width()
+                )
         except Exception:
             pass
 

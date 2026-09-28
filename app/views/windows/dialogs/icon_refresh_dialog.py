@@ -279,6 +279,16 @@ class IconRefreshDialog(BaseDialog):
         
         self.close_button.setText(QCoreApplication.translate("IconRefreshDialog", "Close"))
 
+        buttons = [self.refresh_button, self.cancel_button, self.close_button]
+        if self.allow_background and hasattr(self, "background_button"):
+            buttons.append(self.background_button)
+        max_w = max(
+            app_config.ui.get_fixed_button_width(),
+            *(self.adjust_button_width(b, min_width=0, padding=24) for b in buttons),
+        )
+        for b in buttons:
+            b.setFixedWidth(max_w)
+
     def _on_refresh_clicked(self):
         """Запустить парсинг иконок по запросу пользователя."""
         if self.service.is_running() or self._cancel_requested:

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDialog,
+    QDialogButtonBox,
     QDoubleSpinBox,
     QLineEdit,
     QListView,
@@ -34,6 +35,70 @@ from app.utils.ui.qt.delegates.list_item_height_delegate import (
 from app.views.common.retranslatable import ReTranslatable
 
 logger = logging.getLogger(__name__)
+
+
+def adjust_button_width(
+    btn: QPushButton | None,
+    min_width: int = 100,
+    padding: int = 24,
+) -> int:
+    """Adjust button width dynamically based on its text and font metrics.
+
+    Ensures text is never clipped regardless of language, font, or DPI scaling,
+    while maintaining a clean minimum width for visual consistency.
+    """
+    if btn is None:
+        return 0
+    try:
+        text = btn.text()
+        fm = btn.fontMetrics()
+        text_width = fm.horizontalAdvance(text) if text else 0
+        icon_width = 0
+        if hasattr(btn, "icon") and not btn.icon().isNull():
+            icon_size = btn.iconSize()
+            icon_width = (icon_size.width() if icon_size.isValid() else 16) + 8
+        required_width = int(text_width) + int(icon_width) + padding
+        target_width = max(min_width, required_width)
+        btn.setFixedWidth(target_width)
+        return target_width
+    except Exception as e:
+        logger.debug("Failed to adjust button width: %s", e)
+        try:
+            btn.setFixedWidth(min_width)
+        except Exception:
+            pass
+        return min_width
+
+
+def equalize_button_box(
+    box: QDialogButtonBox | None,
+    min_width: int = 100,
+    padding: int = 24,
+) -> int:
+    """Equalize all buttons in a button box to the width of the widest button.
+
+    Complies with HIG / Fluent Design standards: action buttons in a strip share
+    an identical width determined by the longest translated label.
+    """
+    if box is None:
+        return 0
+    try:
+        buttons = box.findChildren(QPushButton)
+        if not buttons:
+            return 0
+        max_w = min_width
+        for btn in buttons:
+            text = btn.text()
+            fm = btn.fontMetrics()
+            text_w = fm.horizontalAdvance(text) if text else 0
+            icon_w = (btn.iconSize().width() + 8) if (hasattr(btn, "icon") and not btn.icon().isNull()) else 0
+            max_w = max(max_w, int(text_w + icon_w + padding))
+        for btn in buttons:
+            btn.setFixedWidth(max_w)
+        return max_w
+    except Exception as e:
+        logger.debug("Failed to equalize button box: %s", e)
+        return min_width
 
 
 def apply_uniform_height(dialog: QDialog):
@@ -65,15 +130,21 @@ def apply_uniform_height(dialog: QDialog):
 
 def apply_uniform_height_to_message_box(msg_box: QMessageBox):
     """
-    Apply uniform height and standard width (100px) to all buttons in a QMessageBox.
-    Call this after adding all buttons to the message box.
+    Apply uniform height and equalized width (minimum 100px) to all buttons in a QMessageBox.
+    Ensures symmetric, unclipped buttons for confirmations across all languages.
     """
     btn_w = app_config.ui.get_fixed_button_width()
     btn_h = app_config.ui.get_dialog_control_height()
     buttons = msg_box.findChildren(QPushButton)
+    max_w = btn_w
     for button in buttons:
         button.setFixedHeight(btn_h)
-        button.setMinimumWidth(btn_w)
+        text = button.text()
+        fm = button.fontMetrics()
+        text_w = fm.horizontalAdvance(text) if text else 0
+        max_w = max(max_w, int(text_w + 24))
+    for button in buttons:
+        button.setFixedWidth(max_w)
 
 
 def create_context_menu(widget):
@@ -181,6 +252,34 @@ class BaseDialog(QDialog, ReTranslatable):
         """
         pass
 
+    @staticmethod
+    def adjust_button_width(
+        btn: QPushButton | None,
+        min_width: int = 100,
+        padding: int = 24,
+    ) -> int:
+        """Helper method delegating to module-level adjust_button_width."""
+        return adjust_button_width(btn, min_width=min_width, padding=padding)
+
+    @staticmethod
+    def equalize_button_box(
+        box: QDialogButtonBox | None,
+        min_width: int = 100,
+        padding: int = 24,
+    ) -> int:
+        """Helper method delegating to module-level equalize_button_box."""
+        return equalize_button_box(box, min_width=min_width, padding=padding)
+
+    def update_dialog_button_widths(
+        self,
+        min_width: int | None = None,
+        padding: int = 24,
+    ) -> None:
+        """Equalize all QDialogButtonBox instances in this dialog to fit translations."""
+        target_min_w = min_width if min_width is not None else app_config.ui.get_fixed_button_width()
+        for box in self.findChildren(QDialogButtonBox):
+            equalize_button_box(box, min_width=target_min_w, padding=padding)
+
     def showEvent(self, event):
         """
         Overrides the show event to apply styles just before the dialog is displayed.
@@ -189,6 +288,7 @@ class BaseDialog(QDialog, ReTranslatable):
             apply_uniform_height(self)
             self._apply_combo_popup_styles()
             self._apply_list_widget_styles()
+            self.update_dialog_button_widths()
             self._styles_applied = True
             self._setup_russian_context_menus()
         super().showEvent(event)

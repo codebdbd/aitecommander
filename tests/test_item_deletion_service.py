@@ -54,5 +54,33 @@ class TestItemDeletionService(unittest.TestCase):
         service._push_category_delete.assert_not_called()  # type: ignore[attr-defined]
 
 
+    def test_delete_section_confirms_even_when_links_count_is_zero(self) -> None:
+        service, business, _undo_stack = self._build_service()
+        business.get_section_data.return_value = {"id": 10, "name": "Sec 10"}
+        service._confirm_section_deletion = Mock(return_value=True)  # type: ignore[method-assign]
+        service._push_section_delete = Mock()  # type: ignore[method-assign]
+
+        service._delete_section(10)
+
+        business.get_section_data.assert_called_once_with(10)
+        service._confirm_section_deletion.assert_called_once_with(
+            {"id": 10, "name": "Sec 10"}, 0, 0
+        )
+        service._push_section_delete.assert_called_once_with(
+            {"id": 10, "name": "Sec 10"}
+        )
+
+    def test_delete_section_cancelled_by_user(self) -> None:
+        service, business, _undo_stack = self._build_service()
+        business.get_section_data.return_value = {"id": 10, "name": "Sec 10"}
+        service._confirm_section_deletion = Mock(return_value=False)  # type: ignore[method-assign]
+        service._push_section_delete = Mock()  # type: ignore[method-assign]
+
+        service._delete_section(10)
+
+        service._confirm_section_deletion.assert_called_once()
+        service._push_section_delete.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

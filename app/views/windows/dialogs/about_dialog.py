@@ -58,7 +58,7 @@ class AboutDialog(BaseDialog):
         self._license_path = self._resolve_license_path()
 
         self.setModal(True)
-        self.resize(560, 420)
+        self.setFixedWidth(560)
 
         self._setup_ui()
         self.retranslateUi()
@@ -210,6 +210,11 @@ class AboutDialog(BaseDialog):
         self.support_button.setText(self.tr("Support the project"))
         self.repo_button.setText(self.tr("GitHub repository"))
         self.license_button.setText(self.tr("Open license"))
+
+        if hasattr(self, "button_box") and self.button_box is not None:
+            ok_button = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+            if ok_button is not None:
+                self.adjust_button_width(ok_button, min_width=app_config.ui.get_fixed_button_width())
 
     def _open_url(self, url: str, action_name: str) -> None:
         try:

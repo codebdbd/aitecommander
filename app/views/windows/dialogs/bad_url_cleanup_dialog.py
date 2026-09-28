@@ -1162,5 +1162,12 @@ class BadUrlCleanupDialog(BaseDialog):
         self.delete_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
         self.close_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Close"))
 
+        min_btn_w = app_config.ui.get_fixed_button_width()
+        self.adjust_button_width(self.select_all_button, min_width=min_btn_w)
+        self.adjust_button_width(self.select_none_button, min_width=min_btn_w)
+        self.adjust_button_width(self.delete_button, min_width=min_btn_w)
+        self.adjust_button_width(self.cancel_button, min_width=min_btn_w)
+        self.adjust_button_width(self.close_button, min_width=min_btn_w)
+
 
 __all__ = ["BadUrlCleanupDialog"]

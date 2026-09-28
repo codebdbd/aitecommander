@@ -437,8 +437,10 @@ class BrowserProfileDialog(BaseDialog):
             self.search_line.setPlaceholderText(self.tr("Search by name/email"))
         if hasattr(self, "select_all_btn") and self.select_all_btn is not None:
             self.select_all_btn.setText(self.tr("Add all"))
+            self.adjust_button_width(self.select_all_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "deselect_all_btn") and self.deselect_all_btn is not None:
             self.deselect_all_btn.setText(self.tr("Clear selection"))
+            self.adjust_button_width(self.deselect_all_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "button_box") and self.button_box is not None:
             ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
@@ -446,6 +448,7 @@ class BrowserProfileDialog(BaseDialog):
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def _set_controls_enabled(self, enabled: bool):
         self.browser_combo.setEnabled(enabled)

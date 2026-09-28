@@ -318,6 +318,8 @@ class RestoreDbDialog(BaseDialog):
         if cancel_btn is not None:
             cancel_btn.setText(tr_common("Cancel"))
 
+        self.equalize_button_box(self.buttons, min_width=app_config.ui.get_fixed_button_width())
+
         # Обновляем существующие элементы списка
         if hasattr(self, "list_widget"):
             for index in range(self.list_widget.count()):

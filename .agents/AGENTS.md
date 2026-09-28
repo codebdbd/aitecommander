@@ -322,3 +322,21 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Selection & Persistence Rules**:
   1. **Сохранение выделения и фокуса**: В `LinksTableView.dropEvent` после вызова базового `dropEvent` выделение обязано автоматически восстанавливаться на перемещенных строках по их `id` через `selectionModel().select(...)`, а текущий фокус (`setCurrentIndex`) обязан устанавливаться на первую перемещенную строку.
   2. **Сигнальный поток в базу данных**: Завершение перемещения обязано порождать цепочку сигналов: `items_reordered(ids)` -> `links_reordered` -> `handlers._on_links_reordered` -> `business.update_link_order(ids)` для атомарного сохранения нового порядка в базе данных SQLite.
+
+## 35. Architecture Standards: Dialog Geometry & Equalized Button Box Standard (АРХИТЕКТУРНЫЙ СТАНДАРТ ГЕОМЕТРИИ ДИАЛОГОВ И СИММЕТРИИ КНОПОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Геометрия диалоговых окон, адаптивность к локализации и симметрия кнопок действий полностью зафиксированы.
+- **Strict Dialog Sizing Rules**:
+  1. **Категория А (Формы и карточки — Fixed Content)**: В диалогах `SectionDialog`, `CategoryDialog`, `SphereRenameDialog`, `ImportConflictDialog`, `SettingsDialog`, `AboutDialog`, `ChromeProfileDialog`, `AsyncOperationDialog`, `IconRefreshDialog`, `LinkDialog` фиксированная проектная ширина строго задаётся через `self.setFixedWidth(width)` (`600 px` для ссылок, `400 px` для сущностей) с последующим `self.adjustSize()`. Любое растягивание окон по горизонтали исключено аппаратно на уровне ОС, а высота рассчитывается по содержимому без пустых полей. Запрещено использовать `QLayout.SizeConstraint.SetFixedSize` на лейаутах окон с заданной фиксированной шириной во избежание схлопывания геометрии.
+  2. **Категория Б (Окна с таблицами и списками данных — Data Viewers)**: Диалоги `FileSearchDialog`, `InstalledAppsDialog`, `BadUrlCleanupDialog`, `RestoreDbDialog`, `BrowserProfileDialog`, `QuickLookDialog` сохраняют свободный ресайз окна для комфортного просмотра больших объемов данных.
+- **Strict Button Box Equalization & i18n Rules**:
+  1. **Симметрия парных кнопок футера**: В `QDialogButtonBox` ширина всех кнопок действий («Сохранить» / «Отмена», «Восстановить» / «Отмена», «Применить» / «Отмена») строго обязана выравниваться через `BaseDialog.equalize_button_box()` по формуле `max(min_width, max_text_width)`. Запрещено задавать парным кнопкам в футере разную ширину.
+  2. **Инлайн-кнопки полей формы**: Кнопки («Иконка», «Обзор», «Приложения») в строках полей ввода обязаны иметь фиксированную высоту строго **32 px** (`get_dialog_control_height()`) и адаптивную ширину через `adjust_button_width()` (база 100 px).
+  3. **Нулевой клиппинг при ретрансляции**: Все диалоги в методах `retranslateUi()` обязаны вызывать актуализацию размеров кнопок через `equalize_button_box()` / `adjust_button_width()`, гарантируя 100% отсутствие обрезания переведённого текста многоточием на всех поддерживаемых языках.
+
+## 36. Architecture Standards: Section & Structure Deletion Safety (АРХИТЕКТУРНЫЙ СТАНДАРТ БЕЗОПАСНОСТИ УДАЛЕНИЯ СТРУКТУРЫ И РАЗДЕЛОВ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Поведение подсистемы удаления разделов и элементов структуры (`ItemDeletionService`, `ItemOperations`) полностью стандартизировано.
+- **Strict Deletion Confirmation Rules**:
+  1. **Запрет на тихое удаление разделов (Silent Deletion Ban)**: В `ItemDeletionService._delete_section` категорически запрещено обходить диалог подтверждения при `links_count == 0`. Раздел является корневым структурным контейнером в дереве.
+  2. **Обязательное подтверждение (Mandatory Confirmation)**: Удаление любого раздела (одиночного или множественного) обязано всегда запрашивать подтверждение пользователя через `DialogManager.ask_confirmation` (`_confirm_section_deletion`) независимо от количества вложенных категорий и ссылок.
+  3. **Защита от регрессий**: Сервис `ItemDeletionService` обязан сопровождаться модульными тестами, подтверждающими вызов диалога подтверждения даже при 0 ссылок и 0 категорий.
+

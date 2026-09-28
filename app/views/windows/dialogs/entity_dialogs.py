@@ -172,7 +172,7 @@ class BaseEntityDialog(BaseDialog):
                 exc_info=True,
             )
         self.icon_btn = QPushButton()
-        self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        self.adjust_button_width(self.icon_btn, min_width=app_config.ui.get_fixed_button_width())
         # Use centralized dialog icon size from UIConfig
         self.icon_btn.setIconSize(QSize(*app_config.ui.get_dialog_icon_size()))
         self.icon_btn.setIcon(
@@ -201,7 +201,6 @@ class BaseEntityDialog(BaseDialog):
         )
         self._button_box = bb
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
-        ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Do not mark the button as default to avoid default highlighting without focus
         try:
             ok_btn.setDefault(False)
@@ -215,7 +214,6 @@ class BaseEntityDialog(BaseDialog):
             )
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
-        cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Remove default/autoDefault from Cancel so buttons do not grab focus by default
         try:
             cancel_btn.setDefault(False)
@@ -226,6 +224,8 @@ class BaseEntityDialog(BaseDialog):
                 "BaseEntityDialog: failed to adjust Cancel button defaults/focus",
                 exc_info=True,
             )
+
+        self.equalize_button_box(bb, min_width=app_config.ui.get_fixed_button_width())
 
         # Disable the Save button while the name is empty; update as text changes
         try:
@@ -283,6 +283,7 @@ class BaseEntityDialog(BaseDialog):
             self._name_label.setText(tr_common("Name:"))
         if self.icon_btn is not None:
             self.icon_btn.setText(tr_common("Icon"))
+            self.adjust_button_width(self.icon_btn, min_width=app_config.ui.get_fixed_button_width())
 
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
@@ -291,6 +292,7 @@ class BaseEntityDialog(BaseDialog):
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def showEvent(self, event):
         """Force focus to the name field when the dialog appears to prevent button focus."""
@@ -726,9 +728,10 @@ class SettingsDialog(BaseDialog):
         except AttributeError:
             pass
         width, height = app_config.ui.get_settings_dialog_size()
-        self.resize(width, height)
+        self.setFixedWidth(width)
         self._init_ui()
         self.retranslateUi()
+        self.adjustSize()
 
     def _init_ui(self):
         """Initialize the settings dialog UI as a single-page form."""
@@ -1010,6 +1013,7 @@ class SettingsDialog(BaseDialog):
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def _on_accept(self):
         """Persist settings changes."""
@@ -1206,6 +1210,7 @@ class ChromeProfileDialog(BaseDialog):
                 save_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def _set_loading_state(self, loading: bool) -> None:
         if self.refresh_btn is None:
@@ -1293,6 +1298,7 @@ class SphereRenameDialog(BaseDialog):
 
         self._init_ui(current_name)
         self.retranslateUi()
+        self.adjustSize()
 
     def _init_ui(self, current_name: str) -> None:
         vbox = QVBoxLayout(self)
@@ -1315,7 +1321,6 @@ class SphereRenameDialog(BaseDialog):
 
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn is not None:
-            ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
             ok_btn.setDefault(False)
             ok_btn.setAutoDefault(False)
             ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
@@ -1323,10 +1328,11 @@ class SphereRenameDialog(BaseDialog):
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel_btn is not None:
-            cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
             cancel_btn.setDefault(False)
             cancel_btn.setAutoDefault(False)
             cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+
+        self.equalize_button_box(bb, min_width=app_config.ui.get_fixed_button_width())
 
         self.name_le.textChanged.connect(
             lambda t: ok_btn.setEnabled(bool(t.strip())) if ok_btn is not None else None
@@ -1350,6 +1356,7 @@ class SphereRenameDialog(BaseDialog):
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -1407,6 +1414,7 @@ class ImportConflictDialog(BaseDialog):
         self.setFixedWidth(520)
         self._init_ui()
         self.retranslateUi()
+        self.adjustSize()
 
     def _init_ui(self) -> None:
         vbox = QVBoxLayout(self)
@@ -1452,11 +1460,10 @@ class ImportConflictDialog(BaseDialog):
         self._button_box = bb
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn is not None:
-            ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
             ok_btn.setDefault(True)
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn is not None:
-            cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+
+        self.equalize_button_box(bb, min_width=app_config.ui.get_fixed_button_width())
 
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
@@ -1542,6 +1549,7 @@ class ImportConflictDialog(BaseDialog):
             cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def get_action(self) -> str:
         return "merge" if self._radio_merge.isChecked() else "copy"

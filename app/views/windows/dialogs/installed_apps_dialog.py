@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
 from app.utils.system.installed_apps_service import (
     InstalledAppInfo,
@@ -341,5 +342,7 @@ class InstalledAppsDialog(BaseDialog):
             self.ok_button.setText(self.tr("Select"))
         if hasattr(self, "cancel_button") and self.cancel_button is not None:
             self.cancel_button.setText(tr_common("Cancel"))
+        if hasattr(self, "button_box") and self.button_box is not None:
+            self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "count_label"):
             self._update_count_label()

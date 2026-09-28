@@ -98,8 +98,9 @@ class AsyncOperationDialog(BaseDialog):
         # Cancel button
         if cancelable:
             self.cancel_button = QPushButton(tr_common("Cancel"))
+            self.adjust_button_width(self.cancel_button, min_width=app_config.ui.get_fixed_button_width())
             self.cancel_button.clicked.connect(self._on_cancel)
-            layout.addWidget(self.cancel_button)
+            layout.addWidget(self.cancel_button, 0, Qt.AlignmentFlag.AlignRight)
         else:
             self.cancel_button = None
 
@@ -124,6 +125,7 @@ class AsyncOperationDialog(BaseDialog):
         # Cancel button text (if present)
         if self.cancel_button is not None:
             self.cancel_button.setText(tr_common("Cancel"))
+            self.adjust_button_width(self.cancel_button, min_width=app_config.ui.get_fixed_button_width())
 
         # Re-format progress string using last known values
         if self._last_progress is not None:

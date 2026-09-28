@@ -225,9 +225,6 @@ class ItemDeletionService(QObject):
         if not section_data:
             return
         cats_count, links_count = self._count_nested_objects(section_id)
-        if links_count == 0:
-            self._push_section_delete(section_data)
-            return
         if self._confirm_section_deletion(section_data, cats_count, links_count):
             self._push_section_delete(section_data)
 
