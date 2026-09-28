@@ -412,10 +412,18 @@ QHeaderView::section {
 }
 
 QTableView QHeaderView::section:vertical,
-QHeaderView:vertical::section,
+QHeaderView:vertical::section {
+    border: none;
+}
+
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
-    border: none;
+    border-top: none;
+    border-left: none;
+    border-right-width: 1px;
+    border-right-style: solid;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
 }
 
 QTableView QHeaderView::section:horizontal {
@@ -462,10 +470,6 @@ QLabel#pathLabel {
     padding: 2px 8px 2px 8px;
 }
 
-QTableView QTableCornerButton::section,
-QTableView QTableCornerButton::section:first {
-    border: none;
-}
 
 QTableView,
 QTableWidget {
