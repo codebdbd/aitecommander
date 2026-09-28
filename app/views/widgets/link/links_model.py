@@ -517,6 +517,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 return
             self._links = result.links
             self.endMoveRows()
+            if len(self._links) > 0:
+                top_left = self.index(0, 0)
+                bottom_right = self.index(len(self._links) - 1, 0)
+                self.dataChanged.emit(
+                    top_left, bottom_right, [Qt.ItemDataRole.DisplayRole]
+                )
             return
 
         id_to_new_row = {
@@ -544,6 +550,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 self.changePersistentIndexList(old_parents, to_indexes)
         finally:
             self.layoutChanged.emit()
+            if len(self._links) > 0:
+                top_left = self.index(0, 0)
+                bottom_right = self.index(len(self._links) - 1, 0)
+                self.dataChanged.emit(
+                    top_left, bottom_right, [Qt.ItemDataRole.DisplayRole]
+                )
 
     # --- Sorting ---
     def sort(

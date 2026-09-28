@@ -304,3 +304,17 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   2. **Сигнальный контракт плиток категорий**: При клике на пустое место (`not index.isValid()` или `item_id is None`) `CategoryTiles` обязан вычислять глобальные координаты и эмитить `contextMenuRequested(0, global_pos)`.
   3. **Фасадные методы главного окна**: `MainWindow` и `MainWindowProtocol` обязаны предоставлять метод `import_category_to_current_section()`, определяющий активный раздел через `ensure_section_for_category()` / `get_target_section_id()` и вызывающий `import_category_to_section()`.
   4. **Типографика и глаголы**: Названия пунктов меню подчиняются **Правилу 13** — строго инфинитивы глаголов («Добавить категорию», «Импортировать категорию», «Вставить», «Выбрать все») без троеточий (`...`).
+
+## 34. Architecture Standards: Links Table Drag-and-Drop & Row Reordering (СТАНДАРТ ПЕРЕМЕЩЕНИЯ СТРОК В ТАБЛИЦЕ ССЫЛОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Подсистема перетаскивания и ручного упорядочивания ссылок в таблице (`LinksTableView`, `LinksTableModel`, `DragDropHandlerMixin`) полностью стандартизирована.
+- **Strict Method Delegation Rules**:
+  1. **Явное делегирование `_get_drop_positions`**: Класс `LinksTableView` обязан явно переопределять метод `_get_drop_positions(self, event)`, делегируя вызов в `DragDropHandlerMixin._get_drop_positions(self, event)`. Запрещено допускать вызов базовой заглушки `BaseDragDropTableWidget._get_drop_positions` (`[], -1`) из-за порядка разрешения MRO.
+- **Strict Visual Feedback Rules**:
+  1. **Линия вставки (Drop Indicator Line)**: Во время внутреннего перетаскивания строк в `LinksTableView.dragMoveEvent` обязан рассчитываться индекс целевой строки и положение курсора относительно центра строки (`AboveItem` / `BelowItem`).
+  2. **Отрисовка в `paintEvent`**: Разделительная линия обязана отрисовываться на всю ширину `viewport` таблицы: 2px акцентная линия (`QPalette.ColorRole.Highlight`) с мягким ореолом (ambient glow 4px, alpha 60) — в строгом стилевом паритете с деревом разделов `StructureTreeView`.
+  3. **Гарантированный сброс состояния**: В методах `dragLeaveEvent` и `dropEvent` состояние индикатора (`_drop_indicator_row`, `_drop_indicator_pos`) обязано сбрасываться в `None` с вызовом `viewport().update()`.
+- **Strict Model Renumbering Rules**:
+  1. **Атомарная переномерация колонки `#`**: В `LinksTableModel.move_rows` после физического изменения порядка строк модель обязана эмитировать `self.dataChanged` для колонки `0` (`ORDER`) на весь диапазон строк `0..N-1`, гарантируя мгновенное синхронное отображение номеров `1, 2, 3... N` без пересоздания или мерцания таблицы.
+- **Strict Selection & Persistence Rules**:
+  1. **Сохранение выделения и фокуса**: В `LinksTableView.dropEvent` после вызова базового `dropEvent` выделение обязано автоматически восстанавливаться на перемещенных строках по их `id` через `selectionModel().select(...)`, а текущий фокус (`setCurrentIndex`) обязан устанавливаться на первую перемещенную строку.
+  2. **Сигнальный поток в базу данных**: Завершение перемещения обязано порождать цепочку сигналов: `items_reordered(ids)` -> `links_reordered` -> `handlers._on_links_reordered` -> `business.update_link_order(ids)` для атомарного сохранения нового порядка в базе данных SQLite.

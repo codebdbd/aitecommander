@@ -5,7 +5,9 @@ import logging
 
 from PyQt6.QtCore import (
     QEvent,
+    QItemSelectionModel,
     QModelIndex,
+    QPoint,
     QPointF,
     QRect,
     QSize,
@@ -893,6 +895,8 @@ class LinksTableView(
         self._current_mode = "normal"  # Active presentation mode
         self._rebuild_in_progress = False
         self._cleanup_done = False
+        self._drop_indicator_row: int | None = None
+        self._drop_indicator_pos: QAbstractItemView.DropIndicatorPosition | None = None
         self._sort_controller = LinkTableSortController()
         self._setup_table()
 
@@ -1089,9 +1093,97 @@ class LinksTableView(
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
             return
+        if (
+            self._is_internal_drop(event)
+            and event.mimeData()
+            and event.mimeData().hasFormat(self.MIME_TYPE)
+        ):
+            pos = (
+                event.position().toPoint()
+                if hasattr(event, "position")
+                else getattr(event, "pos", lambda: QPoint())()
+            )
+            index = self.indexAt(pos)
+            model = self.model()
+            row_count = model.rowCount() if model is not None else 0
+            if index.isValid() and row_count > 0:
+                rect = self.visualRect(index)
+                if pos.y() < rect.center().y():
+                    self._drop_indicator_row = index.row()
+                    self._drop_indicator_pos = (
+                        QAbstractItemView.DropIndicatorPosition.AboveItem
+                    )
+                else:
+                    self._drop_indicator_row = index.row()
+                    self._drop_indicator_pos = (
+                        QAbstractItemView.DropIndicatorPosition.BelowItem
+                    )
+            elif row_count > 0:
+                self._drop_indicator_row = row_count - 1
+                self._drop_indicator_pos = (
+                    QAbstractItemView.DropIndicatorPosition.BelowItem
+                )
+            else:
+                self._drop_indicator_row = None
+                self._drop_indicator_pos = None
+            if self.viewport() is not None:
+                self.viewport().update()
+            event.setDropAction(Qt.DropAction.MoveAction)
+            event.accept()
+            return
         super().dragMoveEvent(event)
 
+    def dragLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self._drop_indicator_row = None
+        self._drop_indicator_pos = None
+        if self.viewport() is not None:
+            self.viewport().update()
+        super().dragLeaveEvent(event)
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+        if (
+            self._drop_indicator_row is not None
+            and self._drop_indicator_pos is not None
+        ):
+            model = self.model()
+            if model is None or model.rowCount() == 0:
+                return
+            idx = model.index(self._drop_indicator_row, 0)
+            if not idx.isValid():
+                return
+            rect = self.visualRect(idx)
+            line_y = (
+                rect.top()
+                if self._drop_indicator_pos
+                == QAbstractItemView.DropIndicatorPosition.AboveItem
+                else rect.bottom()
+            )
+            viewport = self.viewport()
+            if viewport is None:
+                return
+            painter = QPainter(viewport)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            accent_color = self.palette().color(QPalette.ColorRole.Highlight)
+            left_x = 0
+            right_x = viewport.width()
+            glow_color = QColor(accent_color)
+            glow_color.setAlpha(60)
+            glow_pen = QPen(glow_color, 4)
+            glow_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(glow_pen)
+            painter.drawLine(QPoint(left_x, line_y), QPoint(right_x, line_y))
+            pen = QPen(accent_color, 2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(QPoint(left_x, line_y), QPoint(right_x, line_y))
+            painter.end()
+
     def dropEvent(self, event) -> None:  # type: ignore[override]
+        self._drop_indicator_row = None
+        self._drop_indicator_pos = None
+        if self.viewport() is not None:
+            self.viewport().update()
         targets = self._external_link_targets_from_event(event)
         if targets:
             try:
@@ -1108,7 +1200,31 @@ class LinksTableView(
                 logger.warning("Failed to emit external URL table drop", exc_info=True)
                 event.ignore()
             return
+        moved_ids: list[int] = []
+        if self._is_internal_drop(event) and event.mimeData():
+            from app.utils.ui.dnd.mime import MimeDataParser
+
+            moved_ids = MimeDataParser.extract_item_ids(
+                event.mimeData(), self.MIME_TYPE
+            )
         super().dropEvent(event)
+        if moved_ids:
+            model = self.model()
+            sm = self.selectionModel()
+            if model is not None and sm is not None and hasattr(model, "find_row_by_id"):
+                sm.clearSelection()
+                for link_id in moved_ids:
+                    row = model.find_row_by_id(link_id)
+                    if row >= 0:
+                        idx = model.index(row, 0)
+                        sm.select(
+                            idx,
+                            QItemSelectionModel.SelectionFlag.Select
+                            | QItemSelectionModel.SelectionFlag.Rows,
+                        )
+                first_row = model.find_row_by_id(moved_ids[0])
+                if first_row >= 0:
+                    self.setCurrentIndex(model.index(first_row, 0))
 
     def _has_external_link_targets(self, event) -> bool:
         return bool(self._external_link_targets_from_event(event))
@@ -1153,6 +1269,11 @@ class LinksTableView(
         """Extract link IDs from selected items."""
         # Delegate to ``DragDropHandlerMixin`` implementation
         return DragDropHandlerMixin._extract_item_ids_from_items(self, items)
+
+    def _get_drop_positions(self, event):
+        """Extract source rows and target row from drop event."""
+        # Delegate to ``DragDropHandlerMixin`` implementation
+        return DragDropHandlerMixin._get_drop_positions(self, event)
 
     def _move_row_visually(self, source_row: int, target_row: int):
         """Move a row visually inside the table."""
