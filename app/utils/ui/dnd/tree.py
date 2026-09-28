@@ -7,7 +7,7 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QRect, Qt
+from PyQt6.QtCore import QModelIndex, QPersistentModelIndex, QRect, Qt, QTimer
 from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QAbstractItemView
 
@@ -22,6 +22,60 @@ logger = logging.getLogger(__name__)
 
 class DragDropHandler(TreeHandlerBase):
     """Drag & drop operations handler in structure tree."""
+
+    def __init__(self, tree_widget):
+        super().__init__(tree_widget)
+        self._auto_expand_timer: QTimer | None = None
+        self._hover_expand_index: QPersistentModelIndex | None = None
+
+    def _arm_auto_expand_timer(self, target_index: QModelIndex) -> None:
+        """Start auto-expand timer for collapsed section if not already running."""
+        if not target_index.isValid():
+            self._cancel_auto_expand_timer()
+            return
+        p_idx = QPersistentModelIndex(target_index)
+        if (
+            self._hover_expand_index == p_idx
+            and self._auto_expand_timer
+            and self._auto_expand_timer.isActive()
+        ):
+            return
+        self._cancel_auto_expand_timer()
+        self._hover_expand_index = p_idx
+        timer = QTimer(self.tree_widget)
+        timer.setSingleShot(True)
+        timer.timeout.connect(self._on_auto_expand_timeout)
+        self._auto_expand_timer = timer
+        timer.start(500)
+
+    def _on_auto_expand_timeout(self) -> None:
+        """Expand hovered section and ensure its child categories are visible."""
+        p_idx = self._hover_expand_index
+        self._hover_expand_index = None
+        self._auto_expand_timer = None
+        if not p_idx or not p_idx.isValid():
+            return
+        idx = QModelIndex(p_idx)
+        if not self.tree_widget.isExpanded(idx):
+            self.tree_widget.expand(idx)
+            model = self.tree_widget.model()
+            if model:
+                first_child = model.index(0, 0, idx)
+                if first_child.isValid():
+                    self.tree_widget.scrollTo(
+                        first_child, QAbstractItemView.ScrollHint.EnsureVisible
+                    )
+
+    def _cancel_auto_expand_timer(self) -> None:
+        """Cancel pending auto-expand timer."""
+        if self._auto_expand_timer:
+            try:
+                self._auto_expand_timer.stop()
+                self._auto_expand_timer.deleteLater()
+            except Exception:
+                pass
+            self._auto_expand_timer = None
+        self._hover_expand_index = None
 
     def accepts_mime_type(self, mime) -> bool:
         """Checks if widget accepts given MIME type."""
@@ -121,12 +175,14 @@ class DragDropHandler(TreeHandlerBase):
 
     def handle_drag_leave_event(self, event) -> None:
         """Handle drag leave event."""
+        self._cancel_auto_expand_timer()
         self.tree_widget.clear_drag_highlight()
         event.accept()
 
     def handle_drop_event(self, event) -> None:
         """Main drop event handler."""
         try:
+            self._cancel_auto_expand_timer()
             mime = event.mimeData()
 
             if event.source() == self.tree_widget:
@@ -162,6 +218,7 @@ class DragDropHandler(TreeHandlerBase):
     def _handle_external_drag_move_index(self, event, mime) -> None:
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         if not target_index or not target_index.isValid():
+            self._cancel_auto_expand_timer()
             targets = self._extract_external_link_targets(mime)
             if len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack")):
                 event.setDropAction(Qt.DropAction.CopyAction)
@@ -171,17 +228,28 @@ class DragDropHandler(TreeHandlerBase):
             return
         ttuple = get_tree_tuple(target_index, 0)
         if not ttuple:
+            self._cancel_auto_expand_timer()
             event.ignore()
             return
         target_type, _ = ttuple
         valid_drop = False
         if mime.hasFormat(app_config.get_link_mime_type()):
             if target_type == "category":
+                self._cancel_auto_expand_timer()
                 valid_drop = True
                 event.accept()
+            elif target_type == "section" and not self.tree_widget.isExpanded(target_index):
+                self._arm_auto_expand_timer(target_index)
+                event.acceptProposedAction()
+                self.tree_widget.set_drag_drop_feedback(
+                    target_index, QAbstractItemView.DropIndicatorPosition.OnItem
+                )
+                return
             else:
+                self._cancel_auto_expand_timer()
                 event.ignore()
         elif mime.hasFormat(app_config.get_category_mime_type()):
+            self._cancel_auto_expand_timer()
             if target_type in ("section", "category"):
                 valid_drop = True
                 event.accept()
@@ -191,12 +259,23 @@ class DragDropHandler(TreeHandlerBase):
             targets = self._extract_external_link_targets(mime)
             is_archive = len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack"))
             if target_type == "category" or (target_type == "section" and is_archive):
+                self._cancel_auto_expand_timer()
                 valid_drop = True
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
+            elif target_type == "section" and not is_archive and not self.tree_widget.isExpanded(target_index):
+                self._arm_auto_expand_timer(target_index)
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
+                self.tree_widget.set_drag_drop_feedback(
+                    target_index, QAbstractItemView.DropIndicatorPosition.OnItem
+                )
+                return
             else:
+                self._cancel_auto_expand_timer()
                 event.ignore()
         else:
+            self._cancel_auto_expand_timer()
             event.ignore()
         if valid_drop:
             # Use highlight instead of focus for external drags too
