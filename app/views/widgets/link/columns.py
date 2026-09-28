@@ -7,9 +7,9 @@ from enum import IntEnum
 from typing import Any
 
 class LinkTableColumn(IntEnum):
-    GROUP_LAUNCH = 0
-    NAME = 1
-    ORDER = 2
+    ORDER = 0
+    GROUP_LAUNCH = 1
+    NAME = 2
     LAUNCH = 3
     NOTES = 4
     TYPE = 5
@@ -42,6 +42,19 @@ class LinkTableColumnDescriptor:
 
 LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
     LinkTableColumnDescriptor(
+        column=LinkTableColumn.ORDER,
+        key="order",
+        header_source="#",
+        header_tooltip_source="Custom order",
+        editable=True,
+        centered=True,
+        min_width=36,
+        fallback_width=36,
+        resize_mode="fixed",
+        display_builder="_display_order",
+        tooltip_builder="_tooltip_order",
+    ),
+    LinkTableColumnDescriptor(
         column=LinkTableColumn.GROUP_LAUNCH,
         key="group_launch",
         header_source="",
@@ -59,19 +72,6 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         display_builder="_display_name",
         tooltip_builder="_tooltip_name",
         decoration_builder="_decoration_name",
-    ),
-    LinkTableColumnDescriptor(
-        column=LinkTableColumn.ORDER,
-        key="order",
-        header_source="Order",
-        header_tooltip_source="Custom order",
-        editable=True,
-        centered=True,
-        min_width=112,
-        chevron_padding=True,
-        resize_mode="fixed",
-        display_builder="_display_order",
-        tooltip_builder="_tooltip_order",
     ),
     LinkTableColumnDescriptor(
         column=LinkTableColumn.LAUNCH,

@@ -73,6 +73,15 @@ def test_header_click_action_only_runs_when_qt_sorting_is_disabled() -> None:
     assert action.order == Qt.SortOrder.AscendingOrder
     assert not action.show_indicator
 
+    order_action = controller.header_click_action(
+        int(LinkTableColumn.ORDER),
+        sorting_enabled=True,
+    )
+    assert order_action is not None
+    assert order_action.column == int(LinkTableColumn.ORDER)
+    assert order_action.order == Qt.SortOrder.AscendingOrder
+    assert not order_action.show_indicator
+
 
 def test_header_click_ignores_unsortable_group_launch_column() -> None:
     controller = LinkTableSortController()
@@ -121,3 +130,19 @@ def test_restore_after_populate_validates_sortable_column_bounds() -> None:
         controller.restore_after_populate_action(99, Qt.SortOrder.AscendingOrder, total_columns=6)
         is None
     )
+
+
+def test_restore_after_category_reset_returns_default_order() -> None:
+    controller = LinkTableSortController()
+    controller.reset_for_category_load()
+
+    action = controller.restore_after_populate_action(
+        int(LinkTableColumn.NAME),
+        Qt.SortOrder.AscendingOrder,
+        total_columns=6,
+    )
+
+    assert action is not None
+    assert action.column == int(LinkTableColumn.ORDER)
+    assert action.order == Qt.SortOrder.AscendingOrder
+    assert not action.show_indicator

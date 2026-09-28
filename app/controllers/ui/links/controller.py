@@ -186,7 +186,7 @@ class LinksUIController(QObject):
             model = self.table.model()
             if model is None:
                 return
-            index = model.index(row, int(LinkTableColumn.GROUP_LAUNCH))
+            index = model.index(row, 0)
             if index and index.isValid():
                 self.table.scrollTo(index)
         except (AttributeError, RuntimeError) as e:
@@ -559,7 +559,7 @@ class LinksUIController(QObject):
                     model = self.table.model()
                     selection = QItemSelection()
                     for row in rows_to_select:
-                        left_idx = model.index(row, int(LinkTableColumn.GROUP_LAUNCH))
+                        left_idx = model.index(row, 0)
                         right_idx = model.index(row, model.columnCount() - 1)
                         selection.select(left_idx, right_idx)
                         
@@ -567,7 +567,7 @@ class LinksUIController(QObject):
                     
                     # Set current index without clearing the selection we just made
                     first_row = rows_to_select[0]
-                    first_idx = model.index(first_row, int(LinkTableColumn.GROUP_LAUNCH))
+                    first_idx = model.index(first_row, 0)
                     if first_idx.isValid():
                         sel_model.setCurrentIndex(first_idx, QItemSelectionModel.SelectionFlag.NoUpdate)
                 else:

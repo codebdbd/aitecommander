@@ -40,6 +40,9 @@ def link_sort_key(
     type_label_getter: TypeLabelGetter | None = None,
 ) -> Any:
     """Return a stable sort key for one link table row."""
+    if column < 0:
+        return original_index
+
     if is_column(column, LinkTableColumn.LAUNCH):
         last_used = link.get("last_used")
         if last_used in (None, ""):

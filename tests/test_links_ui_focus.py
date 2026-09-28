@@ -57,7 +57,7 @@ class TestLinksUiFocus(unittest.TestCase):
             call_args = sel_model.setCurrentIndex.call_args[0]
             self.assertEqual(
                 call_args[0],
-                model.index(2, int(LinkTableColumn.GROUP_LAUNCH)),
+                model.index(2, int(LinkTableColumn.ORDER)),
             )
             # Check NoUpdate flag was used
             self.assertEqual(call_args[1], QItemSelectionModel.SelectionFlag.NoUpdate)

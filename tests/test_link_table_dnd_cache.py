@@ -78,7 +78,7 @@ def test_initial_sort_uses_order_even_when_saved_sort_exists(qapp):
 def test_order_column_is_wide_enough_for_header(qapp):
     table = LinksTableView()
 
-    assert table.columnWidth(int(LinkTableColumn.ORDER)) >= 112
+    assert table.columnWidth(int(LinkTableColumn.ORDER)) >= 36
 
 
 def test_order_edit_moves_row_and_renumbers(qapp):
@@ -141,7 +141,7 @@ def test_header_labels_and_tooltips_are_localized(qapp):
         int(LinkTableColumn.ORDER),
         Qt.Orientation.Horizontal,
         Qt.ItemDataRole.DisplayRole,
-    ) == QCoreApplication.translate("LinksTableModel", "Order")
+    ) == "#"
     assert model.headerData(
         int(LinkTableColumn.LAUNCH),
         Qt.Orientation.Horizontal,
@@ -183,7 +183,7 @@ def test_table_cell_tooltips_match_column_contract(qapp):
             {
                 "id": 1,
                 "name": "Web",
-                "position": 2,
+                "position": 0,
                 "type": "web",
                 "url": "https://example.test/full",
                 "notes": "Full note",
@@ -196,7 +196,7 @@ def test_table_cell_tooltips_match_column_contract(qapp):
         model.index(0, int(LinkTableColumn.ORDER)),
         Qt.ItemDataRole.ToolTipRole,
     ) == QCoreApplication.translate("LinksTableModel", "Position: {position}").format(
-        position=3
+        position=1
     )
     assert model.data(
         model.index(0, int(LinkTableColumn.LAUNCH)),

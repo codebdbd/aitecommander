@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
 
-from app.views.widgets.link.columns import LinkTableColumn, descriptor_for_column
+from app.views.widgets.link.columns import LinkTableColumn, descriptor_for_column, is_column
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,7 @@ class LinkTableSortController:
     def __init__(self) -> None:
         self._initialized = False
         self._allow_persist = False
+        self._category_reset = False
 
     @staticmethod
     def default_sort() -> tuple[int, Qt.SortOrder]:
@@ -42,6 +43,7 @@ class LinkTableSortController:
         return LinkSortAction(
             column,
             order,
+            show_indicator=False,
             persist_after_apply=persist_after_apply,
         )
 
@@ -49,6 +51,7 @@ class LinkTableSortController:
         """Force the next normal category populate to start from default order."""
         self._initialized = False
         self._allow_persist = False
+        self._category_reset = True
 
     @staticmethod
     def should_apply_initial_sort_for_mode(mode: str) -> bool:
@@ -81,6 +84,13 @@ class LinkTableSortController:
         descriptor = descriptor_for_column(column)
         if descriptor is None or not descriptor.sortable:
             return None
+        if is_column(column, LinkTableColumn.ORDER):
+            return LinkSortAction(
+                int(column),
+                Qt.SortOrder.AscendingOrder,
+                show_indicator=False,
+                persist_after_apply=True,
+            )
         if sorting_enabled:
             return None
         return LinkSortAction(
@@ -98,13 +108,18 @@ class LinkTableSortController:
         total_columns: int,
     ) -> LinkSortAction | None:
         """Return a restore action for a previously captured table sort."""
+        if self._category_reset:
+            self._category_reset = False
+            return self.initial_sort()
         if column < 0 or column >= total_columns:
             return None
         descriptor = descriptor_for_column(column)
         if descriptor is None or not descriptor.sortable:
             return None
+        show_indicator = not is_column(column, LinkTableColumn.ORDER)
         return LinkSortAction(
             int(column),
             Qt.SortOrder(order),
+            show_indicator=show_indicator,
             persist_after_apply=False,
         )

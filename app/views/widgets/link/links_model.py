@@ -98,7 +98,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
 
     def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
-        self._headers = [self._tr(text) if text else "" for text in _HEADER_TRANSLATABLE]
+        self._headers = [
+            self._tr(text) if text and text != "#" else text
+            for text in _HEADER_TRANSLATABLE
+        ]
         # Notify views about header text update
         if hasattr(self, "headerDataChanged"):
             self.headerDataChanged.emit(
@@ -338,7 +341,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
                 # Remove any external icon cache entry
                 new_link.pop("_icon", None)
                 self._links[row] = new_link
-                top_left = self.index(row, int(LinkTableColumn.GROUP_LAUNCH))
+                top_left = self.index(row, 0)
                 bottom_right = self.index(row, len(self._headers) - 1)
                 # Indicate that decorations (icons) might have changed
                 self.dataChanged.emit(
@@ -432,7 +435,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         self.beginResetModel()
         # Clone data (icons now live in the LRU cache, not inside dicts)
         self._links = [self._normalize_link(link_item) for link_item in links]
+        self._links.sort(key=lambda item: int(item.get("position", 0) or 0))
+        had_discrepancy = any(
+            link.get("position") != index for index, link in enumerate(self._links)
+        )
+        self._renumber_positions()
         self.endResetModel()
+        if had_discrepancy and self._links:
+            self.orderEdited.emit(self.link_ids_in_order())
 
     def insert_link(self, pos: int, link: dict[str, Any]) -> bool:
         pos = max(0, min(pos, len(self._links)))
@@ -449,6 +459,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return False
         self.beginRemoveRows(QModelIndex(), row, row)
         del self._links[row]
+        self._renumber_positions()
         self.endRemoveRows()
         return True
 
@@ -456,7 +467,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(self._normalize_link(new_data, partial=True))
-        top_left = self.index(row, int(LinkTableColumn.GROUP_LAUNCH))
+        top_left = self.index(row, 0)
         bottom_right = self.index(row, len(self._headers) - 1)
         self.dataChanged.emit(
             top_left,

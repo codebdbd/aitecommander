@@ -43,6 +43,7 @@ from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
 from app.views.widgets.link.columns import (
     LINK_TABLE_COLUMNS,
     LinkTableColumn,
+    descriptor_for_column,
     is_column,
     resize_mode_name_for_descriptor,
 )
@@ -66,11 +67,18 @@ _SECONDARY_TEXT_COLUMNS = frozenset(
 )
 
 
-def _header_text_width(header: QHeaderView, text: str, *, min_width: int) -> int:
+def _header_text_width(
+    header: QHeaderView,
+    text: str,
+    *,
+    min_width: int,
+    chevron_padding: bool = True,
+) -> int:
     """Return a header column width that leaves room for text and sort toggle."""
     try:
         text_width = header.fontMetrics().horizontalAdvance(str(text))
-        return max(min_width, text_width + 40)
+        padding = 40 if chevron_padding else 10
+        return max(min_width, text_width + padding)
     except Exception:
         return min_width
 
@@ -260,6 +268,40 @@ class TableDelegate(QStyledItemDelegate):
 
         if is_column(col, LinkTableColumn.NAME):
             self._apply_name_column_elision(opt)
+
+        if is_column(col, LinkTableColumn.ORDER):
+            display_text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+            opt.text = ""
+            try:
+                self._current_paint_col = col
+                self._current_paint_selected = bool(
+                    opt.state & QStyle.StateFlag.State_Selected
+                )
+                super().paint(painter, opt, index)
+            finally:
+                self._current_paint_col = -1
+                self._current_paint_selected = False
+
+            if display_text:
+                painter.save()
+                is_selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+                color = self._resolve_column_color(col)
+                if is_selected:
+                    try:
+                        theme_meta = theme_registry.get_theme(get_current_theme())
+                        is_dark = bool(theme_meta.is_dark) if theme_meta else True
+                        if is_dark:
+                            color = opt.palette.color(QPalette.ColorRole.HighlightedText)
+                        else:
+                            color = self._resolve_column_color(col) or QColor("#000000")
+                    except Exception:
+                        color = self._resolve_column_color(col)
+                if color and color.isValid():
+                    painter.setPen(color)
+                painter.setFont(opt.font)
+                painter.drawText(opt.rect, int(Qt.AlignmentFlag.AlignCenter), display_text)
+                painter.restore()
+            return
 
         try:
             self._current_paint_col = col
@@ -466,7 +508,8 @@ class ExplorerHeaderView(QHeaderView):
     def mouseMoveEvent(self, event):
         pos = event.position().toPoint()
         sec = self.logicalIndexAt(pos)
-        on_toggle = bool(sec >= 0 and sec != 0)
+        desc = descriptor_for_column(sec)
+        on_toggle = bool(desc and desc.chevron_padding)
         if sec != self._hovered_section or on_toggle != self._hovered_toggle:
             self._hovered_section = sec
             self._hovered_toggle = on_toggle
@@ -510,13 +553,12 @@ class ExplorerHeaderView(QHeaderView):
         painter.drawPixmap(x, y, tinted)
 
     def paintSection(self, painter, rect, logicalIndex):
-        if logicalIndex == 0:
+        if is_column(logicalIndex, LinkTableColumn.GROUP_LAUNCH):
             opt = QStyleOptionHeader()
             self.initStyleOption(opt)
             opt.rect = rect
             opt.section = logicalIndex
             opt.orientation = Qt.Orientation.Horizontal
-            opt.position = QStyleOptionHeader.SectionPosition.Beginning
             opt.text = ""
             opt.icon = QIcon()
             self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
@@ -543,7 +585,10 @@ class ExplorerHeaderView(QHeaderView):
         is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
         hovered_sec = self._hovered_section
-        if hovered_sec <= int(LinkTableColumn.GROUP_LAUNCH):
+        if hovered_sec < 0:
+            return
+        desc = descriptor_for_column(hovered_sec)
+        if desc is None or not desc.chevron_padding:
             return
         pal = self.palette()
 
@@ -895,6 +940,7 @@ class LinksTableView(
                         header,
                         str(header_text or descriptor.header_source),
                         min_width=descriptor.min_width,
+                        chevron_padding=descriptor.chevron_padding,
                     )
                 if width:
                     self.setColumnWidth(descriptor.index, int(width))
@@ -906,6 +952,7 @@ class LinksTableView(
         _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
+        self.verticalHeader().setVisible(False)
         try:
             if hasattr(header, "_sync_row_height"):
                 header._sync_row_height()
@@ -1254,6 +1301,7 @@ class LinksTableView(
         if not action.show_indicator:
             try:
                 self.horizontalHeader().setSortIndicatorShown(False)
+                self.horizontalHeader().viewport().update()
             except Exception:
                 logger.debug(
                     "LinksTableView: failed to hide sort indicator",
@@ -1305,6 +1353,8 @@ class LinksTableView(
         self, logical_index: int, order: Qt.SortOrder
     ) -> None:
         """Persist sort changes."""
+        if logical_index < 0:
+            return
         try:
             self._save_sort_to_settings(logical_index, order)
         except Exception:
