@@ -856,6 +856,8 @@ class LinkDialog(BaseDialog):
 
     def showEvent(self, event: QEvent) -> None:  # type: ignore[override]
         super().showEvent(event)
+        if hasattr(self, "ui") and self.ui is not None:
+            self.ui._equalize_form_side_buttons()
         if not self._initial_icon_applied:
             QTimer.singleShot(0, self._apply_initial_icon)
         if not self._type_icons_applied:

@@ -47,6 +47,69 @@ HEADER_CHEVRON_PADDING_ROLE = int(Qt.ItemDataRole.UserRole) + 101
 _CHEVRON_PADDING_SECTIONS = frozenset(chevron_padding_columns())
 _CENTERED_SECTIONS = frozenset(centered_columns())
 
+_ROTATION_ICON_CACHE: dict[tuple[str, int], QIcon] = {}
+
+
+def get_rotation_icon(size: int = 16, *, is_selected: bool = False) -> QIcon | None:
+    """Return theme-colored rotation icon for link table."""
+    try:
+        from app.services.theme_registry import theme_registry
+        from app.utils.ui.icon.path_service import get_current_theme
+
+        cur_theme = get_current_theme()
+        if is_selected:
+            theme_meta = theme_registry.get_theme(cur_theme)
+            color_hex = "#FFFFFF" if (theme_meta and theme_meta.is_dark) else "#000000"
+        else:
+            color_hex = theme_registry.get_theme_icon_color(cur_theme)
+        cache_key = (color_hex, size)
+        cached = _ROTATION_ICON_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+
+        from pathlib import Path
+        from PyQt6.QtCore import QRectF, Qt
+        from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
+        from PyQt6.QtSvg import QSvgRenderer
+
+        svg_path = (
+            Path(__file__).resolve().parents[3]
+            / "resources"
+            / "ui_icons"
+            / "base"
+            / "component_exchange.svg"
+        )
+        if not svg_path.exists():
+            return None
+
+        renderer = QSvgRenderer(str(svg_path))
+        if not renderer.isValid():
+            return None
+
+        sz = size
+        inner = max(12, sz - 2)
+        pix = QPixmap(sz, sz)
+        pix.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pix)
+        offset = (sz - inner) / 2.0
+        renderer.render(p, QRectF(offset, offset, inner, inner))
+        p.end()
+
+        tinted = QPixmap(sz, sz)
+        tinted.fill(Qt.GlobalColor.transparent)
+        tp = QPainter(tinted)
+        tp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        tp.drawPixmap(0, 0, pix)
+        tp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        tp.fillRect(tinted.rect(), QColor(color_hex))
+        tp.end()
+
+        icon = QIcon(tinted)
+        _ROTATION_ICON_CACHE[cache_key] = icon
+        return icon
+    except Exception:
+        return None
+
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
 @lru_cache(maxsize=1024)
@@ -187,6 +250,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             pass
         return None
 
+
+
     def _get_display_data(self, col, link):
         """Get display data for column."""
         return self._call_column_builder(col, link, "display_builder")
@@ -208,6 +273,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     def _display_position(self, link: dict[str, Any]) -> int:
         """Return one-based position for UI display."""
         try:
+            if link in self._links:
+                return self._links.index(link) + 1
             return int(link.get("position", 0) or 0) + 1
         except Exception:
             return 1
@@ -255,6 +322,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return None
 
         if role == Qt.ItemDataRole.DisplayRole:
+            if is_column(col, LinkTableColumn.ORDER):
+                return row + 1
             result = self._get_display_data(col, link)
             return result if result is not None else None
 
@@ -448,7 +517,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         pos = max(0, min(pos, len(self._links)))
         self.beginInsertRows(QModelIndex(), pos, pos)
         self._links.insert(pos, self._normalize_link(link))
+        self._renumber_positions()
         self.endInsertRows()
+        if len(self._links) > 1:
+            top_left = self.index(0, 0)
+            bottom_right = self.index(len(self._links) - 1, 0)
+            self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
         return True
 
     def append_link(self, link: dict[str, Any]) -> bool:

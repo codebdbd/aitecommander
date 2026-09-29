@@ -73,10 +73,13 @@ class TypeChangeMixin:
         if hasattr(self.dialog, "_show_hierarchy") and hasattr(self.dialog.ui, "set_hierarchy_visible"):
             self.dialog.ui.set_hierarchy_visible(self.dialog._show_hierarchy)
 
+        if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "update_path_label"):
+            self.dialog.ui.update_path_label(lt.value)
+
         if apps_btn is not None:
             apps_btn.setVisible(is_program)
-            if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):
-                self.dialog.ui.adjust_button_width(apps_btn)
+            if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "_equalize_form_side_buttons"):
+                self.dialog.ui._equalize_form_side_buttons()
 
         # "Browse" button is shown only for specific types
         browse_btn.setVisible(

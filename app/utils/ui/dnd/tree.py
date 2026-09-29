@@ -5,7 +5,10 @@
 Supports `StructureTreeView` (QTreeView) with model and indexes.
 """
 
+import json
 import logging
+from pathlib import Path
+import zipfile
 
 from PyQt6.QtCore import QModelIndex, QPersistentModelIndex, QRect, Qt, QTimer
 from PyQt6.QtGui import QDropEvent
@@ -215,12 +218,37 @@ class DragDropHandler(TreeHandlerBase):
             self.tree_widget.clear_drag_highlight()
 
     # --- Index version of external dragMove ---
+    @staticmethod
+    def _detect_package_type(file_path: str) -> str | None:
+        """Detect whether a file is a section package, category package, or neither."""
+        lower = file_path.lower()
+        if lower.endswith(".aitesec"):
+            return "section"
+        if lower.endswith(".aitecat"):
+            return "category"
+        if lower.endswith((".aitepack", ".zip")):
+            try:
+                p = Path(file_path)
+                if p.is_file():
+                    with zipfile.ZipFile(p, "r") as zf:
+                        if "manifest.json" in zf.namelist():
+                            data = json.loads(zf.read("manifest.json").decode("utf-8"))
+                            pt = data.get("package_type")
+                            if pt in ("section", "category"):
+                                return pt
+            except Exception:
+                pass
+        return None
+
     def _handle_external_drag_move_index(self, event, mime) -> None:
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
+        targets = self._extract_external_link_targets(mime)
+        pkg_type = self._detect_package_type(targets[0]) if len(targets) == 1 else None
+
         if not target_index or not target_index.isValid():
             self._cancel_auto_expand_timer()
-            targets = self._extract_external_link_targets(mime)
-            if len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack")):
+            self.tree_widget.clear_drag_highlight()
+            if pkg_type == "section":
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
                 return
@@ -229,6 +257,7 @@ class DragDropHandler(TreeHandlerBase):
         ttuple = get_tree_tuple(target_index, 0)
         if not ttuple:
             self._cancel_auto_expand_timer()
+            self.tree_widget.clear_drag_highlight()
             event.ignore()
             return
         target_type, _ = ttuple
@@ -255,15 +284,24 @@ class DragDropHandler(TreeHandlerBase):
                 event.accept()
             else:
                 event.ignore()
-        elif self._extract_external_link_targets(mime):
-            targets = self._extract_external_link_targets(mime)
-            is_archive = len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack"))
-            if target_type == "category" or (target_type == "section" and is_archive):
+        elif targets:
+            if pkg_type == "category":
+                self._cancel_auto_expand_timer()
+                if target_type == "section":
+                    valid_drop = True
+                    event.setDropAction(Qt.DropAction.CopyAction)
+                    event.accept()
+                else:
+                    event.ignore()
+            elif pkg_type == "section":
+                self._cancel_auto_expand_timer()
+                event.ignore()
+            elif target_type == "category":
                 self._cancel_auto_expand_timer()
                 valid_drop = True
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
-            elif target_type == "section" and not is_archive and not self.tree_widget.isExpanded(target_index):
+            elif target_type == "section" and not self.tree_widget.isExpanded(target_index):
                 self._arm_auto_expand_timer(target_index)
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
@@ -765,10 +803,16 @@ class DragDropHandler(TreeHandlerBase):
 
     def _handle_external_url_drop_index(self, mime, target_index: QModelIndex) -> bool:
         """Request creating links or importing packages from external drops."""
-        ttuple = get_tree_tuple(target_index, 0)
-        if not (ttuple and ttuple[0] in ("category", "section") and isinstance(ttuple[1], int)):
-            targets = self._extract_external_link_targets(mime)
-            if len(targets) == 1 and targets[0].lower().endswith((".zip", ".aitepack")):
+        targets = self._extract_external_link_targets(mime)
+        if not targets:
+            return False
+
+        pkg_type = self._detect_package_type(targets[0]) if len(targets) == 1 else None
+        ttuple = get_tree_tuple(target_index, 0) if (target_index and target_index.isValid()) else None
+
+        # 1. Dropping a section package into empty space of the tree
+        if pkg_type == "section":
+            if ttuple is None:
                 self.tree_widget.externalLinkDropped.emit(
                     {
                         "type": "external_link_to_category",
@@ -782,8 +826,25 @@ class DragDropHandler(TreeHandlerBase):
                 )
                 return True
             return False
-        targets = self._extract_external_link_targets(mime)
-        if not targets:
+
+        # 2. Dropping a category package onto a section
+        if pkg_type == "category":
+            if ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int):
+                self.tree_widget.externalLinkDropped.emit(
+                    {
+                        "type": "external_link_to_category",
+                        "item_type": "section",
+                        "item_id": int(ttuple[1]),
+                        "category_id": None,
+                        "targets": targets,
+                        "urls": targets,
+                        "title": target_index.data(),
+                    }
+                )
+                return True
+            return False
+
+        if not (ttuple and ttuple[0] in ("category", "section") and isinstance(ttuple[1], int)):
             return False
         try:
             self.tree_widget.externalLinkDropped.emit(

@@ -117,7 +117,8 @@ class LinkBulkUpsertService:
         """Assigns position to items that don't have it set."""
         next_pos = start_pos
         for item in items:
-            if item.get("position") is None:
+            pos = item.get("position")
+            if pos is None or (not item.get("id") and pos <= 0):
                 item["position"] = next_pos
                 next_pos += 1
     

@@ -196,7 +196,7 @@ class UIConfig(BaseConfig):
 
     def get_fixed_button_width(self) -> int:
         """Return the fixed width for standard buttons."""
-        return self.get("ui.fixed_button_width", 100)
+        return self.get("ui.fixed_button_width", 115)
 
     # === Category tiles ===
 

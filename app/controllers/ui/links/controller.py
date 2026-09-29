@@ -299,7 +299,7 @@ class LinksUIController(QObject):
     def toggle_quick_look(self) -> None:
         """Toggle macOS-style Quick Look preview for currently selected link."""
         if self._quick_look_dialog and self._quick_look_dialog.isVisible():
-            self._quick_look_dialog.close()
+            self._quick_look_dialog.close_animated()
             return
 
         try:
@@ -329,14 +329,7 @@ class LinksUIController(QObject):
             )
 
         self._quick_look_dialog.set_link(link)
-        if hasattr(self.main, "geometry") and not self._quick_look_dialog.isMaximized():
-            geom = self.main.geometry()
-            qx = geom.x() + (geom.width() - self._quick_look_dialog.width()) // 2
-            qy = geom.y() + (geom.height() - self._quick_look_dialog.height()) // 2
-            self._quick_look_dialog.move(qx, qy)
-        self._quick_look_dialog.show()
-        self._quick_look_dialog.raise_()
-        self._quick_look_dialog.activateWindow()
+        self._quick_look_dialog.open_animated()
 
     def _on_quick_look_navigate(self, delta: int) -> None:
         """Navigate table rows up/down while Quick Look is open."""

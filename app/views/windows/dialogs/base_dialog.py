@@ -39,66 +39,36 @@ logger = logging.getLogger(__name__)
 
 def adjust_button_width(
     btn: QPushButton | None,
-    min_width: int = 100,
-    padding: int = 24,
+    min_width: int = 0,
+    padding: int = 0,
 ) -> int:
-    """Adjust button width dynamically based on its text and font metrics.
-
-    Ensures text is never clipped regardless of language, font, or DPI scaling,
-    while maintaining a clean minimum width for visual consistency.
-    """
+    """Allow buttons to size naturally based on font metrics, text and icons."""
     if btn is None:
         return 0
-    try:
-        text = btn.text()
-        fm = btn.fontMetrics()
-        text_width = fm.horizontalAdvance(text) if text else 0
-        icon_width = 0
-        if hasattr(btn, "icon") and not btn.icon().isNull():
-            icon_size = btn.iconSize()
-            icon_width = (icon_size.width() if icon_size.isValid() else 16) + 8
-        required_width = int(text_width) + int(icon_width) + padding
-        target_width = max(min_width, required_width)
-        btn.setFixedWidth(target_width)
-        return target_width
-    except Exception as e:
-        logger.debug("Failed to adjust button width: %s", e)
-        try:
-            btn.setFixedWidth(min_width)
-        except Exception:
-            pass
-        return min_width
+    target_width = max(min_width, btn.fontMetrics().horizontalAdvance(btn.text()) + padding) if (min_width or padding) else 0
+    if target_width > 0:
+        btn.setMinimumWidth(target_width)
+    else:
+        btn.setMinimumWidth(0)
+    btn.setMaximumWidth(16777215)
+    return max(target_width, btn.sizeHint().width())
 
 
 def equalize_button_box(
     box: QDialogButtonBox | None,
-    min_width: int = 100,
-    padding: int = 24,
+    min_width: int = 0,
+    padding: int = 0,
 ) -> int:
-    """Equalize all buttons in a button box to the width of the widest button.
-
-    Complies with HIG / Fluent Design standards: action buttons in a strip share
-    an identical width determined by the longest translated label.
-    """
+    """Ensure clean 8px spacing in button box and prevent negative layout overlap."""
     if box is None:
         return 0
-    try:
-        buttons = box.findChildren(QPushButton)
-        if not buttons:
-            return 0
-        max_w = min_width
-        for btn in buttons:
-            text = btn.text()
-            fm = btn.fontMetrics()
-            text_w = fm.horizontalAdvance(text) if text else 0
-            icon_w = (btn.iconSize().width() + 8) if (hasattr(btn, "icon") and not btn.icon().isNull()) else 0
-            max_w = max(max_w, int(text_w + icon_w + padding))
-        for btn in buttons:
-            btn.setFixedWidth(max_w)
-        return max_w
-    except Exception as e:
-        logger.debug("Failed to equalize button box: %s", e)
-        return min_width
+    l = box.layout()
+    if l is not None:
+        l.setSpacing(8)
+    for btn in box.findChildren(QPushButton):
+        btn.setMinimumWidth(0)
+        btn.setMaximumWidth(16777215)
+    return 0
 
 
 def apply_uniform_height(dialog: QDialog):
@@ -288,7 +258,6 @@ class BaseDialog(QDialog, ReTranslatable):
             apply_uniform_height(self)
             self._apply_combo_popup_styles()
             self._apply_list_widget_styles()
-            self.update_dialog_button_widths()
             self._styles_applied = True
             self._setup_russian_context_menus()
         super().showEvent(event)

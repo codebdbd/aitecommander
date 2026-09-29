@@ -122,6 +122,11 @@ class PopulationManagerMixin:
             )
             return True
 
+        positions = [link.get("position") for link in links if isinstance(link, dict) and "position" in link]
+        if positions and len(positions) != len(set(positions)):
+            self.logger.info("[LinksTableView] Duplicate positions detected — performing full refresh to renumber")
+            return True
+
         current_ids = helpers._get_current_link_ids()
         new_ids = helpers._get_new_link_ids(links)
         bulk_changes = len(new_ids - current_ids) + len(current_ids - new_ids)

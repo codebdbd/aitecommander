@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTextEdit,
     QToolButton,
     QVBoxLayout,
@@ -67,6 +68,7 @@ from app.services.theme_import_service import (
 )
 from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_operations.creators import (
     _create_tinted_svg_icon,
     create_icon_from_path,
@@ -715,10 +717,9 @@ class SettingsDialog(BaseDialog):
         self.theme_import_btn: QPushButton | None = None
         self.remove_theme_btn: QPushButton | None = None
         self._form_layout: QFormLayout | None = None
-        self._theme_actions_row: QWidget | None = None
+        self._theme_row: QWidget | None = None
         self.font_size_combo: QComboBox | None = None
         self.max_backups_combo: QComboBox | None = None
-        self.file_assoc_checkbox: QCheckBox | None = None
         self._theme_importer = ThemeImportService()
 
         super().__init__(parent)
@@ -754,27 +755,39 @@ class SettingsDialog(BaseDialog):
         form.addRow(self.tr("Language:"), self.language_selector)
 
         # Theme
-        self.theme_combo = PopupComboBox()
+        theme_row = QWidget()
+        self._theme_row = theme_row
+        theme_layout = QHBoxLayout(theme_row)
+        theme_layout.setContentsMargins(0, 0, 0, 0)
+        theme_layout.setSpacing(8)
+
+        self.theme_combo = PopupComboBox(theme_row)
+        theme_layout.addWidget(self.theme_combo, 1)
+
+        add_theme_icon = icon_cache.get_icon("add_thema")
+        delete_icon = icon_cache.get_icon("delete")
+
+        self.theme_import_btn = QPushButton(theme_row)
+        self.theme_import_btn.setFixedSize(32, 32)
+        self.theme_import_btn.setIconSize(QSize(18, 18))
+        self.theme_import_btn.setIcon(add_theme_icon)
+        self.theme_import_btn.setToolTip(self.tr("Import theme"))
+        self.theme_import_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.theme_import_btn.clicked.connect(self._on_import_theme)
+        theme_layout.addWidget(self.theme_import_btn)
+
+        self.remove_theme_btn = QPushButton(theme_row)
+        self.remove_theme_btn.setFixedSize(32, 32)
+        self.remove_theme_btn.setIconSize(QSize(18, 18))
+        self.remove_theme_btn.setIcon(delete_icon)
+        self.remove_theme_btn.setToolTip(self.tr("Remove theme"))
+        self.remove_theme_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.remove_theme_btn.clicked.connect(self._on_remove_theme)
+        theme_layout.addWidget(self.remove_theme_btn)
+
         self._refresh_theme_list()
         self.theme_combo.currentIndexChanged.connect(self._on_theme_selection_changed)
-        form.addRow(self.tr("Theme:"), self.theme_combo)
-
-        actions_row = QWidget()
-        self._theme_actions_row = actions_row
-        actions_layout = QHBoxLayout(actions_row)
-        actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(app_config.ui.get_settings_dialog_actions_spacing())
-
-        self.theme_import_btn = QPushButton(self)
-        self.theme_import_btn.clicked.connect(self._on_import_theme)
-        actions_layout.addWidget(self.theme_import_btn)
-
-        self.remove_theme_btn = QPushButton(self)
-        self.remove_theme_btn.clicked.connect(self._on_remove_theme)
-        actions_layout.addWidget(self.remove_theme_btn)
-
-        actions_layout.addStretch(1)
-        form.addRow(self.tr("Theme actions:"), actions_row)
+        form.addRow(self.tr("Theme:"), theme_row)
 
         # Font size
         self.font_size_combo = PopupComboBox()
@@ -802,25 +815,14 @@ class SettingsDialog(BaseDialog):
             self.max_backups_combo.setCurrentIndex(9)
         form.addRow(self.tr("Max backups:"), self.max_backups_combo)
 
-        # File associations (Windows only)
-        import sys
-
-        if sys.platform == "win32":
-            from app.services.file_association_service import (
-                is_file_association_registered,
-            )
-
-            self.file_assoc_checkbox = QCheckBox(self)
-            self.file_assoc_checkbox.setChecked(is_file_association_registered())
-            self.file_assoc_checkbox.toggled.connect(self._on_file_assoc_toggled)
-            form.addRow(self.file_assoc_checkbox)
-
         vbox.addLayout(form)
 
         # Buttons
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        if bb.layout() is not None:
+            bb.layout().setSpacing(8)
         bb.accepted.connect(self._on_accept)
         bb.rejected.connect(self.reject)
         vbox.addWidget(bb)
@@ -954,17 +956,6 @@ class SettingsDialog(BaseDialog):
 
         self._refresh_theme_list(keep_selection=False)
 
-    def _on_file_assoc_toggled(self, checked: bool) -> None:
-        from app.services.file_association_service import (
-            register_file_associations,
-            unregister_file_associations,
-        )
-
-        if checked:
-            register_file_associations()
-        else:
-            unregister_file_associations()
-
     def retranslateUi(self) -> None:
         self.setWindowTitle(tr_common("Settings"))
 
@@ -973,8 +964,8 @@ class SettingsDialog(BaseDialog):
                 label = self._form_layout.labelForField(self.language_selector)
                 if label is not None:
                     label.setText(self.tr("Language:"))
-            if self.theme_combo is not None:
-                label = self._form_layout.labelForField(self.theme_combo)
+            if self._theme_row is not None:
+                label = self._form_layout.labelForField(self._theme_row)
                 if label is not None:
                     label.setText(self.tr("Theme:"))
             if self.font_size_combo is not None:
@@ -986,20 +977,10 @@ class SettingsDialog(BaseDialog):
                 if label is not None:
                     label.setText(self.tr("Max backups:"))
 
-        if self.file_assoc_checkbox is not None:
-            self.file_assoc_checkbox.setText(
-                self.tr("Associate .aitepack files")
-            )
-
         if self.theme_import_btn is not None:
-            self.theme_import_btn.setText(self.tr("Import theme"))
+            self.theme_import_btn.setToolTip(self.tr("Import theme"))
         if self.remove_theme_btn is not None:
-            self.remove_theme_btn.setText(self.tr("Remove theme"))
-
-        if self._form_layout is not None and self._theme_actions_row is not None:
-            label = self._form_layout.labelForField(self._theme_actions_row)
-            if label is not None:
-                label.setText(self.tr("Theme actions:"))
+            self.remove_theme_btn.setToolTip(self.tr("Remove theme"))
 
         if self.theme_combo is not None:
             # Refresh theme names to match current language while preserving selection.
@@ -1013,7 +994,7 @@ class SettingsDialog(BaseDialog):
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
-            self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
+            self.equalize_button_box(self._button_box)
 
     def _on_accept(self):
         """Persist settings changes."""

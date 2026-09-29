@@ -102,7 +102,7 @@ class IconRefreshDialog(BaseDialog):
         self.button_box = QWidget()
         buttons_layout = QHBoxLayout(self.button_box)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
-        buttons_layout.setSpacing(app_config.ui.get_icon_refresh_buttons_spacing())
+        buttons_layout.setSpacing(8)
         buttons_layout.addStretch(1)
 
         # Старт обновления
@@ -279,15 +279,12 @@ class IconRefreshDialog(BaseDialog):
         
         self.close_button.setText(QCoreApplication.translate("IconRefreshDialog", "Close"))
 
-        buttons = [self.refresh_button, self.cancel_button, self.close_button]
+        for b in [self.refresh_button, self.cancel_button, self.close_button]:
+            b.setMinimumWidth(0)
+            b.setMaximumWidth(16777215)
         if self.allow_background and hasattr(self, "background_button"):
-            buttons.append(self.background_button)
-        max_w = max(
-            app_config.ui.get_fixed_button_width(),
-            *(self.adjust_button_width(b, min_width=0, padding=24) for b in buttons),
-        )
-        for b in buttons:
-            b.setFixedWidth(max_w)
+            self.background_button.setMinimumWidth(0)
+            self.background_button.setMaximumWidth(16777215)
 
     def _on_refresh_clicked(self):
         """Запустить парсинг иконок по запросу пользователя."""

@@ -1,6 +1,7 @@
 # Core module for the links table
 # Contains the main ``LinksTableView`` class and foundational functionality
 
+import html
 import logging
 
 from PyQt6.QtCore import (
@@ -18,6 +19,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QColor,
     QFont,
+    QHelpEvent,
     QIcon,
     QKeyEvent,
     QPainter,
@@ -31,9 +33,12 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QProxyStyle,
     QStyle,
+    QLineEdit,
     QStyledItemDelegate,
     QStyleOptionHeader,
     QStyleOptionViewItem,
+    QToolTip,
+    QWidget,
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -272,7 +277,7 @@ class TableDelegate(QStyledItemDelegate):
             self._apply_name_column_elision(opt)
 
         if is_column(col, LinkTableColumn.ORDER):
-            display_text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+            display_text = str(index.row() + 1)
             opt.text = ""
             try:
                 self._current_paint_col = col
@@ -314,6 +319,23 @@ class TableDelegate(QStyledItemDelegate):
         finally:
             self._current_paint_col = -1
             self._current_paint_selected = False
+
+        if is_column(col, LinkTableColumn.TYPE):
+            link = index.data(Qt.ItemDataRole.UserRole)
+            if isinstance(link, dict) and bool(link.get("chrome_rotation")):
+                is_selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+                sz = 16
+                margin_right = 10
+                ix = opt.rect.right() - margin_right - sz
+                iy = opt.rect.top() + (opt.rect.height() - sz) // 2
+                try:
+                    from app.views.widgets.link.links_model import get_rotation_icon
+                    icon = get_rotation_icon(sz, is_selected=is_selected)
+                    if icon:
+                        icon.paint(painter, ix, iy, sz, sz)
+                except Exception:
+                    pass
+            return
 
         if is_column(col, LinkTableColumn.GROUP_LAUNCH):
             widget = option.widget
@@ -365,6 +387,78 @@ class TableDelegate(QStyledItemDelegate):
         # Top-left corner borders (cell above row 1 and before column 0)
         # are rendered via QSS (`QTableView QTableCornerButton::section`) in `dark.qss`
         return super().editorEvent(event, model, option, index)
+
+    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index) -> QWidget:
+        editor = super().createEditor(parent, option, index)
+        if is_column(index.column(), LinkTableColumn.ORDER) and isinstance(editor, QLineEdit):
+            editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return editor
+
+    def updateEditorGeometry(self, editor: QWidget, option: QStyleOptionViewItem, index) -> None:
+        if is_column(index.column(), LinkTableColumn.ORDER):
+            editor.setGeometry(option.rect)
+        else:
+            super().updateEditorGeometry(editor, option, index)
+
+    def helpEvent(
+        self,
+        event: QHelpEvent,
+        view: QAbstractItemView,
+        option: QStyleOptionViewItem,
+        index: QModelIndex,
+    ) -> bool:
+        """Filter and display clean, elision-aware tooltips for table cells."""
+        if not index.isValid() or event is None:
+            return False
+
+        col = index.column()
+
+        # Suppress tooltip for order (#), group launch, and type columns — eliminate obvious UI noise
+        if (
+            is_column(col, LinkTableColumn.ORDER)
+            or is_column(col, LinkTableColumn.GROUP_LAUNCH)
+            or is_column(col, LinkTableColumn.TYPE)
+        ):
+            return False
+
+        link = index.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(link, dict):
+            return False
+
+        fm = option.fontMetrics
+
+        # Notes column: only show tooltip if note is actually elided in the cell
+        if is_column(col, LinkTableColumn.NOTES):
+            notes = str(link.get("notes") or "").strip()
+            if not notes:
+                return False
+            clean_text = " ".join(notes.split())
+            cell_text = "📝 " + clean_text
+            is_elided = fm.horizontalAdvance(cell_text) > (option.rect.width() - 8)
+            if not is_elided:
+                return False
+            preview = clean_text[:160] + "…" if len(clean_text) > 160 else clean_text
+            QToolTip.showText(event.globalPos(), html.escape(preview), view)
+            return True
+
+        # Name column: ONLY show tooltip if name is actually cut off (elided)
+        if is_column(col, LinkTableColumn.NAME):
+            name = str(link.get("name") or "").strip()
+            icon_w = option.decorationSize.width() + 8 if not option.icon.isNull() else 0
+            available_w = max(0, option.rect.width() - icon_w - 4)
+            name_elided = fm.horizontalAdvance(name) > available_w
+            if not name_elided:
+                return False
+
+            url_or_path = str(link.get("url", "") or link.get("path", "")).strip()
+            parts: list[str] = [f"<div style='white-space: nowrap;'><b>{html.escape(name)}</b></div>"]
+            if url_or_path and url_or_path != name:
+                parts.append(f"<div style='white-space: nowrap; color: #888888; margin-top: 2px;'>{html.escape(url_or_path)}</div>")
+
+            QToolTip.showText(event.globalPos(), "".join(parts), view)
+            return True
+
+        return super().helpEvent(event, view, option, index)
 
 class ExplorerHeaderStyle(QProxyStyle):
     """Proxy style that narrows label geometry for header sections with a

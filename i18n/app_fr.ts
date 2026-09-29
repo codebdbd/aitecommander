@@ -2667,9 +2667,14 @@ Tous les liens imbriqués seront définitivement supprimés !
         <translation>Applications</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="241" />
-        <source>URL/Path:</source>
-        <translation>URL/Chemin :</translation>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="222" />
+        <source>URL:</source>
+        <translation>URL :</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="522" />
+        <source>Path:</source>
+        <translation>Chemin :</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="547" />

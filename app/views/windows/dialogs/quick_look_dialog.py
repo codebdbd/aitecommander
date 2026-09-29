@@ -15,7 +15,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, QFileInfo, QPoint, QPointF, QRect, QSettings, QSize, Qt
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QEasingCurve,
+    QFileInfo,
+    QPoint,
+    QPointF,
+    QPropertyAnimation,
+    QRect,
+    QSettings,
+    QSize,
+    Qt,
+    QUrl,
+)
 from PyQt6.QtGui import (
     QColor,
     QFont,
@@ -62,6 +74,13 @@ try:
     _HAS_PDF = True
 except ImportError:
     _HAS_PDF = False
+
+try:
+    from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+    from PyQt6.QtMultimediaWidgets import QVideoWidget
+    _HAS_MULTIMEDIA = True
+except ImportError:
+    _HAS_MULTIMEDIA = False
 
 try:
     from PIL import Image, PsdImagePlugin
@@ -193,6 +212,8 @@ _DARK_PREVIEW_QSS = """
 #QuickLookDialog {
     background-color: #1e1e1e;
     color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
 }
 #QuickLookDialog QTableWidget {
     background-color: #1e1e1e;
@@ -259,6 +280,35 @@ _DARK_PREVIEW_QSS = """
     border-color: rgba(140, 140, 140, 0.15);
     opacity: 0.3;
 }
+#QuickLookDialog QPushButton#ql_max_btn {
+    background-color: transparent;
+    border: none;
+    color: #888888;
+    font-size: 13px;
+    border-radius: 3px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+}
+#QuickLookDialog QPushButton#ql_close_btn {
+    background-color: transparent;
+    border: none;
+    color: #888888;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 3px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+}
+#QuickLookDialog QPushButton#ql_close_btn:hover {
+    background-color: rgba(232, 17, 35, 0.85);
+    color: #ffffff;
+}
 QMenu {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background-color: #252B35;
@@ -297,6 +347,8 @@ _LIGHT_PREVIEW_QSS = """
 #QuickLookDialog {
     background-color: #ffffff;
     color: #1a1a1a;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
 }
 #QuickLookDialog QTableWidget {
     background-color: #ffffff;
@@ -363,6 +415,35 @@ _LIGHT_PREVIEW_QSS = """
     border-color: rgba(140, 140, 140, 0.15);
     opacity: 0.3;
 }
+#QuickLookDialog QPushButton#ql_max_btn {
+    background-color: transparent;
+    border: none;
+    color: #666666;
+    font-size: 13px;
+    border-radius: 3px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+}
+#QuickLookDialog QPushButton#ql_close_btn {
+    background-color: transparent;
+    border: none;
+    color: #666666;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 3px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+}
+#QuickLookDialog QPushButton#ql_close_btn:hover {
+    background-color: rgba(232, 17, 35, 0.85);
+    color: #ffffff;
+}
 QMenu {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background-color: #FAFCFF;
@@ -409,15 +490,16 @@ class QuickLookDialog(BaseDialog):
     ) -> None:
         super().__init__(
             parent,
-            Qt.WindowType.Window
-            | Qt.WindowType.WindowMinMaxButtonsHint
-            | Qt.WindowType.WindowCloseButtonHint,
+            Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint,
         )
         self.setObjectName("QuickLookDialog")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.installEventFilter(self)
-        self._normal_size = QSize(760, 540)
+        self._normal_size = QSize(800, 560)
         self._normal_geometry: Optional[QRect] = None
+        self._drag_pos: Optional[QPoint] = None
+        self._fade_anim: Optional[QPropertyAnimation] = None
+        self._geom_anim: Optional[QPropertyAnimation] = None
         self._syntax_highlighter = CodeSyntaxHighlighter(self)
 
         qs = QSettings(
@@ -431,7 +513,7 @@ class QuickLookDialog(BaseDialog):
             self.restoreGeometry(saved_geom)
         else:
             self.resize(self._normal_size)
-        self.setMinimumSize(740, 480)
+        self.setMinimumSize(420, 240)
 
         self._on_open_callback = on_open_callback
         self._on_navigate_callback = on_navigate_callback
@@ -439,6 +521,7 @@ class QuickLookDialog(BaseDialog):
         self._current_orig_image: Optional[QPixmap] = None
         self._image_zoom: float = 1.0
         self._is_prose_mode: bool = True
+        self._media_player: Optional[Any] = None
 
         self._sc_reveal_en = QShortcut(
             QKeySequence(Qt.KeyboardModifier.ControlModifier | Qt.Key.Key_E), self
@@ -451,14 +534,42 @@ class QuickLookDialog(BaseDialog):
 
     def _setup_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(10, 10, 10, 10)
-        root_layout.setSpacing(8)
+        root_layout.setContentsMargins(12, 8, 12, 10)
+        root_layout.setSpacing(6)
+
+        # Header bar
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
+
+        self._header_icon_lbl = QLabel()
+        self._header_icon_lbl.setFixedSize(16, 16)
+        self._header_icon_lbl.setScaledContents(True)
+        header_layout.addWidget(self._header_icon_lbl)
+
+        self._header_title_lbl = QLabel()
+        self._header_title_lbl.setStyleSheet("font-weight: 600; font-size: 12px; opacity: 0.85;")
+        header_layout.addWidget(self._header_title_lbl, 1)
+
+        self._max_btn = QPushButton("🗖")
+        self._max_btn.setObjectName("ql_max_btn")
+        self._max_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._max_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._max_btn.setToolTip(self.tr("Fullscreen (F)"))
+        self._max_btn.clicked.connect(self._toggle_fullscreen)
+        header_layout.addWidget(self._max_btn)
+
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setObjectName("ql_close_btn")
+        self._close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._close_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._close_btn.clicked.connect(self.close_animated)
+        header_layout.addWidget(self._close_btn)
+        root_layout.addLayout(header_layout)
 
         # Content Stack
         self._stack = QStackedWidget()
         self._stack.setStyleSheet("background: transparent; border: none;")
-        self._stack.setMinimumHeight(380)
-        self._stack.setMinimumWidth(700)
         root_layout.addWidget(self._stack, 1)
 
         # Page 0: Image Preview
@@ -477,19 +588,39 @@ class QuickLookDialog(BaseDialog):
 
         # Page 1: Text / Code Preview
         self._text_page = QWidget()
-        text_layout = QVBoxLayout(self._text_page)
-        text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(0)
+        self._text_layout = QVBoxLayout(self._text_page)
+        self._text_layout.setContentsMargins(16, 8, 16, 8)
+        self._text_layout.setSpacing(0)
 
         self._text_edit = QTextEdit()
         self._text_edit.setFont(QFont("Segoe UI", 13))
         self._text_edit.setReadOnly(True)
         self._text_edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self._text_edit.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self._text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._text_edit.installEventFilter(self)
         self._text_edit.viewport().installEventFilter(self)
-        text_layout.addWidget(self._text_edit, 1)
+        self._text_layout.addWidget(self._text_edit, 1)
         self._stack.addWidget(self._text_page)
+
+        # Page: Video Preview (QtMultimedia)
+        if _HAS_MULTIMEDIA:
+            self._media_player = QMediaPlayer(self)
+            self._audio_output = QAudioOutput(self)
+            self._media_player.setAudioOutput(self._audio_output)
+            self._video_page = QWidget()
+            video_layout = QVBoxLayout(self._video_page)
+            video_layout.setContentsMargins(0, 0, 0, 0)
+            video_layout.setSpacing(0)
+            self._video_widget = QVideoWidget(self._video_page)
+            self._media_player.setVideoOutput(self._video_widget)
+            video_layout.addWidget(self._video_widget, 1)
+            self._stack.addWidget(self._video_page)
+        else:
+            self._media_player = None
+            self._audio_output = None
+            self._video_widget = None
 
         # Page: PDF Preview
         if _HAS_PDF:
@@ -544,15 +675,9 @@ class QuickLookDialog(BaseDialog):
         outer_card_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._card_box = QFrame()
-        self._card_box.setStyleSheet(
-            "background-color: rgba(128, 128, 128, 0.08);"
-            " border: 1px solid rgba(128, 128, 128, 0.2);"
-            " border-radius: 0px;"
-        )
-        self._card_box.setMinimumWidth(380)
-        self._card_box.setMaximumWidth(560)
+        self._card_box.setObjectName("ql_card_box")
         card_layout = QVBoxLayout(self._card_box)
-        card_layout.setContentsMargins(24, 20, 24, 20)
+        card_layout.setContentsMargins(28, 20, 28, 20)
         card_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.setSpacing(14)
 
@@ -568,16 +693,10 @@ class QuickLookDialog(BaseDialog):
         self._card_desc_lbl.setStyleSheet("font-size: 13px; line-height: 1.5; border: none; background: transparent;")
         card_layout.addWidget(self._card_desc_lbl, 0, Qt.AlignmentFlag.AlignCenter)
 
-        self._reveal_btn = QPushButton(self.tr("Show in Explorer"))
-        self._reveal_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._reveal_btn.clicked.connect(self._handle_reveal_in_explorer)
-        self._reveal_btn.setToolTip(self.tr("Show in Explorer (Ctrl+E)"))
-        card_layout.addWidget(self._reveal_btn, 0, Qt.AlignmentFlag.AlignCenter)
-
         outer_card_layout.addWidget(self._card_box, 0, Qt.AlignmentFlag.AlignCenter)
         self._stack.addWidget(self._card_page)
 
-        # Row 1: Action Buttons (Centered on dedicated row)
+        # Row 1: Action Buttons (Centered, strict rectangular buttons)
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(10)
         buttons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -741,6 +860,7 @@ class QuickLookDialog(BaseDialog):
 
     def set_link(self, link: dict[str, Any]) -> None:
         self._cleanup_context_menus()
+        self._stop_media()
         self._apply_preview_theme()
         self._current_link = link
         name = str(link.get("name") or self.tr("Untitled"))
@@ -750,6 +870,12 @@ class QuickLookDialog(BaseDialog):
         icon_name = link.get("icon")
 
         self.setWindowTitle(name)
+        if hasattr(self, "_header_title_lbl"):
+            self._header_title_lbl.setText(name)
+        if hasattr(self, "_text_info_lbl"):
+            self._text_info_lbl.clear()
+        if hasattr(self, "_image_info_lbl"):
+            self._image_info_lbl.clear()
         self._path_lbl.setText(url)
         if hasattr(self, "_open_btn"):
             self._open_btn.setEnabled(True)
@@ -779,8 +905,12 @@ class QuickLookDialog(BaseDialog):
 
         if qicon and not qicon.isNull():
             self._footer_icon_lbl.setPixmap(qicon.pixmap(16, 16))
+            if hasattr(self, "_header_icon_lbl"):
+                self._header_icon_lbl.setPixmap(qicon.pixmap(16, 16))
         else:
             self._footer_icon_lbl.clear()
+            if hasattr(self, "_header_icon_lbl"):
+                self._header_icon_lbl.clear()
 
         if link_type == LinkType.FILE:
             self._render_file_preview(url, name, qicon)
@@ -831,6 +961,7 @@ class QuickLookDialog(BaseDialog):
                     self._text_info_lbl.setText(
                         f"DOCX  •  {self.tr('%n paragraph(s)', '', len(paragraphs))}  •  {sz_str}"
                     )
+                    self._adapt_window_size("document")
                     if hasattr(self, "_copy_content_btn"):
                         self._copy_content_btn.setVisible(True)
                     return
@@ -840,25 +971,22 @@ class QuickLookDialog(BaseDialog):
         if ext in IMAGE_EXTENSIONS:
             reader = QImageReader(path_str)
             reader.setAutoTransform(True)
-            orig_sz = reader.size()
-            if orig_sz.isValid():
-                target_sz = self._image_page.size() - QSize(20, 40)
-                if orig_sz.width() > target_sz.width() or orig_sz.height() > target_sz.height():
-                    reader.setScaledSize(orig_sz.scaled(target_sz, Qt.AspectRatioMode.KeepAspectRatio))
-                img = reader.read()
-                if not img.isNull():
-                    pix = QPixmap.fromImage(img)
-                    self._current_orig_image = pix
-                    self._image_zoom = 1.0
-                    self._stack.setCurrentWidget(self._image_page)
-                    self._image_lbl.setPixmap(pix)
-                    sz_str = _format_file_size(path.stat().st_size)
-                    self._image_info_lbl.setText(
-                        f"{orig_sz.width()} × {orig_sz.height()} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
-                    )
-                    if hasattr(self, "_copy_content_btn"):
-                        self._copy_content_btn.setVisible(True)
-                    return
+            img = reader.read()
+            if not img.isNull():
+                orig_sz = img.size()
+                pix = QPixmap.fromImage(img)
+                self._current_orig_image = pix
+                self._image_zoom = 1.0
+                self._stack.setCurrentWidget(self._image_page)
+                sz_str = _format_file_size(path.stat().st_size)
+                self._image_info_lbl.setText(
+                    f"{orig_sz.width()} × {orig_sz.height()} px  •  {sz_str}  •  {ext.upper().lstrip('.')}"
+                )
+                self._adapt_window_size("image", orig_sz)
+                self._apply_image_zoom()
+                if hasattr(self, "_copy_content_btn"):
+                    self._copy_content_btn.setVisible(True)
+                return
 
         if ext in (".psd", ".psb"):
             if self._render_psd_preview(path_str, ext):
@@ -880,6 +1008,7 @@ class QuickLookDialog(BaseDialog):
                     self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
                     self._pdf_view.setZoomFactor(1.44)
                     self._update_pdf_info()
+                    self._adapt_window_size("document")
                     return
             except Exception as e:
                 logger.debug("Failed to load PDF %s: %s", path_str, e)
@@ -911,6 +1040,7 @@ class QuickLookDialog(BaseDialog):
                     self._set_markdown_text(text)
                     sz_str = _format_file_size(path.stat().st_size)
                     self._text_info_lbl.setText(f"Markdown  •  {sz_str}")
+                    self._adapt_window_size("document")
                     if hasattr(self, "_copy_content_btn"):
                         self._copy_content_btn.setVisible(True)
                     return
@@ -930,11 +1060,16 @@ class QuickLookDialog(BaseDialog):
                 self._text_info_lbl.setText(
                     f"{self.tr('Lines')}: ~{lines_count}  •  {self.tr('Size')}: {sz_str}  •  UTF-8"
                 )
+                self._adapt_window_size("document")
                 if hasattr(self, "_copy_content_btn"):
                     self._copy_content_btn.setVisible(True)
                 return
             except Exception as e:
                 logger.debug("Failed to read text file %s: %s", path_str, e)
+
+        if _HAS_MULTIMEDIA and ext in VIDEO_EXTENSIONS:
+            if self._render_video_playback(path_str, ext):
+                return
 
         if ext in AUDIO_EXTENSIONS or ext in VIDEO_EXTENSIONS:
             if self._render_media_preview(path_str, ext, qicon):
@@ -978,6 +1113,7 @@ class QuickLookDialog(BaseDialog):
 
             self._populate_table(rows)
             self._stack.setCurrentWidget(self._table_view)
+            self._adapt_window_size("document")
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
                 f"CSV  •  {self.tr('%n preview row(s)', '', len(rows))}  •  {sz_str}"
@@ -1189,6 +1325,7 @@ class QuickLookDialog(BaseDialog):
 
             self._populate_table(rows)
             self._stack.setCurrentWidget(self._table_view)
+            self._adapt_window_size("document")
             sz_str = _format_file_size(os.path.getsize(path_str))
             self._text_info_lbl.setText(
                 f"XLSX  •  {self.tr('%n preview row(s)', '', len(rows))}  •  {sz_str}"
@@ -1235,6 +1372,7 @@ class QuickLookDialog(BaseDialog):
             )
             self._update_folder_margins()
             self._stack.setCurrentWidget(self._folder_page)
+            self._adapt_window_size("folder")
             return True
         except Exception as e:
             logger.debug("Failed to read ZIP %s: %s", path_str, e)
@@ -1292,6 +1430,22 @@ class QuickLookDialog(BaseDialog):
         except Exception as e:
             logger.debug("Failed to render media preview: %s", e)
             return False
+
+    def _render_video_playback(self, path_str: str, ext: str) -> bool:
+        try:
+            self._stack.setCurrentWidget(self._video_page)
+            self._media_player.setSource(QUrl.fromLocalFile(path_str))
+            self._media_player.play()
+            sz_str = _format_file_size(os.path.getsize(path_str))
+            self._text_info_lbl.setText(f"{ext.upper().lstrip('.')}  •  {sz_str}")
+            return True
+        except Exception as e:
+            logger.debug("Failed video playback: %s", e)
+            return False
+
+    def _stop_media(self) -> None:
+        if _HAS_MULTIMEDIA and self._media_player:
+            self._media_player.stop()
 
     def _on_pdf_page_changed(self, page_index: int) -> None:
         self._update_pdf_info()
@@ -1383,8 +1537,11 @@ class QuickLookDialog(BaseDialog):
     def _apply_image_zoom(self) -> None:
         if not self._current_orig_image or self._current_orig_image.isNull():
             return
-        target_w = max(10, int(self._current_orig_image.width() * self._image_zoom))
-        target_h = max(10, int(self._current_orig_image.height() * self._image_zoom))
+        view_w = max(200, self._image_page.width() - 20)
+        view_h = max(200, self._image_page.height() - 40)
+        base_sz = self._current_orig_image.size().scaled(view_w, view_h, Qt.AspectRatioMode.KeepAspectRatio)
+        target_w = max(10, int(base_sz.width() * self._image_zoom))
+        target_h = max(10, int(base_sz.height() * self._image_zoom))
         scaled = self._current_orig_image.scaled(
             target_w,
             target_h,
@@ -1664,11 +1821,20 @@ class QuickLookDialog(BaseDialog):
             self._syntax_highlighter.setDocument(None)
         font = QFont("Segoe UI", 13)
         self._text_edit.setFont(font)
+        self._text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self._text_edit.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self._text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         doc = self._text_edit.document()
         doc.clear()
         doc.setDefaultFont(font)
         doc.setDocumentMargin(0)
         doc.setMarkdown(text)
+
+        font_fmt = QTextCharFormat()
+        font_fmt.setFontFamily("Segoe UI")
+        cursor = QTextCursor(doc)
+        cursor.select(QTextCursor.SelectionType.Document)
+        cursor.mergeCharFormat(font_fmt)
 
         b = doc.firstBlock()
         while b.isValid():
@@ -1701,6 +1867,8 @@ class QuickLookDialog(BaseDialog):
         super().resizeEvent(event)
         self._update_text_margins()
         self._update_folder_margins()
+        if hasattr(self, "_stack") and self._stack.currentWidget() == self._image_page:
+            self._apply_image_zoom()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -1749,6 +1917,7 @@ class QuickLookDialog(BaseDialog):
         self._folder_info_lbl.setText(self.tr("%n item(s) in root", "", items_count))
         self._update_folder_margins()
         self._stack.setCurrentWidget(self._folder_page)
+        self._adapt_window_size("folder")
 
     def _render_script_preview(self, path_str: str, link: dict[str, Any]) -> None:
         path = Path(path_str)
@@ -1845,6 +2014,7 @@ class QuickLookDialog(BaseDialog):
         if hasattr(self, "_reveal_btn"):
             self._reveal_btn.setVisible(show_reveal)
         self._stack.setCurrentWidget(self._card_page)
+        self._adapt_window_size("card")
 
     def _handle_open(self) -> None:
         if hasattr(self, "_open_btn") and not self._open_btn.isEnabled():
@@ -1871,7 +2041,7 @@ class QuickLookDialog(BaseDialog):
         key = event.key()
         modifiers = event.modifiers()
         if key in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
-            self.close()
+            self.close_animated()
             return True
         elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._handle_open()
@@ -1959,6 +2129,7 @@ class QuickLookDialog(BaseDialog):
         super().wheelEvent(event)
 
     def closeEvent(self, event) -> None:
+        self._stop_media()
         super().closeEvent(event)
         try:
             qs = QSettings(
@@ -1974,4 +2145,74 @@ class QuickLookDialog(BaseDialog):
             table = self.parent().table
             if table:
                 table.setFocus()
+
+    def _adapt_window_size(self, mode: str = "", image_size: Optional[QSize] = None) -> None:
+        if self.isFullScreen() or self.isMaximized():
+            return
+        target_w = self._normal_size.width()
+        target_h = self._normal_size.height()
+        if self.width() != target_w or self.height() != target_h:
+            screen = self.screen() or QApplication.primaryScreen()
+            avail = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
+            target_w = min(target_w, avail.width())
+            target_h = min(target_h, avail.height())
+            parent_widget = self.parent()
+            ref_geom = parent_widget.geometry() if parent_widget and hasattr(parent_widget, "geometry") else avail
+            new_x = ref_geom.x() + (ref_geom.width() - target_w) // 2
+            new_y = ref_geom.y() + (ref_geom.height() - target_h) // 2
+            self.setGeometry(QRect(new_x, new_y, target_w, target_h))
+
+    def open_animated(self) -> None:
+        self.setWindowOpacity(0.0)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        if self._fade_anim:
+            self._fade_anim.stop()
+        self._fade_anim = QPropertyAnimation(self, b"windowOpacity", self)
+        self._fade_anim.setDuration(120)
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade_anim.start()
+
+    def close_animated(self) -> None:
+        if not self.isVisible():
+            self.close()
+            return
+        if self._fade_anim:
+            self._fade_anim.stop()
+        self._fade_anim = QPropertyAnimation(self, b"windowOpacity", self)
+        self._fade_anim.setDuration(90)
+        self._fade_anim.setStartValue(self.windowOpacity())
+        self._fade_anim.setEndValue(0.0)
+        self._fade_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._fade_anim.finished.connect(self.close)
+        self._fade_anim.start()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if event.buttons() == Qt.MouseButton.LeftButton and self._drag_pos is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._toggle_fullscreen()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
 

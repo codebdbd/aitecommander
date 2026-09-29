@@ -117,8 +117,8 @@ class ProfilesMixin:
             btn.setToolTip(
                 QCoreApplication.translate("LinkDialogUI", "Select browser profile")
             )
-            if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "adjust_button_width"):
-                self.dialog.ui.adjust_button_width(btn)
+            if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "_equalize_form_side_buttons"):
+                self.dialog.ui._equalize_form_side_buttons()
 
         if le is None:
             return

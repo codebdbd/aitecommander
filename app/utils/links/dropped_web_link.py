@@ -42,7 +42,7 @@ def build_dropped_link_payload(target: str, category_id: int) -> dict:
         "_defer_enrichment": True,
         "notes": "",
         "last_used": None,
-        "position": 0,
+        "position": None,
         "category_id": int(category_id),
         "args": "",
         "is_favorite": 0,

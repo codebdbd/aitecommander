@@ -204,5 +204,55 @@ class TestQuickLookDialog(unittest.TestCase):
             self.assertEqual(expected_margin, margins.right())
 
 
+    def test_frameless_window_flags_and_header(self) -> None:
+        self.assertTrue(bool(self.dialog.windowFlags() & Qt.WindowType.FramelessWindowHint))
+        self.dialog.set_link({"name": "My Link", "url": "https://example.com", "type": "web"})
+        self.assertEqual("My Link", self.dialog._header_title_lbl.text())
+        self.assertIsNotNone(self.dialog._close_btn)
+
+    def test_adaptive_sizing_card_and_document(self) -> None:
+        # Card mode (stable normal size: 800x560)
+        self.dialog.set_link({"name": "Card Item", "url": "https://example.com", "type": "web"})
+        self.assertEqual(800, self.dialog.width())
+        self.assertEqual(560, self.dialog.height())
+
+        # Document mode (strictly same normal size: 800x560)
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            f.write("Line 1\n")
+            temp_path = f.name
+        try:
+            self.dialog.set_link({"name": "Doc Item", "url": temp_path, "type": "file"})
+            self.assertEqual(800, self.dialog.width())
+            self.assertEqual(560, self.dialog.height())
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+
+    def test_maximize_button_and_double_click(self) -> None:
+        self.assertIsNotNone(self.dialog._max_btn)
+        self.assertEqual("🗖", self.dialog._max_btn.text())
+        was_max = self.dialog.isMaximized()
+        self.dialog._max_btn.click()
+        self.assertNotEqual(was_max, self.dialog.isMaximized())
+        self.dialog._max_btn.click()
+
+    def test_info_labels_cleared_on_set_link(self) -> None:
+        self.dialog._text_info_lbl.setText("DOCX • old info")
+        self.dialog._image_info_lbl.setText("old image info")
+        self.dialog.set_link({"name": "Test Web", "url": "https://example.com", "type": "web"})
+        self.assertEqual("", self.dialog._text_info_lbl.text())
+        self.assertEqual("", self.dialog._image_info_lbl.text())
+
+    def test_video_page_playback(self) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".mp4", delete=False) as f:
+            temp_path = f.name
+        try:
+            self.dialog.set_link({"name": "Test Video", "url": temp_path, "type": "file"})
+            if hasattr(self.dialog, "_video_page") and self.dialog._video_page is not None:
+                self.assertEqual(self.dialog._stack.currentWidget(), self.dialog._video_page)
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     unittest.main()

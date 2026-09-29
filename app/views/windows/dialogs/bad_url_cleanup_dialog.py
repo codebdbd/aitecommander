@@ -12,6 +12,7 @@ from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
 )
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -138,6 +139,9 @@ class BadUrlCleanupDialog(BaseDialog):
         super().__init__(parent)
 
         self.setModal(True)
+        self.setWindowFlags(
+            self.windowFlags() | Qt.WindowType.WindowMinMaxButtonsHint
+        )
         min_w, min_h = app_config.ui.get_bad_url_cleanup_dialog_min_size()
         self.setMinimumWidth(min_w)
         self.setMinimumHeight(min_h)
@@ -160,8 +164,11 @@ class BadUrlCleanupDialog(BaseDialog):
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
 
-        # Filters (visible from start)
-        filter_layout = QHBoxLayout()
+        # Filters container (hidden during check, shown after completion if bad links found)
+        self.filter_container = QWidget()
+        filter_layout = QHBoxLayout(self.filter_container)
+        filter_layout.setContentsMargins(0, 0, 0, 0)
+        filter_layout.setSpacing(8)
         
         # Error type filter
         from app.utils.ui.qt.combo_helpers import PopupComboBox
@@ -174,6 +181,7 @@ class BadUrlCleanupDialog(BaseDialog):
         self.error_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "🟡 404 Not Found"), "404 Not Found")
         self.error_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "🔵 No SSL"), "No SSL (HTTP only)")
         self.error_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.error_filter_combo.setMinimumWidth(140)
         self.error_filter_combo.setCurrentIndex(0)
         self.error_filter_combo.currentIndexChanged.connect(self._on_filter_changed)
         filter_layout.addWidget(self.error_filter_combo)
@@ -185,6 +193,7 @@ class BadUrlCleanupDialog(BaseDialog):
         self.sphere_filter_combo = PopupComboBox()
         self.sphere_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.sphere_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.sphere_filter_combo.setMinimumWidth(130)
         self.sphere_filter_combo.currentIndexChanged.connect(self._on_sphere_changed)
         filter_layout.addWidget(self.sphere_filter_combo)
         
@@ -195,6 +204,7 @@ class BadUrlCleanupDialog(BaseDialog):
         self.section_filter_combo = PopupComboBox()
         self.section_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.section_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.section_filter_combo.setMinimumWidth(130)
         self.section_filter_combo.currentIndexChanged.connect(self._on_section_changed)
         filter_layout.addWidget(self.section_filter_combo)
         
@@ -205,23 +215,29 @@ class BadUrlCleanupDialog(BaseDialog):
         self.category_filter_combo = PopupComboBox()
         self.category_filter_combo.addItem(QCoreApplication.translate("BadUrlCleanupDialog", "All"), "ALL")
         self.category_filter_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.category_filter_combo.setMinimumWidth(130)
         self.category_filter_combo.currentIndexChanged.connect(self._on_filter_changed)
         filter_layout.addWidget(self.category_filter_combo)
         
         filter_layout.addStretch()
-        layout.addLayout(filter_layout)
+        layout.addWidget(self.filter_container)
+        self.filter_container.setVisible(False)
         # Table with unreachable URLs (visible from start, empty)
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(5)
         self.table_widget.setHorizontalHeaderLabels(
             [
-                QCoreApplication.translate("BadUrlCleanupDialog", "Select"),
+                "✓",
                 QCoreApplication.translate("BadUrlCleanupDialog", "Domain"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "URL"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "Error"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "Category"),
             ]
         )
+        if self.table_widget.horizontalHeaderItem(0) is not None:
+            self.table_widget.horizontalHeaderItem(0).setToolTip(
+                QCoreApplication.translate("BadUrlCleanupDialog", "Select All / Deselect All")
+            )
         self.table_widget.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows
         )
@@ -234,11 +250,18 @@ class BadUrlCleanupDialog(BaseDialog):
         
         # Настраиваем режимы изменения размера колонок (один раз)
         header = self.table_widget.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Select
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Domain
+        header.setMinimumSectionSize(36)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)             # Checkbox
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)       # Domain
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)           # URL (растягивается)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Error
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)       # Error
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)       # Category (можно менять)
+        header.sectionClicked.connect(self._on_header_section_clicked)
+        
+        self.table_widget.setColumnWidth(0, 40)
+        self.table_widget.setColumnWidth(1, 150)
+        self.table_widget.setColumnWidth(3, 170)
+        self.table_widget.setColumnWidth(4, 210)
         
         layout.addWidget(self.table_widget)
 
@@ -286,6 +309,10 @@ class BadUrlCleanupDialog(BaseDialog):
         self.cancel_button = QPushButton(tr_common("Cancel"))
         self.cancel_button.clicked.connect(self._on_cancel_clicked)
         bottom_layout.addWidget(self.cancel_button)
+
+        min_btn_w = app_config.ui.get_fixed_button_width()
+        self.adjust_button_width(self.background_button, min_width=min_btn_w)
+        self.adjust_button_width(self.cancel_button, min_width=min_btn_w)
         
         layout.addWidget(self.button_box)
     
@@ -297,6 +324,28 @@ class BadUrlCleanupDialog(BaseDialog):
         self.service.finished.connect(self._on_finished)
         self.service.error.connect(self._on_error)
     
+    def _on_header_section_clicked(self, logical_index: int):
+        """Handle header click - toggle select all when column 0 is clicked."""
+        if logical_index == 0:
+            all_selected = True
+            has_visible = False
+            for row in range(self.table_widget.rowCount()):
+                if not self.table_widget.isRowHidden(row):
+                    has_visible = True
+                    item = self.table_widget.item(row, 0)
+                    if item and item.checkState() != Qt.CheckState.Checked:
+                        all_selected = False
+                        break
+            if not has_visible:
+                return
+            new_state = Qt.CheckState.Unchecked if all_selected else Qt.CheckState.Checked
+            for row in range(self.table_widget.rowCount()):
+                if not self.table_widget.isRowHidden(row):
+                    item = self.table_widget.item(row, 0)
+                    if item:
+                        item.setCheckState(new_state)
+            self._update_selection_info()
+
     def _on_item_double_clicked(self, item: QTableWidgetItem):
         """Handle double-click on table item - open URL in browser."""
         row = item.row()
@@ -681,7 +730,14 @@ class BadUrlCleanupDialog(BaseDialog):
         self.table_widget.setItem(row, 2, url_item)
 
         # Error
-        error_item = QTableWidgetItem(bad_url_info["error"])
+        error_text = bad_url_info["error"]
+        error_item = QTableWidgetItem(error_text)
+        if "404" in error_text or "410" in error_text:
+            error_item.setForeground(QColor("#E06C75"))
+        elif "DNS" in error_text or "Timeout" in error_text or "Refused" in error_text:
+            error_item.setForeground(QColor("#E5C07B"))
+        elif "SSL" in error_text or "HTTP" in error_text:
+            error_item.setForeground(QColor("#61AFEF"))
         self.table_widget.setItem(row, 3, error_item)
 
         # Category
@@ -733,6 +789,18 @@ class BadUrlCleanupDialog(BaseDialog):
 
         # Обновляем информацию о выборе
         self._update_selection_info()
+
+        # Автоподгонка колонок под реальное содержимое без схлопывания
+        self.table_widget.resizeColumnToContents(0)
+        self.table_widget.resizeColumnToContents(1)
+        self.table_widget.resizeColumnToContents(3)
+        self.table_widget.resizeColumnToContents(4)
+        if self.table_widget.columnWidth(1) < 160:
+            self.table_widget.setColumnWidth(1, 160)
+        if self.table_widget.columnWidth(3) < 180:
+            self.table_widget.setColumnWidth(3, 180)
+        if self.table_widget.columnWidth(4) < 160:
+            self.table_widget.setColumnWidth(4, 160)
 
     def _flush_pending_table_updates(self) -> None:
         """Flush pending table updates in batch."""
@@ -789,10 +857,12 @@ class BadUrlCleanupDialog(BaseDialog):
         self._flush_pending_table_updates()
 
         self.progress_bar.setValue(100)
+        self.progress_bar.setVisible(False)
 
         if len(bad_urls) == 0:
             # Не найдено недоступных URL
             self.status_label.setText(QCoreApplication.translate("BadUrlCleanupDialog", "All links are accessible!"))
+            self.filter_container.setVisible(False)
         else:
             # Найдены недоступные URL
             num_domains = len(self._domain_groups)
@@ -811,6 +881,7 @@ class BadUrlCleanupDialog(BaseDialog):
             # Устанавливаем фильтр на "All" для показа всех найденных проблем
             self.error_filter_combo.setCurrentIndex(0)  # 🟢 All
             self._filter_enabled = True  # Активируем фильтрацию
+            self.filter_container.setVisible(True)
             self._apply_filter()  # Применяем фильтр
             
             # Показываем кнопки выбора
@@ -841,6 +912,7 @@ class BadUrlCleanupDialog(BaseDialog):
         self.progress_bar.setValue(0)
         self.status_label.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Error: {0}").format(error_message))
         self.table_widget.setVisible(False)
+        self.filter_container.setVisible(False)
 
         # Скрываем кнопку отмены и "В фон", показываем кнопку закрытия
         self.cancel_button.setVisible(False)
@@ -955,6 +1027,16 @@ class BadUrlCleanupDialog(BaseDialog):
         self.selection_info_label.setText(
             QCoreApplication.translate("BadUrlCleanupDialog", "Selected: {0} of {1}").format(selected_count, visible_count)
         )
+        if selected_count > 0:
+            self.delete_button.setEnabled(True)
+            self.delete_button.setText(
+                QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected ({0})").format(selected_count)
+            )
+        else:
+            self.delete_button.setEnabled(False)
+            self.delete_button.setText(
+                QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected")
+            )
 
     def _on_delete_clicked(self):
         """Обработчик нажатия кнопки удаления."""
@@ -1084,6 +1166,7 @@ class BadUrlCleanupDialog(BaseDialog):
         if total_remaining == 0:
             self.status_label.setText(QCoreApplication.translate("BadUrlCleanupDialog", "All links deleted!"))
             self.table_widget.setVisible(False)
+            self.filter_container.setVisible(False)
             self.select_all_button.setVisible(False)
             self.select_none_button.setVisible(False)
             self.selection_info_label.setVisible(False)
@@ -1133,6 +1216,7 @@ class BadUrlCleanupDialog(BaseDialog):
 
         self.progress_bar.setMaximum(100)
         self.progress_bar.setValue(100 if success else 0)
+        self.progress_bar.setVisible(False)
 
     def retranslateUi(self):
         """Update UI translations."""
@@ -1148,24 +1232,30 @@ class BadUrlCleanupDialog(BaseDialog):
         # Обновляем заголовки таблицы
         self.table_widget.setHorizontalHeaderLabels(
             [
-                QCoreApplication.translate("BadUrlCleanupDialog", "Select"),
+                "✓",
                 QCoreApplication.translate("BadUrlCleanupDialog", "Domain"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "URL"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "Error"),
                 QCoreApplication.translate("BadUrlCleanupDialog", "Category"),
             ]
         )
+        if self.table_widget.horizontalHeaderItem(0) is not None:
+            self.table_widget.horizontalHeaderItem(0).setToolTip(
+                QCoreApplication.translate("BadUrlCleanupDialog", "Select All / Deselect All")
+            )
 
         self.select_all_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Select All"))
         self.select_none_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Select None"))
         self.cancel_button.setText(tr_common("Cancel"))
         self.delete_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
         self.close_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Close"))
+        self.background_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Background"))
 
         min_btn_w = app_config.ui.get_fixed_button_width()
         self.adjust_button_width(self.select_all_button, min_width=min_btn_w)
         self.adjust_button_width(self.select_none_button, min_width=min_btn_w)
         self.adjust_button_width(self.delete_button, min_width=min_btn_w)
+        self.adjust_button_width(self.background_button, min_width=min_btn_w)
         self.adjust_button_width(self.cancel_button, min_width=min_btn_w)
         self.adjust_button_width(self.close_button, min_width=min_btn_w)
 

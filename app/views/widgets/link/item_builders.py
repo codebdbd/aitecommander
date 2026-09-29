@@ -72,7 +72,8 @@ class ItemBuildersMixin:
         # Visual indicator in front of notes text (emoji icon)
         has_text = bool(clean_text)
         prefix = "📝 " if has_text else ""
-        tooltip = raw_text.strip()
+        clean_preview = clean_text[:180] + "…" if len(clean_text) > 180 else clean_text
+        tooltip = clean_preview
         if truncate and len(clean_text) > MAX_NOTES_DISPLAY_LENGTH:
             return prefix + clean_text[:MAX_NOTES_DISPLAY_LENGTH] + "...", tooltip
         return prefix + clean_text, tooltip
@@ -91,47 +92,15 @@ class ItemBuildersMixin:
         return link_type_address_tooltip(link)
 
     def _name_tooltip(self, link: dict) -> str:
-        """Return informative card tooltip for the name column."""
+        """Return clean, compact tooltip for the name column."""
         name = html.escape(str(link.get("name") or "").strip())
         url_or_path = html.escape(str(link.get("url", "") or link.get("path", "")).strip())
         if not name and not url_or_path:
             return ""
 
-        rows: list[str] = []
+        parts: list[str] = []
         if name:
-            rows.append(
-                f"<tr><td colspan='2' style='font-weight: bold; font-size: 12px; padding-bottom: 4px;'>{name}</td></tr>"
-            )
-        if url_or_path:
-            lbl_path = QCoreApplication.translate("ItemBuilders", "Path/URL:")
-            rows.append(
-                f"<tr><td style='color: #888888; padding-right: 8px; vertical-align: top;'>{lbl_path}</td>"
-                f"<td style='word-break: break-all;'>{url_or_path}</td></tr>"
-            )
-
-        raw_args = str(link.get("args") or "").strip()
-        is_admin = "--run-as-admin" in raw_args
-        clean_args = raw_args.replace("--run-as-admin", "").strip()
-        if clean_args:
-            lbl_args = QCoreApplication.translate("ItemBuilders", "Arguments:")
-            rows.append(
-                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_args}</td>"
-                f"<td>{html.escape(clean_args)}</td></tr>"
-            )
-
-        browser_profile = str(link.get("browser_key") or "").strip()
-        if browser_profile:
-            lbl_prof = QCoreApplication.translate("ItemBuilders", "Profile:")
-            rows.append(
-                f"<tr><td style='color: #888888; padding-right: 8px;'>{lbl_prof}</td>"
-                f"<td>{html.escape(browser_profile)}</td></tr>"
-            )
-
-        if is_admin:
-            lbl_admin = QCoreApplication.translate("ItemBuilders", "🛡️ Run as administrator")
-            rows.append(
-                f"<tr><td colspan='2' style='color: #E5A93C; padding-top: 2px;'>{lbl_admin}</td></tr>"
-            )
-
-        table_content = "".join(rows)
-        return f"<table style='min-width: 280px; max-width: 520px; margin: 2px;'>{table_content}</table>"
+            parts.append(f"<b>{name}</b>")
+        if url_or_path and url_or_path != name:
+            parts.append(f"<span style='color: #888888;'>{url_or_path}</span>")
+        return "<br>".join(parts)

@@ -188,8 +188,8 @@ class LinkDialogUI:
     @staticmethod
     def adjust_button_width(
         btn: QPushButton | None,
-        min_width: int = 100,
-        padding: int = 24,
+        min_width: int = 115,
+        padding: int = 28,
     ) -> int:
         """Delegate to BaseDialog.adjust_button_width for uniform button widths."""
         from app.views.windows.dialogs.base_dialog import BaseDialog
@@ -200,26 +200,31 @@ class LinkDialogUI:
         """Add URL/Path row with Browse/Profile buttons."""
         self.url_le = QLineEdit()
         hl_path = QHBoxLayout()
+        hl_path.setSpacing(8)
         hl_path.addWidget(self.url_le, 1)
 
         self.browse_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Browse")
         )
-        self.adjust_button_width(self.browse_btn)
+        self.browse_btn.setMinimumWidth(0)
+        self.browse_btn.setMaximumWidth(16777215)
         hl_path.addWidget(self.browse_btn)
 
         self.apps_btn = QPushButton(
             QCoreApplication.translate("LinkDialogUI", "Apps")
         )
-        self.adjust_button_width(self.apps_btn)
+        self.apps_btn.setMinimumWidth(0)
+        self.apps_btn.setMaximumWidth(16777215)
         self.apps_btn.setVisible(False)
         hl_path.addWidget(self.apps_btn)
 
-        self.form.addRow(
-            QCoreApplication.translate("LinkDialogUI", "URL/Path:"), hl_path
+        self.path_label = QLabel(
+            QCoreApplication.translate("LinkDialogUI", "URL:")
         )
+        self.form.addRow(self.path_label, hl_path)
         self.widgets.update(
             {
+                "path_label": self.path_label,
                 "url_le": self.url_le,
                 "browse_btn": self.browse_btn,
                 "apps_btn": self.apps_btn,
@@ -230,15 +235,17 @@ class LinkDialogUI:
         """Add Name row with icon selection button."""
         self.name_le = QLineEdit()
         hl_name = QHBoxLayout()
+        hl_name.setSpacing(8)
         hl_name.addWidget(self.name_le, 1)
 
-        self.icon_btn = QPushButton(f"  {tr_common('Icon')}")
+        self.icon_btn = QPushButton(tr_common("Icon"))
         try:
             default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
         except (AttributeError, RuntimeError, ValueError) as e:
             logger.warning("Failed to configure icon button size: %s", e)
-        self.adjust_button_width(self.icon_btn)
+        self.icon_btn.setMinimumWidth(0)
+        self.icon_btn.setMaximumWidth(16777215)
         hl_name.addWidget(self.icon_btn)
 
         self.form.addRow(tr_common("Name:"), hl_name)
@@ -403,6 +410,8 @@ class LinkDialogUI:
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        if self.button_box.layout() is not None:
+            self.button_box.layout().setSpacing(8)
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText(tr_common("Save"))
         # Remove default dotted focus: disable default/autoDefault and auto focus
@@ -424,9 +433,7 @@ class LinkDialogUI:
 
         from app.views.windows.dialogs.base_dialog import BaseDialog
 
-        BaseDialog.equalize_button_box(
-            self.button_box, min_width=app_config.ui.get_fixed_button_width()
-        )
+        BaseDialog.equalize_button_box(self.button_box)
 
         bottom_row.addWidget(self.button_box)
         container.addLayout(bottom_row)
@@ -489,8 +496,9 @@ class LinkDialogUI:
             pass
 
     def _retranslate_path_row(self):
-        """Retranslate path row buttons."""
+        """Retranslate path row buttons and label."""
         try:
+            self.update_path_label()
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
                 self.browse_btn.setText(
                     QCoreApplication.translate("LinkDialogUI", "Browse")
@@ -501,6 +509,20 @@ class LinkDialogUI:
                     QCoreApplication.translate("LinkDialogUI", "Apps")
                 )
                 self.adjust_button_width(self.apps_btn)
+        except Exception:
+            pass
+
+    def update_path_label(self, link_type: str | None = None) -> None:
+        """Update path/URL label text according to link type."""
+        try:
+            if hasattr(self, "path_label") and self.path_label is not None:
+                lt = link_type or getattr(self.parent, "link_type", "web")
+                is_web = str(lt).lower() == "web"
+                self.path_label.setText(
+                    QCoreApplication.translate("LinkDialogUI", "URL:")
+                    if is_web
+                    else QCoreApplication.translate("LinkDialogUI", "Path:")
+                )
         except Exception:
             pass
 
@@ -516,8 +538,9 @@ class LinkDialogUI:
                 if name_label is not None:
                     name_label.setText(tr_common("Name:"))
             if hasattr(self, "icon_btn") and self.icon_btn is not None:
-                self.icon_btn.setText(f"  {tr_common('Icon')}")
-                self.adjust_button_width(self.icon_btn)
+                self.icon_btn.setText(tr_common("Icon"))
+                self.icon_btn.setMinimumWidth(0)
+                self.icon_btn.setMaximumWidth(16777215)
         except Exception:
             pass
 
@@ -609,9 +632,7 @@ class LinkDialogUI:
                     cancel_btn.setText(tr_common("Cancel"))
                 from app.views.windows.dialogs.base_dialog import BaseDialog
 
-                BaseDialog.equalize_button_box(
-                    self.button_box, min_width=app_config.ui.get_fixed_button_width()
-                )
+                BaseDialog.equalize_button_box(self.button_box)
         except Exception:
             pass
 
@@ -625,6 +646,32 @@ class LinkDialogUI:
         self._retranslate_hierarchy()
         self._retranslate_notes_and_favorites()
         self._retranslate_buttons()
+        self._equalize_form_side_buttons()
+
+    def _equalize_form_side_buttons(self) -> None:
+        """Equalize all form side buttons to the width of the widest one.
+
+        browse_btn, apps_btn, icon_btn and profile_select_btn sit in the right
+        column of the form layout and must share the same width so the input
+        fields align into a clean grid with no staircase effect.
+        """
+        try:
+            buttons = [
+                getattr(self, name, None)
+                for name in ("browse_btn", "apps_btn", "icon_btn", "profile_select_btn")
+            ]
+            buttons = [b for b in buttons if b is not None]
+            if not buttons:
+                return
+            min_btn_w = app_config.ui.get_fixed_button_width()
+            max_w = min_btn_w
+            for b in buttons:
+                w = self.adjust_button_width(b, min_width=min_btn_w, padding=28)
+                max_w = max(max_w, w)
+            for b in buttons:
+                b.setFixedWidth(max_w)
+        except Exception:
+            pass
 
     def _apply_link_type_translations(self) -> None:
         """Apply translations to link type buttons."""
