@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from PyQt6 import sip
-from PyQt6.QtCore import QCoreApplication, QFileInfo, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QFileInfo, QRect, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFileIconProvider,
@@ -16,6 +17,9 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QStyle,
+    QStyleOptionButton,
+    QStylePainter,
     QVBoxLayout,
     QWidget,
 )
@@ -42,6 +46,53 @@ if False:  # pragma: no cover
     QCoreApplication.translate("InstalledAppsDialog", "Select")
     QCoreApplication.translate("InstalledAppsDialog", "Cancel")
     QCoreApplication.translate("InstalledAppsDialog", "Find on computer")
+
+
+class IconTextPushButton(QPushButton):
+    """Button ensuring pixel-perfect optical vertical alignment of icon and text."""
+
+    def paintEvent(self, event) -> None:
+        painter = QStylePainter(self)
+        opt = QStyleOptionButton()
+        self.initStyleOption(opt)
+
+        # 1. Native background, borders, focus outline, hover states
+        opt.text = ""
+        opt.icon = QIcon()
+        painter.drawControl(QStyle.ControlElement.CE_PushButton, opt)
+
+        # 2. Re-init to obtain icon, text and font metrics
+        self.initStyleOption(opt)
+        fm = self.fontMetrics()
+        text = opt.text
+        text_w = fm.horizontalAdvance(text) if text else 0
+        has_icon = not opt.icon.isNull()
+        icon_w = opt.iconSize.width() if has_icon else 0
+        icon_h = opt.iconSize.height() if has_icon else 0
+        spacing = 8 if (has_icon and text) else 0
+        total_w = icon_w + spacing + text_w
+
+        rect = opt.rect
+        offset = 1 if (opt.state & QStyle.StateFlag.State_Sunken) else 0
+        start_x = int(rect.x() + (rect.width() - total_w) // 2) + offset
+        mid_y = rect.y() + rect.height() / 2.0 + offset
+
+        if has_icon:
+            icon_y = int(round(mid_y - icon_h / 2.0))
+            icon_rect = QRect(start_x, icon_y, icon_w, icon_h)
+            opt.icon.paint(painter, icon_rect)
+            start_x += icon_w + spacing
+
+        if text:
+            baseline = int(round(mid_y + (fm.ascent() - fm.descent()) / 2.0))
+            painter.setFont(self.font())
+            color = (
+                opt.palette.buttonText().color()
+                if (opt.state & QStyle.StateFlag.State_Enabled)
+                else opt.palette.placeholderText().color()
+            )
+            painter.setPen(color)
+            painter.drawText(start_x, baseline, text)
 
 
 class _AppsLoaderThread(QThread):
@@ -114,24 +165,24 @@ class InstalledAppsDialog(BaseDialog):
         self._start_loading()
         self.retranslateUi()
 
+    def _get_browse_disk_icon(self) -> QIcon:
+        icon_path = app_config.paths.get_ui_icons_dir() / "folder_icon.png"
+        if icon_path.exists():
+            return QIcon(str(icon_path))
+        return self._icon_provider.icon(QFileIconProvider.IconType.Folder)
+
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        # 1. Search bar + count label
-        search_layout = QHBoxLayout()
+        # 1. Search bar
         self.search_le = QLineEdit()
         self.search_le.setObjectName("appsSearchLineEdit")
         self.search_le.setPlaceholderText(self.tr("Search applications..."))
         self.search_le.setClearButtonEnabled(True)
         self.search_le.textChanged.connect(self._on_search_changed)
-        search_layout.addWidget(self.search_le, 1)
-
-        self.count_label = QLabel("")
-        self.count_label.setStyleSheet("color: #888888; font-size: 11px;")
-        search_layout.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        layout.addLayout(search_layout)
+        layout.addWidget(self.search_le)
 
         # 2. Loading indicator
         self.loading_label = QLabel(self.tr("Loading installed applications..."))
@@ -159,8 +210,8 @@ class InstalledAppsDialog(BaseDialog):
         bottom_layout.setContentsMargins(0, 4, 0, 0)
         bottom_layout.setSpacing(12)
 
-        self.browse_disk_btn = QPushButton(self.tr("Find on computer"))
-        self.browse_disk_btn.setIcon(self._icon_provider.icon(QFileIconProvider.IconType.Folder))
+        self.browse_disk_btn = IconTextPushButton(self.tr("Find on computer"))
+        self.browse_disk_btn.setIcon(self._get_browse_disk_icon())
         self.browse_disk_btn.setIconSize(QSize(16, 16))
         self.browse_disk_btn.setMinimumHeight(32)
         self.browse_disk_btn.clicked.connect(self._on_browse_disk)
@@ -209,7 +260,6 @@ class InstalledAppsDialog(BaseDialog):
             item.setData(Qt.ItemDataRole.UserRole, app)
             self.apps_list.addItem(item)
 
-        self._update_count_label()
         self.search_le.setFocus()
 
     def _on_icon_loaded(self, row: int, img: Any) -> None:
@@ -226,29 +276,10 @@ class InstalledAppsDialog(BaseDialog):
 
     def _on_search_changed(self, text: str) -> None:
         query = text.strip().lower()
-        visible_count = 0
         for i in range(self.apps_list.count()):
             item = self.apps_list.item(i)
             matches = not query or query in item.text().lower()
             item.setHidden(not matches)
-            if matches:
-                visible_count += 1
-
-        self._update_count_label(visible_count)
-
-    def _update_count_label(self, count: Optional[int] = None) -> None:
-        total = len(self._all_apps)
-        current = count if count is not None else total
-        if total == 0:
-            self.count_label.setText("")
-        elif current == total:
-            self.count_label.setText(
-                self.tr("%n application(s) total", "", total)
-            )
-        else:
-            self.count_label.setText(
-                self.tr("Shown: %1 of %2").replace("%1", str(current)).replace("%2", str(total))
-            )
 
     def _on_selection_changed(self) -> None:
         selected_items = self.apps_list.selectedItems()
@@ -374,8 +405,6 @@ class InstalledAppsDialog(BaseDialog):
             self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "browse_disk_btn") and self.browse_disk_btn is not None:
             self.browse_disk_btn.setText(self.tr("Find on computer"))
-            self.browse_disk_btn.setIcon(self._icon_provider.icon(QFileIconProvider.IconType.Folder))
+            self.browse_disk_btn.setIcon(self._get_browse_disk_icon())
             self.browse_disk_btn.setIconSize(QSize(16, 16))
             self.adjust_button_width(self.browse_disk_btn, min_width=app_config.ui.get_fixed_button_width())
-        if hasattr(self, "count_label"):
-            self._update_count_label()
