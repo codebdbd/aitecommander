@@ -336,6 +336,7 @@ class LinkDialog(BaseDialog):
     def _setup_ui_properties(self) -> None:
         """Configure dialog UI properties."""
         # Window title is updated in retranslateUi()
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
         self.setFixedWidth(app_config.ui.get_link_dialog_width())
         self.adjustSize()
 

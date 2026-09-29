@@ -106,19 +106,9 @@ class ProfilesMixin:
             self._update_profile_ui_state()
 
     def _update_profile_ui_state(self) -> None:
-        """Update line edit, button text, and tooltips based on current profile mode and selections."""
+        """Update line edit and tooltips based on current profile mode and selections."""
         mode = getattr(self.dialog, "profile_mode", "none")
-        btn = getattr(self.dialog, "_get_profile_select_btn", lambda: None)()
         le = getattr(self.dialog, "_get_profile_le", lambda: None)()
-
-        if btn is not None:
-            btn.setEnabled(True)
-            btn.setText(QCoreApplication.translate("LinkDialogUI", "Select"))
-            btn.setToolTip(
-                QCoreApplication.translate("LinkDialogUI", "Select browser profile")
-            )
-            if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "_equalize_form_side_buttons"):
-                self.dialog.ui._equalize_form_side_buttons()
 
         if le is None:
             return

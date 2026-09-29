@@ -164,6 +164,7 @@ class ImportBrowserDialog(BaseDialog):
                 ok_btn.setText(self.tr("Import"))
             if cancel_btn is not None:
                 cancel_btn.setText(tr_common("Cancel"))
+            self.equalize_button_box(self._button_box)
 
     def _load_spheres_async(self) -> None:
         cached_spheres: list[dict[str, Any]] = []

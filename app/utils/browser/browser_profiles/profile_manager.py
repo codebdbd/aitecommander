@@ -44,24 +44,31 @@ class BrowserProfileManager:
         except Exception:
             return []
 
-    def get_supported_browsers(self):
+    def get_supported_browsers(self, installed_only: bool = True):
         """Returns list of supported browsers in format [{'key': ..., 'name': ...}, ...]"""
         # Get list of supported browsers from configuration
         try:
             from app.config_data import app_config
 
             supported_browsers = app_config.get_supported_browsers()
-            return [
+            result = [
                 {"key": key, "name": get_browser_display_name(finder, key)}
                 for key, finder in self.finders.items()
-                if key in supported_browsers
+                if key in supported_browsers and (not installed_only or finder.is_available())
             ]
+            if not result and installed_only:
+                return self.get_supported_browsers(installed_only=False)
+            return result
         except Exception:
             # fallback if configuration is unavailable
-            return [
+            result = [
                 {"key": key, "name": get_browser_display_name(finder, key)}
                 for key, finder in self.finders.items()
+                if not installed_only or finder.is_available()
             ]
+            if not result and installed_only:
+                return self.get_supported_browsers(installed_only=False)
+            return result
 
     """Universal manager for working with profiles of all browsers."""
 

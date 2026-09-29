@@ -161,6 +161,7 @@ class BaseEntityDialog(BaseDialog):
         self._retranslation_initialized = False
 
         super().__init__(parent)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
 
     def _init_common_ui(self, form_layout: QFormLayout):
         """Initialize common UI elements: name input and icon button."""
@@ -723,6 +724,7 @@ class SettingsDialog(BaseDialog):
         self._theme_importer = ThemeImportService()
 
         super().__init__(parent)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
         self.setObjectName("SettingsDialog")
         try:
             self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -1178,10 +1180,16 @@ class ChromeProfileDialog(BaseDialog):
         self.setWindowTitle(tr_common("Select Chrome profile"))
         if self._title_label is not None:
             self._title_label.setText(self.tr("Choose a Chrome profile:"))
-        if self.select_all_btn is not None:
+        if self.select_all_btn is not None and self.deselect_all_btn is not None:
             self.select_all_btn.setText(self.tr("Select all"))
-        if self.deselect_all_btn is not None:
-            self.deselect_all_btn.setText(self.tr("Deselect all"))
+            self.deselect_all_btn.setText(self.tr("Clear all"))
+            min_btn_w = app_config.ui.get_fixed_button_width()
+            fm = self.fontMetrics()
+            w_all = fm.horizontalAdvance(self.select_all_btn.text()) + 28
+            w_clear = fm.horizontalAdvance(self.deselect_all_btn.text()) + 28
+            pair_w = max(min_btn_w, w_all, w_clear)
+            self.select_all_btn.setFixedWidth(pair_w)
+            self.deselect_all_btn.setFixedWidth(pair_w)
         if self.refresh_btn is not None:
             self.refresh_btn.setText(self.tr("Refresh profiles"))
         if self._button_box is not None:
@@ -1275,6 +1283,7 @@ class SphereRenameDialog(BaseDialog):
         self.name_le: QLineEdit | None = None
 
         super().__init__(parent)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
         self.setFixedWidth(app_config.ui.get_entity_dialog_fixed_width())
 
         self._init_ui(current_name)
@@ -1392,6 +1401,7 @@ class ImportConflictDialog(BaseDialog):
         self._copy_desc: QLabel | None = None
         self._button_box: QDialogButtonBox | None = None
         super().__init__(parent)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
         self.setFixedWidth(520)
         self._init_ui()
         self.retranslateUi()

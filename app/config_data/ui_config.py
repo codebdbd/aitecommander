@@ -552,8 +552,8 @@ class UIConfig(BaseConfig):
 
     def get_browser_profile_dialog_min_size(self) -> tuple[int, int]:
         """Return the minimum size for the browser profile dialog."""
-        width = int(self.get("ui.dialogs.browser_profile.min_width", 620))
-        height = int(self.get("ui.dialogs.browser_profile.min_height", 450))
+        width = int(self.get("ui.dialogs.browser_profile.min_width", 740))
+        height = int(self.get("ui.dialogs.browser_profile.min_height", 460))
         return (width, height)
 
     def get_async_operation_dialog_min_width(self) -> int:

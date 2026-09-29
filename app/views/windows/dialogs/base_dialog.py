@@ -57,7 +57,7 @@ def adjust_button_width(
 
 def equalize_button_box(
     box: QDialogButtonBox | None,
-    min_width: int = 0,
+    min_width: int | None = None,
     padding: int = 28,
 ) -> int:
     """Ensure uniform width for all buttons in the button box based on font metrics across languages."""
@@ -70,7 +70,8 @@ def equalize_button_box(
     if not buttons:
         return 0
 
-    max_needed = min_width
+    target_min = min_width if min_width is not None else app_config.ui.get_fixed_button_width()
+    max_needed = target_min
     for btn in buttons:
         fm = btn.fontMetrics()
         text = btn.text()
@@ -79,8 +80,7 @@ def equalize_button_box(
         max_needed = max(max_needed, text_w + icon_w + padding)
 
     for btn in buttons:
-        btn.setMinimumWidth(max_needed)
-        btn.setMaximumWidth(16777215)
+        btn.setFixedWidth(max_needed)
     return max_needed
 
 
@@ -247,7 +247,7 @@ class BaseDialog(QDialog, ReTranslatable):
     @staticmethod
     def equalize_button_box(
         box: QDialogButtonBox | None,
-        min_width: int = 100,
+        min_width: int | None = None,
         padding: int = 24,
     ) -> int:
         """Helper method delegating to module-level equalize_button_box."""

@@ -2,6 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,11 @@ class BaseBrowserProfileFinder(ABC):
     def format_profile_display_name(self, profile_data: dict) -> str:
         """Formats profile name for display in UI."""
         return profile_data.get("name") or profile_data.get("email") or "Profile"
+
+    def is_available(self) -> bool:
+        """Returns True if browser profile directory exists on this system."""
+        profiles_dir = getattr(self, "profiles_dir", "")
+        return bool(profiles_dir and Path(profiles_dir).exists())
 
     def get_browser_key(self) -> str:
         """Returns browser key for internal use."""

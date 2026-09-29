@@ -87,13 +87,11 @@ class LinkDialogHandlers(
 
         # Buttons
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
-        profile_select_btn = self.dialog._get_profile_select_btn()
-        if profile_select_btn is not None:
-            profile_select_btn.clicked.connect(self._on_select_profile_clicked)
         profile_le = self.dialog._get_profile_le()
         if profile_le is not None:
             profile_le.setCursor(Qt.CursorShape.PointingHandCursor)
             profile_le.mousePressEvent = self._on_profile_le_clicked
+            profile_le.textChanged.connect(self._on_profile_text_changed)
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
 
         # Hierarchy combo boxes
@@ -222,3 +220,10 @@ class LinkDialogHandlers(
                 return
             QLineEdit.mousePressEvent(profile_le, event)
         self._on_select_profile_clicked()
+
+    def _on_profile_text_changed(self, text: str) -> None:
+        """Reset profile mode and selections when cleared via the clear button."""
+        if not text:
+            self.dialog.profile_mode = "none"
+            self.dialog.selected_profiles = []
+            self.dialog.rotation_profiles = []

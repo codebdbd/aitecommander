@@ -149,6 +149,7 @@ class BadUrlCleanupDialog(BaseDialog):
 
         self._setup_ui()
         self._connect_signals()
+        self.retranslateUi()
     def _setup_ui(self):
         """Setup UI components."""
         layout = QVBoxLayout(self)
@@ -272,12 +273,12 @@ class BadUrlCleanupDialog(BaseDialog):
         bottom_layout.setSpacing(8)
 
         # Left side: selection buttons and counter label
-        self.select_all_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Select All"))
+        self.select_all_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Select all"))
         self.select_all_button.clicked.connect(self._on_select_all)
         self.select_all_button.setVisible(False)
         bottom_layout.addWidget(self.select_all_button)
 
-        self.select_none_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Select None"))
+        self.select_none_button = QPushButton(QCoreApplication.translate("BadUrlCleanupDialog", "Clear all"))
         self.select_none_button.clicked.connect(self._on_select_none)
         self.select_none_button.setVisible(False)
         bottom_layout.addWidget(self.select_none_button)
@@ -1244,20 +1245,36 @@ class BadUrlCleanupDialog(BaseDialog):
                 QCoreApplication.translate("BadUrlCleanupDialog", "Select All / Deselect All")
             )
 
-        self.select_all_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Select All"))
-        self.select_none_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Select None"))
+        self.select_all_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Select all"))
+        self.select_none_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Clear all"))
         self.cancel_button.setText(tr_common("Cancel"))
         self.delete_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Delete Selected"))
         self.close_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Close"))
         self.background_button.setText(QCoreApplication.translate("BadUrlCleanupDialog", "Background"))
 
         min_btn_w = app_config.ui.get_fixed_button_width()
-        self.adjust_button_width(self.select_all_button, min_width=min_btn_w)
-        self.adjust_button_width(self.select_none_button, min_width=min_btn_w)
-        self.adjust_button_width(self.delete_button, min_width=min_btn_w)
-        self.adjust_button_width(self.background_button, min_width=min_btn_w)
-        self.adjust_button_width(self.cancel_button, min_width=min_btn_w)
-        self.adjust_button_width(self.close_button, min_width=min_btn_w)
+        fm = self.fontMetrics()
+
+        # Equalize left pair: Select all / Clear all
+        w_all = fm.horizontalAdvance(self.select_all_button.text()) + 28
+        w_none = fm.horizontalAdvance(self.select_none_button.text()) + 28
+        pair_sel_w = max(min_btn_w, w_all, w_none)
+        self.select_all_button.setFixedWidth(pair_sel_w)
+        self.select_none_button.setFixedWidth(pair_sel_w)
+
+        # Equalize running action pair: Background / Cancel
+        w_bg = fm.horizontalAdvance(self.background_button.text()) + 28
+        w_cancel = fm.horizontalAdvance(self.cancel_button.text()) + 28
+        pair_run_w = max(min_btn_w, w_bg, w_cancel)
+        self.background_button.setFixedWidth(pair_run_w)
+        self.cancel_button.setFixedWidth(pair_run_w)
+
+        # Equalize finished action pair: Close / Delete Selected
+        w_close = fm.horizontalAdvance(self.close_button.text()) + 28
+        w_del = fm.horizontalAdvance(self.delete_button.text()) + 28
+        pair_act_w = max(min_btn_w, w_close, w_del)
+        self.close_button.setFixedWidth(pair_act_w)
+        self.delete_button.setFixedWidth(pair_act_w)
 
 
 __all__ = ["BadUrlCleanupDialog"]

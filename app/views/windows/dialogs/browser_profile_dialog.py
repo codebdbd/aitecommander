@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -164,12 +164,14 @@ class ProfileCheckBox(QCheckBox):
             lum = 0.299 * self.accent_color.red() + 0.587 * self.accent_color.green() + 0.114 * self.accent_color.blue()
             check_color = QColor("#121212") if lum > 130 else QColor("#FFFFFF")
             if getattr(self, "order_number", None):
+                p.save()
                 p.setPen(check_color)
                 font = QFont(self.font())
                 font.setPixelSize(10)
                 font.setBold(True)
                 p.setFont(font)
                 p.drawText(box_rect, Qt.AlignmentFlag.AlignCenter, str(self.order_number))
+                p.restore()
             else:
                 p.setPen(QPen(check_color, 1.8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
                 p.setBrush(Qt.BrushStyle.NoBrush)
@@ -190,6 +192,7 @@ class ProfileCheckBox(QCheckBox):
 
         rect = self.style().subElementRect(QStyle.SubElement.SE_CheckBoxContents, opt, self)
         p.setClipRect(rect)
+        p.setFont(self.font())
         fm = self.fontMetrics()
         x = rect.left() + 4
         y = rect.center().y() + fm.ascent() // 2 - 1
@@ -230,9 +233,9 @@ class BrowserProfileDialog(BaseDialog):
         self.setObjectName("BrowserProfileDialog")
         self.setWindowTitle(tr_common("Select browser profile"))
         width, height = app_config.ui.get_browser_profile_dialog_min_size()
-        min_w = max(width, 620)
-        self.setMinimumSize(min_w, 450)
-        self.resize(max(min_w, 640), 500)
+        min_w = max(width, 740)
+        self.setMinimumSize(min_w, 460)
+        self.resize(min_w, 520)
         self.manager = get_profile_manager()
         self.allow_mode_change = allow_mode_change
         self.profile_mode = profile_mode
@@ -303,11 +306,15 @@ class BrowserProfileDialog(BaseDialog):
         self.browser_combo.currentIndexChanged.connect(self._populate_profiles)
         top_grid.addWidget(self.browser_combo, row, 1)
 
-        self.refresh_btn = QPushButton(self.tr("Refresh"))
+        self.refresh_btn = QPushButton()
+        self.refresh_btn.setFixedSize(32, 32)
+        self.refresh_btn.setIconSize(QSize(18, 18))
         theme = get_current_theme()
         refresh_icon = get_menu_icon("refresh", theme)
         if refresh_icon and not refresh_icon.isNull():
             self.refresh_btn.setIcon(refresh_icon)
+        self.refresh_btn.setToolTip(self.tr("Refresh"))
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.refresh_btn.clicked.connect(self.refresh_profiles)
         top_grid.addWidget(self.refresh_btn, row, 2)
 
@@ -359,25 +366,26 @@ class BrowserProfileDialog(BaseDialog):
         scroll_frame_layout.addWidget(self.scroll)
         layout.addWidget(self.scroll_frame)
 
-        # Buttons
         # 4. Bottom row: selection buttons and status on the left, Save/Cancel on the right
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 6, 0, 0)
-        left_bottom = QHBoxLayout()
-        # Selection helper buttons on the left
-        self.select_all_btn = QPushButton(self.tr("Add all"))
+        bottom_layout.setSpacing(8)
+
+        self.select_all_btn = QPushButton(self.tr("Select all"))
         self.select_all_btn.clicked.connect(self._select_all_profiles)
         self.select_all_btn.setVisible(self.mode != "single")
-        left_bottom.addWidget(self.select_all_btn)
-        self.deselect_all_btn = QPushButton(self.tr("Clear selection"))
+        bottom_layout.addWidget(self.select_all_btn)
+
+        self.deselect_all_btn = QPushButton(self.tr("Clear all"))
         self.deselect_all_btn.clicked.connect(self._deselect_all_profiles)
         self.deselect_all_btn.setVisible(self.mode != "single")
-        left_bottom.addWidget(self.deselect_all_btn)
-        # Status/progress indicator
+        bottom_layout.addWidget(self.deselect_all_btn)
+
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: gray; margin-left: 8px;")
-        left_bottom.addWidget(self.status_label, 0)
-        bottom_layout.addLayout(left_bottom, 1)
+        bottom_layout.addWidget(self.status_label, 0, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+
+        bottom_layout.addStretch(1)
 
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -432,23 +440,29 @@ class BrowserProfileDialog(BaseDialog):
         if hasattr(self, "lbl_browsers") and self.lbl_browsers is not None:
             self.lbl_browsers.setText(self.tr("Browsers:"))
         if hasattr(self, "refresh_btn") and self.refresh_btn is not None:
-            self.refresh_btn.setText(self.tr("Refresh"))
+            self.refresh_btn.setToolTip(self.tr("Refresh"))
         if hasattr(self, "search_line") and self.search_line is not None:
             self.search_line.setPlaceholderText(self.tr("Search by name/email"))
-        if hasattr(self, "select_all_btn") and self.select_all_btn is not None:
-            self.select_all_btn.setText(self.tr("Add all"))
-            self.adjust_button_width(self.select_all_btn, min_width=app_config.ui.get_fixed_button_width())
-        if hasattr(self, "deselect_all_btn") and self.deselect_all_btn is not None:
-            self.deselect_all_btn.setText(self.tr("Clear selection"))
-            self.adjust_button_width(self.deselect_all_btn, min_width=app_config.ui.get_fixed_button_width())
+        if hasattr(self, "select_all_btn") and self.select_all_btn is not None and hasattr(self, "deselect_all_btn") and self.deselect_all_btn is not None:
+            self.select_all_btn.setText(self.tr("Select all"))
+            self.deselect_all_btn.setText(self.tr("Clear all"))
+            min_btn_w = app_config.ui.get_fixed_button_width()
+            fm = self.fontMetrics()
+            w_all = fm.horizontalAdvance(self.select_all_btn.text()) + 28
+            w_clear = fm.horizontalAdvance(self.deselect_all_btn.text()) + 28
+            pair_w = max(min_btn_w, w_all, w_clear)
+            self.select_all_btn.setFixedWidth(pair_w)
+            self.deselect_all_btn.setFixedWidth(pair_w)
         if hasattr(self, "button_box") and self.button_box is not None:
             ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
             cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
             if ok_btn is not None:
+                ok_btn.setMaximumWidth(16777215)
                 ok_btn.setText(tr_common("Save"))
             if cancel_btn is not None:
+                cancel_btn.setMaximumWidth(16777215)
                 cancel_btn.setText(tr_common("Cancel"))
-            self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
+            BaseDialog.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def _set_controls_enabled(self, enabled: bool):
         self.browser_combo.setEnabled(enabled)
@@ -625,14 +639,14 @@ class BrowserProfileDialog(BaseDialog):
             cb.profile_data = profile
             key = profile_selection_key(profile)
             cb.profile_key = key
-            if self.profile_mode == "rotation" and key in self._selected_profiles_map:
-                keys_order = list(self._selected_profiles_map.keys())
-                cb.order_number = keys_order.index(key) + 1
             if key in self._selected_profiles_map or key in self.initial_selected_profile_keys:
                 cb.setChecked(True)
                 self._selected_profiles_map[key] = profile
                 if self.mode == "single":
                     self.status_label.setText(self._format_profile_display_name(profile))
+            if self.profile_mode == "rotation" and key in self._selected_profiles_map:
+                keys_order = list(self._selected_profiles_map.keys())
+                cb.order_number = keys_order.index(key) + 1
             try:
                 cb.toggled.connect(
                     lambda checked, p=profile, c=cb: self._on_profile_toggled(p, c, checked)

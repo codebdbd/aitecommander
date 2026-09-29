@@ -248,10 +248,6 @@ class LinkDialogUI:
         self.profile_label = QLabel(
             QCoreApplication.translate("LinkDialogUI", "Profile:")
         )
-        hl_profile = QHBoxLayout()
-        hl_profile.setContentsMargins(0, 0, 0, 0)
-        hl_profile.setSpacing(8)
-
         self.profile_le = QLineEdit()
         self.profile_le.setReadOnly(True)
         self.profile_le.setClearButtonEnabled(True)
@@ -259,26 +255,16 @@ class LinkDialogUI:
         self.profile_le.setPlaceholderText(
             QCoreApplication.translate("LinkDialogUI", "No profile")
         )
-
-        self.profile_select_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Select")
+        self.profile_le.setToolTip(
+            QCoreApplication.translate("LinkDialogUI", "Select browser profile")
         )
-        self.adjust_button_width(self.profile_select_btn)
-        self.profile_select_btn.setEnabled(True)
 
-        hl_profile.addWidget(self.profile_le, 1)
-        hl_profile.addWidget(self.profile_select_btn, 0)
-
-        self.profile_container = QWidget()
-        self.profile_container.setLayout(hl_profile)
-
-        self.form.addRow(self.profile_label, self.profile_container)
+        self.form.addRow(self.profile_label, self.profile_le)
         self.widgets.update(
             {
                 "profile_label": self.profile_label,
-                "profile_container": self.profile_container,
+                "profile_container": self.profile_le,
                 "profile_le": self.profile_le,
-                "profile_select_btn": self.profile_select_btn,
             }
         )
 
@@ -597,11 +583,9 @@ class LinkDialogUI:
                 self.profile_le.setPlaceholderText(
                     QCoreApplication.translate("LinkDialogUI", "No profile")
                 )
-            if hasattr(self, "profile_select_btn") and self.profile_select_btn is not None:
-                self.profile_select_btn.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Select")
+                self.profile_le.setToolTip(
+                    QCoreApplication.translate("LinkDialogUI", "Select browser profile")
                 )
-                self.adjust_button_width(self.profile_select_btn)
         except Exception:
             pass
 
@@ -659,7 +643,7 @@ class LinkDialogUI:
         try:
             buttons = [
                 getattr(self, name, None)
-                for name in ("browse_btn", "icon_btn", "profile_select_btn")
+                for name in ("browse_btn", "icon_btn")
             ]
             buttons = [b for b in buttons if b is not None]
             if not buttons:

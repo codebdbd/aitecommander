@@ -23,6 +23,12 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
         self.profiles_dir = str(dir_path) if dir_path else ""
         self.browser_name = "Mozilla Firefox"
 
+    def is_available(self) -> bool:
+        """Returns True if Firefox profile directory and profiles.ini exist on this system."""
+        if not self.profiles_dir or not Path(self.profiles_dir).exists():
+            return False
+        return (Path(self.profiles_dir) / "profiles.ini").exists()
+
     def find_profiles(self) -> list[dict[str, str]]:
         """Finds Firefox profiles from profiles.ini."""
         profiles: list[dict[str, str]] = []

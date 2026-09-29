@@ -58,6 +58,7 @@ class AboutDialog(BaseDialog):
         self._license_path = self._resolve_license_path()
 
         self.setModal(True)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
         self.setFixedWidth(560)
 
         self._setup_ui()
