@@ -87,9 +87,6 @@ class LinkDialogHandlers(
 
         # Buttons
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
-        apps_btn = self.dialog._get_apps_btn()
-        if apps_btn is not None:
-            apps_btn.clicked.connect(self._on_apps_picker)
         profile_select_btn = self.dialog._get_profile_select_btn()
         if profile_select_btn is not None:
             profile_select_btn.clicked.connect(self._on_select_profile_clicked)

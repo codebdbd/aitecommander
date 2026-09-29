@@ -350,3 +350,14 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
      - Для веб-ссылок (`LinkType.WEB`) — строго **«URL:»**.
      - Для локальных сущностей (`LinkType.FILE`, `LinkType.FOLDER`, `LinkType.PROGRAM`, `LinkType.SCRIPT`) — строго **«Путь:»** («Path:» в EN, «Pfad:» в DE, «Ruta:» в ES, «Chemin :» в FR, «Шлях:» в UK).
   3. **Синхронизация при смене типов и локализации**: Обновление текста метки поля ввода обязано выполняться мгновенно как при переключении типа сущности (`TypeChangeMixin._update_ui_state`), так и при динамической ретрансляции интерфейса (`LinkDialogUI._retranslate_path_row`).
+
+## 38. Architecture Standards: Internationalized Button Metrics & Installed Apps Layout (СТАНДАРТ АДАПТИВНОЙ ШИРИНЫ КНОПОК И ДИАЛОГА ПРОГРАММ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Механизм динамического расчета ширины кнопок с учетом шрифтовых метрик и компоновка диалога выбора установленных программ зафиксированы.
+- **Strict Dynamic Button Metrics Rules**:
+  1. **Запрет на обнуление ширины кнопок**: В BaseDialog.equalize_button_box категорически запрещено устанавливать setMinimumWidth(0). Ширина всех кнопок в QDialogButtonBox обязана рассчитываться как max_needed = max(min_width, max(text_w + icon_w + padding)) на основе ontMetrics().horizontalAdvance(btn.text()) на текущем активном языке с базовым padding >= 28 px.
+  2. **Учет иконок и внутренних отступов в djust_button_width**: В BaseDialog.adjust_button_width ширина кнопки обязана рассчитываться с учетом отступа padding >= 28 px (покрывающего QSS padding) и ширины иконки iconSize.width() + 8 px при наличии иконки. Запрещено игнорировать ширину иконки и внутренние отступы кнопки.
+- **Strict Installed Apps Dialog Layout Rules**:
+  1. **Разделение поисковой строки и статуса**: Метка счетчика приложений (count_label) размещается строго в верхней строке поиска (search_layout.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignVCenter)), информируя о количестве найденных приложений по мере фильтрации. Запрещено переносить счетчик в нижний футер между кнопками действий.
+  2. **Чистый футер действий**: В нижней строке (ottom_layout) диалога InstalledAppsDialog допустимы строго: слева кнопка поиска на диске [ 📁 Найти на компьютере ] (rowse_disk_btn с иконкой папки QFileIconProvider.IconType.Folder), далее пружина-разделитель ddStretch(1) и справа парные кнопки [ Выбрать ] [ Отмена ] в QDialogButtonBox.
+  3. **Минимальная геометрия**: Минимальный размер диалога установленных программ строго **560×560 px** (
+esize(580, 620)), гарантируя полное отсутствие обрезания текста кнопок во всех 6 языковых локалях (RU, EN, UK, DE, ES, FR).

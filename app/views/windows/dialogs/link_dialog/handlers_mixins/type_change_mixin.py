@@ -62,7 +62,6 @@ class TypeChangeMixin:
         profile_label = self.dialog.ui.widgets.get("profile_label")
         profile_container = self.dialog.ui.widgets.get("profile_container")
         browse_btn = self.dialog._get_browse_btn()
-        apps_btn = self.dialog._get_apps_btn()
         args_le = self.dialog._get_args_le()
         args_label = self.dialog._get_args_label()
         if profile_label is not None:
@@ -76,10 +75,9 @@ class TypeChangeMixin:
         if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "update_path_label"):
             self.dialog.ui.update_path_label(lt.value)
 
-        if apps_btn is not None:
-            apps_btn.setVisible(is_program)
-            if is_program and hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "_equalize_form_side_buttons"):
-                self.dialog.ui._equalize_form_side_buttons()
+        if hasattr(self.dialog, "ui") and hasattr(self.dialog.ui, "update_browse_button_text"):
+            self.dialog.ui.update_browse_button_text(lt.value)
+
 
         # "Browse" button is shown only for specific types
         browse_btn.setVisible(

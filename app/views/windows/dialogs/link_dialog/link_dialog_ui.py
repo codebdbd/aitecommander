@@ -210,13 +210,6 @@ class LinkDialogUI:
         self.browse_btn.setMaximumWidth(16777215)
         hl_path.addWidget(self.browse_btn)
 
-        self.apps_btn = QPushButton(
-            QCoreApplication.translate("LinkDialogUI", "Apps")
-        )
-        self.apps_btn.setMinimumWidth(0)
-        self.apps_btn.setMaximumWidth(16777215)
-        self.apps_btn.setVisible(False)
-        hl_path.addWidget(self.apps_btn)
 
         self.path_label = QLabel(
             QCoreApplication.translate("LinkDialogUI", "URL:")
@@ -227,7 +220,6 @@ class LinkDialogUI:
                 "path_label": self.path_label,
                 "url_le": self.url_le,
                 "browse_btn": self.browse_btn,
-                "apps_btn": self.apps_btn,
             }
         )
 
@@ -499,16 +491,25 @@ class LinkDialogUI:
         """Retranslate path row buttons and label."""
         try:
             self.update_path_label()
+            self.update_browse_button_text()
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
+                self.adjust_button_width(self.browse_btn)
+        except Exception:
+            pass
+
+    def update_browse_button_text(self, link_type: str | None = None) -> None:
+        """Update Browse button text according to link type."""
+        try:
+            if hasattr(self, "browse_btn") and self.browse_btn is not None:
+                lt = link_type or getattr(self.parent, "link_type", "web")
+                is_program = str(lt).lower() == "program"
                 self.browse_btn.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Browse")
+                    QCoreApplication.translate("LinkDialogUI", "Select")
+                    if is_program
+                    else QCoreApplication.translate("LinkDialogUI", "Browse")
                 )
                 self.adjust_button_width(self.browse_btn)
-            if hasattr(self, "apps_btn") and self.apps_btn is not None:
-                self.apps_btn.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Apps")
-                )
-                self.adjust_button_width(self.apps_btn)
+                self._equalize_form_side_buttons()
         except Exception:
             pass
 
@@ -658,7 +659,7 @@ class LinkDialogUI:
         try:
             buttons = [
                 getattr(self, name, None)
-                for name in ("browse_btn", "apps_btn", "icon_btn", "profile_select_btn")
+                for name in ("browse_btn", "icon_btn", "profile_select_btn")
             ]
             buttons = [b for b in buttons if b is not None]
             if not buttons:

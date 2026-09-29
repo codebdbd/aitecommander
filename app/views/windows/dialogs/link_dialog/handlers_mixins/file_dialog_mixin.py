@@ -52,6 +52,9 @@ class FileDialogMixin:
     def _on_browse(self) -> None:
         """Handle the "Browse" button click."""
         lt = LinkType.from_value(self.dialog.link_type)
+        if lt == LinkType.PROGRAM:
+            self._on_apps_picker()
+            return
         path = ""
 
         # Obtain default path from config

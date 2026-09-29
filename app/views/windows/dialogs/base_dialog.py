@@ -40,16 +40,17 @@ logger = logging.getLogger(__name__)
 def adjust_button_width(
     btn: QPushButton | None,
     min_width: int = 0,
-    padding: int = 0,
+    padding: int = 28,
 ) -> int:
-    """Allow buttons to size naturally based on font metrics, text and icons."""
+    """Allow buttons to size naturally based on font metrics, text length, and icons."""
     if btn is None:
         return 0
-    target_width = max(min_width, btn.fontMetrics().horizontalAdvance(btn.text()) + padding) if (min_width or padding) else 0
-    if target_width > 0:
-        btn.setMinimumWidth(target_width)
-    else:
-        btn.setMinimumWidth(0)
+    fm = btn.fontMetrics()
+    text = btn.text()
+    text_w = fm.horizontalAdvance(text) if text else 0
+    icon_w = (btn.iconSize().width() + 8) if not btn.icon().isNull() else 0
+    target_width = max(min_width, text_w + icon_w + padding)
+    btn.setMinimumWidth(target_width)
     btn.setMaximumWidth(16777215)
     return max(target_width, btn.sizeHint().width())
 
@@ -57,18 +58,30 @@ def adjust_button_width(
 def equalize_button_box(
     box: QDialogButtonBox | None,
     min_width: int = 0,
-    padding: int = 0,
+    padding: int = 28,
 ) -> int:
-    """Ensure clean 8px spacing in button box and prevent negative layout overlap."""
+    """Ensure uniform width for all buttons in the button box based on font metrics across languages."""
     if box is None:
         return 0
     l = box.layout()
     if l is not None:
         l.setSpacing(8)
-    for btn in box.findChildren(QPushButton):
-        btn.setMinimumWidth(0)
+    buttons = box.findChildren(QPushButton)
+    if not buttons:
+        return 0
+
+    max_needed = min_width
+    for btn in buttons:
+        fm = btn.fontMetrics()
+        text = btn.text()
+        text_w = fm.horizontalAdvance(text) if text else 0
+        icon_w = (btn.iconSize().width() + 8) if not btn.icon().isNull() else 0
+        max_needed = max(max_needed, text_w + icon_w + padding)
+
+    for btn in buttons:
+        btn.setMinimumWidth(max_needed)
         btn.setMaximumWidth(16777215)
-    return 0
+    return max_needed
 
 
 def apply_uniform_height(dialog: QDialog):

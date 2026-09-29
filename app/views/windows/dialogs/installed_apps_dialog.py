@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QProgressBar,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -40,6 +41,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate("InstalledAppsDialog", "Shown: %d of %d")
     QCoreApplication.translate("InstalledAppsDialog", "Select")
     QCoreApplication.translate("InstalledAppsDialog", "Cancel")
+    QCoreApplication.translate("InstalledAppsDialog", "Find on computer")
 
 
 class _AppsLoaderThread(QThread):
@@ -101,8 +103,8 @@ class InstalledAppsDialog(BaseDialog):
         super().__init__(parent)
         self.setObjectName("InstalledAppsDialog")
         self.setWindowTitle(self.tr("Select Installed Application"))
-        self.setMinimumSize(480, 560)
-        self.resize(520, 620)
+        self.setMinimumSize(560, 560)
+        self.resize(580, 620)
 
         self._all_apps: list[InstalledAppInfo] = []
         self._selected_app: Optional[InstalledAppInfo] = None
@@ -117,14 +119,18 @@ class InstalledAppsDialog(BaseDialog):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        # 1. Search bar
+        # 1. Search bar + count label
         search_layout = QHBoxLayout()
         self.search_le = QLineEdit()
         self.search_le.setObjectName("appsSearchLineEdit")
         self.search_le.setPlaceholderText(self.tr("Search applications..."))
         self.search_le.setClearButtonEnabled(True)
         self.search_le.textChanged.connect(self._on_search_changed)
-        search_layout.addWidget(self.search_le)
+        search_layout.addWidget(self.search_le, 1)
+
+        self.count_label = QLabel("")
+        self.count_label.setStyleSheet("color: #888888; font-size: 11px;")
+        search_layout.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(search_layout)
 
         # 2. Loading indicator
@@ -153,9 +159,12 @@ class InstalledAppsDialog(BaseDialog):
         bottom_layout.setContentsMargins(0, 4, 0, 0)
         bottom_layout.setSpacing(12)
 
-        self.count_label = QLabel("")
-        self.count_label.setStyleSheet("color: #888888; font-size: 11px;")
-        bottom_layout.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.browse_disk_btn = QPushButton(self.tr("Find on computer"))
+        self.browse_disk_btn.setIcon(self._icon_provider.icon(QFileIconProvider.IconType.Folder))
+        self.browse_disk_btn.setIconSize(QSize(16, 16))
+        self.browse_disk_btn.setMinimumHeight(32)
+        self.browse_disk_btn.clicked.connect(self._on_browse_disk)
+        bottom_layout.addWidget(self.browse_disk_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         bottom_layout.addStretch(1)
 
@@ -259,6 +268,25 @@ class InstalledAppsDialog(BaseDialog):
         if self._selected_app is not None:
             self.accept()
 
+    def _on_browse_disk(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog
+
+        filters = self.tr("Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Select Program"),
+            "",
+            filters,
+        )
+        if path:
+            self._selected_app = InstalledAppInfo(
+                name=Path(path).stem,
+                path=path,
+                app_type="desktop",
+                icon_path=path,
+            )
+            self.accept()
+
     def _stop_loader_thread(self, timeout_ms: int = 1500) -> None:
         """Cooperatively cancel and disconnect the background loader thread."""
         thread = getattr(self, "loader_thread", None)
@@ -344,5 +372,10 @@ class InstalledAppsDialog(BaseDialog):
             self.cancel_button.setText(tr_common("Cancel"))
         if hasattr(self, "button_box") and self.button_box is not None:
             self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
+        if hasattr(self, "browse_disk_btn") and self.browse_disk_btn is not None:
+            self.browse_disk_btn.setText(self.tr("Find on computer"))
+            self.browse_disk_btn.setIcon(self._icon_provider.icon(QFileIconProvider.IconType.Folder))
+            self.browse_disk_btn.setIconSize(QSize(16, 16))
+            self.adjust_button_width(self.browse_disk_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "count_label"):
             self._update_count_label()
