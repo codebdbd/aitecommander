@@ -918,12 +918,16 @@ class MainWindow(QMainWindow, ReTranslatable):
         file_filter: str,
     ) -> Path | None:
         from PyQt6.QtWidgets import QFileDialog
+        from app.services.dialog_path_service import DialogPathService
 
+        start_dir = DialogPathService.get_downloads_dir("Share")
+        start_path = str(Path(start_dir) / default_name)
         path_str, selected_filter = QFileDialog.getSaveFileName(
-            self, dialog_title, default_name, file_filter
+            self, dialog_title, start_path, file_filter
         )
         if not path_str:
             return None
+        DialogPathService.remember_dir("Share", path_str)
         dest = Path(path_str)
         if not dest.suffix:
             ext = ".zip" if "ZIP" in selected_filter else ".aitepack"
@@ -938,12 +942,15 @@ class MainWindow(QMainWindow, ReTranslatable):
         file_filter: str,
     ) -> Path | None:
         from PyQt6.QtWidgets import QFileDialog
+        from app.services.dialog_path_service import DialogPathService
 
+        resolved_start = start_dir or DialogPathService.get_downloads_dir("Share")
         path_str, _ = QFileDialog.getOpenFileName(
-            self, dialog_title, start_dir, file_filter
+            self, dialog_title, resolved_start, file_filter
         )
         if not path_str:
             return None
+        DialogPathService.remember_dir("Share", path_str)
         return Path(path_str)
 
     def _get_structure_share_service(

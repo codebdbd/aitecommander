@@ -6,6 +6,7 @@ import threading
 import time
 import warnings
 from contextlib import AbstractContextManager
+from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from PyQt6.QtCore import (
@@ -610,15 +611,17 @@ class Database(QObject):
             if on_error:
                 self._safe_callback(on_error, e, "")
 
-    def backup(self) -> str:
+    def backup(self, backup_dir: Path | None = None) -> str:
+        target_dir = backup_dir or app_config.paths.get_backups_dir()
         with self._backup_lock:
-            return self.backup_manager.backup(BACKUP_DIR)
+            return self.backup_manager.backup(target_dir)
 
     def backup_async(
         self,
         on_finished: FinishedCallback | None = None,
         on_error: ErrorCallback | None = None,
         on_progress: ProgressCallback | None = None,
+        backup_dir: Path | None = None,
     ) -> None:
         """Creates backup in background thread. Callbacks: on_finished(result), on_error(e, tb), on_progress(c, t, m)."""
         from .workers import BackupWorker
@@ -631,8 +634,9 @@ class Database(QObject):
             if self._backup_lock.locked():
                 self._backup_lock.release()
 
+        target_dir = backup_dir or app_config.paths.get_backups_dir()
         try:
-            worker = BackupWorker(BACKUP_DIR, app_config.settings.get_max_backups())
+            worker = BackupWorker(target_dir, app_config.settings.get_max_backups())
         except Exception:
             _release_backup_lock()
             raise

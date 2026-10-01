@@ -21,7 +21,21 @@ def purge_old_backups(
     sleeper: Callable[[float], None] | None = None,
 ) -> int:
     """Remove outdated backup files, keeping at most ``max_backups`` files."""
-    files = sorted(backup_dir.glob("aite_bd_*.db"))
+    # Clean up orphaned temporary files from previous aborted attempts
+    keep_tmp = keep.with_suffix(".tmp") if keep is not None else None
+    for tmp_file in backup_dir.glob("aite_bd_*.tmp"):
+        if keep_tmp is None or tmp_file != keep_tmp:
+            try:
+                tmp_file.unlink()
+                logger.info("Cleaned orphaned temporary backup file: %s", tmp_file.name)
+            except Exception as tmp_err:
+                logger.debug("Could not remove orphaned tmp file %s: %s", tmp_file.name, tmp_err)
+
+    try:
+        files = sorted(backup_dir.glob("aite_bd_*.db"), key=lambda p: p.stat().st_mtime)
+    except Exception:
+        files = sorted(backup_dir.glob("aite_bd_*.db"))
+
     if not files or len(files) <= max_backups:
         return 0
 
@@ -101,6 +115,7 @@ class BackupManager:
         
         operation = "backup"
         connection = None
+        should_close = False
         
         try:
             self.db.operation_started.emit(operation, 2)
@@ -113,7 +128,11 @@ class BackupManager:
             worker = BackupWorker(backup_dir, max_backups)
             
             # Open connection for synchronous execution
-            connection = sqlite3.connect(self.db.db_path)
+            if hasattr(self.db, "connection") and self.db.connection is not None:
+                connection = self.db.connection
+            else:
+                connection = sqlite3.connect(self.db.db_path)
+                should_close = True
             
             # Execute backup synchronously
             result = worker.do_work(connection)
@@ -148,7 +167,7 @@ class BackupManager:
                 pass
             raise DatabaseError(f"Failed to create backup: {e}") from e
         finally:
-            if connection:
+            if should_close and connection:
                 try:
                     connection.close()
                 except Exception as close_err:

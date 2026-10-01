@@ -65,10 +65,6 @@ class PathConfig(BaseConfig):
         """Return the directory used for automatic backups."""
         return self.get_user_data_dir() / "backups"
 
-    def get_db_backup_path(self) -> Path:
-        """Return the path to the standalone ``links.db.bak`` backup file."""
-        return self.get_user_data_dir() / "links.db.bak"
-
     def get_logs_dir(self) -> Path:
         """Return the directory used for user logs."""
         # Support configuration overrides

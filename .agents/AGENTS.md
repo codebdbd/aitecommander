@@ -368,3 +368,25 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict QSS Viewport & Frame Rules**:
   1. **Нативная 1px рамка через прозрачность фрейма**: В `common.qss` для `QDialog QTableView`, `QDialog QTableWidget`, `QDialog QListView`, `QDialog QListWidget` и их `> QWidget#qt_scrollarea_viewport` строго обязателен `background-color: transparent`. Внешний 1px-бордер фрейма рисуется движком Qt непрерывно по всему внешнему контуру, не перекрываясь фоном скролл-области.
   2. **100% паритет всех тем**: Цвета рамок для диалоговых таблиц и списков берутся строго из правил тем `QDialog QTableView, QDialog QTableWidget { border-color: ... }` и автоматически расширяются на `QListView, QListWidget` через `ThemeStylesheetService`. Запрещено хардкодить цвета рамок в Python-коде диалогов.
+
+## 40. Architecture Standards: Database Backup & Recovery Engine (АРХИТЕКТУРНЫЙ СТАНДАРТ БЭКАПОВ И ВОССТАНОВЛЕНИЯ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура создания, валидации и ротации резервных копий базы данных зафиксирована.
+- **Strict Backup Pipeline Rules**:
+  1. **SQLite Online Backup API**: Создание резервных копий выполняется строго через постраничный `connection.backup(dest_conn)`. Запрещено выполнять прямое файловое копирование активной базы данных в обход SQLite Backup API.
+  2. **Обязательный WAL Checkpoint**: Перед созданием снимка обязательно выполнение `PRAGMA wal_checkpoint(FULL)` для переноса зафиксированных транзакций.
+  3. **Атомарная публикация и очистка мусора**: Запись бэкапа ведётся во временный файл `.tmp` с последующим атомарным `replace()`. В `purge_old_backups` строго обязательна очистка брошенных временных файлов (`aite_bd_*.tmp`).
+  4. **Пост-валидация целостности**: Перед публикацией нового файла бэкапа обязательно выполнение `PRAGMA quick_check` на `dest_conn`. Любой сбой проверки бракует бэкап и удаляет временный файл.
+  5. **Хронологическая ротация по mtime**: Ротация и удаление устаревших копий сверх `max_backups` ведётся строго по времени модификации файлов (`st_mtime`), а не по лексикографическому порядку строк.
+- **Strict Restore Dialog Rules**:
+  1. **Нативная таблица без костылей**: Диалог `RestoreDbDialog` использует `QTableWidget` с чистой 1px рамкой темы, скрытым вертикальным заголовком и автоматическим определением форматов (`.db`, `.zip`, `.bak`). Запрещено возвращать рудименты отдельных файлов (`links.db.bak`) в виде специальных методов или костылей.
+
+## 41. Architecture Standards: File Dialog Navigation & Path Resolution (АРХИТЕКТУРНЫЙ СТАНДАРТ НАВИГАЦИИ И ПУТЕЙ ДИАЛОГОВ ФАЙЛОВ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Логика открытия системных файловых диалогов (`QFileDialog`) и каталогов по умолчанию стандартизирована.
+- **Strict Default Directory Rules**:
+  1. **Запрет на открытие корня приложения**: Категорически запрещено открывать корень проекта или исполняемого файла приложения по умолчанию при вызове `QFileDialog`.
+  2. **Стандарт каталога «Загрузки» (Downloads Standard)**: Для всех операций импорта/экспорта данных, резервных копий базы данных и миграционных архивов (бэкапы, HTML-закладки браузеров, дампы) стартовой директорией по умолчанию выступает папка «Загрузки» пользователя ОС (`QStandardPaths.StandardLocation.DownloadLocation`).
+  3. **Стандарт каталога программ (Applications Standard)**: Для диалогов выбора исполняемых файлов приложений (`InstalledAppsDialog`, выбор `.exe`) стартовой директорией по умолчанию выступает системная папка `Program Files` (`QStandardPaths.StandardLocation.ApplicationsLocation` / `os.environ.get("ProgramFiles")`).
+  4. **Неприкосновенность каталога пользовательских иконок**: Выбор локальных пользовательских иконок закладок строго привязан к специализированному хранилищу `user_icons_dir` (`app/resources/icons/user/`). Запрещено перенаправлять выбор иконок в общие папки ОС.
+- **Strict Context-Aware Directory Persistence**:
+  1. **Запоминание последнего выбора**: Через централизованный сервис `DialogPathService` путь выбранного файла/папки сохраняется в реестр `QSettings` по контексту (`DialogPaths/{context}`) методом `remember_dir(context, chosen_path)`.
+  2. **Приоритет последнего выбора**: При повторном открытии диалога в том же контексте (`backup_export`, `backup_import`, `browser_import`, `installed_apps`) диалог открывает последнюю успешно использованную пользователем папку, если она всё ещё существует на диске.

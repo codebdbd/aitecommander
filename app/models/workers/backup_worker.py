@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
+from PyQt6.QtCore import QCoreApplication
 
 from app.models.managers.backup_manager import purge_old_backups
 from app.models.types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
@@ -18,15 +18,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 _BACKUP_CONTEXT = "BackupWorker"
-_PREPARING_BACKUP = QT_TRANSLATE_NOOP("BackupWorker", "Preparing backup...")
-_CREATING_BACKUP = QT_TRANSLATE_NOOP("BackupWorker", "Creating backup...")
-_CLEANUP_BACKUPS = QT_TRANSLATE_NOOP("BackupWorker", "Cleaning up old backups..."
-)
-_BACKUP_COMPLETED = QT_TRANSLATE_NOOP("BackupWorker", "Backup completed")
-
-
-def _tr_backup(text: str) -> str:
-    return QCoreApplication.translate(_BACKUP_CONTEXT, text)
 
 
 class BackupWorker(DatabaseWorker):
@@ -56,7 +47,7 @@ class BackupWorker(DatabaseWorker):
         """
         from datetime import datetime
 
-        self.emit_progress(0, 3, _tr_backup(_PREPARING_BACKUP))
+        self.emit_progress(0, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Preparing backup..."))
 
         # Create backup directory if it doesn't exist
         try:
@@ -73,7 +64,7 @@ class BackupWorker(DatabaseWorker):
         if self.is_cancelled:
             return {}
 
-        self.emit_progress(1, 3, _tr_backup(_CREATING_BACKUP))
+        self.emit_progress(1, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Creating backup..."))
 
         # Execute checkpoint for WAL mode
         try:
@@ -88,6 +79,11 @@ class BackupWorker(DatabaseWorker):
             dest_conn = sqlite3.connect(temp_path)
             try:
                 connection.backup(dest_conn)
+                cursor = dest_conn.execute("PRAGMA quick_check")
+                row = cursor.fetchone()
+                if not row or str(row[0]).lower() != "ok":
+                    err_msg = str(row[0]) if row else "empty result"
+                    raise sqlite3.DatabaseError(f"Backup quick_check failed: {err_msg}")
             finally:
                 dest_conn.close()
             
@@ -112,7 +108,7 @@ class BackupWorker(DatabaseWorker):
                     logger.warning("Failed to delete backup file on cancellation %s: %s", backup_path, e)
             return {}
 
-        self.emit_progress(2, 3, _tr_backup(_CLEANUP_BACKUPS))
+        self.emit_progress(2, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Cleaning up old backups..."))
 
         purge_old_backups(
             self.backup_dir,
@@ -124,6 +120,6 @@ class BackupWorker(DatabaseWorker):
             sleeper=time.sleep,
         )
 
-        self.emit_progress(3, 3, _tr_backup(_BACKUP_COMPLETED))
+        self.emit_progress(3, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Backup completed"))
 
         return {"backup_path": str(backup_path), "backup_filename": backup_filename}

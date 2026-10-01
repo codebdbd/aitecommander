@@ -19,7 +19,6 @@ _USER_THEMES_SUBDIR = "themes"
 _USER_LOGS_SUBDIR = "logs"
 _USER_BACKUPS_SUBDIR = "backups"
 _DB_FILE_NAME = "links.db"
-_DB_BACKUP_FILE_NAME = "links.db.bak"
 
 
 class PathManager:
@@ -177,15 +176,6 @@ class PathManager:
     ) -> Path:
         """Return user database file path."""
         return cls._resolve_user_subdir(_DB_FILE_NAME, org_name, app_name)
-
-    @classmethod
-    def db_backup_path(
-        cls,
-        org_name: str | None = None,
-        app_name: str | None = None,
-    ) -> Path:
-        """Return user database backup file path."""
-        return cls._resolve_user_subdir(_DB_BACKUP_FILE_NAME, org_name, app_name)
 
     @staticmethod
     def as_str(path: Path) -> str:

@@ -3732,27 +3732,47 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>RestoreDbDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="315" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="135" />
+        <source>No backups found</source>
+        <translation>No se encontraron copias de seguridad</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="351" />
         <source>Restore</source>
         <translation>Restaurar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="106" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="361" />
+        <source>Date</source>
+        <translation>Fecha</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="362" />
+        <source>Backup</source>
+        <translation>Copia de seguridad</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+        <source>Size</source>
+        <translation>Tamaño</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="128" />
         <source>Failed to list database backups: {error}</source>
         <translation>No se pudo enumerar las copias de seguridad de la base de datos: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="291" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="327" />
         <source>No backup selected.</source>
         <translation>No se ha seleccionado ninguna copia de seguridad.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="292" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="328" />
         <source>Backup selection required</source>
         <translation>Es necesario seleccionar una copia de seguridad</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
         <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
         <translation>Seleccione un archivo de la lista y haga clic en «Restaurar». Si la lista está vacía, verifique el directorio de copias de seguridad.</translation>
     </message>

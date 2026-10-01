@@ -8,8 +8,9 @@ from typing import Any, Optional
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
-    QListWidget,
-    QListWidgetItem,
+    QHeaderView,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
 )
 
@@ -21,14 +22,6 @@ from .base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
 
-_LIST_ITEM_TEMPLATES: dict[str, str] = {
-    "no_backups": "No backups found",
-    "single_backup": "{timestamp} | {backup_name} ({size} MB)",
-    "auto_backup_with_timestamp": "{timestamp} | {backup_name} ({size} MB)",
-    "auto_backup_without_timestamp": "{backup_name} ({size} MB)",
-    "error": "Error: {details}",
-}
-
 
 class RestoreDbDialog(BaseDialog):
     """Dialog that lets the user pick and restore a database backup."""
@@ -37,7 +30,9 @@ class RestoreDbDialog(BaseDialog):
         super().__init__(parent)
 
         width, height = app_config.ui.get_restore_db_dialog_size()
-        self.resize(width, height)
+        self.resize(max(width, 580), max(height, 320))
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(240)
         self.setModal(True)
 
         self.paths = app_config.paths
@@ -53,8 +48,35 @@ class RestoreDbDialog(BaseDialog):
         """Initialise dialog widgets and wiring."""
         layout = QVBoxLayout(self)
 
-        self.list_widget = QListWidget(self)
-        layout.addWidget(self.list_widget)
+        row_height = int(app_config.ui.get_row_height())
+        self.table_widget = QTableWidget(self)
+        self.table_widget.setObjectName("backupsTable")
+        self.table_widget.setColumnCount(3)
+        self.table_widget.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
+        self.table_widget.setSelectionMode(
+            QTableWidget.SelectionMode.SingleSelection
+        )
+        self.table_widget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table_widget.setAlternatingRowColors(True)
+        self.table_widget.setShowGrid(False)
+        self.table_widget.setWordWrap(False)
+        self.table_widget.setCornerButtonEnabled(False)
+
+        header = self.table_widget.horizontalHeader()
+        header.setHighlightSections(False)
+        header.setFixedHeight(row_height)
+        header.setDefaultSectionSize(row_height)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+
+        self.table_widget.verticalHeader().setVisible(False)
+        self.table_widget.verticalHeader().setDefaultSectionSize(row_height)
+
+        layout.addWidget(self.table_widget)
+        self.list_widget = self.table_widget
 
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -68,12 +90,12 @@ class RestoreDbDialog(BaseDialog):
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
 
-        self.list_widget.currentRowChanged.connect(self._update_ok_state)
-        self.list_widget.itemDoubleClicked.connect(self.accept)
+        self.table_widget.itemSelectionChanged.connect(self._update_ok_state)
+        self.table_widget.itemDoubleClicked.connect(self.accept)
 
     def _populate_list(self) -> None:
-        """Populate available backups in the list widget."""
-        self.list_widget.clear()
+        """Populate available backups in the table widget."""
+        self.table_widget.setRowCount(0)
 
         try:
             self.backup_dir.mkdir(parents=True, exist_ok=True)
@@ -82,24 +104,16 @@ class RestoreDbDialog(BaseDialog):
             backups = self._get_backup_files()
             logger.debug("Backups discovered: %s", len(backups))
 
-            single_backup_path = self.paths.get_db_backup_path()
-            single_backup_exists = (
-                single_backup_path.exists() and single_backup_path.stat().st_size > 0
-            )
-
-            if not backups and not single_backup_exists:
+            if not backups:
                 self._show_no_backups_message()
             else:
-                if single_backup_exists:
-                    self._add_single_backup_item(single_backup_path)
-
-                if backups:
-                    self._populate_backup_list(backups)
+                self._populate_backup_list(backups)
+                if self.table_widget.rowCount() > 0:
+                    self.table_widget.setEnabled(True)
+                    self.table_widget.selectRow(0)
                 else:
-                    if single_backup_exists and self.list_widget.count() > 0:
-                        self.list_widget.setEnabled(True)
-                        self.list_widget.setCurrentRow(0)
-                        self._update_ok_state()
+                    self._show_no_backups_message()
+                self._update_ok_state()
 
         except Exception as e:
             logger.error("Failed to list database backups: %s", e)
@@ -107,40 +121,19 @@ class RestoreDbDialog(BaseDialog):
 
     def _show_no_backups_message(self) -> None:
         """Display an empty-state entry when no backups exist."""
-        item = self._create_list_item("no_backups")
-        self.list_widget.addItem(item)
-        self.list_widget.setEnabled(False)
+        self.table_widget.setRowCount(1)
+        self.table_widget.setSpan(0, 0, 1, 3)
+        item = QTableWidgetItem(
+            QCoreApplication.translate("RestoreDbDialog", "No backups found")
+        )
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        self.table_widget.setItem(0, 0, item)
+        self.table_widget.setEnabled(False)
         logger.info("No backups found")
 
-    def _add_single_backup_item(self, backup_path: Path) -> None:
-        """Insert the standalone ``links.db.bak`` backup with a highlighted row."""
-        try:
-            if backup_path.stat().st_size == 0:
-                logger.warning("Empty backup file encountered: %s", backup_path.name)
-                return
-
-            stat = backup_path.stat()
-            creation_time = datetime.datetime.fromtimestamp(stat.st_mtime)
-            time_str = creation_time.strftime("%d.%m.%Y %H:%M")
-
-            size_mb = backup_path.stat().st_size / (1024 * 1024)
-            item = self._create_list_item(
-                "single_backup",
-                backup_name=backup_path.name,
-                timestamp=time_str,
-                size=f"{size_mb:.1f}",
-                font_bold=True,
-            )
-
-            self.list_widget.addItem(item)
-
-            logger.debug("Added single backup entry: %s", backup_path.name)
-
-        except Exception as e:
-            logger.warning("Failed to handle backup file %s: %s", backup_path.name, e)
-
     def _populate_backup_list(self, backups: list) -> None:
-        """Append discovered backup files to the list."""
+        """Append discovered backup files to the table."""
         for backup in backups:
             try:
                 if backup.stat().st_size == 0:
@@ -148,32 +141,30 @@ class RestoreDbDialog(BaseDialog):
                     continue
 
                 dt_str = self._parse_datetime(backup.name)
+                if not dt_str:
+                    try:
+                        dt_str = datetime.datetime.fromtimestamp(backup.stat().st_mtime).strftime("%d.%m.%Y %H:%M:%S")
+                    except Exception:
+                        dt_str = "-"
                 size_mb = backup.stat().st_size / (1024 * 1024)
 
-                if dt_str:
-                    item = self._create_list_item(
-                        "auto_backup_with_timestamp",
-                        backup_name=backup.name,
-                        timestamp=dt_str,
-                        size=f"{size_mb:.1f}",
-                    )
-                else:
-                    item = self._create_list_item(
-                        "auto_backup_without_timestamp",
-                        backup_name=backup.name,
-                        size=f"{size_mb:.1f}",
-                    )
+                self._add_table_row(
+                    backup_path=backup,
+                    timestamp=dt_str,
+                    backup_name=backup.name,
+                    size_str=f"{size_mb:.1f} MB",
+                    font_bold=False,
+                )
 
-                self.list_widget.addItem(item)
                 logger.debug("Added backup entry: %s", backup.name)
 
             except Exception as e:
                 logger.warning("Failed to process backup file %s: %s", backup.name, e)
                 continue
 
-        if self.list_widget.count() > 0:
-            self.list_widget.setEnabled(True)
-            self.list_widget.setCurrentRow(0)
+        if self.table_widget.rowCount() > 0:
+            self.table_widget.setEnabled(True)
+            self.table_widget.selectRow(0)
         else:
             self._show_no_backups_message()
 
@@ -181,12 +172,54 @@ class RestoreDbDialog(BaseDialog):
 
     def _show_error_message(self, message: str) -> None:
         """Display an error row when the backup directory cannot be listed."""
-        item = self._create_list_item(
-            "error",
-            details=message,
+        self.table_widget.setRowCount(1)
+        self.table_widget.setSpan(0, 0, 1, 3)
+        item = QTableWidgetItem(message)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        self.table_widget.setItem(0, 0, item)
+        self.table_widget.setEnabled(False)
+
+    def _add_table_row(
+        self,
+        backup_path: Path,
+        timestamp: str,
+        backup_name: str,
+        size_str: str,
+        font_bold: bool = False,
+    ) -> None:
+        """Append a single structured backup row to the table."""
+        row = self.table_widget.rowCount()
+        self.table_widget.insertRow(row)
+
+        dt_item = QTableWidgetItem(timestamp)
+        dt_item.setData(Qt.ItemDataRole.UserRole, backup_path)
+
+        name_item = QTableWidgetItem(backup_name)
+        name_item.setData(Qt.ItemDataRole.UserRole, backup_path)
+
+        size_item = QTableWidgetItem(size_str)
+        size_item.setData(Qt.ItemDataRole.UserRole, backup_path)
+        size_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        self.list_widget.addItem(item)
-        self.list_widget.setEnabled(False)
+
+        dt_item.setToolTip(timestamp)
+        name_item.setToolTip(backup_name)
+        size_item.setToolTip(size_str)
+
+        for item in (dt_item, name_item, size_item):
+            item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+            )
+            if font_bold:
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+
+        self.table_widget.setItem(row, 0, dt_item)
+        self.table_widget.setItem(row, 1, name_item)
+        self.table_widget.setItem(row, 2, size_item)
 
     def _parse_datetime(self, filename: str) -> Optional[str]:
         """Parse a timestamp from a backup filename."""
@@ -215,57 +248,28 @@ class RestoreDbDialog(BaseDialog):
 
     def get_selected_backup(self) -> Optional[Path]:
         """Return the filesystem path for the selected backup entry."""
-        if not self.list_widget.isEnabled():
+        if not self.table_widget.isEnabled():
             return None
 
-        row = self.list_widget.currentRow()
+        row = self.table_widget.currentRow()
         if row < 0:
             return None
 
-        try:
-            single_backup_path = self.paths.get_db_backup_path()
-            single_backup_exists = (
-                single_backup_path.exists() and single_backup_path.stat().st_size > 0
-            )
-
-            backups = self._get_backup_files()
-            valid_backups = [b for b in backups if b.stat().st_size > 0]
-
-            if single_backup_exists:
-                if row == 0:
-                    logger.info(
-                        "Single backup selected: %s", single_backup_path.name
-                    )
-                    return single_backup_path
-                else:
-                    adjusted_row = row - 1
-                    if adjusted_row >= len(valid_backups):
-                        logger.warning("Backup index is out of range: %s", row)
-                        return None
-
-                    selected = valid_backups[adjusted_row]
-                    logger.info(
-                        "Automatic backup selected: %s", selected.name
-                    )
-                    return selected
-            else:
-                if row >= len(valid_backups):
-                    logger.warning("Backup index is out of range: %s", row)
-                    return None
-
-                selected = valid_backups[row]
-                logger.info("Backup selected: %s", selected.name)
-                return selected
-
-        except Exception as e:
-            logger.error("Failed to resolve selected backup: %s", e)
+        item = self.table_widget.item(row, 0)
+        if item is None:
             return None
 
+        path = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(path, Path) and path.exists() and path.stat().st_size > 0:
+            return path
+        return None
+
     def _get_backup_files(self) -> list[Path]:
-        backups = []
-        for path in self.backup_dir.glob("aite_bd_*.db"):
-            if path.is_file():
-                backups.append(path)
+        backups: list[Path] = []
+        for pattern in ("aite_bd_*.db", "aite_bd_*.zip", "*.bak"):
+            for path in self.backup_dir.glob(pattern):
+                if path.is_file() and path.stat().st_size > 0:
+                    backups.append(path)
         try:
             backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         except Exception:
@@ -276,9 +280,9 @@ class RestoreDbDialog(BaseDialog):
         """Enable or disable the OK button based on current selection state."""
         ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         enabled = (
-            self.list_widget.isEnabled()
-            and self.list_widget.currentRow() >= 0
-            and self.list_widget.count() > 0
+            self.table_widget.isEnabled()
+            and self.table_widget.currentRow() >= 0
+            and self.get_selected_backup() is not None
         )
         ok_btn.setEnabled(enabled)
 
@@ -320,68 +324,9 @@ class RestoreDbDialog(BaseDialog):
 
         self.equalize_button_box(self.buttons, min_width=app_config.ui.get_fixed_button_width())
 
-        # Обновляем существующие элементы списка
-        if hasattr(self, "list_widget"):
-            for index in range(self.list_widget.count()):
-                item = self.list_widget.item(index)
-                self._apply_item_translation(item)
-
-    def _create_list_item(
-        self, template_key: str, font_bold: bool = False, **format_kwargs: Any
-    ) -> QListWidgetItem:
-        sanitized_kwargs = self._sanitize_format_kwargs(format_kwargs)
-
-        item = QListWidgetItem()
-        item.setData(
-            Qt.ItemDataRole.UserRole,
-            {
-                "template_key": template_key,
-                "format_kwargs": sanitized_kwargs,
-                "font_bold": font_bold,
-            },
-        )
-        self._apply_item_translation(item)
-        return item
-
-    def _apply_item_translation(self, item: QListWidgetItem) -> None:
-        data = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(data, dict):
-            return
-
-        template_key = data.get("template_key", "")
-        format_kwargs = data.get("format_kwargs", {})
-
-        template = None
-        try:
-            raw_template = _LIST_ITEM_TEMPLATES.get(template_key)
-            if raw_template is None:
-                logger.warning("Unknown list item template key: %s", template_key)
-                raw_template = template_key
-            template = QCoreApplication.translate("RestoreDbDialog", raw_template)
-            if format_kwargs:
-                template = template.format(**format_kwargs)
-            item.setText(template)
-        except Exception:
-            fallback_template = template if template is not None else template_key
-            if format_kwargs and isinstance(fallback_template, str):
-                try:
-                    item.setText(fallback_template.format(**format_kwargs))
-                except Exception:
-                    item.setText(str(fallback_template))
-            else:
-                item.setText(str(fallback_template))
-
-        font_bold = bool(data.get("font_bold"))
-        font = item.font()
-        font.setBold(font_bold)
-        item.setFont(font)
-
-    @staticmethod
-    def _sanitize_format_kwargs(format_kwargs: dict[str, Any]) -> dict[str, Any]:
-        sanitized: dict[str, Any] = {}
-        for key, value in format_kwargs.items():
-            if isinstance(value, str):
-                sanitized[key] = value.replace("{", "{{").replace("}", "}}").strip()
-            else:
-                sanitized[key] = value
-        return sanitized
+        if hasattr(self, "table_widget"):
+            self.table_widget.setHorizontalHeaderLabels([
+                QCoreApplication.translate("RestoreDbDialog", "Date"),
+                QCoreApplication.translate("RestoreDbDialog", "Backup"),
+                QCoreApplication.translate("RestoreDbDialog", "Size"),
+            ])

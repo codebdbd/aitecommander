@@ -3738,27 +3738,47 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>RestoreDbDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="315" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="135" />
+        <source>No backups found</source>
+        <translation>Резервные копии не найдены</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="351" />
         <source>Restore</source>
         <translation>Восстановить</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="106" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="361" />
+        <source>Date</source>
+        <translation>Дата</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="362" />
+        <source>Backup</source>
+        <translation>Резервная копия</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+        <source>Size</source>
+        <translation>Размер</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="128" />
         <source>Failed to list database backups: {error}</source>
         <translation>Не удалось получить список резервных копий базы данных: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="291" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="327" />
         <source>No backup selected.</source>
         <translation>Резервная копия не выбрана.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="292" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="328" />
         <source>Backup selection required</source>
         <translation>Необходимо выбрать резервную копию</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
         <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
         <translation>Выберите файл из списка и нажмите «Восстановить». Если список пуст, проверьте каталог резервных копий.</translation>
     </message>

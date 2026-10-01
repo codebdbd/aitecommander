@@ -74,28 +74,38 @@ class DatabaseDialogs(QObject):
 
     def get_connect_file(self) -> Optional[Path]:
         """Return the database file path to connect to."""
+        from app.services.dialog_path_service import DialogPathService
+
         parent = cast(QWidget, self.parent()) if self.parent() else None
-        start_dir = self._get_service_dir("database")
+        start_dir = DialogPathService.get_downloads_dir("Backups")
         file_path, _ = QFileDialog.getOpenFileName(
             parent,
             QCoreApplication.translate("DatabaseDialogs", "Select a database file to connect"),
             start_dir,
             QCoreApplication.translate("DatabaseDialogs", "Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)"),
         )
-        return Path(file_path) if file_path else None
+        if file_path:
+            DialogPathService.remember_dir("Backups", file_path)
+            return Path(file_path)
+        return None
 
     def get_save_location(self, default_name: str) -> Optional[Path]:
         """Return the destination path for saving a database copy."""
+        from app.services.dialog_path_service import DialogPathService
+
         parent = cast(QWidget, self.parent()) if self.parent() else None
-        start_dir = self._get_service_dir("database")
-        start_path = str(Path(start_dir) / default_name) if start_dir else default_name
+        start_dir = DialogPathService.get_downloads_dir("Backups")
+        start_path = str(Path(start_dir) / default_name)
         save_path, _ = QFileDialog.getSaveFileName(
             parent,
             QCoreApplication.translate("DatabaseDialogs", "Save database copy"),
             start_path,
             QCoreApplication.translate("DatabaseDialogs", "Backup archive (*.zip);;SQLite DB (*.db);;All files (*)"),
         )
-        return Path(save_path) if save_path else None
+        if save_path:
+            DialogPathService.remember_dir("Backups", save_path)
+            return Path(save_path)
+        return None
 
     def get_icons_archive_location(
         self, default_name: str = "icons.zip"

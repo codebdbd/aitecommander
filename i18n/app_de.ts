@@ -3732,27 +3732,47 @@ Möchten Sie die ersten {limit} ausgewählten Links öffnen?</translation>
 </context><context>
     <name>RestoreDbDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="315" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="135" />
+        <source>No backups found</source>
+        <translation>Keine Sicherungen gefunden</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="351" />
         <source>Restore</source>
         <translation>Wiederherstellen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="106" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="361" />
+        <source>Date</source>
+        <translation>Datum</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="362" />
+        <source>Backup</source>
+        <translation>Sicherung</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+        <source>Size</source>
+        <translation>Größe</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="128" />
         <source>Failed to list database backups: {error}</source>
         <translation>Auflistung der Datenbanksicherungen fehlgeschlagen: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="291" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="327" />
         <source>No backup selected.</source>
         <translation>Keine Sicherung ausgewählt.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="292" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="328" />
         <source>Backup selection required</source>
         <translation>Bitte eine Sicherung auswählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
         <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
         <translation>Wählen Sie eine Datei aus der Liste und klicken Sie auf „Wiederherstellen“. Ist die Liste leer, prüfen Sie das Sicherungsverzeichnis.</translation>
     </message>

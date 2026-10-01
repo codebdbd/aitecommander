@@ -301,15 +301,18 @@ class InstalledAppsDialog(BaseDialog):
 
     def _on_browse_disk(self) -> None:
         from PyQt6.QtWidgets import QFileDialog
+        from app.services.dialog_path_service import DialogPathService
 
         filters = self.tr("Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)")
+        start_dir = DialogPathService.get_programs_dir()
         path, _ = QFileDialog.getOpenFileName(
             self,
             self.tr("Select Program"),
-            "",
+            start_dir,
             filters,
         )
         if path:
+            DialogPathService.remember_dir("Programs", path)
             self._selected_app = InstalledAppInfo(
                 name=Path(path).stem,
                 path=path,

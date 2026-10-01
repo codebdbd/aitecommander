@@ -3732,27 +3732,47 @@ Would you like to open the first {limit} selected links?</translation>
 </context><context>
     <name>RestoreDbDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="315" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="135" />
+        <source>No backups found</source>
+        <translation>No backups found</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="351" />
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="106" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="361" />
+        <source>Date</source>
+        <translation>Date</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="362" />
+        <source>Backup</source>
+        <translation>Backup</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+        <source>Size</source>
+        <translation>Size</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="128" />
         <source>Failed to list database backups: {error}</source>
         <translation>Failed to list database backups: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="291" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="327" />
         <source>No backup selected.</source>
         <translation>No backup selected.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="292" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="328" />
         <source>Backup selection required</source>
         <translation>Backup selection required</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
         <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
         <translation>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</translation>
     </message>
