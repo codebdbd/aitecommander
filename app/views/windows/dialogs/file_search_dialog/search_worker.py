@@ -2,12 +2,32 @@ import fnmatch
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from PyQt6.QtCore import QCoreApplication, QRunnable
 
-from .common import matches_criteria as _matches_common
+from .common import (
+    matches_criteria as _matches_common,
+    matches_criteria_with_snippet as _matches_with_snippet,
+)
 from .search_signals import SearchSignals
+
+# Directories to prune during traversal
+_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+}
 
 # Batch size for sending results to GUI
 _BATCH_SIZE = 50
@@ -23,6 +43,7 @@ class FileSearchWorker(QRunnable):
         self.signals = SearchSignals()
         self._stop_requested = False
         self._results_batch = []  # Accumulator for batch sending
+        self._executor = None
         self._files_processed = 0
         self._dirs_processed = 0
         self._last_progress_time = 0.0
@@ -30,6 +51,11 @@ class FileSearchWorker(QRunnable):
     def stop(self):
         """Request search cancellation."""
         self._stop_requested = True
+        if self._executor is not None:
+            try:
+                self._executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
 
     def _validate_root_path(self):
         """Validate and return root path."""
@@ -112,11 +138,13 @@ class FileSearchWorker(QRunnable):
             self.signals.results_batch.emit(self._results_batch.copy())
             self._results_batch.clear()
     
-    def _add_result(self, filepath: Path):
-        """Add result to batch and flush if needed."""
+    def _add_result(self, filepath: Path, snippet: str = ""):
+        """Extract metadata in worker thread and add result to batch."""
         try:
-            # Add to batch: (path,)
-            self._results_batch.append((str(filepath),))
+            st = filepath.stat()
+            self._results_batch.append(
+                (filepath.name, str(filepath.parent), st.st_size, st.st_mtime, str(filepath), snippet)
+            )
             
             # Flush batch if it reached the limit
             if len(self._results_batch) >= _BATCH_SIZE:
@@ -136,6 +164,8 @@ class FileSearchWorker(QRunnable):
         self, root, files, name_regex, allowed_exts, max_file_size_bytes
     ):
         """Process files in directory."""
+        content_query = self.config.get("content")
+        candidates = []
         for filename in files:
             if self._stop_requested:
                 break
@@ -154,8 +184,15 @@ class FileSearchWorker(QRunnable):
                     continue
 
             try:
-                if _matches_common(self.config, str(filepath), filename, name_regex):
-                    self._add_result(filepath)
+                if not content_query:
+                    if _matches_common(self.config, str(filepath), filename, name_regex):
+                        self._add_result(filepath)
+                else:
+                    # Pre-filter by name/extension before content search
+                    temp_cfg = dict(self.config)
+                    temp_cfg["content"] = None
+                    if _matches_common(temp_cfg, str(filepath), filename, name_regex):
+                        candidates.append((filepath, filename))
             except OSError:
                 pass
             
@@ -163,8 +200,25 @@ class FileSearchWorker(QRunnable):
             if self._files_processed % 100 == 0:
                 self._update_progress()
 
+        if candidates and not self._stop_requested and self._executor is not None:
+            futures = {
+                self._executor.submit(_matches_with_snippet, self.config, str(fp), fn, name_regex): fp
+                for fp, fn in candidates
+            }
+            for fut in as_completed(futures):
+                if self._stop_requested:
+                    break
+                try:
+                    matched, snippet = fut.result()
+                    if matched:
+                        self._add_result(futures[fut], snippet=snippet)
+                except Exception:
+                    pass
+
     def run(self):
         """Entry point for the background search."""
+        workers = min(16, (os.cpu_count() or 4) * 2) if self.config.get("content") else 1
+        self._executor = ThreadPoolExecutor(max_workers=workers) if self.config.get("content") else None
         try:
             root_path = self._validate_root_path()
             if root_path is None:
@@ -176,12 +230,15 @@ class FileSearchWorker(QRunnable):
                 self._get_search_constraints()
             )
             base_depth = len(root_path.parts)
+            skip_noise = root_path.name.lower() not in _SKIP_DIRS
 
             for root, dirs, files in os.walk(str(root_path)):
                 if self._stop_requested:
                     break
 
                 self._dirs_processed += 1
+                if skip_noise:
+                    dirs[:] = [d for d in dirs if d.lower() not in _SKIP_DIRS]
                 self._should_limit_depth(root, base_depth, max_depth, dirs)
                 self._process_files(
                     root,
@@ -206,4 +263,10 @@ class FileSearchWorker(QRunnable):
                 )
             )
         finally:
+            if self._executor is not None:
+                try:
+                    self._executor.shutdown(wait=False, cancel_futures=True)
+                except Exception:
+                    pass
+                self._executor = None
             self.signals.search_finished.emit()

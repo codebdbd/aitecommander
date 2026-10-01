@@ -17,10 +17,11 @@ from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
 )
-from PyQt6.QtGui import QKeySequence
+from PyQt6.QtGui import QIcon, QKeySequence
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QDialogButtonBox,
     QFileDialog,
     QFileIconProvider,
@@ -54,10 +55,18 @@ class _SearchResultsModel(QAbstractTableModel):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._rows: list[tuple[str, str, int, float, str]] = []  # (name, folder, size, mtime, full_path)
+        self._rows: list[tuple] = []  # (name, folder, size, mtime, full_path, snippet)
         self._headers: list[str] = []
+        self._show_snippet = False
         self._icon_provider = QFileIconProvider()
+        self._icon_cache: dict[str, QIcon] = {}
         self.retranslateUi()
+
+    def set_show_snippet(self, show: bool) -> None:
+        if self._show_snippet != show:
+            self.beginResetModel()
+            self._show_snippet = show
+            self.endResetModel()
 
     def retranslateUi(self) -> None:
         self._headers = [
@@ -65,6 +74,7 @@ class _SearchResultsModel(QAbstractTableModel):
             QCoreApplication.translate("FileSearchResultsModel", "Folder"),
             QCoreApplication.translate("FileSearchResultsModel", "Size"),
             QCoreApplication.translate("FileSearchResultsModel", "Date modified"),
+            QCoreApplication.translate("FileSearchResultsModel", "Match"),
         ]
         self.headerDataChanged.emit(
             Qt.Orientation.Horizontal, 0, len(self._headers) - 1
@@ -78,7 +88,7 @@ class _SearchResultsModel(QAbstractTableModel):
     def columnCount(self, parent=None):  # noqa: N802
         if parent is None:
             parent = QModelIndex()
-        return 0 if parent.isValid() else len(self._headers)
+        return 0 if parent.isValid() else (5 if self._show_snippet else 4)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if role != Qt.ItemDataRole.DisplayRole:
@@ -100,10 +110,17 @@ class _SearchResultsModel(QAbstractTableModel):
         col = index.column()
         if row >= len(self._rows):
             return None
-        name, folder, size_bytes, mtime_ts, full_path = self._rows[row]
+        item = self._rows[row]
+        name, folder, size_bytes, mtime_ts, full_path = item[0], item[1], item[2], item[3], item[4]
+        snippet = item[5] if len(item) > 5 else ""
 
         if role == Qt.ItemDataRole.DecorationRole and col == 0:
-            return self._icon_provider.icon(QFileInfo(full_path))
+            ext = full_path.rsplit(".", 1)[-1].lower() if "." in full_path else ""
+            icon = self._icon_cache.get(ext)
+            if icon is None:
+                icon = self._icon_provider.icon(QFileInfo(full_path))
+                self._icon_cache[ext] = icon
+            return icon
 
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:
@@ -114,8 +131,12 @@ class _SearchResultsModel(QAbstractTableModel):
                 return self._format_size(size_bytes)
             elif col == 3:
                 return self._format_date(mtime_ts)
+            elif col == 4:
+                return snippet
 
         if role == Qt.ItemDataRole.ToolTipRole:
+            if snippet:
+                return f"{full_path}\n\n{snippet}"
             return full_path
         return None
 
@@ -143,6 +164,11 @@ class _SearchResultsModel(QAbstractTableModel):
             return self._rows[row][4]
         return ""
 
+    def get_snippet(self, row: int) -> str:
+        if 0 <= row < len(self._rows) and len(self._rows[row]) > 5:
+            return self._rows[row][5]
+        return ""
+
     def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder):
         if not self._rows:
             return
@@ -156,6 +182,8 @@ class _SearchResultsModel(QAbstractTableModel):
             self._rows.sort(key=lambda r: r[2], reverse=reverse)
         elif column == 3:
             self._rows.sort(key=lambda r: r[3], reverse=reverse)
+        elif column == 4:
+            self._rows.sort(key=lambda r: (r[5] if len(r) > 5 else "").lower(), reverse=reverse)
         self.layoutChanged.emit()
 
     # Mutations
@@ -192,6 +220,8 @@ class FileSearchDialog(BaseDialog):
         self.lbl_name_regex = None
         self.lbl_pattern = None
         self.lbl_content = None
+        self.case_sensitive_cb = None
+        self.whole_words_cb = None
 
         super().__init__(parent)
         self.setWindowTitle(tr_common("File search"))
@@ -340,6 +370,18 @@ class FileSearchDialog(BaseDialog):
 
         form.addRow(self.lbl_pattern, pattern_row)
 
+        # Search options row
+        options_row = QWidget()
+        options_row_layout = QHBoxLayout(options_row)
+        options_row_layout.setContentsMargins(0, 0, 0, 0)
+        options_row_layout.setSpacing(16)
+        self.case_sensitive_cb = QCheckBox(self.tr("Match case"))
+        self.whole_words_cb = QCheckBox(self.tr("Whole words"))
+        options_row_layout.addWidget(self.case_sensitive_cb)
+        options_row_layout.addWidget(self.whole_words_cb)
+        options_row_layout.addStretch(1)
+        form.addRow("", options_row)
+
         layout.addLayout(form)
 
         # --- Progress bar ---
@@ -370,15 +412,32 @@ class FileSearchDialog(BaseDialog):
         header.setStretchLastSection(False)
         header.setSortIndicatorShown(True)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        header.resizeSection(0, 220)
+        header.resizeSection(0, 240)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.resizeSection(2, 90)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        header.resizeSection(3, 130)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
+        header.resizeSection(4, 220)
         header.setVisible(True)
         self.table.verticalHeader().setVisible(False)
 
         # Double-click adds selected link (matching Enter)
         self.table.doubleClicked.connect(self._on_table_double_clicked)
+
+        # --- Match snippet preview bar ---
+        self.snippet_container = QWidget()
+        snippet_layout = QHBoxLayout(self.snippet_container)
+        snippet_layout.setContentsMargins(4, 2, 4, 2)
+        snippet_layout.setSpacing(6)
+        self.lbl_snippet = QLabel(self.tr("Match:"))
+        self.lbl_snippet.setStyleSheet("font-weight: bold;")
+        self.snippet_value = QLabel()
+        self.snippet_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        snippet_layout.addWidget(self.lbl_snippet)
+        snippet_layout.addWidget(self.snippet_value, 1)
+        self.snippet_container.setVisible(False)
 
         # --- Status & Actions ---
         btns_layout = QHBoxLayout()
@@ -414,6 +473,7 @@ class FileSearchDialog(BaseDialog):
         # Assemble main layout
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.table)
+        layout.addWidget(self.snippet_container)
         layout.addLayout(btns_layout)
 
         # Connect selection change to button updates
@@ -434,6 +494,12 @@ class FileSearchDialog(BaseDialog):
             self.lbl_pattern.setText(self.tr("Extension:"))
         if self.lbl_content is not None:
             self.lbl_content.setText(self.tr("With text:"))
+        if hasattr(self, "lbl_snippet") and self.lbl_snippet is not None:
+            self.lbl_snippet.setText(self.tr("Match:"))
+        if hasattr(self, "case_sensitive_cb") and self.case_sensitive_cb is not None:
+            self.case_sensitive_cb.setText(self.tr("Match case"))
+        if hasattr(self, "whole_words_cb") and self.whole_words_cb is not None:
+            self.whole_words_cb.setText(self.tr("Whole words"))
 
     def _translate_buttons(self):
         """Translate button texts and tooltips."""
@@ -481,9 +547,20 @@ class FileSearchDialog(BaseDialog):
 
     def _update_buttons(self):
         """Enable/disable buttons based on current selection."""
-        has_selection = bool(self.table.selectionModel().selectedRows())
+        selected_rows = self.table.selectionModel().selectedRows()
+        has_selection = bool(selected_rows)
         self.add_link_btn.setEnabled(has_selection)
         self.open_folder_btn.setEnabled(has_selection)
+        if has_selection:
+            row = selected_rows[0].row()
+            snippet = self.model.get_snippet(row)
+            if snippet and hasattr(self, "snippet_container"):
+                self.snippet_value.setText(snippet)
+                self.snippet_container.setVisible(True)
+            elif hasattr(self, "snippet_container"):
+                self.snippet_container.setVisible(False)
+        elif hasattr(self, "snippet_container"):
+            self.snippet_container.setVisible(False)
 
     def _on_add_link(self):
         """Emit selected files to caller and close dialog."""
@@ -586,6 +663,11 @@ class FileSearchDialog(BaseDialog):
             return
 
         self.model.clear()
+        self.table.setSortingEnabled(False)
+        has_content = bool(self.content_le.text().strip())
+        self.model.set_show_snippet(has_content)
+        if hasattr(self, "snippet_container"):
+            self.snippet_container.setVisible(False)
 
         self.is_searching = True
         self.search_btn.setEnabled(False)
@@ -605,9 +687,11 @@ class FileSearchDialog(BaseDialog):
 
     def _stop_search(self):
         """Stop the ongoing search."""
+        if not self.is_searching:
+            return
+        self.stop_btn.setEnabled(False)
         if self.search_worker:
             self.search_worker.stop()
-        self._on_search_finished()
 
     def _create_search_config(self):
         """Create configuration dictionary for the worker."""
@@ -616,6 +700,8 @@ class FileSearchDialog(BaseDialog):
             "pattern": self.pattern_le.text().strip() or "*.*",
             "regex_name": self.regex_le.text().strip(),
             "content": self.content_le.text().strip(),
+            "case_sensitive": self.case_sensitive_cb.isChecked() if hasattr(self, "case_sensitive_cb") and self.case_sensitive_cb is not None else False,
+            "whole_words": self.whole_words_cb.isChecked() if hasattr(self, "whole_words_cb") and self.whole_words_cb is not None else False,
         }
 
     def _on_results_batch(self, batch: list):
@@ -629,29 +715,17 @@ class FileSearchDialog(BaseDialog):
             self._update_timer.start(100)
 
     def _process_pending_batches(self):
-        """Process all pending result batches with file metadata extraction."""
+        """Process all pending result batches with zero disk IO on GUI thread."""
         if not self._pending_batches:
             self._update_timer = None
             return
 
-        processed = []
+        all_results = []
         for batch in self._pending_batches:
-            for result in batch:
-                full_path = result[0]
-                p = Path(full_path)
-                name = p.name
-                folder = str(p.parent)
-                try:
-                    st = p.stat()
-                    size = st.st_size
-                    mtime = st.st_mtime
-                except OSError:
-                    size = 0
-                    mtime = 0.0
-                processed.append((name, folder, size, mtime, full_path))
-
-        self.model.add_results_batch(processed)
+            all_results.extend(batch)
         self._pending_batches.clear()
+
+        self.model.add_results_batch(all_results)
         self._update_timer = None
         self._update_buttons()
 
@@ -672,18 +746,12 @@ class FileSearchDialog(BaseDialog):
         if index.isValid():
             self._on_add_link()
 
-    def _on_double_click(self, index):
-        """Open file explorer on double click."""
-        if index.isValid():
-            file_path = self.model.get_full_path(index.row())
-            if file_path:
-                self._open_file_in_explorer(file_path)
-
     def _on_search_finished(self):
         """Revert UI after search completion and show summary."""
         if self._pending_batches:
             self._process_pending_batches()
 
+        self.table.setSortingEnabled(True)
         # Re-apply active column sort if user sorted by column
         header = self.table.horizontalHeader()
         if header.isSortIndicatorShown():

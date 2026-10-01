@@ -311,6 +311,8 @@ class TreeSnapshotService(QObject):
         resolved_paths: dict[str, str] = {}
 
         def _resolve_cached_icon_path(icon_path: str) -> str:
+            if ":" in icon_path or icon_path.startswith("/"):
+                return icon_path
             cached = resolved_paths.get(icon_path)
             if cached is not None:
                 return cached

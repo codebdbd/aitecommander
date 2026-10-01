@@ -19,6 +19,10 @@ from app.models.db import Database
 from app.services import StructureService
 from app.utils.db.api import run_db
 from app.utils.metrics import get_metrics
+from app.utils.ui.icon.icon_resolver import (
+    resolve_category_icon_path,
+    resolve_section_icon_path,
+)
 
 from ..signals.signals import StructureSignals
 
@@ -446,8 +450,18 @@ class AsyncOperations(QObject):
             categories_by_section: dict[int, list[dict[str, Any]]] = {}
             for category in all_categories:
                 sid = category["section_id"]
+                raw_cat_icon = category.get("icon_path") or category.get("icon")
+                if raw_cat_icon and isinstance(raw_cat_icon, str):
+                    resolved = resolve_category_icon_path(raw_cat_icon)
+                    if resolved:
+                        category["icon_path"] = resolved
                 categories_by_section.setdefault(sid, []).append(category)
             for section in sections_data:
+                raw_sec_icon = section.get("icon_path") or section.get("icon")
+                if raw_sec_icon and isinstance(raw_sec_icon, str):
+                    resolved = resolve_section_icon_path(raw_sec_icon)
+                    if resolved:
+                        section["icon_path"] = resolved
                 section["categories"] = categories_by_section.get(section["id"], [])
             build_ms = (time.perf_counter() - build_started_ts) * 1000
             return (

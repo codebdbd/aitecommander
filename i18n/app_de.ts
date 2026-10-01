@@ -1617,116 +1617,134 @@
 </context><context>
     <name>FileSearchDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="432" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="221" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="492" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="251" />
         <source>Search files:</source>
         <translation>Dateien suchen:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="446" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="232" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="512" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="262" />
         <source>Search</source>
         <translation>Suchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="449" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="234" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="515" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="264" />
         <source>Stop</source>
         <translation>Stopp</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="430" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="242" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="490" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="272" />
         <source>Search in:</source>
         <translation>Suchen in:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="443" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="509" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="279" />
         <source>Browse</source>
         <translation>Durchsuchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="434" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="257" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="494" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="287" />
         <source>Extension:</source>
         <translation>Erweiterung:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="441" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="320" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="507" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="350" />
         <source>Quickly apply an extension mask</source>
         <translation>Dateierweiterungsmaske schnell anwenden</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="436" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="330" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="496" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="360" />
         <source>With text:</source>
         <translation>Mit Text:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="759" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="454" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="388" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="500" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="378" />
+        <source>Match case</source>
+        <translation>Groß-/Kleinschreibung</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="502" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="379" />
+        <source>Whole words</source>
+        <translation>Ganze Wörter</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="498" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="434" />
+        <source>Match:</source>
+        <translation>Treffer:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="827" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="520" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="447" />
         <source>Open in file explorer</source>
         <translation>Im Datei-Explorer öffnen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="468" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="395" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="534" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="454" />
         <source>Ready to search</source>
         <translation>Bereit zum Suchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="755" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="452" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="401" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="823" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="518" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="460" />
         <source>Add as link</source>
         <translation>Als Link hinzufügen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="457" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="407" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="523" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="466" />
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="528" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="605" />
         <source>File not found: {path}</source>
         <translation>Datei nicht gefunden: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="541" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="618" />
         <source>Unexpected error: {error}</source>
         <translation>Unerwarteter Fehler: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="550" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="627" />
         <source>Select folder for search</source>
         <translation>Ordner für die Suche auswählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="560" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="637" />
         <source>Specify a folder to search.</source>
         <translation>Geben Sie einen Ordner für die Suche an.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="566" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="643" />
         <source>The folder does not exist: {path}</source>
         <translation>Der Ordner existiert nicht: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="572" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="649" />
         <source>The specified path is not a folder: {path}</source>
         <translation>Der angegebene Pfad ist kein Ordner: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="594" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="676" />
         <source>Searching…</source>
         <translation>Suche läuft…</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="662" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="736" />
         <source>Searching… %n file(s) found</source>
         <translation>
             <numerusform>Suche läuft… %n Datei gefunden</numerusform>
@@ -1734,12 +1752,12 @@
         </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="668" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="742" />
         <source>Search error</source>
         <translation>Suchfehler</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="698" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="766" />
         <source>Search finished. %n file(s) found.</source>
         <translation>
             <numerusform>Suche abgeschlossen. %n Datei gefunden.</numerusform>
@@ -1747,51 +1765,56 @@
         </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="757" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="825" />
         <source>Quick look</source>
         <translation>Schnellansicht</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="762" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="830" />
         <source>Copy path</source>
         <translation>Pfad kopieren</translation>
     </message>
 </context><context>
     <name>FileSearchResultsModel</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="64" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="73" />
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="65" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="74" />
         <source>Folder</source>
         <translation>Ordner</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="66" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="75" />
         <source>Size</source>
         <translation>Größe</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="67" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="76" />
         <source>Date modified</source>
         <translation>Änderungsdatum</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="77" />
+        <source>Match</source>
+        <translation>Treffer</translation>
     </message>
 </context><context>
     <name>FileSearchWorker</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="40" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="66" />
         <source>Invalid search root path.</source>
         <translation>Ungültiger Suchstammverzeichnispfad.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="51" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="77" />
         <source>Root path not found or is not a directory: {path}</source>
         <translation>Stammpfad nicht gefunden oder ist kein Verzeichnis: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="204" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\search_worker.py" line="261" />
         <source>Error during search: {error}</source>
         <translation>Fehler bei der Suche: {error}</translation>
     </message>

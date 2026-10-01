@@ -4,7 +4,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .text_extractors import extract_text_by_format
+from .text_extractors import (
+    check_document_content,
+    check_document_content_with_snippet,
+    extract_text_by_format,
+    find_match_in_text,
+    make_snippet,
+)
 
 # Maximum file size for content search (20 MB)
 _MAX_CONTENT_SEARCH_SIZE = 20 * 1024 * 1024
@@ -136,6 +142,115 @@ def detect_and_read_text(filepath: str, encoding_override: str | None = None) ->
     return raw_bytes.decode("utf-8", errors="replace")
 
 
+def check_plain_text_fast_with_snippet(
+    filepath: str,
+    search_text: str,
+    case_sensitive: bool = False,
+    whole_words: bool = False,
+) -> tuple[bool, str]:
+    """Fast chunked stream search for plain text, markdown, and code returning snippet."""
+    try:
+        with open(filepath, "rb") as f:
+            tail_utf8 = ""
+            tail_cp1251 = ""
+            overlap = len(search_text) + 20
+            has_non_ascii = any(ord(c) > 127 for c in search_text)
+
+            while chunk := f.read(256 * 1024):
+                raw_chunk_utf8 = chunk.decode("utf-8", errors="ignore")
+                t_utf8 = tail_utf8 + raw_chunk_utf8
+                idx = find_match_in_text(t_utf8, search_text, case_sensitive, whole_words)
+                if idx != -1:
+                    return True, make_snippet(t_utf8, idx, len(search_text))
+                tail_utf8 = t_utf8[-overlap:] if overlap > 0 else ""
+
+                if has_non_ascii:
+                    raw_chunk_cp = chunk.decode("cp1251", errors="ignore")
+                    t_cp = tail_cp1251 + raw_chunk_cp
+                    idx_cp = find_match_in_text(t_cp, search_text, case_sensitive, whole_words)
+                    if idx_cp != -1:
+                        return True, make_snippet(t_cp, idx_cp, len(search_text))
+                    tail_cp1251 = t_cp[-overlap:] if overlap > 0 else ""
+        return False, ""
+    except Exception:
+        return False, ""
+
+
+def check_plain_text_fast(
+    filepath: str,
+    search_text: str,
+    case_sensitive: bool = False,
+    whole_words: bool = False,
+) -> bool:
+    """Fast chunked stream search for plain text, markdown, and code."""
+    matched, _ = check_plain_text_fast_with_snippet(
+        filepath, search_text, case_sensitive, whole_words
+    )
+    return matched
+
+
+def check_file_content_with_snippet(
+    config: Mapping[str, Any],
+    filepath: str,
+) -> tuple[bool, str]:
+    """Check file content and return (is_match, snippet)."""
+    try:
+        file_stat = os.stat(filepath)
+        if file_stat.st_size > _MAX_CONTENT_SEARCH_SIZE:
+            return False, ""
+
+        search_text = config.get("content")
+        if not isinstance(search_text, str) or not search_text.strip():
+            return False, ""
+
+        case_sensitive = bool(config.get("case_sensitive", False))
+        whole_words = bool(config.get("whole_words", False))
+        suffix = Path(filepath).suffix.lower().lstrip(".")
+
+        # Skip known non-document media and archives (e.g. mp4, jpg, exe)
+        if suffix in _SKIP_CONTENT_EXT:
+            return False, ""
+
+        # 1. High-speed document check with early-exit
+        doc_matched, snippet = check_document_content_with_snippet(
+            filepath, search_text, case_sensitive=case_sensitive, whole_words=whole_words
+        )
+        if doc_matched is not None:
+            return doc_matched, snippet
+
+        # If it's another binary format not recognized as a document, skip
+        if is_probably_binary(filepath):
+            return False, ""
+
+        # 2. Plain text search: explicit encoding override fallback
+        encoding_override = config.get("content_encoding_override")
+        if encoding_override and encoding_override.lower() not in ("auto", "utf-8"):
+            text = detect_and_read_text(filepath, encoding_override=encoding_override)
+            idx = find_match_in_text(text, search_text, case_sensitive, whole_words)
+            if idx != -1:
+                return True, make_snippet(text, idx, len(search_text))
+            return False, ""
+
+        # 3. High-speed stream search for text/code/markdown (UTF-8 & CP1251)
+        fast_matched, fast_snippet = check_plain_text_fast_with_snippet(
+            filepath, search_text, case_sensitive=case_sensitive, whole_words=whole_words
+        )
+        if fast_matched:
+            return True, fast_snippet
+
+        # 4. Fallback to full charset detection for rare legacy encodings (CP866, KOI8-R, UTF-16)
+        detected_text = detect_and_read_text(filepath, encoding_override=None)
+        if detected_text:
+            idx = find_match_in_text(detected_text, search_text, case_sensitive, whole_words)
+            if idx != -1:
+                return True, make_snippet(detected_text, idx, len(search_text))
+
+        return False, ""
+
+    except (OSError, Exception):
+        return False, ""
+
+
 def check_file_content(
     config: Mapping[str, Any],
     filepath: str,
@@ -146,70 +261,43 @@ def check_file_content(
     Supports Office (.docx, .xlsx, .pptx, .odt, .ods, .odp, .doc, .xls, .ppt),
     Ebooks (.fb2), PDF, RTF, and plain text files with automatic encoding detection.
     """
+    matched, _ = check_file_content_with_snippet(config, filepath)
+    return matched
+
+
+def matches_criteria_with_snippet(
+    config: Mapping[str, Any],
+    filepath: str,
+    filename: str,
+    name_regex,
+) -> tuple[bool, str]:
+    """Validate file against criteria and return (matches, snippet)."""
     try:
-        file_stat = os.stat(filepath)
-        if file_stat.st_size > _MAX_CONTENT_SEARCH_SIZE:
-            return False
+        # 1. Filename pattern check
+        pattern = config.get("pattern", "*.*").strip()
+        if pattern and pattern not in ("*.*", "*"):
+            norm_pattern = pattern
+            if not any(c in pattern for c in "*?"):
+                norm_pattern = f"*{pattern}" if pattern.startswith(".") else f"*.{pattern}"
+            if not fnmatch.fnmatch(filename.lower(), norm_pattern.lower()):
+                return False, ""
 
-        search_text = config.get("content")
-        if not isinstance(search_text, str) or not search_text.strip():
-            return False
+        # 2. Filename / path regex check
+        if name_regex is not None:
+            norm_path = filepath.replace("\\", "/")
+            if not (name_regex.search(filename) or name_regex.search(norm_path)):
+                return False, ""
 
-        search_text = search_text.lower()
-        suffix = Path(filepath).suffix.lower().lstrip(".")
+        # 3. Content match
+        snippet = ""
+        if config.get("content"):
+            matched, snippet = check_file_content_with_snippet(config, filepath)
+            if not matched:
+                return False, ""
 
-        # Skip known non-document media and archives (e.g. mp4, jpg, exe)
-        if suffix in _SKIP_CONTENT_EXT:
-            return False
-
-        # 1. Automatic format detection (Word, Excel, PPT, PDF, ODT, FB2, RTF, OLE)
-        extracted = extract_text_by_format(filepath)
-        if extracted is not None:
-            return search_text in extracted.lower()
-
-        # If it's another binary format not recognized as a document, skip
-        if is_probably_binary(filepath):
-            return False
-
-        # 2. Plain text chunked search (UTF-8 stream)
-        encoding_override = config.get("content_encoding_override")
-        if encoding_override and encoding_override.lower() not in ("auto", "utf-8"):
-            text = detect_and_read_text(filepath, encoding_override=encoding_override)
-            return search_text in text.lower()
-
-        overlap_size = len(search_text) - 1 if len(search_text) > 1 else 0
-        previous_chunk_tail = ""
-
-        try:
-            with open(filepath, encoding="utf-8", errors="strict") as f:
-                while True:
-                    chunk = f.read(_READ_BUFFER_SIZE)
-                    if not chunk:
-                        break
-
-                    chunk_lower = chunk.lower()
-                    search_chunk = previous_chunk_tail + chunk_lower
-
-                    if search_text in search_chunk:
-                        return True
-
-                    if len(chunk_lower) >= overlap_size and overlap_size > 0:
-                        previous_chunk_tail = chunk_lower[-overlap_size:]
-                    else:
-                        previous_chunk_tail = chunk_lower if overlap_size > 0 else ""
-        except (UnicodeDecodeError, OSError):
-            # Not valid strict UTF-8; fall through to encoding auto-detection
-            pass
-
-        # 3. Fallback to encoding auto-detection (e.g. CP1251, CP866, UTF-16)
-        detected_text = detect_and_read_text(filepath, encoding_override=None)
-        if detected_text and search_text in detected_text.lower():
-            return True
-
-        return False
-
-    except (OSError, Exception):
-        return False
+        return True, snippet
+    except OSError:
+        return False, ""
 
 
 def matches_criteria(
@@ -219,29 +307,5 @@ def matches_criteria(
     name_regex,
 ) -> bool:
     """Validate file against all criteria defined in ``config``."""
-    try:
-        os.stat(filepath)
-
-        # 1. Filename pattern check
-        pattern = config.get("pattern", "*.*").strip()
-        if pattern and pattern not in ("*.*", "*"):
-            norm_pattern = pattern
-            if not any(c in pattern for c in "*?"):
-                norm_pattern = f"*{pattern}" if pattern.startswith(".") else f"*.{pattern}"
-            if not fnmatch.fnmatch(filename.lower(), norm_pattern.lower()):
-                return False
-
-        # 2. Filename / path regex check
-        if name_regex is not None:
-            norm_path = filepath.replace("\\", "/")
-            if not (name_regex.search(filename) or name_regex.search(norm_path)):
-                return False
-
-        # 3. Content match
-        if config.get("content"):
-            if not check_file_content(config, filepath):
-                return False
-
-        return True
-    except OSError:
-        return False
+    matched, _ = matches_criteria_with_snippet(config, filepath, filename, name_regex)
+    return matched
