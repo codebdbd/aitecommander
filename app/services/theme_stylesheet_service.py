@@ -278,6 +278,10 @@ class ThemeStylesheetService:
             "QCheckBox::indicator:disabled,",
             "QCheckBox::indicator:disabled, QTableView::indicator:disabled,",
         )
+        qss = qss.replace(
+            "QDialog QTableWidget {",
+            "QDialog QTableWidget, QDialog QListView, QDialog QListWidget {",
+        )
         return qss
 
     @staticmethod

@@ -1,95 +1,96 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
 <TS version="2.1" language="es_ES">
     <context>
     <name>AboutDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="187" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="188" />
         <source>About</source>
         <translation>Acerca de</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="190" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="191" />
         <source>Hierarchical bookmark and link manager for Windows. Organizes links across spheres, sections, and categories with themes, icons, and import/export tools.</source>
         <translation>Gestor jerárquico de marcadores y enlaces para Windows. Organiza enlaces en esferas, secciones y categorías con temas, iconos y herramientas de importación/exportación.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="195" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="196" />
         <source>Information</source>
         <translation>Información</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="196" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="197" />
         <source>Version {0}</source>
         <translation>Versión {0}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="197" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="198" />
         <source>Developer: Codebdbd</source>
         <translation>Desarrollador: Codebdbd</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="198" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="199" />
         <source>License: GPL-3.0</source>
         <translation>Licencia: GPL-3.0</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="199" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="200" />
         <source>Python 3.12+ · PyQt6 · SQLite</source>
         <translation>Python 3.12+ · PyQt6 · SQLite</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="201" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="202" />
         <source>Application data</source>
         <translation>Datos de la aplicación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="202" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="203" />
         <source>Data folder</source>
         <translation>Carpeta de datos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="204" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="205" />
         <source>Open data folder</source>
         <translation>Abrir carpeta de datos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="205" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="206" />
         <source>Program folder</source>
         <translation>Carpeta del programa</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="207" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="208" />
         <source>Open program folder</source>
         <translation>Abrir carpeta del programa</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="209" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="210" />
         <source>Resources</source>
         <translation>Recursos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="210" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="211" />
         <source>Support the project</source>
         <translation>Apoyar el proyecto</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="211" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="212" />
         <source>GitHub repository</source>
         <translation>Repositorio de GitHub</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="212" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="213" />
         <source>Open license</source>
         <translation>Abrir licencia</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="244" />
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="226" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="245" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="227" />
         <source>Could not open target.</source>
         <translation>No se pudo abrir el destino.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="235" />
+        <location filename="..\app\views\windows\dialogs\about_dialog.py" line="236" />
         <source>Missing target: {0}</source>
         <translation>Destino no encontrado: {0}</translation>
     </message>
@@ -502,238 +503,209 @@
 </context><context>
     <name>BadUrlCleanupDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1231" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="164" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1278" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="166" />
         <source>Checking web links for availability...</source>
         <translation>Comprobando disponibilidad de enlaces web...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="176" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="181" />
+        <source>Search by name or URL...</source>
+        <translation>Buscar por nombre o URL...</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="192" />
         <source>Error:</source>
         <translation>Error:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="180" />
-        <source>🟢 All</source>
-        <translation>🟢 Todos</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="181" />
-        <source>🔴 DNS Failed</source>
-        <translation>🔴 DNS falló</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="182" />
-        <source>🟡 404 Not Found</source>
-        <translation>🟡 404 No encontrado</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="183" />
-        <source>🔵 No SSL</source>
-        <translation>🔵 Sin SSL</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="191" />
-        <source>Sphere:</source>
-        <translation>Esfera:</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="575" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="536" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="534" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="217" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="206" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="195" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="617" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="578" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="576" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="230" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="220" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="210" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="196" />
         <source>All</source>
         <translation>Todos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="202" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="197" />
+        <source>DNS Failed</source>
+        <translation>Fallo de DNS</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="198" />
+        <source>404 Not Found</source>
+        <translation>404 No encontrado</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="199" />
+        <source>No SSL</source>
+        <translation>Sin SSL</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="206" />
+        <source>Sphere:</source>
+        <translation>Esfera:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="216" />
         <source>Section:</source>
         <translation>Sección:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="213" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="845" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="781" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="226" />
         <source>Category:</source>
         <translation>Categoría:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1237" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="232" />
-        <source>Domain</source>
-        <translation>Dominio</translation>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1284" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="247" />
+        <source>Name</source>
+        <translation>Nombre</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1238" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="233" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1285" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="248" />
         <source>URL</source>
         <translation>URL</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1239" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="234" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1286" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="249" />
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1240" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="235" />
-        <source>Category</source>
-        <translation>Categoría</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1245" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="240" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1291" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="302" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="254" />
         <source>Select All / Deselect All</source>
         <translation>Seleccionar todo / Deseleccionar todo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1248" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="276" />
-        <source>Select all</source>
-        <translation>Seleccionar todo</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1249" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="281" />
-        <source>Clear all</source>
-        <translation>Desmarcar todo</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1252" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="293" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1296" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="323" />
         <source>Close</source>
         <translation>Cerrar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1251" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1039" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="298" />
-        <source>Delete Selected</source>
-        <translation>Eliminar seleccionados</translation>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1295" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1093" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="328" />
+        <source>Delete</source>
+        <translation>Eliminar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1253" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="304" />
-        <source>Background</source>
-        <translation>En segundo plano</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="387" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="433" />
         <source>Open in Browser</source>
         <translation>Abrir en el navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="391" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="437" />
         <source>Copy URL</source>
         <translation>Copiar URL</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="730" />
-        <source>Double-click to open or copy</source>
-        <translation>Haga doble clic para abrir o copiar</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="865" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="933" />
         <source>All links are accessible!</source>
         <translation>¡Todos los enlaces son accesibles!</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="871" />
-        <source>Found {0} unreachable links in {1} domains</source>
-        <translation>Se encontraron {0} enlaces inaccesibles en {1} dominios</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="914" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="978" />
         <source>Error: {0}</source>
         <translation>Error: {0}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="929" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="992" />
         <source>Cancelling...</source>
         <translation>Cancelando...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="942" />
-        <source>Bad URL check running in background — click to show</source>
-        <translation>Verificación de URL en segundo plano — haz clic para mostrar</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="966" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1010" />
         <source>Link deletion is still in progress. Please wait.</source>
         <translation>La eliminación de enlaces aún está en curso. Por favor, espera.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="983" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1027" />
         <source>Cancel Check</source>
         <translation>Cancelar comprobación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="984" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1028" />
         <source>URL check is still running. Cancel it?</source>
         <translation>La comprobación de URL aún está en curso. ¿Cancelar?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1029" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1064" />
+        <source>Selected: {0} of {1} (total: {2})</source>
+        <translation>Seleccionados: {0} de {1} (total: {2})</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1070" />
         <source>Selected: {0} of {1}</source>
         <translation>Seleccionados: {0} de {1}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1034" />
-        <source>Delete Selected ({0})</source>
-        <translation>Eliminar seleccionados ({0})</translation>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1089" />
+        <source>Delete ({0})</source>
+        <translation>Eliminar ({0})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1199" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1081" />
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1065" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1248" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1141" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1125" />
         <source>Delete Bad URLs</source>
         <translation>Eliminar URL incorrectas</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1066" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1126" />
         <source>No links selected for deletion.</source>
         <translation>No se seleccionaron enlaces para eliminar.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1075" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1135" />
         <source>Delete {0} selected links?</source>
         <translation>¿Eliminar {0} enlaces seleccionados?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1076" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1136" />
         <source>This action cannot be undone.</source>
         <translation>Esta acción no se puede deshacer.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1105" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1163" />
         <source>Deleting selected links... ({0})</source>
         <translation>Eliminando enlaces seleccionados... ({0})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1125" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1183" />
         <source>Deleting selected links... {0}/{1}</source>
         <translation>Eliminando enlaces seleccionados... {0}/{1}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1168" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1226" />
         <source>All links deleted!</source>
         <translation>¡Se eliminaron todos los enlaces!</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1181" />
-        <source>Deleted {0} links. {1} total remaining ({2} visible).</source>
-        <translation>Se eliminaron {0} enlaces. Quedan {1} en total ({2} visibles).</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1200" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1249" />
         <source>Failed to delete links.</source>
         <translation>No se pudieron eliminar los enlaces.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1204" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="1253" />
         <source>Failed to delete selected links.</source>
         <translation>No se pudieron eliminar los enlaces seleccionados.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="853" />
+        <location filename="..\app\views\windows\dialogs\bad_url_cleanup_dialog.py" line="789" />
+        <source>Double-click to open in browser</source>
+        <translation>Haga doble clic para abrir en el navegador</translation>
     </message>
 </context><context>
     <name>BaseDialog</name>
@@ -933,7 +905,7 @@
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="447" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="375" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="374" />
         <source>Select all</source>
         <translation>Seleccionar todo</translation>
     </message>
@@ -987,112 +959,112 @@
 </context><context>
     <name>CategoryDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="676" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="552" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="677" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="553" />
         <source>Sphere:</source>
         <translation>Esfera:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="679" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="555" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="680" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="556" />
         <source>Section:</source>
         <translation>Sección:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="582" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="583" />
         <source>Failed to load sections.</source>
         <translation>No se pudieron cargar las secciones.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="583" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="584" />
         <source>Error loading sections</source>
         <translation>Error al cargar las secciones</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="584" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="585" />
         <source>Check database connection and try again.</source>
         <translation>Verifique la conexión con la base de datos y vuelva a intentarlo.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="594" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="595" />
         <source>Category not found.</source>
         <translation>Categoría no encontrada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="595" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="596" />
         <source>Category unavailable</source>
         <translation>Categoría no disponible</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="596" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="597" />
         <source>The category might have been deleted. ID: %1</source>
         <translation>La categoría puede haber sido eliminada. ID: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="640" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="641" />
         <source>Section not selected.</source>
         <translation>No se seleccionó ninguna sección.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="641" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="642" />
         <source>Section selection required</source>
         <translation>Se requiere seleccionar una sección</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="642" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="643" />
         <source>Choose a section from the list and press "Save".</source>
         <translation>Elija una sección de la lista y pulse "Guardar".</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="655" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="656" />
         <source>A category with the same name already exists in the selected section.</source>
         <translation>Ya existe una categoría con el mismo nombre en la sección seleccionada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="658" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="659" />
         <source>Category duplicate</source>
         <translation>Categoría duplicada</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="659" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="660" />
         <source>Change the name or select another section.</source>
         <translation>Cambie el nombre o seleccione otra sección.</translation>
     </message>
 </context><context>
     <name>ChromeProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1180" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1182" />
         <source>Choose a Chrome profile:</source>
         <translation>Elija un perfil de Chrome:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1182" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1184" />
         <source>Select all</source>
         <translation>Seleccionar todo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1183" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1185" />
         <source>Clear all</source>
         <translation>Desmarcar todo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1192" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1211" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1194" />
         <source>Refresh profiles</source>
         <translation>Actualizar perfiles</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1207" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1209" />
         <source>Loading...</source>
         <translation>Cargando...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1231" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1233" />
         <source>Chrome profiles not found</source>
         <translation>No se encontraron perfiles de Chrome</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1238" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1240" />
         <source>(no email)</source>
         <translation>(sin correo)</translation>
     </message>
@@ -1964,8 +1936,8 @@ Fallos: {3}</translation>
         <translation>Seleccione dónde importar los enlaces:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="240" />
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="192" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="241" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="193" />
         <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="92" />
         <source>Loading…</source>
         <translation>Cargando…</translation>
@@ -1977,8 +1949,8 @@ Fallos: {3}</translation>
         <translation>Esfera:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="319" />
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="211" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="320" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="212" />
         <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="98" />
         <source>Select a sphere first</source>
         <translation>Seleccione primero una esfera</translation>
@@ -1996,169 +1968,169 @@ Fallos: {3}</translation>
         <translation>Importar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="271" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="272" />
         <source>Failed to load spheres</source>
         <translation>No se pudieron cargar las esferas</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="289" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="290" />
         <source>No spheres found</source>
         <translation>No se encontraron esferas</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="328" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="329" />
         <source>The selected sphere has no sections</source>
         <translation>La esfera seleccionada no tiene secciones</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="366" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="367" />
         <source>No data</source>
         <translation>Sin datos</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="377" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="378" />
         <source>Error: {error}</source>
         <translation>Error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="381" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="382" />
         <source>Failed to load sections.</source>
         <translation>No se pudieron cargar las secciones.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="382" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="383" />
         <source>Sections load error</source>
         <translation>Error al cargar las secciones</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="383" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="384" />
         <source>Check the database connection and try again.</source>
         <translation>Compruebe la conexión con la base de datos y vuelva a intentarlo.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="425" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="426" />
         <source>No section selected for import.</source>
         <translation>No se seleccionó ninguna sección para importar.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="426" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="427" />
         <source>Section selection required</source>
         <translation>Se requiere seleccionar una sección</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="427" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="428" />
         <source>Choose a section from the dropdown, then click 'Import'.</source>
         <translation>Elija una sección en la lista desplegable y luego haga clic en "Importar".</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="438" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="439" />
         <source>The selected section is unavailable.</source>
         <translation>La sección seleccionada no está disponible.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="439" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="440" />
         <source>Section not found</source>
         <translation>Sección no encontrada</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="440" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="441" />
         <source>The section may have been removed. Refresh sections and select another.</source>
         <translation>Es posible que la sección se haya eliminado. Actualice las secciones y seleccione otra.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="459" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="460" />
         <source>Failed to confirm section selection.</source>
         <translation>No se pudo confirmar la selección de la sección.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="460" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="461" />
         <source>Confirmation error</source>
         <translation>Error de confirmación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="461" />
+        <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="462" />
         <source>Try selecting the section again or refresh the sections list.</source>
         <translation>Seleccione la sección nuevamente o actualice la lista.</translation>
     </message>
 </context><context>
     <name>ImportConflictDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1465" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1469" />
         <source>Move</source>
         <translation>Mover</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1466" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1470" />
         <source>Copy</source>
         <translation>Copiar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1467" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1471" />
         <source>Import</source>
         <translation>Importar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1474" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1478" />
         <source>Section «{name}» already exists in this sphere.</source>
         <translation>La sección «{name}» ya existe en este ámbito.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1510" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1478" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1514" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1482" />
         <source>Merge contents</source>
         <translation>Combinar contenido</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1479" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1483" />
         <source>Move all items into the existing section without overwriting.</source>
         <translation>Mover todos los elementos a la sección existente sin sobrescribir.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1515" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1499" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1483" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1519" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1503" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1487" />
         <source>Keep both (create copy «{name}»)</source>
         <translation>Conservar ambos (crear copia «{name}»)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1518" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1502" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1486" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1522" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1506" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1490" />
         <source>Save alongside under a unique name.</source>
         <translation>Guardar junto con un nombre único.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1490" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1494" />
         <source>Link «{name}» already exists in this category.</source>
         <translation>El enlace «{name}» ya existe en esta categoría.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1494" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1498" />
         <source>Replace existing</source>
         <translation>Reemplazar existente</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1495" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1499" />
         <source>Update the existing link with new parameters.</source>
         <translation>Actualizar el enlace existente con nuevos parámetros.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1506" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1510" />
         <source>Category «{name}» already exists in this section.</source>
         <translation>La categoría «{name}» ya existe en esta sección.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1511" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1515" />
         <source>Move all items into the existing category without overwriting.</source>
         <translation>Mover todos los elementos a la categoría existente sin sobrescribir.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1525" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1529" />
         <source>Choose what to do:</source>
         <translation>Elija qué hacer:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1535" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1539" />
         <source>Apply</source>
         <translation>Aplicar</translation>
     </message>
@@ -2408,59 +2380,59 @@ Are you sure you want to continue?</source>
         <translation>El parámetro de configuración de los íconos falta o está vacío.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="540" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="541" />
         <source>Default icon not found.</source>
         <translation>No se encontró el ícono predeterminado.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="541" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="542" />
         <source>Icon issue</source>
         <translation>Problema con el icono</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="542" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="543" />
         <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
         <translation>El botón se mostrará sin icono. Proporcione una ruta válida en la configuración.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="546" />
         <source>Expected file: {path}</source>
         <translation>Archivo esperado: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="773" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="774" />
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="775" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="776" />
         <source>Profile ({count})</source>
         <translation>Perfil ({count})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="776" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="777" />
         <source>Profiles ({count})</source>
         <translation>Perfiles ({count})</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="781" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="782" />
         <source>Select browser profile</source>
         <translation>Seleccionar perfil de navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="784" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="785" />
         <source>Selected profile: {name}
 (Click to change)</source>
         <translation>Perfil seleccionado: {name}
 (Haga clic para cambiar)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="785" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="786" />
         <source>Selected profiles ({count}):</source>
         <translation>Perfiles seleccionados ({count}):</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="788" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="789" />
         <source>(Click to change)</source>
         <translation>(Haga clic para cambiar)</translation>
     </message>
@@ -2585,8 +2557,8 @@ Are you sure you want to continue?</source>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="601" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="381" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="58" />
-        <source>Run as administrator</source>
-        <translation>Ejecutar como administrador</translation>
+        <source>Administrator</source>
+        <translation>Administrador</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="59" />
@@ -3787,53 +3759,53 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>SectionDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="510" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="430" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="511" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="431" />
         <source>Sphere:</source>
         <translation>Esfera:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="452" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="453" />
         <source>Section not found.</source>
         <translation>Sección no encontrada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="453" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="454" />
         <source>Section unavailable</source>
         <translation>Sección no disponible</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="454" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="455" />
         <source>The section might have been deleted. ID: %1</source>
         <translation>La sección podría haber sido eliminada. ID: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="475" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="476" />
         <source>Sphere not selected.</source>
         <translation>Esfera no seleccionada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="476" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="477" />
         <source>Sphere selection required</source>
         <translation>Selección de esfera requerida</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="477" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="478" />
         <source>Choose a sphere from the list and press "Save".</source>
         <translation>Elija una esfera de la lista y presione "Guardar".</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="490" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="491" />
         <source>Section with this name already exists in the selected sphere.</source>
         <translation>La sección con este nombre ya existe en la esfera seleccionada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="491" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="492" />
         <source>Duplicate section name</source>
         <translation>Nombre de sección duplicado</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="492" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="493" />
         <source>Please choose a different name or edit the existing section.</source>
         <translation>Elija un nombre diferente o edite la sección existente.</translation>
     </message>
@@ -3868,104 +3840,104 @@ Versión 1.0
 </context><context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="966" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="755" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="968" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="757" />
         <source>Language:</source>
         <translation>Idioma:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="981" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="774" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="983" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="776" />
         <source>Import theme</source>
         <translation>Importar tema</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="983" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="936" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="783" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="985" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="938" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="785" />
         <source>Remove theme</source>
         <translation>Eliminar tema</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="970" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="790" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="972" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="792" />
         <source>Theme:</source>
         <translation>Tema:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="974" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="803" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="976" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="805" />
         <source>Font size:</source>
         <translation>Tamaño de fuente:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="978" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="816" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="980" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="818" />
         <source>Max backups:</source>
         <translation>Copias de seguridad:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="874" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="876" />
         <source>Import theme</source>
         <translation>Importar tema</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="876" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="878" />
         <source>Theme files (*.zip *.qss);;Stylesheets (*.qss);;Theme packages (*.zip);;All files (*)</source>
         <translation>Archivos de tema (*.zip *.qss);;Hojas de estilo (*.qss);;Paquetes de tema (*.zip);;Todos los archivos (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="886" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="888" />
         <source>Theme '%1' already exists. What would you like to do?</source>
         <translation>El tema '%1' ya existe. ¿Qué desea hacer?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="889" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="891" />
         <source>Replace</source>
         <translation>Reemplazar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="890" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="892" />
         <source>Rename</source>
         <translation>Renombrar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="906" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="908" />
         <source>Failed to import theme.</source>
         <translation>No se pudo importar el tema.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="907" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="909" />
         <source>Theme import error</source>
         <translation>Error al importar el tema</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="935" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="937" />
         <source>Remove theme '%1'?</source>
         <translation>¿Eliminar el tema '%1'?</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="944" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="946" />
         <source>Failed to remove theme.</source>
         <translation>No se pudo eliminar el tema.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="945" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="947" />
         <source>Theme remove error</source>
         <translation>Error al eliminar el tema</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1040" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1042" />
         <source>Failed to save settings.</source>
         <translation>Error al guardar la configuración.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1041" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1043" />
         <source>Settings save error</source>
         <translation>Error de guardado de configuración</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1042" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1044" />
         <source>Check the values and try again.</source>
         <translation>Verifique los valores e inténtelo de nuevo.</translation>
     </message>
@@ -4029,7 +4001,7 @@ Versión 1.0
         <translation>Seleccionar icono</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1334" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1337" />
         <source>Rename Sphere</source>
         <translation>Renombrar esfera</translation>
     </message>

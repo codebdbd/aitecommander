@@ -55,7 +55,7 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Incognito")
     QCoreApplication.translate("LinkDialogUI", "New window")
     QCoreApplication.translate("LinkDialogUI", "Guest mode")
-    QCoreApplication.translate("LinkDialogUI", "Run as administrator")
+    QCoreApplication.translate("LinkDialogUI", "Administrator")
     QCoreApplication.translate("LinkDialogUI", "Keep console open")
     QCoreApplication.translate("LinkDialogUI", "Administrator + Keep open")
 
@@ -378,7 +378,7 @@ class LinkDialogUI:
 
         # Run as administrator checkbox (for Program / Script)
         self.run_as_admin_chk = QCheckBox(
-            QCoreApplication.translate("LinkDialogUI", "Run as administrator")
+            QCoreApplication.translate("LinkDialogUI", "Administrator")
         )
         self.run_as_admin_chk.setVisible(False)
         bottom_row.addWidget(self.run_as_admin_chk)
@@ -598,7 +598,7 @@ class LinkDialogUI:
                 )
             if hasattr(self, "run_as_admin_chk") and self.run_as_admin_chk is not None:
                 self.run_as_admin_chk.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Run as administrator")
+                    QCoreApplication.translate("LinkDialogUI", "Administrator")
                 )
         except Exception:
             pass

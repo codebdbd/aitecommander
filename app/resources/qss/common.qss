@@ -708,6 +708,29 @@ QDialog QFrame[input_frame="true"] {
     border-radius: 0;
 }
 
+QDialog QTableView,
+QDialog QTableWidget,
+QDialog QListView,
+QDialog QListWidget {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+    background-color: transparent;
+}
+
+QDialog QTableView > QWidget#qt_scrollarea_viewport,
+QDialog QTableWidget > QWidget#qt_scrollarea_viewport,
+QDialog QListView > QWidget#qt_scrollarea_viewport,
+QDialog QListWidget > QWidget#qt_scrollarea_viewport {
+    background-color: transparent;
+}
+
+QDialog QTableView QHeaderView::section:horizontal,
+QDialog QTableWidget QHeaderView::section:horizontal {
+    border-top: none;
+    border-left: none;
+}
+
 QDialog QComboBox {
     padding-left: 8px;
     padding-right: 22px;

@@ -307,7 +307,9 @@ QDialog QComboBox,
 QDialog QSpinBox,
 QDialog QDoubleSpinBox,
 QDialog QDateEdit,
-QDialog QTimeEdit {
+QDialog QTimeEdit,
+QDialog QTableView,
+QDialog QTableWidget {
 border-color: #4A4A4A;
 }
 QDialog QPushButton,
