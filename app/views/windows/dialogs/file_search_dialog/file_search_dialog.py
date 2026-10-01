@@ -9,6 +9,7 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QAbstractTableModel,
     QCoreApplication,
+    QEvent,
     QFileInfo,
     QModelIndex,
     QSettings,
@@ -28,6 +29,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSizePolicy,
@@ -344,6 +346,8 @@ class FileSearchDialog(BaseDialog):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setTextVisible(False)
 
         # --- Results table (QTableView + model) ---
         self.table = QTableView()
@@ -351,9 +355,15 @@ class FileSearchDialog(BaseDialog):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
         self.table.setSortingEnabled(True)
         self.model = _SearchResultsModel(self)
         self.table.setModel(self.model)
+        self.table.installEventFilter(self)
+        self.table.viewport().installEventFilter(self)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
 
         # Column sizing
         header = self.table.horizontalHeader()
@@ -367,13 +377,24 @@ class FileSearchDialog(BaseDialog):
         header.setVisible(True)
         self.table.verticalHeader().setVisible(False)
 
-        # Double-click opens file in explorer
-        self.table.doubleClicked.connect(self._on_double_click)
+        # Double-click adds selected link (matching Enter)
+        self.table.doubleClicked.connect(self._on_table_double_clicked)
 
         # --- Status & Actions ---
         btns_layout = QHBoxLayout()
+        btns_layout.setContentsMargins(0, 4, 0, 0)
+        btns_layout.setSpacing(12)
+
+        self.open_folder_btn = QPushButton(self.tr("Open in file explorer"))
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.setMinimumHeight(32)
+        self.adjust_button_width(self.open_folder_btn, min_width=app_config.ui.get_fixed_button_width())
+        self.open_folder_btn.clicked.connect(self._on_open_folder)
+        btns_layout.addWidget(self.open_folder_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self.status_label = QLabel(self.tr("Ready to search"))
+        btns_layout.addWidget(self.status_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        btns_layout.addStretch(1)
 
         self.button_box = QDialogButtonBox()
         self.add_link_btn = self.button_box.addButton(
@@ -382,20 +403,13 @@ class FileSearchDialog(BaseDialog):
         self.add_link_btn.setEnabled(False)
         self.add_link_btn.clicked.connect(self._on_add_link)
 
-        self.open_folder_btn = self.button_box.addButton(
-            self.tr("Open in file explorer"), QDialogButtonBox.ButtonRole.ActionRole
-        )
-        self.open_folder_btn.setEnabled(False)
-        self.open_folder_btn.clicked.connect(self._on_open_folder)
-
         self.close_btn = self.button_box.addButton(
             self.tr("Close"), QDialogButtonBox.ButtonRole.RejectRole
         )
         self.close_btn.clicked.connect(self.reject)
 
-        btns_layout.addWidget(self.status_label)
-        btns_layout.addStretch()
-        btns_layout.addWidget(self.button_box)
+        self.equalize_button_box(self.button_box, min_width=app_config.ui.get_fixed_button_width())
+        btns_layout.addWidget(self.button_box, 0, Qt.AlignmentFlag.AlignVCenter)
 
         # Assemble main layout
         layout.addWidget(self.progress_bar)
@@ -438,6 +452,7 @@ class FileSearchDialog(BaseDialog):
             self.add_link_btn.setText(self.tr("Add as link"))
         if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:
             self.open_folder_btn.setText(self.tr("Open in file explorer"))
+            self.adjust_button_width(self.open_folder_btn, min_width=app_config.ui.get_fixed_button_width())
         if hasattr(self, "close_btn") and self.close_btn is not None:
             self.close_btn.setText(self.tr("Close"))
         if hasattr(self, "button_box") and self.button_box is not None:
@@ -473,14 +488,20 @@ class FileSearchDialog(BaseDialog):
     def _on_add_link(self):
         """Emit selected files to caller and close dialog."""
         selected_rows = self.table.selectionModel().selectedRows()
-        if not selected_rows:
+        row = selected_rows[0].row() if selected_rows else self.table.currentIndex().row()
+        if row < 0:
             return
 
-        paths = [
-            self.model.get_full_path(idx.row())
-            for idx in selected_rows
-            if self.model.get_full_path(idx.row())
-        ]
+        if selected_rows:
+            paths = [
+                self.model.get_full_path(idx.row())
+                for idx in selected_rows
+                if self.model.get_full_path(idx.row())
+            ]
+        else:
+            single_path = self.model.get_full_path(row)
+            paths = [single_path] if single_path else []
+
         if paths:
             self.files_selected.emit(paths)
             self.accept()
@@ -488,10 +509,11 @@ class FileSearchDialog(BaseDialog):
     def _on_open_folder(self):
         """Open the selected file in the system file explorer."""
         selected_rows = self.table.selectionModel().selectedRows()
-        if not selected_rows:
+        row = selected_rows[0].row() if selected_rows else self.table.currentIndex().row()
+        if row < 0:
             return
 
-        file_path = self.model.get_full_path(selected_rows[0].row())
+        file_path = self.model.get_full_path(row)
         if file_path:
             self._open_file_in_explorer(file_path)
 
@@ -509,25 +531,12 @@ class FileSearchDialog(BaseDialog):
 
             system = platform.system()
             if system == "Windows":
-                subprocess.run(
-                    ["explorer", f"/select,{file_path_obj}"],
-                    shell=False,
-                    check=False,
-                    timeout=self._explorer_timeout,
-                )
+                subprocess.Popen(f'explorer.exe /select,"{file_path_obj}"')
             elif system == "Darwin":
-                subprocess.run(
-                    ["open", "-R", str(file_path_obj)],
-                    check=True,
-                    timeout=self._explorer_timeout,
-                )
+                subprocess.Popen(["open", "-R", str(file_path_obj)])
             else:
                 folder_path = file_path_obj.parent
-                subprocess.run(
-                    ["xdg-open", str(folder_path)],
-                    check=True,
-                    timeout=self._explorer_timeout,
-                )
+                subprocess.Popen(["xdg-open", str(folder_path)])
         except Exception as e:
             self.show_warning(self.tr("Unexpected error: {error}").format(error=str(e)))
 
@@ -565,18 +574,6 @@ class FileSearchDialog(BaseDialog):
                 )
             )
             return False
-
-        regex_pattern = self.regex_le.text().strip()
-        if regex_pattern:
-            try:
-                re.compile(regex_pattern)
-            except re.error as e:
-                self.show_warning(
-                    self.tr("Invalid regular expression for name: {error}").format(
-                        error=e
-                    )
-                )
-                return False
 
         return True
 
@@ -670,6 +667,11 @@ class FileSearchDialog(BaseDialog):
         self._on_search_finished()
         self.show_error(error_msg, self.tr("Search error"))
 
+    def _on_table_double_clicked(self, index):
+        """Add selected file on double-click (matching Enter behavior)."""
+        if index.isValid():
+            self._on_add_link()
+
     def _on_double_click(self, index):
         """Open file explorer on double click."""
         if index.isValid():
@@ -682,6 +684,11 @@ class FileSearchDialog(BaseDialog):
         if self._pending_batches:
             self._process_pending_batches()
 
+        # Re-apply active column sort if user sorted by column
+        header = self.table.horizontalHeader()
+        if header.isSortIndicatorShown():
+            self.model.sort(header.sortIndicatorSection(), header.sortIndicatorOrder())
+
         self.is_searching = False
         self.search_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -692,8 +699,25 @@ class FileSearchDialog(BaseDialog):
         )
         self._update_buttons()
 
+    def eventFilter(self, watched, event):
+        """Intercept keyboard events on table view for Quick Look and row actions."""
+        if watched in (self.table, self.table.viewport()):
+            if event.type() == QEvent.Type.KeyPress:
+                if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+                    self._on_quick_look()
+                    return True
+                if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                    self._on_add_link()
+                    return True
+        return super().eventFilter(watched, event)
+
     def keyPressEvent(self, event):
-        """Handle space for Quick Look, Enter for adding, and Ctrl+C for copying paths."""
+        """Handle Esc for stopping search, space for Quick Look, Enter for adding, and Ctrl+C for copying paths."""
+        if event.key() == Qt.Key.Key_Escape:
+            if self.is_searching:
+                self._stop_search()
+                event.accept()
+                return
         if event.key() == Qt.Key.Key_Space:
             self._on_quick_look()
             event.accept()
@@ -722,12 +746,34 @@ class FileSearchDialog(BaseDialog):
         if paths:
             QApplication.clipboard().setText("\n".join(paths))
 
+    def _show_context_menu(self, pos):
+        """Show unified context menu for selected table rows."""
+        index = self.table.indexAt(pos)
+        if not index.isValid():
+            return
+        menu = QMenu(self)
+        add_act = menu.addAction(self.tr("Add as link"))
+        add_act.triggered.connect(self._on_add_link)
+        ql_act = menu.addAction(self.tr("Quick look"))
+        ql_act.triggered.connect(self._on_quick_look)
+        open_act = menu.addAction(self.tr("Open in file explorer"))
+        open_act.triggered.connect(self._on_open_folder)
+        menu.addSeparator()
+        copy_act = menu.addAction(self.tr("Copy path"))
+        copy_act.triggered.connect(self._copy_selected_paths)
+        menu.exec(self.table.viewport().mapToGlobal(pos))
+
     def _on_quick_look(self):
         """Trigger macOS-style Quick Look preview for currently selected file."""
-        selected_rows = self.table.selectionModel().selectedRows()
-        if not selected_rows:
+        if self._quick_look_dialog and self._quick_look_dialog.isVisible():
+            self._quick_look_dialog.close_animated()
             return
-        file_path = self.model.get_full_path(selected_rows[0].row())
+
+        selected_rows = self.table.selectionModel().selectedRows()
+        row = selected_rows[0].row() if selected_rows else self.table.currentIndex().row()
+        if row < 0:
+            return
+        file_path = self.model.get_full_path(row)
         if not file_path or not Path(file_path).exists():
             return
 
@@ -738,6 +784,7 @@ class FileSearchDialog(BaseDialog):
                 on_open_callback=lambda l: self._open_file_in_explorer(
                     l.get("url") if isinstance(l, dict) else str(l)
                 ),
+                on_navigate_callback=self._on_quick_look_navigate,
             )
         self._quick_look_dialog.set_link({
             "type": "file",
@@ -745,6 +792,24 @@ class FileSearchDialog(BaseDialog):
             "name": Path(file_path).name,
         })
         self._quick_look_dialog.open_animated()
+
+    def _on_quick_look_navigate(self, delta: int) -> None:
+        """Navigate table rows up/down while Quick Look is open."""
+        if not self.model or self.model.rowCount() == 0:
+            return
+        current_row = self.table.currentIndex().row() if self.table.currentIndex().isValid() else 0
+        next_row = max(0, min(self.model.rowCount() - 1, current_row + delta))
+        if next_row != current_row:
+            self.table.selectRow(next_row)
+            idx = self.model.index(next_row, 0)
+            self.table.setCurrentIndex(idx)
+            file_path = self.model.get_full_path(next_row)
+            if file_path and self._quick_look_dialog:
+                self._quick_look_dialog.set_link({
+                    "type": "file",
+                    "url": file_path,
+                    "name": Path(file_path).name,
+                })
 
     def _restore_dialog_geometry(self, default_w: int, default_h: int):
         """Restore window geometry from QSettings or apply defaults."""

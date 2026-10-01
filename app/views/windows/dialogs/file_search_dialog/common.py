@@ -223,14 +223,19 @@ def matches_criteria(
         os.stat(filepath)
 
         # 1. Filename pattern check
-        pattern = config.get("pattern", "*.*")
+        pattern = config.get("pattern", "*.*").strip()
         if pattern and pattern not in ("*.*", "*"):
-            if not fnmatch.fnmatch(filename, pattern):
+            norm_pattern = pattern
+            if not any(c in pattern for c in "*?"):
+                norm_pattern = f"*{pattern}" if pattern.startswith(".") else f"*.{pattern}"
+            if not fnmatch.fnmatch(filename.lower(), norm_pattern.lower()):
                 return False
 
-        # 2. Filename regex check
-        if name_regex is not None and not name_regex.search(filename):
-            return False
+        # 2. Filename / path regex check
+        if name_regex is not None:
+            norm_path = filepath.replace("\\", "/")
+            if not (name_regex.search(filename) or name_regex.search(norm_path)):
+                return False
 
         # 3. Content match
         if config.get("content"):

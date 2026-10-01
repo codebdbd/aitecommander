@@ -121,6 +121,54 @@ def test_search_worker_constraints(tmp_path):
     assert 'c.txt' in found_all
 
 
+def test_search_worker_nested_paths_and_patterns(tmp_path):
+    root = tmp_path / 'nested_search'
+    sub = root / 'Level1' / 'SubFolder'
+    sub.mkdir(parents=True)
+
+    target_file = sub / 'Important_Doc_File.txt'
+    target_file.write_text('Some content', encoding='utf-8')
+
+    other_file = root / 'readme.md'
+    other_file.write_text('Readme', encoding='utf-8')
+
+    # 1. Case-insensitive search on nested file
+    w1 = FileSearchWorker({
+        'root': str(root),
+        'pattern': '*.*',
+        'regex_name': 'important_doc',
+    })
+    res1 = []
+    w1.signals.results_batch.connect(lambda b: res1.extend(b))
+    w1.run()
+    assert len(res1) == 1
+    assert Path(res1[0][0]).name == 'Important_Doc_File.txt'
+
+    # 2. Path substring matching (searching by subfolder path)
+    w2 = FileSearchWorker({
+        'root': str(root),
+        'pattern': '*.*',
+        'regex_name': 'subfolder/important',
+    })
+    res2 = []
+    w2.signals.results_batch.connect(lambda b: res2.extend(b))
+    w2.run()
+    assert len(res2) == 1
+    assert Path(res2[0][0]).name == 'Important_Doc_File.txt'
+
+    # 3. Wildcard pattern in query
+    w3 = FileSearchWorker({
+        'root': str(root),
+        'pattern': 'txt',  # Normalized to *.txt
+        'regex_name': '*Doc_File*',
+    })
+    res3 = []
+    w3.signals.results_batch.connect(lambda b: res3.extend(b))
+    w3.run()
+    assert len(res3) == 1
+    assert Path(res3[0][0]).name == 'Important_Doc_File.txt'
+
+
 def test_content_search_office_formats(tmp_path):
     import zipfile
     import zlib

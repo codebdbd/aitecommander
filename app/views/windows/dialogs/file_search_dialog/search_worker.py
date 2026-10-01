@@ -1,3 +1,4 @@
+import fnmatch
 import os
 import re
 import time
@@ -56,8 +57,16 @@ class FileSearchWorker(QRunnable):
     def _compile_regexes(self):
         """Compile regular expressions for search."""
         name_regex = None
-        if self.config["regex_name"]:
-            name_regex = re.compile(self.config["regex_name"])
+        query = self.config.get("regex_name", "").strip()
+        if query:
+            try:
+                if any(c in query for c in "*?"):
+                    regex_pattern = fnmatch.translate(query)
+                    name_regex = re.compile(regex_pattern, re.IGNORECASE)
+                else:
+                    name_regex = re.compile(query, re.IGNORECASE)
+            except re.error:
+                name_regex = re.compile(re.escape(query), re.IGNORECASE)
 
         return name_regex
 
