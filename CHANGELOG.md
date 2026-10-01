@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Table Drag & Drop Row Reordering & Drop Indicator**:
+  - Manual reordering of links in `LinksTableView` via Drag & Drop with animated drop indicator line.
+  - Column `#` (Order) repositioned to index `0` for clear visual tracking.
+  - Atomic bulk order renumbering in `LinksTableModel` (`dataChanged` for full row range) and SQLite persistence (`update_link_order`).
+- **Spring-Loaded Section Auto-Expand**:
+  - Dragging items over collapsed sections in `StructureTreeView` automatically expands them after a 650 ms hover delay (`_spring_timer`).
+- **Context-Aware File Dialog Navigation (`DialogPathService`)**:
+  - File dialogs (`QFileDialog`) open user's `Downloads` folder by default for database imports/exports, structure packages, browser bookmarks, and HTML dumps.
+  - Executable/binary selection defaults to system `Program Files` directory.
+  - Local icon picking strictly preserved in dedicated `user_icons_dir`.
+  - Contextual last-directory persistence via `QSettings` (`DialogPaths/{context}`).
+- **Hardened SQLite Online Backup Engine**:
+  - Live backup creation via SQLite Online Backup API (`connection.backup(dest_conn)`) with prior `PRAGMA wal_checkpoint(FULL)`.
+  - Staging via atomic `.tmp` files and pre-publication `PRAGMA quick_check` integrity verification.
+  - Chronological backup rotation strictly by modification timestamp (`st_mtime`) with automatic cleanup of orphaned `.tmp` files.
+  - Modernized `RestoreDbDialog` featuring `QTableWidget` with native theme border, hidden row numbers, and automatic format detection (`.db`, `.zip`, `.bak`).
 - **Structure Share System & Safe Packaging (`.aitesec`, `.aitecat`, `.aitelink`)**:
   - Native export and import of structure packages for sections (`.aitesec`), categories (`.aitecat`), and individual links (`.aitelink`).
   - Packaging and automated extraction of associated workspace files (`workspace_files/`) with local path remapping.
@@ -45,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fullscreen / maximize toggle via `F` or `F11` across all keyboard layouts.
 
 ### Improved
+- **Mandatory Section Deletion Confirmation**:
+  - `ItemDeletionService` guarantees confirmation dialog on section deletion even when 0 child categories or 0 links are present.
+- **Dynamic Input Context Semantics in Link Dialog**:
+  - Contextual field label dynamically switches: «URL:» for web links vs «Path:» for local files, folders, applications, and scripts.
+- **Clean Settings Dialog & Dialog Geometry Standards**:
+  - Compact 32×32 theme import and delete buttons aligned in a single row with the theme combo box.
+  - Removed Windows registry association checkboxes from settings dialog in favor of the official installer.
+  - Fixed-size dialog protection (`MSWindowsFixedSizeDialogHint`) and internationalized equalized button boxes (`equalize_button_box()`).
+  - Unified clean 1px border for all dialog tables and lists across all 16 themes.
 - **Icon Subsystem Modernization & Cache Integrity**:
   - Canonicalized favicon cache path to relative `icon_cache/favicon_cache.db`.
   - Implemented Cache Poisoning Guard preventing `isNull()` icons from being stored in memory or disk cache.

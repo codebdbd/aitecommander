@@ -390,3 +390,21 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Context-Aware Directory Persistence**:
   1. **Запоминание последнего выбора**: Через централизованный сервис `DialogPathService` путь выбранного файла/папки сохраняется в реестр `QSettings` по контексту (`DialogPaths/{context}`) методом `remember_dir(context, chosen_path)`.
   2. **Приоритет последнего выбора**: При повторном открытии диалога в том же контексте (`backup_export`, `backup_import`, `browser_import`, `installed_apps`) диалог открывает последнюю успешно использованную пользователем папку, если она всё ещё существует на диске.
+
+## 42. Architecture Standards: Advanced File Search Dialog (АРХИТЕКТУРНЫЙ СТАНДАРТ ДИАЛОГА ПОИСКА ФАЙЛОВ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура расширенного поиска файлов (`FileSearchDialog`, `_SearchResultsModel`, `FileSearchWorker`) зафиксирована.
+- **Strict Table Model & Performance Rules**:
+  1. **Информативная 4-колоночная структура**: Таблица результатов обязана отображать 4 видимые колонки: «Имя» (со значком `QFileIconProvider`), «Папка», «Размер» (человекочитаемый формат B/KB/MB/GB), «Дата изменения» (YYYY-MM-DD HH:MM). Запрещено скрывать заголовки или схлопывать таблицу в одну колонку сырого пути.
+  2. **Сортировка заголовков**: В модели обязана быть реализована сортировка (`sort(column, order)`), а заголовок таблицы обязан поддерживать клик по колонкам (`setSortingEnabled(True)`).
+  3. **Пакетная вставка (Batch Insertion Guard)**: Вставка результатов обязана выполняться батчами через `add_results_batch` с единичным вызовом `beginInsertRows(QModelIndex(), start, end)` на весь батч. Категорически запрещено вызывать `beginInsertRows` поштучно на каждый отдельный файл.
+- **Strict Keyboard Navigation & Hotkey Rules**:
+  1. **Быстрый старт поиска по Enter**: Во всех полях ввода (`regex_le`, `root_le`, `pattern_le`, `content_le`) сигнал `returnPressed` обязан запускать поиск без необходимости клика мышью.
+  2. **Интеграция Quick Look (`Space`)**: Нажатие Пробела на выбранной строке обязано вызывать предпросмотр `QuickLookDialog`.
+  3. **Буфер обмена (`Ctrl+C`)**: Копирование путей всех выделенных файлов в буфер обмена Windows.
+- **Strict Decoupled Signal Architecture**:
+  1. **Контракт сигналов `files_selected`**: Добавление ссылок из диалога поиска в базу программы обязано выполняться строго через эмиссию сигнала `files_selected.emit(paths)` с последующим `accept()`. Категорически запрещено пробивать инкапсуляцию через `parent().parent().links_actions`.
+- **Strict Thread Lifecycle & Persistence Rules**:
+  1. **Остановка воркеров при закрытии (Zombie Guard)**: В методах `closeEvent` и `reject` диалог обязан принудительно вызывать `search_worker.stop()`, исключая фоновое сканирование диска после закрытия окна.
+  2. **Персистентность геометрии**: Сохранение геометрии ведётся строго в `QSettings` (`FileSearch/geometry`) при закрытии и восстанавливается через `restoreGeometry()`.
+  3. **Интеграция с `DialogPathService`**: Кнопка «Browse» обязана использовать `DialogPathService.get_downloads_dir("file_search")` и запоминать выбор через `DialogPathService.remember_dir("file_search", path)`.
+

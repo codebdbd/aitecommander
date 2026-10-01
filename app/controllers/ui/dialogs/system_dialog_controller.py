@@ -549,15 +549,33 @@ class SystemDialogController:
     
     def show_file_search_dialog(self):
         """Show File Search dialog."""
-        # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
         if self._file_search_dialog is None:
             from app.views.windows.dialogs.file_search_dialog.file_search_dialog import (
                 FileSearchDialog,
             )
 
             self._file_search_dialog = FileSearchDialog(self.main_window)
+            self._file_search_dialog.files_selected.connect(
+                self._on_search_files_selected
+            )
 
         self._file_search_dialog.exec()
+
+    def _on_search_files_selected(self, file_paths: list[str]) -> None:
+        """Handle files selected in file search dialog."""
+        if not file_paths:
+            return
+        # Open LinkDialog with the first selected file
+        if hasattr(self.main_window, "links_actions"):
+            self.main_window.links_actions.show_link_dialog(
+                link={"type": "file", "url": file_paths[0]},
+                category_id=getattr(self.main_window, "current_category_id", None),
+            )
+        elif hasattr(self.main_window, "show_link_dialog"):
+            self.main_window.show_link_dialog(
+                link={"type": "file", "url": file_paths[0]},
+                category_id=getattr(self.main_window, "current_category_id", None),
+            )
     
     def handle_check_bad_urls(self):
         """Запустить проверку недоступных URL."""

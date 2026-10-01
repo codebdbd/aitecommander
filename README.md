@@ -7,11 +7,11 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **4-level hierarchy** — Spheres, Sections, Categories, Links with drag & drop reordering
 - **5 link types** — Web, File, Folder, Program, Script (with rich attached Notes and dedicated editor)
 - **macOS-style Quick Look** — Instant Spacebar preview for images, PDF, spreadsheets, DOCX, archives, code, and folders with zoom and navigation
+- **Drag & Drop** — Move items between categories, reorder links in the table with a visual drop indicator, and spring-loaded tree auto-expand
 - **Favorites & Recents** — Quick-access panels in the top bar
 - **Full-text search** — Search by name, URL, notes, and arguments
 - **Group Launch** — Select multiple links with checkboxes and launch them simultaneously
 - **Undo/Redo** — Full undo stack for all operations
-- **Drag & Drop** — Move items between categories and reorder within the tree
 - **16 themes** — Light, Dark, Matrix, Violet Pulse, Cyberpunk Neon, Crimson Noir, and 10 more bundled presets
 - **6 languages** — English, Ukrainian, Russian, French, Spanish, German
 - **40+ keyboard shortcuts** — Fully customizable hotkeys
@@ -19,7 +19,8 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Social sharing** — Share links via Telegram, X, Facebook, LinkedIn, WhatsApp, Email
 - **Favicon auto-fetch** — Background icon downloading for web links
 - **Bad URL checking** — Detect and remove unreachable links
-- **Database backup/restore** — Unified portable ZIP bundle (database, manifest, and referenced icons) with automated staging rollback
+- **Database backup/restore** — SQLite Online Backup API with WAL checkpoints, integrity validation, and unified portable ZIP bundles with staging rollback
+- **Smart File Dialog Navigation** — Centralized `DialogPathService` opening Downloads/Program Files by default with per-context folder remembering
 - **Structure Share Packages** — Export and import `.aitesec`, `.aitecat`, and `.aitelink` packages with workspace files, Zip Slip & OOM protection
 - **Windows Shell Integration** — File associations for `.aitesec`/`.aitecat`/`.aitelink` packages, package icons, and single-instance IPC launch
 - **Context Menus & Blank Area Creation** — Full context menu parity on empty space; instant entity creation on blank area double-click (Tree, Tiles, Table)

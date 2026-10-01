@@ -428,28 +428,6 @@
         <translation>Failed to count items: {error}</translation>
     </message>
 </context><context>
-    <name>BackupWorker</name>
-    <message>
-        <location filename="..\app\models\workers\backup_worker.py" line="21" />
-        <source>Preparing backup...</source>
-        <translation>Preparing backup...</translation>
-    </message>
-    <message>
-        <location filename="..\app\models\workers\backup_worker.py" line="22" />
-        <source>Creating backup...</source>
-        <translation>Creating backup...</translation>
-    </message>
-    <message>
-        <location filename="..\app\models\workers\backup_worker.py" line="23" />
-        <source>Cleaning up old backups...</source>
-        <translation>Cleaning up old backups...</translation>
-    </message>
-    <message>
-        <location filename="..\app\models\workers\backup_worker.py" line="25" />
-        <source>Backup completed</source>
-        <translation>Backup completed</translation>
-    </message>
-</context><context>
     <name>BadUrlCheckService</name>
     <message>
         <location filename="..\app\controllers\services\bad_url_check_service.py" line="120" />
@@ -1337,50 +1315,50 @@
         <translation>SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="81" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="83" />
         <source>Select a database file to connect</source>
         <translation>Select a database file to connect</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="83" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="85" />
         <source>Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
         <translation>Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="94" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="101" />
         <source>Save database copy</source>
         <translation>Save database copy</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="96" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="103" />
         <source>Backup archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
         <translation>Backup archive (*.zip);;SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="109" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="119" />
         <source>Save icons archive</source>
         <translation>Save icons archive</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="123" />
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="111" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="133" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="121" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP archive (*.zip);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="121" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="131" />
         <source>Select an icons archive to import</source>
         <translation>Select an icons archive to import</translation>
     </message>
 </context><context>
     <name>DatabaseInit</name>
     <message>
-        <location filename="..\app\models\db.py" line="45" />
+        <location filename="..\app\models\db.py" line="46" />
         <source>Applying migrations...</source>
         <translation>Applying migrations...</translation>
     </message>
     <message>
-        <location filename="..\app\models\db.py" line="47" />
+        <location filename="..\app\models\db.py" line="48" />
         <source>Initializing default data...</source>
         <translation>Initializing default data...</translation>
     </message>
@@ -1639,138 +1617,132 @@
 </context><context>
     <name>FileSearchDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="358" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="174" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="418" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="219" />
         <source>Search files:</source>
         <translation>Search files:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="372" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="184" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="432" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="230" />
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="375" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="186" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="435" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="232" />
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="194" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="240" />
         <source>Search in:</source>
         <translation>Search in:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="369" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="199" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="429" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="247" />
         <source>Browse</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="360" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="207" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="420" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="255" />
         <source>Extension:</source>
         <translation>Extension:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="367" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="270" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="427" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="318" />
         <source>Quickly apply an extension mask</source>
         <translation>Quickly apply an extension mask</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="362" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="280" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="422" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="328" />
         <source>With text:</source>
         <translation>With text:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="389" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="318" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="453" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="376" />
         <source>Ready to search</source>
         <translation>Ready to search</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="378" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="323" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="438" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="380" />
         <source>Add as link</source>
         <translation>Add as link</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="380" />
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="327" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="440" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="386" />
         <source>Open in file explorer</source>
         <translation>Open in file explorer</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="331" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="442" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="392" />
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="468" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="506" />
         <source>File not found: {path}</source>
         <translation>File not found: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="535" />
-        <source>Failed to open file in explorer: {error}</source>
-        <translation>Failed to open file in explorer: {error}</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="539" />
-        <source>Opening the file explorer timed out: {error}</source>
-        <translation>Opening the file explorer timed out: {error}</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="544" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="532" />
         <source>Unexpected error: {error}</source>
         <translation>Unexpected error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="557" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="541" />
         <source>Select folder for search</source>
         <translation>Select folder for search</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="566" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="551" />
         <source>Specify a folder to search.</source>
         <translation>Specify a folder to search.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="572" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="557" />
         <source>The folder does not exist: {path}</source>
         <translation>The folder does not exist: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="578" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="563" />
         <source>The specified path is not a folder: {path}</source>
         <translation>The specified path is not a folder: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="591" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="575" />
         <source>Invalid regular expression for name: {error}</source>
         <translation>Invalid regular expression for name: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="615" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="597" />
         <source>Searching…</source>
         <translation>Searching…</translation>
     </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="681" />
-        <source>Searching… Files: {files}, Directories: {dirs}</source>
-        <translation>Searching… Files: {files}, Directories: {dirs}</translation>
+    <message numerus="yes">
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="665" />
+        <source>Searching… %n file(s) found</source>
+        <translation>
+            <numerusform>Searching… %n file found</numerusform>
+            <numerusform>Searching… %n files found</numerusform>
+        </translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="688" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="671" />
         <source>Search error</source>
         <translation>Search error</translation>
     </message>
     <message numerus="yes">
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="708" />
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="691" />
         <source>Search finished. %n file(s) found.</source>
         <translation>
             <numerusform>Search finished. %n file found.</numerusform>
@@ -1780,9 +1752,24 @@
 </context><context>
     <name>FileSearchResultsModel</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="44" />
-        <source>Path</source>
-        <translation>Path</translation>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="62" />
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="63" />
+        <source>Folder</source>
+        <translation>Folder</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="64" />
+        <source>Size</source>
+        <translation>Size</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="65" />
+        <source>Date modified</source>
+        <translation>Date modified</translation>
     </message>
 </context><context>
     <name>FileSearchWorker</name>
@@ -2164,21 +2151,21 @@ Failed: {3}</translation>
 </context><context>
     <name>InstalledAppsDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="394" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="397" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="156" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="41" />
         <source>Select Installed Application</source>
         <translation>Select Installed Application</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="396" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="399" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="182" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="42" />
         <source>Search applications...</source>
         <translation>Search applications...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="399" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="402" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="188" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="43" />
         <source>Loading installed applications...</source>
@@ -2195,7 +2182,7 @@ Failed: {3}</translation>
         <translation>Shown: %d of %d</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="401" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="404" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="230" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="46" />
         <source>Select</source>
@@ -2207,19 +2194,19 @@ Failed: {3}</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="407" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="410" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="213" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="48" />
         <source>Find on computer</source>
         <translation>Find on computer</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="305" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="306" />
         <source>Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)</source>
         <translation>Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="308" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="310" />
         <source>Select Program</source>
         <translation>Select Program</translation>
     </message>
@@ -3732,47 +3719,47 @@ Would you like to open the first {limit} selected links?</translation>
 </context><context>
     <name>RestoreDbDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="135" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="127" />
         <source>No backups found</source>
         <translation>No backups found</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="351" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="319" />
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="361" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
         <source>Date</source>
         <translation>Date</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="362" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="330" />
         <source>Backup</source>
         <translation>Backup</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="363" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="331" />
         <source>Size</source>
         <translation>Size</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="128" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="120" />
         <source>Failed to list database backups: {error}</source>
         <translation>Failed to list database backups: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="327" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="295" />
         <source>No backup selected.</source>
         <translation>No backup selected.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="328" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="296" />
         <source>Backup selection required</source>
         <translation>Backup selection required</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="329" />
+        <location filename="..\app\views\windows\dialogs\restore_db_dialog.py" line="297" />
         <source>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</source>
         <translation>Select a file from the list and click 'Restore'. If the list is empty, verify the backup directory.</translation>
     </message>
@@ -4215,7 +4202,7 @@ Are you sure you want to continue?</translation>
         <translation>Import completed.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="960" />
+        <location filename="..\app\views\windows\main_window.py" line="967" />
         <source>Structure service unavailable.</source>
         <translation>Structure service unavailable.</translation>
     </message>
