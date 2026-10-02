@@ -203,227 +203,227 @@
 </context><context>
     <name>AsyncOperations</name>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="391" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="395" />
         <source>Loading spheres…</source>
         <translation>Cargando esferas…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="398" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="402" />
         <source>Spheres loaded</source>
         <translation>Esferas cargadas</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="592" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="535" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="503" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="406" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="606" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="549" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="517" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="410" />
         <source>Load error</source>
         <translation>Error de carga</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="407" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="411" />
         <source>Failed to load spheres: {error}</source>
         <translation>Error al cargar esferas: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="417" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="421" />
         <source>Loading structure for sphere {sphere_id}…</source>
         <translation>Cargando estructura para esfera {sphere_id}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="491" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="505" />
         <source>Structure loaded</source>
         <translation>Estructura cargada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="504" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="518" />
         <source>Failed to load structure: {error}</source>
         <translation>Error al cargar estructura: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="520" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="534" />
         <source>Loading sections for sphere {sphere_id}…</source>
         <translation>Cargando secciones para esfera {sphere_id}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="527" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="541" />
         <source>Sections loaded</source>
         <translation>Secciones cargadas</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="536" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="550" />
         <source>Failed to load sections: {error}</source>
         <translation>Error al cargar secciones: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="548" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="562" />
         <source>Loading categories for section {section_id}…</source>
         <translation>Cargando categorías para sección {section_id}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="584" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="598" />
         <source>Categories loaded</source>
         <translation>Categorías cargadas</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="593" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="607" />
         <source>Failed to load categories: {error}</source>
         <translation>Error al cargar categorías: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="616" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="630" />
         <source>Section named "{name}" already exists in the selected sphere</source>
         <translation>Ya existe una sección llamada "{name}" en la esfera seleccionada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="636" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="650" />
         <source>Creating section: {name}…</source>
         <translation>Creando sección: {name}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="680" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="637" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="694" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="651" />
         <source>Untitled</source>
         <translation>Sin título</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="643" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="657" />
         <source>Section created</source>
         <translation>Sección creada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="694" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="651" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="708" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="665" />
         <source>Create error</source>
         <translation>Error de creación</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="652" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="666" />
         <source>Failed to create section: {error}</source>
         <translation>Error al crear sección: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="679" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="693" />
         <source>Creating category: {name}…</source>
         <translation>Creando categoría: {name}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="686" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="700" />
         <source>Category created</source>
         <translation>Categoría creada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="695" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="709" />
         <source>Failed to create category: {error}</source>
         <translation>Error al crear categoría: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="712" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="726" />
         <source>Updating section: {name}…</source>
         <translation>Actualizando sección: {name}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="750" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="713" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="764" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="727" />
         <source>ID {id}</source>
         <translation>ID {id}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="723" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="737" />
         <source>Section updated</source>
         <translation>Sección actualizada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="768" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="731" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="782" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="745" />
         <source>Update error</source>
         <translation>Error de actualización</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="732" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="746" />
         <source>Failed to update section: {error}</source>
         <translation>Error al actualizar sección: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="749" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="763" />
         <source>Updating category: {name}…</source>
         <translation>Actualizando categoría: {name}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="760" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="774" />
         <source>Category updated</source>
         <translation>Categoría actualizada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="769" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="783" />
         <source>Failed to update category: {error}</source>
         <translation>Error al actualizar categoría: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="779" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="793" />
         <source>Deleting section ID {section_id}…</source>
         <translation>Eliminando sección ID {section_id}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="795" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="809" />
         <source>Section deleted</source>
         <translation>Sección eliminada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="868" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="856" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="823" />
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="803" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="882" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="870" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="837" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="817" />
         <source>Delete error</source>
         <translation>Error de eliminación</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="804" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="818" />
         <source>Failed to delete section: {error}</source>
         <translation>Error al eliminar sección: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="819" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="833" />
         <source>Invalid category ID: {category_id}</source>
         <translation>ID de categoría inválido: {category_id}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="827" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="841" />
         <source>Deleting category…</source>
         <translation>Eliminando categoría…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="847" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="861" />
         <source>Category deleted</source>
         <translation>Categoría eliminada</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="857" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="871" />
         <source>Failed to delete category: {error}</source>
         <translation>No se pudo eliminar la categoría: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="864" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="878" />
         <source>Failed to start deletion task: {error}</source>
         <translation>No se pudo iniciar la tarea de eliminación: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="878" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="892" />
         <source>Counting objects for section {section_id}…</source>
         <translation>Contando objetos para la sección {section_id}…</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="902" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="916" />
         <source>Count completed</source>
         <translation>Conteo completado</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="910" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="924" />
         <source>Count error</source>
         <translation>Error al contar</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="911" />
+        <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="925" />
         <source>Failed to count items: {error}</source>
         <translation>No se pudieron contar los elementos: {error}</translation>
     </message>
@@ -834,96 +834,96 @@
 </context><context>
     <name>BrowserProfileDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="608" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="723" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="621" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="736" />
         <source>Unnamed</source>
         <translation>Sin nombre</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="429" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="276" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="435" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="282" />
         <source>Mode:</source>
         <translation>Modo:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="432" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="284" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="438" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="290" />
         <source>Single profile</source>
         <translation>Perfil individual</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="433" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="285" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="439" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="291" />
         <source>Rotation</source>
         <translation>Rotación</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="434" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="288" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="440" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="294" />
         <source>Create for each profile</source>
         <translation>Crear para cada perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="441" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="298" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="447" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="304" />
         <source>Browsers:</source>
         <translation>Navegadores:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="443" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="316" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="449" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="322" />
         <source>Refresh</source>
         <translation>Actualizar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="445" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="327" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="451" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="333" />
         <source>Search by name/email</source>
         <translation>Buscar por nombre/email</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="447" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="374" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="453" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="380" />
         <source>Select all</source>
         <translation>Seleccionar todo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="448" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="379" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="454" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="385" />
         <source>Clear all</source>
         <translation>Desmarcar todo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="584" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="502" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="597" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="515" />
         <source>No profiles found</source>
         <translation>No se encontraron perfiles</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="763" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="514" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="776" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="527" />
         <source>Loading profiles…</source>
         <translation>Cargando perfiles…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="835" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="520" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="848" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="533" />
         <source>Failed to start loading</source>
         <translation>No se pudo iniciar la carga</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="827" />
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="743" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="840" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="756" />
         <source>Failed to load profiles</source>
         <translation>No se pudieron cargar los perfiles</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="815" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="828" />
         <source>{operation} ({current}/{total})…</source>
         <translation>{operation} ({current}/{total})…</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="883" />
+        <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="896" />
         <source>Selected: {0} of {1}</source>
         <translation>Seleccionados: {0} de {1}</translation>
     </message>
@@ -1553,26 +1553,26 @@
     <name>DragDrop</name>
     <message>
         <location filename="..\app\views\widgets\tiles\list_view.py" line="196" />
-        <location filename="..\app\views\widgets\custom_widgets.py" line="572" />
+        <location filename="..\app\views\widgets\custom_widgets.py" line="624" />
         <source>Dragging {total} items — {shown} and {remaining} more</source>
         <translation>Arrastrando {total} elementos — {shown} y {remaining} más</translation>
     </message>
     <message>
         <location filename="..\app\views\widgets\tiles\list_view.py" line="199" />
-        <location filename="..\app\views\widgets\custom_widgets.py" line="575" />
+        <location filename="..\app\views\widgets\custom_widgets.py" line="627" />
         <source>Dragging {total} items — {shown}</source>
         <translation>Arrastrando {total} elementos — {shown}</translation>
     </message>
 </context><context>
     <name>FavoritesToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="926" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="944" />
         <source>No favorite links</source>
         <translation>No hay enlaces favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="958" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="957" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="976" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="975" />
         <source>Favorites</source>
         <translation>Favoritos</translation>
     </message>
@@ -2152,6 +2152,43 @@ Fallos: {3}</translation>
         <translation>Aplicar</translation>
     </message>
 </context><context>
+    <name>ImportDestinationDialog</name>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="61" />
+        <source>Import Section</source>
+        <translation>Importar sección</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="63" />
+        <source>Import Category</source>
+        <translation>Importar categoría</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="72" />
+        <source>Importing: &lt;b&gt;{name}&lt;/b&gt;</source>
+        <translation>Importando: &lt;b&gt;{name}&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="100" />
+        <source>Destination Sphere:</source>
+        <translation>Esfera de destino:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="104" />
+        <source>Destination Section:</source>
+        <translation>Sección de destino:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="115" />
+        <source>Import</source>
+        <translation>Importar</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\dialogs\import_destination_dialog.py" line="118" />
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+</context><context>
     <name>ImportExportProgress</name>
     <message>
         <location filename="..\app\models\managers\import_export_manager.py" line="15" />
@@ -2600,13 +2637,13 @@ Are you sure you want to continue?</source>
         <translation>Perfil individual</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="160" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="172" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="66" />
         <source>Create for each profile</source>
         <translation>Crear para cada perfil</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="139" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="151" />
         <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog_ui.py" line="67" />
         <source>Rotation</source>
         <translation>Rotación</translation>
@@ -2679,12 +2716,12 @@ Are you sure you want to continue?</source>
         <translation>Ruta:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="146" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="158" />
         <source>Rotation order ({count}):</source>
         <translation>Orden de rotación ({count}):</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="169" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="181" />
         <source>Selected profiles ({count}):</source>
         <translation>Perfiles seleccionados ({count}):</translation>
     </message>
@@ -2748,17 +2785,17 @@ Would you like to locate it on this computer?</source>
 </context><context>
     <name>LinkProcessingMixin</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="286" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="304" />
         <source>Failed to fetch link information.</source>
         <translation>No se pudo obtener la información del enlace.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="287" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="305" />
         <source>Link processing error</source>
         <translation>Error al procesar el enlace</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="288" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\link_processing_mixin.py" line="306" />
         <source>Verify the path/URL is valid and the resource is reachable.</source>
         <translation>Verifique que la ruta o URL sea válida y que el recurso sea accesible.</translation>
     </message>
@@ -2937,12 +2974,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>A&amp;yuda</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="552" />
-        <source>Check Bad URLs</source>
-        <translation>Comprobar URLs defectuosas</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="553" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="561" />
         <source>Refresh Icons</source>
         <translation>Actualizar iconos</translation>
     </message>
@@ -2995,31 +3027,41 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <source>Hidden button</source>
         <translation>Botón oculto</translation>
     </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="994" />
+        <source>Section</source>
+        <translation>Sección</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="1027" />
+        <source>Category</source>
+        <translation>Categoría</translation>
+    </message>
 </context><context>
     <name>MenuActions</name>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="213" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="52" />
         <source>Error: %1</source>
         <translation>Error: %1</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="159" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Agregar sección</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
         <translation>Agregar categoría</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="90" />
         <source>Add link</source>
         <translation>Agregar enlace</translation>
@@ -3030,135 +3072,146 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Borrar favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="92" />
         <source>Exit</source>
         <translation>Salir</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
+        <location filename="..\app\views\windows\main_window.py" line="493" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="355" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="758" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
         <source>Settings</source>
         <translation>Configuración</translation>
     </message>
     <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="576" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
+        <source>Tools</source>
+        <translation>Herramientas</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
         <source>Save Database</source>
         <translation>Guardar base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
         <source>Restore Database</source>
         <translation>Restaurar base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
         <source>Open Database</source>
         <translation>Abrir base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="551" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="558" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Import Bookmarks</source>
         <translation>Importar marcadores</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
         <source>Export Icons</source>
         <translation>Exportar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
         <source>Import Icons</source>
         <translation>Importar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="560" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
         <source>Check Links</source>
         <translation>Comprobar enlaces</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
         <source>Refresh Icons</source>
         <translation>Actualizar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="550" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="557" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>Search files</source>
         <translation>Buscar archivos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
         <source>About</source>
         <translation>Acerca de</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
         <source>Edit section</source>
         <translation>Editar sección</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
         <source>Edit category</source>
         <translation>Editar categoría</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="184" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
         <source>Paste</source>
         <translation>Pegar</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
         <source>Paste section</source>
         <translation>Pegar seccion</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
         <source>Delete section</source>
         <translation>Eliminar sección</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
         <source>Copy category</source>
         <translation>Copiar categoria</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
         <source>Copy section</source>
         <translation>Copiar seccion</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="161" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
         <source>Cut</source>
         <translation>Cortar</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
         <source>Delete category</source>
         <translation>Eliminar categoría</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
         <source>Delete selected</source>
         <translation>Eliminar seleccionados</translation>
     </message>
@@ -3166,54 +3219,54 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1703" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1668" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="204" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
         <source>Select all</source>
         <translation>Seleccionar todo</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="117" />
         <source>Clear selection</source>
         <translation>Borrar selección</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="145" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="118" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="119" />
         <source>&amp;Undo</source>
         <translation>&amp;Deshacer</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="152" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="119" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="120" />
         <source>&amp;Redo</source>
         <translation>Re&amp;hacer</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="121" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="122" />
         <source>Open</source>
         <translation>Abrir</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="122" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>Launch marked</source>
         <translation>Iniciar marcados</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="124" />
         <source>Edit</source>
         <translation>Editar</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="194" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="124" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <source>Delete</source>
         <translation>Eliminar</translation>
     </message>
@@ -3221,153 +3274,153 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1693" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1658" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="168" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
         <source>Copy</source>
         <translation>Copiar</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
         <source>Edit note</source>
         <translation>Editar nota</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="133" />
         <source>Add note</source>
         <translation>Agregar nota</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="134" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
         <source>Add to favorites</source>
         <translation>Agregar a favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="136" />
         <source>Remove from favorites</source>
         <translation>Quitar de favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="137" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
         <source>Share</source>
         <translation>Compartir</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="139" />
         <source>Email</source>
         <translation>Correo electrónico</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="139" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
         <source>Telegram</source>
         <translation>Telegram</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
         <source>WhatsApp</source>
         <translation>WhatsApp</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
         <source>Viber</source>
         <translation>Viber</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
         <source>X (Twitter)</source>
         <translation>X (Twitter)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
         <source>Facebook</source>
         <translation>Facebook</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
         <source>LinkedIn</source>
         <translation>LinkedIn</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
         <source>Pinterest</source>
         <translation>Pinterest</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
         <source>Via Gmail</source>
         <translation>Vía Gmail</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
         <source>Via default client (mailto)</source>
         <translation>Por el cliente predeterminado (mailto)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
         <source>Copy as email message</source>
         <translation>Copiar como mensaje de correo</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
         <source>Export category</source>
         <translation>Exportar categoria</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
         <source>Export section</source>
         <translation>Exportar seccion</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="153" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
         <source>Import category</source>
         <translation>Importar categoria</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="155" />
         <source>Import section</source>
         <translation>Importar seccion</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
         <source>Clear favorites</source>
         <translation>Vaciar favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
         <source>Export Database</source>
         <translation>Exportar base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
         <source>Import Database</source>
         <translation>Importar base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
         <source>Export icons</source>
         <translation>Exportar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
         <source>Import icons</source>
         <translation>Importar iconos</translation>
     </message>
@@ -3495,25 +3548,25 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>ProfilesMixin</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="57" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="59" />
         <source>Profile selection module is unavailable.</source>
         <translation>El módulo de selección de perfiles no está disponible.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="58" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="60" />
         <source>Browser profiles</source>
         <translation>Perfiles del navegador</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="59" />
+        <location filename="..\app\views\windows\dialogs\link_dialog\handlers_mixins\profiles_mixin.py" line="61" />
         <source>Failed to load browser profile selection dialog. Ensure the component is installed and accessible.</source>
         <translation>Error al cargar el diálogo de selección de perfiles del navegador. Asegúrese de que el componente esté instalado y accesible.</translation>
     </message>
 </context><context>
     <name>QuickAddToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="705" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="704" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="723" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="722" />
         <source>Add Link</source>
         <translation>Agregar enlace</translation>
     </message>
@@ -3736,13 +3789,13 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>RecentHistoryToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1063" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1081" />
         <source>No recent links</source>
         <translation>No hay enlaces recientes</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1098" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1097" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1116" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1115" />
         <source>Recent Links</source>
         <translation>Enlaces recientes</translation>
     </message>
@@ -4158,81 +4211,81 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="588" />
+        <location filename="..\app\views\windows\main_window.py" line="598" />
         <source>Sphere not selected.</source>
         <translation>Esfera no seleccionada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="591" />
+        <location filename="..\app\views\windows\main_window.py" line="601" />
         <source>Select a sphere and try again.</source>
         <translation>Seleccione una esfera e intente de nuevo.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="635" />
-        <location filename="..\app\views\windows\main_window.py" line="607" />
+        <location filename="..\app\views\windows\main_window.py" line="645" />
+        <location filename="..\app\views\windows\main_window.py" line="617" />
         <source>Export error</source>
         <translation>Error de exportacion</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="632" />
+        <location filename="..\app\views\windows\main_window.py" line="642" />
         <source>Failed to export archive: {error}</source>
         <translation>No se pudo exportar el archivo: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="647" />
+        <location filename="..\app\views\windows\main_window.py" line="657" />
         <source>Archive saved to:
 {path}</source>
         <translation>Archivo guardado en:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="650" />
+        <location filename="..\app\views\windows\main_window.py" line="660" />
         <source>Export complete</source>
         <translation>Exportacion completada</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="656" />
+        <location filename="..\app\views\windows\main_window.py" line="666" />
         <source>Choose where to save the archive</source>
         <translation>Elija donde guardar el archivo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="689" />
-        <location filename="..\app\views\windows\main_window.py" line="660" />
+        <location filename="..\app\views\windows\main_window.py" line="699" />
+        <location filename="..\app\views\windows\main_window.py" line="670" />
         <source>Section Archive (*.aitesec);;All files (*)</source>
         <translation>Archivo de sección (*.aitesec);;Todos los archivos (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="693" />
-        <location filename="..\app\views\windows\main_window.py" line="664" />
+        <location filename="..\app\views\windows\main_window.py" line="703" />
+        <location filename="..\app\views\windows\main_window.py" line="674" />
         <source>Category Archive (*.aitecat);;All files (*)</source>
         <translation>Archivo de categoría (*.aitecat);;Todos los archivos (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="858" />
-        <location filename="..\app\views\windows\main_window.py" line="719" />
-        <location filename="..\app\views\windows\main_window.py" line="678" />
+        <location filename="..\app\views\windows\main_window.py" line="857" />
+        <location filename="..\app\views\windows\main_window.py" line="729" />
+        <location filename="..\app\views\windows\main_window.py" line="688" />
         <source>Import error</source>
         <translation>Error de importacion</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="685" />
+        <location filename="..\app\views\windows\main_window.py" line="695" />
         <source>Select an archive to import</source>
         <translation>Seleccione un archivo para importar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="855" />
-        <location filename="..\app\views\windows\main_window.py" line="716" />
+        <location filename="..\app\views\windows\main_window.py" line="854" />
+        <location filename="..\app\views\windows\main_window.py" line="726" />
         <source>Failed to import archive: {error}</source>
         <translation>No se pudo importar el archivo: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="865" />
-        <location filename="..\app\views\windows\main_window.py" line="728" />
+        <location filename="..\app\views\windows\main_window.py" line="873" />
+        <location filename="..\app\views\windows\main_window.py" line="738" />
         <source>Import completed.</source>
         <translation>Importación completada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="967" />
+        <location filename="..\app\views\windows\main_window.py" line="975" />
         <source>Structure service unavailable.</source>
         <translation>Servicio de estructura no disponible.</translation>
     </message>

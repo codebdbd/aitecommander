@@ -514,7 +514,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
 
 
 class ToolsToolbarAdapter(ToolbarActionAdapter):
-    """Toolbar buttons for file search, bookmarks import, bad URLs check, and icon refresh."""
+    """Toolbar dropdown button for tools (file search, bookmarks import, bad URLs check, and icon refresh)."""
 
     def __init__(
         self,
@@ -546,31 +546,49 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         theme = _resolve_theme(self._category_provider)
         from app.utils.ui.menu_builders.base import get_menu_icon
 
-        tools = [
-            ("topBarFileSearchButton", "search", "search.svg", QCoreApplication.translate("MenuActions", "Search files"), self._on_file_search),
-            ("topBarImportBookmarksButton", "bookmark_import", "bookmark_import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
-            ("topBarBadUrlsButton", "link_off", "link_off.svg", QCoreApplication.translate("MainMenu", "Check Bad URLs"), self._on_check_bad_urls),
-            ("topBarRefreshIconsButton", "refresh", "refresh.svg", QCoreApplication.translate("MainMenu", "Refresh Icons"), self._on_refresh_icons),
+        tools_icon = get_menu_icon("construction", theme)
+        if not tools_icon or tools_icon.isNull():
+            tools_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "construction.svg")
+
+        menu = TopBarMenu(self._toolbar)
+        menu.setObjectName("topBarToolsMenu")
+
+        tools_items = [
+            ("search", "search.svg", QCoreApplication.translate("MenuActions", "Search files"), self._on_file_search),
+            ("bookmark_import", "bookmark_import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
+            (None, None, None, None),
+            ("link_off", "link_off.svg", QCoreApplication.translate("MenuActions", "Check Links"), self._on_check_bad_urls),
+            ("refresh", "refresh.svg", QCoreApplication.translate("MainMenu", "Refresh Icons"), self._on_refresh_icons),
         ]
 
-        for obj_name, icon_name, svg_file, tooltip, handler in tools:
-            icon = get_menu_icon(icon_name, theme)
-            if not icon or icon.isNull():
-                icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / svg_file)
-            action = QAction(icon, tooltip, self._toolbar)
-            action.setToolTip(tooltip)
-            action.triggered.connect(handler)
-            self._add_action(action)
-            btn = self._toolbar.widgetForAction(action)
-            if isinstance(btn, QToolButton):
-                btn.setObjectName(obj_name)
-                _setup_topbar_button_contrast(btn, icon, svg_file)
-            if obj_name == "topBarImportBookmarksButton":
-                self._add_separator()
+        for icon_name, svg_file, text, handler in tools_items:
+            if icon_name is None:
+                menu.addSeparator()
+                continue
+            item_icon = get_menu_icon(icon_name, theme)
+            if not item_icon or item_icon.isNull():
+                item_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / svg_file)
+            sub_action = QAction(item_icon, text, menu)
+            sub_action.setToolTip(text)
+            sub_action.triggered.connect(handler)
+            menu.addAction(sub_action)
+
+        tools_title = QCoreApplication.translate("MenuActions", "Tools")
+        main_action = QAction(tools_icon, tools_title, self._toolbar)
+        main_action.setToolTip(tools_title)
+        main_action.setMenu(menu)
+        self._add_action(main_action)
+
+        btn = self._toolbar.widgetForAction(main_action)
+        if isinstance(btn, QToolButton):
+            btn.setObjectName("topBarToolsButton")
+            btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            menu.set_target_button(btn)
+            _setup_topbar_button_contrast(btn, tools_icon, "construction.svg")
 
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count("tools", len(self._buttons))
+            self._separator_controller.set_group_count("tools", len(self._actions))
 
     def _on_file_search(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_file_search_dialog"):

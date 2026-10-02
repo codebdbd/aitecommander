@@ -1025,7 +1025,7 @@ class SettingsDialog(BaseDialog):
             if self.max_backups_combo is not None:
                 max_backups = int(self.max_backups_combo.currentText())
                 self.settings.set_max_backups(max_backups)
-            
+
             # Apply font size to tree and table widgets
             if self.font_size_combo is not None:
                 font_size = int(self.font_size_combo.currentText())

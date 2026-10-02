@@ -6,11 +6,12 @@ import logging
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QCoreApplication, QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
+from app.utils.ui.icon.path_service import icon_path_service
 from app.views.main_components.ui.topbar.toolbar_adapters import (
     FavoritesToolbarAdapter,
     LinksToolbarAdapter,
@@ -19,6 +20,8 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     StructureActionsToolbarAdapter,
     ToolbarSeparatorController,
     ToolsToolbarAdapter,
+    _icon_from_path,
+    _setup_topbar_button_contrast,
 )
 from app.views.widgets.theme_selector import ThemeSelector
 
@@ -335,6 +338,39 @@ class TopBarBuilder:
                 pass
             theme_layout.addWidget(theme_selector)
             self.window.theme_selector = theme_selector
+
+            # Settings toolbar & button (consistent with main toolbar)
+            btn_size = int(app_config.ui.get_top_panel_button_size())
+            icon_sz = app_config.ui.get_top_panel_icon_size()
+            settings_toolbar = TopBarToolBar(theme_container, button_height=btn_size)
+            settings_toolbar.setObjectName("topBarToolbar")
+            settings_toolbar.setMovable(False)
+            settings_toolbar.setFloatable(False)
+            settings_toolbar.setContentsMargins(0, 0, 0, 0)
+            settings_toolbar.setSizePolicy(
+                getattr(QSizePolicy.Policy, "Fixed", QSizePolicy.Policy.Fixed),
+                QSizePolicy.Policy.Fixed,
+            )
+            settings_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "settings.svg")
+            settings_text = QCoreApplication.translate("MenuActions", "Settings")
+            settings_action = QAction(settings_icon, "", settings_toolbar)
+            settings_action.setToolTip(settings_text)
+            settings_handler = getattr(self.window, "show_settings_dialog", None)
+            if callable(settings_handler):
+                settings_action.triggered.connect(settings_handler)
+            settings_toolbar.addAction(settings_action)
+            settings_btn = settings_toolbar.widgetForAction(settings_action)
+            if isinstance(settings_btn, QToolButton):
+                settings_btn.setObjectName("topBarSettingsButton")
+                settings_btn.setFixedSize(btn_size, btn_size)
+                settings_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
+                settings_btn.setProperty("toolbar_btn", True)
+                settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                _setup_topbar_button_contrast(settings_btn, settings_icon, "settings.svg")
+            theme_layout.addWidget(settings_toolbar)
+            self.window.settings_toolbar = settings_toolbar
+            self.window.settings_button = settings_btn
+            self.window.settings_action = settings_action
 
             theme_container.setLayout(theme_layout)
             top_bar.addSpacing(sep_spacing)

@@ -452,7 +452,7 @@ class TreeUpdateService(QObject):
             logger.exception("TreeUpdateService._insert_category: model insert failed")
             raise
         if not data.get("__from_undo__"):
-            self._manager.refresh_section_tiles(parent_id)
+            self._manager.refresh_section_tiles(parent_id, switch_view=False)
 
     def _should_use_alphabetical_insert(self) -> bool:
         """Mirror tree snapshot sorting policy for incremental inserts."""
@@ -479,10 +479,12 @@ class TreeUpdateService(QObject):
         selection_handler = getattr(controller, "selection_handler", None)
         if selection_handler is None:
             return
-        schedule_selection_restore(
-            lambda: selection_handler._set_focus_on_new_item_by_id(item_type, item_id),  # noqa: SLF001
-            f"new_{item_type}_{item_id}",
-        )
+        result = selection_handler._set_focus_on_new_item_by_id(item_type, item_id)
+        if result is None:
+            schedule_selection_restore(
+                lambda: selection_handler._set_focus_on_new_item_by_id(item_type, item_id),  # noqa: SLF001
+                f"new_{item_type}_{item_id}",
+            )
         try:
             manager = get_focus_manager()
             manager.set_focus(

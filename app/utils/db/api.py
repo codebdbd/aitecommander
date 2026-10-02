@@ -294,10 +294,13 @@ def _wire_finished(task: DatabaseTask[T], on_finished: Callable[[T], None] | Non
         return
 
     def _handle_finished(result: T) -> None:
-        if _is_gui_thread():
-            on_finished(result)
-            return
-        _invoke_in_gui(on_finished, result)
+        try:
+            if _is_gui_thread():
+                on_finished(result)
+                return
+            _invoke_in_gui(on_finished, result)
+        except Exception:
+            logger.debug("DatabaseTask: unhandled exception in on_finished callback", exc_info=True)
 
     task.signals.finished.connect(_handle_finished)
 
@@ -306,15 +309,19 @@ def _wire_error(task: DatabaseTask[T], on_error: Callable[[Exception], None] | N
     """Connect error signal to default handler and optional user callback."""
 
     def _on_error(e: Exception) -> None:
-        if _is_gui_thread():
-            handle_db_error(e)
-        else:
-            _invoke_in_gui(handle_db_error, e)
-        if on_error is not None:
-            if _is_gui_thread():
-                on_error(e)
+        try:
+            if on_error is not None:
+                if _is_gui_thread():
+                    on_error(e)
+                else:
+                    _invoke_in_gui(on_error, e)
             else:
-                _invoke_in_gui(on_error, e)
+                if _is_gui_thread():
+                    handle_db_error(e)
+                else:
+                    _invoke_in_gui(handle_db_error, e)
+        except Exception:
+            logger.debug("DatabaseTask: unhandled exception in on_error callback", exc_info=True)
 
     task.signals.error.connect(_on_error)
 

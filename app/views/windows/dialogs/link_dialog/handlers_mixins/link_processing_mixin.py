@@ -25,6 +25,8 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
 class LinkProcessingMixin:
     def _on_path_changed(self, text: str) -> None:
         """Handle path change events."""
+        if getattr(self.dialog, "_is_closing", False) or not getattr(self, "_callbacks_enabled", True):
+            return
         if getattr(self.dialog, "_suspend_auto_processing", False):
             return
         self.dialog._processing_timer.stop()
@@ -37,6 +39,8 @@ class LinkProcessingMixin:
 
     def trigger_link_processing(self, path: str) -> None:
         """Start link info processing."""
+        if getattr(self.dialog, "_is_closing", False) or not getattr(self, "_callbacks_enabled", True):
+            return
         if not path:
             return
 
@@ -81,6 +85,8 @@ class LinkProcessingMixin:
         def _emit_if_current(payload: dict[str, Any]) -> None:
             # Emit results only if the task is still current AND dialog still exists
             try:
+                if not getattr(self, "_callbacks_enabled", True) or getattr(self.dialog, "_is_closing", False):
+                    return
                 if _task_id == self._worker_task_id and not getattr(self.dialog, '_is_closing', False):
                     logger.info(
                         "[Trace] link_info emit_current id=%s age=%.2f ms keys=%s",
@@ -103,6 +109,8 @@ class LinkProcessingMixin:
 
         def _emit_error_if_current(message: str) -> None:
             try:
+                if not getattr(self, "_callbacks_enabled", True) or getattr(self.dialog, "_is_closing", False):
+                    return
                 if _task_id == self._worker_task_id and not getattr(self.dialog, '_is_closing', False):
                     logger.info(
                         "[Trace] link_info error_current id=%s age=%.2f ms message=%s",
@@ -140,16 +148,20 @@ class LinkProcessingMixin:
                     (fetch_t0 - task_created_ts) * 1000.0,
                     path,
                 )
-                info = fetch_web_link_info(
-                    path,
-                    app_config,
-                    force_refresh=False,
-                    defer_icon=True,
-                    on_icon_ready=lambda icon_path: _emit_if_current(
-                        {"title": "", "icon": icon_path}
-                    ),
-                    cancel_event=cancel_event,
-                )
+                try:
+                    info = fetch_web_link_info(
+                        path,
+                        app_config,
+                        force_refresh=False,
+                        defer_icon=True,
+                        on_icon_ready=lambda icon_path: _emit_if_current(
+                            {"title": "", "icon": icon_path}
+                        ),
+                        cancel_event=cancel_event,
+                    )
+                except Exception as exc:
+                    logger.debug("Failed to fetch web link info for %s: %s", path, exc)
+                    info = {"title": "", "icon": ""}
                 fetch_ms = (time.perf_counter() - fetch_t0) * 1000.0
                 logger.info(
                     "[Trace] link_info fetch_done id=%s age=%.2f ms fetch=%.2f ms cancelled=%s",
@@ -175,7 +187,11 @@ class LinkProcessingMixin:
             # Local paths
             from app.utils.links.link_parser import parse_local_link
 
-            info = parse_local_link(lt.value, path, app_config, args=args_val)
+            try:
+                info = parse_local_link(lt.value, path, app_config, args=args_val)
+            except Exception as exc:
+                logger.debug("Failed to parse local link for %s: %s", path, exc)
+                info = None
             payload = info or {"name": "", "icon": ""}
             logger.debug(
                 "[Perf] link_info_local path=%s total=%.2f ms",
@@ -197,6 +213,8 @@ class LinkProcessingMixin:
 
     def _trigger_link_processing(self) -> None:
         """Internal helper to start link processing from timer."""
+        if getattr(self.dialog, "_is_closing", False) or not getattr(self, "_callbacks_enabled", True):
+            return
         url = self.dialog._get_url_le().text().strip()
         self.trigger_link_processing(url)
 

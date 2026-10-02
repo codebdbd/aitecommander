@@ -9,8 +9,10 @@ from PyQt6.QtWidgets import QDialog
 from app.models.types.link_type import LinkType
 from app.utils.browser.profile_selection_state import (
     load_last_web_link_profile_keys,
+    load_last_web_link_profile_mode,
     profile_selection_key,
     save_last_web_link_profile_keys,
+    save_last_web_link_profile_mode,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,7 +68,15 @@ class ProfilesMixin:
             return
 
         current_mode = getattr(self.dialog, "profile_mode", "none")
-        target_mode = "single" if current_mode == "none" else current_mode
+        if current_mode == "none":
+            saved_mode = (
+                load_last_web_link_profile_mode()
+                if self._is_web_link_dialog()
+                else ""
+            )
+            target_mode = saved_mode or "single"
+        else:
+            target_mode = current_mode
 
         if target_mode == "rotation":
             profiles = getattr(self.dialog, "rotation_profiles", [])
@@ -94,14 +104,16 @@ class ProfilesMixin:
             if chosen_mode == "single":
                 self.dialog.selected_profiles = results[:1]
                 self.dialog.rotation_profiles = []
-                if self._is_web_link_dialog() and self.dialog.selected_profiles:
-                    save_last_web_link_profile_keys(self.dialog.selected_profiles)
             elif chosen_mode == "rotation":
                 self.dialog.rotation_profiles = results
                 self.dialog.selected_profiles = []
             elif chosen_mode == "batch":
                 self.dialog.selected_profiles = results
                 self.dialog.rotation_profiles = []
+
+            if self._is_web_link_dialog() and results:
+                save_last_web_link_profile_keys(results)
+                save_last_web_link_profile_mode(chosen_mode)
 
             self._update_profile_ui_state()
 
@@ -176,7 +188,11 @@ class ProfilesMixin:
         le.blockSignals(False)
 
     def _initial_profile_selection_keys(self) -> set[str]:
-        current_profiles = getattr(self.dialog, "selected_profiles", []) or []
+        current_profiles = (
+            getattr(self.dialog, "selected_profiles", [])
+            or getattr(self.dialog, "rotation_profiles", [])
+            or []
+        )
         current_keys = {profile_selection_key(profile) for profile in current_profiles}
         current_keys = {key for key in current_keys if key}
         if current_keys:

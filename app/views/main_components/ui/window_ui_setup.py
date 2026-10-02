@@ -740,6 +740,28 @@ class WindowUISetup:
         except Exception:
             logger.debug("WindowUISetup: failed to retranslate top bar", exc_info=True)
 
+        for widget_attr in (
+            "tools_actions_widget",
+            "structure_actions_widget",
+            "quick_add_widget",
+            "recent_links_widget",
+            "fav_widget",
+        ):
+            adapter = getattr(self.window, widget_attr, None)
+            if adapter and hasattr(adapter, "refresh_actions"):
+                try:
+                    adapter.refresh_actions()
+                except Exception:
+                    logger.debug("WindowUISetup: failed to retranslate %s", widget_attr, exc_info=True)
+
+        settings_action = getattr(self.window, "settings_action", None)
+        settings_text = QCoreApplication.translate("MenuActions", "Settings")
+        if settings_action is not None:
+            settings_action.setToolTip(settings_text)
+        settings_btn = getattr(self.window, "settings_button", None)
+        if settings_btn is not None:
+            settings_btn.setToolTip(settings_text)
+
     def _register_topbar_cleanup(self, manager: object | None) -> None:
         if manager is None or not hasattr(self.window, "destroyed"):
             return

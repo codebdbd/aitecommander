@@ -274,7 +274,22 @@ class StructureShareService:
         with zipfile.ZipFile(archive_path, "r") as zf:
             if "manifest.json" not in zf.namelist():
                 raise ValueError("Not a valid share package (missing manifest.json)")
-            return json.loads(zf.read("manifest.json").decode("utf-8"))
+            manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+            item_name = archive_path.stem
+            if "data.json" in zf.namelist():
+                try:
+                    data = json.loads(zf.read("data.json").decode("utf-8"))
+                    pkg_type = manifest.get("package_type")
+                    if pkg_type == "section":
+                        sec = data.get("section") or {}
+                        item_name = (sec.get("name") or "").strip() or item_name
+                    elif pkg_type == "category":
+                        cat = data.get("category") or {}
+                        item_name = (cat.get("name") or "").strip() or item_name
+                except Exception:
+                    pass
+            manifest["item_name"] = item_name
+            return manifest
 
     def _write_archive(self, package_type: str, data: dict, dest_path: Path) -> None:
         payload = deepcopy(data) if isinstance(data, dict) else {}

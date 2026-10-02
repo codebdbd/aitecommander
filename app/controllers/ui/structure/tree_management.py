@@ -560,9 +560,9 @@ class TreeManagement(QObject):
         """Update tiles according to current tree selection."""
         self._tiles.refresh_by_current_tree_selection()
 
-    def refresh_section_tiles(self, section_id: int) -> None:
+    def refresh_section_tiles(self, section_id: int, *, switch_view: bool = True) -> None:
         """Update section tiles via passed CategoryTilesController."""
-        self._tiles.refresh_section_tiles(section_id)
+        self._tiles.refresh_section_tiles(section_id, switch_view=switch_view)
 
     def replace_section_categories(
         self, section_id: int, categories: list[dict[str, Any]]

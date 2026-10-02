@@ -161,6 +161,21 @@ class LinkDialogHandlers(
         except (TypeError, RuntimeError):
             pass
 
+        # Disconnect URL line edit signals to prevent triggering on focus loss during close
+        try:
+            url_widget = self.dialog._get_url_le()
+            if url_widget is not None:
+                try:
+                    url_widget.editingFinished.disconnect(self._trigger_link_processing)
+                except (TypeError, RuntimeError):
+                    pass
+                try:
+                    url_widget.textChanged.disconnect(self._on_path_changed)
+                except (TypeError, RuntimeError):
+                    pass
+        except (AttributeError, RuntimeError):
+            pass
+
         # Stop timer (if still alive)
         try:
             if getattr(self.dialog, "_processing_timer", None):

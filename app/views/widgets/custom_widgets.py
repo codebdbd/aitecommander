@@ -3,6 +3,7 @@ import logging
 
 from PyQt6.QtCore import (
     QCoreApplication,
+    QMimeData,
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
@@ -524,29 +525,80 @@ class StructureTreeView(QTreeView):
             for idx in selection_model.selectedIndexes()
             if idx and idx.isValid() and idx.column() == 0
         ]
-        if len(indexes) <= 1:
+        if not indexes:
             super().startDrag(supportedActions)
             return
 
         preview_text = self._build_drag_preview_text(indexes)
-        if not preview_text:
-            super().startDrag(supportedActions)
-            return
-
         mime = model.mimeData(indexes)
         if mime is None:
             super().startDrag(supportedActions)
             return
 
+        self._attach_external_export_files_to_mime(mime, indexes)
+
         drag = QDrag(self)
         drag.setMimeData(mime)
-        pixmap = create_text_pixmap(preview_text, single_row=False)
-        drag.setPixmap(pixmap)
-        drag.setHotSpot(pixmap.rect().center())
+        if preview_text:
+            pixmap = create_text_pixmap(preview_text, single_row=False)
+            drag.setPixmap(pixmap)
+            drag.setHotSpot(pixmap.rect().center())
         try:
-            drag.exec(Qt.DropAction.MoveAction)
+            drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
         except Exception:
             drag.exec(supportedActions)
+
+    def _attach_external_export_files_to_mime(
+        self, mime: QMimeData, indexes: list[QModelIndex]
+    ) -> None:
+        """Generate temporary export archives for external drag-and-drop into Explorer/Telegram."""
+        try:
+            from pathlib import Path
+            import tempfile
+            from PyQt6.QtCore import QUrl
+            from app.services.structure_share_service import StructureShareService
+            from app.utils.ui.qt.roles import get_tree_tuple
+
+            window = self.window()
+            sb = getattr(window, "structure_business", None)
+            if not sb or not hasattr(sb, "structure_service"):
+                return
+            service = StructureShareService(sb.structure_service)
+
+            temp_dir = Path(tempfile.gettempdir()) / "aitecommander_drag_export"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+
+            urls: list[QUrl] = []
+            seen_keys: set[tuple[str, int]] = set()
+
+            for idx in indexes:
+                if not idx.isValid():
+                    continue
+                t = get_tree_tuple(idx, 0)
+                if not t or len(t) != 2:
+                    continue
+                item_type, item_id = t
+                key = (str(item_type), int(item_id))
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+
+                name = idx.data(Qt.ItemDataRole.DisplayRole) or f"{item_type}_{item_id}"
+                clean_name = "".join(c for c in str(name) if c not in '<>:"/\\|?*').strip() or f"{item_type}_{item_id}"
+
+                if item_type == "section":
+                    file_path = temp_dir / f"{clean_name}.aitesec"
+                    service.export_section_archive(int(item_id), file_path)
+                    urls.append(QUrl.fromLocalFile(str(file_path)))
+                elif item_type == "category":
+                    file_path = temp_dir / f"{clean_name}.aitecat"
+                    service.export_category_archive(int(item_id), file_path)
+                    urls.append(QUrl.fromLocalFile(str(file_path)))
+
+            if urls:
+                mime.setUrls(urls)
+        except Exception as exc:
+            logger.debug("Failed to create external drag archives: %s", exc, exc_info=True)
 
     def _build_drag_preview_text(self, indexes: list[QModelIndex]) -> str:
         names: list[str] = []

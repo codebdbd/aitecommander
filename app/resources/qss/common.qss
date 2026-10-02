@@ -241,6 +241,8 @@ QToolBar#topBarToolbar QToolButton[toolbar_btn="true"] {
 }
 
 QToolBar#topBarToolbar QToolButton#quickButton::menu-indicator,
+QToolBar#topBarToolbar QToolButton#toolButton::menu-indicator,
+QToolBar#topBarToolbar QToolButton#topBarToolsButton::menu-indicator,
 QToolBar#topBarToolbar QToolButton#favoriteButton::menu-indicator,
 QToolBar#topBarToolbar QToolButton#recentButton::menu-indicator {
     image: none;

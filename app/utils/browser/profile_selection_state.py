@@ -7,6 +7,7 @@ from typing import Any
 from app.core.settings_manager import SettingsManager
 
 LAST_WEB_LINK_PROFILE_KEYS_SETTING = "link_dialog.last_web_link_profile_keys"
+LAST_WEB_LINK_PROFILE_MODE_SETTING = "link_dialog.last_web_link_profile_mode"
 
 
 def profile_selection_key(profile: dict[str, Any]) -> str:
@@ -38,6 +39,19 @@ def save_last_web_link_profile_keys(profiles: list[dict[str, Any]]) -> None:
         [key for key in keys if key],
     )
     SettingsManager.save()
+
+
+def load_last_web_link_profile_mode() -> str:
+    mode = SettingsManager.get(LAST_WEB_LINK_PROFILE_MODE_SETTING, "")
+    if mode in ("single", "rotation", "batch"):
+        return mode
+    return ""
+
+
+def save_last_web_link_profile_mode(mode: str) -> None:
+    if mode in ("single", "rotation", "batch"):
+        SettingsManager.set(LAST_WEB_LINK_PROFILE_MODE_SETTING, mode)
+        SettingsManager.save()
 
 
 def _clean(value: Any) -> str:

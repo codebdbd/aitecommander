@@ -32,7 +32,11 @@ from app.utils.browser.profile_selection_state import profile_selection_key
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.base import get_menu_icon
-from app.utils.ui.qt.combo_helpers import PopupComboBox, select_first_combo_item
+from app.utils.ui.qt.combo_helpers import (
+    PopupComboBox,
+    select_first_combo_item,
+    try_select_combo_data,
+)
 
 from .base_dialog import BaseDialog
 
@@ -255,6 +259,8 @@ class BrowserProfileDialog(BaseDialog):
         self._pending_browser_key: Optional[str] = None
         self._setup_ui()
         self._populate_browsers()
+        if not self.profile_checkboxes and self.browser_combo.count() > 0:
+            self._populate_profiles()
         # Do not load every profile immediately; populate on demand for the chosen browser.
         # self._populate_profiles()
         # Initial translation pass
@@ -482,7 +488,14 @@ class BrowserProfileDialog(BaseDialog):
         browsers = self.manager.get_supported_browsers()
         for b in browsers:
             self.browser_combo.addItem(b["name"], b["key"])
-        select_first_combo_item(self.browser_combo)
+        target_browser = None
+        if self.initial_selected_profile_keys:
+            for key in self.initial_selected_profile_keys:
+                if ":" in key:
+                    target_browser = key.split(":", 1)[0]
+                    break
+        if not (target_browser and try_select_combo_data(self.browser_combo, target_browser)):
+            select_first_combo_item(self.browser_combo)
 
     def _clear_profiles_layout(self) -> None:
         for cb in self.profile_checkboxes:

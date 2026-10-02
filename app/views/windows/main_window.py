@@ -489,6 +489,16 @@ class MainWindow(QMainWindow, ReTranslatable):
                 action_controller.retranslate_actions()
             except Exception:
                 logger.debug("MainWindow: failed to retranslate global actions", exc_info=True)
+        settings_action = getattr(self, "settings_action", None)
+        settings_text = QCoreApplication.translate("MenuActions", "Settings")
+        if settings_action is not None:
+            settings_action.setToolTip(settings_text)
+        settings_btn = getattr(self, "settings_button", None)
+        if settings_btn is not None:
+            settings_btn.setToolTip(settings_text)
+        tools_adapter = getattr(self, "tools_actions_widget", None)
+        if tools_adapter and hasattr(tools_adapter, "refresh_actions"):
+            tools_adapter.refresh_actions()
         # switch_sphere_button now handled by retranslate_bottom_panel (unified)
         retranslate_bottom_panel(self)
 
@@ -799,13 +809,15 @@ class MainWindow(QMainWindow, ReTranslatable):
 
         resolved_target_id = None
         refresh_section_id = None
+        target_sphere_for_switch: int | None = None
 
         if package_type == "section":
-            if hasattr(sb, "get_current_sphere_id"):
-                try:
-                    resolved_target_id = sb.get_current_sphere_id()
-                except Exception:
-                    resolved_target_id = None
+            if isinstance(target_id, int):
+                resolved_target_id = target_id
+            else:
+                resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
+            if isinstance(resolved_target_id, int):
+                target_sphere_for_switch = resolved_target_id
         elif package_type == "category":
             if target_type == "section" and isinstance(target_id, int):
                 resolved_target_id = target_id
@@ -814,28 +826,15 @@ class MainWindow(QMainWindow, ReTranslatable):
                 if hier and isinstance(hier.get("section_id"), int):
                     resolved_target_id = hier["section_id"]
             if resolved_target_id is None:
+                resolved_target_id = self._prompt_import_target_category(manifest, sb)
+            refresh_section_id = resolved_target_id
+            if isinstance(resolved_target_id, int) and hasattr(sb, "structure_service"):
                 try:
-                    tree = getattr(self, "tree", None) or getattr(getattr(self, "widgets", None), "tree", None)
-                    if tree and hasattr(tree, "currentIndex"):
-                        cur = tree.currentIndex()
-                        if cur.isValid():
-                            from app.utils.ui.qt.roles import get_tree_tuple
-                            ttuple = get_tree_tuple(cur, 0)
-                            if ttuple:
-                                if ttuple[0] == "section":
-                                    resolved_target_id = ttuple[1]
-                                elif ttuple[0] == "category":
-                                    hier = sb.get_category_hierarchy(ttuple[1])
-                                    if hier and isinstance(hier.get("section_id"), int):
-                                        resolved_target_id = hier["section_id"]
+                    sec_row = sb.structure_service.get_section_by_id(resolved_target_id)
+                    if sec_row and isinstance(sec_row.get("sphere_id"), int):
+                        target_sphere_for_switch = sec_row["sphere_id"]
                 except Exception:
                     pass
-            if resolved_target_id is None and hasattr(sb, "get_target_section_id"):
-                try:
-                    resolved_target_id = sb.get_target_section_id()
-                except Exception:
-                    resolved_target_id = None
-            refresh_section_id = resolved_target_id
 
         if not resolved_target_id:
             return False
@@ -858,6 +857,15 @@ class MainWindow(QMainWindow, ReTranslatable):
                 QCoreApplication.translate("StructureShare", "Import error"),
             )
             return True
+
+        # Switch active sphere if target sphere differs from current
+        if target_sphere_for_switch is not None:
+            s_ctrl = getattr(self, "spheres_bar_controller", None)
+            if s_ctrl and hasattr(s_ctrl, "switch_sphere"):
+                try:
+                    s_ctrl.switch_sphere(int(target_sphere_for_switch))
+                except Exception:
+                    pass
 
         self._refresh_structure_after_import(section_id=refresh_section_id)
         set_status_message(
@@ -970,6 +978,65 @@ class MainWindow(QMainWindow, ReTranslatable):
             )
             return None, None
         return sb, StructureShareService(sb.structure_service)
+
+    def _prompt_import_target_sphere(self, manifest: dict[str, Any], sb: Any) -> int | None:
+        from PyQt6.QtWidgets import QDialog
+        from app.views.dialogs.import_destination_dialog import ImportDestinationDialog
+
+        spheres = sb.get_spheres() if hasattr(sb, "get_spheres") else []
+        if not spheres:
+            return None
+        cur_sphere_id = sb.get_current_sphere_id() if hasattr(sb, "get_current_sphere_id") else None
+        item_name = (
+            manifest.get("item_name")
+            or manifest.get("name")
+            or manifest.get("title")
+            or self.tr("Section")
+        )
+        dlg = ImportDestinationDialog(
+            self,
+            package_type="section",
+            item_name=str(item_name),
+            spheres=spheres,
+            sections_by_sphere={},
+            default_sphere_id=cur_sphere_id,
+        )
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            return dlg.get_selected_sphere_id()
+        return None
+
+    def _prompt_import_target_category(self, manifest: dict[str, Any], sb: Any) -> int | None:
+        from PyQt6.QtWidgets import QDialog
+        from app.views.dialogs.import_destination_dialog import ImportDestinationDialog
+
+        spheres = sb.get_spheres() if hasattr(sb, "get_spheres") else []
+        if not spheres:
+            return None
+        sections_by_sphere = {}
+        for sp in spheres:
+            sp_id = sp.get("id")
+            if sp_id is not None:
+                sections_by_sphere[int(sp_id)] = (
+                    sb.get_sections(int(sp_id)) if hasattr(sb, "get_sections") else []
+                )
+        cur_sphere_id = sb.get_current_sphere_id() if hasattr(sb, "get_current_sphere_id") else None
+        item_name = (
+            manifest.get("item_name")
+            or manifest.get("name")
+            or manifest.get("title")
+            or self.tr("Category")
+        )
+        dlg = ImportDestinationDialog(
+            self,
+            package_type="category",
+            item_name=str(item_name),
+            spheres=spheres,
+            sections_by_sphere=sections_by_sphere,
+            default_sphere_id=cur_sphere_id,
+        )
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            return dlg.get_selected_section_id()
+        return None
 
     def on_structure_item_added(
         self, item_type: str, parent_id: int, data: dict

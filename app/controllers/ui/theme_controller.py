@@ -486,6 +486,21 @@ class ThemeController:
                 fav_widget.refresh_actions()
         except Exception as exc:
             logger.warning("Favorites widget refresh error: %s", exc, exc_info=True)
+        try:
+            settings_btn = getattr(mw, "settings_button", None)
+            if settings_btn is not None:
+                from PyQt6.QtWidgets import QToolButton
+                if isinstance(settings_btn, QToolButton):
+                    from app.utils.ui.icon.path_service import icon_path_service
+                    from app.views.main_components.ui.topbar.toolbar_adapters import (
+                        _icon_from_path,
+                        _setup_topbar_button_contrast,
+                    )
+                    s_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "settings.svg")
+                    settings_btn.setIcon(s_icon)
+                    _setup_topbar_button_contrast(settings_btn, s_icon, "settings.svg")
+        except Exception as exc:
+            logger.warning("Settings button refresh error: %s", exc, exc_info=True)
 
     def apply_and_refresh_ui(self) -> None:
         """Centralized UI update after theme application.

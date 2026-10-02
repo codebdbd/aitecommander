@@ -1,161 +1,140 @@
-"""Windows file association service for .aitepack packages."""
+"""Service for registering and managing Windows file associations for .aitesec and .aitecat."""
 from __future__ import annotations
 
+import ctypes
 import logging
 import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-EXTENSIONS = [
-    {
-        "ext": ".aitesec",
-        "prog_id": "AiteCommander.Section",
-        "desc": "AiteCommander Section",
-    },
-    {
-        "ext": ".aitecat",
-        "prog_id": "AiteCommander.Category",
-        "desc": "AiteCommander Category",
-    },
-    {
-        "ext": ".aitepack",
-        "prog_id": "AiteCommander.Package",
-        "desc": "AiteCommander Package",
-    },
-]
+SHCNE_ASSOCCHANGED = 0x08000000
+SHCNF_IDLIST = 0x0000
 
 
-def _get_open_command() -> str:
-    """Return the shell open command string for the current executable."""
-    if getattr(sys, "frozen", False):
-        exe = sys.executable
-        return f'"{exe}" "%1"'
-    py_exe = sys.executable
-    pythonw = Path(py_exe).parent / "pythonw.exe"
-    if pythonw.is_file():
-        py_exe = str(pythonw)
-    main_script = str(Path(__file__).resolve().parent.parent / "main.py")
-    return f'"{py_exe}" "{main_script}" "%1"'
+class FileAssociationService:
+    """Manages file associations in Windows Registry (HKCU\\Software\\Classes)."""
 
+    EXTENSIONS = (".aitesec", ".aitecat")
+    PROG_IDS = {
+        ".aitesec": ("aitecommander.section", "AiteCommander Section Archive"),
+        ".aitecat": ("aitecommander.category", "AiteCommander Category Archive"),
+    }
 
+    @classmethod
+    def is_supported(cls) -> bool:
+        return sys.platform == "win32"
 
-def _get_default_icon() -> str:
-    """Return the icon path string for file association."""
-    if getattr(sys, "frozen", False):
-        exe_dir = Path(sys.executable).parent
-        pkg_icon = exe_dir / "_internal" / "app" / "resources" / "package_icon.ico"
-        if pkg_icon.is_file():
-            return f'"{pkg_icon}",0'
-        pkg_icon_root = exe_dir / "package_icon.ico"
-        if pkg_icon_root.is_file():
-            return f'"{pkg_icon_root}",0'
-        return f'"{sys.executable}",0'
-    pkg_icon = Path(__file__).resolve().parent.parent / "resources" / "package_icon.ico"
-    if pkg_icon.is_file():
-        return f'"{pkg_icon}",0'
-    return f'"{sys.executable}",0'
+    @classmethod
+    def _get_open_command(cls) -> str:
+        if getattr(sys, "frozen", False):
+            exe_path = sys.executable
+            return f'"{exe_path}" "%1"'
+        python_exe = sys.executable
+        pythonw = Path(python_exe).with_name("pythonw.exe")
+        if pythonw.exists():
+            python_exe = str(pythonw)
+        main_py = Path(__file__).resolve().parents[2] / "main.py"
+        return f'"{python_exe}" "{main_py}" "%1"'
 
+    @classmethod
+    def _get_icon_path(cls) -> str:
+        icon_path = Path(__file__).resolve().parents[1] / "resources" / "package_icon.ico"
+        if icon_path.exists():
+            return str(icon_path)
+        if getattr(sys, "frozen", False):
+            return f'"{sys.executable}",0'
+        return ""
 
-def is_file_association_registered() -> bool:
-    """Check if .aitepack is registered in HKCU."""
-    if sys.platform != "win32":
-        return False
-    import winreg
+    @classmethod
+    def is_registered(cls) -> bool:
+        if not cls.is_supported():
+            return False
+        import winreg
 
-    expected_cmd = _get_open_command()
-    expected_icon = _get_default_icon()
-    try:
-        for item in EXTENSIONS:
-            ext = item["ext"]
-            prog_id = item["prog_id"]
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\{ext}") as key:
-                val, _ = winreg.QueryValueEx(key, "")
-                if val != prog_id:
-                    return False
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, rf"Software\Classes\{prog_id}\shell\open\command"
-            ) as key:
-                val, _ = winreg.QueryValueEx(key, "")
-                if val != expected_cmd:
-                    return False
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, rf"Software\Classes\{prog_id}\DefaultIcon"
-            ) as key:
-                val, _ = winreg.QueryValueEx(key, "")
-                if val != expected_icon:
-                    return False
-        return True
-    except OSError:
-        return False
+        try:
+            for ext in cls.EXTENSIONS:
+                prog_id, _ = cls.PROG_IDS[ext]
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}") as key:
+                    val, _ = winreg.QueryValueEx(key, "")
+                    if val != prog_id:
+                        return False
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}\\shell\\open\\command") as key:
+                    cmd_val, _ = winreg.QueryValueEx(key, "")
+                    if not cmd_val:
+                        return False
+            return True
+        except OSError:
+            return False
 
+    @classmethod
+    def register_associations(cls) -> bool:
+        if not cls.is_supported():
+            return False
+        import winreg
 
-def register_file_associations() -> bool:
-    """Register .aitepack in HKCU without requiring admin privileges."""
-    if sys.platform != "win32":
-        return False
-    import ctypes
-    import winreg
+        try:
+            cmd = cls._get_open_command()
+            icon = cls._get_icon_path()
 
-    open_cmd = _get_open_command()
-    default_icon = _get_default_icon()
-    try:
-        for item in EXTENSIONS:
-            ext = item["ext"]
-            prog_id = item["prog_id"]
-            desc = item["desc"]
+            for ext, (prog_id, description) in cls.PROG_IDS.items():
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}") as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, prog_id)
 
-            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\{ext}") as key:
-                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, prog_id)
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}") as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, description)
 
-            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\{prog_id}") as key:
-                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, desc)
+                if icon:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}\\DefaultIcon") as key:
+                        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, icon)
 
-            with winreg.CreateKey(
-                winreg.HKEY_CURRENT_USER, rf"Software\Classes\{prog_id}\shell\open\command"
-            ) as key:
-                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, open_cmd)
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}\\shell\\open\\command") as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, cmd)
 
-            with winreg.CreateKey(
-                winreg.HKEY_CURRENT_USER, rf"Software\Classes\{prog_id}\DefaultIcon"
-            ) as key:
-                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, default_icon)
+            cls._notify_shell()
+            logger.info("File associations successfully registered in HKCU")
+            return True
+        except Exception as exc:
+            logger.error("Failed to register file associations: %s", exc, exc_info=True)
+            return False
 
-        # Notify Windows shell (SHCNE_ASSOCCHANGED = 0x08000000)
-        ctypes.windll.shell32.SHChangeNotify(0x08000000, 0x0000, None, None)
-        return True
-    except Exception as exc:
-        logger.warning("Failed to register file associations: %s", exc)
-        return False
+    @classmethod
+    def unregister_associations(cls) -> bool:
+        if not cls.is_supported():
+            return False
+        import winreg
 
+        try:
+            for ext, (prog_id, _) in cls.PROG_IDS.items():
+                cls._delete_subkeys(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}")
+                cls._delete_subkeys(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}")
 
-def unregister_file_associations() -> bool:
-    """Unregister .aitepack from HKCU."""
-    if sys.platform != "win32":
-        return False
-    import ctypes
-    import winreg
+            cls._notify_shell()
+            logger.info("File associations successfully unregistered from HKCU")
+            return True
+        except Exception as exc:
+            logger.error("Failed to unregister file associations: %s", exc, exc_info=True)
+            return False
 
-    def _delete_key_recursive(root, subkey):
+    @classmethod
+    def _delete_subkeys(cls, root: int, subkey: str) -> None:
+        import winreg
+
         try:
             with winreg.OpenKey(root, subkey, 0, winreg.KEY_ALL_ACCESS) as key:
                 while True:
                     try:
                         child = winreg.EnumKey(key, 0)
-                        _delete_key_recursive(key, child)
+                        cls._delete_subkeys(root, f"{subkey}\\{child}")
                     except OSError:
                         break
             winreg.DeleteKey(root, subkey)
         except OSError:
             pass
 
-    try:
-        for item in EXTENSIONS:
-            _delete_key_recursive(winreg.HKEY_CURRENT_USER, rf"Software\Classes\{item['ext']}")
-            _delete_key_recursive(winreg.HKEY_CURRENT_USER, rf"Software\Classes\{item['prog_id']}")
-
-        ctypes.windll.shell32.SHChangeNotify(0x08000000, 0x0000, None, None)
-        return True
-    except Exception as exc:
-        logger.warning("Failed to unregister file associations: %s", exc)
-        return False
+    @classmethod
+    def _notify_shell(cls) -> None:
+        try:
+            ctypes.windll.shell32.SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0)
+        except Exception as exc:
+            logger.debug("SHChangeNotify failed: %s", exc)

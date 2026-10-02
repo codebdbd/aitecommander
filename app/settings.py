@@ -71,6 +71,12 @@ class AppSettings:
     def set_hotkey(self, action: str, sequence: str):
         self._qs.setValue(f"Hotkeys/{action}", sequence)
 
+    def is_file_associations_enabled(self) -> bool:
+        return bool(self._qs.value("System/FileAssociations", False, type=bool))
+
+    def set_file_associations_enabled(self, enabled: bool):
+        self._qs.setValue("System/FileAssociations", bool(enabled))
+
     def get_table_sort(self) -> tuple[int | None, Qt.SortOrder | None]:
         """Return last used table sort (column, order) if saved."""
         col_raw = self._qs.value("Table/SortColumn")
