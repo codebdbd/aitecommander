@@ -5,10 +5,13 @@ import logging
 from typing import Any, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt
-from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
+from PyQt6.QtGui import QColor, QPainter, QPaintEvent, QPalette
+from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QStyle, QStyleOptionButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.strings import DialogStrings, MenuStrings, StatusStrings
+from app.services.theme_registry import theme_registry
+from app.utils.ui.icon.path_service import get_current_theme
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +62,70 @@ class BottomBarContainer(QWidget):
         for child in self.findChildren(QPushButton):
             total += child.sizeHint().width()
         return total
+
+
+class BottomBarButton(QPushButton):
+    """Action button with two-tone text rendering: label in text_primary and shortcut in text_accent."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._action_label: str = ""
+        self._action_shortcut: str = ""
+
+    def set_action_text(self, label: str, shortcut: str | None) -> None:
+        self._action_label = label or ""
+        clean_shortcut = (shortcut or "").strip()
+        self._action_shortcut = f"({clean_shortcut})" if clean_shortcut else ""
+        if self._action_shortcut:
+            super().setText(f"{self._action_label} {self._action_shortcut}")
+        else:
+            super().setText(self._action_label)
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        if not self._action_shortcut:
+            super().paintEvent(event)
+            return
+
+        opt = QStyleOptionButton()
+        self.initStyleOption(opt)
+        opt.text = ""  # Style paints background, borders, hover and pressed without text
+
+        p = QPainter(self)
+        self.style().drawControl(QStyle.ControlElement.CE_PushButton, opt, p, self)
+
+        fm = p.fontMetrics()
+        t1 = self._action_label
+        t2 = f" {self._action_shortcut}"
+        w1 = fm.horizontalAdvance(t1)
+        w2 = fm.horizontalAdvance(t2)
+        total_w = w1 + w2
+
+        rect = opt.rect
+        start_x = rect.x() + (rect.width() - total_w) // 2
+        y = rect.y() + (rect.height() + fm.ascent() - fm.descent()) // 2
+        if opt.state & QStyle.StateFlag.State_Sunken:
+            y += 1
+
+        try:
+            cur_theme = get_current_theme()
+            tokens = theme_registry.get_theme_tokens(cur_theme)
+            color_primary = QColor(tokens.get("text_primary", "#FFFFFF"))
+            color_accent = QColor(tokens.get("text_accent", "#E5C04A"))
+            color_muted = QColor(tokens.get("text_muted", "#888888"))
+        except Exception:
+            color_primary = opt.palette.buttonText().color()
+            color_accent = opt.palette.highlight().color()
+            color_muted = opt.palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText)
+
+        if not self.isEnabled():
+            color_primary = color_muted
+            color_accent = color_primary
+
+        p.setPen(color_primary)
+        p.drawText(start_x, y, t1)
+        p.setPen(color_accent)
+        p.drawText(start_x + w1, y, t2)
+        p.end()
 
 
 def _label_for_action(action_id: str) -> str:
@@ -139,7 +206,10 @@ def _apply_translations_to_button(
 
     label = _resolve_label(action_id, fallback_label)
     display_text = _format_with_shortcut(label, shortcut)
-    button.setText(display_text)
+    if isinstance(button, BottomBarButton):
+        button.set_action_text(label, shortcut)
+    else:
+        button.setText(display_text)
     button.setAccessibleName(label)
 
     desc_template = QCoreApplication.translate(
@@ -258,7 +328,7 @@ class BottomPanelBuilder:
             action_id = action.get("id")
             log_label = action.get("label") or action_id or handler_name
 
-            btn = QPushButton()
+            btn = BottomBarButton()
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             # Accessibility: add accessible name for screen readers
             if action_id:

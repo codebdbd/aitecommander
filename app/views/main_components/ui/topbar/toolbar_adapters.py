@@ -130,7 +130,11 @@ class TopBarButtonHoverFilter(QObject):
                     obj.setIcon(normal_icon)
         elif t == QEvent.Type.MouseButtonRelease:
             if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                if not obj.underMouse():
+                if obj.underMouse():
+                    contrast_icon = _update_button_contrast_icon(obj)
+                    if contrast_icon and not contrast_icon.isNull():
+                        obj.setIcon(contrast_icon)
+                else:
                     normal_icon = getattr(obj, "_normal_icon", None)
                     if normal_icon and not normal_icon.isNull():
                         obj.setIcon(normal_icon)
@@ -148,7 +152,11 @@ def _setup_topbar_button_contrast(
     btn._svg_filename = svg_filename
     btn._contrast_icon = None
     btn._contrast_theme = None
-    _update_button_contrast_icon(btn)
+    contrast_icon = _update_button_contrast_icon(btn)
+    if btn.underMouse() and contrast_icon and not contrast_icon.isNull():
+        btn.setIcon(contrast_icon)
+    else:
+        btn.setIcon(normal_icon)
     filt = getattr(btn, "_invert_hover_filter", None)
     if filt is None:
         filt = TopBarButtonHoverFilter(btn)
@@ -472,6 +480,20 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         theme = _resolve_theme(self._category_provider)
         from app.utils.ui.menu_builders.base import get_menu_icon
 
+        # Toggle sidebar
+        toggle_icon = get_menu_icon("left_panel_close", theme)
+        if not toggle_icon or toggle_icon.isNull():
+            toggle_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "left_panel_close.svg")
+        toggle_text = QCoreApplication.translate("MenuActions", "Toggle sidebar")
+        toggle_action = QAction(toggle_icon, toggle_text, self._toolbar)
+        toggle_action.setToolTip(toggle_text)
+        toggle_action.triggered.connect(self._on_toggle_left_panel)
+        self._add_action(toggle_action)
+        toggle_btn = self._toolbar.widgetForAction(toggle_action)
+        if isinstance(toggle_btn, QToolButton):
+            toggle_btn.setObjectName("topBarToggleLeftPanelButton")
+            _setup_topbar_button_contrast(toggle_btn, toggle_icon, "left_panel_close.svg")
+
         # Add section
         sec_icon = get_menu_icon("add_section", theme)
         if not sec_icon or sec_icon.isNull():
@@ -511,6 +533,10 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
     def _on_add_category(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "add_new_category"):
             self._category_provider.add_new_category()
+
+    def _on_toggle_left_panel(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "toggle_left_panel"):
+            self._category_provider.toggle_left_panel()
 
 
 class ToolsToolbarAdapter(ToolbarActionAdapter):

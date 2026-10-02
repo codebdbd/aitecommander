@@ -204,6 +204,7 @@ class IconPathService:
             self._theme_index.clear()
             self._theme_index_ts.clear()
             self._theme_dir_mtime.clear()
+        reset_current_theme_cache()
         logger.debug("Icon path service caches cleared")
 
     # --- Metrics helpers (internal) ---
@@ -666,6 +667,14 @@ _CURRENT_THEME_CACHE: str | None = None
 _LAST_THEME_CHECK: float = 0.0
 _THEME_CACHE_TTL: float = 3.0
 _theme_lock = threading.RLock()
+
+
+def reset_current_theme_cache() -> None:
+    """Reset cached current theme to force immediate re-evaluation."""
+    global _CURRENT_THEME_CACHE, _LAST_THEME_CHECK
+    with _theme_lock:
+        _CURRENT_THEME_CACHE = None
+        _LAST_THEME_CHECK = 0.0
 
 
 def get_current_theme() -> str:

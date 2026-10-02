@@ -5,5 +5,14 @@
   "is_dark": false,
   "qss": "resources/qss/pearl_gray.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#707980"
+  "icon_color": "#707980",
+  "tokens": {
+    "text_primary": "#272727",
+    "text_secondary": "#63686B",
+    "text_muted": "#7A7E81",
+    "text_accent": "#707980",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#D4D7D9",
+    "selection_fg": "#25282A"
+  }
 }

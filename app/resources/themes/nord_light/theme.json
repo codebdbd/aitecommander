@@ -5,5 +5,14 @@
   "is_dark": false,
   "qss": "resources/qss/nord_light.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#5F88A8"
+  "icon_color": "#5F88A8",
+  "tokens": {
+    "text_primary": "#263238",
+    "text_secondary": "#5C6C77",
+    "text_muted": "#77848C",
+    "text_accent": "#5F88A8",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#C9DCEB",
+    "selection_fg": "#20303B"
+  }
 }

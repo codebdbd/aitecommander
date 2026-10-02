@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/rasta_royale.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#F4D23C"
+  "icon_color": "#F4D23C",
+  "tokens": {
+    "text_primary": "#F5F1D6",
+    "text_secondary": "#A3AD8F",
+    "text_muted": "#68755C",
+    "text_accent": "#E5C04A",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#1F5A2E",
+    "selection_fg": "#FFFFFF"
+  }
 }

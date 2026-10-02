@@ -326,20 +326,10 @@ class TopBarBuilder:
             theme_layout.addWidget(theme_separator)
             self.window.theme_selector_separator = theme_separator
 
-            theme_selector = ThemeSelector(self.window.theme_ctrl, theme_container)
-            try:
-                theme_selector.setFixedHeight(int(app_config.ui.get_top_panel_button_size()))
-                theme_selector.setSizePolicy(
-                    getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
-                    QSizePolicy.Policy.Fixed,
-                )
-                theme_selector.setMaximumWidth(120)
-            except (TypeError, ValueError, AttributeError):
-                pass
-            theme_layout.addWidget(theme_selector)
-            self.window.theme_selector = theme_selector
+            from app.utils.ui.menu_builders.base import get_menu_icon
+            from app.views.main_components.ui.topbar.toolbar_adapters import _resolve_theme
+            theme = _resolve_theme()
 
-            # Settings toolbar & button (consistent with main toolbar)
             btn_size = int(app_config.ui.get_top_panel_button_size())
             icon_sz = app_config.ui.get_top_panel_icon_size()
             settings_toolbar = TopBarToolBar(theme_container, button_height=btn_size)
@@ -351,7 +341,52 @@ class TopBarBuilder:
                 getattr(QSizePolicy.Policy, "Fixed", QSizePolicy.Policy.Fixed),
                 QSizePolicy.Policy.Fixed,
             )
-            settings_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "settings.svg")
+
+            # Light themes rotation button
+            light_icon = get_menu_icon("light", theme)
+            if not light_icon or light_icon.isNull():
+                light_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "light.svg")
+            light_text = QCoreApplication.translate("MenuActions", "Light themes")
+            light_action = QAction(light_icon, "", settings_toolbar)
+            light_action.setToolTip(light_text)
+            if hasattr(self.window, "theme_ctrl") and self.window.theme_ctrl:
+                light_action.triggered.connect(self.window.theme_ctrl.rotate_light_theme)
+            settings_toolbar.addAction(light_action)
+            light_btn = settings_toolbar.widgetForAction(light_action)
+            if isinstance(light_btn, QToolButton):
+                light_btn.setObjectName("topBarLightThemeButton")
+                light_btn.setFixedSize(btn_size, btn_size)
+                light_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
+                light_btn.setProperty("toolbar_btn", True)
+                light_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                _setup_topbar_button_contrast(light_btn, light_icon, "light.svg")
+            self.window.light_theme_button = light_btn
+            self.window.light_theme_action = light_action
+
+            # Dark themes rotation button
+            dark_icon = get_menu_icon("dark", theme)
+            if not dark_icon or dark_icon.isNull():
+                dark_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "dark.svg")
+            dark_text = QCoreApplication.translate("MenuActions", "Dark themes")
+            dark_action = QAction(dark_icon, "", settings_toolbar)
+            dark_action.setToolTip(dark_text)
+            if hasattr(self.window, "theme_ctrl") and self.window.theme_ctrl:
+                dark_action.triggered.connect(self.window.theme_ctrl.rotate_dark_theme)
+            settings_toolbar.addAction(dark_action)
+            dark_btn = settings_toolbar.widgetForAction(dark_action)
+            if isinstance(dark_btn, QToolButton):
+                dark_btn.setObjectName("topBarDarkThemeButton")
+                dark_btn.setFixedSize(btn_size, btn_size)
+                dark_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
+                dark_btn.setProperty("toolbar_btn", True)
+                dark_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                _setup_topbar_button_contrast(dark_btn, dark_icon, "dark.svg")
+            self.window.dark_theme_button = dark_btn
+            self.window.dark_theme_action = dark_action
+
+            settings_icon = get_menu_icon("settings", theme)
+            if not settings_icon or settings_icon.isNull():
+                settings_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "settings.svg")
             settings_text = QCoreApplication.translate("MenuActions", "Settings")
             settings_action = QAction(settings_icon, "", settings_toolbar)
             settings_action.setToolTip(settings_text)

@@ -1,4 +1,13 @@
-"""Declarative column contract for the links table."""
+"""Declarative column contract for the links table.
+
+Sort Chevrons Architecture Contract:
+- ORDER (0, '#'): sortable=True, chevron_padding=False (narrow 36px fixed column, resets to manual order, no chevron).
+- GROUP_LAUNCH (1, ''): sortable=False, chevron_padding=False (group launch trigger icon, no chevron).
+- NAME (2, 'Name'): sortable=True, chevron_padding=True (alphabetical sort with Explorer-style sort chevron).
+- LAUNCH (3, 'Launch'): sortable=True, chevron_padding=True (timestamp sort with Explorer-style sort chevron).
+- NOTES (4, 'Notes'): sortable=True, chevron_padding=True (notes text sort with Explorer-style sort chevron).
+- TYPE (5, 'Type'): sortable=True, chevron_padding=True (resource type sort with Explorer-style sort chevron).
+"""
 
 from __future__ import annotations
 
@@ -68,6 +77,7 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         column=LinkTableColumn.NAME,
         key="name",
         header_source="Name",
+        chevron_padding=True,
         config_width_index=1,
         display_builder="_display_name",
         tooltip_builder="_tooltip_name",
@@ -90,6 +100,7 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         column=LinkTableColumn.NOTES,
         key="notes",
         header_source="Notes",
+        chevron_padding=True,
         stretch=True,
         resize_mode="stretch",
         display_builder="_display_notes",
@@ -99,6 +110,7 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         column=LinkTableColumn.TYPE,
         key="type",
         header_source="Type",
+        chevron_padding=True,
         header_tooltip_source="Resource type",
         fallback_width=104,
         display_builder="_display_type",

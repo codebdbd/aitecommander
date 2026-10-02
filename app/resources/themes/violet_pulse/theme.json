@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/violet_pulse.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#B66CFF"
+  "icon_color": "#B66CFF",
+  "tokens": {
+    "text_primary": "#F7E6F7",
+    "text_secondary": "#9F7EA8",
+    "text_muted": "#5D4166",
+    "text_accent": "#B66CFF",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#B82C73",
+    "selection_fg": "#FFFFFF"
+  }
 }

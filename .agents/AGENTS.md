@@ -445,4 +445,44 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   1. **Мгновенный Fast-Path в UI-потоке (`TreeSnapshotService._preprocess_snapshot`)**: Если путь иконки уже является абсолютным (`":" in icon_path or icon_path.startswith("/")`), метод возвращает его немедленно за 0.00 мс без обращения к диску, валидации PIL или повторного вызова `resolve_icon_path`.
   2. **Гарантия нулевых задержек переключения сфер (Sub-millisecond Preprocessing)**: Время выполнения `TreeSnapshotService.preprocess` на UI-потоке строго обязано составлять **< 1 мс** (включая сферы с 200+ категориями). Категорически запрещено выполнять синхронный поиск файлов иконок на диске в основном потоке интерфейса.
 
+## 45. Architecture Standards: Links Table Header Sort Chevrons (АРХИТЕКТУРНЫЙ СТАНДАРТ ШЕВРОНОВ СОРТИРОВКИ ТАБЛИЦЫ ССЫЛОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Контракт шевронов сортировки в заголовке таблицы закладок (`ExplorerHeaderView`, `ExplorerHeaderStyle`, `columns.py`, `links_model.py`) полностью зафиксирован.
+- **Strict Column Chevrons Matrix**:
+  1. **Колонка 0 (`ORDER` / `#`)**: строго `sortable = True`, `chevron_padding = False`. Узкая 36px колонка ручного порядка; клик возвращает ручную сортировку без отображения шеврона.
+  2. **Колонка 1 (`GROUP_LAUNCH`)**: строго `sortable = False`, `chevron_padding = False`. Служебная кнопка запуска группы; сортировка запрещена.
+  3. **Колонки 2 (`NAME` / «Имя»), 3 (`LAUNCH` / «Запуск»), 4 (`NOTES` / «Заметки»), 5 (`TYPE` / «Тип»)**: строго `sortable = True`, `chevron_padding = True`. Все четыре контентные колонки обязаны иметь Windows Explorer style шеврон сортировки.
+- **Strict Rendering & Geometry Rules**:
+  1. **Постоянная видимость активной сортировки (Persistent Indicator)**: Активно отсортированная колонка (`sorted_sec`) обязана ВСЕГДА отображать шеврон направления (ASC: острием вверх, DESC: острием вниз) даже после того, как курсор мыши покинул область заголовка (`leaveEvent`). Запрещено скрывать шеврон при `hovered_sec < 0`.
+  2. **Ховер-подсветка и превью (Interactive Hover Preview)**: При наведении курсора мыши на любую сортируемую колонку (`NAME`, `LAUNCH`, `NOTES`, `TYPE`) заголовок подсвечивается (`table_hover_color`), а в зоне шеврона (24px) отображается шеврон-превью.
+  3. **Раздельная геометрия отступов заголовка (`ExplorerHeaderStyle`)**:
+     - Для центрированных колонок (`LAUNCH` / `centered = True`): отступ под шеврон выполняется симметрично `(px, 0, -px, 0)` для идеального центрирования текста.
+     - Для выровненных по левому краю колонок (`NAME`, `NOTES`, `TYPE` / `centered = False`): отступ резервируется строго справа `(0, 0, -px, 0)`, исключая нежелательный сдвиг текста от левой границы.
 
+
+
+
+
+## 46. Architecture Standards: Semantic Typography & Theme Tokens Contract (АРХИТЕКТУРНЫЙ СТАНДАРТ СЕМАНТИЧЕСКИХ ТОКЕНОВ И ТИПОГРАФИКИ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Контракт семантических токенов тем оформления и иерархии текста (`theme.json`, `theme_registry.py`, `theme_stylesheet_service.py`) полностью зафиксирован.
+- **Strict Theme Tokens Matrix**:
+  1. **Минимальный набор токенов (7 токенов)**: Каждая тема в `theme.json` строго обязана содержать секцию `"tokens"`:
+     - `text_primary`: основной цвет текста (высокий контраст к фону).
+     - `text_secondary`: вторичный цвет текста (вспомогательные подписи, метаданные, порядок, типы). Контрастность откалибрована с чётким визуальным разделением от `text_primary`.
+     - `text_muted`: приглушённый цвет для disabled-элементов и плейсхолдеров.
+     - `text_accent`: акцентный цвет бренда/темы для хоткеев, фокусов и ключевых индикаторов.
+     - `text_on_accent`: цвет текста поверх акцентных заливок (всегда контрастен `text_accent`/`selection_bg`).
+     - `selection_bg`: фон выделения элементов списка и таблицы.
+     - `selection_fg`: цвет текста выделенных элементов.
+  2. **Реестр и Fallback**: `theme_registry.get_theme_tokens(theme_id)` гарантирует возврат полного набора токенов с автоматическим fallback на `DEFAULT_DARK_TOKENS` или `DEFAULT_LIGHT_TOKENS`.
+  3. **Прямое чтение токенов в Python-делегатах**: Из-за особенностей Qt QSS (правило `QWidget { color }` сбрасывает динамические `qproperty`), делегаты (`TableDelegate`) обязаны читать токены напрямую через `theme_registry.get_theme_tokens(get_current_theme())`.
+
+## 47. Architecture Standards: Links Table Header Group Launch Checkbox & Bulk Toggle (АРХИТЕКТУРНЫЙ СТАНДАРТ ЧЕКБОКСА ГРУППОВОГО ЗАПУСКА В ШАПКЕ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Механизм чекбокса группового запуска в шапке таблицы закладок (`TableFilterHeader.paintSection`, `LinksTableView._toggle_all_group_launch`, `LinksTableModel.set_all_group_launch`) полностью зафиксирован.
+- **Strict Rendering Rules**:
+  1. **Идентичность стилизации ячейкам (`QTableView::indicator`)**: Чекбокс в заголовке рисуется строго через `style.drawPrimitive(PE_IndicatorItemViewItemCheck, cb_opt, painter, table)`. В качестве целевого виджета передаётся строго сама таблица `table` (`LinksTableView = self.parent()`), а не `viewport` и не `self`. Опция `cb_opt` инициализируется через `table.initViewItemOption(cb_opt)` с флагом `features = HasCheckIndicator`.
+  2. **Три состояния индикатора**: `State_On` (`Qt.CheckState.Checked`) — все строки выбраны; `State_Off` (`Qt.CheckState.Unchecked`) — ни одной строки не выбрано; `State_NoChange` (`Qt.CheckState.PartiallyChecked`) — выбрана часть строк.
+  3. **Синхронизация состояния на лету**: При изменении данных строк (`_on_model_data_changed`) заголовок таблицы немедленно перерисовывается через `header.viewport().update()`.
+- **Strict Bulk Toggle Rules**:
+  1. **Клик по шапке**: Клик по заголовку колонки `GROUP_LAUNCH` перехватывается в `_on_sort_clicked` до контроллера сортировки и вызывает `_toggle_all_group_launch()`.
+  2. **Логика переключения**: Если все строки отмечены — снимаются все; если хотя бы одна не отмечена — отмечаются все строки.
+  3. **Пакетное обновление модели и БД**: Метод `LinksTableModel.set_all_group_launch(val_int)` атомарно обновляет все строки модели, испускает один `dataChanged` на весь диапазон колонки и для каждой записи испускает `groupLaunchToggled(link_id, val_int)` для асинхронного сохранения в БД через `WorkerManager`.

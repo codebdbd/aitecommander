@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/dark.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#0194F0"
+  "icon_color": "#0194F0",
+  "tokens": {
+    "text_primary": "#E0E0E0",
+    "text_secondary": "#A0A7B5",
+    "text_muted": "#7E8896",
+    "text_accent": "#0194F0",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#6A2E44",
+    "selection_fg": "#FFFFFF"
+  }
 }

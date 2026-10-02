@@ -496,11 +496,45 @@ class MainWindow(QMainWindow, ReTranslatable):
         settings_btn = getattr(self, "settings_button", None)
         if settings_btn is not None:
             settings_btn.setToolTip(settings_text)
+        light_action = getattr(self, "light_theme_action", None)
+        light_text = QCoreApplication.translate("MenuActions", "Light themes")
+        if light_action is not None:
+            light_action.setToolTip(light_text)
+        light_btn = getattr(self, "light_theme_button", None)
+        if light_btn is not None:
+            light_btn.setToolTip(light_text)
+        dark_action = getattr(self, "dark_theme_action", None)
+        dark_text = QCoreApplication.translate("MenuActions", "Dark themes")
+        if dark_action is not None:
+            dark_action.setToolTip(dark_text)
+        dark_btn = getattr(self, "dark_theme_button", None)
+        if dark_btn is not None:
+            dark_btn.setToolTip(dark_text)
         tools_adapter = getattr(self, "tools_actions_widget", None)
         if tools_adapter and hasattr(tools_adapter, "refresh_actions"):
             tools_adapter.refresh_actions()
         # switch_sphere_button now handled by retranslate_bottom_panel (unified)
         retranslate_bottom_panel(self)
+
+    def toggle_left_panel(self) -> None:
+        """Toggle visibility of the left structure panel."""
+        splitter = self.splitter
+        if splitter is None:
+            return
+        sizes = splitter.sizes()
+        if not sizes or len(sizes) < 2:
+            return
+        total_w = sum(sizes)
+        if sizes[0] > 0:
+            self._saved_left_panel_width = sizes[0]
+            splitter.setCollapsible(0, True)
+            splitter.setSizes([0, max(1, total_w)])
+        else:
+            saved_w = getattr(self, "_saved_left_panel_width", None)
+            if not saved_w or saved_w <= 0:
+                saved_w = 320
+            splitter.setSizes([saved_w, max(1, total_w - saved_w)])
+            splitter.setCollapsible(0, False)
 
     def switch_to_next_sphere(self) -> None:
         """Switch to the next available sphere."""

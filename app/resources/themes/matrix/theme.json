@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/matrix.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#3BF989"
+  "icon_color": "#3BF989",
+  "tokens": {
+    "text_primary": "#E6FFE8",
+    "text_secondary": "#73B082",
+    "text_muted": "#356B42",
+    "text_accent": "#00FF66",
+    "text_on_accent": "#000000",
+    "selection_bg": "#0F3F24",
+    "selection_fg": "#C9FFD8"
+  }
 }

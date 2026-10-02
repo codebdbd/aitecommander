@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/sakura_anime.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#FF8FC7"
+  "icon_color": "#FF8FC7",
+  "tokens": {
+    "text_primary": "#FFF0FA",
+    "text_secondary": "#A5859D",
+    "text_muted": "#5F4558",
+    "text_accent": "#FF8FC7",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#A23A72",
+    "selection_fg": "#FFFFFF"
+  }
 }

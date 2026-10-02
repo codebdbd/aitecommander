@@ -11,6 +11,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.core.paths.path_manager import PathManager
+from app.services.theme_registry import theme_registry
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,9 @@ class ThemeStylesheetService:
             )
 
         combined_qss = self._adapt_qss_for_topbar_buttons(combined_qss, theme_name)
+        tokens_block = self._get_tokens_qss(theme_name)
+        if tokens_block:
+            combined_qss = f"{combined_qss}\n{tokens_block}"
 
         with self._cache_lock:
             self._qss_cache[theme_name] = combined_qss
@@ -225,6 +229,9 @@ class ThemeStylesheetService:
             )
 
         combined_qss = self._adapt_qss_for_topbar_buttons(combined_qss, theme_name)
+        tokens_block = self._get_tokens_qss(theme_name)
+        if tokens_block:
+            combined_qss = f"{combined_qss}\n{tokens_block}"
 
         with self._cache_lock:
             self._qss_cache[theme_name] = combined_qss
@@ -238,6 +245,44 @@ class ThemeStylesheetService:
         return combined_qss
 
     # ---------------------- Internal methods ----------------------
+    @staticmethod
+    def _build_tokens_qss(tokens: dict[str, str]) -> str:
+        """Generate unified semantic typography and state rules from tokens."""
+        selection_fg = tokens.get("selection_fg", tokens.get("text_on_accent", "#FFFFFF"))
+        muted = tokens.get("text_muted", tokens.get("text_secondary", "#888888"))
+        return (
+            "\n/* ==== Unified Typography & State Tokens (Auto-Generated) ==== */\n"
+            f"QHeaderView::section, QTableView QHeaderView::section, QTableView QHeaderView::section:horizontal, QHeaderView::section:horizontal {{ color: {tokens['text_secondary']}; }}\n"
+            f"QLabel#pathLabel, QStatusBar, QStatusBar QLabel {{ color: {tokens['text_secondary']}; }}\n"
+            f"QLabel#statusMessageLabel {{ color: {tokens['text_primary']}; }}\n"
+            f"QDialog QLabel, QDialog QCheckBox {{ color: {tokens['text_secondary']}; }}\n"
+            f"QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {{ color: {tokens['text_primary']}; }}\n"
+            f"QLineEdit, QTextEdit, QPlainTextEdit {{ placeholder-text-color: {muted}; }}\n"
+            f"LinksTableView {{\n"
+            f"    qproperty-tableHeaderTextColor: {tokens['text_secondary']};\n"
+            f"    qproperty-primaryCellTextColor: {tokens['text_primary']};\n"
+            f"    qproperty-secondaryCellTextColor: {tokens['text_secondary']};\n"
+            f"}}\n"
+            f"QTreeView::item:selected, QTableView::item:selected, QTableWidget::item:selected {{\n"
+            f"    background-color: {tokens['selection_bg']};\n"
+            f"    color: {selection_fg};\n"
+            f"    selection-color: {selection_fg};\n"
+            f"}}\n"
+            f"QLineEdit#mainSearch {{ color: {tokens['text_primary']}; }}\n"
+        )
+
+    def _get_tokens_qss(self, theme_name: str) -> str:
+        try:
+            tokens = theme_registry.get_theme_tokens(theme_name)
+            return self._build_tokens_qss(tokens) if tokens else ""
+        except Exception as exc:
+            logger.warning(
+                "ThemeStylesheetService: failed to build tokens QSS for %s: %s",
+                theme_name,
+                exc,
+            )
+            return ""
+
     @staticmethod
     def _adapt_qss_for_input_frames(qss: str) -> str:
         """Ensure `QFrame[input_frame="true"]` automatically inherits input styles

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import html
 import logging
 import weakref
 from typing import Callable
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QEvent
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -21,6 +22,7 @@ class StatusBarWidget(QStatusBar):
         self._window_ref = weakref.ref(window)
         self._language_service = LanguageService.instance()
         self._message_label = QLabel(self)
+        self._message_label.setObjectName("statusMessageLabel")
         self._path_label = QLabel(self)
         self._path_label.setObjectName("pathLabel")
         self._path_label.setMinimumWidth(app_config.ui.get_path_label_min_width())
@@ -38,13 +40,15 @@ class StatusBarWidget(QStatusBar):
     def retranslate(self) -> None:
         """Update static strings after a language change."""
         self._message_label.setText(QCoreApplication.translate("StatusBar", "Ready"))
-        self._path_label.setText(QCoreApplication.translate("StatusBar", "Path: "))
+        self._path_label.setText(self._format_item(QCoreApplication.translate("StatusBar", "Path: ")))
         self._db_status_label.setText(
-            QCoreApplication.translate("StatusBar", "Database: connected")
+            self._format_item(QCoreApplication.translate("StatusBar", "Database: connected"))
         )
         self._links_count_label.setText(
-            QCoreApplication.translate("StatusBar", "Links: {count}").format(
-                count=format_number(0)
+            self._format_item(
+                QCoreApplication.translate("StatusBar", "Links: {count}"),
+                format_number(0),
+                "{count}",
             )
         )
         self.refresh()
@@ -64,8 +68,34 @@ class StatusBarWidget(QStatusBar):
 
     # --- Internal helpers -------------------------------------------------
 
+    def changeEvent(self, event: QEvent) -> None:
+        super().changeEvent(event)
+        if event.type() in (QEvent.Type.StyleChange, QEvent.Type.PaletteChange):
+            self.refresh()
+
     def _owner(self):
         return self._window_ref()
+
+    def _format_item(self, template: str, value: str = "", placeholder: str = "") -> str:
+        try:
+            from app.services.theme_registry import theme_registry
+            from app.utils.ui.icon.path_service import get_current_theme
+            tokens = theme_registry.get_theme_tokens(get_current_theme())
+            pri = tokens.get("text_primary", "#FFFFFF")
+            sec = tokens.get("text_secondary", "#888888")
+        except Exception:
+            pri = "#FFFFFF"
+            sec = "#888888"
+
+        val_span = f'<span style="color: {pri};">{html.escape(str(value))}</span>'
+        if placeholder and placeholder in template:
+            parts = template.split(placeholder, 1)
+            return f'<span style="color: {sec};">{html.escape(parts[0])}</span>{val_span}<span style="color: {sec};">{html.escape(parts[1])}</span>'
+        elif ":" in template:
+            parts = template.split(":", 1)
+            val_part = f'<span style="color: {pri};">{html.escape(parts[1].strip())}</span>'
+            return f'<span style="color: {sec};">{html.escape(parts[0])}: </span>{val_part}'
+        return f'<span style="color: {sec};">{html.escape(template)}</span>'
 
     def _connect_language_service(self) -> None:
         def _on_language_changed(lang_code: str) -> None:
@@ -124,16 +154,14 @@ class StatusBarWidget(QStatusBar):
 
         if tiles_active and tiles_widget is not None:
             count = self._safe_int(getattr(tiles_widget, "get_categories_count", None))
-            text = QCoreApplication.translate("StatusBar", "Categories: {count}").format(
-                count=format_number(count)
-            )
+            template = QCoreApplication.translate("StatusBar", "Categories: {count}")
+            text = self._format_item(template, format_number(count), "{count}")
         else:
             links = getattr(window, "links", None)
             get_row_count = getattr(links, "get_row_count", None)
             count = self._safe_int(get_row_count) if callable(get_row_count) else 0
-            text = QCoreApplication.translate("StatusBar", "Links: {count}").format(
-                count=format_number(count)
-            )
+            template = QCoreApplication.translate("StatusBar", "Links: {count}")
+            text = self._format_item(template, format_number(count), "{count}")
 
         self._set_text_if_changed(self._links_count_label, text)
 
@@ -151,7 +179,7 @@ class StatusBarWidget(QStatusBar):
             "StatusBar",
             "Database: connected" if connected else "Database: disconnected",
         )
-        self._set_text_if_changed(self._db_status_label, text)
+        self._set_text_if_changed(self._db_status_label, self._format_item(text))
 
     def _update_path(self, window) -> None:
         parts = []
@@ -165,11 +193,10 @@ class StatusBarWidget(QStatusBar):
 
         if parts:
             separator = QCoreApplication.translate("StatusBar", " > ")
-            text = QCoreApplication.translate("StatusBar", "Path: {path}").format(
-                path=separator.join(parts)
-            )
+            template = QCoreApplication.translate("StatusBar", "Path: {path}")
+            text = self._format_item(template, separator.join(parts), "{path}")
         else:
-            text = QCoreApplication.translate("StatusBar", "Path: ")
+            text = self._format_item(QCoreApplication.translate("StatusBar", "Path: "))
         self._set_text_if_changed(self._path_label, text)
 
     def _collect_tree_parts(self, window) -> list[str]:

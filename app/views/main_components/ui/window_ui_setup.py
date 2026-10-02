@@ -761,6 +761,20 @@ class WindowUISetup:
         settings_btn = getattr(self.window, "settings_button", None)
         if settings_btn is not None:
             settings_btn.setToolTip(settings_text)
+        light_action = getattr(self.window, "light_theme_action", None)
+        light_text = QCoreApplication.translate("MenuActions", "Light themes")
+        if light_action is not None:
+            light_action.setToolTip(light_text)
+        light_btn = getattr(self.window, "light_theme_button", None)
+        if light_btn is not None:
+            light_btn.setToolTip(light_text)
+        dark_action = getattr(self.window, "dark_theme_action", None)
+        dark_text = QCoreApplication.translate("MenuActions", "Dark themes")
+        if dark_action is not None:
+            dark_action.setToolTip(dark_text)
+        dark_btn = getattr(self.window, "dark_theme_button", None)
+        if dark_btn is not None:
+            dark_btn.setToolTip(dark_text)
 
     def _register_topbar_cleanup(self, manager: object | None) -> None:
         if manager is None or not hasattr(self.window, "destroyed"):

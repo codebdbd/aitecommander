@@ -277,6 +277,38 @@ class ThemeController:
             # Return default theme identifiers on error
             return [("light", "light"), ("dark", "dark")]
 
+    def rotate_light_theme(self) -> None:
+        """Cycle to the next light theme."""
+        light_themes = [
+            t.get("name")
+            for t in self._themes
+            if not t.get("is_dark", False) and t.get("name")
+        ]
+        if not light_themes:
+            return
+        cur = self._normalize_theme_input(self.settings.get_theme())
+        if cur in light_themes:
+            next_idx = (light_themes.index(cur) + 1) % len(light_themes)
+        else:
+            next_idx = 0
+        self.apply(light_themes[next_idx])
+
+    def rotate_dark_theme(self) -> None:
+        """Cycle to the next dark theme."""
+        dark_themes = [
+            t.get("name")
+            for t in self._themes
+            if t.get("is_dark", False) and t.get("name")
+        ]
+        if not dark_themes:
+            return
+        cur = self._normalize_theme_input(self.settings.get_theme())
+        if cur in dark_themes:
+            next_idx = (dark_themes.index(cur) + 1) % len(dark_themes)
+        else:
+            next_idx = 0
+        self.apply(dark_themes[next_idx])
+
     def apply(self, name: str) -> bool:
         """Apply theme by name and save to settings."""
         normalized_name = self._normalize_theme_input(name)
@@ -392,9 +424,13 @@ class ThemeController:
         """Clear icon cache with error handling."""
         try:
             clear_icon_cache()
-            from app.utils.ui.icon.path_service import icon_path_service
+            from app.utils.ui.icon.path_service import (
+                icon_path_service,
+                reset_current_theme_cache,
+            )
 
             icon_path_service.clear_cache()
+            reset_current_theme_cache()
         except Exception as exc:
             logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
 
@@ -486,18 +522,75 @@ class ThemeController:
                 fav_widget.refresh_actions()
         except Exception as exc:
             logger.warning("Favorites widget refresh error: %s", exc, exc_info=True)
+        cur_theme = ""
+        if hasattr(self, "settings") and self.settings and hasattr(self.settings, "get_theme"):
+            cur_theme = self.settings.get_theme()
+        if not cur_theme:
+            try:
+                from app.core.settings_manager import SettingsManager
+
+                cur_theme = SettingsManager.get("theme.name")
+            except Exception:
+                pass
+        if not cur_theme:
+            from app.utils.ui.icon.path_service import get_current_theme
+
+            cur_theme = get_current_theme()
+
+        try:
+            light_btn = getattr(mw, "light_theme_button", None)
+            light_action = getattr(mw, "light_theme_action", None)
+            if light_btn is not None or light_action is not None:
+                from app.utils.ui.icon.path_service import icon_path_service
+                from app.utils.ui.menu_builders.base import get_menu_icon
+                from app.views.main_components.ui.topbar.toolbar_adapters import (
+                    _icon_from_path,
+                    _setup_topbar_button_contrast,
+                )
+                l_icon = get_menu_icon("light", cur_theme)
+                if not l_icon or l_icon.isNull():
+                    l_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "light.svg")
+                if light_action is not None:
+                    light_action.setIcon(l_icon)
+                if light_btn is not None:
+                    _setup_topbar_button_contrast(light_btn, l_icon, "light.svg")
+        except Exception as exc:
+            logger.warning("Light theme button refresh error: %s", exc, exc_info=True)
+        try:
+            dark_btn = getattr(mw, "dark_theme_button", None)
+            dark_action = getattr(mw, "dark_theme_action", None)
+            if dark_btn is not None or dark_action is not None:
+                from app.utils.ui.icon.path_service import icon_path_service
+                from app.utils.ui.menu_builders.base import get_menu_icon
+                from app.views.main_components.ui.topbar.toolbar_adapters import (
+                    _icon_from_path,
+                    _setup_topbar_button_contrast,
+                )
+                d_icon = get_menu_icon("dark", cur_theme)
+                if not d_icon or d_icon.isNull():
+                    d_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "dark.svg")
+                if dark_action is not None:
+                    dark_action.setIcon(d_icon)
+                if dark_btn is not None:
+                    _setup_topbar_button_contrast(dark_btn, d_icon, "dark.svg")
+        except Exception as exc:
+            logger.warning("Dark theme button refresh error: %s", exc, exc_info=True)
         try:
             settings_btn = getattr(mw, "settings_button", None)
-            if settings_btn is not None:
-                from PyQt6.QtWidgets import QToolButton
-                if isinstance(settings_btn, QToolButton):
-                    from app.utils.ui.icon.path_service import icon_path_service
-                    from app.views.main_components.ui.topbar.toolbar_adapters import (
-                        _icon_from_path,
-                        _setup_topbar_button_contrast,
-                    )
+            settings_action = getattr(mw, "settings_action", None)
+            if settings_btn is not None or settings_action is not None:
+                from app.utils.ui.icon.path_service import icon_path_service
+                from app.utils.ui.menu_builders.base import get_menu_icon
+                from app.views.main_components.ui.topbar.toolbar_adapters import (
+                    _icon_from_path,
+                    _setup_topbar_button_contrast,
+                )
+                s_icon = get_menu_icon("settings", cur_theme)
+                if not s_icon or s_icon.isNull():
                     s_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "settings.svg")
-                    settings_btn.setIcon(s_icon)
+                if settings_action is not None:
+                    settings_action.setIcon(s_icon)
+                if settings_btn is not None:
                     _setup_topbar_button_contrast(settings_btn, s_icon, "settings.svg")
         except Exception as exc:
             logger.warning("Settings button refresh error: %s", exc, exc_info=True)

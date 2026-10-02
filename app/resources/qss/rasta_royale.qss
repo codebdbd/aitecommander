@@ -212,13 +212,13 @@ QTableView QHeaderView::section:horizontal {
 background-color: #151F13;
 border-right-color: #35522A;
 border-bottom-color: #35522A;
-color: #F4D23C;
+color: #A3AD8F;
 }
 QTableView QHeaderView {
 border-bottom-color: #35522A;
 }
 QLabel#pathLabel {
-color: #B8B075;
+color: #A3AD8F;
 }
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
@@ -231,7 +231,7 @@ background-color: #151F13;
 }
 QTableView QHeaderView::section:vertical {
 background-color: #151F13;
-color: #DDD6AD;
+color: #A3AD8F;
 }
 QTableView QHeaderView:vertical {
 background-color: #151F13;
@@ -242,8 +242,8 @@ background-color: #121A10;
 alternate-background-color: #10170F;
 }
 LinksTableView {
-qproperty-openedColColor: #D9CF87;
-qproperty-notesColColor: #F2E8B0;
+qproperty-openedColColor: #A3AD8F;
+qproperty-notesColColor: #F5F1D6;
 qproperty-hoverRowColor: #283D20;
 }
 QTreeView::item:selected,
@@ -276,7 +276,7 @@ border-top-color: #35522A;
 }
 QStatusBar QLabel#dbStatusLabel,
 QStatusBar QLabel#linksCountLabel {
-color: #87905D;
+color: #A3AD8F;
 font-weight: normal;
 }
 QWidget#bottomBarContainer {

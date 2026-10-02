@@ -5,5 +5,14 @@
   "is_dark": false,
   "qss": "resources/qss/pastel_bloom.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#8E607F"
+  "icon_color": "#8E607F",
+  "tokens": {
+    "text_primary": "#302A31",
+    "text_secondary": "#6B5E6D",
+    "text_muted": "#817681",
+    "text_accent": "#8E607F",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#D8B7CD",
+    "selection_fg": "#2D2630"
+  }
 }

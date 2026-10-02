@@ -528,6 +528,21 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     def append_link(self, link: dict[str, Any]) -> bool:
         return self.insert_link(len(self._links), link)
 
+    def set_all_group_launch(self, val_int: int) -> None:
+        """Toggle is_group_launch for all rows at once and persist to DB."""
+        if not self._links:
+            return
+        for link in self._links:
+            link["is_group_launch"] = val_int
+            link["group_launch"] = bool(val_int)
+        top = self.index(0, int(LinkTableColumn.GROUP_LAUNCH))
+        bot = self.index(len(self._links) - 1, int(LinkTableColumn.GROUP_LAUNCH))
+        self.dataChanged.emit(top, bot, [Qt.ItemDataRole.CheckStateRole])
+        for link in self._links:
+            link_id = link.get("id")
+            if link_id:
+                self.groupLaunchToggled.emit(link_id, val_int)
+
     def remove_row(self, row: int) -> bool:
         if not (0 <= row < len(self._links)):
             return False

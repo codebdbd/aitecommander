@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="uk_UA">
     <context>
     <name>AboutDialog</name>
@@ -1567,13 +1566,13 @@
 </context><context>
     <name>FavoritesToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="944" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="962" />
         <source>No favorite links</source>
         <translation>Немає обраних посилань</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="976" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="975" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="994" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="993" />
         <source>Favorites</source>
         <translation>Обране</translation>
     </message>
@@ -2977,7 +2976,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>&amp;Допомога</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="561" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="579" />
         <source>Refresh Icons</source>
         <translation>Оновити іконки</translation>
     </message>
@@ -3031,12 +3030,12 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Прихована кнопка</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="994" />
+        <location filename="..\app\views\windows\main_window.py" line="1028" />
         <source>Section</source>
         <translation>Розділ</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="1027" />
+        <location filename="..\app\views\windows\main_window.py" line="1061" />
         <source>Category</source>
         <translation>Категорія</translation>
     </message>
@@ -3049,14 +3048,14 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Помилка: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Додати розділ</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="507" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
@@ -3082,7 +3081,7 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\windows\main_window.py" line="493" />
-        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="355" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="390" />
         <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="758" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
@@ -3090,7 +3089,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Налаштування</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="576" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="594" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
         <source>Tools</source>
@@ -3113,7 +3112,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Відкрити базу даних</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="558" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="576" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Import Bookmarks</source>
@@ -3130,7 +3129,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Імпортувати іконки</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="560" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="578" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
         <source>Check Links</source>
         <translation>Перевірити посилання</translation>
@@ -3141,7 +3140,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Оновити іконки</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="557" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="575" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>Search files</source>
@@ -3427,6 +3426,25 @@ Would you like to open the first {limit} selected links?</source>
         <source>Import icons</source>
         <translation>Імпортувати іконки</translation>
     </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="500" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="349" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="765" />
+        <source>Light themes</source>
+        <translation>Світлі теми</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="507" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="370" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="772" />
+        <source>Dark themes</source>
+        <translation>Темні теми</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
+        <source>Toggle sidebar</source>
+        <translation>Згорнути/розгорнути бічну панель</translation>
+    </message>
 </context><context>
     <name>MessageHandler</name>
     <message>
@@ -3568,8 +3586,8 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>QuickAddToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="723" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="722" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="741" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="740" />
         <source>Add Link</source>
         <translation>Додати посилання</translation>
     </message>
@@ -3796,13 +3814,13 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>RecentHistoryToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1081" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1099" />
         <source>No recent links</source>
         <translation>Немає нещодавніх посилань</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1116" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1115" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1134" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1133" />
         <source>Recent Links</source>
         <translation>Нещодавні посилання</translation>
     </message>
@@ -4218,81 +4236,81 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="598" />
+        <location filename="..\app\views\windows\main_window.py" line="632" />
         <source>Sphere not selected.</source>
         <translation>Сферу не вибрано.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="601" />
+        <location filename="..\app\views\windows\main_window.py" line="635" />
         <source>Select a sphere and try again.</source>
         <translation>Виберіть сферу і спробуйте ще раз.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="645" />
-        <location filename="..\app\views\windows\main_window.py" line="617" />
+        <location filename="..\app\views\windows\main_window.py" line="679" />
+        <location filename="..\app\views\windows\main_window.py" line="651" />
         <source>Export error</source>
         <translation>Помилка експорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="642" />
+        <location filename="..\app\views\windows\main_window.py" line="676" />
         <source>Failed to export archive: {error}</source>
         <translation>Не вдалося експортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="657" />
+        <location filename="..\app\views\windows\main_window.py" line="691" />
         <source>Archive saved to:
 {path}</source>
         <translation>Архів збережено в:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="660" />
+        <location filename="..\app\views\windows\main_window.py" line="694" />
         <source>Export complete</source>
         <translation>Експорт завершено</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="666" />
+        <location filename="..\app\views\windows\main_window.py" line="700" />
         <source>Choose where to save the archive</source>
         <translation>Виберіть місце для збереження архіву</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="699" />
-        <location filename="..\app\views\windows\main_window.py" line="670" />
+        <location filename="..\app\views\windows\main_window.py" line="733" />
+        <location filename="..\app\views\windows\main_window.py" line="704" />
         <source>Section Archive (*.aitesec);;All files (*)</source>
         <translation>Архів розділу (*.aitesec);;Усі файли (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="703" />
-        <location filename="..\app\views\windows\main_window.py" line="674" />
+        <location filename="..\app\views\windows\main_window.py" line="737" />
+        <location filename="..\app\views\windows\main_window.py" line="708" />
         <source>Category Archive (*.aitecat);;All files (*)</source>
         <translation>Архів категорії (*.aitecat);;Усі файли (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="857" />
-        <location filename="..\app\views\windows\main_window.py" line="729" />
-        <location filename="..\app\views\windows\main_window.py" line="688" />
+        <location filename="..\app\views\windows\main_window.py" line="891" />
+        <location filename="..\app\views\windows\main_window.py" line="763" />
+        <location filename="..\app\views\windows\main_window.py" line="722" />
         <source>Import error</source>
         <translation>Помилка імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="695" />
+        <location filename="..\app\views\windows\main_window.py" line="729" />
         <source>Select an archive to import</source>
         <translation>Виберіть архів для імпорту</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="854" />
-        <location filename="..\app\views\windows\main_window.py" line="726" />
+        <location filename="..\app\views\windows\main_window.py" line="888" />
+        <location filename="..\app\views\windows\main_window.py" line="760" />
         <source>Failed to import archive: {error}</source>
         <translation>Не вдалося імпортувати архів: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="873" />
-        <location filename="..\app\views\windows\main_window.py" line="738" />
+        <location filename="..\app\views\windows\main_window.py" line="907" />
+        <location filename="..\app\views\windows\main_window.py" line="772" />
         <source>Import completed.</source>
         <translation>Імпорт завершено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="975" />
+        <location filename="..\app\views\windows\main_window.py" line="1009" />
         <source>Structure service unavailable.</source>
         <translation>Сервіс структури недоступний.</translation>
     </message>

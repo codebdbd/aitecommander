@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="es_ES">
     <context>
     <name>AboutDialog</name>
@@ -1566,13 +1565,13 @@
 </context><context>
     <name>FavoritesToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="944" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="962" />
         <source>No favorite links</source>
         <translation>No hay enlaces favoritos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="976" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="975" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="994" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="993" />
         <source>Favorites</source>
         <translation>Favoritos</translation>
     </message>
@@ -2974,7 +2973,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>A&amp;yuda</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="561" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="579" />
         <source>Refresh Icons</source>
         <translation>Actualizar iconos</translation>
     </message>
@@ -3028,12 +3027,12 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Botón oculto</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="994" />
+        <location filename="..\app\views\windows\main_window.py" line="1028" />
         <source>Section</source>
         <translation>Sección</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="1027" />
+        <location filename="..\app\views\windows\main_window.py" line="1061" />
         <source>Category</source>
         <translation>Categoría</translation>
     </message>
@@ -3046,14 +3045,14 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Error: %1</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="160" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Agregar sección</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="493" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="507" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
@@ -3079,7 +3078,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
     </message>
     <message>
         <location filename="..\app\views\windows\main_window.py" line="493" />
-        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="355" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="390" />
         <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="758" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
@@ -3087,7 +3086,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Configuración</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="576" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="594" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
         <source>Tools</source>
@@ -3110,7 +3109,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Abrir base de datos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="558" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="576" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Import Bookmarks</source>
@@ -3127,7 +3126,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Importar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="560" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="578" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
         <source>Check Links</source>
         <translation>Comprobar enlaces</translation>
@@ -3138,7 +3137,7 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <translation>Actualizar iconos</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="557" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="575" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
         <source>Search files</source>
@@ -3424,6 +3423,25 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
         <source>Import icons</source>
         <translation>Importar iconos</translation>
     </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="500" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="349" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="765" />
+        <source>Light themes</source>
+        <translation>Temas claros</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\main_window.py" line="507" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="370" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="772" />
+        <source>Dark themes</source>
+        <translation>Temas oscuros</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="479" />
+        <source>Toggle sidebar</source>
+        <translation>Alternar barra lateral</translation>
+    </message>
 </context><context>
     <name>MessageHandler</name>
     <message>
@@ -3565,8 +3583,8 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>QuickAddToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="723" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="722" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="741" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="740" />
         <source>Add Link</source>
         <translation>Agregar enlace</translation>
     </message>
@@ -3789,13 +3807,13 @@ Para evitar problemas de rendimiento, la apertura está limitada a {limit} enlac
 </context><context>
     <name>RecentHistoryToolbarAdapter</name>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1081" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1099" />
         <source>No recent links</source>
         <translation>No hay enlaces recientes</translation>
     </message>
     <message>
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1116" />
-        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1115" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1134" />
+        <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1133" />
         <source>Recent Links</source>
         <translation>Enlaces recientes</translation>
     </message>
@@ -4211,81 +4229,81 @@ Are you sure you want to continue?</source>
 </context><context>
     <name>StructureShare</name>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="598" />
+        <location filename="..\app\views\windows\main_window.py" line="632" />
         <source>Sphere not selected.</source>
         <translation>Esfera no seleccionada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="601" />
+        <location filename="..\app\views\windows\main_window.py" line="635" />
         <source>Select a sphere and try again.</source>
         <translation>Seleccione una esfera e intente de nuevo.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="645" />
-        <location filename="..\app\views\windows\main_window.py" line="617" />
+        <location filename="..\app\views\windows\main_window.py" line="679" />
+        <location filename="..\app\views\windows\main_window.py" line="651" />
         <source>Export error</source>
         <translation>Error de exportacion</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="642" />
+        <location filename="..\app\views\windows\main_window.py" line="676" />
         <source>Failed to export archive: {error}</source>
         <translation>No se pudo exportar el archivo: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="657" />
+        <location filename="..\app\views\windows\main_window.py" line="691" />
         <source>Archive saved to:
 {path}</source>
         <translation>Archivo guardado en:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="660" />
+        <location filename="..\app\views\windows\main_window.py" line="694" />
         <source>Export complete</source>
         <translation>Exportacion completada</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="666" />
+        <location filename="..\app\views\windows\main_window.py" line="700" />
         <source>Choose where to save the archive</source>
         <translation>Elija donde guardar el archivo</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="699" />
-        <location filename="..\app\views\windows\main_window.py" line="670" />
+        <location filename="..\app\views\windows\main_window.py" line="733" />
+        <location filename="..\app\views\windows\main_window.py" line="704" />
         <source>Section Archive (*.aitesec);;All files (*)</source>
         <translation>Archivo de sección (*.aitesec);;Todos los archivos (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="703" />
-        <location filename="..\app\views\windows\main_window.py" line="674" />
+        <location filename="..\app\views\windows\main_window.py" line="737" />
+        <location filename="..\app\views\windows\main_window.py" line="708" />
         <source>Category Archive (*.aitecat);;All files (*)</source>
         <translation>Archivo de categoría (*.aitecat);;Todos los archivos (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="857" />
-        <location filename="..\app\views\windows\main_window.py" line="729" />
-        <location filename="..\app\views\windows\main_window.py" line="688" />
+        <location filename="..\app\views\windows\main_window.py" line="891" />
+        <location filename="..\app\views\windows\main_window.py" line="763" />
+        <location filename="..\app\views\windows\main_window.py" line="722" />
         <source>Import error</source>
         <translation>Error de importacion</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="695" />
+        <location filename="..\app\views\windows\main_window.py" line="729" />
         <source>Select an archive to import</source>
         <translation>Seleccione un archivo para importar</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="854" />
-        <location filename="..\app\views\windows\main_window.py" line="726" />
+        <location filename="..\app\views\windows\main_window.py" line="888" />
+        <location filename="..\app\views\windows\main_window.py" line="760" />
         <source>Failed to import archive: {error}</source>
         <translation>No se pudo importar el archivo: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="873" />
-        <location filename="..\app\views\windows\main_window.py" line="738" />
+        <location filename="..\app\views\windows\main_window.py" line="907" />
+        <location filename="..\app\views\windows\main_window.py" line="772" />
         <source>Import completed.</source>
         <translation>Importación completada.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="975" />
+        <location filename="..\app\views\windows\main_window.py" line="1009" />
         <source>Structure service unavailable.</source>
         <translation>Servicio de estructura no disponible.</translation>
     </message>

@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/ghost_terminal.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#39FF88"
+  "icon_color": "#39FF88",
+  "tokens": {
+    "text_primary": "#E2F5E7",
+    "text_secondary": "#729B80",
+    "text_muted": "#3D5F48",
+    "text_accent": "#39FF88",
+    "text_on_accent": "#000000",
+    "selection_bg": "#105B2E",
+    "selection_fg": "#E7FFED"
+  }
 }

@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/obsidian_luxe.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#74D9E7"
+  "icon_color": "#74D9E7",
+  "tokens": {
+    "text_primary": "#E6EBF1",
+    "text_secondary": "#7B8FA6",
+    "text_muted": "#455364",
+    "text_accent": "#74D9E7",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#73526E",
+    "selection_fg": "#FFFFFF"
+  }
 }

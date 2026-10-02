@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
 
@@ -14,6 +14,26 @@ from app.core.paths.path_manager import PathManager
 logger = logging.getLogger(__name__)
 
 _THEME_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
+
+DEFAULT_DARK_TOKENS: dict[str, str] = {
+    "text_primary": "#E6EDF3",
+    "text_secondary": "#8B949E",
+    "text_muted": "#484F58",
+    "text_accent": "#58A6FF",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#2E4066",
+    "selection_fg": "#FFFFFF",
+}
+
+DEFAULT_LIGHT_TOKENS: dict[str, str] = {
+    "text_primary": "#1F2328",
+    "text_secondary": "#656D76",
+    "text_muted": "#8C959F",
+    "text_accent": "#0969DA",
+    "text_on_accent": "#FFFFFF",
+    "selection_bg": "#CCE7FF",
+    "selection_fg": "#000000",
+}
 
 
 @dataclass(frozen=True)
@@ -28,6 +48,7 @@ class ThemeDefinition:
     source: str  # "bundled" | "user"
     origin_path: Path
     icon_color: str = "#FFFFFF"
+    tokens: dict[str, str] = field(default_factory=dict)
 
 
 class ThemeRegistry:
@@ -114,6 +135,14 @@ class ThemeRegistry:
         if theme and not theme.is_dark:
             return "#1F2430"
         return "#FFFFFF"
+
+    def get_theme_tokens(self, theme_id: str) -> dict[str, str]:
+        """Return semantic color tokens dict for the specified theme."""
+        theme = self.get_theme(theme_id)
+        if theme and theme.tokens:
+            return dict(theme.tokens)
+        defaults = DEFAULT_DARK_TOKENS if (theme and theme.is_dark) else DEFAULT_LIGHT_TOKENS
+        return dict(defaults)
 
     def get_theme_separator_color(self, theme_id: str) -> str:
         """Return separator color hex for the specified theme."""
@@ -235,6 +264,14 @@ class ThemeRegistry:
             if preview_path is not None and not preview_path.is_file():
                 preview_path = None
 
+        raw_tokens = data.get("tokens")
+        defaults = DEFAULT_DARK_TOKENS if is_dark else DEFAULT_LIGHT_TOKENS
+        resolved_tokens = dict(defaults)
+        if isinstance(raw_tokens, dict):
+            for k, v in raw_tokens.items():
+                if isinstance(v, str) and v.startswith("#"):
+                    resolved_tokens[k] = v
+
         return ThemeDefinition(
             theme_id=theme_id,
             name=name,
@@ -246,6 +283,7 @@ class ThemeRegistry:
             source=source,
             origin_path=manifest_path,
             icon_color=icon_color,
+            tokens=resolved_tokens,
         )
 
     def _resolve_safe_path(

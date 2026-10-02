@@ -5,5 +5,14 @@
   "is_dark": true,
   "qss": "resources/qss/cyberpunk_neon.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#00D7FF"
+  "icon_color": "#00D7FF",
+  "tokens": {
+    "text_primary": "#DDF7FF",
+    "text_secondary": "#6E9BAF",
+    "text_muted": "#3E6172",
+    "text_accent": "#00D7FF",
+    "text_on_accent": "#000000",
+    "selection_bg": "#74306E",
+    "selection_fg": "#FFFFFF"
+  }
 }

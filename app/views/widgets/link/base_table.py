@@ -193,14 +193,26 @@ class TableDelegate(QStyledItemDelegate):
 
     def _resolve_column_color(self, col: int) -> QColor | None:
         view = self.parent() if hasattr(self, "parent") else None
-        if view is None:
-            return None
-        for attr in (self._color_attr_for_column(col), self._fallback_color_attr_for_column(col)):
-            if not attr or not hasattr(view, attr):
-                continue
-            color = getattr(view, attr)
-            if isinstance(color, QColor) and color.isValid():
-                return color
+        if view is not None:
+            for attr in (self._color_attr_for_column(col), self._fallback_color_attr_for_column(col)):
+                if not attr or not hasattr(view, attr):
+                    continue
+                color = getattr(view, attr)
+                if isinstance(color, QColor) and color.isValid():
+                    return color
+        try:
+            cur_theme = get_current_theme()
+            tokens = theme_registry.get_theme_tokens(cur_theme)
+            if col in _PRIMARY_TEXT_COLUMNS:
+                hex_val = tokens.get("text_primary")
+            elif col in _SECONDARY_TEXT_COLUMNS:
+                hex_val = tokens.get("text_secondary")
+            else:
+                hex_val = None
+            if hex_val:
+                return QColor(hex_val)
+        except Exception:
+            pass
         return None
 
     def _apply_column_color(self, opt, col):
@@ -502,7 +514,18 @@ class ExplorerHeaderStyle(QProxyStyle):
                 px = int(header.CHEVRON_COMPARTMENT_WIDTH)
             except Exception:
                 px = 24
-            rect = rect.adjusted(px, 0, -px, 0)
+            align = model.headerData(
+                section, Qt.Orientation.Horizontal, Qt.ItemDataRole.TextAlignmentRole
+            )
+            is_centered = bool(
+                align
+                and (
+                    int(align)
+                    & int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignCenter)
+                )
+            )
+            left_pad = px if is_centered else 0
+            rect = rect.adjusted(left_pad, 0, -px, 0)
         return rect
 
 
@@ -627,6 +650,13 @@ class ExplorerHeaderView(QHeaderView):
                 return color
         except Exception:
             pass
+        try:
+            cur_theme = get_current_theme()
+            tokens = theme_registry.get_theme_tokens(cur_theme)
+            if "text_secondary" in tokens:
+                return QColor(tokens["text_secondary"])
+        except Exception:
+            pass
         normal, _hover = self._get_icon_colors()
         return normal
 
@@ -650,6 +680,7 @@ class ExplorerHeaderView(QHeaderView):
 
     def paintSection(self, painter, rect, logicalIndex):
         if is_column(logicalIndex, LinkTableColumn.GROUP_LAUNCH):
+            # Draw the standard header background
             opt = QStyleOptionHeader()
             self.initStyleOption(opt)
             opt.rect = rect
@@ -658,34 +689,137 @@ class ExplorerHeaderView(QHeaderView):
             opt.text = ""
             opt.icon = QIcon()
             self.style().drawControl(QStyle.ControlElement.CE_Header, opt, painter, self)
+
+            # Compute tri-state from model data
             model = self.model()
+            cb_state = QStyle.StateFlag.State_Off
             if model is not None:
-                icon = model.headerData(
-                    int(LinkTableColumn.GROUP_LAUNCH),
-                    Qt.Orientation.Horizontal,
-                    Qt.ItemDataRole.DecorationRole,
-                )
-                if isinstance(icon, QIcon) and not icon.isNull():
-                    sz = 20
-                    ix = rect.x() + (rect.width() - sz) // 2
-                    iy = rect.y() + (rect.height() - sz) // 2
-                    self._paint_tinted_icon(
-                        painter, icon, ix, iy, sz, self._resolve_header_text_color()
+                row_count = model.rowCount()
+                if row_count > 0:
+                    checked = sum(
+                        1 for r in range(row_count)
+                        if model.data(
+                            model.index(r, int(LinkTableColumn.GROUP_LAUNCH)),
+                            Qt.ItemDataRole.CheckStateRole,
+                        ) == Qt.CheckState.Checked
                     )
+                    if checked == row_count:
+                        cb_state = QStyle.StateFlag.State_On
+                    elif checked > 0:
+                        cb_state = QStyle.StateFlag.State_NoChange
+                    else:
+                        cb_state = QStyle.StateFlag.State_Off
+
+            # Draw checkbox matching the theme styles of QTableView::indicator
+            table = self.parent()
+            style = table.style() if table else QApplication.style()
+
+            cb_opt = QStyleOptionViewItem()
+            if hasattr(table, "initViewItemOption"):
+                table.initViewItemOption(cb_opt)
+            else:
+                cb_opt.rect = rect
+                cb_opt.state = QStyle.StateFlag.State_Enabled
+            cb_opt.features = QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
+
+            # Get real checkbox size from style (same as delegate)
+            check_rect = style.subElementRect(
+                QStyle.SubElement.SE_ItemViewItemCheckIndicator, cb_opt, table
+            )
+            w = check_rect.width()
+            h = check_rect.height()
+            cb_x = rect.x() + (rect.width() - w) // 2
+            cb_y = rect.y() + (rect.height() - h) // 2
+            cb_opt.rect = QRect(cb_x, cb_y, w, h)
+
+            # Apply On/Off state exactly as delegate does
+            cb_opt.state = cb_opt.state & ~QStyle.StateFlag.State_HasFocus
+            if cb_state == QStyle.StateFlag.State_On:
+                cb_opt.state |= QStyle.StateFlag.State_On
+                cb_opt.state &= ~QStyle.StateFlag.State_Off
+                cb_opt.checkState = Qt.CheckState.Checked
+            elif cb_state == QStyle.StateFlag.State_NoChange:
+                cb_opt.state |= QStyle.StateFlag.State_NoChange
+                cb_opt.state &= ~QStyle.StateFlag.State_On
+                cb_opt.state &= ~QStyle.StateFlag.State_Off
+                cb_opt.checkState = Qt.CheckState.PartiallyChecked
+            else:
+                cb_opt.state |= QStyle.StateFlag.State_Off
+                cb_opt.state &= ~QStyle.StateFlag.State_On
+                cb_opt.checkState = Qt.CheckState.Unchecked
+
+            style.drawPrimitive(
+                QStyle.PrimitiveElement.PE_IndicatorItemViewItemCheck,
+                cb_opt,
+                painter,
+                table,
+            )
             return
 
         super().paintSection(painter, rect, logicalIndex)
+
+    def _draw_chevron_section(
+        self,
+        painter: QPainter,
+        sec: int,
+        *,
+        is_hovered: bool,
+        is_sorted: bool,
+        order: Qt.SortOrder,
+        table_hover_color: QColor,
+    ) -> None:
+        sec_x = self.sectionViewportPosition(sec)
+        sec_w = self.sectionSize(sec)
+        toggle_w = self.CHEVRON_COMPARTMENT_WIDTH
+        if sec_w < 3 * toggle_w:
+            return
+        h = self.viewport().height()
+
+        if is_hovered:
+            painter.fillRect(QRect(sec_x, 0, sec_w, h), table_hover_color)
+
+        tx = sec_x + sec_w - toggle_w
+        chev_color = self._resolve_header_text_color()
+        if not is_sorted:
+            c = QColor(chev_color)
+            c.setAlpha(140)
+            chev_color = c
+        pen = QPen(chev_color, 1.8)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        cx = tx + toggle_w / 2.0
+        cy = h / 2.0 + 1.0
+        if is_sorted and order == Qt.SortOrder.AscendingOrder:
+            pts = [QPointF(cx - 4, cy + 2), QPointF(cx, cy - 2), QPointF(cx + 4, cy + 2)]
+        else:
+            pts = [QPointF(cx - 4, cy - 2), QPointF(cx, cy + 2), QPointF(cx + 4, cy - 2)]
+        painter.drawPolyline(QPolygonF(pts))
 
     def paintEvent(self, event):
         super().paintEvent(event)
         is_sorted = self.sortIndicatorSection() >= 0
         sorted_sec = self.sortIndicatorSection() if is_sorted else -1
         hovered_sec = self._hovered_section
-        if hovered_sec < 0:
+
+        sections_to_render = []
+        if is_sorted and sorted_sec >= 0:
+            desc_sorted = descriptor_for_column(sorted_sec)
+            if desc_sorted and desc_sorted.chevron_padding:
+                sections_to_render.append(
+                    (sorted_sec, sorted_sec == hovered_sec, True, self.sortIndicatorOrder())
+                )
+
+        if hovered_sec >= 0 and hovered_sec != sorted_sec:
+            desc_hover = descriptor_for_column(hovered_sec)
+            if desc_hover and desc_hover.chevron_padding:
+                sections_to_render.append(
+                    (hovered_sec, True, False, Qt.SortOrder.DescendingOrder)
+                )
+
+        if not sections_to_render:
             return
-        desc = descriptor_for_column(hovered_sec)
-        if desc is None or not desc.chevron_padding:
-            return
+
         pal = self.palette()
 
         parent_table = self.parent()
@@ -703,38 +837,20 @@ class ExplorerHeaderView(QHeaderView):
             hc.setAlpha(40)
             table_hover_color = hc
 
-        bg = pal.window().color()
-
-        sec = hovered_sec
-        sec_x = self.sectionViewportPosition(sec)
-        sec_w = self.sectionSize(sec)
-        toggle_w = self.CHEVRON_COMPARTMENT_WIDTH
-        min_w = 3 * toggle_w
-        if sec_w < min_w:
-            return
-        h = self.viewport().height()
-        sorted_here = is_sorted and sec == sorted_sec
-
         p = QPainter(self.viewport())
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
-        p.fillRect(QRect(sec_x, 0, sec_w, h), table_hover_color)
-
-        tx = sec_x + sec_w - toggle_w
-
-        chev_color = self._resolve_header_text_color()
-        pen = QPen(chev_color, 1.8)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        p.setPen(pen)
-        cx = tx + toggle_w / 2.0
-        cy = h / 2.0 + 1.0
-        if sorted_here and self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
-            pts = [QPointF(cx - 4, cy + 2), QPointF(cx, cy - 2), QPointF(cx + 4, cy + 2)]
-        else:
-            pts = [QPointF(cx - 4, cy - 2), QPointF(cx, cy + 2), QPointF(cx + 4, cy - 2)]
-        p.drawPolyline(QPolygonF(pts))
-        p.end()
+        try:
+            for sec, is_h, is_s, ord_val in sections_to_render:
+                self._draw_chevron_section(
+                    p,
+                    sec,
+                    is_hovered=is_h,
+                    is_sorted=is_s,
+                    order=ord_val,
+                    table_hover_color=table_hover_color,
+                )
+        finally:
+            p.end()
 
 
 class LinksTableView(
@@ -1156,6 +1272,12 @@ class LinksTableView(
                 main_win.update_group_launch_action_state()
         except Exception:
             pass
+        try:
+            header = self.horizontalHeader()
+            if header:
+                header.viewport().update()
+        except Exception:
+            pass
 
     def focusInEvent(self, event) -> None:
         super().focusInEvent(event)
@@ -1381,6 +1503,9 @@ class LinksTableView(
 
     def _on_sort_clicked(self, logical_index):
         """Enable sorting on click if manual ordering disabled it."""
+        if is_column(logical_index, LinkTableColumn.GROUP_LAUNCH):
+            self._toggle_all_group_launch()
+            return
         action = self._sort_controller.header_click_action(
             logical_index,
             sorting_enabled=self.isSortingEnabled(),
@@ -1403,6 +1528,25 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: sortByColumn on header click failed", exc_info=True
             )
+
+    def _toggle_all_group_launch(self) -> None:
+        """Select all / deselect all in the GROUP_LAUNCH column."""
+        model = self.model()
+        if model is None or not hasattr(model, "set_all_group_launch"):
+            return
+        row_count = model.rowCount()
+        if row_count == 0:
+            return
+        checked = sum(
+            1 for r in range(row_count)
+            if model.data(
+                model.index(r, int(LinkTableColumn.GROUP_LAUNCH)),
+                Qt.ItemDataRole.CheckStateRole,
+            ) == Qt.CheckState.Checked
+        )
+        new_val = 0 if checked == row_count else 1
+        model.set_all_group_launch(new_val)
+        self.horizontalHeader().viewport().update()
 
     def _on_rows_moved(self, *_args) -> None:
         """Handle rows moved signal to rebuild cache."""
