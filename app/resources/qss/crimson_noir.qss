@@ -143,7 +143,6 @@ QWidget#topBarHost QPushButton:pressed,
 QWidget#topBarHost QToolButton[menu_active="true"],
 QWidget#topBarHost QToolButton:checked,
 QWidget#topBarHost QPushButton:checked {
-background-color: #E13A4F;
 border-color: #E13A4F;
 }
 QPushButton {

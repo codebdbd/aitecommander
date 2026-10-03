@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from math import ceil
 
 from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QSize, Qt
 from PyQt6.QtGui import (
@@ -9,6 +10,7 @@ from PyQt6.QtGui import (
     QColor,
     QFont,
     QFontMetrics,
+    QFontMetricsF,
     QHelpEvent,
     QIcon,
     QPainter,
@@ -155,15 +157,15 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 rect.width() - 2 * self.padding,
                 0,
             )
-            fm = QFontMetrics(painter.font())
-            layout = QTextLayout(text, painter.font())
+            fm = QFontMetricsF(painter.font(), option.widget)
+            layout = QTextLayout(text, painter.font(), option.widget)
             opt = QTextOption()
             opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
             opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             layout.setTextOption(opt)
             layout.beginLayout()
             lines = []
-            y = 0
+            y = 0.0
             available_w = text_rect.width()
             try:
                 max_lines = int(app_config.ui.get_tile_text_max_lines())
@@ -178,43 +180,44 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 line.setLineWidth(available_w)
                 line.setPosition(QPointF(0.0, float(y)))
                 lines.append(line)
-                y += int(line.height())
+                y += line.height()
                 if len(lines) >= max_lines:
                     probe = layout.createLine()
                     has_more = probe.isValid()
                     break
             layout.endLayout()
 
-            text_rect.setHeight(y)
-
             painter.setPen(self._tile_text_color(option))
+            text_origin = QPointF(text_rect.topLeft())
 
             for idx, line in enumerate(lines):
-                line_text = text[
-                    line.textStart() : line.textStart() + line.textLength()
-                ]
-                natural_w = line.naturalTextWidth()
-                draw_x = text_rect.x() + max(0, (available_w - int(natural_w)) // 2)
-                draw_y = text_rect.y() + int(line.position().y()) + fm.ascent()
                 if idx == len(lines) - 1 and has_more:
-                    elided = fm.elidedText(
-                        line_text, Qt.TextElideMode.ElideRight, available_w
+                    # Qt offsets count UTF-16 code units, unlike Python slices.
+                    encoded_text = text.encode("utf-16-le")
+                    start = 2 * line.textStart()
+                    end = start + 2 * line.textLength()
+                    line_text = encoded_text[start:end].decode("utf-16-le")
+                    text_to_draw = fm.elidedText(
+                        line_text.rstrip() + "…",
+                        Qt.TextElideMode.ElideRight,
+                        available_w,
                     )
-                    if elided == line_text:
-                        ellipsis = "…"
-                        ell_w = fm.horizontalAdvance(ellipsis)
-                        max_w = max(0, available_w - ell_w)
-                        core = fm.elidedText(
-                            line_text, Qt.TextElideMode.ElideRight, max_w
-                        )
-                        text_to_draw = (core if core else "") + ellipsis
-                    else:
-                        text_to_draw = elided
-                    draw_w = fm.horizontalAdvance(text_to_draw)
-                    draw_x = text_rect.x() + max(0, (available_w - draw_w) // 2)
-                    painter.drawText(QPoint(draw_x, draw_y), text_to_draw)
+                    elided_layout = QTextLayout(text_to_draw, painter.font(), option.widget)
+                    elided_option = QTextOption(opt)
+                    elided_option.setWrapMode(QTextOption.WrapMode.NoWrap)
+                    elided_layout.setTextOption(elided_option)
+                    elided_layout.beginLayout()
+                    elided_line = elided_layout.createLine()
+                    if elided_line.isValid():
+                        elided_line.setLineWidth(available_w)
+                        elided_line.setPosition(QPointF(
+                            0.0, line.y() + line.ascent() - elided_line.ascent()
+                        ))
+                    elided_layout.endLayout()
+                    if elided_line.isValid():
+                        elided_line.draw(painter, text_origin)
                 else:
-                    painter.drawText(QPoint(draw_x, draw_y), line_text)
+                    line.draw(painter, text_origin)
 
         painter.restore()
 
@@ -232,27 +235,27 @@ class CategoryTileDelegate(QStyledItemDelegate):
             logger.debug("Failed to read DisplayRole in sizeHint: %s", e)
             text = ""
         available_w = self.tile_size.width() - 2 * self.padding
-        layout = QTextLayout(text or "", font)
+        layout = QTextLayout(text or "", font, option.widget)
         opt = QTextOption()
         opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         layout.setTextOption(opt)
         layout.beginLayout()
-        y = 0
+        y = 0.0
         lines = 0
         while True:
             line = layout.createLine()
             if not line.isValid():
                 break
             line.setLineWidth(available_w)
-            y += int(line.height())
+            y += line.height()
             lines += 1
             if lines >= max_lines:
                 break
         layout.endLayout()
         text_h = y
         height = self.padding + self.icon_size.height() + 5 + text_h + self.padding
-        return QSize(self.tile_size.width(), height)
+        return QSize(self.tile_size.width(), ceil(height))
 
     def helpEvent(  # type: ignore[override]
         self,

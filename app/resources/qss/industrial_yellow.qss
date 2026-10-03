@@ -462,9 +462,9 @@ color: #FFFFFF;
 QTreeView::item:selected,
 QTableView::item:selected,
 QTableWidget::item:selected {
-background-color: #FFCD11;
-color: #090909;
-selection-color: #090909;
+background-color: #4D3C08;
+color: #FFFFFF;
+selection-color: #FFFFFF;
 }
 #spheres_bar QPushButton:hover,
 QPushButton:hover,

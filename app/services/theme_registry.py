@@ -23,6 +23,7 @@ DEFAULT_DARK_TOKENS: dict[str, str] = {
     "text_on_accent": "#FFFFFF",
     "selection_bg": "#2E4066",
     "selection_fg": "#FFFFFF",
+    "hover_bg": "#2E4066",
 }
 
 DEFAULT_LIGHT_TOKENS: dict[str, str] = {
@@ -33,6 +34,7 @@ DEFAULT_LIGHT_TOKENS: dict[str, str] = {
     "text_on_accent": "#FFFFFF",
     "selection_bg": "#CCE7FF",
     "selection_fg": "#000000",
+    "hover_bg": "#E6E6E6",
 }
 
 

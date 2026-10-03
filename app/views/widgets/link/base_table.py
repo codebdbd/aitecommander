@@ -19,6 +19,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QColor,
     QFont,
+    QFontMetrics,
     QHelpEvent,
     QIcon,
     QKeyEvent,
@@ -172,6 +173,7 @@ class TableDelegate(QStyledItemDelegate):
                 else:
                     f.setPixelSize(int(val))
                 opt.font = f
+                opt.fontMetrics = QFontMetrics(f)
         except Exception:
             pass
 
@@ -663,8 +665,8 @@ class ExplorerHeaderView(QHeaderView):
         try:
             cur_theme = get_current_theme()
             tokens = theme_registry.get_theme_tokens(cur_theme)
-            if "text_secondary" in tokens:
-                return QColor(tokens["text_secondary"])
+            if "text_primary" in tokens:
+                return QColor(tokens["text_primary"])
         except Exception:
             pass
         normal, _hover = self._get_icon_colors()

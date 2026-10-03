@@ -13,6 +13,7 @@
     "text_accent": "#00FF66",
     "text_on_accent": "#000000",
     "selection_bg": "#0F3F24",
-    "selection_fg": "#C9FFD8"
+    "selection_fg": "#C9FFD8",
+    "hover_bg": "#0F3F24"
   }
 }

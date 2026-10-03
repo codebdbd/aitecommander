@@ -47,6 +47,8 @@ def create_application() -> QApplication:
             font.setFamily("Segoe UI")
         if font.pointSize() <= 0:
             font.setPointSize(10)
+    font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    font.setHintingPreference(QFont.HintingPreference.PreferVerticalHinting)
     app.setFont(font)
 
     return app

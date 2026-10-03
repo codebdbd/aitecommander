@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import logging
+from math import ceil
 
 from PyQt6.QtCore import (
     QCoreApplication,
@@ -13,7 +14,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QBrush, QColor, QDrag, QIcon, QMouseEvent, QPainter, QPalette, QPen
+from PyQt6.QtGui import QBrush, QColor, QDrag, QFontMetricsF, QIcon, QMouseEvent, QPainter, QPalette, QPen
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QProxyStyle,
@@ -270,7 +271,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
     def sizeHint(self, option: QStyleOptionViewItem, index):
         # Base size from Qt
         base = super().sizeHint(option, index)
-        # Enforce a single row height from global configuration (ui.row_height)
+        # Treat the configured row height as a minimum for larger fonts/icons.
         try:
             row_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
@@ -279,7 +280,11 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                 e,
             )
             row_h = self._item_height if self._item_height else base.height()
-        return QSize(base.width(), row_h)
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        text_h = ceil(QFontMetricsF(opt.font, opt.widget).height()) + 4
+        icon_h = max(0, opt.decorationSize.height()) + 4
+        return QSize(base.width(), max(row_h, base.height(), text_h, icon_h))
 
 
 class StructureTreeView(QTreeView):
@@ -326,6 +331,7 @@ class StructureTreeView(QTreeView):
 
             f = QFont(self.font().family(), int(self._current_font_size))
             self.setFont(f)
+            self.doItemsLayout()
             viewport = self.viewport()
             if viewport is not None:
                 viewport.update()

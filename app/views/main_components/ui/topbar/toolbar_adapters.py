@@ -90,7 +90,12 @@ def _contrast_icon_from_path(
 
 
 def _get_theme_contrast_color(theme_name: str | None = None) -> str:
-    return "#0E1116"
+    try:
+        from app.services.theme_registry import theme_registry
+        tokens = theme_registry.get_theme_tokens(theme_name or "")
+        return tokens.get("selection_fg", "#FFFFFF")
+    except Exception:
+        return "#FFFFFF"
 
 
 def _update_button_contrast_icon(btn: QToolButton) -> QIcon | None:
@@ -118,26 +123,16 @@ class TopBarButtonHoverFilter(QObject):
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         t = event.type()
-        if t in (QEvent.Type.Enter, QEvent.Type.MouseButtonPress):
-            if isinstance(obj, QToolButton):
-                contrast_icon = _update_button_contrast_icon(obj)
-                if contrast_icon and not contrast_icon.isNull():
-                    obj.setIcon(contrast_icon)
-        elif t == QEvent.Type.Leave:
+        if t == QEvent.Type.Leave:
             if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
                 normal_icon = getattr(obj, "_normal_icon", None)
                 if normal_icon and not normal_icon.isNull():
                     obj.setIcon(normal_icon)
         elif t == QEvent.Type.MouseButtonRelease:
             if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                if obj.underMouse():
-                    contrast_icon = _update_button_contrast_icon(obj)
-                    if contrast_icon and not contrast_icon.isNull():
-                        obj.setIcon(contrast_icon)
-                else:
-                    normal_icon = getattr(obj, "_normal_icon", None)
-                    if normal_icon and not normal_icon.isNull():
-                        obj.setIcon(normal_icon)
+                normal_icon = getattr(obj, "_normal_icon", None)
+                if normal_icon and not normal_icon.isNull():
+                    obj.setIcon(normal_icon)
         elif t == QEvent.Type.ContextMenu:
             return True
         return False
@@ -152,11 +147,7 @@ def _setup_topbar_button_contrast(
     btn._svg_filename = svg_filename
     btn._contrast_icon = None
     btn._contrast_theme = None
-    contrast_icon = _update_button_contrast_icon(btn)
-    if btn.underMouse() and contrast_icon and not contrast_icon.isNull():
-        btn.setIcon(contrast_icon)
-    else:
-        btn.setIcon(normal_icon)
+    btn.setIcon(normal_icon)
     filt = getattr(btn, "_invert_hover_filter", None)
     if filt is None:
         filt = TopBarButtonHoverFilter(btn)

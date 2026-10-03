@@ -248,18 +248,26 @@ class ThemeStylesheetService:
     @staticmethod
     def _build_tokens_qss(tokens: dict[str, str]) -> str:
         """Generate unified semantic typography and state rules from tokens."""
+        hover_bg = tokens.get("hover_bg", tokens.get("selection_bg", "#2E4066"))
         return (
             "\n/* ==== Unified Typography & State Tokens (Auto-Generated) ==== */\n"
-            f"QHeaderView::section, QTableView QHeaderView::section {{ color: {tokens['text_secondary']}; }}\n"
+            f"QHeaderView::section, QTableView QHeaderView::section, QTableView QHeaderView::section:horizontal, QHeaderView::section:horizontal {{ color: {tokens['text_primary']}; }}\n"
             f"QLabel#pathLabel, QStatusBar, QStatusBar QLabel {{ color: {tokens['text_secondary']}; }}\n"
             f"LinksTableView {{\n"
             f"    qproperty-primaryCellTextColor: {tokens['text_primary']};\n"
             f"    qproperty-secondaryCellTextColor: {tokens['text_secondary']};\n"
+            f"    qproperty-hoverRowColor: {hover_bg};\n"
             f"}}\n"
             f"QTreeView::item:selected, QTableView::item:selected, QTableWidget::item:selected {{\n"
             f"    background-color: {tokens['selection_bg']};\n"
             f"    color: {tokens['selection_fg']};\n"
             f"    selection-color: {tokens['selection_fg']};\n"
+            f"}}\n"
+            f"QTreeView::item:!selected:hover {{\n"
+            f"    background-color: {hover_bg};\n"
+            f"}}\n"
+            f"QWidget#topBarHost QToolButton:hover, QWidget#topBarHost QPushButton:hover, QWidget#bottomBarContainer QPushButton:hover {{\n"
+            f"    background-color: {hover_bg};\n"
             f"}}\n"
             f"QLineEdit#mainSearch {{ color: {tokens['text_primary']}; }}\n"
         )
@@ -329,30 +337,30 @@ class ThemeStylesheetService:
             if not theme:
                 return qss
 
-            if theme.is_dark:
-                bg_color = theme.icon_color
-                border_color = theme.icon_color
-            else:
-                bg_color = "#E6E6E6"
-                border_color = "#B3B3B3"
+            tokens = theme_registry.get_theme_tokens(theme_name)
+            bg_hover = tokens.get("hover_bg", tokens.get("selection_bg", "#2E4066"))
+            bg_active = tokens.get("selection_bg", bg_hover)
 
             hover_block = (
                 f"\n\n/* ==== TopBar button hover accent fill ==== */\n"
                 f"QWidget#topBarHost QToolButton#quickButton:hover,\n"
+                f"QWidget#topBarHost QToolButton#favoriteButton:hover,\n"
+                f"QWidget#topBarHost QToolButton#recentButton:hover,\n"
+                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:hover {{\n"
+                f"    background: {bg_hover};\n"
+                f"    background-color: {bg_hover};\n"
+                f"}}\n"
                 f"QWidget#topBarHost QToolButton#quickButton:pressed,\n"
                 f"QWidget#topBarHost QToolButton#quickButton[menu_active=\"true\"],\n"
-                f"QWidget#topBarHost QToolButton#favoriteButton:hover,\n"
                 f"QWidget#topBarHost QToolButton#favoriteButton:pressed,\n"
                 f"QWidget#topBarHost QToolButton#favoriteButton[menu_active=\"true\"],\n"
-                f"QWidget#topBarHost QToolButton#recentButton:hover,\n"
                 f"QWidget#topBarHost QToolButton#recentButton:pressed,\n"
                 f"QWidget#topBarHost QToolButton#recentButton[menu_active=\"true\"],\n"
-                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:hover,\n"
                 f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:pressed,\n"
                 f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"][menu_active=\"true\"] {{\n"
-                f"    background: {bg_color};\n"
-                f"    background-color: {bg_color};\n"
-                f"    border-color: {border_color};\n"
+                f"    background: {bg_active};\n"
+                f"    background-color: {bg_active};\n"
+                f"    border-color: {bg_active};\n"
                 f"}}\n"
             )
             return f"{qss}{hover_block}"
