@@ -464,6 +464,37 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         self._build_actions()
 
     def refresh_actions(self) -> None:
+        if (
+            hasattr(self, "_toggle_action")
+            and hasattr(self, "_sec_action")
+            and hasattr(self, "_cat_action")
+            and self._actions
+        ):
+            theme = _resolve_theme(self._category_provider)
+            from app.utils.ui.menu_builders.base import get_menu_icon
+
+            toggle_icon = get_menu_icon("left_panel_close", theme)
+            if toggle_icon and not toggle_icon.isNull():
+                self._toggle_action.setIcon(toggle_icon)
+                btn = self._toolbar.widgetForAction(self._toggle_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, toggle_icon, "left_panel_close.svg")
+
+            sec_icon = get_menu_icon("add_section", theme)
+            if sec_icon and not sec_icon.isNull():
+                self._sec_action.setIcon(sec_icon)
+                btn = self._toolbar.widgetForAction(self._sec_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, sec_icon, "add_section.svg")
+
+            cat_icon = get_menu_icon("add_category", theme)
+            if cat_icon and not cat_icon.isNull():
+                self._cat_action.setIcon(cat_icon)
+                btn = self._toolbar.widgetForAction(self._cat_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, cat_icon, "add_category.svg")
+            return
+
         self._build_actions()
 
     def _build_actions(self) -> None:
@@ -480,6 +511,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         toggle_action.setToolTip(toggle_text)
         toggle_action.triggered.connect(self._on_toggle_left_panel)
         self._add_action(toggle_action)
+        self._toggle_action = toggle_action
         toggle_btn = self._toolbar.widgetForAction(toggle_action)
         if isinstance(toggle_btn, QToolButton):
             toggle_btn.setObjectName("topBarToggleLeftPanelButton")
@@ -494,6 +526,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         sec_action.setToolTip(sec_text)
         sec_action.triggered.connect(self._on_add_section)
         self._add_action(sec_action)
+        self._sec_action = sec_action
         btn = self._toolbar.widgetForAction(sec_action)
         if isinstance(btn, QToolButton):
             btn.setObjectName("topBarAddSectionButton")
@@ -508,6 +541,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         cat_action.setToolTip(cat_text)
         cat_action.triggered.connect(self._on_add_category)
         self._add_action(cat_action)
+        self._cat_action = cat_action
         btn = self._toolbar.widgetForAction(cat_action)
         if isinstance(btn, QToolButton):
             btn.setObjectName("topBarAddCategoryButton")
@@ -556,6 +590,18 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         self._build_actions()
 
     def refresh_actions(self) -> None:
+        if hasattr(self, "_main_action") and self._actions:
+            theme = _resolve_theme(self._category_provider)
+            from app.utils.ui.menu_builders.base import get_menu_icon
+
+            tools_icon = get_menu_icon("construction", theme)
+            if tools_icon and not tools_icon.isNull():
+                self._main_action.setIcon(tools_icon)
+                btn = self._toolbar.widgetForAction(self._main_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, tools_icon, "construction.svg")
+            return
+
         self._build_actions()
 
     def _build_actions(self) -> None:
@@ -595,6 +641,7 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         main_action.setToolTip(tools_title)
         main_action.setMenu(menu)
         self._add_action(main_action)
+        self._main_action = main_action
 
         btn = self._toolbar.widgetForAction(main_action)
         if isinstance(btn, QToolButton):
@@ -660,7 +707,35 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         self._build_quick_actions()
 
     def refresh_actions(self) -> None:
-        """Rebuild quick-add actions (e.g., after theme change)."""
+        """Refresh quick-add action icon in place."""
+        if hasattr(self, "_main_action") and self._actions:
+            theme = None
+            if self._category_provider is not None:
+                if hasattr(self._category_provider, "settings") and hasattr(
+                    self._category_provider.settings, "get_theme"
+                ):
+                    theme = self._category_provider.settings.get_theme()
+            if not theme:
+                try:
+                    from app.utils.ui.icon.path_service import get_current_theme
+
+                    theme = get_current_theme()
+                except Exception:
+                    theme = "light"
+
+            from app.utils.ui.menu_builders.base import get_menu_icon
+
+            add_icon = get_menu_icon("add_link", theme)
+            if not add_icon or add_icon.isNull():
+                add_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
+                add_icon = _icon_from_path(add_icon_path, link_type="file")
+            if add_icon and not add_icon.isNull():
+                self._main_action.setIcon(add_icon)
+                btn = self._toolbar.widgetForAction(self._main_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, add_icon, "add_link.svg")
+            return
+
         self._build_quick_actions()
 
     def refresh_buttons(self) -> None:
@@ -740,6 +815,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         main_action.setToolTip(self.tr("Add Link"))
         main_action.setMenu(menu)
         self._add_action(main_action)
+        self._main_action = main_action
 
         btn = self._toolbar.widgetForAction(main_action)
         if isinstance(btn, QToolButton):

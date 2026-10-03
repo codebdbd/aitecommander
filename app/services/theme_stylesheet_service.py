@@ -249,8 +249,22 @@ class ThemeStylesheetService:
     def _build_tokens_qss(tokens: dict[str, str]) -> str:
         """Generate unified semantic typography and state rules from tokens."""
         hover_bg = tokens.get("hover_bg", tokens.get("selection_bg", "#2E4066"))
+        bg_canvas = tokens.get("bg_canvas")
+        bg_surface = tokens.get("bg_surface")
+        bg_header = tokens.get("bg_header")
+        layer_rules = ""
+        if bg_canvas and bg_surface and bg_header:
+            layer_rules = (
+                f"QMainWindow, QWidget#topBarHost {{ background-color: {bg_canvas}; }}\n"
+                f"LinksTableView, QTableView, QTableWidget {{\n"
+                f"    background-color: {bg_surface};\n"
+                f"    alternate-background-color: {bg_canvas};\n"
+                f"}}\n"
+                f"QHeaderView::section, QStatusBar, QWidget#bottomBarContainer {{ background-color: {bg_header}; }}\n"
+            )
         return (
             "\n/* ==== Unified Typography & State Tokens (Auto-Generated) ==== */\n"
+            f"{layer_rules}"
             f"QHeaderView::section, QTableView QHeaderView::section, QTableView QHeaderView::section:horizontal, QHeaderView::section:horizontal {{ color: {tokens['text_primary']}; }}\n"
             f"QLabel#pathLabel, QStatusBar, QStatusBar QLabel {{ color: {tokens['text_secondary']}; }}\n"
             f"LinksTableView {{\n"

@@ -14,6 +14,9 @@
     "text_on_accent": "#000000",
     "selection_bg": "#0F3F24",
     "selection_fg": "#C9FFD8",
-    "hover_bg": "#0F3F24"
+    "hover_bg": "#0F3F24",
+    "bg_canvas": "#000000",
+    "bg_surface": "#040F07",
+    "bg_header": "#020D08"
   }
 }

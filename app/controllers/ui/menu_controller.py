@@ -121,17 +121,7 @@ class MenuController(QObject):
         """Rebuild the main menu after theme change.
         Encapsulates cache clearing and menu recreation.
         """
-        try:
-            old_menu = self.main_window.get_menu_bar_widget()
-            if old_menu is not None:
-                old_menu.deleteLater()
-        except Exception as e:
-            logger.warning(
-                "MenuController: failed to remove old menu on theme change", exc_info=e
-            )
-
         self.clear_cache()
-        self.main_window.install_menu_bar_widget(self.create_main_menu())
 
     def rebuild_after_language_change(self) -> None:
         """Rebuild the main menu after language change."""

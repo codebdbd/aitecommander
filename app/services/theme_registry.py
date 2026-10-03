@@ -24,6 +24,9 @@ DEFAULT_DARK_TOKENS: dict[str, str] = {
     "selection_bg": "#2E4066",
     "selection_fg": "#FFFFFF",
     "hover_bg": "#2E4066",
+    "bg_canvas": "#0B0B0D",
+    "bg_surface": "#131316",
+    "bg_header": "#161518",
 }
 
 DEFAULT_LIGHT_TOKENS: dict[str, str] = {
@@ -35,6 +38,9 @@ DEFAULT_LIGHT_TOKENS: dict[str, str] = {
     "selection_bg": "#CCE7FF",
     "selection_fg": "#000000",
     "hover_bg": "#E6E6E6",
+    "bg_canvas": "#F5F5F5",
+    "bg_surface": "#FFFFFF",
+    "bg_header": "#F0F0F0",
 }
 
 
