@@ -97,6 +97,7 @@ class StatusBarWidget(QStatusBar):
             return f'<span style="color: {sec};">{html.escape(parts[0])}: </span>{val_part}'
         return f'<span style="color: {sec};">{html.escape(template)}</span>'
 
+
     def _connect_language_service(self) -> None:
         def _on_language_changed(lang_code: str) -> None:
             logger.debug("StatusBar: language changed -> %s", lang_code)

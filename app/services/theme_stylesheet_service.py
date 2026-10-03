@@ -248,25 +248,18 @@ class ThemeStylesheetService:
     @staticmethod
     def _build_tokens_qss(tokens: dict[str, str]) -> str:
         """Generate unified semantic typography and state rules from tokens."""
-        selection_fg = tokens.get("selection_fg", tokens.get("text_on_accent", "#FFFFFF"))
-        muted = tokens.get("text_muted", tokens.get("text_secondary", "#888888"))
         return (
             "\n/* ==== Unified Typography & State Tokens (Auto-Generated) ==== */\n"
-            f"QHeaderView::section, QTableView QHeaderView::section, QTableView QHeaderView::section:horizontal, QHeaderView::section:horizontal {{ color: {tokens['text_secondary']}; }}\n"
+            f"QHeaderView::section, QTableView QHeaderView::section {{ color: {tokens['text_secondary']}; }}\n"
             f"QLabel#pathLabel, QStatusBar, QStatusBar QLabel {{ color: {tokens['text_secondary']}; }}\n"
-            f"QLabel#statusMessageLabel {{ color: {tokens['text_primary']}; }}\n"
-            f"QDialog QLabel, QDialog QCheckBox {{ color: {tokens['text_secondary']}; }}\n"
-            f"QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {{ color: {tokens['text_primary']}; }}\n"
-            f"QLineEdit, QTextEdit, QPlainTextEdit {{ placeholder-text-color: {muted}; }}\n"
             f"LinksTableView {{\n"
-            f"    qproperty-tableHeaderTextColor: {tokens['text_secondary']};\n"
             f"    qproperty-primaryCellTextColor: {tokens['text_primary']};\n"
             f"    qproperty-secondaryCellTextColor: {tokens['text_secondary']};\n"
             f"}}\n"
             f"QTreeView::item:selected, QTableView::item:selected, QTableWidget::item:selected {{\n"
             f"    background-color: {tokens['selection_bg']};\n"
-            f"    color: {selection_fg};\n"
-            f"    selection-color: {selection_fg};\n"
+            f"    color: {tokens['selection_fg']};\n"
+            f"    selection-color: {tokens['selection_fg']};\n"
             f"}}\n"
             f"QLineEdit#mainSearch {{ color: {tokens['text_primary']}; }}\n"
         )
@@ -277,9 +270,7 @@ class ThemeStylesheetService:
             return self._build_tokens_qss(tokens) if tokens else ""
         except Exception as exc:
             logger.warning(
-                "ThemeStylesheetService: failed to build tokens QSS for %s: %s",
-                theme_name,
-                exc,
+                "ThemeStylesheetService: failed to build tokens QSS for %s: %s", theme_name, exc
             )
             return ""
 

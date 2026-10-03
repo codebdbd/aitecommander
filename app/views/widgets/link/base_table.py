@@ -262,7 +262,20 @@ class TableDelegate(QStyledItemDelegate):
             getattr(self, "_current_paint_selected", False)
             or (option.state & QStyle.StateFlag.State_Selected)
         )
-        if not is_selected:
+        if is_selected:
+            try:
+                tokens = theme_registry.get_theme_tokens(get_current_theme())
+                sel_color = QColor(tokens.get("selection_fg", "#FFFFFF"))
+            except Exception:
+                sel_color = option.palette.color(QPalette.ColorRole.HighlightedText)
+            old_pen = painter.pen()
+            painter.setPen(sel_color)
+            try:
+                super().drawDisplay(painter, option, rect, text)
+            finally:
+                painter.setPen(old_pen)
+            return
+        else:
             color = self._resolve_column_color(col)
             if isinstance(color, QColor) and color.isValid():
                 old_pen = painter.pen()
@@ -273,6 +286,7 @@ class TableDelegate(QStyledItemDelegate):
                     painter.setPen(old_pen)
                 return
         super().drawDisplay(painter, option, rect, text)
+
 
     def paint(self, painter, option, index):
         self._paint_hover_highlight(painter, option, index)
@@ -307,14 +321,10 @@ class TableDelegate(QStyledItemDelegate):
                 color = self._resolve_column_color(col)
                 if is_selected:
                     try:
-                        theme_meta = theme_registry.get_theme(get_current_theme())
-                        is_dark = bool(theme_meta.is_dark) if theme_meta else True
-                        if is_dark:
-                            color = opt.palette.color(QPalette.ColorRole.HighlightedText)
-                        else:
-                            color = self._resolve_column_color(col) or QColor("#000000")
+                        tokens = theme_registry.get_theme_tokens(get_current_theme())
+                        color = QColor(tokens.get("selection_fg", "#FFFFFF"))
                     except Exception:
-                        color = self._resolve_column_color(col)
+                        color = opt.palette.color(QPalette.ColorRole.HighlightedText)
                 if color and color.isValid():
                     painter.setPen(color)
                 painter.setFont(opt.font)

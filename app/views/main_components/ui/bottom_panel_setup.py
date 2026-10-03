@@ -64,6 +64,7 @@ class BottomBarContainer(QWidget):
         return total
 
 
+
 class BottomBarButton(QPushButton):
     """Action button with two-tone text rendering: label in text_primary and shortcut in text_accent."""
 
