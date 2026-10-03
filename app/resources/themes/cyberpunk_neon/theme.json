@@ -17,6 +17,7 @@
     "hover_bg": "#152844",
     "bg_canvas": "#070914",
     "bg_surface": "#0B0E1D",
-    "bg_header": "#0D1428"
+    "bg_header": "#0D1428",
+    "border_subtle": "#26325A"
   }
 }

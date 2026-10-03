@@ -14,7 +14,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QBrush, QColor, QDrag, QFontMetricsF, QIcon, QMouseEvent, QPainter, QPalette, QPen
+from PyQt6.QtGui import QBrush, QColor, QDrag, QFontMetricsF, QIcon, QMouseEvent, QPainter, QPalette, QPen, QWheelEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QProxyStyle,
@@ -392,6 +392,7 @@ class StructureTreeView(QTreeView):
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setAutoScroll(True)
         self.setAutoScrollMargin(24)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
 
         # High-quality delegate (icons, row height)
         try:
@@ -518,6 +519,18 @@ class StructureTreeView(QTreeView):
             logger.debug(
                 "StructureTreeView: failed to set scrollbar policies", exc_info=True
             )
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        """Scroll strictly by integer item steps per wheel notch."""
+        angle_y = event.angleDelta().y()
+        if angle_y != 0:
+            steps = int(angle_y / 120) or (1 if angle_y > 0 else -1)
+            vbar = self.verticalScrollBar()
+            if vbar is not None:
+                vbar.setValue(vbar.value() - steps)
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     def startDrag(self, supportedActions: Qt.DropAction) -> None:  # type: ignore[override]
         selection_model = self.selectionModel()

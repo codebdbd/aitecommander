@@ -16,6 +16,7 @@ from app.models.base.db_base import db_lock
 from app.models.types.link_type import LinkType
 from app.utils.links.link_parser import _extract_icon_from_exe, parse_local_link
 from app.utils.links.parser.fetcher import fetch_web_link_info
+from app.utils.links.parser.favicon_cache import favicon_cache
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
@@ -180,7 +181,7 @@ class IconRefreshWorker(QRunnable):
             return False
 
     def _fetch_icon_for_link(
-        self, url: str, cancel_event: threading.Event | None = None
+        self, url: str, cancel_event: threading.Event | None = None, *, cache_writer=None
     ) -> str | None:
         """Скачать иконку для URL.
         
@@ -199,6 +200,7 @@ class IconRefreshWorker(QRunnable):
                 defer_icon=False,
                 on_icon_ready=None,
                 cancel_event=effective_cancel,
+                cache_writer=cache_writer,
             )
             
             self._raise_if_cancelled()
@@ -350,12 +352,15 @@ class IconRefreshWorker(QRunnable):
         return False
     
     def _process_batch_parallel(
-        self, batch: list[dict], default_icon_path: str, stats: dict, total: int
+        self, batch: list[dict], default_icon_path: str, stats: dict, total: int,
+        *, cache_writer=None,
     ) -> None:
         """Обработать батч ссылок параллельно."""
         updates_to_commit: dict[int, tuple[str, str, str]] = {}
         executor = self._ensure_executor()
-        future_to_link = self._submit_batch_futures(executor, batch, default_icon_path)
+        future_to_link = self._submit_batch_futures(
+            executor, batch, default_icon_path, cache_writer=cache_writer
+        )
 
         try:
             for future in as_completed(future_to_link):
@@ -394,10 +399,14 @@ class IconRefreshWorker(QRunnable):
         return executor
 
     def _submit_batch_futures(
-        self, executor: ThreadPoolExecutor, batch: list[dict], default_icon_path: str
+        self, executor: ThreadPoolExecutor, batch: list[dict], default_icon_path: str,
+        *, cache_writer=None,
     ) -> dict:
         return {
-            executor.submit(self._fetch_and_update_link, link, default_icon_path): link
+            executor.submit(
+                self._fetch_and_update_link, link, default_icon_path,
+                cache_writer=cache_writer,
+            ): link
             for link in batch
         }
 
@@ -505,7 +514,7 @@ class IconRefreshWorker(QRunnable):
             self._executor = None
 
     def _fetch_and_update_link(
-        self, link: dict, default_icon_path: str
+        self, link: dict, default_icon_path: str, *, cache_writer=None
     ) -> tuple[str, int | None, str | None, str | None, str | None]:
         """Скачать иконку для одной ссылки (без записи в БД).
         
@@ -565,7 +574,8 @@ class IconRefreshWorker(QRunnable):
                     new_icon_path = self._fetch_icon_for_file(url)
                 else:
                     new_icon_path = self._fetch_icon_for_link(
-                        url, cancel_event=_CombinedCancel(self._cancel_event, link_cancel)
+                        url, cancel_event=_CombinedCancel(self._cancel_event, link_cancel),
+                        cache_writer=cache_writer,
                     )
             finally:
                 timer.cancel()
@@ -714,7 +724,11 @@ class IconRefreshWorker(QRunnable):
                 )
                 
                 # Параллельная обработка батча
-                self._process_batch_parallel(batch, default_icon_path, stats, total)
+                with favicon_cache.batch(max_size=self.batch_size) as cache_batch:
+                    self._process_batch_parallel(
+                        batch, default_icon_path, stats, total,
+                        cache_writer=cache_batch.write,
+                    )
                 
                 if self._is_cancelled:
                     logger.info("[icon_refresh] Cancelled after batch")

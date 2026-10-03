@@ -131,6 +131,7 @@ class LinksBusinessLogic(QObject):
         ] = {}  # task_id -> (category_id, request_generation)
         self.task_counter = 0
         self._request_generation = 0
+        self._cache_generation = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         # TTLCache with automatic expiration for better memory management
@@ -474,11 +475,12 @@ class LinksBusinessLogic(QObject):
             self.recent_links_loaded.emit(self._cache[cache_key])
             return
 
+        gen = self._cache_generation
         self._run_db_task(
             lambda: self.links.get_recent_links(limit),
             description="load_recent_links",
             on_finished=lambda links: self._cache_links_and_emit(
-                cache_key, links or [], self.recent_links_loaded.emit
+                cache_key, links or [], self.recent_links_loaded.emit, gen
             ),
         )
 
@@ -492,6 +494,7 @@ class LinksBusinessLogic(QObject):
             self.favorite_links_loaded.emit(self._cache[cache_key])
             return
 
+        gen = self._cache_generation
         self._run_db_task(
             lambda: self.links.get_favorite_links(limit=limit_key),
             description=(
@@ -500,7 +503,7 @@ class LinksBusinessLogic(QObject):
                 else "load_favorite_links"
             ),
             on_finished=lambda links: self._cache_links_and_emit(
-                cache_key, links or [], self.favorite_links_loaded.emit
+                cache_key, links or [], self.favorite_links_loaded.emit, gen
             ),
         )
 
@@ -523,6 +526,7 @@ class LinksBusinessLogic(QObject):
             self.link_by_id_loaded.emit(self._cache[cache_key], link_id)
             return
 
+        gen = self._cache_generation
         self._run_db_task(
             lambda: self.links.get_link_by_id(link_id) or {},
             description=f"load_link_by_id({link_id})",
@@ -530,6 +534,7 @@ class LinksBusinessLogic(QObject):
                 cache_key,
                 link,
                 lambda link_data: self.link_by_id_loaded.emit(link_data, link_id),
+                gen,
             ),
         )
 
@@ -547,11 +552,12 @@ class LinksBusinessLogic(QObject):
             self.next_position_loaded.emit(self._cache[cache_key], category_id)
             return
 
+        gen = self._cache_generation
         self._run_db_task(
             lambda: self.links.get_next_position(category_id),
             description=f"load_next_position({category_id})",
             on_finished=lambda pos: self._cache_links_and_emit(
-                cache_key, pos, lambda p: self.next_position_loaded.emit(p, category_id)
+                cache_key, pos, lambda p: self.next_position_loaded.emit(p, category_id), gen
             ),
         )
 
@@ -832,16 +838,33 @@ class LinksBusinessLogic(QObject):
 
     def _invalidate_cache(self) -> None:
         """Invalidate caches after a mutating operation."""
-        self._cache.clear()
+        with self._tasks_lock:
+            self._cache_generation += 1
+            self._cache.clear()
 
     def invalidate_cache(self) -> None:
         """Public cache invalidation for external writes (e.g., undo commands)."""
         self._invalidate_cache()
 
     def _cache_links_and_emit(
-        self, key: str, data: Any, emit_func: Callable[[Any], None]
+        self,
+        key: str,
+        data: Any,
+        emit_func: Callable[[Any], None],
+        expected_generation: int | None = None,
     ) -> None:
-        self._cache[key] = data
+        with self._tasks_lock:
+            if expected_generation is not None:
+                current_gen = self._cache_generation
+                if expected_generation != current_gen:
+                    self.logger.debug(
+                        "Skip caching stale links data for key=%s: expected_gen=%s current_gen=%s",
+                        key,
+                        expected_generation,
+                        current_gen,
+                    )
+                    return
+            self._cache[key] = data
         emit_func(data)
 
     # Helpers for handling asynchronous results

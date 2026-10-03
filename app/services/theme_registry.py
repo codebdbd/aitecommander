@@ -27,6 +27,11 @@ DEFAULT_DARK_TOKENS: dict[str, str] = {
     "bg_canvas": "#0B0B0D",
     "bg_surface": "#131316",
     "bg_header": "#161518",
+    "border_subtle": "#30363D",
+    "status_error": "#FF5555",
+    "status_warning": "#FF9800",
+    "status_info": "#4FC3F7",
+    "status_success": "#4CAF50",
 }
 
 DEFAULT_LIGHT_TOKENS: dict[str, str] = {
@@ -41,6 +46,11 @@ DEFAULT_LIGHT_TOKENS: dict[str, str] = {
     "bg_canvas": "#F5F5F5",
     "bg_surface": "#FFFFFF",
     "bg_header": "#F0F0F0",
+    "border_subtle": "#D0D7DE",
+    "status_error": "#CF222E",
+    "status_warning": "#BF360C",
+    "status_info": "#0277BD",
+    "status_success": "#1A7F37",
 }
 
 
@@ -62,24 +72,31 @@ class ThemeDefinition:
 class ThemeRegistry:
     """Discover and cache bundled + user themes."""
 
-    def __init__(self, config=app_config, *, cache_ttl: float = 2.0) -> None:
+    _instance: ThemeRegistry | None = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self, config=app_config, *, cache_ttl: float = 0.0) -> None:
+        if hasattr(self, "_initialized") and self._initialized:
+            return
         self._config = config
         self._cache_ttl = max(0.0, float(cache_ttl))
-        self._cache_ts: float = 0.0
         self._cache: dict[str, ThemeDefinition] = {}
         self._lock = RLock()
         self._required_icons_cache: set[str] | None = None
+        self._initialized = True
 
     def invalidate(self) -> None:
         with self._lock:
             self._cache.clear()
-            self._cache_ts = 0.0
             self._required_icons_cache = None
 
     def list_themes(self) -> list[ThemeDefinition]:
-        now = time.time()
         with self._lock:
-            if self._cache and (now - self._cache_ts) < self._cache_ttl:
+            if self._cache:
                 return list(self._cache.values())
 
         bundled = self._load_themes_from_root(
@@ -105,7 +122,6 @@ class ThemeRegistry:
 
         with self._lock:
             self._cache = merged
-            self._cache_ts = now
             return list(self._cache.values())
 
     def get_theme(self, theme_id: str) -> ThemeDefinition | None:
@@ -147,14 +163,18 @@ class ThemeRegistry:
     def get_theme_tokens(self, theme_id: str) -> dict[str, str]:
         """Return semantic color tokens dict for the specified theme."""
         theme = self.get_theme(theme_id)
-        if theme and theme.tokens:
-            return dict(theme.tokens)
         defaults = DEFAULT_DARK_TOKENS if (theme and theme.is_dark) else DEFAULT_LIGHT_TOKENS
+        if theme and theme.tokens:
+            merged = dict(defaults)
+            merged.update(theme.tokens)
+            return merged
         return dict(defaults)
 
     def get_theme_separator_color(self, theme_id: str) -> str:
         """Return separator color hex for the specified theme."""
         theme = self.get_theme(theme_id)
+        if theme and theme.tokens and "border_subtle" in theme.tokens:
+            return theme.tokens["border_subtle"]
         if not theme or not theme.qss_path.exists():
             return "#3A3E44" if (theme and theme.is_dark) else "#B3B3B3"
         try:
@@ -242,7 +262,11 @@ class ThemeRegistry:
             logger.warning("Theme name missing in %s", manifest_path)
             return None
         version = str(data.get("version", "")).strip() or "1.0.0"
-        is_dark = bool(data.get("is_dark", False))
+        raw_is_dark = data.get("is_dark", False)
+        if isinstance(raw_is_dark, str):
+            is_dark = raw_is_dark.strip().lower() in ("true", "1", "yes")
+        else:
+            is_dark = bool(raw_is_dark)
         icon_color = str(data.get("icon_color", "#FFFFFF" if is_dark else "#1F2430")).strip()
 
         qss_rel = data.get("qss")
@@ -275,10 +299,11 @@ class ThemeRegistry:
         raw_tokens = data.get("tokens")
         defaults = DEFAULT_DARK_TOKENS if is_dark else DEFAULT_LIGHT_TOKENS
         resolved_tokens = dict(defaults)
+        _hex_color_re = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
         if isinstance(raw_tokens, dict):
             for k, v in raw_tokens.items():
-                if isinstance(v, str) and v.startswith("#"):
-                    resolved_tokens[k] = v
+                if isinstance(v, str) and _hex_color_re.match(v.strip()):
+                    resolved_tokens[k] = v.strip()
 
         return ThemeDefinition(
             theme_id=theme_id,

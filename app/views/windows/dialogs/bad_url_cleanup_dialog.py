@@ -796,17 +796,20 @@ class BadUrlCleanupDialog(BaseDialog):
         self.table_widget.setItem(row, 3, error_item)
 
     def _get_error_color(self, error_text: str) -> QColor:
-        """Возвращает цвет текста ошибки в зависимости от критичности и контраста темы."""
-        is_dark = self.table_widget.palette().base().color().lightnessF() < 0.5
+        """Возвращает цвет текста ошибки в зависимости от критичности и токенов темы."""
+        from app.services.theme_registry import theme_registry
+        from app.utils.ui.icon.path_service import get_current_theme
+
+        tokens = theme_registry.get_theme_tokens(get_current_theme())
         if "DNS" in error_text:
-            return QColor("#FF5555" if is_dark else "#C62828")
+            return QColor(tokens.get("status_error", "#FF5555"))
         if "404" in error_text or "410" in error_text or "403" in error_text:
-            return QColor("#FF9800" if is_dark else "#BF360C")
+            return QColor(tokens.get("status_warning", "#FF9800"))
         if "Timeout" in error_text or "Refused" in error_text or "Connection" in error_text:
-            return QColor("#FFD54F" if is_dark else "#9E6500")
+            return QColor(tokens.get("status_warning", "#FFD54F"))
         if "SSL" in error_text or "HTTP" in error_text:
-            return QColor("#4FC3F7" if is_dark else "#0277BD")
-        return self.table_widget.palette().text().color()
+            return QColor(tokens.get("status_info", "#4FC3F7"))
+        return QColor(tokens.get("text_primary", self.table_widget.palette().text().color().name()))
 
     def _rebuild_table(self):
         """Перестроить таблицу с группировкой по доменам."""

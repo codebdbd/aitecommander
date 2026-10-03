@@ -8,6 +8,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from PyQt6.QtGui import QColor
+
+from app.utils.theme_placeholders import resolve_token_placeholders
+
 if sys.stdout.encoding != "utf-8":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -24,32 +28,40 @@ class ThemeCheckResult:
     error: str = ""
 
 
-def parse_color(c_str: str) -> tuple[float, float, float] | None:
-    """Parse HEX (#RGB, #RRGGBB) or RGB/RGBA string to (r, g, b) float in [0, 1]."""
+def parse_color(c_str: str, bg_rgb: tuple[float, float, float] | None = None) -> tuple[float, float, float] | None:
+    """Parse a Qt color (#RGB, #RRGGBB, #AARRGGBB, rgb()/rgba()) to opaque (r, g, b).
+
+    8-digit hex follows Qt semantics (#AARRGGBB). Alpha is composited over ``bg_rgb``.
+    """
+    if not isinstance(c_str, str):
+        return None
     c_str = c_str.strip()
     if c_str.startswith("#"):
-        hex_val = c_str[1:]
-        if len(hex_val) == 3:
-            hex_val = "".join(ch * 2 for ch in hex_val)
-        if len(hex_val) == 6:
-            try:
-                r = int(hex_val[0:2], 16) / 255.0
-                g = int(hex_val[2:4], 16) / 255.0
-                b = int(hex_val[4:6], 16) / 255.0
-                return (r, g, b)
-            except ValueError:
-                return None
-    elif c_str.startswith("rgba") or c_str.startswith("rgb"):
-        m = re.findall(r"[\d\.]+", c_str)
-        if len(m) >= 3:
-            try:
-                r = float(m[0]) / 255.0
-                g = float(m[1]) / 255.0
-                b = float(m[2]) / 255.0
-                return (r, g, b)
-            except ValueError:
-                return None
-    return None
+        qc = QColor(c_str)
+        if not qc.isValid():
+            return None
+        r, g, b, a = qc.redF(), qc.greenF(), qc.blueF(), qc.alphaF()
+    elif c_str.startswith("rgb"):
+        m = re.findall(r"[\d.]+%?", c_str)
+        if len(m) < 3:
+            return None
+        try:
+            r, g, b = (float(v.rstrip("%")) / 100.0 if v.endswith("%") else float(v) / 255.0 for v in m[:3])
+            a = 1.0
+            if len(m) >= 4:
+                raw = m[3]
+                a = float(raw.rstrip("%")) / 100.0 if raw.endswith("%") else float(raw)
+                if a > 1.0:
+                    a /= 255.0
+        except ValueError:
+            return None
+    else:
+        return None
+    if a < 1.0 and bg_rgb is not None:
+        r = r * a + bg_rgb[0] * (1.0 - a)
+        g = g * a + bg_rgb[1] * (1.0 - a)
+        b = b * a + bg_rgb[2] * (1.0 - a)
+    return (r, g, b)
 
 
 def srgb_to_linear(c: float) -> float:
@@ -70,8 +82,20 @@ def contrast_ratio(rgb1: tuple[float, float, float], rgb2: tuple[float, float, f
     return (bright + 0.05) / (dark + 0.05)
 
 
-def validate_theme_contrast(qss_content: str, is_dark: bool) -> tuple[bool, float, str]:
-    """Validate that theme QSS content has readable dialog text contrast and matches is_dark."""
+def _with_default_tokens(tokens: dict[str, str] | None, is_dark: bool) -> dict[str, str]:
+    from app.services.theme_registry import DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS
+
+    merged = dict(DEFAULT_DARK_TOKENS if is_dark else DEFAULT_LIGHT_TOKENS)
+    if isinstance(tokens, dict):
+        merged.update(tokens)
+    return merged
+
+
+def validate_theme_contrast(qss_content: str, is_dark: bool, tokens: dict[str, str] | None = None) -> tuple[bool, float, str]:
+    """Validate that theme QSS content and semantic tokens have readable contrast and match is_dark."""
+    ref_bg = (0.0, 0.0, 0.0) if is_dark else (1.0, 1.0, 1.0)
+    effective_tokens = _with_default_tokens(tokens, is_dark)
+    qss_content = resolve_token_placeholders(qss_content, effective_tokens)
     m_dialog = re.search(r"QDialog\s*\{([^}]+)\}", qss_content)
     if not m_dialog:
         return False, 0.0, "Missing QDialog style block"
@@ -83,8 +107,8 @@ def validate_theme_contrast(qss_content: str, is_dark: bool) -> tuple[bool, floa
     if not m_bg or not m_fg:
         return False, 0.0, "Missing background or color in QDialog"
 
-    bg_rgb = parse_color(m_bg.group(1))
-    fg_rgb = parse_color(m_fg.group(1))
+    bg_rgb = parse_color(m_bg.group(1), ref_bg)
+    fg_rgb = parse_color(m_fg.group(1), bg_rgb)
 
     if not bg_rgb or not fg_rgb:
         return False, 0.0, f"Cannot parse colors: bg={m_bg.group(1)}, color={m_fg.group(1)}"
@@ -97,7 +121,33 @@ def validate_theme_contrast(qss_content: str, is_dark: bool) -> tuple[bool, floa
         return False, cr, f"Luminance mismatch: is_dark={is_dark}, but background luminance indicates {'dark' if lum_is_dark else 'light'}"
 
     if cr < 4.5:
-        return False, cr, f"Insufficient contrast ratio {cr:.2f} < 4.5 (WCAG AA)"
+        return False, cr, f"Insufficient QDialog contrast ratio {cr:.2f} < 4.5 (WCAG AA)"
+
+    bg_canvas = parse_color(effective_tokens.get("bg_canvas", ""), ref_bg)
+    bg_surface = parse_color(effective_tokens.get("bg_surface", ""), ref_bg)
+    raw_text = effective_tokens.get("text_primary", "")
+    text_canvas = parse_color(raw_text, bg_canvas)
+    text_surface = parse_color(raw_text, bg_surface)
+    sel_bg = parse_color(effective_tokens.get("selection_bg", ""), bg_canvas)
+    sel_fg = parse_color(effective_tokens.get("selection_fg", ""), sel_bg)
+    if not bg_canvas or not text_canvas:
+        return False, 0.0, f"Cannot parse canvas or text color in tokens"
+    if not bg_surface or not text_surface:
+        return False, 0.0, f"Cannot parse surface or text color in tokens"
+    if not sel_bg or not sel_fg:
+        return False, 0.0, f"Cannot parse selection color in tokens"
+    if bg_canvas and text_canvas:
+        cr_canvas = contrast_ratio(bg_canvas, text_canvas)
+        if cr_canvas < 4.5:
+            return False, cr_canvas, f"Insufficient canvas text contrast {cr_canvas:.2f} < 4.5 (WCAG AA)"
+    if bg_surface and text_surface:
+        cr_surface = contrast_ratio(bg_surface, text_surface)
+        if cr_surface < 4.5:
+            return False, cr_surface, f"Insufficient surface text contrast {cr_surface:.2f} < 4.5 (WCAG AA)"
+    if sel_bg and sel_fg:
+        cr_sel = contrast_ratio(sel_bg, sel_fg)
+        if cr_sel < 4.5:
+            return False, cr_sel, f"Insufficient selection contrast {cr_sel:.2f} < 4.5 (WCAG AA)"
 
     return True, cr, "OK"
 
@@ -121,7 +171,8 @@ def check_bundled_themes(themes_dir: str = "app/resources/themes") -> list[Theme
                 continue
             with open(qss_path, "r", encoding="utf-8") as f:
                 qss_text = f.read()
-            passed, cr, msg = validate_theme_contrast(qss_text, is_dark)
+            tokens = meta.get("tokens")
+            passed, cr, msg = validate_theme_contrast(qss_text, is_dark, tokens)
             results.append(ThemeCheckResult(t_id, passed, cr, passed, msg))
         except Exception as exc:
             results.append(ThemeCheckResult(t_id, False, 0.0, False, str(exc)))

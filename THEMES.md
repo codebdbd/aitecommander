@@ -9,7 +9,7 @@ The program supports two theme sources:
 - bundled themes shipped with the app in `app/resources/themes`
 - user themes installed into `%APPDATA%/Codebdbd/Aite Commander/themes`
 
-### Bundled themes (16 presets)
+### Bundled themes (15 presets)
 
 | Theme ID | Name | Mode | Description |
 |---|---|---|---|
@@ -20,7 +20,6 @@ The program supports two theme sources:
 | `crimson_noir` | Crimson Noir | Dark | Deep black with bold crimson accents |
 | `cyberpunk_neon` | Cyberpunk Neon | Dark | High-voltage cyberpunk palette |
 | `ghost_terminal` | Ghost Terminal | Dark | Minimalist monochrome terminal style |
-| `industrial_yellow` | Industrial Yellow | Dark | Charcoal and hazard yellow accents |
 | `love` | Love | Dark | Warm romantic pastel palette |
 | `nord_light` | Nord Light | Light | Cool Arctic Nordic light theme |
 | `obsidian_luxe` | Obsidian Luxe | Dark | Premium obsidian dark palette |

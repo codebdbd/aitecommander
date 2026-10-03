@@ -91,8 +91,8 @@ class AsyncOperationDialog(BaseDialog):
 
         # Details of the current stage
         self.detail_label = QLabel("")
+        self.detail_label.setObjectName("asyncDetailLabel")
         self.detail_label.setWordWrap(True)
-        self.detail_label.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(self.detail_label)
 
         # Cancel button

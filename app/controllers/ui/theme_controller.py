@@ -59,6 +59,7 @@ class ThemeController:
         self._qss_cache: dict[str, Any] = {}
         self._max_cache_size = 100
         self._common_qss: Optional[str] = None
+        self._applied_theme: Optional[str] = None
         # Note: reentrancy protection is not used - restoring original behaviort_cache_stats method
 
         self._load_available_themes()
@@ -316,9 +317,9 @@ class ThemeController:
         if theme_config is None:
             return False
 
-        # Invalidate cache before load
-        self.clear_cache()
-
+        prev_theme = self._applied_theme or (
+            self.settings.get_theme() if hasattr(self.settings, "get_theme") else None
+        )
         qss_content = self._load_qss_content(canonical_name, theme_config)
         if qss_content is None:
             logger.error("Failed to load composed QSS for theme: %s", name)
@@ -331,7 +332,7 @@ class ThemeController:
             logger.error("Failed to apply theme via StyleManager: %s", name)
             return False
 
-        return self._finalize_apply(theme_config, canonical_name, name)
+        return self._finalize_apply(theme_config, canonical_name, name, previous_theme=prev_theme)
 
     def clear_cache(self) -> None:
         """Clear QSS cache."""
@@ -385,7 +386,11 @@ class ThemeController:
         return True
 
     def _finalize_apply(
-        self, theme_config: dict[str, Any], canonical_name: str, log_name: str
+        self,
+        theme_config: dict[str, Any],
+        canonical_name: str,
+        log_name: str,
+        previous_theme: str | None = None,
     ) -> bool:
         """Finalize theme application: configure icon theme and persist settings."""
         try:
@@ -403,14 +408,50 @@ class ThemeController:
             SettingsManager.save()
             if self.main_window and hasattr(self.main_window, "update_theme"):
                 self.main_window.update_theme()
+            self._applied_theme = canonical_name
             return True
         except Exception as exc:
             logger.error("Theme application error %s: %s", log_name, exc, exc_info=True)
+            if previous_theme and previous_theme != canonical_name:
+                self._rollback_theme(previous_theme)
             return False
+
+    def _rollback_theme(self, previous_theme: str) -> None:
+        """Restore stylesheet, icons, persisted settings and active theme."""
+        logger.info("ThemeController: rolling back to previous theme: %s", previous_theme)
+        prev_config = self._get_theme_by_name(previous_theme)
+        if not prev_config:
+            return
+        prev_name = prev_config.get("name", previous_theme)
+        try:
+            prev_qss = self._load_qss_content(prev_name, prev_config)
+            if prev_qss:
+                StyleManager.apply_qss_string(prev_qss)
+        except Exception as exc:
+            logger.warning("ThemeController: rollback QSS failed: %s", exc)
+        if prev_config.get("source") == "bundled":
+            try:
+                configure_qicon_theme(prev_name)
+            except Exception as exc:
+                logger.warning("ThemeController: rollback icon theme failed: %s", exc)
+        try:
+            self.settings.set_theme(prev_name)
+            SettingsManager.set("theme.name", prev_name)
+            SettingsManager.save()
+        except Exception as exc:
+            logger.warning("ThemeController: rollback settings failed: %s", exc)
+        self._applied_theme = prev_name
+        self._clear_icon_cache_safe()
+        if self.main_window and hasattr(self.main_window, "update_theme"):
+            try:
+                self.main_window.update_theme()
+            except Exception as exc:
+                logger.warning("ThemeController: rollback UI update failed: %s", exc)
 
     def refresh_themes(self) -> None:
         """Reload themes from registry (e.g., after import/remove)."""
         self._theme_registry.invalidate()
+        self._stylesheet_service.clear_cache()
         self._load_available_themes()
         if self.main_window and hasattr(self.main_window, "theme_selector"):
             theme_sel = getattr(self.main_window, "theme_selector", None)
@@ -671,11 +712,5 @@ class ThemeController:
         return self._stylesheet_service._build_config_overrides_qss()
 
     def get_cache_stats(self) -> dict[str, Any]:
-        """Return theme cache statistics."""
-        with self._cache_lock:
-            return {
-                "cache_size": len(self._qss_cache),
-                "max_size": self._max_cache_size,
-                "cached_themes": list(self._qss_cache.keys()),
-                "common_qss_loaded": self._common_qss is not None,
-            }
+        """Return theme cache statistics from stylesheet service."""
+        return self._stylesheet_service.get_cache_stats()

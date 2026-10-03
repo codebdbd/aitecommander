@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 from app.utils.links.parser import fetcher
 from app.utils.links.parser.domain import base_domain
-from app.utils.links.parser.favicon_cache import _file_lock, _open_shelve_with_recovery
+from app.utils.links.parser.favicon_cache import (
+    FaviconLockTimeoutError,
+    _file_lock,
+    _open_shelve_with_recovery,
+)
 from app.utils.links.parser.http_client import _is_fatal_exception, http_request
 from app.utils.links.parser.icon_downloader import IconDownloader
 from app.utils.links.parser.icon_fallback import (
@@ -511,7 +515,7 @@ class TestFaviconCacheLockFallback(unittest.TestCase):
             any("proceeding without interprocess lock" in msg for msg in logs_cm.output)
         )
 
-    def test_file_lock_yields_when_filelock_times_out(self) -> None:
+    def test_file_lock_does_not_yield_when_filelock_times_out(self) -> None:
         import builtins
 
         real_import = builtins.__import__
@@ -547,10 +551,11 @@ class TestFaviconCacheLockFallback(unittest.TestCase):
             patch("builtins.__import__", side_effect=_fake_import),
         ):
             entered = False
-            with _file_lock("dummy.lock", timeout=0.25):
-                entered = True
+            with self.assertRaises(FaviconLockTimeoutError):
+                with _file_lock("dummy.lock", timeout=0.25):
+                    entered = True
 
-        self.assertTrue(entered)
+        self.assertFalse(entered)
         self.assertTrue(
             any("favicon lock timeout(filelock)" in msg for msg in logs_cm.output)
         )

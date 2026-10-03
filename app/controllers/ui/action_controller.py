@@ -166,9 +166,7 @@ class ActionController(QObject):
 
     def _iter_icon_actions(self) -> list[tuple[QAction, str]]:
         actions: list[tuple[QAction, str]] = []
-        pending = list(self._deferred_action_icons)
-        self._deferred_action_icons.clear()
-        actions.extend(pending)
+        actions.extend(self._deferred_action_icons)
         undo_action = getattr(self.main_window, "undo_action", None)
         redo_action = getattr(self.main_window, "redo_action", None)
         if undo_action is not None:

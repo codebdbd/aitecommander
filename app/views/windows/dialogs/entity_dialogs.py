@@ -1005,12 +1005,13 @@ class SettingsDialog(BaseDialog):
             if self.theme_combo is not None:
                 theme_id = self.theme_combo.currentData()
                 if theme_id and theme_id != self.settings.get_theme():
-                    self.settings.set_theme(theme_id)
                     if self.theme_ctrl:
                         if not getattr(self.theme_ctrl, "main_window", None) and self.parent():
                             self.theme_ctrl.main_window = self.parent()
                         self.theme_ctrl.clear_cache()
                         self.theme_ctrl.apply(theme_id)
+                    else:
+                        self.settings.set_theme(theme_id)
                     if self.parent() and hasattr(self.parent(), "update_theme"):
                         try:
                             self.parent().update_theme()

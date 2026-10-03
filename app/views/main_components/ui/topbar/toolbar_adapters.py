@@ -98,41 +98,59 @@ def _get_theme_contrast_color(theme_name: str | None = None) -> str:
         return "#FFFFFF"
 
 
-def _update_button_contrast_icon(btn: QToolButton) -> QIcon | None:
-    svg_filename = getattr(btn, "_svg_filename", None)
-    if not svg_filename:
-        return getattr(btn, "_contrast_icon", None)
+def _get_topbar_button_icons(
+    svg_filename: str,
+    theme_name: str | None = None,
+) -> tuple[QIcon, QIcon]:
+    from app.services.theme_registry import theme_registry
     from app.utils.ui.icon.path_service import get_current_theme
-    cur_theme = get_current_theme()
-    cached_theme = getattr(btn, "_contrast_theme", None)
-    contrast_color = _get_theme_contrast_color(cur_theme)
-    if (
-        cached_theme != cur_theme
-        or getattr(btn, "_contrast_icon", None) is None
-        or getattr(btn, "_contrast_color", None) != contrast_color
-    ):
-        svg_path = icon_path_service.get_ui_icons_dir() / "base" / svg_filename
-        btn._contrast_icon = _contrast_icon_from_path(svg_path, contrast_color)
-        btn._contrast_theme = cur_theme
-        btn._contrast_color = contrast_color
-    return getattr(btn, "_contrast_icon", None)
+
+    cur_theme = theme_name or get_current_theme()
+    tokens = theme_registry.get_theme_tokens(cur_theme)
+    rest_color = tokens.get("text_secondary", "#8B949E")
+    hover_color = tokens.get("text_primary", "#FFFFFF")
+
+    svg_path = icon_path_service.get_ui_icons_dir() / "base" / svg_filename
+    rest_icon = _contrast_icon_from_path(svg_path, rest_color)
+    hover_icon = _contrast_icon_from_path(svg_path, hover_color)
+    return rest_icon, hover_icon
 
 
 class TopBarButtonHoverFilter(QObject):
-    """Event filter to invert button icon on hover/pressed while preserving normal icon."""
+    """Event filter to handle button hover while preserving normal icon and enabling menu hover switching."""
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         t = event.type()
-        if t == QEvent.Type.Leave:
+        if t == QEvent.Type.Enter:
+            if isinstance(obj, QToolButton):
+                active = TopBarMenu._active_menu
+                if (
+                    active is not None
+                    and active.isVisible()
+                    and getattr(active, "_target_button", None) is not obj
+                ):
+                    btn_menu = obj.menu() or (
+                        obj.defaultAction().menu()
+                        if hasattr(obj, "defaultAction") and obj.defaultAction()
+                        else None
+                    )
+                    if btn_menu is not None:
+                        active.close()
+                        obj.showMenu()
+                hover_icon = getattr(obj, "_hover_icon", None)
+                if hover_icon and not hover_icon.isNull():
+                    obj.setIcon(hover_icon)
+        elif t == QEvent.Type.Leave:
             if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                normal_icon = getattr(obj, "_normal_icon", None)
-                if normal_icon and not normal_icon.isNull():
-                    obj.setIcon(normal_icon)
+                rest_icon = getattr(obj, "_rest_icon", None)
+                if rest_icon and not rest_icon.isNull():
+                    obj.setIcon(rest_icon)
         elif t == QEvent.Type.MouseButtonRelease:
             if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                normal_icon = getattr(obj, "_normal_icon", None)
-                if normal_icon and not normal_icon.isNull():
-                    obj.setIcon(normal_icon)
+                if not obj.underMouse():
+                    rest_icon = getattr(obj, "_rest_icon", None)
+                    if rest_icon and not rest_icon.isNull():
+                        obj.setIcon(rest_icon)
         elif t == QEvent.Type.ContextMenu:
             return True
         return False
@@ -143,11 +161,11 @@ def _setup_topbar_button_contrast(
     normal_icon: QIcon,
     svg_filename: str,
 ) -> None:
-    btn._normal_icon = normal_icon
+    rest_icon, hover_icon = _get_topbar_button_icons(svg_filename)
+    btn._rest_icon = rest_icon
+    btn._hover_icon = hover_icon
     btn._svg_filename = svg_filename
-    btn._contrast_icon = None
-    btn._contrast_theme = None
-    btn.setIcon(normal_icon)
+    btn.setIcon(rest_icon)
     filt = getattr(btn, "_invert_hover_filter", None)
     if filt is None:
         filt = TopBarButtonHoverFilter(btn)
@@ -257,6 +275,8 @@ class ToolbarSeparatorController:
 class TopBarMenu(QMenu):
     """Dropdown menu for top toolbar buttons that seamlessly aligns its top border with the button's bottom border."""
 
+    _active_menu: TopBarMenu | None = None
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._target_button: QWidget | None = None
@@ -266,12 +286,10 @@ class TopBarMenu(QMenu):
 
     def showEvent(self, event):  # noqa: N802
         super().showEvent(event)
+        TopBarMenu._active_menu = self
         if self._target_button is not None and self._target_button.isVisible():
             self._target_button.setFocus(Qt.FocusReason.MouseFocusReason)
             self._target_button.setProperty("menu_active", True)
-            contrast_icon = _update_button_contrast_icon(self._target_button)
-            if contrast_icon and not contrast_icon.isNull():
-                self._target_button.setIcon(contrast_icon)
             self._target_button.style().unpolish(self._target_button)
             self._target_button.style().polish(self._target_button)
             btn_bottom = self._target_button.mapToGlobal(
@@ -282,16 +300,18 @@ class TopBarMenu(QMenu):
 
     def hideEvent(self, event):  # noqa: N802
         super().hideEvent(event)
+        if TopBarMenu._active_menu is self:
+            TopBarMenu._active_menu = None
         if self._target_button is not None:
             self._target_button.setProperty("menu_active", False)
             if self._target_button.underMouse():
-                contrast_icon = _update_button_contrast_icon(self._target_button)
-                if contrast_icon and not contrast_icon.isNull():
-                    self._target_button.setIcon(contrast_icon)
+                hover_icon = getattr(self._target_button, "_hover_icon", None)
+                if hover_icon and not hover_icon.isNull():
+                    self._target_button.setIcon(hover_icon)
             else:
-                normal_icon = getattr(self._target_button, "_normal_icon", None)
-                if normal_icon and not normal_icon.isNull():
-                    self._target_button.setIcon(normal_icon)
+                rest_icon = getattr(self._target_button, "_rest_icon", None)
+                if rest_icon and not rest_icon.isNull():
+                    self._target_button.setIcon(rest_icon)
             self._target_button.style().unpolish(self._target_button)
             self._target_button.style().polish(self._target_button)
 
@@ -970,6 +990,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         self._category_provider = category_provider
         self._separator_controller = separator_controller
         self._last_items: list[dict[str, Any]] = []
+        self._main_action: QAction | None = None
         self._rebuild_menu()
 
     def _resolve_theme(self) -> str:
@@ -996,7 +1017,21 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         return theme or "light"
 
     def refresh_actions(self) -> None:
-        """Refresh favorites button icon on theme change."""
+        """Refresh favorites button icon in place without destroying toolbar buttons."""
+        if hasattr(self, "_main_action") and self._actions:
+            theme = _resolve_theme(self._category_provider)
+            from app.utils.ui.menu_builders.base import get_menu_icon
+
+            fav_icon = get_menu_icon("add_favorites", theme)
+            if not fav_icon or fav_icon.isNull():
+                fav_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_favorites.svg"
+                fav_icon = _icon_from_path(fav_icon_path, link_type="file")
+            if fav_icon and not fav_icon.isNull():
+                self._main_action.setIcon(fav_icon)
+                btn = self._toolbar.widgetForAction(self._main_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
+            return
         self._rebuild_menu()
 
     def set_data(
@@ -1018,7 +1053,9 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
             logger.debug("TopBarToolbar: failed to emit clearRequested", exc_info=True)
 
     def _rebuild_menu(self, *, fast_icons: bool = False) -> None:
-        self.clear_actions()
+        has_main = self._main_action is not None and self._main_action in self._actions
+        if not has_main:
+            self.clear_actions()
         theme = self._resolve_theme()
 
         from app.utils.ui.menu_builders.base import get_menu_icon
@@ -1065,21 +1102,31 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
                 action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
                 menu.addAction(action)
 
-        main_action = QAction(fav_icon, self.tr("Favorites"), self._toolbar)
-        main_action.setToolTip(self.tr("Favorites"))
-        main_action.setMenu(menu)
-        self._add_action(main_action)
+        if has_main and self._main_action is not None:
+            old_menu = self._main_action.menu()
+            if old_menu is not None:
+                old_menu.deleteLater()
+            self._main_action.setMenu(menu)
+            btn = self._toolbar.widgetForAction(self._main_action)
+            if isinstance(btn, QToolButton):
+                menu.set_target_button(btn)
+        else:
+            main_action = QAction(fav_icon, self.tr("Favorites"), self._toolbar)
+            main_action.setToolTip(self.tr("Favorites"))
+            main_action.setMenu(menu)
+            self._main_action = main_action
+            self._add_action(main_action)
 
-        btn = self._toolbar.widgetForAction(main_action)
-        if isinstance(btn, QToolButton):
-            btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-            menu.set_target_button(btn)
-            _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
+            btn = self._toolbar.widgetForAction(main_action)
+            if isinstance(btn, QToolButton):
+                btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+                menu.set_target_button(btn)
+                _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
 
-        self._mark_last_button()
-        self._update_global_last_button()
-        if self._separator_controller is not None:
-            self._separator_controller.set_group_count("fav", len(self._actions))
+            self._mark_last_button()
+            self._update_global_last_button()
+            if self._separator_controller is not None:
+                self._separator_controller.set_group_count("fav", len(self._actions))
 
     def _on_link(self, link_data: dict[str, Any]) -> None:
         self.actionRequested.emit({"type": "open_link", "link": link_data})
@@ -1112,6 +1159,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         self._emit_refresh_on_click = emit_refresh_on_click
         self._separator_controller = separator_controller
         self._last_items: list[dict[str, Any]] = []
+        self._main_action: QAction | None = None
         self._rebuild_menu()
 
     def _resolve_theme(self) -> str:
@@ -1138,7 +1186,21 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         return theme or "light"
 
     def refresh_actions(self) -> None:
-        """Refresh history button icon on theme change."""
+        """Refresh history button icon in place without destroying toolbar buttons."""
+        if hasattr(self, "_main_action") and self._actions:
+            theme = _resolve_theme(self._category_provider)
+            from app.utils.ui.menu_builders.base import get_menu_icon
+
+            history_icon = get_menu_icon("history", theme)
+            if not history_icon or history_icon.isNull():
+                history_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
+                history_icon = _icon_from_path(history_icon_path, link_type="file")
+            if history_icon and not history_icon.isNull():
+                self._main_action.setIcon(history_icon)
+                btn = self._toolbar.widgetForAction(self._main_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, history_icon, "history.svg")
+            return
         self._rebuild_menu()
 
     def set_data(
@@ -1157,7 +1219,9 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         return RECENT_LINKS_LIMIT
 
     def _rebuild_menu(self, *, fast_icons: bool = False) -> None:
-        self.clear_actions()
+        has_main = self._main_action is not None and self._main_action in self._actions
+        if not has_main:
+            self.clear_actions()
         theme = self._resolve_theme()
 
         from app.utils.ui.menu_builders.base import get_menu_icon
@@ -1205,21 +1269,31 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
                 action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
                 menu.addAction(action)
 
-        main_action = QAction(history_icon, self.tr("Recent Links"), self._toolbar)
-        main_action.setToolTip(self.tr("Recent Links"))
-        main_action.setMenu(menu)
-        self._add_action(main_action)
+        if has_main and self._main_action is not None:
+            old_menu = self._main_action.menu()
+            if old_menu is not None:
+                old_menu.deleteLater()
+            self._main_action.setMenu(menu)
+            btn = self._toolbar.widgetForAction(self._main_action)
+            if isinstance(btn, QToolButton):
+                menu.set_target_button(btn)
+        else:
+            main_action = QAction(history_icon, self.tr("Recent Links"), self._toolbar)
+            main_action.setToolTip(self.tr("Recent Links"))
+            main_action.setMenu(menu)
+            self._main_action = main_action
+            self._add_action(main_action)
 
-        btn = self._toolbar.widgetForAction(main_action)
-        if isinstance(btn, QToolButton):
-            btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-            menu.set_target_button(btn)
-            _setup_topbar_button_contrast(btn, history_icon, "history.svg")
+            btn = self._toolbar.widgetForAction(main_action)
+            if isinstance(btn, QToolButton):
+                btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+                menu.set_target_button(btn)
+                _setup_topbar_button_contrast(btn, history_icon, "history.svg")
 
-        self._mark_last_button()
-        self._update_global_last_button()
-        if self._separator_controller is not None:
-            self._separator_controller.set_group_count("recent", len(self._actions))
+            self._mark_last_button()
+            self._update_global_last_button()
+            if self._separator_controller is not None:
+                self._separator_controller.set_group_count("recent", len(self._actions))
 
     def _on_link(self, link_data: dict[str, Any]) -> None:
         self.actionRequested.emit({"type": "open_link", "link": link_data})

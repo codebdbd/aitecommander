@@ -53,6 +53,7 @@ class ProfileRadioButton(QRadioButton):
         fallback_text: str = "",
         accent_color: str = "#0194F0",
         is_dark: bool = True,
+        border_color: str | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -61,6 +62,7 @@ class ProfileRadioButton(QRadioButton):
         self.fallback_text = fallback_text
         self.accent_color = QColor(accent_color)
         self.is_dark = is_dark
+        self.border_color = QColor(border_color) if border_color else (QColor("#8B949E") if is_dark else QColor("#6E7781"))
 
     def hitButton(self, pos) -> bool:
         return self.rect().contains(pos)
@@ -94,7 +96,7 @@ class ProfileRadioButton(QRadioButton):
             unsel_color = (
                 self.accent_color
                 if self.underMouse()
-                else (QColor("#8B949E") if self.is_dark else QColor("#6E7781"))
+                else self.border_color
             )
             p.setPen(QPen(unsel_color, 1.8))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -541,6 +543,10 @@ class BrowserProfileDialog(BaseDialog):
     @staticmethod
     def _get_theme_table_colors(theme_name: str) -> tuple[str, str]:
         """Extract table background-color and alternate-background-color for theme."""
+        from app.services.theme_registry import DEFAULT_DARK_TOKENS, theme_registry
+        tokens = theme_registry.get_theme_tokens(theme_name)
+        if tokens and "bg_surface" in tokens and "bg_canvas" in tokens:
+            return tokens["bg_surface"], tokens["bg_canvas"]
         qss_file = PathManager.qss_dir() / f"{theme_name}.qss"
         if qss_file.exists():
             try:
@@ -554,7 +560,7 @@ class BrowserProfileDialog(BaseDialog):
                         return bg_m.group(1).strip(), alt_m.group(1).strip()
             except Exception:
                 pass
-        return "#14181D", "#1A1F26"
+        return DEFAULT_DARK_TOKENS["bg_surface"], DEFAULT_DARK_TOKENS["bg_canvas"]
 
     def _apply_scroll_theme(self) -> None:
         theme = get_current_theme()
@@ -612,15 +618,17 @@ class BrowserProfileDialog(BaseDialog):
         from app.services.theme_registry import theme_registry
         theme_def = theme_registry.get_theme(theme)
         is_dark = theme_def.is_dark if theme_def else True
-        accent_color = theme_registry.get_theme_icon_color(theme)
-        text_color = "#E0E0E0" if is_dark else "#202020"
-        hover_bg = "rgba(255, 255, 255, 0.07)" if is_dark else "rgba(0, 0, 0, 0.04)"
+        tokens = theme_registry.get_theme_tokens(theme)
+        accent_color = tokens.get("text_accent", theme_registry.get_theme_icon_color(theme))
+        text_color = tokens.get("text_primary", "#E0E0E0" if is_dark else "#202020")
+        border_subtle = tokens.get("border_subtle", "#8B949E" if is_dark else "#6E7781")
+        hover_bg = tokens.get("hover_bg", "rgba(255, 255, 255, 0.07)" if is_dark else "rgba(0, 0, 0, 0.04)")
 
         for idx, profile in enumerate(working_profiles):
             email, p_name = self._parse_profile_parts(profile)
             fallback = self.tr("Unnamed")
             if self.mode == "single":
-                cb = ProfileRadioButton(email, p_name, fallback, accent_color, is_dark)
+                cb = ProfileRadioButton(email, p_name, fallback, accent_color, is_dark, border_subtle)
                 cb.double_clicked.connect(self._on_profile_double_clicked)
             else:
                 cb = ProfileCheckBox(email, p_name, fallback, accent_color, is_dark)

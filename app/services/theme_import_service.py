@@ -6,6 +6,7 @@ import re
 import shutil
 import tempfile
 import zipfile
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -88,6 +89,8 @@ class ThemeImportService:
             manifest = self._validate_theme_root(extracted_root)
             theme_id = manifest.theme_id
 
+            dest_dir = user_root / theme_id
+            backup_dir: Path | None = None
             existing = self._registry.get_theme(theme_id)
             if existing is not None:
                 if existing.source == "bundled":
@@ -95,29 +98,43 @@ class ThemeImportService:
                         theme_id = self._generate_unique_id(theme_id)
                         self._rewrite_theme_id(manifest.root, theme_id)
                         manifest.theme_id = theme_id
+                        dest_dir = user_root / theme_id
                     else:
                         raise ThemeConflictError(theme_id, existing.source)
                 else:
                     if conflict_policy == "overwrite":
-                        self._remove_user_theme(theme_id)
+                        if dest_dir.exists():
+                            backup_dir = user_root / f".{theme_id}.backup_{uuid.uuid4().hex[:8]}"
+                            shutil.move(str(dest_dir), str(backup_dir))
                     elif conflict_policy == "rename":
                         theme_id = self._generate_unique_id(theme_id)
                         self._rewrite_theme_id(manifest.root, theme_id)
                         manifest.theme_id = theme_id
+                        dest_dir = user_root / theme_id
                     else:
                         raise ThemeConflictError(theme_id, existing.source)
 
-            dest_dir = user_root / theme_id
             if dest_dir.exists():
+                if backup_dir and backup_dir.exists():
+                    shutil.move(str(backup_dir), str(dest_dir))
                 raise ThemeImportError(f"Destination already exists: {dest_dir}")
 
-            shutil.move(str(manifest.root), str(dest_dir))
-
-        self._registry.invalidate()
-        theme = self._registry.get_theme(theme_id)
-        if theme is None:
-            raise ThemeImportError(f"Imported theme not found in registry: {theme_id}")
-        return theme
+            try:
+                shutil.move(str(manifest.root), str(dest_dir))
+                self._registry.invalidate()
+                theme = self._registry.get_theme(theme_id)
+                if theme is None:
+                    raise ThemeImportError(f"Imported theme not found in registry: {theme_id}")
+                if backup_dir and backup_dir.exists():
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                return theme
+            except Exception:
+                if dest_dir.exists():
+                    shutil.rmtree(dest_dir, ignore_errors=True)
+                if backup_dir and backup_dir.exists():
+                    shutil.move(str(backup_dir), str(dest_dir))
+                self._registry.invalidate()
+                raise
 
     def remove_theme(self, theme_id: str) -> None:
         """Remove a user-installed theme."""
@@ -266,10 +283,36 @@ class ThemeImportService:
         if not name:
             raise ThemeValidationError("theme.json: missing name.")
         version = str(data.get("version", "")).strip() or "1.0.0"
-        is_dark = bool(data.get("is_dark", False))
+        raw_is_dark = data.get("is_dark", False)
+        if isinstance(raw_is_dark, str):
+            is_dark = raw_is_dark.strip().lower() in ("true", "1", "yes")
+        else:
+            is_dark = bool(raw_is_dark)
 
         qss_rel = data.get("qss")
         icons_rel = data.get("icons_dir")
+        tokens_data = data.get("tokens")
+        if tokens_data is not None:
+            if not isinstance(tokens_data, dict):
+                raise ThemeValidationError("theme.json: tokens must be an object/dict if provided.")
+            from app.utils.theme_checker import parse_color
+
+            for token_key, token_val in tokens_data.items():
+                if not isinstance(token_key, str) or not isinstance(token_val, str):
+                    raise ThemeValidationError(
+                        f"theme.json: invalid token '{token_key}'. All token keys and values must be strings."
+                    )
+                if parse_color(token_val) is None:
+                    raise ThemeValidationError(
+                        f"theme.json: invalid color for token '{token_key}': '{token_val}'."
+                    )
+        raw_icon_color = data.get("icon_color")
+        if raw_icon_color is not None:
+            from app.utils.theme_checker import parse_color
+            if not isinstance(raw_icon_color, str) or parse_color(raw_icon_color) is None:
+                raise ThemeValidationError(
+                    f"theme.json: invalid icon_color value '{raw_icon_color}'."
+                )
         if not qss_rel:
             raise ThemeValidationError("theme.json: qss is required.")
 
@@ -282,13 +325,13 @@ class ThemeImportService:
         try:
             qss_content = qss_path.read_text(encoding="utf-8")
             from app.utils.theme_checker import validate_theme_contrast
-            passed, cr, err_msg = validate_theme_contrast(qss_content, is_dark)
-            if not passed and cr < 3.0:
+            passed, cr, err_msg = validate_theme_contrast(qss_content, is_dark, tokens_data)
+            if not passed:
                 raise ThemeValidationError(f"Theme '{theme_id}' failed accessibility check: {err_msg}")
         except Exception as exc:
             if isinstance(exc, ThemeValidationError):
                 raise
-            logger.warning("Theme contrast check warning: %s", exc)
+            raise ThemeValidationError(f"Theme '{theme_id}' failed accessibility check: {exc}") from exc
 
         icon_color = str(
             data.get("icon_color", "#FFFFFF" if is_dark else "#1F2430")

@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication
 
 from app.core.paths.path_manager import PathManager
 from app.services.theme_registry import theme_registry
+from app.utils.theme_placeholders import resolve_token_placeholders
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,9 @@ class ThemeStylesheetService:
             )
             return None
 
+        theme_qss = resolve_token_placeholders(
+            theme_qss, theme_registry.get_theme_tokens(theme_name)
+        )
         common_qss = self._load_common_qss()
         combined_qss = (
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
@@ -209,6 +213,9 @@ class ThemeStylesheetService:
             )
             return None
 
+        theme_qss = resolve_token_placeholders(
+            theme_qss, theme_registry.get_theme_tokens(theme_name)
+        )
         common_qss = self._load_common_qss()
         combined_qss = (
             f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
@@ -252,15 +259,42 @@ class ThemeStylesheetService:
         bg_canvas = tokens.get("bg_canvas")
         bg_surface = tokens.get("bg_surface")
         bg_header = tokens.get("bg_header")
+        border_subtle = tokens.get("border_subtle", "#3A3E44" if "#FFF" in tokens.get("text_on_accent", "") else "#D0D7DE")
+        text_muted = tokens.get("text_muted", tokens.get("text_secondary", "#8B949E"))
+        text_accent = tokens.get("text_accent", tokens.get("selection_bg", "#0969DA"))
+        status_error = tokens.get("status_error", "#FF5555")
+        status_warning = tokens.get("status_warning", "#FF9800")
+        status_info = tokens.get("status_info", "#4FC3F7")
+        status_success = tokens.get("status_success", "#4CAF50")
+
         layer_rules = ""
         if bg_canvas and bg_surface and bg_header:
             layer_rules = (
-                f"QMainWindow, QWidget#topBarHost {{ background-color: {bg_canvas}; }}\n"
-                f"LinksTableView, QTableView, QTableWidget {{\n"
+                f"QMainWindow, QWidget#topBarHost, QDialog, QMessageBox {{\n"
+                f"    background-color: {bg_canvas};\n"
+                f"    color: {tokens['text_primary']};\n"
+                f"}}\n"
+                f"QGroupBox {{\n"
+                f"    border: 1px solid {border_subtle};\n"
+                f"    border-radius: 4px;\n"
+                f"    margin-top: 8px;\n"
+                f"    padding-top: 8px;\n"
+                f"    color: {tokens['text_primary']};\n"
+                f"}}\n"
+                f"QGroupBox::title {{\n"
+                f"    subcontrol-origin: margin;\n"
+                f"    subcontrol-position: top left;\n"
+                f"    padding: 0 4px;\n"
+                f"    color: {tokens['text_secondary']};\n"
+                f"}}\n"
+                f"LinksTableView, QTableView, QTableWidget, QListView#categoryTiles, QListWidget#categoryTiles {{\n"
                 f"    background-color: {bg_surface};\n"
+                f"}}\n"
+                f"LinksTableView, QTableView, QTableWidget {{\n"
                 f"    alternate-background-color: {bg_canvas};\n"
                 f"}}\n"
                 f"QHeaderView::section, QStatusBar, QWidget#bottomBarContainer {{ background-color: {bg_header}; }}\n"
+                f"QSplitter::handle {{ background-color: {border_subtle}; }}\n"
             )
         return (
             "\n/* ==== Unified Typography & State Tokens (Auto-Generated) ==== */\n"
@@ -271,6 +305,19 @@ class ThemeStylesheetService:
             f"    qproperty-primaryCellTextColor: {tokens['text_primary']};\n"
             f"    qproperty-secondaryCellTextColor: {tokens['text_secondary']};\n"
             f"    qproperty-hoverRowColor: {hover_bg};\n"
+            f"}}\n"
+            f"QListView#categoryTiles, QListWidget#categoryTiles {{\n"
+            f"    qproperty-selectedTextColor: {tokens['selection_fg']};\n"
+            f"}}\n"
+            f"QListView#categoryTiles::item, QListWidget#categoryTiles::item {{\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"}}\n"
+            f"QListView#categoryTiles::item:hover, QListWidget#categoryTiles::item:hover {{\n"
+            f"    background-color: {hover_bg};\n"
+            f"}}\n"
+            f"QListView#categoryTiles::item:selected, QListWidget#categoryTiles::item:selected {{\n"
+            f"    background-color: {tokens['selection_bg']};\n"
+            f"    color: {tokens['selection_fg']};\n"
             f"}}\n"
             f"QTreeView::item:selected, QTableView::item:selected, QTableWidget::item:selected {{\n"
             f"    background-color: {tokens['selection_bg']};\n"
@@ -283,7 +330,76 @@ class ThemeStylesheetService:
             f"QWidget#topBarHost QToolButton:hover, QWidget#topBarHost QPushButton:hover, QWidget#bottomBarContainer QPushButton:hover {{\n"
             f"    background-color: {hover_bg};\n"
             f"}}\n"
-            f"QLineEdit#mainSearch {{ color: {tokens['text_primary']}; }}\n"
+            f"QLineEdit#mainSearch {{\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"    background-color: {bg_surface};\n"
+            f"    border-color: {border_subtle};\n"
+            f"}}\n"
+            f"QLineEdit, QTextEdit, QPlainTextEdit {{\n"
+            f"    placeholder-text-color: {text_muted};\n"
+            f"}}\n"
+            f"QLabel#asyncDetailLabel {{\n"
+            f"    color: {text_muted};\n"
+            f"    font-size: 11px;\n"
+            f"}}\n"
+            f"QLabel[status=\"error\"] {{ color: {status_error}; }}\n"
+            f"QLabel[status=\"warning\"] {{ color: {status_warning}; }}\n"
+            f"QLabel[status=\"info\"] {{ color: {status_info}; }}\n"
+            f"QLabel[status=\"success\"] {{ color: {status_success}; }}\n"
+            f"QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus {{\n"
+            f"    border-color: {text_accent};\n"
+            f"}}\n"
+            f"QProgressBar {{\n"
+            f"    background-color: {bg_surface};\n"
+            f"    border: 1px solid {border_subtle};\n"
+            f"    border-radius: 4px;\n"
+            f"    text-align: center;\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"}}\n"
+            f"QProgressBar::chunk {{\n"
+            f"    background-color: {text_accent};\n"
+            f"    border-radius: 3px;\n"
+            f"}}\n"
+            f"QRadioButton, QDialog QRadioButton {{\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"}}\n"
+            f"QRadioButton::indicator, QDialog QRadioButton::indicator {{\n"
+            f"    width: 14px;\n"
+            f"    height: 14px;\n"
+            f"    border: 1px solid {border_subtle};\n"
+            f"    border-radius: 7px;\n"
+            f"    background-color: {bg_surface};\n"
+            f"}}\n"
+            f"QRadioButton::indicator:hover, QDialog QRadioButton::indicator:hover {{\n"
+            f"    border-color: {text_accent};\n"
+            f"}}\n"
+            f"QRadioButton::indicator:checked, QDialog QRadioButton::indicator:checked {{\n"
+            f"    border: 1px solid {text_accent};\n"
+            f"    background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.45, fx: 0.5, fy: 0.5, stop: 0 {tokens.get('text_on_accent', '#FFFFFF')}, stop: 0.45 {tokens.get('text_on_accent', '#FFFFFF')}, stop: 0.55 {text_accent}, stop: 1.0 {text_accent});\n"
+            f"}}\n"
+            f"QComboBox QAbstractItemView, QDialog QComboBox QAbstractItemView, QListView#comboPopupView {{\n"
+            f"    background-color: {bg_surface};\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"    border: 1px solid {border_subtle};\n"
+            f"    selection-background-color: {tokens['selection_bg']};\n"
+            f"    selection-color: {tokens['selection_fg']};\n"
+            f"}}\n"
+            f"QComboBox QAbstractItemView::item:selected, QDialog QComboBox QAbstractItemView::item:selected, QListView#comboPopupView::item:selected {{\n"
+            f"    background-color: {tokens['selection_bg']};\n"
+            f"    color: {tokens['selection_fg']};\n"
+            f"}}\n"
+            f"QComboBox QAbstractItemView::item:!selected:hover, QDialog QComboBox QAbstractItemView::item:!selected:hover, QListView#comboPopupView::item:!selected:hover {{\n"
+            f"    background-color: {hover_bg};\n"
+            f"    color: {tokens['text_primary']};\n"
+            f"}}\n"
+            f"QComboBox QAbstractItemView::item:selected:hover, QDialog QComboBox QAbstractItemView::item:selected:hover, QListView#comboPopupView::item:selected:hover {{\n"
+            f"    background-color: {tokens['selection_bg']};\n"
+            f"    color: {tokens['selection_fg']};\n"
+            f"}}\n"
+            f"QFrame#comboPopupContainer {{\n"
+            f"    background-color: {bg_surface};\n"
+            f"    border: 1px solid {border_subtle};\n"
+            f"}}\n"
         )
 
     def _get_tokens_qss(self, theme_name: str) -> str:
@@ -354,6 +470,16 @@ class ThemeStylesheetService:
             tokens = theme_registry.get_theme_tokens(theme_name)
             bg_hover = tokens.get("hover_bg", tokens.get("selection_bg", "#2E4066"))
             bg_active = tokens.get("selection_bg", bg_hover)
+            border_active = tokens.get("text_accent", bg_active)
+
+            menu_bg = tokens.get("bg_surface", "#252B35")
+            menu_border = tokens.get("border_subtle", "#6A7EA3")
+            m_bg = re.search(r'\nQMenu\s*\{[^}]*background-color:\s*([^;]+);', qss)
+            if m_bg:
+                menu_bg = m_bg.group(1).strip()
+            m_border = re.search(r'\nQMenu\s*\{[^}]*border-color:\s*([^;]+);', qss)
+            if m_border:
+                menu_border = m_border.group(1).strip()
 
             hover_block = (
                 f"\n\n/* ==== TopBar button hover accent fill ==== */\n"
@@ -365,16 +491,21 @@ class ThemeStylesheetService:
                 f"    background-color: {bg_hover};\n"
                 f"}}\n"
                 f"QWidget#topBarHost QToolButton#quickButton:pressed,\n"
-                f"QWidget#topBarHost QToolButton#quickButton[menu_active=\"true\"],\n"
                 f"QWidget#topBarHost QToolButton#favoriteButton:pressed,\n"
-                f"QWidget#topBarHost QToolButton#favoriteButton[menu_active=\"true\"],\n"
                 f"QWidget#topBarHost QToolButton#recentButton:pressed,\n"
+                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:pressed {{\n"
+                f"    background: {bg_hover};\n"
+                f"    background-color: {bg_hover};\n"
+                f"    border-color: {border_active};\n"
+                f"}}\n"
+                f"QWidget#topBarHost QToolButton#quickButton[menu_active=\"true\"],\n"
+                f"QWidget#topBarHost QToolButton#favoriteButton[menu_active=\"true\"],\n"
                 f"QWidget#topBarHost QToolButton#recentButton[menu_active=\"true\"],\n"
-                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:pressed,\n"
                 f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"][menu_active=\"true\"] {{\n"
-                f"    background: {bg_active};\n"
-                f"    background-color: {bg_active};\n"
-                f"    border-color: {bg_active};\n"
+                f"    background: {menu_bg};\n"
+                f"    background-color: {menu_bg};\n"
+                f"    border-color: {menu_border};\n"
+                f"    border-bottom-color: {menu_bg};\n"
                 f"}}\n"
             )
             return f"{qss}{hover_block}"
@@ -385,23 +516,25 @@ class ThemeStylesheetService:
     @staticmethod
     def _tint_svg_for_qss(icon_name: str, color_hex: str, theme_name: str) -> str:
         """Get or create tinted SVG on disk for QSS and return its path."""
-        base_svg = PathManager.ui_icons_dir() / "base" / icon_name
-        if not base_svg.exists():
+        from app.services.theme_registry import theme_registry
+        theme_def = theme_registry.get_theme(theme_name)
+        base_svg = None
+        if theme_def and theme_def.icons_dir and (theme_def.icons_dir / icon_name).is_file():
+            base_svg = theme_def.icons_dir / icon_name
+        else:
+            default_svg = PathManager.ui_icons_dir() / "base" / icon_name
+            if default_svg.is_file():
+                base_svg = default_svg
+        if base_svg is None or not base_svg.exists():
             return ""
         if icon_name == "check.svg":
             from app.services.theme_registry import theme_registry
-            theme_def = theme_registry.get_theme(theme_name)
-            if theme_name in ("matrix", "nord_light", "sage_light", "pearl_gray", "pastel_bloom"):
-                color_hex = "#121212"
-            elif (theme_def and theme_def.is_dark) or theme_name == "dark":
-                color_hex = "#FFFFFF"
-            else:
-                color_hex = "#FFFFFF"
+            tokens = theme_registry.get_theme_tokens(theme_name)
+            color_hex = tokens.get("text_on_accent", "#FFFFFF")
         elif icon_name in ("chevron_down.svg", "chevron_up.svg", "down.svg", "up.svg"):
             from app.services.theme_registry import theme_registry
-            theme_def = theme_registry.get_theme(theme_name)
-            is_dark = (theme_def and theme_def.is_dark) or theme_name == "dark"
-            color_hex = "#9AA0A6" if is_dark else "#5F6368"
+            tokens = theme_registry.get_theme_tokens(theme_name)
+            color_hex = tokens.get("text_secondary", "#8B949E")
         cache_dir = PathManager.cache_dir() / "qss_icons" / theme_name
         cache_dir.mkdir(parents=True, exist_ok=True)
         dest_svg = cache_dir / icon_name
@@ -520,14 +653,10 @@ class ThemeStylesheetService:
         return overrides
 
     def invalidate_overrides_cache(self) -> None:
-        """Resets overrides cache when settings change.
-
-        FIX: Public method to reset cache.
-
-        Call this method after changing font sizes or other UI settings.
-        """
+        """Resets overrides cache and compiled QSS cache when settings change."""
         with self._cache_lock:
             self._overrides_cache = None
+            self._qss_cache.clear()
         logger.debug("ThemeStylesheetService: overrides cache invalidated")
 
     def _is_safe_filename(self, filename: str) -> bool:

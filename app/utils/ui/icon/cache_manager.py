@@ -295,7 +295,6 @@ class ThreadSafeIconCache:
         ttl_icon, _, _ = self._get_ttls_snapshot()
 
         with acquire_cache_lock():
-            self._sync_path_structs()
             key = self._key(icon_name, theme)
             entry = self._path_cache.get(key)
             if entry is None:
@@ -324,6 +323,7 @@ class ThreadSafeIconCache:
                 logger.debug(
                     "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
                 )
+            self._path_lru.access(key)
             return entry.path
 
     def set_path(self, icon_name: str, theme: str, path: str | None) -> None:
@@ -352,7 +352,6 @@ class ThreadSafeIconCache:
         ttl_icon, ttl_abs, ttl_negative = self._get_ttls_snapshot()
 
         with acquire_cache_lock():
-            self._sync_qicon_structs()
             key = self._key(icon_name, theme)
             entry = self._qicon_cache.get(key)
             if entry is None:
@@ -381,6 +380,7 @@ class ThreadSafeIconCache:
                 self.metrics.record_hit()
             except Exception:  # noqa: BLE001
                 pass
+            self._qicon_lru.access(key)
             return entry.icon
 
     def set_qicon(
@@ -427,7 +427,6 @@ class ThreadSafeIconCache:
             prefix, icon_name, theme = self._parse_unified_key(key)
             k = self._key(icon_name, theme)
             if prefix == "path":
-                self._sync_path_structs()
                 entry = self._path_cache.get(k)
                 if entry is None:
                     try:
@@ -457,7 +456,6 @@ class ThreadSafeIconCache:
                     )
                 return entry.path
             else:  # qicon
-                self._sync_qicon_structs()
                 qicon_entry: IconCacheEntry | None = self._qicon_cache.get(k)
                 if qicon_entry is None:
                     try:

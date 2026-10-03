@@ -666,8 +666,14 @@ def fetch_web_link_info(
     defer_icon: bool = False,
     on_icon_ready: Callable[[str], None] | None = None,
     cancel_event: threading.Event | None = None,
+    cache_writer: Callable[[str, dict[str, Any], Any], None] | None = None,
 ) -> dict[str, Any]:
-    """Fetch web link information (title, icon) with caching."""
+    """Fetch web link information (title, icon) with caching.
+
+    cache_writer can buffer the immediate result for bulk operations. Deferred
+    icon tasks keep writing directly because they may outlive that batch.
+    """
+    save_cache = cache_writer if cache_writer is not None else write_cache
     perf_t0 = time.perf_counter()
     cache_check_ms = 0.0
     fetch_html_ms = 0.0
@@ -734,7 +740,7 @@ def fetch_web_link_info(
         result = _build_negative_result(url, "", default_icon, config)
         t_cache_write0 = time.perf_counter()
         try:
-            write_cache(url, result, config)
+            save_cache(url, result, config)
         except Exception:
             logger.debug("cache write failed for host-negative %s", safe_url, exc_info=True)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
@@ -776,7 +782,7 @@ def fetch_web_link_info(
 
         t_cache_write0 = time.perf_counter()
         try:
-            write_cache(url, result, config)
+            save_cache(url, result, config)
         except Exception as e:
             logger.debug("cache write failed for %s: %s", safe_url, e)
         cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0
@@ -946,7 +952,7 @@ def fetch_web_link_info(
     # 8) Write to cache
     t_cache_write0 = time.perf_counter()
     try:
-        write_cache(url, result, config)
+        save_cache(url, result, config)
     except Exception as e:
         logger.debug("cache write failed for %s: %s", safe_url, e)
     cache_write_ms += (time.perf_counter() - t_cache_write0) * 1000.0

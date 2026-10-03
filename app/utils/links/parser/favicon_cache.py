@@ -12,6 +12,7 @@ import shelve
 import threading
 import time
 from collections import OrderedDict
+from collections.abc import Mapping
 from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,10 @@ try:  # noqa: SIM105
     from app.utils.ui.icon.icon_resolver import resolve_icon_for_link  # type: ignore
 except Exception:  # noqa: BLE001
     resolve_icon_for_link = None  # type: ignore
+
+
+class FaviconLockTimeoutError(TimeoutError):
+    """Raised when acquiring interprocess file lock times out."""
 
 
 def _get_lock_backend() -> str:
@@ -52,7 +57,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
     1) ``portalocker.Lock(..., timeout=timeout)``
     2) ``filelock.FileLock(...).acquire(timeout=timeout)``
     If none of the backends are available, continue without interprocess locking (log a warning).
-    Semantics preserved: when timeout expires, log a warning and continue without an actual lock.
+    When acquisition times out, raise FaviconLockTimeoutError so callers skip cache access.
     Timeout can be configured via ``app_config.FAVICON_LOCK_TIMEOUT`` (seconds). The function argument
     ``timeout`` takes precedence over config.
     """
@@ -77,9 +82,9 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
             except Exception as e:
                 if _is_portalocker_timeout(e):
                     logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
+                    raise FaviconLockTimeoutError(f"favicon lock timeout: {lock_path}") from e
                 else:
                     raise
-            # timeout: fall through to unlocked execution
 
     # 2) filelock (if available/allowed; also for auto when portalocker is missing)
     if _should_try_backend(backend, "filelock"):
@@ -88,10 +93,17 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
             from filelock import Timeout as FileLockTimeout
 
             lock = FileLock(lock_path)
+        except Exception:
+            if backend == "filelock":
+                _log_no_lock_fallback(lock_path)
+                yield
+                return
+        else:
             try:
                 lock.acquire(timeout=max(0.0, float(eff_timeout)))
             except FileLockTimeout as e:  # type: ignore[name-defined]
                 logger.warning("favicon lock timeout(filelock): %s (%s)", lock_path, e)
+                raise FaviconLockTimeoutError(f"favicon lock timeout(filelock): {lock_path}") from e
             else:
                 try:
                     yield
@@ -101,12 +113,6 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                     except Exception:
                         pass
                 return
-        except Exception:
-            if backend == "filelock":
-                _log_no_lock_fallback(lock_path)
-                yield
-                return
-
     # No available backends — continue without interprocess locking
     _log_no_lock_fallback(lock_path)
     yield
@@ -537,11 +543,15 @@ class FaviconCache(BaseCache):
         with self._lock:
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
-            with _file_lock(lock_path):
-                if self._persistent_enabled:
-                    return self._get_from_persistent(key)
-                else:
-                    return self._get_from_non_persistent(key, current_path)
+            try:
+                with _file_lock(lock_path):
+                    if self._persistent_enabled:
+                        return self._get_from_persistent(key)
+                    else:
+                        return self._get_from_non_persistent(key, current_path)
+            except FaviconLockTimeoutError:
+                logger.debug("FaviconCache.get: lock acquisition timeout for %s, skipping cache", key)
+                return None
 
     def _prepare_cache_entry(
         self, value: Any, ttl: float | None, ts_now: float
@@ -608,9 +618,6 @@ class FaviconCache(BaseCache):
             # Evict by index
             self._evict_by_index(db, idx, max_size)
             db["__ts_index__"] = idx
-
-            # Sync changes
-            self._sync_db(db)
         except Exception:
             pass
 
@@ -622,36 +629,98 @@ class FaviconCache(BaseCache):
         db[key] = to_store
         self._update_timestamp_index(db, key, to_store.get("timestamp", ts_now))
         logger.debug("[cache] SAVE %s", key)
-        self._sync_db(db)
         self._enforce_size_limit(db)
+        self._maybe_cleanup(db, now=ts_now)
+        self._sync_db(db)
 
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         """Set cache entry with optional TTL."""
         with self._lock:
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
-            with _file_lock(lock_path):
-                if self._persistent_enabled:
-                    # Persistent mode: use already-open DB
-                    if self._db is None:
-                        self._open_db()
-                    db = self._db
-                    if db is None:
-                        return
-                    self._store_entry_in_db(db, key, value, ttl)
-                else:
-                    # Non-persistent mode: open/close on every operation
-                    try:
-                        _ensure_cache_storage_ready_once()
-                    except Exception:
-                        pass
-                    with closing(_open_shelve_with_recovery(current_path)) as db:
+            try:
+                with _file_lock(lock_path):
+                    if self._persistent_enabled:
+                        # Persistent mode: use already-open DB
+                        if self._db is None:
+                            self._open_db()
+                        db = self._db
+                        if db is None:
+                            return
                         self._store_entry_in_db(db, key, value, ttl)
-                        # Set last cleanup marker
+                    else:
+                        # Non-persistent mode: open/close on every operation
                         try:
-                            db["__last_cleanup_ts__"] = self._now()
+                            _ensure_cache_storage_ready_once()
                         except Exception:
                             pass
+                        with closing(_open_shelve_with_recovery(current_path)) as db:
+                            self._store_entry_in_db(db, key, value, ttl)
+            except FaviconLockTimeoutError:
+                logger.warning("FaviconCache.set: lock timeout for %s, skipping cache write", key)
+                return
+
+    def set_many(self, values: Mapping[str, Any], *, ttl: float | None = None) -> None:
+        """Write a group with one lock, index update and explicit sync.
+
+        Each value may supply its own timestamp/TTL, as with set(). This is
+        best-effort cache storage, not a transaction: an I/O error may leave
+        a partially written group.
+        """
+        if not values:
+            return
+        now = self._now()
+        entries = {
+            key: self._prepare_cache_entry(value, ttl, now)
+            for key, value in values.items()
+        }
+        with self._lock:
+            current_path = self._get_db_path()
+            try:
+                with _file_lock(f"{current_path}.lock"):
+                    if self._persistent_enabled:
+                        self._open_db()
+                        if self._db is not None:
+                            self._store_entries_in_db(self._db, entries, now)
+                    else:
+                        _ensure_cache_storage_ready_once()
+                        with closing(_open_shelve_with_recovery(current_path)) as db:
+                            self._store_entries_in_db(db, entries, now)
+            except FaviconLockTimeoutError:
+                logger.warning("FaviconCache.set_many: lock timeout, skipping %s entries", len(entries))
+
+    def _store_entries_in_db(self, db, entries: dict, now: float) -> None:
+        index = db.get("__ts_index__") or OrderedDict()
+        try:
+            for key, entry in entries.items():
+                timestamp = float(entry["timestamp"])
+                db[key] = entry
+                index.pop(key, None)
+                index[key] = timestamp
+        finally:
+            # Keep the index consistent with writes completed before an I/O error.
+            self._clean_phantom_keys(db, index)
+            if self._should_cleanup(db, now):
+                self._cleanup_expired_entries(db, index, now)
+                db["__last_cleanup_ts__"] = now
+            self._evict_by_index(db, index, self._get_max_size())
+            db["__ts_index__"] = index
+            self._sync_db(db)
+
+    @contextmanager
+    def batch(self, *, max_size: int = 50):
+        """Yield a bounded, thread-safe writer; flush even on cancellation/error.
+
+        Only calls to the yielded writer are buffered. Regular set()/get()
+        remain immediate. Late writes from still-running workers are written
+        directly after the scope closes. Buffered values become visible to
+        get() on flush; no cache/file lock is held while fetching URLs.
+        """
+        writer = FaviconCacheBatch(self, max_size=max_size)
+        try:
+            yield writer
+        finally:
+            writer.close()
 
     def _clear_all_cache(self):
         """Clear all cache files."""
@@ -728,15 +797,62 @@ class FaviconCache(BaseCache):
         with self._lock:
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
-            with _file_lock(lock_path):
-                if key is None:
-                    self._clear_all_cache()
-                    return
+            try:
+                with _file_lock(lock_path):
+                    if key is None:
+                        self._clear_all_cache()
+                        return
 
-                if self._persistent_enabled:
-                    self._invalidate_persistent_key(key)
-                else:
-                    self._invalidate_non_persistent_key(key, current_path)
+                    if self._persistent_enabled:
+                        self._invalidate_persistent_key(key)
+                    else:
+                        self._invalidate_non_persistent_key(key, current_path)
+            except FaviconLockTimeoutError:
+                logger.warning("FaviconCache.invalidate: lock timeout, skipping invalidation")
+                return
+
+
+class FaviconCacheBatch:
+    """Bounded writer shared explicitly by workers of one batch."""
+
+    def __init__(self, cache: FaviconCache, *, max_size: int) -> None:
+        if max_size <= 0:
+            raise ValueError("max_size must be positive")
+        self._cache = cache
+        self._max_size = max_size
+        self._lock = threading.Lock()
+        self._pending: dict[str, dict] = {}
+        self._closed = False
+
+    def write(self, url: str, data: dict[str, Any], config=None) -> None:
+        """Match write_cache's callback signature; the latest URL value wins."""
+        entry = self._cache._prepare_cache_entry(data, data.get("ttl"), self._cache._now())
+        with self._lock:
+            if not self._closed:
+                self._pending[url] = entry
+                if len(self._pending) >= self._max_size:
+                    self._flush_locked()
+                return
+        self._cache.set(url, entry, ttl=entry.get("ttl"))
+
+    def _flush_locked(self) -> None:
+        if not self._pending:
+            return
+        pending, self._pending = self._pending, {}
+        try:
+            self._cache.set_many(pending)
+        except Exception:
+            # Cache failure must not mask a worker exception or grow the buffer.
+            logger.warning("FaviconCache.batch: failed to store %s entries", len(pending), exc_info=True)
+
+    def flush(self) -> None:
+        with self._lock:
+            self._flush_locked()
+
+    def close(self) -> None:
+        with self._lock:
+            self._closed = True
+            self._flush_locked()
 
 
 # Глобальный экземпляр

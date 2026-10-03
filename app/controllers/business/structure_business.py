@@ -135,6 +135,7 @@ class StructureBusinessLogic(QObject):
         self._structure_preload_in_progress = False
         self._structure_preload_pending = False
         self._structure_preload_active_token: int | None = None
+        self._structure_preload_generation = 0
         self._structure_preload_handle = None
         self._structure_preload_suspended_until_monotonic: float = 0.0
         self._structure_preload_suspended_reason: str | None = None
@@ -474,6 +475,7 @@ class StructureBusinessLogic(QObject):
         self._structure_preload_started_monotonic = now or 0.0
         token = int(time.monotonic() * 1000)
         self._structure_preload_active_token = token
+        self._structure_preload_generation = self._structure_mutation_generation
 
         self._structure_preload_handle = run_db(
             self._build_structure_snapshot,
@@ -562,6 +564,13 @@ class StructureBusinessLogic(QObject):
                 "Skip stale structure preload result: token=%s active=%s",
                 token,
                 self._structure_preload_active_token,
+            )
+            return
+        if self._structure_preload_generation != self._structure_mutation_generation:
+            self._structure_preload_in_progress = False
+            self._structure_preload_active_token = None
+            self._schedule_preload_structure_async(
+                reason="dirty-after-stale-preload", delay_ms=300
             )
             return
 

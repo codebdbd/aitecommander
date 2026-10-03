@@ -25,7 +25,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.controllers.ui.theme_controller import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon
-from app.utils.ui.icon.path_service import icon_path_service
+from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
 from app.views.windows.dialogs.base_dialog import BaseDialog
 
 
@@ -75,7 +75,7 @@ class NoteDialog(BaseDialog):
 
         # Match AiteBar Zen themes: Paper (#F4F0E7/#282622) for light, Graphite (#1E2023/#E4E2DC) for dark
         self.setAutoFillBackground(True)
-        current_theme_id = app_config.get("theme", "dark")
+        current_theme_id = get_current_theme()
         theme = theme_registry.get_theme(current_theme_id)
         if theme and theme.is_dark:
             self._zen_bg = "#1E2023"
@@ -195,9 +195,9 @@ class NoteDialog(BaseDialog):
         if self.notes_te is not None:
             self.notes_te.setFocus()
             cursor = self.notes_te.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.Start)
+            cursor.movePosition(QTextCursor.MoveOperation.End)
             self.notes_te.setTextCursor(cursor)
-            self.notes_te.verticalScrollBar().setValue(0)
+            self.notes_te.ensureCursorVisible()
 
     def retranslateUi(self) -> None:
         self.setWindowTitle(self._title or tr_common("Notes"))
@@ -292,7 +292,7 @@ class NoteDialog(BaseDialog):
         if not p or not p.exists():
             return QIcon()
         try:
-            current_theme_id = app_config.get("theme", "dark")
+            current_theme_id = get_current_theme()
             theme = theme_registry.get_theme(current_theme_id)
             icon_color = "#FFFFFF" if (theme and theme.is_dark) else "#1F2430"
             return _create_tinted_svg_icon(str(p), icon_color)

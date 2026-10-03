@@ -11,7 +11,6 @@ THEME_FILES = [
     "crimson_noir.qss",
     "cyberpunk_neon.qss",
     "ghost_terminal.qss",
-    "industrial_yellow.qss",
     "love.qss",
     "nord_light.qss",
     "obsidian_luxe.qss",

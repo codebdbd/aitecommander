@@ -101,6 +101,7 @@ class NegativeCache(BaseCache):
         self._strikes: dict[str, int] = {}  # key -> number of accumulated misses
         # Generations to prevent "dangling" elements effect in heaps
         self._gen: dict[str, int] = {}  # key -> current version of record
+        self._next_gen = 0
         # Heap by expiration time: (expire_ts, key, gen)
         self._expire_heap: list[tuple[float, str, int]] = []
         # Heap by mark time (for evicting oldest when overflow): (ts, key, gen)
@@ -138,8 +139,8 @@ class NegativeCache(BaseCache):
             if now - ts < get_ttl(strikes):
                 return True
             # Expired — soft decrement of strike and cleanup of mark
-            # Invalidate all scheduled events through bump generation
-            self._gen[key] = self._gen.get(key, 0) + 1
+            # Retire scheduled events; new marks always get a unique generation.
+            self._gen.pop(key, None)
             if strikes > 1:
                 # Decrement strikes but keep the key
                 self._strikes[key] = strikes - 1
@@ -163,6 +164,7 @@ class NegativeCache(BaseCache):
                 if self._gen.get(k) != g:
                     continue
                 # Expired: remove mark and softly decrease strikes
+                self._gen.pop(k, None)
                 self._ts.pop(k, None)
                 s = self._strikes.get(k, 0)
                 if s > 1:
@@ -172,7 +174,8 @@ class NegativeCache(BaseCache):
                     self._strikes.pop(k, None)
 
             # Update current key
-            new_gen = self._gen.get(key, 0) + 1
+            self._next_gen += 1
+            new_gen = self._next_gen
             self._gen[key] = new_gen
             self._ts[key] = now
             self._strikes[key] = min(self._strikes.get(key, 0) + 1, _max_strikes())
@@ -189,11 +192,35 @@ class NegativeCache(BaseCache):
                 if self._gen.get(k_old) != g_old:
                     continue  # outdated record in heap
                 # Remove key
-                # First bump generation to invalidate pending events
-                self._gen[k_old] = self._gen.get(k_old, 0) + 1
+                self._gen.pop(k_old, None)
                 self._ts.pop(k_old, None)
                 # Completely remove strikes for evicted keys
                 self._strikes.pop(k_old, None)
+
+            # Bound retained strike history without changing active entries' TTLs.
+            if len(self._strikes) > max_size:
+                for old_key in list(self._strikes):
+                    if old_key not in self._ts:
+                        self._strikes.pop(old_key, None)
+                    if len(self._strikes) <= max_size:
+                        break
+
+            # Compact heaps if dead tombstones exceed threshold
+            heap_limit = max_size * 2
+            if len(self._expire_heap) > heap_limit:
+                self._expire_heap = [
+                    (exp, k, g)
+                    for exp, k, g in self._expire_heap
+                    if k in self._ts and self._gen.get(k) == g and exp > now
+                ]
+                heapq.heapify(self._expire_heap)
+            if len(self._ts_heap) > heap_limit:
+                self._ts_heap = [
+                    (ts_val, k, g)
+                    for ts_val, k, g in self._ts_heap
+                    if k in self._ts and self._gen.get(k) == g
+                ]
+                heapq.heapify(self._ts_heap)
 
     def invalidate(self, key: str | None = None) -> None:
         with self._lock:
@@ -204,8 +231,8 @@ class NegativeCache(BaseCache):
                 self._expire_heap.clear()
                 self._ts_heap.clear()
                 return
-            # bump generation to invalidate events
-            self._gen[key] = self._gen.get(key, 0) + 1
+            # Retire events; the next mark will use a new generation.
+            self._gen.pop(key, None)
             self._ts.pop(key, None)
             self._strikes.pop(key, None)
 

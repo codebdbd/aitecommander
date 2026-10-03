@@ -477,7 +477,12 @@ class TableDelegate(QStyledItemDelegate):
             url_or_path = str(link.get("url", "") or link.get("path", "")).strip()
             parts: list[str] = [f"<div style='white-space: nowrap;'><b>{html.escape(name)}</b></div>"]
             if url_or_path and url_or_path != name:
-                parts.append(f"<div style='white-space: nowrap; color: #888888; margin-top: 2px;'>{html.escape(url_or_path)}</div>")
+                try:
+                    tokens = theme_registry.get_theme_tokens(get_current_theme())
+                    sec_color = tokens.get("text_secondary", "#888888")
+                except Exception:
+                    sec_color = "#888888"
+                parts.append(f"<div style='white-space: nowrap; color: {sec_color}; margin-top: 2px;'>{html.escape(url_or_path)}</div>")
 
             QToolTip.showText(event.globalPos(), "".join(parts), view)
             return True

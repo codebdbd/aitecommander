@@ -16,7 +16,8 @@
     "selection_fg": "#25282A",
     "hover_bg": "#ECEEED",
     "bg_canvas": "#F5F5F4",
-    "bg_surface": "#F0F1F0",
-    "bg_header": "#EEEEED"
+    "bg_surface": "#FFFFFF",
+    "bg_header": "#EEEEED",
+    "border_subtle": "#D7D8D6"
   }
 }
