@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.services.structure_service import StructureService
+from app.utils.naming import generate_unique_name
 from app.utils.ui.icon.path_service import icon_path_service
 
 logger = logging.getLogger(__name__)
@@ -714,18 +715,6 @@ class StructureShareService:
             sanitized.append(item)
         return sanitized
 
-
-def generate_unique_name(existing_names: set[str], base_name: str) -> str:
-    """Generate a unique name: 'Base', 'Base (1)', 'Base (2)', etc."""
-    lower_existing = {n.strip().casefold() for n in existing_names}
-    if base_name.strip().casefold() not in lower_existing:
-        return base_name
-    match = re.match(r"^(.*?)\s*\((\d+)\)$", base_name.strip())
-    prefix = match.group(1) if match else base_name.strip()
-    counter = 1
-    while f"{prefix} ({counter})".casefold() in lower_existing:
-        counter += 1
-    return f"{prefix} ({counter})"
 
 
 def _sha256_bytes(blob: bytes) -> str:

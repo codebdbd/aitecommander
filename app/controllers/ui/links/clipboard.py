@@ -175,9 +175,43 @@ class LinksUIClipboard(BaseLinksUIComponent):
             )
 
             if candidate_key in existing_keys:
+                from PyQt6.QtWidgets import QDialog
                 from app.services.structure_share_service import generate_unique_name
+                from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
                 existing_names = [l.get("name", "") for l in existing_links] + [l.get("name", "") for l in new_links]
-                new_data["name"] = generate_unique_name(existing_names, new_data.get("name", ""))
+                copy_name = generate_unique_name(existing_names, new_data.get("name", ""))
+                dlg = ImportConflictDialog(
+                    entity_type="link",
+                    name=new_data.get("name", ""),
+                    copy_name=copy_name,
+                    parent=self.main,
+                    operation="copy",
+                )
+                if dlg.exec() != QDialog.DialogCode.Accepted:
+                    return []
+                action = dlg.get_action()
+                if action == "cancel":
+                    return []
+                if action == "copy":
+                    new_data["name"] = copy_name
+                elif action == "merge":
+                    matching_link = next(
+                        (
+                            l
+                            for l in existing_links
+                            if (
+                                l.get("url", ""),
+                                l.get("type", ""),
+                                l.get("args", ""),
+                                l.get("name", ""),
+                            )
+                            == candidate_key
+                        ),
+                        None,
+                    )
+                    if matching_link and matching_link.get("id"):
+                        new_data["id"] = matching_link["id"]
                 candidate_key = (
                     new_data.get("url", ""),
                     new_data.get("type", ""),

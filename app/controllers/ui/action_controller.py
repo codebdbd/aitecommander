@@ -708,6 +708,78 @@ class ActionController(QObject):
         except Exception:
             logger.debug("ActionController: tree cut delete failed", exc_info=True)
 
+    def _resolve_category_paste_conflicts(self, target_section_id: int, trees: list[dict]) -> list[dict] | None:
+        from PyQt6.QtWidgets import QDialog
+        from app.services.structure_share_service import generate_unique_name
+        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
+        sb = getattr(self.main_window, "structure_business", None)
+        existing_cats = sb.get_categories(int(target_section_id)) or [] if sb else []
+        existing_names = [str(c.get("name", "")) for c in existing_cats]
+        resolved_trees = []
+        for tree in trees:
+            cat = dict(tree.get("category") or {})
+            cat_name = str(cat.get("name", "")).strip()
+            if cat_name and cat_name.lower() in [n.lower() for n in existing_names]:
+                copy_name = generate_unique_name(set(existing_names), cat_name)
+                dlg = ImportConflictDialog(
+                    entity_type="category",
+                    name=cat_name,
+                    copy_name=copy_name,
+                    parent=self.main_window,
+                    operation="copy",
+                )
+                if dlg.exec() != QDialog.DialogCode.Accepted:
+                    return None
+                action = dlg.get_action()
+                if action == "copy":
+                    tree["category"]["name"] = copy_name
+                    existing_names.append(copy_name)
+                elif action == "merge":
+                    target_cat = next(
+                        (c for c in existing_cats if str(c.get("name", "")).strip().lower() == cat_name.lower()),
+                        None,
+                    )
+                    if target_cat and target_cat.get("id"):
+                        tree["_action"] = "merge"
+                        tree["_target_category_id"] = int(target_cat["id"])
+                elif action == "cancel":
+                    return None
+            resolved_trees.append(tree)
+        return resolved_trees
+
+    def _resolve_section_paste_conflicts(self, sphere_id: int, trees: list[dict]) -> list[dict] | None:
+        from PyQt6.QtWidgets import QDialog
+        from app.services.structure_share_service import generate_unique_name
+        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
+        business = getattr(self.main_window, "structure_business", None)
+        existing_secs = business.get_sections(int(sphere_id)) or [] if business else []
+        existing_names = [str(s.get("name", "")) for s in existing_secs]
+        resolved_trees = []
+        for tree in trees:
+            sec = dict(tree.get("section") or {})
+            sec_name = str(sec.get("name", "")).strip()
+            if sec_name and sec_name.lower() in [n.lower() for n in existing_names]:
+                copy_name = generate_unique_name(set(existing_names), sec_name)
+                dlg = ImportConflictDialog(
+                    entity_type="section",
+                    name=sec_name,
+                    copy_name=copy_name,
+                    parent=self.main_window,
+                    operation="copy",
+                )
+                if dlg.exec() != QDialog.DialogCode.Accepted:
+                    return None
+                action = dlg.get_action()
+                if action == "copy":
+                    tree["section"]["name"] = copy_name
+                    existing_names.append(copy_name)
+                elif action == "cancel":
+                    return None
+            resolved_trees.append(tree)
+        return resolved_trees
+
     def _paste_into_tree(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
@@ -718,6 +790,10 @@ class ActionController(QObject):
             trees = svc.normalize_category_trees(payload)
             if not trees:
                 return
+            resolved_trees = self._resolve_category_paste_conflicts(int(target_section_id), trees)
+            if not resolved_trees:
+                return
+            trees = resolved_trees
             undo_stack = getattr(self.main_window, "undo_stack", None)
             if undo_stack is None:
                 return
@@ -746,6 +822,10 @@ class ActionController(QObject):
                 trees = svc.normalize_section_trees(payload)
                 if not trees:
                     return
+                resolved_trees = self._resolve_section_paste_conflicts(int(sphere_id), trees)
+                if not resolved_trees:
+                    return
+                trees = resolved_trees
                 undo_stack = getattr(self.main_window, "undo_stack", None)
                 if undo_stack is None:
                     return
@@ -818,6 +898,10 @@ class ActionController(QObject):
             trees = svc.normalize_category_trees(payload)
             if not trees:
                 return
+            resolved_trees = self._resolve_category_paste_conflicts(int(target_section_id), trees)
+            if not resolved_trees:
+                return
+            trees = resolved_trees
             undo_stack = getattr(self.main_window, "undo_stack", None)
             if undo_stack is None:
                 return
@@ -846,6 +930,10 @@ class ActionController(QObject):
                 trees = svc.normalize_section_trees(payload)
                 if not trees:
                     return
+                resolved_trees = self._resolve_section_paste_conflicts(int(sphere_id), trees)
+                if not resolved_trees:
+                    return
+                trees = resolved_trees
                 undo_stack = getattr(self.main_window, "undo_stack", None)
                 if undo_stack is None:
                     return

@@ -105,24 +105,116 @@ class MoveOperationsHandler(TreeHandlerBase):
     ) -> None:
         """Execute the command to move links."""
         main_win = self.tree_widget.window()
+        if not hasattr(main_win, "undo_stack") or main_win.undo_stack is None:
+            logger.warning("Undo stack not found for moving links")
+            return
 
-        if hasattr(main_win, "undo_stack"):
-            main_win.undo_stack.push(
-                MoveLinksCommand(link_ids, new_category_id, main_win)
-            )
-            logger.info(
-                "MoveLinksCommand executed: links %s -> category %s",
+        # Interactive conflict resolution for moving links
+        name_overrides: dict[int, str] = {}
+        lb = getattr(main_win, "links_business", None)
+        links_service = getattr(lb, "links", None) if lb else None
+        if lb and links_service:
+            existing = lb.get_links(int(new_category_id)) or []
+            existing_keys = {
+                (
+                    str(l.get("name", "")),
+                    str(l.get("url", "")),
+                    str(l.get("args", "")),
+                )
+                for l in existing
+            }
+            existing_names = [str(l.get("name", "")) for l in existing]
+            from PyQt6.QtWidgets import QDialog
+            from app.services.structure_share_service import generate_unique_name
+            from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
+            for lid in link_ids:
+                link_data = links_service.get_link_by_id(int(lid))
+                if not link_data:
+                    continue
+                key = (
+                    str(link_data.get("name", "")),
+                    str(link_data.get("url", "")),
+                    str(link_data.get("args", "")),
+                )
+                if key in existing_keys:
+                    name = str(link_data.get("name", ""))
+                    copy_name = generate_unique_name(set(existing_names), name)
+                    dlg = ImportConflictDialog(
+                        entity_type="link",
+                        name=name,
+                        copy_name=copy_name,
+                        parent=main_win,
+                        operation="move",
+                    )
+                    if dlg.exec() != QDialog.DialogCode.Accepted:
+                        return
+                    action = dlg.get_action()
+                    if action == "cancel":
+                        return
+                    if action == "copy":
+                        name_overrides[int(lid)] = copy_name
+                        existing_names.append(copy_name)
+
+        main_win.undo_stack.push(
+            MoveLinksCommand(
                 link_ids,
                 new_category_id,
+                main_win,
+                name_overrides=name_overrides,
             )
-        else:
-            logger.warning("Undo stack not found for moving links")
+        )
+        logger.info(
+            "MoveLinksCommand executed: links %s -> category %s",
+            link_ids,
+            new_category_id,
+        )
 
     def execute_move_section_to_sphere_command(
         self, section_id: int, target_sphere_id: int
     ) -> bool:
         """Execute the command to move a section to another sphere."""
         main_win = self.tree_widget.window()
+
+        sb = getattr(main_win, "structure_business", None)
+        if sb:
+            sec_data = sb.get_section_data(int(section_id))
+            if sec_data:
+                name = str(sec_data.get("name", "")).strip()
+                target_sections = sb.get_sections(int(target_sphere_id)) or []
+                existing_names = [str(s.get("name", "")) for s in target_sections]
+                colliding = next(
+                    (s for s in target_sections if str(s.get("name", "")).strip().lower() == name.lower()),
+                    None,
+                )
+                if colliding:
+                    from PyQt6.QtWidgets import QDialog
+                    from app.services.structure_share_service import generate_unique_name
+                    from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+
+                    copy_name = generate_unique_name(set(existing_names), name)
+                    dlg = ImportConflictDialog(
+                        entity_type="section",
+                        name=name,
+                        copy_name=copy_name,
+                        parent=main_win,
+                        operation="move",
+                    )
+                    if dlg.exec() != QDialog.DialogCode.Accepted:
+                        return False
+                    action = dlg.get_action()
+                    if action == "cancel":
+                        return False
+                    if action == "copy":
+                        sb.update_section(int(section_id), {"name": copy_name})
+                    elif action == "merge":
+                        colliding_id = int(colliding["id"])
+                        cats = sb.get_categories(int(section_id)) or []
+                        cat_ids = [int(c["id"]) for c in cats if c.get("id")]
+                        if cat_ids:
+                            self.execute_move_categories_command(cat_ids, colliding_id, 0)
+                        sb.delete_section(int(section_id))
+                        return True
 
         if hasattr(main_win, "undo_stack") and main_win.undo_stack is not None:
             main_win.undo_stack.push(

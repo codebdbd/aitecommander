@@ -40,10 +40,18 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
 class MoveLinksCommand(BaseBulkCommand):
     """Move one or more links to another category with undo/redo support."""
 
-    def __init__(self, link_ids, new_category_id, main_window) -> None:
+    def __init__(
+        self,
+        link_ids,
+        new_category_id,
+        main_window,
+        *,
+        name_overrides: dict[int, str] | None = None,
+    ) -> None:
         super().__init__(f"Moving {len(list(link_ids))} links", main_window, "link")
         self.link_ids = [int(lid) for lid in link_ids]
         self.new_category_id = int(new_category_id)
+        self.name_overrides: dict[int, str] = dict(name_overrides or {})
         self._old_states: list[dict[str, Any]] = []
         self._new_states: list[dict[str, Any]] = []
         self.old_category_id: int | None = None
@@ -99,7 +107,10 @@ class MoveLinksCommand(BaseBulkCommand):
             candidate = dict(original)
             candidate["category_id"] = self.new_category_id
             candidate["position"] = start_pos + offset
-            if self._is_duplicate(candidate, existing_links):
+            lid = candidate.get("id")
+            if lid is not None and int(lid) in self.name_overrides:
+                candidate["name"] = self.name_overrides[int(lid)]
+            elif self._is_duplicate(candidate, existing_links):
                 from app.services.structure_share_service import generate_unique_name
                 existing_names = [get_value(l, "name", "") for l in existing_links]
                 candidate["name"] = generate_unique_name(existing_names, candidate.get("name", ""))

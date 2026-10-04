@@ -345,46 +345,59 @@ class StructureContextService:
     ) -> tuple[list[dict], list[int]]:
         if not trees:
             return [], []
-        # 1) Category preparation and batch creation
-        batch_cats, bindings = self._prepare_categories_for_section(
-            trees, section_id
-        )
-        if not batch_cats:
-            return []
+        # Separate merge items (target category exists) from new categories
+        merge_items: list[tuple[int, list[dict]]] = []
+        new_trees: list[dict] = []
+        for t in trees:
+            if isinstance(t, dict) and t.get("_action") == "merge" and isinstance(t.get("_target_category_id"), int):
+                merge_items.append((int(t["_target_category_id"]), [t]))
+            else:
+                new_trees.append(t)
 
-        created_list = self._unwrap_result_list(
-            self._ss.create_categories_bulk(batch_cats)
-        )
-        if not created_list:
-            return [], []
-
-        created_by_uuid = {
-            str(row.get(CATEGORY_BULK_UUID_FIELD)): dict(row)
-            for row in created_list
-            if row.get(CATEGORY_BULK_UUID_FIELD)
-        }
-
-        # 2) Lazy link generation and created category collection
         created_categories: list[dict] = []
-        if created_by_uuid:
-            links_iter = self._iter_links_for_created_categories_by_uuid(
-                bindings, created_by_uuid, created_categories
-            )
-        else:
-            index_by_name: dict[str, list[dict]] = {}
-            for c in created_list:
-                nm = c.get("name")
-                if nm is None:
-                    continue
-                index_by_name.setdefault(nm, []).append(c)
-            links_iter = self._iter_links_for_created_categories(
-                trees, index_by_name, created_categories
-            )
-        # Collect links into list once for batch insertion
-        all_links = list(links_iter)
         created_link_ids: list[int] = []
-        if all_links:
-            created_link_ids = self._ls.batch_create_or_update_links(all_links)
+
+        if new_trees:
+            # 1) Category preparation and batch creation
+            batch_cats, bindings = self._prepare_categories_for_section(
+                new_trees, section_id
+            )
+            if batch_cats:
+                created_list = self._unwrap_result_list(
+                    self._ss.create_categories_bulk(batch_cats)
+                )
+                if created_list:
+                    created_by_uuid = {
+                        str(row.get(CATEGORY_BULK_UUID_FIELD)): dict(row)
+                        for row in created_list
+                        if row.get(CATEGORY_BULK_UUID_FIELD)
+                    }
+
+                    # 2) Lazy link generation and created category collection
+                    if created_by_uuid:
+                        links_iter = self._iter_links_for_created_categories_by_uuid(
+                            bindings, created_by_uuid, created_categories
+                        )
+                    else:
+                        index_by_name: dict[str, list[dict]] = {}
+                        for c in created_list:
+                            nm = c.get("name")
+                            if nm is None:
+                                continue
+                            index_by_name.setdefault(nm, []).append(c)
+                        links_iter = self._iter_links_for_created_categories(
+                            new_trees, index_by_name, created_categories
+                        )
+                    all_links = list(links_iter)
+                    if all_links:
+                        new_link_ids = self._ls.batch_create_or_update_links(all_links)
+                        if new_link_ids:
+                            created_link_ids.extend([int(x) for x in new_link_ids if isinstance(x, int)])
+
+        if merge_items:
+            merged_link_ids = self._merge_links_into_existing_categories(merge_items)
+            if merged_link_ids:
+                created_link_ids.extend([int(x) for x in merged_link_ids if isinstance(x, int)])
 
         return created_categories, created_link_ids
 

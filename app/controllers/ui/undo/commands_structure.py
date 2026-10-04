@@ -2198,11 +2198,13 @@ class PasteCategoriesCmd(BaseCommand):
         self._section_id = int(section_id)
         self._trees = list(trees or [])
         self._created_category_ids: list[int] = []
+        self._created_link_ids: list[int] = []
         db = _resolve_database(main_window)
         self._svc = _new_structure_context_service(db)
         self._structure_service = (
             business.structure_service if business is not None else _new_structure_service(db)
         )
+        self._links_service = _new_links_service(db)
 
     def _resolve_business(self) -> StructureBusinessLogic | None:
         return self._business or getattr(self.main, "structure_business", None)
@@ -2247,21 +2249,28 @@ class PasteCategoriesCmd(BaseCommand):
     def redo(self) -> None:
         if not self._trees:
             return
-        created, _link_ids = self._svc.paste_category_trees_to_section(
+        created, link_ids = self._svc.paste_category_trees_to_section(
             self._trees, self._section_id
         )
         self._created_category_ids = [
             int(c.get("id")) for c in created if isinstance(c.get("id"), int)
         ]
+        self._created_link_ids = [
+            int(x) for x in (link_ids or []) if isinstance(x, int)
+        ]
         self._refresh_after_categories()
 
     def undo(self) -> None:
-        if not self._created_category_ids:
-            return
-        try:
-            self._structure_service.delete_categories_bulk(self._created_category_ids)
-        except Exception:
-            logger.exception("PasteCategoriesCmd.undo: delete failed")
+        if self._created_link_ids:
+            try:
+                self._links_service.batch_delete_links(self._created_link_ids)
+            except Exception:
+                logger.exception("PasteCategoriesCmd.undo: delete links failed")
+        if self._created_category_ids:
+            try:
+                self._structure_service.delete_categories_bulk(self._created_category_ids)
+            except Exception:
+                logger.exception("PasteCategoriesCmd.undo: delete failed")
         self._refresh_after_categories()
 
 

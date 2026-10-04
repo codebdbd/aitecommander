@@ -3,6 +3,7 @@
 import logging
 
 from ..base.db_base import db_lock
+from app.utils.naming import generate_unique_name
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +106,11 @@ class DuplicateResolver:
                     to_change = ids_sorted[1:]
                     affected = 0
                     if strategy == "rename":
+                        existing_names = {get_name(table, i) for i in ids_sorted}
                         for rid in to_change:
                             base_name = get_name(table, rid)
-                            new_name = f"{base_name} (#{rid})"
+                            new_name = generate_unique_name(existing_names, base_name)
+                            existing_names.add(new_name)
                             self.db.connection.execute(
                                 f"UPDATE {table} SET name=? WHERE id=?", (new_name, rid)
                             )
