@@ -798,6 +798,7 @@ class BrowserProfileDialog(BaseDialog):
                                 key,
                                 exc_info=True,
                             )
+                    cache.flush()
                     # Update synchronous manager cache (shared cache)
                     mgr = _pm.get_profile_manager()
                     for key, profiles in (all_profiles or {}).items():
@@ -809,6 +810,7 @@ class BrowserProfileDialog(BaseDialog):
                                 key,
                                 exc_info=True,
                             )
+                    mgr.cache.flush()
                     # Rebuild dialog lists
                     self._populate_browsers()
                     self._populate_profiles()

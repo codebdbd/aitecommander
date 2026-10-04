@@ -16,6 +16,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Blindness to Context**: If you see an unrelated bug, an unused import, or poorly formatted code in the same file, you MUST LEAVE IT AS IS. 
 - **No Refactoring**: You MUST NOT change variable names, extract functions, or reformat code unless specifically asked to refactor.
 - **No Infrastructure Deletion**: NEVER delete, bypass, or replace existing calls to `app_config`, settings readers, signals, or configuration-driven logic with hardcoded values.
+- **Contract-Driven Test Updates (ЗАПРЕТ НА ЛОМКУ КОДА РАДИ ТЕСТОВ)**: Боевой код и утверждённые контракты приложения первичны. Категорически ЗАПРЕЩЕНО менять, ломать или откатывать рабочий код приложения ради прохождения устаревших тестов. При изменении контракта или логики программы обновляться ОБЯЗАНЫ ТЕСТЫ под новый контракт, а не рабочий код!
 
 ## 3. Communication Constraints
 - **Zero Explanation Rule**: Upon completing a task, your response MUST be extremely brief. "Готово" (Done) is ideal. Do NOT list the files you changed. Do NOT explain your logic.
@@ -39,12 +40,13 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Parameters**:
   1. **Ширина левой панели**: строго **320 px** (`splitter_sizes: [320, 704]`).
   2. **Отступы и сетка**: `spheres_bar_spacing: 8`, `spheres_bar_margin_left: 8`, `spheres_bar_margin_right: 8`.
-  3. **Высота панели**: `spheres_bar_height: 104`, `spheres_layout_margins: [8, 2, 8, 4]`.
+  3. **Высота панели**: `spheres_bar_height: 96`, `spheres_layout_margins: [8, 2, 8, 4]`.
   4. **Размер кнопок**: строго **70×88 px** (`icon_w + 6, icon_h + 24`).
   5. **Масштабирование macOS Dock**: формула `size = 56.0 + 14.0 * s` (56 px в покое, 70 px на пике), базовая линия `bottom_y = rect.height() - 14`.
   6. **Индикатор активной сферы**: круглая точка диаметром **5.0 px** на `y = rect.height() - dot_d - 3.0` строго при `isChecked()`. Без фонов и рамок.
   7. **Сглаживание**: рендеринг через `QRectF` и `painter.drawPixmap(icon_rect_f, pix, ...)`, шаг LERP `0.18`.
   8. **Поведение при нажатии (macOS Dock click)**: Полное отсутствие фоновых подложек, рамок или цветовых эффектов `:pressed` (строго `background: transparent; border: none;` во всех темах и `common.qss`). Иконка при зажатии остаётся монолитной и стабильной, без сжатий, дёрганий, рывков или затемнения/полупрозрачности.
+  9. **Компоновка левой панели (Left Panel Monolith & Native Scroll)**: Панель сфер располагается строго внизу левой панели с фиксированной высотой **96 px** (`setFixedHeight(96)`). Дерево (`StructureTreeView`) монолитно занимает всё пространство от верхнего разделителя до панели сфер без искусственных отступов (`setContentsMargins` строго 0, `spacing: 0`). Прокрутка дерева ведётся строго нативным методом `ScrollPerItem` с шагом колеса по целым строкам (`wheelEvent`). Категорически запрещено внедрять динамические фильтры геометрии, искусственные отступы-заглушки или вмешиваться в нативный рендеринг строк дерева.
 - **Strict Prohibition**: Запрещено изменять размеры, отступы, базовую линию, формулу зума, возвращать фоновые подложки или добавлять смещения/сжатия/затемнения при нажатии кнопок сфер.
 
 ## 7. Frozen Subsystems: Scrollbar Styling (ЗАПРЕТ НА ИЗМЕНЕНИЕ СКРОЛЛБАРОВ)
@@ -512,10 +514,10 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 ## 49. Architecture Standards: Top Bar & Menu Bar Lifecycle Protection (ЗАЩИТА ЖИЗНЕННОГО ЦИКЛА ВИДЖЕТОВ ВЕРХНЕЙ ПАНЕЛИ И МЕНЮ)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Жизненный цикл виджетов верхней панели (главное меню `QMenuBar`, адаптеры тулбара `FavoritesToolbarAdapter`, `RecentHistoryToolbarAdapter`) зафиксирован для полного исключения мерцания и скачков компоновки (layout jitter/flicker) при смене темы оформления и обновлении данных.
 - **Strict Lifecycle Rules**:
-  1. **Персистентность главного меню (`MenuController`)**: Виджет `menu_bar_widget` (`QMenuBar`) создаётся один раз при инициализации окна. В методе `rebuild_after_theme_change()` категорически запрещено вызывать `deleteLater()`, пересоздавать виджет меню или повторно вызывать `install_menu_bar_widget`. Допустима только очистка динамического кэша действий (`clear_cache()`). Стили меню обновляются автоматически движком QSS Qt.
+  1. **Персистентность главного меню (`MenuController`)**: Виджет `menu_bar_widget` (`QMenuBar`) создаётся один раз при инициализации окна. В методе `rebuild_after_theme_change()` категорически запрещено вызывать `deleteLater()`, пересоздавать виджет меню или повторно вызывать `install_menu_bar_widget`. Обновление иконок действий меню при смене темы оформления выполняется строго in-place через `MainMenuBuilder.update_theme(theme)` без пересоздания виджета менюбара. Стили меню обновляются автоматически движком QSS Qt.
   2. **Персистентность кнопок тулбара (`_main_action`)**: В `FavoritesToolbarAdapter` и `RecentHistoryToolbarAdapter` кнопки тулбара (`_main_action`) создаются один раз при старте. Категорически запрещено удалять `_main_action` из тулбара (`clear_actions()`, `removeAction()`, `deleteLater()`) при получении новых данных (`set_data()`) или смене темы.
-  3. **In-place обновление выпадающих меню**: При поступлении обновленного списка закладок в `_rebuild_menu()` выпадающее меню (`TopBarMenu`) подменяется строго на лету через `self._main_action.setMenu(menu)` с обязательным удалением предыдущего меню через `old_menu.deleteLater()`. Виджет кнопки на тулбаре обязан оставаться физически неподвижным.
-  4. **In-place обновление иконок**: При переключении темы иконки на кнопках тулбара обновляются строго in-place через `refresh_actions()` -> `_main_action.setIcon(new_icon)` и `_setup_topbar_button_contrast` без пересоздания экшенов.
+  3. **In-place обновление выпадающих меню**: При поступлении обновленного списка закладок или смене темы оформления в адаптерах тулбара (`FavoritesToolbarAdapter`, `RecentHistoryToolbarAdapter`, `ToolsToolbarAdapter`) выпадающее меню (`TopBarMenu`) подменяется строго на лету через `self._main_action.setMenu(new_menu)` с обязательным удалением предыдущего меню через `old_menu.deleteLater()`. Виджет кнопки на тулбаре обязан оставаться физически неподвижным, а все подпункты выпадающего меню обязаны получать актуальные иконки в цвете новой темы.
+  4. **In-place обновление иконок**: При переключении темы иконки на кнопках тулбара обновляются строго in-place через `refresh_actions()` -> `_main_action.setIcon(new_icon)` без пересоздания экшенов.
 
 ## 50. Architecture Standards: Caching Architecture, Concurrency & Batching Standards (АРХИТЕКТУРНЫЙ СТАНДАРТ КЭШИРОВАНИЯ И ПАКЕТНОЙ ОБРАБОТКИ)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура многоуровневого кэширования (`LinksBusinessLogic`, `StructureBusinessLogic`, `NegativeCache`, `ThreadSafeIconCache`, `FaviconCache`) зафиксирована для предотвращения гонок состояний, утечек памяти, деградации производительности и повреждения файлов базы данных кэша.
@@ -529,3 +531,38 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   1. **Защита от повреждения файла базы данных (`FaviconCache`)**: При таймауте получения межпроцессного файлового лока контекстный менеджер `_file_lock()` обязан возбуждать исключение `FaviconLockTimeoutError`. Категорически запрещено продолжать работу без блокировки (fall-through в `yield None` без локов). Публичные методы `get()`, `set()`, `invalidate()` обязаны деликатно перехватывать таймаут блокировки.
   2. **Дедупликация дисковой синхронизации и фоновая очистка**: В `FaviconCache` периодическая очистка (`_maybe_cleanup`) интегрирована в сохранение записей (`_store_entry_in_db`). Вызов синхронизации `_sync_db()` строго дедуплицирован и вызывается один раз в конце транзакции сохранения.
   3. **Пакетный режим массовой записи (Batch Writing)**: Для массовых операций импорта и фонового обновления фавиконов (`IconRefreshWorker`) обязателен метод пакетного контекста `cache.batch(max_size=50)` или `cache.set_many(entries)`. Запрещено выполнять запись и синхронизацию индекса поштучно на каждую ссылку в циклах фоновых воркеров.
+
+## 51. Architecture Standards: Contract-Driven Testing & Test Synchronization (СИНХРОНИЗАЦИЯ ТЕСТОВ С КОНТРАКТОМ ПРИЛОЖЕНИЯ)
+- **Status: STRICT QUALITY RULE / MANDATORY ARCHITECTURE STANDARD**: Правило разрешения противоречий между боевым кодом приложения и тестовым сьютом.
+- **Strict Rules**:
+  1. **Первичность рабочего функционала и контракта**: Боевой код приложения, утверждённые правила поведения и пользовательские контракты первичны. Категорически запрещено переписывать, ломать, ухудшать или адаптировать рабочую логику программы под ожидания устаревших моков или старых тестов ради получения зелёного статуса `pytest`.
+  2. **Обязанность актуализации тестов при изменении контракта**: При внедрении нового поведения программы (например, замена тихого авто-переименования/пропуска на интерактивный диалог разрешения коллизий, унификация команд Undo/Redo, изменение структуры данных) актуализации подлежат строго ТЕСТОВЫЕ файлы (`tests/`). Тесты обязаны быть переписаны под новый контракт.
+  3. **Запрет на возврат технического долга в боевой код**: Если тест падает из-за того, что ожидает старое поведение (признанное техдолгом или заменённое новым контрактом), запрещено возвращать это старое поведение в боевой код — исправляется и приводится к контракту сам тест.
+
+## 52. Architecture Standards: Unified Top Bar Icon Coloring Architecture (СТАНДАРТ ЕДИНОГО МЕХАНИЗМА ОКРАШИВАНИЯ ИКОНОК ВЕРХНЕЙ ПАНЕЛИ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура отрисовки и окрашивания иконок верхней панели зафиксирована. Категорически запрещено создание параллельных/ad-hoc механизмов раскрашивания.
+- **Strict Single Source of Truth Rules**:
+  1. **Единый источник цвета и кэширования**: Все иконки кнопок верхней панели обязаны создаваться и окрашиваться строго через канонический пайплайн `get_menu_icon(name, theme)` -> `icon_cache` с цветом из `theme_registry.get_theme_icon_color(theme)`.
+  2. **Категорический запрет на локальную перекраску SVG**: В модулях верхней панели (`toolbar_adapters.py`, `top_bar_setup.py`, контроллерах тулбара) запрещено реализовывать самодельные функции раскраски SVG через регулярные выражения, подмену атрибутов `fill`/`stroke`, прямой вызов `QSvgRenderer` или использование цвета `text_secondary` для иконок кнопок.
+  3. **Запрет на подмену иконок по наведению (`hover_icon` / `rest_icon`)**: Иконка кнопки остаётся монолитной и стабильной. Категорически запрещено переопределять `Enter`/`Leave` для циклической замены `setIcon(hover_icon)` / `setIcon(rest_icon)`. Стилизация ховера кнопок тулбара осуществляется исключительно средствами CSS/QSS темы оформления.
+  4. **Автоматическая синхронизация Qt Action**: Кнопки тулбара получают иконки через штатную связку Qt `widgetForAction(action)`. При смене темы `refresh_actions()` обновляет `action.setIcon()`, не внедряя скрытых фильтров или сторонних объектов в кнопку.
+  5. **100% Паритет окрашивания главного и выпадающих меню**: Иконки действий в главном меню (`QMenuBar`) и выпадающих меню тулбара (`topBarToolsMenu` и др.) обязаны на 100% соответствовать активному цвету `theme_registry.get_theme_icon_color(theme)`. Запрещено оставлять устаревшие иконки от предыдущей темы при динамическом переключении тем оформления.
+
+## 53. Architecture Standards: Monolithic Hover & Sharp Geometry (ЕДИНЫЙ ХОВЕР И МОНОЛИТНАЯ ГЕОМЕТРИЯ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурный стандарт монолитного прямоугольного дизайна без скруглений и единого системного фона наведения (`hover_bg`).
+- **Strict Sharp Geometry Rules**:
+  1. **Категорический запрет на скругления**: Во всех интерактивных элементах приложения (кнопки верхнего тулбара, кнопки нижнего бара, плитки категорий `categoryTiles`, элементы дерева, таблиц, списков) строго запрещены любые скругления (`border-radius > 0`). Геометрия обязана оставаться строго монолитной, плоской и прямоугольной (`border-radius: 0`).
+  2. **Запрет на локальные скругления в QSS**: Запрещено возвращать `border-radius: 6px` или любые другие радиусы в `common.qss`, файлах тем `.qss` или коде виджетов.
+- **Strict Unified Hover Token Rules**:
+  1. **Единый источник фона ховера (`hover_bg`)**: Фон при наведении для элементов управления (`QWidget#topBarHost QToolButton`, `QWidget#topBarHost QPushButton`, `QWidget#bottomBarContainer QPushButton`, `QDialog QPushButton`, `QTreeView::item:!selected:hover`, `QListView#categoryTiles::item:hover`, `QMenuBar::item:hover`) обязан использовать системный токен активной темы `@hover_bg` (или сгенерированный `{bg_hover}`).
+  2. **Запрет на хардкодные цвета ховера**: Запрещено использовать фиксированные HEX-цвета (вроде `#252D3A`), конфликтующие с палитрой активной темы оформления.
+  3. **Синхронизация верхнего и нижнего тулбаров**: В `ThemeStylesheetService._adapt_qss_for_topbar_buttons` кнопки нижнего тулбара (`bottomBarContainer QPushButton`) обязаны стилизоваться совместно с кнопками верхнего тулбара, гарантируя одинаковый цвет фона наведения и нажатия.
+  4. **Контракт таблицы данных**: Таблица закладок `LinksTableView` получает цвет ховера строки строго через свойство `qproperty-hoverRowColor: {hover_bg}`, обеспечивая паритет с деревом структуры.
+
+## 54. Architecture Standards: Unified Top Bar Button Styling & Theme Color Isolation (ЕДИНОЕ МЕСТО ОПРЕДЕЛЕНИЯ СТИЛЕЙ КНОПОК ВЕРХНЕЙ ПАНЕЛИ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурный стандарт полной изоляции стилей и цветов кнопок верхней панели.
+- **Strict Single Source of Styling Rules**:
+  1. **Все стили кнопок верхней панели в одном месте**: Все правила стилей, геометрия, размеры, отступы (`margin`, `padding`), границы и структурное поведение всех кнопок верхней панели (`QWidget#topBarHost QToolButton`, `QWidget#topBarHost QPushButton`) определяются строго и исключительно в одном месте — в `app/resources/qss/common.qss` (базовый размер — строго через `app_config.json`).
+  2. **В темах — строго только цвета**: Файлы тем оформления (`*.qss`), токены и `ThemeStylesheetService` имеют право определять **исключительно цветовые параметры** (`background`, `background-color`, `color`, `border-color` для состояний normal, `:hover`, `:pressed`, `menu_active`).
+  3. **Категорический запрет на изменение геометрии и размеров в темах**: Запрещено в файлах тем или генераторах динамического QSS переопределять размеры кнопок (`min-width`, `max-width`, `min-height`, `max-height`), применять вычитания пикселей (`- 2`), менять отступы или вмешиваться в блочную модель.
+  4. **Абсолютная идентичность поведения**: Все кнопки верхней панели управляются единым базовым правилом `QWidget#topBarHost QToolButton`. Запрещено разделять поведение, геометрию или реакцию на наведение по отдельным ID кнопок.

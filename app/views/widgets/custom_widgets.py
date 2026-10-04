@@ -392,7 +392,6 @@ class StructureTreeView(QTreeView):
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setAutoScroll(True)
         self.setAutoScrollMargin(24)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
 
         # High-quality delegate (icons, row height)
         try:
@@ -413,6 +412,8 @@ class StructureTreeView(QTreeView):
                 "StructureTreeView._setup_tree_view: setUniformRowHeights not available: %s",
                 e,
             )
+
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
 
         try:
             self.setIndentation(int(app_config.ui.get_tree_indentation()))

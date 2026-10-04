@@ -111,9 +111,10 @@ class StructureCacheService:
                 exc,
                 exc_info=True,
             )
-            payload = []
-        self._cache_manager.set(cache_key, payload)
-        return payload
+            return []
+        if payload is not None:
+            self._cache_manager.set(cache_key, payload)
+        return payload or []
 
     def _prime_section_caches(self, payload, sphere_id):
         """Prime section and category caches."""

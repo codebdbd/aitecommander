@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Advanced File & Content Search Dialog (`FileSearchDialog`)**:
+  - Multithreaded disk scanning with regex, whole words, and case-sensitive filters.
+  - Content text search with match snippet extraction in the results table.
+  - Integrated macOS-style Quick Look (`Space`) and context menu (Open, Show in Explorer, Add to Category).
+  - Background tree icon pre-resolution for responsive browsing.
+- **Group Launch Header Checkbox (`Toggle All`)**:
+  - Added three-state header checkbox in the link table to select or deselect all links in a single click.
+- **Unified Interactive Collision Resolution Contract**:
+  - Extended `ImportConflictDialog` (`merge`, `copy`, `cancel`) across clipboard paste (`Ctrl+V`), move, and DnD operations.
+- **Thread-Safe High-Performance Cache**:
+  - Read/write locks with timeout guards, strict memory bounds, and LRU eviction policy.
 - **Table Drag & Drop Row Reordering & Drop Indicator**:
   - Manual reordering of links in `LinksTableView` via Drag & Drop with animated drop indicator line.
   - Column `#` (Order) repositioned to index `0` for clear visual tracking.

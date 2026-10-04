@@ -223,11 +223,11 @@ QWidget#topBarHost QToolBar::separator {
 }
 
 QWidget#topBarHost QToolButton {
-    border: 1px solid;
-    border-color: transparent;
+    border: 1px solid transparent;
     border-radius: 0;
     padding: 0;
     margin: 0;
+    background: transparent;
 }
 
 QWidget#topBarHost QToolButton:hover,
@@ -236,15 +236,7 @@ QWidget#topBarHost QToolButton:checked {
     border-color: transparent;
 }
 
-QToolBar#topBarToolbar QToolButton[toolbar_btn="true"] {
-    margin: 0px;
-}
-
-QToolBar#topBarToolbar QToolButton#quickButton::menu-indicator,
-QToolBar#topBarToolbar QToolButton#toolButton::menu-indicator,
-QToolBar#topBarToolbar QToolButton#topBarToolsButton::menu-indicator,
-QToolBar#topBarToolbar QToolButton#favoriteButton::menu-indicator,
-QToolBar#topBarToolbar QToolButton#recentButton::menu-indicator {
+QWidget#topBarHost QToolButton::menu-indicator {
     image: none;
     width: 0px;
     height: 0px;

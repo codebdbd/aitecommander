@@ -35,7 +35,7 @@ class LoaderService:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error("Data validation error while loading structure: %s", e)
-            return []
+            raise
         except Exception:
             if logger:
                 logger.exception("Critical error loading structure from DB")

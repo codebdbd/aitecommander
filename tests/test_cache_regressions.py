@@ -203,7 +203,11 @@ def test_favicon_timeout_skips_all_disk_access(monkeypatch, backend, persistent)
 def negative_clock(monkeypatch):
     module = importlib.import_module("app.utils.ui.icon.negative_cache")
     clock = SimpleNamespace(now=100.0)
-    monkeypatch.setattr(module, "time", SimpleNamespace(time=lambda: clock.now))
+    monkeypatch.setattr(
+        module,
+        "time",
+        SimpleNamespace(monotonic=lambda: clock.now, time=lambda: clock.now),
+    )
     monkeypatch.setattr(module, "_base_ttl", lambda: 10.0)
     monkeypatch.setattr(module, "_max_size", lambda: 8)
     return clock
@@ -264,3 +268,115 @@ def test_negative_expiry_preserves_soft_strike_decay(negative_clock):
     assert cache.get("A") is True
     negative_clock.now = 142.0
     assert cache.get("A") is None
+
+
+def test_large_links_fresh_emits_and_stale_dropped(links):
+    business, jobs = links
+    received = []
+    business.recent_links_loaded.connect(received.append)
+
+    large_payload = [{"id": i, "name": f"link_{i}"} for i in range(2049)]
+
+    # 1. Fresh large payload emits without caching
+    business.load_recent_links(2049)
+    jobs[0]["on_finished"](large_payload)
+    assert len(received) == 1
+    assert len(received[0]) == 2049
+    assert "recent_links_2049" not in business._cache
+
+    # 2. Stale large payload is dropped
+    received.clear()
+    business.load_recent_links(2049)
+    business.invalidate_cache()
+    jobs[1]["on_finished"](large_payload)
+    assert len(received) == 0
+    assert "recent_links_2049" not in business._cache
+
+
+def test_icon_cache_universal_set_expires_by_ttl():
+    import time
+    from app.utils.ui.icon.cache_manager import ThreadSafeIconCache
+
+    cache = ThreadSafeIconCache(maxsize=10)
+    cache.set("path:expiring::light", "/path/to/icon.png", ttl=0.05)
+    assert cache.get("path:expiring::light") == "/path/to/icon.png"
+
+    time.sleep(0.08)
+    assert cache.get("path:expiring::light") is None
+
+
+def test_background_invalidation_dispatches_to_main_thread():
+    import threading
+    from PyQt6.QtWidgets import QApplication
+    from app.utils.ui.icon.cache_manager import invalidate_icon, _icon_manager
+
+    _ = QApplication.instance() or QApplication([])
+
+    _icon_manager._cache.set("path:bg_test::light", "/path/to/bg_test.png")
+
+    worker_thread_err = []
+
+    def run_invalidate():
+        try:
+            invalidate_icon("/path/to/bg_test.png")
+        except Exception as e:
+            worker_thread_err.append(e)
+
+    t = threading.Thread(target=run_invalidate)
+    t.start()
+    t.join()
+
+    assert not worker_thread_err
+    assert _icon_manager._cache.get("path:bg_test::light") is None
+
+
+def test_previously_missing_icon_available_immediately_after_save():
+    from app.utils.ui.icon.cache_manager import invalidate_icon
+    from app.utils.ui.icon.negative_cache import negative_cache
+
+    negative_cache.set("light:fresh_saved.svg", True)
+    assert negative_cache.is_negative("light:fresh_saved.svg") is True
+
+    invalidate_icon("fresh_saved.svg")
+    assert negative_cache.is_negative("light:fresh_saved.svg") is not True
+
+
+def test_update_single_icon_preserves_other_icons_and_metrics():
+    from app.utils.ui.icon.cache_manager import invalidate_icon, _icon_manager
+
+    cache = _icon_manager._cache
+    cache.metrics.reset()
+    cache.set("path:icon_a::light", "/path/to/icon_a.png")
+    cache.set("path:icon_b::light", "/path/to/icon_b.png")
+
+    cache.metrics.record_hit()
+    hits_before = cache.metrics.hits
+
+    invalidate_icon("/path/to/icon_a.png")
+
+    assert cache.get("path:icon_a::light") is None
+    assert cache.get("path:icon_b::light") == "/path/to/icon_b.png"
+    assert cache.metrics.hits >= hits_before
+
+
+def test_profile_cache_exit_error_triggers_automatic_retry(tmp_path):
+    import time
+    from unittest.mock import Mock
+    from app.utils.browser.browser_profiles.persistent_cache import PersistentProfileCache
+
+    cache = PersistentProfileCache()
+    cache._path = tmp_path / "profiles.json"
+    cache._flush_delay_sec = 0.1
+
+    fail_mock = Mock(side_effect=OSError("Disk full"))
+    cache._dump_to_disk = fail_mock
+
+    with cache:
+        cache.set("prof1", {"name": "Default"})
+
+    assert cache._dirty is True
+    assert cache._flush_timer is not None
+
+    if cache._flush_timer:
+        cache._flush_timer.cancel()
+        cache._flush_timer = None

@@ -42,6 +42,8 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
             self._flush_delay_sec = 0.5
         self._dirty: bool = False
         self._next_flush_ts: float = 0.0
+        self._flush_timer: threading.Timer | None = None
+        self._is_dumping: bool = False
         self._load_from_disk()
 
     @property
@@ -67,7 +69,7 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
                 data = json.load(f)
             if not isinstance(data, dict):
                 return
-            now = time.time()
+            now = time.monotonic()
             for key, profiles in data.items():
                 if not isinstance(key, str):
                     continue
@@ -114,25 +116,60 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
     # --- deferred flush mechanics ---
     def _mark_dirty_locked(self) -> None:
         self._dirty = True
-        now = time.time()
+        now = time.monotonic()
         # if not scheduled, schedule
         if self._next_flush_ts <= 0:
             self._next_flush_ts = now + self._flush_delay_sec
+        if self._flush_timer is None:
+            self._flush_timer = threading.Timer(self._flush_delay_sec, self._on_timer_flush)
+            self._flush_timer.daemon = True
+            self._flush_timer.start()
+
+    def _on_timer_flush(self) -> None:
+        with self._lock:
+            self._flush_timer = None
+            self._maybe_flush_locked()
 
     def _maybe_flush_locked(self, *, force: bool = False) -> None:
         if not self._dirty:
             return
-        now = time.time()
-        if force or (self._next_flush_ts > 0 and now >= self._next_flush_ts):
-            try:
-                self._dump_to_disk()
-            except Exception:
-                # Don't fail on disk error
-                pass
-            finally:
-                # Reset flags regardless of result to avoid infinite writing
-                self._dirty = False
-                self._next_flush_ts = 0.0
+        now = time.monotonic()
+        if not force and self._next_flush_ts > 0 and now < self._next_flush_ts:
+            if self._flush_timer is None:
+                delay = max(0.01, self._next_flush_ts - now)
+                self._flush_timer = threading.Timer(delay, self._on_timer_flush)
+                self._flush_timer.daemon = True
+                self._flush_timer.start()
+            return
+
+        if self._is_dumping:
+            return
+        self._is_dumping = True
+        try:
+            self._dump_to_disk()
+            self._dirty = False
+            self._next_flush_ts = 0.0
+            if self._flush_timer is not None:
+                try:
+                    self._flush_timer.cancel()
+                except Exception:
+                    pass
+                self._flush_timer = None
+        except Exception:
+            retry_delay = max(self._flush_delay_sec, 5.0)
+            self._next_flush_ts = now + retry_delay
+            if self._flush_timer is not None:
+                try:
+                    self._flush_timer.cancel()
+                except Exception:
+                    pass
+                self._flush_timer = None
+            delay = max(0.01, self._next_flush_ts - now)
+            self._flush_timer = threading.Timer(delay, self._on_timer_flush)
+            self._flush_timer.daemon = True
+            self._flush_timer.start()
+        finally:
+            self._is_dumping = False
 
     # --- BaseCache API ---
     def get(self, key: str) -> Any | None:
@@ -153,7 +190,7 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
         with self._lock:
             self._store[key] = CacheRecord(
                 value=value,
-                ts=time.time(),
+                ts=time.monotonic(),
                 ttl=self._default_ttl if ttl is None else ttl,
             )
             # Mark dirty state and defer writing
@@ -187,6 +224,12 @@ class PersistentProfileCache(BaseCache, AbstractContextManager["PersistentProfil
     def flush(self) -> None:
         """Force flush changes to disk."""
         with self._lock:
+            if self._flush_timer is not None:
+                try:
+                    self._flush_timer.cancel()
+                except Exception:
+                    pass
+                self._flush_timer = None
             self._maybe_flush_locked(force=True)
 
     def periodic_flush(self) -> None:

@@ -182,7 +182,7 @@ aitecommander/
 │   ├── locale_utils.py               # Утилиты локали
 │   ├── app.pro                       # Проект lupdate/lrelease
 │   └── __init__.py
-├── tests/                            # Тестовый набор (73 файла)
+├── tests/                            # Тестовый набор (132 файла)
 │   ├── conftest.py                   # Bootstrap для импортов (sys.path)
 │   └── test_*.py                     # Тесты: database, structure, commands,
 │                                     #   bulk, theme, migration, dialog, etc.
@@ -190,9 +190,11 @@ aitecommander/
 ├── scripts/                          # Утилитарные скрипты
 │   ├── build.py                      # Скрипт сборки
 │   ├── build_installer.ps1           # Скрипт сборки инсталлятора Inno Setup
-│   ├── migrate_icons_ico_to_png.py   # Миграция иконок
 │   ├── arch_diag_generate.py         # Генерация арх. диаграмм
-│   └── audit_translations.py         # Вспомогательный модуль проверки для тестов
+│   ├── audit_translations.py         # Вспомогательный модуль проверки для тестов
+│   ├── qss_tokenize.py               # Токенизация и миграция стилей QSS
+│   ├── theme_baseline.py             # Генерация и сверка базовых снимков тем
+│   └── theme_gallery.py              # Пакетная галерея тем оформления
 ├── aitecommander.spec                # PyInstaller .spec
 ├── aitecommander.bat                 # Windows-лаунчер
 ├── pyproject.toml                    # Метаданные проекта и зависимости (hatchling)
@@ -205,7 +207,7 @@ aitecommander/
 ├── LICENSE                           # GNU General Public License v3.0
 ├── README.md
 ├── CAPABILITIES.md                   # Описание возможностей
-└── THEME_AUDIT_DETAILED.md           # Аудит тем оформления
+└── THEMES.md                         # Спецификация и руководство по темам оформления
 ```
 
 ### Взаимодействие компонентов

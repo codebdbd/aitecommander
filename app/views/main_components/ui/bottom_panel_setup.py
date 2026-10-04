@@ -43,19 +43,6 @@ class BottomBarContainer(QWidget):
         visible = available_width >= required
         self.setVisible(visible)
 
-        # Synchronize theme selector container, selector, and separator visibility with bottom toolbar
-        main_win = self.window()
-        if main_win:
-            theme_container = getattr(main_win, "theme_selector_container", None)
-            if theme_container:
-                theme_container.setVisible(visible)
-            theme_sel = getattr(main_win, "theme_selector", None)
-            if theme_sel:
-                theme_sel.setVisible(visible)
-            theme_sep = getattr(main_win, "theme_selector_separator", None)
-            if theme_sep:
-                theme_sep.setVisible(visible)
-
     def _required_width(self) -> int:
         """Sum of sizeHint().width() for every QPushButton child."""
         total = 0

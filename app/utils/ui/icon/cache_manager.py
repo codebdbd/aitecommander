@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QObject, Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon, QPixmap, QPixmapCache
 from PyQt6.QtWidgets import QApplication
 
@@ -18,6 +19,49 @@ from .lock_manager import LockLevel, acquire_cache_lock, acquire_multiple_locks
 from .lru_policy import LRUPolicy
 
 logger = logging.getLogger(__name__)
+
+
+class _QPixmapCacheDispatcher(QObject):
+    clear_signal = pyqtSignal()
+    remove_signal = pyqtSignal(str)
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self.clear_signal.connect(self._on_clear, Qt.ConnectionType.QueuedConnection)
+        self.remove_signal.connect(self._on_remove, Qt.ConnectionType.QueuedConnection)
+
+    @pyqtSlot()
+    def _on_clear(self) -> None:
+        try:
+            QPixmapCache.clear()
+        except Exception:
+            pass
+
+    @pyqtSlot(str)
+    def _on_remove(self, key: str) -> None:
+        try:
+            QPixmapCache.remove(key)
+        except Exception:
+            pass
+
+
+_pixmap_dispatcher: _QPixmapCacheDispatcher | None = None
+_dispatcher_lock = threading.Lock()
+
+
+def _get_pixmap_dispatcher() -> _QPixmapCacheDispatcher | None:
+    global _pixmap_dispatcher
+    app = QApplication.instance()
+    if not app:
+        return None
+    if _pixmap_dispatcher is None:
+        with _dispatcher_lock:
+            if _pixmap_dispatcher is None:
+                dispatcher = _QPixmapCacheDispatcher()
+                dispatcher.moveToThread(app.thread())
+                _pixmap_dispatcher = dispatcher
+    return _pixmap_dispatcher
+
 
 
 class _FallbackCacheMetrics:
@@ -104,7 +148,7 @@ def _is_entry_valid(timestamp: float, ttl_seconds: float | None) -> bool:
         return False
     if ttl <= 0:
         return False
-    now = time.time()
+    now = time.monotonic()
     return (now - float(timestamp)) < ttl
 
 
@@ -338,7 +382,7 @@ class ThreadSafeIconCache:
             if should_evict and old_key:
                 self._path_cache.pop(old_key, None)
 
-            entry = PathCacheEntry(path=path, timestamp=time.time(), ttl_override=None)
+            entry = PathCacheEntry(path=path, timestamp=time.monotonic(), ttl_override=None)
             self._path_cache[key] = entry
             self._path_lru.access(key)
             logger.debug("Set PATH: %s", key)
@@ -404,7 +448,7 @@ class ThreadSafeIconCache:
                 self._remove_from_qpixmapcache(old_key)
 
             entry = IconCacheEntry(
-                icon=icon, timestamp=time.time(), negative=negative, ttl_override=None
+                icon=icon, timestamp=time.monotonic(), negative=negative, ttl_override=None
             )
             self._qicon_cache[key] = entry
             self._qicon_lru.access(key)
@@ -509,7 +553,7 @@ class ThreadSafeIconCache:
                     self._path_cache.pop(old_key, None)
                 path_entry = PathCacheEntry(
                     path=value if isinstance(value, (str, type(None))) else None,
-                    timestamp=time.time(),
+                    timestamp=time.monotonic(),
                     ttl_override=ttl,
                 )
                 self._path_cache[k] = path_entry
@@ -526,7 +570,7 @@ class ThreadSafeIconCache:
                 icon_val: QIcon | None = value if isinstance(value, QIcon) else None
                 icon_entry = IconCacheEntry(
                     icon=icon_val,
-                    timestamp=time.time(),
+                    timestamp=time.monotonic(),
                     negative=negative,
                     ttl_override=ttl,
                 )
@@ -583,7 +627,13 @@ class ThreadSafeIconCache:
     def _remove_from_qpixmapcache(self, key: str) -> None:
         """Remove pixmap from Qt's QPixmapCache."""
         try:
-            QPixmapCache.remove(f"icon:{key}")
+            full_key = f"icon:{key}"
+            if threading.current_thread() is threading.main_thread():
+                QPixmapCache.remove(full_key)
+            else:
+                dispatcher = _get_pixmap_dispatcher()
+                if dispatcher:
+                    dispatcher.remove_signal.emit(full_key)
         except Exception as exc:  # noqa: BLE001
             logger.debug(
                 "Failed to remove pixmap from QPixmapCache for %s: %s", key, exc
@@ -603,8 +653,15 @@ class ThreadSafeIconCache:
         with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
             self._path_cache.clear()
             self._qicon_cache.clear()
-            # Clear Qt's pixmap cache for our icons
-            QPixmapCache.clear()
+            if threading.current_thread() is threading.main_thread():
+                try:
+                    QPixmapCache.clear()
+                except Exception:
+                    pass
+            else:
+                dispatcher = _get_pixmap_dispatcher()
+                if dispatcher:
+                    dispatcher.clear_signal.emit()
             try:
                 new_capacity = int(app_config.get_icon_cache_size())
             except Exception:  # noqa: BLE001
@@ -765,6 +822,103 @@ def clear_icon_cache() -> None:
         clear_icon_resolver_cache()
     except Exception:
         logger.debug("Failed to clear icon resolver cache", exc_info=True)
+
+
+def invalidate_icon(icon_path: str | Path | None = None) -> None:
+    """Invalidate specific icon across all caching levels without affecting others."""
+    if not icon_path:
+        clear_icon_cache()
+        return
+
+    from .invalidation import IconInvalidationTarget, normalized_path
+
+    target = IconInvalidationTarget(icon_path)
+
+    with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
+        # Retain resolutions while matching symbolic QIcon names below.
+        resolutions = {k: entry.path for k, entry in _icon_manager._cache._path_cache.items()}
+        for k, entry in list(_icon_manager._cache._path_cache.items()):
+            icon_name = k.rsplit("::", 1)[0]
+            if target.matches(icon_name, entry.path):
+                _icon_manager._cache._path_cache.pop(k, None)
+                _icon_manager._cache._path_lru.remove(k)
+
+        # Precise key matching for QIcon cache and Qt pixmaps
+        for k in list(_icon_manager._cache._qicon_cache.keys()):
+            icon_name = k.rsplit("::", 1)[0]
+            for namespace in ("__abs__::", "category::", "__qrc__::"):
+                if icon_name.startswith(namespace):
+                    icon_name = icon_name[len(namespace):]
+                    break
+            if target.matches(icon_name, resolutions.get(k)):
+                _icon_manager._cache._qicon_cache.pop(k, None)
+                _icon_manager._cache._qicon_lru.remove(k)
+                _icon_manager._cache._remove_from_qpixmapcache(k)
+
+    # Invalidate exact negative cache marks with theme prefixes
+    try:
+        from .negative_cache import negative_cache
+
+        with negative_cache._lock:
+            matching_neg_keys = [
+                k for k in negative_cache._ts.keys()
+                if target.matches(k.split(":", 1)[1] if ":" in k else k)
+            ]
+        for k in matching_neg_keys:
+            negative_cache.invalidate(k)
+    except Exception:
+        pass
+
+    # Targeted cleanup in loading service without wiping other icons
+    try:
+        from .loading_service import icon_loading_service
+
+        with icon_loading_service._lock:
+            for cache in (
+                icon_loading_service._generic_resolved_cache,
+                icon_loading_service._category_resolved_cache,
+                icon_loading_service._existing_path_cache,
+            ):
+                for k in list(cache.keys()):
+                    if target.matches(k, cache.get(k)):
+                        cache.pop(k, None)
+    except Exception:
+        pass
+
+    # Preserve unrelated resolver and table entries, including hit/miss counters.
+    try:
+        from .icon_resolver import invalidate_icon_resolver_cache
+
+        invalidate_icon_resolver_cache(target)
+    except Exception:
+        pass
+
+    try:
+        from app.views.widgets.link.links_model import invalidate_links_table_icon_cache
+
+        invalidate_links_table_icon_cache(target)
+    except Exception:
+        pass
+
+    # Invalidate path service theme index timestamps
+    try:
+        from .path_service import icon_path_service
+
+        with icon_path_service._index_lock:
+            for theme, idx in icon_path_service._theme_index.items():
+                matching = [key for key, path in idx.items() if target.matches(path)]
+                theme_dir = icon_path_service._get_theme_dir(theme)
+                in_theme = theme_dir is not None and (
+                    normalized_path(theme_dir) == normalized_path(target.path.parent)
+                )
+                if matching or in_theme:
+                    for key in matching:
+                        idx.pop(key, None)
+                    # Force rebuilding even if replacing a file did not change
+                    # the directory mtime, or the new file was previously absent.
+                    icon_path_service._theme_index_ts.pop(theme, None)
+    except Exception:
+        pass
 
 
 def get_icon_cache_stats() -> dict[str, int | float]:

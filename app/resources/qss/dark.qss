@@ -101,7 +101,7 @@ QMenuBar::item {
 color: #C9D1DA;
 }
 QMenuBar::item:hover {
-background: #252D3A;
+background: @hover_bg;
 color: @text_on_accent;
 border-color: #6A7EA3;
 }
@@ -168,7 +168,7 @@ background: transparent;
 border-color: transparent;
 }
 QListView#categoryTiles::item:hover {
-background: rgba(255, 255, 255, 0.05);
+background: @hover_bg;
 border-color: transparent;
 }
 QListView#categoryTiles::item:selected {

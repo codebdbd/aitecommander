@@ -130,7 +130,7 @@ class NegativeCache(BaseCache):
 
     # --- BaseCache API ---
     def get(self, key: str) -> Any | None:
-        now = time.time()
+        now = time.monotonic()
         with self._lock:
             ts = self._ts.get(key)
             if ts is None:
@@ -152,7 +152,7 @@ class NegativeCache(BaseCache):
 
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         # ttl is ignored: TTL is controlled based on strike and configuration
-        now = time.time()
+        now = time.monotonic()
         with self._lock:
             # Incremental cleanup of expired items by expiration heap
             while self._expire_heap:

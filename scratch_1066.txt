@@ -1,0 +1,89 @@
+Created At: 2026-10-04T17:12:33+03:00
+Completed At: 2026-10-04T17:12:33+03:00
+File Path: `file:///d:/01_Codebdbd/01_projects/aitecommander/app/views/main_components/ui/topbar/toolbar_adapters.py`
+Total Lines: 1240
+Total Bytes: 51635
+Showing lines 370 to 450
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+370:             self._set_button_last(button, False)
+371:         self._set_button_last(new_last, True)
+372: 
+373: class StructureActionsToolbarAdapter(ToolbarActionAdapter):
+374:     """Toolbar buttons for structure operations: add section and add category."""
+375: 
+376:     def __init__(
+377:         self,
+378:         toolbar: QToolBar,
+379:         *,
+380:         insert_before: QAction | None,
+381:         category_provider: Any | None = None,
+382:         separator_controller: ToolbarSeparatorController | None = None,
+383:     ) -> None:
+384:         button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
+385:         icon_size = runtime_app_config.ui.get_top_panel_icon_size()
+386:         button_size, icon_size = _button_sizes(button_size_raw, icon_size)
+387:         super().__init__(
+388:             toolbar,
+389:             insert_before=insert_before,
+390:             button_object_name="structureButton",
+391:             button_size=button_size,
+392:             icon_size=icon_size,
+393:         )
+394:         self._category_provider = category_provider
+395:         self._separator_controller = separator_controller
+396:         self._build_actions()
+397: 
+398:     def refresh_actions(self) -> None:
+399:         if (
+400:             hasattr(self, "_toggle_action")
+401:             and hasattr(self, "_back_action")
+402:             and hasattr(self, "_forward_action")
+403:             and hasattr(self, "_sec_action")
+404:             and hasattr(self, "_cat_action")
+405:             and self._actions
+406:         ):
+407:             theme = _resolve_theme(self._category_provider)
+408:             from app.utils.ui.menu_builders.base import get_menu_icon
+409: 
+410:             toggle_icon = get_menu_icon("left_panel_close", theme)
+411:             if toggle_icon and not toggle_icon.isNull():
+412:                 self._toggle_action.setIcon(toggle_icon)
+413: 
+414:             back_icon = get_menu_icon("skip_previous", theme)
+415:             if back_icon and not back_icon.isNull():
+416:                 self._back_action.setIcon(back_icon)
+417: 
+418:             fwd_icon = get_menu_icon("skip_next", theme)
+419:             if fwd_icon and not fwd_icon.isNull():
+420:                 self._forward_action.setIcon(fwd_icon)
+421: 
+422:             sec_icon = get_menu_icon("add_section", theme)
+423:             if sec_icon and not sec_icon.isNull():
+424:                 self._sec_action.setIcon(sec_icon)
+425: 
+426:             cat_icon = get_menu_icon("add_category", theme)
+427:             if cat_icon and not cat_icon.isNull():
+428:                 self._cat_action.setIcon(cat_icon)
+429:             return
+430: 
+431:         self._build_actions()
+432: 
+433:     def _build_actions(self) -> None:
+434:         self.clear_actions()
+435:         theme = _resolve_theme(self._category_provider)
+436:         from app.utils.ui.menu_builders.base import get_menu_icon
+437: 
+438:         # Toggle sidebar
+439:         toggle_icon = get_menu_icon("left_panel_close", theme)
+440:         if not toggle_icon or toggle_icon.isNull():
+441:             toggle_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "left_panel_close.svg")
+442:         toggle_text = QCoreApplication.translate("MenuActions", "Toggle sidebar")
+443:         toggle_action = QAction(toggle_icon, toggle_text, self._toolbar)
+444:         toggle_action.setToolTip(toggle_text)
+445:         toggle_action.triggered.connect(self._on_toggle_left_panel)
+446:         self._add_action(toggle_action)
+447:         self._toggle_action = toggle_action
+448:         toggle_btn = self._toolbar.widgetForAction(toggle_action)
+449:         if isinstance(toggle_btn, QToolButton):
+450:             toggle_btn.setObjectName("topBarToggleLeftPanelButton")
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

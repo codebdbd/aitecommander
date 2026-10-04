@@ -34,12 +34,12 @@
     ],
     "fixed_button_width": 115,
     "links_table_columns": {
-      "group_launch": 0,
-      "name": 1,
-      "order": 2,
+      "order": 0,
+      "group_launch": 1,
+      "name": 2,
       "last_used": 3,
-      "notes": 4,
-      "type": 5
+      "type": 4,
+      "notes": 5
     },
     "max_favorites": 10,
     "top_bar_height": 40,
@@ -72,7 +72,7 @@
     "tile_border_radius": 8,
     "tile_border_width": 2,
     "tile_border_margin": 2,
-    "spheres_bar_height": 104,
+    "spheres_bar_height": 96,
     "spheres_layout_margins": [
       8,
       2,
@@ -210,8 +210,8 @@
       1
     ],
     "splitter_sizes": [
-      320,
-      704
+      323,
+      700
     ],
     "main_layout_margins": [
       0,
@@ -244,7 +244,7 @@
     "window": {
       "width": 1024,
       "height": 768,
-      "min_width": 280,
+      "min_width": 323,
       "min_height": 600,
       "content_margins": [
         1,

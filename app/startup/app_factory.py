@@ -5,11 +5,20 @@ import sys
 
 from PyQt6.QtCore import QLocale, Qt
 from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QProxyStyle, QStyle
 
 from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
+
+
+class _ApplicationProxyStyle(QProxyStyle):
+    """Proxy style overriding system delays for faster, responsive tooltips."""
+
+    def styleHint(self, hint, option=None, widget=None, returnData=None) -> int:
+        if hint == QStyle.StyleHint.SH_ToolTip_WakeUpDelay:
+            return 400
+        return super().styleHint(hint, option, widget, returnData)
 
 
 def create_application() -> QApplication:
@@ -21,6 +30,10 @@ def create_application() -> QApplication:
         logger.debug("Failed to set HiDPI attributes: %s", exc, exc_info=True)
 
     app = QApplication(sys.argv)
+    from app.utils.ui.icon.cache_manager import _get_pixmap_dispatcher
+
+    _get_pixmap_dispatcher()
+    app.setStyle(_ApplicationProxyStyle())
 
     cfg = app_config
     settings_cfg = cfg.settings

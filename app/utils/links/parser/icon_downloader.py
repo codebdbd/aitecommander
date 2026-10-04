@@ -635,9 +635,9 @@ class IconDownloader:
                 lm = resp.headers.get("Last-Modified")
                 w, h = img.size
                 try:
-                    from app.utils.ui.icon.icon_resolver import clear_icon_resolver_cache
+                    from app.utils.ui.icon.cache_manager import invalidate_icon
 
-                    clear_icon_resolver_cache()
+                    invalidate_icon(path)
                 except Exception:
                     pass
                 logger.info(

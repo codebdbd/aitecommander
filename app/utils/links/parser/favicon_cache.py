@@ -50,7 +50,7 @@ def _get_lock_backend() -> str:
 
 
 @contextmanager
-def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 0.05):
+def _file_lock(lock_path: str, *, timeout: float | None = None, _poll_interval: float = 0.05):
     """Cross-platform file lock without busy waiting.
 
     Backend order:
@@ -186,7 +186,7 @@ def _ensure_cache_storage_ready_once() -> None:
 def _compute_effective_lock_timeout(timeout: float | None) -> float:
     """Compute effective timeout using function argument or app_config fallback."""
     try:
-        cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", timeout)
+        cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", 5.0)
         eff = float(timeout if timeout is not None else cfg_timeout)
         return max(0.0, eff)
     except Exception:
@@ -472,7 +472,7 @@ class FaviconCache(BaseCache):
         """
         now = self._now() if now is None else float(now)
         if not self._should_cleanup(db, now):
-            return
+            return False
 
         removed = 0
         try:
@@ -481,6 +481,7 @@ class FaviconCache(BaseCache):
             removed += self._enforce_max_size(db, index)
         finally:
             self._finalize_cleanup(db, index, now, removed)
+        return True
 
     # BaseCache implementation
     def _is_item_expired(self, item):
@@ -630,8 +631,9 @@ class FaviconCache(BaseCache):
         self._update_timestamp_index(db, key, to_store.get("timestamp", ts_now))
         logger.debug("[cache] SAVE %s", key)
         self._enforce_size_limit(db)
-        self._maybe_cleanup(db, now=ts_now)
-        self._sync_db(db)
+        cleaned = self._maybe_cleanup(db, now=ts_now)
+        if not cleaned:
+            self._sync_db(db)
 
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         """Set cache entry with optional TTL."""

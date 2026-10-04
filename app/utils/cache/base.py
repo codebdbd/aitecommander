@@ -15,6 +15,7 @@ Notes:
 from __future__ import annotations
 
 import abc
+import copy
 import threading
 import time
 from collections import OrderedDict
@@ -37,7 +38,7 @@ class CacheRecord:
             return False
         if ttl <= 0:
             return False
-        return (time.time() - self.ts) < ttl
+        return (time.monotonic() - self.ts) < ttl
 
 
 class BaseCache(abc.ABC):
@@ -123,13 +124,20 @@ class InMemoryCache(BaseCache):
                 self._store.pop(key, None)
                 return None
             self._touch(key)
-            return rec.value
+            val = rec.value
+            if isinstance(val, (list, dict)):
+                return copy.deepcopy(val)
+            return val
 
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         with self._lock:
+            if isinstance(value, (list, dict)):
+                val_to_store = copy.deepcopy(value)
+            else:
+                val_to_store = value
             rec = CacheRecord(
-                value=value,
-                ts=time.time(),
+                value=val_to_store,
+                ts=time.monotonic(),
                 ttl=ttl if ttl is not None else self._default_ttl,
             )
             self._store[key] = rec
@@ -144,7 +152,7 @@ class InMemoryCache(BaseCache):
                 if self._store:
                     self._store.clear()
                 # After full cleanup update the last prune timestamp
-                self._last_prune_ts = time.time()
+                self._last_prune_ts = time.monotonic()
                 return
             self._store.pop(key, None)
             self._maybe_prune_expired_locked()
@@ -157,7 +165,7 @@ class InMemoryCache(BaseCache):
         """
         removed = 0
         with self._lock:
-            now = time.time()
+            now = time.monotonic()
             # Create a list to avoid mutating the dict while iterating
             for k, rec in list(self._store.items()):
                 if rec is None:
@@ -181,7 +189,7 @@ class InMemoryCache(BaseCache):
         Requires the caller to hold ``_lock``.
         """
         try:
-            now = time.time()
+            now = time.monotonic()
             if (now - self._last_prune_ts) >= self._prune_interval_sec:
                 # Call without re-locking because ``_lock`` is already held
                 removed = 0

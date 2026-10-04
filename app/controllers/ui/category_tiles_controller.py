@@ -161,7 +161,7 @@ class CategoryTilesController:
                 fetch_started_ts = time.perf_counter()
                 fresh = self.business.get_categories(int(section_id)) or []
                 fetch_ms = (time.perf_counter() - fetch_started_ts) * 1000
-                if fresh and fresh != cached:
+                if fresh != cached:
                     apply_started_ts = time.perf_counter()
                     self._apply_categories(
                         fresh, section_id=section_id, switch_view=switch_view

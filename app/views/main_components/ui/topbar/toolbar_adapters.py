@@ -161,16 +161,7 @@ def _setup_topbar_button_contrast(
     normal_icon: QIcon,
     svg_filename: str,
 ) -> None:
-    rest_icon, hover_icon = _get_topbar_button_icons(svg_filename)
-    btn._rest_icon = rest_icon
-    btn._hover_icon = hover_icon
-    btn._svg_filename = svg_filename
-    btn.setIcon(rest_icon)
-    filt = getattr(btn, "_invert_hover_filter", None)
-    if filt is None:
-        filt = TopBarButtonHoverFilter(btn)
-        btn._invert_hover_filter = filt
-        btn.installEventFilter(filt)
+    btn.setIcon(normal_icon)
 
 
 def _resolve_existing_icon_path_fast(icon_path: str | None) -> str:
@@ -610,7 +601,7 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         self._build_actions()
 
     def refresh_actions(self) -> None:
-        if hasattr(self, "_main_action") and self._actions:
+        if hasattr(self, "_main_action") and self._actions and self._main_action is not None:
             theme = _resolve_theme(self._category_provider)
             from app.utils.ui.menu_builders.base import get_menu_icon
 
@@ -620,18 +611,20 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
                 btn = self._toolbar.widgetForAction(self._main_action)
                 if isinstance(btn, QToolButton):
                     _setup_topbar_button_contrast(btn, tools_icon, "construction.svg")
+            menu = self._create_tools_menu(theme)
+            old_menu = self._main_action.menu()
+            if old_menu is not None:
+                old_menu.deleteLater()
+            self._main_action.setMenu(menu)
+            btn = self._toolbar.widgetForAction(self._main_action)
+            if isinstance(btn, QToolButton):
+                menu.set_target_button(btn)
             return
 
         self._build_actions()
 
-    def _build_actions(self) -> None:
-        self.clear_actions()
-        theme = _resolve_theme(self._category_provider)
+    def _create_tools_menu(self, theme: str) -> TopBarMenu:
         from app.utils.ui.menu_builders.base import get_menu_icon
-
-        tools_icon = get_menu_icon("construction", theme)
-        if not tools_icon or tools_icon.isNull():
-            tools_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "construction.svg")
 
         menu = TopBarMenu(self._toolbar)
         menu.setObjectName("topBarToolsMenu")
@@ -655,6 +648,19 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
             sub_action.setToolTip(text)
             sub_action.triggered.connect(handler)
             menu.addAction(sub_action)
+
+        return menu
+
+    def _build_actions(self) -> None:
+        self.clear_actions()
+        theme = _resolve_theme(self._category_provider)
+        from app.utils.ui.menu_builders.base import get_menu_icon
+
+        tools_icon = get_menu_icon("construction", theme)
+        if not tools_icon or tools_icon.isNull():
+            tools_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "construction.svg")
+
+        menu = self._create_tools_menu(theme)
 
         tools_title = QCoreApplication.translate("MenuActions", "Tools")
         main_action = QAction(tools_icon, tools_title, self._toolbar)

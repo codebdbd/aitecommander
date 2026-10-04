@@ -47,7 +47,7 @@ def is_domain_failed(url: str) -> bool:
         if domain in _FAILED_DOMAINS_CACHE:
             status, timestamp = _FAILED_DOMAINS_CACHE[domain]
             # Check if cache entry is still valid
-            if time.time() - timestamp < MEDIUM_NEGATIVE_TTL:
+            if time.monotonic() - timestamp < MEDIUM_NEGATIVE_TTL:
                 logger.debug("[failed_cache] Domain %s is cached as failed (status=%s)", domain, status)
                 return True
             else:
@@ -69,7 +69,7 @@ def mark_domain_failed(url: str, status_code: int) -> None:
         return
     
     with _FAILED_CACHE_LOCK:
-        _FAILED_DOMAINS_CACHE[domain] = (status_code, time.time())
+        _FAILED_DOMAINS_CACHE[domain] = (status_code, time.monotonic())
         # Limit cache size (LRU)
         while len(_FAILED_DOMAINS_CACHE) > _FAILED_CACHE_MAX_SIZE:
             _FAILED_DOMAINS_CACHE.popitem(last=False)

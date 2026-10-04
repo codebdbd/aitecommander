@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
-from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.views.widgets.tree_components.move_operations_handler import (
     MoveOperationsHandler,
@@ -27,7 +26,12 @@ class _Handler(MoveOperationsHandler):
 
 class TestMoveOperationsHandler(unittest.TestCase):
     def _build_handler(self):
-        main_window = SimpleNamespace(undo_stack=Mock())
+        sb = Mock()
+        sb.get_categories.return_value = []
+        sb.get_category_data.return_value = {
+            "id": 7, "name": "Cat", "section_id": 2, "position": 0, "icon_path": ""
+        }
+        main_window = SimpleNamespace(undo_stack=Mock(), structure_business=sb)
         tree_widget = _TreeWidgetStub(main_window)
         return _Handler(tree_widget), main_window
 
@@ -38,7 +42,7 @@ class TestMoveOperationsHandler(unittest.TestCase):
 
         main_window.undo_stack.push.assert_called_once()
         pushed = main_window.undo_stack.push.call_args.args[0]
-        self.assertIsInstance(pushed, MoveCategoryCommand)
+        self.assertIsInstance(pushed, MoveCategoriesCommand)
 
     def test_execute_move_links_command_pushes_correct_command(self) -> None:
         handler, main_window = self._build_handler()

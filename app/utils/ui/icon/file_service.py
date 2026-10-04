@@ -79,9 +79,9 @@ class IconFileService:
             if safe_dst is not None:
                 logger.info("Converted ICO to safe PNG: %s -> %s", src, safe_dst)
                 try:
-                    from .icon_resolver import clear_icon_resolver_cache
+                    from .cache_manager import invalidate_icon
 
-                    clear_icon_resolver_cache()
+                    invalidate_icon(safe_dst)
                 except Exception:
                     pass
                 return safe_dst
@@ -105,9 +105,9 @@ class IconFileService:
                             resized.save(dst)
                             logger.info("Downscaled and saved icon from %s to %s (max 128px)", src, dst)
                             try:
-                                from .icon_resolver import clear_icon_resolver_cache
+                                from .cache_manager import invalidate_icon
 
-                                clear_icon_resolver_cache()
+                                invalidate_icon(dst)
                             except Exception:
                                 pass
                             return dst
@@ -116,9 +116,9 @@ class IconFileService:
             shutil.copy2(src, dst)
             logger.info("Copied icon from %s to %s", src, dst)
             try:
-                from .icon_resolver import clear_icon_resolver_cache
+                from .cache_manager import invalidate_icon
 
-                clear_icon_resolver_cache()
+                invalidate_icon(dst)
             except Exception:
                 pass
             return dst

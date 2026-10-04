@@ -20,8 +20,8 @@ class LinkTableColumn(IntEnum):
     GROUP_LAUNCH = 1
     NAME = 2
     LAUNCH = 3
-    NOTES = 4
-    TYPE = 5
+    TYPE = 4
+    NOTES = 5
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,6 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         chevron_padding=True,
         config_width_index=1,
         display_builder="_display_name",
-        tooltip_builder="_tooltip_name",
         decoration_builder="_decoration_name",
     ),
     LinkTableColumnDescriptor(
@@ -97,16 +96,6 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         tooltip_builder="_tooltip_launch",
     ),
     LinkTableColumnDescriptor(
-        column=LinkTableColumn.NOTES,
-        key="notes",
-        header_source="Notes",
-        chevron_padding=True,
-        stretch=True,
-        resize_mode="stretch",
-        display_builder="_display_notes",
-        tooltip_builder="_tooltip_notes",
-    ),
-    LinkTableColumnDescriptor(
         column=LinkTableColumn.TYPE,
         key="type",
         header_source="Type",
@@ -114,7 +103,17 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         header_tooltip_source="Resource type",
         fallback_width=104,
         display_builder="_display_type",
-        tooltip_builder="_tooltip_type",
+    ),
+    LinkTableColumnDescriptor(
+        column=LinkTableColumn.NOTES,
+        key="notes",
+        header_source="Notes",
+        chevron_padding=True,
+        min_width=120,
+        stretch=True,
+        resize_mode="stretch",
+        display_builder="_display_notes",
+        tooltip_builder="_tooltip_notes",
     ),
 )
 

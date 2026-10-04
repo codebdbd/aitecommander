@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import lru_cache
+from app.utils.cache.selective_lru import selective_lru_cache
 from typing import Any
 
 from PyQt6.QtCore import (
@@ -112,7 +112,7 @@ def get_rotation_icon(size: int = 16, *, is_selected: bool = False) -> QIcon | N
 
 
 # Global icon cache to avoid memory leaks with lru_cache on methods
-@lru_cache(maxsize=1024)
+@selective_lru_cache(maxsize=1024)
 def _get_icon_cached(icon_path: str) -> QIcon | None:
     """Global icon cache function to avoid memory leaks."""
     if not icon_path:
@@ -122,6 +122,10 @@ def _get_icon_cached(icon_path: str) -> QIcon | None:
         return icon if isinstance(icon, QIcon) and not icon.isNull() else None
     except Exception:
         return None
+
+
+def invalidate_links_table_icon_cache(target) -> None:
+    _get_icon_cached.cache_invalidate(lambda key, value: target.matches(key))
 
 
 def clear_links_table_icon_cache() -> None:

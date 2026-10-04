@@ -63,6 +63,7 @@ class BrowserProfilesLoader:
                         set_err,
                         exc_info=True,
                     )
+            cache.flush()
         except Exception as cache_err:
             logger.warning(
                 "Error initializing/writing profile cache: %s",

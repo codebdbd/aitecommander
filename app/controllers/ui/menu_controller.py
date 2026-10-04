@@ -105,14 +105,15 @@ class MenuController(QObject):
             )
         return self._category_menu_builder.build(item_id, edit_cb, delete_cb, add_cb)
 
-    def clear_cache(self):
+    def clear_cache(self, keep_main_menu_builder: bool = False):
         """Clear menu builders cache (e.g., after theme change)."""
         from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 
         icon_cache.clear_cache()
 
         # Recreate builders on next use
-        self._main_menu_builder = None
+        if not keep_main_menu_builder:
+            self._main_menu_builder = None
         self._structure_menu_builder = None
         self._links_menu_builder = None
         self._category_menu_builder = None
@@ -121,7 +122,18 @@ class MenuController(QObject):
         """Rebuild the main menu after theme change.
         Encapsulates cache clearing and menu recreation.
         """
-        self.clear_cache()
+        self.clear_cache(keep_main_menu_builder=True)
+        if self._main_menu_builder is not None:
+            theme = None
+            if hasattr(self.main_window, "settings") and hasattr(
+                self.main_window.settings, "get_theme"
+            ):
+                theme = self.main_window.settings.get_theme()
+            if not theme:
+                from app.utils.ui.icon.path_service import get_current_theme
+
+                theme = get_current_theme()
+            self._main_menu_builder.update_theme(theme)
 
     def rebuild_after_language_change(self) -> None:
         """Rebuild the main menu after language change."""

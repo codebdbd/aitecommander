@@ -437,11 +437,10 @@ class TableDelegate(QStyledItemDelegate):
 
         col = index.column()
 
-        # Suppress tooltip for order (#), group launch, and type columns — eliminate obvious UI noise
+        # Suppress tooltip for order (#) and group launch columns — eliminate obvious UI noise
         if (
             is_column(col, LinkTableColumn.ORDER)
             or is_column(col, LinkTableColumn.GROUP_LAUNCH)
-            or is_column(col, LinkTableColumn.TYPE)
         ):
             return False
 
@@ -465,6 +464,17 @@ class TableDelegate(QStyledItemDelegate):
             QToolTip.showText(event.globalPos(), html.escape(preview), view)
             return True
 
+        # Type column: ONLY show tooltip if type label is actually cut off (elided)
+        if is_column(col, LinkTableColumn.TYPE):
+            type_text = str(index.data(Qt.ItemDataRole.DisplayRole) or "").strip()
+            if not type_text:
+                return False
+            available_w = max(0, option.rect.width() - 8)
+            if fm.horizontalAdvance(type_text) <= available_w:
+                return False
+            QToolTip.showText(event.globalPos(), type_text, view)
+            return True
+
         # Name column: ONLY show tooltip if name is actually cut off (elided)
         if is_column(col, LinkTableColumn.NAME):
             name = str(link.get("name") or "").strip()
@@ -474,17 +484,7 @@ class TableDelegate(QStyledItemDelegate):
             if not name_elided:
                 return False
 
-            url_or_path = str(link.get("url", "") or link.get("path", "")).strip()
-            parts: list[str] = [f"<div style='white-space: nowrap;'><b>{html.escape(name)}</b></div>"]
-            if url_or_path and url_or_path != name:
-                try:
-                    tokens = theme_registry.get_theme_tokens(get_current_theme())
-                    sec_color = tokens.get("text_secondary", "#888888")
-                except Exception:
-                    sec_color = "#888888"
-                parts.append(f"<div style='white-space: nowrap; color: {sec_color}; margin-top: 2px;'>{html.escape(url_or_path)}</div>")
-
-            QToolTip.showText(event.globalPos(), "".join(parts), view)
+            QToolTip.showText(event.globalPos(), name, view)
             return True
 
         return super().helpEvent(event, view, option, index)
@@ -1125,6 +1125,7 @@ class LinksTableView(
         self._drop_indicator_row: int | None = None
         self._drop_indicator_pos: QAbstractItemView.DropIndicatorPosition | None = None
         self._sort_controller = LinkTableSortController()
+        self._stored_name_width: int = 400
         self._setup_table()
 
         # Forward base-class signal to our alias for compatibility
@@ -1281,6 +1282,7 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect orderEdited", exc_info=True
             )
+        self._adjust_responsive_columns()
 
     def _on_model_data_changed(self, *args, **kwargs) -> None:
         try:
@@ -1489,6 +1491,46 @@ class LinksTableView(
             if viewport is not None:
                 viewport.update()
         event.accept()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._adjust_responsive_columns()
+
+    def _adjust_responsive_columns(self) -> None:
+        """Responsive column visibility guard: cleanly hide notes if < 120 px."""
+        header = self.horizontalHeader()
+        if header is None:
+            return
+        viewport_w = self.viewport().width()
+        if viewport_w <= 0:
+            return
+
+        notes_col = int(LinkTableColumn.NOTES)
+        name_col = int(LinkTableColumn.NAME)
+
+        fixed_others = sum(
+            header.sectionSize(desc.index)
+            for desc in LINK_TABLE_COLUMNS
+            if desc.column not in (LinkTableColumn.NOTES, LinkTableColumn.NAME)
+        )
+        current_name_w = (
+            self._stored_name_width
+            if header.isSectionHidden(notes_col)
+            else max(160, header.sectionSize(name_col))
+        )
+        avail_for_notes = viewport_w - fixed_others - current_name_w
+
+        if avail_for_notes < 120:
+            if not header.isSectionHidden(notes_col):
+                self._stored_name_width = max(160, header.sectionSize(name_col))
+                header.setSectionHidden(notes_col, True)
+                header.setSectionResizeMode(name_col, QHeaderView.ResizeMode.Stretch)
+        else:
+            if header.isSectionHidden(notes_col):
+                header.setSectionHidden(notes_col, False)
+                header.setSectionResizeMode(notes_col, QHeaderView.ResizeMode.Stretch)
+                header.setSectionResizeMode(name_col, QHeaderView.ResizeMode.Interactive)
+                self.setColumnWidth(name_col, self._stored_name_width)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():

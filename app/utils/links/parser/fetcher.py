@@ -121,7 +121,7 @@ def _is_host_temporarily_unreachable(host: str) -> bool:
     normalized = str(host or "").strip().lower()
     if not normalized:
         return False
-    now = time.time()
+    now = time.monotonic()
     with _HOST_FAILURE_LOCK:
         expires_at = _HOST_FAILURES.get(normalized)
         if expires_at is None:
@@ -137,7 +137,14 @@ def _mark_host_temporarily_unreachable(host: str, *, ttl: float = SHORT_NEGATIVE
     if not normalized:
         return
     with _HOST_FAILURE_LOCK:
-        _HOST_FAILURES[normalized] = time.time() + max(1.0, float(ttl))
+        _HOST_FAILURES[normalized] = time.monotonic() + max(1.0, float(ttl))
+        if len(_HOST_FAILURES) > 500:
+            now = time.monotonic()
+            expired = [h for h, exp in _HOST_FAILURES.items() if exp <= now]
+            for h in expired:
+                _HOST_FAILURES.pop(h, None)
+            while len(_HOST_FAILURES) > 500:
+                _HOST_FAILURES.pop(next(iter(_HOST_FAILURES)), None)
 
 
 def _clear_host_temporary_failure(host: str) -> None:

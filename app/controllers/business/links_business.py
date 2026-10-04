@@ -1,5 +1,6 @@
 # app/controllers/links_business.py
 
+import copy
 import logging
 import os
 from collections import defaultdict
@@ -20,7 +21,12 @@ from app.services.links_service import LinksService
 from app.utils.db.api import run_db
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.synchronization import tasks_lock
-from app.utils.metrics import measure_time
+from app.utils.metrics import PerformanceMetrics, get_metrics, measure_time
+
+try:
+    _metrics: PerformanceMetrics | None = get_metrics()
+except Exception:
+    _metrics = None
 from app.utils.validators.link_validators import validate_link_form_data
 
 
@@ -65,6 +71,13 @@ def handle_errors(func: Callable[..., Any]) -> Callable[..., Any]:
                 raise
 
     return wrapper
+
+
+def _link_cache_size(value: Any) -> int:
+    """Calculate weight of cached entry by item count."""
+    if isinstance(value, (list, tuple, set)):
+        return max(1, len(value))
+    return 1
 
 
 class LinksBusinessLogic(QObject):
@@ -136,7 +149,7 @@ class LinksBusinessLogic(QObject):
 
         # TTLCache with automatic expiration for better memory management
         self._cache: cachetools.TTLCache[str, Any] = cachetools.TTLCache(
-            maxsize=128, ttl=self.CACHE_TTL_SECONDS
+            maxsize=2048, ttl=self.CACHE_TTL_SECONDS, getsizeof=_link_cache_size
         )
         self._load_links_started: dict[int, float] = {}
         self._diag_links_load = str(os.getenv("APP_LINKS_LOAD_DIAG", "")).lower() in {
@@ -241,11 +254,12 @@ class LinksBusinessLogic(QObject):
             return []
 
         cache_key = f"sync_links:{category_id}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
 
         links = self.links.get_links(category_id) or []
-        self._cache[cache_key] = links
+        self._cache_set(cache_key, links)
         return links
 
     def get_recent_links(self, limit: int = DEFAULT_RECENT_LIMIT) -> list[dict[str, Any]]:
@@ -254,10 +268,11 @@ class LinksBusinessLogic(QObject):
             self.logger.warning("Invalid limit for recent links: %s", limit)
             return []
         cache_key = f"recent_links_{limit}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
         links = self.links.get_recent_links(limit) or []
-        self._cache[cache_key] = links
+        self._cache_set(cache_key, links)
         return links
 
     def get_favorite_links(self, limit: int | None = None) -> list[dict[str, Any]]:
@@ -266,10 +281,11 @@ class LinksBusinessLogic(QObject):
         cache_key = (
             f"favorite_links_{limit_key}" if limit_key is not None else "favorite_links"
         )
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
         links = self.links.get_favorite_links(limit=limit_key) or []
-        self._cache[cache_key] = links
+        self._cache_set(cache_key, links)
         return links
 
     @measure_time("search_links", log_threshold_ms=300)
@@ -471,8 +487,9 @@ class LinksBusinessLogic(QObject):
             return
 
         cache_key = f"recent_links_{limit}"
-        if cache_key in self._cache:
-            self.recent_links_loaded.emit(self._cache[cache_key])
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            self.recent_links_loaded.emit(cached)
             return
 
         gen = self._cache_generation
@@ -490,8 +507,9 @@ class LinksBusinessLogic(QObject):
         cache_key = (
             f"favorite_links_{limit_key}" if limit_key is not None else "favorite_links"
         )
-        if cache_key in self._cache:
-            self.favorite_links_loaded.emit(self._cache[cache_key])
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            self.favorite_links_loaded.emit(cached)
             return
 
         gen = self._cache_generation
@@ -522,8 +540,9 @@ class LinksBusinessLogic(QObject):
             return
 
         cache_key = f"link_{link_id}"
-        if cache_key in self._cache:
-            self.link_by_id_loaded.emit(self._cache[cache_key], link_id)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            self.link_by_id_loaded.emit(cached, link_id)
             return
 
         gen = self._cache_generation
@@ -548,8 +567,9 @@ class LinksBusinessLogic(QObject):
             return
 
         cache_key = f"next_pos_{category_id}"
-        if cache_key in self._cache:
-            self.next_position_loaded.emit(self._cache[cache_key], category_id)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            self.next_position_loaded.emit(cached, category_id)
             return
 
         gen = self._cache_generation
@@ -784,21 +804,56 @@ class LinksBusinessLogic(QObject):
     def _get_all_links_safe(self) -> list[dict[str, Any]]:
         """Return all links for internal usage with caching."""
         cache_key = "all_links_safe"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
 
         result = self.links.get_recent_links(limit=1000) or []
-        self._cache[cache_key] = result
+        self._cache_set(cache_key, result)
         return result
 
     def _get_cached(self, cache_key: str, loader: Callable[[], Any]) -> Any:
         """Retrieve a value from the local cache or load it via ``loader``."""
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
 
         value = loader()
-        self._cache[cache_key] = value
+        self._cache_set(cache_key, value)
         return value
+
+    def _cache_get(self, key: str) -> Any | None:
+        """Thread-safe cache read returning a shallow copy for collections."""
+        with self._tasks_lock:
+            val = self._cache.get(key)
+            if val is None:
+                if _metrics:
+                    _metrics.record_cache_miss("links_cache")
+                return None
+            if _metrics:
+                _metrics.record_cache_hit("links_cache")
+            if isinstance(val, list):
+                return [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in val]
+            if isinstance(val, dict):
+                return copy.deepcopy(val)
+            return val
+
+    def _cache_set(self, key: str, value: Any) -> None:
+        """Thread-safe cache write storing a shallow copy for collections."""
+        if isinstance(value, list):
+            val_to_store = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in value]
+        elif isinstance(value, dict):
+            val_to_store = copy.deepcopy(value)
+        else:
+            val_to_store = value
+        if _link_cache_size(val_to_store) > self._cache.maxsize:
+            self.logger.debug("Skip caching payload exceeding maxsize for key=%s", key)
+            return
+        with self._tasks_lock:
+            try:
+                self._cache[key] = val_to_store
+            except ValueError:
+                pass
 
     def _run_db_task(
         self,
@@ -853,6 +908,12 @@ class LinksBusinessLogic(QObject):
         emit_func: Callable[[Any], None],
         expected_generation: int | None = None,
     ) -> None:
+        if isinstance(data, list):
+            val_to_store = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in data]
+        elif isinstance(data, dict):
+            val_to_store = copy.deepcopy(data)
+        else:
+            val_to_store = data
         with self._tasks_lock:
             if expected_generation is not None:
                 current_gen = self._cache_generation
@@ -864,8 +925,14 @@ class LinksBusinessLogic(QObject):
                         current_gen,
                     )
                     return
-            self._cache[key] = data
-        emit_func(data)
+            can_cache = _link_cache_size(val_to_store) <= self._cache.maxsize
+            if can_cache:
+                try:
+                    self._cache[key] = val_to_store
+                except ValueError:
+                    pass
+        emit_data = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in data] if isinstance(data, list) else data
+        emit_func(emit_data)
 
     # Helpers for handling asynchronous results
 

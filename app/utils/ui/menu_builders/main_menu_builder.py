@@ -40,7 +40,7 @@ class MainMenuBuilder:
         parent_widget = cast(QWidget, main_window)
         self.actions = ActionBuilder(parent_widget)
         self.theme = main_window.settings.get_theme()
-        self._deferred_icons: list[tuple[object, str]] = []
+        self._themed_actions: list[tuple[object, str]] = []
 
     def build(self) -> QMenuBar:
         """Create and return the fully built main menu bar."""
@@ -71,7 +71,18 @@ class MainMenuBuilder:
         return menubar
 
     def _queue_icon(self, action, icon_name: str) -> None:
-        self._deferred_icons.append((action, icon_name))
+        self._themed_actions.append((action, icon_name))
+
+    def update_theme(self, theme: str) -> None:
+        """Update icons for all registered actions in-place upon theme change."""
+        self.theme = theme
+        for action, icon_name in self._themed_actions:
+            try:
+                action.setIcon(get_menu_icon(icon_name, theme, "main_menu"))  # type: ignore[attr-defined]
+            except RuntimeError:
+                continue
+            except Exception:
+                logger.debug("MainMenu: failed to update icon %s", icon_name, exc_info=True)
 
     def _create_action(
         self,
@@ -89,8 +100,7 @@ class MainMenuBuilder:
         """Attach menu icons after the initial menu structure is already built."""
 
         def _run() -> None:
-            pending = list(self._deferred_icons)
-            self._deferred_icons.clear()
+            pending = list(self._themed_actions)
             for action, icon_name in pending:
                 try:
                     action.setIcon(get_menu_icon(icon_name, self.theme, "main_menu"))

@@ -93,14 +93,4 @@ class ItemBuildersMixin:
 
     def _name_tooltip(self, link: dict) -> str:
         """Return clean, compact tooltip for the name column."""
-        name = html.escape(str(link.get("name") or "").strip())
-        url_or_path = html.escape(str(link.get("url", "") or link.get("path", "")).strip())
-        if not name and not url_or_path:
-            return ""
-
-        parts: list[str] = []
-        if name:
-            parts.append(f"<b>{name}</b>")
-        if url_or_path and url_or_path != name:
-            parts.append(f"<span style='color: #888888;'>{url_or_path}</span>")
-        return "<br>".join(parts)
+        return str(link.get("name") or "").strip()

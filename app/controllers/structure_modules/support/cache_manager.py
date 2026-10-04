@@ -24,7 +24,7 @@ class CacheManager:
         logger: Optional[logging.Logger] = None,
         *,
         ttl: Optional[float] = None,
-        max_size: Optional[int] = None,
+        max_size: Optional[int] = 500,
     ):
         # Maintain backward compatibility: if logger not provided, use module logger
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)

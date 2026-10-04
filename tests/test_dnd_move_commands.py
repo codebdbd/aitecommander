@@ -38,15 +38,16 @@ class TestDndMoveCommands(unittest.TestCase):
             "position": 0,
             "icon_path": "",
         }
+        sb.get_categories_by_ids.return_value = [sb.get_category_data.return_value]
         sb.has_duplicate_category.return_value = False
-        sb.update_category.return_value = {"id": 11, "section_id": 3}
+        sb.move_categories_batch.return_value = [11]
         main.structure_business = sb
 
         cmd = MoveCategoryCommand(11, 3, main)
         cmd.redo()
         cmd.undo()
 
-        self.assertGreaterEqual(sb.update_category.call_count, 2)
+        self.assertGreaterEqual(sb.move_categories_batch.call_count, 1)
         sb.select_category.assert_called()
 
     def test_move_categories_command_redo_calls_batch_move(self) -> None:

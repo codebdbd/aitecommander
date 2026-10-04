@@ -483,29 +483,27 @@ class ThemeStylesheetService:
 
             hover_block = (
                 f"\n\n/* ==== TopBar button hover accent fill ==== */\n"
-                f"QWidget#topBarHost QToolButton#quickButton:hover,\n"
-                f"QWidget#topBarHost QToolButton#favoriteButton:hover,\n"
-                f"QWidget#topBarHost QToolButton#recentButton:hover,\n"
-                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:hover {{\n"
+                f"QWidget#topBarHost QToolButton:hover,\n"
+                f"QWidget#bottomBarContainer QPushButton:hover {{\n"
                 f"    background: {bg_hover};\n"
                 f"    background-color: {bg_hover};\n"
                 f"}}\n"
-                f"QWidget#topBarHost QToolButton#quickButton:pressed,\n"
-                f"QWidget#topBarHost QToolButton#favoriteButton:pressed,\n"
-                f"QWidget#topBarHost QToolButton#recentButton:pressed,\n"
-                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"]:pressed {{\n"
+                f"QWidget#topBarHost QToolButton:pressed,\n"
+                f"QWidget#bottomBarContainer QPushButton:pressed {{\n"
                 f"    background: {bg_hover};\n"
                 f"    background-color: {bg_hover};\n"
                 f"    border-color: {border_active};\n"
                 f"}}\n"
-                f"QWidget#topBarHost QToolButton#quickButton[menu_active=\"true\"],\n"
-                f"QWidget#topBarHost QToolButton#favoriteButton[menu_active=\"true\"],\n"
-                f"QWidget#topBarHost QToolButton#recentButton[menu_active=\"true\"],\n"
-                f"QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"][menu_active=\"true\"] {{\n"
+                f"QWidget#topBarHost QToolButton[menu_active=\"true\"] {{\n"
                 f"    background: {menu_bg};\n"
                 f"    background-color: {menu_bg};\n"
                 f"    border-color: {menu_border};\n"
                 f"    border-bottom-color: {menu_bg};\n"
+                f"}}\n"
+                f"QWidget#topBarHost QToolButton::menu-indicator {{\n"
+                f"    image: none;\n"
+                f"    width: 0px;\n"
+                f"    height: 0px;\n"
                 f"}}\n"
             )
             return f"{qss}{hover_block}"
@@ -941,17 +939,6 @@ class ThemeStylesheetService:
             lines.append(
                 "QWidget#topBarHost QToolBar { "
                 f"spacing: {toolbar_spacing}px; "
-                "}"
-            )
-        except Exception:
-            pass
-        try:
-            btn_size = int(self._app_config.ui.get_top_panel_button_size())
-            lines.append(
-                "QToolBar#topBarToolbar QToolButton[toolbar_btn=\"true\"] { "
-                f"min-width: {btn_size}px; max-width: {btn_size}px; "
-                f"min-height: {btn_size}px; max-height: {btn_size}px; "
-                "margin: 0px; "
                 "}"
             )
         except Exception:
