@@ -360,7 +360,6 @@ class ToolbarActionAdapter(QObject):
             button = self._toolbar.widgetForAction(action)
             if isinstance(button, QToolButton):
                 button.setObjectName(self._button_object_name)
-                button.setFixedSize(self._button_size)
                 button.setIconSize(self._icon_size)
                 button.setProperty("toolbar_btn", True)
                 button.setProperty("toolbar_last", False)
@@ -477,6 +476,8 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
     def refresh_actions(self) -> None:
         if (
             hasattr(self, "_toggle_action")
+            and hasattr(self, "_back_action")
+            and hasattr(self, "_forward_action")
             and hasattr(self, "_sec_action")
             and hasattr(self, "_cat_action")
             and self._actions
@@ -490,6 +491,20 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
                 btn = self._toolbar.widgetForAction(self._toggle_action)
                 if isinstance(btn, QToolButton):
                     _setup_topbar_button_contrast(btn, toggle_icon, "left_panel_close.svg")
+
+            back_icon = get_menu_icon("skip_previous", theme)
+            if back_icon and not back_icon.isNull():
+                self._back_action.setIcon(back_icon)
+                btn = self._toolbar.widgetForAction(self._back_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, back_icon, "skip_previous.svg")
+
+            fwd_icon = get_menu_icon("skip_next", theme)
+            if fwd_icon and not fwd_icon.isNull():
+                self._forward_action.setIcon(fwd_icon)
+                btn = self._toolbar.widgetForAction(self._forward_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, fwd_icon, "skip_next.svg")
 
             sec_icon = get_menu_icon("add_section", theme)
             if sec_icon and not sec_icon.isNull():
@@ -527,6 +542,40 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if isinstance(toggle_btn, QToolButton):
             toggle_btn.setObjectName("topBarToggleLeftPanelButton")
             _setup_topbar_button_contrast(toggle_btn, toggle_icon, "left_panel_close.svg")
+
+        # Navigate back
+        back_icon = get_menu_icon("skip_previous", theme)
+        if not back_icon or back_icon.isNull():
+            back_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "skip_previous.svg")
+        back_text = QCoreApplication.translate("MenuActions", "Back")
+        back_action = QAction(back_icon, back_text, self._toolbar)
+        back_action.setToolTip(f"{back_text} (Alt+Left)")
+        back_action.setShortcut("Alt+Left")
+        back_action.triggered.connect(self._on_navigate_back)
+        self._add_action(back_action)
+        self._back_action = back_action
+        back_btn = self._toolbar.widgetForAction(back_action)
+        if isinstance(back_btn, QToolButton):
+            back_btn.setObjectName("topBarBackButton")
+            _setup_topbar_button_contrast(back_btn, back_icon, "skip_previous.svg")
+
+        # Navigate forward
+        fwd_icon = get_menu_icon("skip_next", theme)
+        if not fwd_icon or fwd_icon.isNull():
+            fwd_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "skip_next.svg")
+        fwd_text = QCoreApplication.translate("MenuActions", "Forward")
+        fwd_action = QAction(fwd_icon, fwd_text, self._toolbar)
+        fwd_action.setToolTip(f"{fwd_text} (Alt+Right)")
+        fwd_action.setShortcut("Alt+Right")
+        fwd_action.triggered.connect(self._on_navigate_forward)
+        self._add_action(fwd_action)
+        self._forward_action = fwd_action
+        fwd_btn = self._toolbar.widgetForAction(fwd_action)
+        if isinstance(fwd_btn, QToolButton):
+            fwd_btn.setObjectName("topBarForwardButton")
+            _setup_topbar_button_contrast(fwd_btn, fwd_icon, "skip_next.svg")
+
+        self._add_separator()
 
         # Add section
         sec_icon = get_menu_icon("add_section", theme)
@@ -573,6 +622,14 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
     def _on_toggle_left_panel(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "toggle_left_panel"):
             self._category_provider.toggle_left_panel()
+
+    def _on_navigate_back(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "navigate_back"):
+            self._category_provider.navigate_back()
+
+    def _on_navigate_forward(self) -> None:
+        if self._category_provider and hasattr(self._category_provider, "navigate_forward"):
+            self._category_provider.navigate_forward()
 
 
 class ToolsToolbarAdapter(ToolbarActionAdapter):

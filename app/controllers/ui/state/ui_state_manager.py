@@ -28,6 +28,10 @@ class UIStateManager:
         self.main = main_window
         # Simple flag to prevent parallel loading of same category
         self._loading: bool = False
+        # Navigation history stack for categories
+        self._history: list[int] = []
+        self._history_index: int = -1
+        self._navigating_history: bool = False
 
     def load_category(self, category_id: int, source: str = "unknown") -> bool:
         """SINGLE method for category loading in the application.
@@ -122,6 +126,9 @@ class UIStateManager:
             self._switch_to_table_view()
             self._clear_tiles_selection()
 
+            if not self._navigating_history:
+                self._record_history(category_id)
+
             logger.debug("Successfully loaded category %s from %s", category_id, source)
             return True
 
@@ -185,6 +192,67 @@ class UIStateManager:
         """Handle category loading errors."""
         self._clear_tiles_selection()
         # Can add user notification in future
+
+    # --- Navigation history methods ---
+    def _record_history(self, category_id: int) -> None:
+        """Record category visit in navigation history."""
+        if 0 <= self._history_index < len(self._history):
+            if self._history[self._history_index] == category_id:
+                return
+        self._history = self._history[: self._history_index + 1]
+        self._history.append(category_id)
+        if len(self._history) > 50:
+            self._history.pop(0)
+        self._history_index = len(self._history) - 1
+
+    def can_navigate_back(self) -> bool:
+        return self._history_index > 0
+
+    def can_navigate_forward(self) -> bool:
+        return 0 <= self._history_index < len(self._history) - 1
+
+    def navigate_back(self) -> bool:
+        if not self.can_navigate_back():
+            return False
+        self._history_index -= 1
+        target_id = self._history[self._history_index]
+        return self._navigate_to_history_category(target_id)
+
+    def navigate_forward(self) -> bool:
+        if not self.can_navigate_forward():
+            return False
+        self._history_index += 1
+        target_id = self._history[self._history_index]
+        return self._navigate_to_history_category(target_id)
+
+    def _navigate_to_history_category(self, category_id: int) -> bool:
+        self._navigating_history = True
+        try:
+            sb = getattr(self.main, "structure_business", None)
+            if sb and hasattr(sb, "get_category_hierarchy"):
+                hierarchy = sb.get_category_hierarchy(category_id)
+                if hierarchy and isinstance(hierarchy, dict):
+                    target_sphere = hierarchy.get("sphere_id")
+                    current_sphere = getattr(sb, "current_sphere_id", None)
+                    if (
+                        isinstance(target_sphere, int)
+                        and target_sphere > 0
+                        and target_sphere != current_sphere
+                        and hasattr(sb, "set_current_sphere")
+                    ):
+                        sb.set_current_sphere(target_sphere)
+            struct_ctrl = getattr(self.main, "structure_controller", None)
+            handler = getattr(struct_ctrl, "selection_handler", None) if struct_ctrl else None
+            if handler and hasattr(handler, "_restore_category_selection"):
+                handler._restore_category_selection(category_id)
+            else:
+                self.load_category(category_id, source="NavigationHistory")
+            return True
+        except Exception:
+            logger.exception("Failed navigating to category #%s", category_id)
+            return False
+        finally:
+            self._navigating_history = False
 
     def switch_to_category_tiles(
         self, categories_data: list, *, force_show_when_empty: bool = False

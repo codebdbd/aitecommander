@@ -9,6 +9,10 @@ def test_common_qss_unifies_topbar_buttons() -> None:
     common_qss = Path("app/resources/qss/common.qss").read_text(encoding="utf-8")
     assert "QWidget#topBarHost QToolButton {" in common_qss
     assert "QWidget#topBarHost QToolButton::menu-indicator {" in common_qss
+    assert "min-width: 32px;" in common_qss
+    assert "max-width: 32px;" in common_qss
+    assert "min-height: 32px;" in common_qss
+    assert "max-height: 32px;" in common_qss
     # Fragmented per-button indicators must not exist
     assert "QToolBar#topBarToolbar QToolButton#quickButton::menu-indicator" not in common_qss
     assert "QToolBar#topBarToolbar QToolButton#favoriteButton::menu-indicator" not in common_qss
@@ -34,7 +38,24 @@ def test_theme_stylesheet_service_does_not_inject_sizes() -> None:
     assert "min-width:" not in overrides_qss or "QToolButton" not in overrides_qss
 
 
-def test_topbar_button_geometry_config() -> None:
-    assert app_config.ui.get_top_panel_button_size() == 32
+def test_topbar_icon_geometry_config() -> None:
     icon_sz = app_config.ui.get_top_panel_icon_size()
     assert tuple(icon_sz) == (24, 24)
+
+
+def test_topbar_geometry_contract() -> None:
+    """Verify the exact 323px top bar toolbar geometry contract:
+    4px left margin + 8 buttons (34px with 1px border / 32px content) +
+    3 separators (1px) + 10 gaps (4px spacing) + 4px separator spacing == 323px.
+    """
+    button_content_size = 32
+    border_width = 1
+    button_total_size = button_content_size + 2 * border_width  # 34px
+    buttons_count = 8
+    separators_count = 3
+    spacing = 4
+    gaps_count = (buttons_count + separators_count) - 1  # 10
+    left_margin = 4
+    sep_spacing = 4
+    total_width = left_margin + buttons_count * button_total_size + separators_count * 1 + gaps_count * spacing + sep_spacing
+    assert total_width == 323

@@ -355,7 +355,6 @@ class TopBarBuilder:
             light_btn = settings_toolbar.widgetForAction(light_action)
             if isinstance(light_btn, QToolButton):
                 light_btn.setObjectName("topBarLightThemeButton")
-                light_btn.setFixedSize(btn_size, btn_size)
                 light_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
                 light_btn.setProperty("toolbar_btn", True)
                 light_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -376,7 +375,6 @@ class TopBarBuilder:
             dark_btn = settings_toolbar.widgetForAction(dark_action)
             if isinstance(dark_btn, QToolButton):
                 dark_btn.setObjectName("topBarDarkThemeButton")
-                dark_btn.setFixedSize(btn_size, btn_size)
                 dark_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
                 dark_btn.setProperty("toolbar_btn", True)
                 dark_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -397,7 +395,6 @@ class TopBarBuilder:
             settings_btn = settings_toolbar.widgetForAction(settings_action)
             if isinstance(settings_btn, QToolButton):
                 settings_btn.setObjectName("topBarSettingsButton")
-                settings_btn.setFixedSize(btn_size, btn_size)
                 settings_btn.setIconSize(QSize(int(icon_sz[0]), int(icon_sz[1])))
                 settings_btn.setProperty("toolbar_btn", True)
                 settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)

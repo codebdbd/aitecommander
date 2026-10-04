@@ -171,6 +171,18 @@ class MainWindow(QMainWindow, ReTranslatable):
             return None
         return self.facade.get_current_category_id()
 
+    def navigate_back(self) -> bool:
+        ui_state = getattr(self, "ui_state", None)
+        if ui_state and hasattr(ui_state, "navigate_back"):
+            return bool(ui_state.navigate_back())
+        return False
+
+    def navigate_forward(self) -> bool:
+        ui_state = getattr(self, "ui_state", None)
+        if ui_state and hasattr(ui_state, "navigate_forward"):
+            return bool(ui_state.navigate_forward())
+        return False
+
     def edit_structure_item(self, item: "StructureItem") -> None:
         """Edit a structure item."""
         if self.structure:
