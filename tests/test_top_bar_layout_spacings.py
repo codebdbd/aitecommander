@@ -126,7 +126,7 @@ def test_common_qss_contains_toolbar_button_styles() -> None:
     common_path = PathManager.qss_dir() / "common.qss"
     assert common_path.exists()
     content = common_path.read_text(encoding="utf-8")
-    assert 'QToolBar#topBarToolbar QToolButton[toolbar_btn="true"]' in content
+    assert "QWidget#topBarHost QToolButton" in content
 
 
 def test_theme_stylesheet_service_generates_toolbar_overrides() -> None:
@@ -134,7 +134,7 @@ def test_theme_stylesheet_service_generates_toolbar_overrides() -> None:
     from app.services.theme_stylesheet_service import ThemeStylesheetService
     service = ThemeStylesheetService(runtime_app_config)
     overrides = service._build_config_overrides_qss()
-    assert 'QToolBar#topBarToolbar QToolButton[toolbar_btn="true"]' in overrides
+    assert "QWidget#topBarHost QToolBar" in overrides
 
 
 def test_topbar_toolbar_ext_button_alignment(qapp: QApplication) -> None:

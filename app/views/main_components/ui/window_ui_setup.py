@@ -926,9 +926,8 @@ class WindowUISetup:
         search.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        min_search_w = self._resolve_search_min_width()
         try:
-            search.setMinimumWidth(min_search_w)
+            search.setMinimumWidth(80)
         except Exception:
             logger.debug("SearchWidget: failed to set min width", exc_info=True)
 
@@ -1179,7 +1178,7 @@ class WindowUISetup:
         try:
             threshold_w = int(app_config.ui.get_auto_hide_tree_threshold())
         except (TypeError, ValueError, AttributeError):
-            threshold_w = 320
+            threshold_w = 323
 
         try:
             self.window._auto_hide_tree_filter = _AutoHideTreeFilter(

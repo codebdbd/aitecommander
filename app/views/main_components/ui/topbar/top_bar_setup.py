@@ -6,7 +6,7 @@ import logging
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QCoreApplication, QSize, Qt
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWidget
 
@@ -73,6 +73,9 @@ class TopBarToolBar(QToolBar):
         self._button_height = max(1, int(height))
         self._centre_ext_button()
 
+    def minimumSizeHint(self) -> QSize:
+        return self.sizeHint()
+
     def resizeEvent(self, event) -> None:
         try:
             super().resizeEvent(event)
@@ -94,6 +97,70 @@ class TopBarToolBar(QToolBar):
                 btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
         except (RuntimeError, AttributeError):
             pass
+
+
+class TopBarResponsiveFilter(QObject):
+    """Orchestrates responsive visibility for top bar components on window resize.
+
+    Strict sequence:
+    1. Settings/theme buttons block hides first.
+    2. Search widget compresses down to min width (80px).
+    3. Favorites compress down to 8 base buttons.
+    4. Search widget and its separator hide completely.
+    5. The 8 base buttons remain always visible (323px minimum).
+    """
+
+    def __init__(self, window: QWidget, top_bar_host: QWidget) -> None:
+        super().__init__(top_bar_host)
+        self.window = window
+        self.host = top_bar_host
+
+    def update_responsive(self, width: int | None = None) -> None:
+        if width is None:
+            try:
+                width = self.host.width()
+            except (RuntimeError, AttributeError):
+                return
+
+        toolbar = getattr(self.window, "top_bar_toolbar", None)
+        search = getattr(self.window, "search", None)
+        search_sep = getattr(self.window, "search_separator", None)
+        theme_container = getattr(self.window, "theme_selector_container", None)
+
+        if toolbar is None or search is None:
+            return
+
+        BASE_TOOLBAR_W = 323
+        THEME_BLOCK_W = 125
+        SEARCH_MIN_W = 80
+        SEARCH_SEP_W = 13
+        SEARCH_NORMAL_W = 160
+
+        try:
+            full_toolbar_w = max(BASE_TOOLBAR_W, toolbar.sizeHint().width())
+        except (RuntimeError, AttributeError):
+            full_toolbar_w = BASE_TOOLBAR_W
+
+        threshold_theme = full_toolbar_w + SEARCH_SEP_W + SEARCH_NORMAL_W + THEME_BLOCK_W
+        threshold_search = BASE_TOOLBAR_W + SEARCH_SEP_W + SEARCH_MIN_W
+
+        show_theme = width >= threshold_theme
+        if theme_container is not None and theme_container.isVisible() != show_theme:
+            theme_container.setVisible(show_theme)
+
+        show_search = width >= threshold_search
+        if search.isVisible() != show_search:
+            search.setVisible(show_search)
+        if search_sep is not None and search_sep.isVisible() != show_search:
+            search_sep.setVisible(show_search)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self.host and event.type() == QEvent.Type.Resize:
+            try:
+                self.update_responsive(event.size().width())  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        return super().eventFilter(watched, event)
 
 
 class TopBarBuilder:
@@ -201,9 +268,10 @@ class TopBarBuilder:
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             toolbar.setSizePolicy(
-                getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                QSizePolicy.Policy.Preferred,
                 QSizePolicy.Policy.Fixed,
             )
+            toolbar.setMinimumWidth(323)
             try:
                 toolbar.setFixedHeight(int(app_config.ui.get_top_bar_height()))
             except (TypeError, ValueError, AttributeError):
@@ -216,12 +284,6 @@ class TopBarBuilder:
             sep_add_tools = toolbar.addSeparator()
             sep_tools_recent = toolbar.addSeparator()
             sep_recent_fav = toolbar.addSeparator()
-
-            # Invisible anchor action: ensures Favorite actions are inserted
-            # before any trailing items added to the toolbar later.
-            end_marker = QAction(toolbar)
-            end_marker.setVisible(False)
-            toolbar.addAction(end_marker)
 
             sep_controller = ToolbarSeparatorController(
                 sep_add_tools, sep_tools_recent, sep_recent_fav
@@ -252,6 +314,11 @@ class TopBarBuilder:
                 emit_refresh_on_click=True,
                 separator_controller=sep_controller,
             )
+
+            end_marker = QAction(toolbar)
+            end_marker.setVisible(False)
+            toolbar.addAction(end_marker)
+
             fav_adapter = LinksToolbarAdapter(
                 toolbar,
                 insert_before=end_marker,
@@ -294,10 +361,13 @@ class TopBarBuilder:
         try:
             sep_spacing = int(app_config.ui.get_topbar_separator_spacing())
             top_bar.addSpacing(sep_spacing)
-            top_bar.addWidget(self.ui._create_vertical_separator())
+            search_sep = self.ui._create_vertical_separator()
+            top_bar.addWidget(search_sep)
+            self.window.search_separator = search_sep
             top_bar.addSpacing(sep_spacing)
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to insert toolbar/search separator", exc_info=True)
+
 
         # Add search widget to layout after toolbar
         with timer.measure("search"):
@@ -318,7 +388,7 @@ class TopBarBuilder:
 
             sep_spacing = int(app_config.ui.get_topbar_separator_spacing())
             theme_layout = QHBoxLayout()
-            theme_layout.setContentsMargins(0, 0, 0, 0)
+            theme_layout.setContentsMargins(sep_spacing, 0, 0, 0)
             theme_layout.setSpacing(sep_spacing)
             theme_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
@@ -405,7 +475,6 @@ class TopBarBuilder:
             self.window.settings_action = settings_action
 
             theme_container.setLayout(theme_layout)
-            top_bar.addSpacing(sep_spacing)
             top_bar.addWidget(theme_container)
             self.window.theme_selector_container = theme_container
         except (RuntimeError, TypeError, AttributeError):
@@ -417,6 +486,15 @@ class TopBarBuilder:
                 self.ui._normalize_top_bar_stretches(top_bar)
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to normalize top bar stretches", exc_info=True)
+
+        # Attach responsive filter to host
+        try:
+            responsive_filter = TopBarResponsiveFilter(self.window, top_bar_host)
+            top_bar_host.installEventFilter(responsive_filter)
+            self.window._top_bar_responsive_filter = responsive_filter
+            responsive_filter.update_responsive()
+        except Exception:
+            logger.debug("TopPanel: failed to install responsive filter", exc_info=True)
 
         # Schedule top panels refresh (toolbar does overflow on its own)
         with timer.measure("schedule"):

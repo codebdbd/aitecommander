@@ -4,6 +4,7 @@ import logging
 
 from PyQt6.QtGui import QFont
 
+from app.core.constants import AppConstants
 from app.core.strings import WindowStrings
 
 from .base_config import BaseConfig
@@ -89,7 +90,7 @@ class UIConfig(BaseConfig):
 
     def get_window_min_width(self) -> int:
         """Return the minimum window width."""
-        return self.get("ui.window.min_width", 280)
+        return self.get("ui.window.min_width", AppConstants.DEFAULT_WINDOW_MIN_WIDTH)
 
     def get_window_min_height(self) -> int:
         """Return the minimum window height."""
@@ -1101,9 +1102,9 @@ class UIConfig(BaseConfig):
         Config key: ``ui.auto_hide_tree_threshold``. Defaults to ``320``.
         """
         try:
-            return max(160, int(self.get("ui.auto_hide_tree_threshold", 320)))
+            return max(160, int(self.get("ui.auto_hide_tree_threshold", 323)))
         except (TypeError, ValueError):
-            return 320
+            return 323
 
     def get_topbar_throttle_ms(self) -> int:
         """Return throttle interval for top bar layout updates in milliseconds.
