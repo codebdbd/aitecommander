@@ -232,14 +232,6 @@ class TableDelegate(QStyledItemDelegate):
     def _apply_name_column_elision(self, opt):
         """Apply text elision for name column."""
         opt.textElideMode = Qt.TextElideMode.ElideRight
-        try:
-            icon_w = opt.decorationSize.width() + 8 if not opt.icon.isNull() else 0
-            available_w = max(0, opt.rect.width() - icon_w - 4)
-        except Exception:
-            available_w = opt.rect.width()
-        opt.text = opt.fontMetrics.elidedText(
-            opt.text, Qt.TextElideMode.ElideRight, available_w
-        )
         opt.displayAlignment = (
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
@@ -298,85 +290,99 @@ class TableDelegate(QStyledItemDelegate):
 
 
     def paint(self, painter, option, index):
-        self._paint_hover_highlight(painter, option, index)
-
-        col = index.column()
-        try:
-            self._current_paint_col = col
-            self._current_paint_selected = bool(
-                option.state & QStyle.StateFlag.State_Selected
-            )
-            super().paint(painter, option, index)
-        finally:
-            self._current_paint_col = -1
-            self._current_paint_selected = False
-
-        if is_column(col, LinkTableColumn.ORDER):
-            display_text = str(index.row() + 1)
-            if display_text:
-                painter.save()
-                is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
-                color = self._resolve_column_color(col)
-                if is_selected:
-                    try:
-                        tokens = theme_registry.get_theme_tokens(get_current_theme())
-                        color = QColor(tokens.get("selection_fg", "#FFFFFF"))
-                    except Exception:
-                        color = option.palette.color(QPalette.ColorRole.HighlightedText)
-                if color and color.isValid():
-                    painter.setPen(color)
-                painter.setFont(option.font)
-                painter.drawText(option.rect, int(Qt.AlignmentFlag.AlignCenter), display_text)
-                painter.restore()
-            return
-
-        if is_column(col, LinkTableColumn.TYPE):
+        is_cut = False
+        view = self.parent() if hasattr(self, "parent") else None
+        if view is not None and getattr(view, "cut_link_ids", None):
             link = index.data(Qt.ItemDataRole.UserRole)
-            if isinstance(link, dict) and bool(link.get("chrome_rotation")):
-                is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
-                sz = 16
-                margin_right = 10
-                ix = option.rect.right() - margin_right - sz
-                iy = option.rect.top() + (option.rect.height() - sz) // 2
-                try:
-                    from app.views.widgets.link.links_model import get_rotation_icon
-                    icon = get_rotation_icon(sz, is_selected=is_selected)
-                    if icon:
-                        icon.paint(painter, ix, iy, sz, sz)
-                except Exception:
-                    pass
-            return
+            if isinstance(link, dict) and link.get("id") in view.cut_link_ids:
+                is_cut = True
 
-        if is_column(col, LinkTableColumn.GROUP_LAUNCH):
-            widget = option.widget
-            style = widget.style() if widget else QApplication.style()
-            check_opt = QStyleOptionViewItem(option)
-            super().initStyleOption(check_opt, index)
+        if is_cut:
+            painter.save()
+            painter.setOpacity(0.45)
+        try:
+            self._paint_hover_highlight(painter, option, index)
 
-            state = index.data(Qt.ItemDataRole.CheckStateRole)
-            check_opt.state = check_opt.state & ~QStyle.StateFlag.State_HasFocus
-            if state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked):
-                check_opt.state |= QStyle.StateFlag.State_On
-                check_opt.state &= ~QStyle.StateFlag.State_Off
-            else:
-                check_opt.state |= QStyle.StateFlag.State_Off
-                check_opt.state &= ~QStyle.StateFlag.State_On
+            col = index.column()
+            try:
+                self._current_paint_col = col
+                self._current_paint_selected = bool(
+                    option.state & QStyle.StateFlag.State_Selected
+                )
+                super().paint(painter, option, index)
+            finally:
+                self._current_paint_col = -1
+                self._current_paint_selected = False
 
-            check_rect = style.subElementRect(
-                QStyle.SubElement.SE_ItemViewItemCheckIndicator, check_opt, widget
-            )
-            w = check_rect.width()
-            h = check_rect.height()
-            x = option.rect.x() + (option.rect.width() - w) // 2
-            y = option.rect.y() + (option.rect.height() - h) // 2
-            check_opt.rect = QRect(x, y, w, h)
+            if is_column(col, LinkTableColumn.ORDER):
+                display_text = str(index.row() + 1)
+                if display_text:
+                    painter.save()
+                    is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
+                    color = self._resolve_column_color(col)
+                    if is_selected:
+                        try:
+                            tokens = theme_registry.get_theme_tokens(get_current_theme())
+                            color = QColor(tokens.get("selection_fg", "#FFFFFF"))
+                        except Exception:
+                            color = option.palette.color(QPalette.ColorRole.HighlightedText)
+                    if color and color.isValid():
+                        painter.setPen(color)
+                    painter.setFont(option.font)
+                    painter.drawText(option.rect, int(Qt.AlignmentFlag.AlignCenter), display_text)
+                    painter.restore()
+                return
 
-            style.drawPrimitive(
-                QStyle.PrimitiveElement.PE_IndicatorItemViewItemCheck,
-                check_opt,
-                painter,
-                widget,
-            )
+            if is_column(col, LinkTableColumn.TYPE):
+                link = index.data(Qt.ItemDataRole.UserRole)
+                if isinstance(link, dict) and bool(link.get("chrome_rotation")):
+                    is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
+                    sz = 16
+                    margin_right = 10
+                    ix = option.rect.right() - margin_right - sz
+                    iy = option.rect.top() + (option.rect.height() - sz) // 2
+                    try:
+                        from app.views.widgets.link.links_model import get_rotation_icon
+                        icon = get_rotation_icon(sz, is_selected=is_selected)
+                        if icon:
+                            icon.paint(painter, ix, iy, sz, sz)
+                    except Exception:
+                        pass
+                return
+
+            if is_column(col, LinkTableColumn.GROUP_LAUNCH):
+                widget = option.widget
+                style = widget.style() if widget else QApplication.style()
+                check_opt = QStyleOptionViewItem(option)
+                super().initStyleOption(check_opt, index)
+
+                state = index.data(Qt.ItemDataRole.CheckStateRole)
+                check_opt.state = check_opt.state & ~QStyle.StateFlag.State_HasFocus
+                if state in (Qt.CheckState.Checked.value, Qt.CheckState.Checked):
+                    check_opt.state |= QStyle.StateFlag.State_On
+                    check_opt.state &= ~QStyle.StateFlag.State_Off
+                else:
+                    check_opt.state |= QStyle.StateFlag.State_Off
+                    check_opt.state &= ~QStyle.StateFlag.State_On
+
+                check_rect = style.subElementRect(
+                    QStyle.SubElement.SE_ItemViewItemCheckIndicator, check_opt, widget
+                )
+                w = check_rect.width()
+                h = check_rect.height()
+                x = option.rect.x() + (option.rect.width() - w) // 2
+                y = option.rect.y() + (option.rect.height() - h) // 2
+                check_opt.rect = QRect(x, y, w, h)
+
+                style.drawPrimitive(
+                    QStyle.PrimitiveElement.PE_IndicatorItemViewItemCheck,
+                    check_opt,
+                    painter,
+                    widget,
+                )
+        finally:
+            if is_cut:
+                painter.restore()
 
     def editorEvent(self, event, model, option, index):
         if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
@@ -673,21 +679,24 @@ class ExplorerHeaderView(QHeaderView):
             model = self.model()
             cb_state = QStyle.StateFlag.State_Off
             if model is not None:
-                row_count = model.rowCount()
-                if row_count > 0:
-                    checked = sum(
-                        1 for r in range(row_count)
-                        if model.data(
-                            model.index(r, int(LinkTableColumn.GROUP_LAUNCH)),
-                            Qt.ItemDataRole.CheckStateRole,
-                        ) == Qt.CheckState.Checked
-                    )
-                    if checked == row_count:
-                        cb_state = QStyle.StateFlag.State_On
-                    elif checked > 0:
-                        cb_state = QStyle.StateFlag.State_NoChange
-                    else:
-                        cb_state = QStyle.StateFlag.State_Off
+                if hasattr(model, "group_launch_state"):
+                    cb_state = model.group_launch_state()
+                else:
+                    row_count = model.rowCount()
+                    if row_count > 0:
+                        checked = sum(
+                            1 for r in range(row_count)
+                            if model.data(
+                                model.index(r, int(LinkTableColumn.GROUP_LAUNCH)),
+                                Qt.ItemDataRole.CheckStateRole,
+                            ) == Qt.CheckState.Checked
+                        )
+                        if checked == row_count:
+                            cb_state = QStyle.StateFlag.State_On
+                        elif checked > 0:
+                            cb_state = QStyle.StateFlag.State_NoChange
+                        else:
+                            cb_state = QStyle.StateFlag.State_Off
 
             # Draw checkbox matching the theme styles of QTableView::indicator
             table = self.parent()
@@ -1175,7 +1184,6 @@ class LinksTableView(
             )
         self.setSortingEnabled(True)
         header.setSortIndicatorShown(False)
-        header.sortIndicatorChanged.connect(self.sortByColumn)
         self._apply_sort_action(self._sort_controller.initial_sort())
         self.delegate = TableDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -1243,6 +1251,13 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect orderEdited", exc_info=True
             )
+
+    cut_link_ids: set[int] = set()
+
+    def set_cut_link_ids(self, ids: set[int]) -> None:
+        """Set IDs of cut links for dimmed rendering."""
+        self.cut_link_ids = set(ids)
+        self.viewport().update()
 
     def _on_model_data_changed(self, *args, **kwargs) -> None:
         try:
@@ -1436,20 +1451,38 @@ class LinksTableView(
             logger.debug("Failed to extract external URLs from table drop", exc_info=True)
             return []
 
+    def _repaint_hover_row(self, row: int) -> None:
+        """Update only the specified row in the viewport rather than the entire table."""
+        if row < 0:
+            return
+        model = self.model()
+        if model is None or row >= model.rowCount():
+            return
+        viewport = self.viewport()
+        if viewport is None:
+            return
+        idx = model.index(row, 0)
+        rect = self.visualRect(idx)
+        if rect.isValid():
+            rect.setX(0)
+            rect.setWidth(viewport.width())
+            viewport.update(rect)
+        else:
+            viewport.update()
+
     def _on_index_entered(self, index: QModelIndex):
         row = index.row()
-        if self.delegate.hovered_row != row:
+        old_row = self.delegate.hovered_row
+        if old_row != row:
             self.delegate.hovered_row = row
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            self._repaint_hover_row(old_row)
+            self._repaint_hover_row(row)
 
     def _on_leave_event(self, event):
-        if self.delegate.hovered_row != -1:
+        old_row = self.delegate.hovered_row
+        if old_row != -1:
             self.delegate.hovered_row = -1
-            viewport = self.viewport()
-            if viewport is not None:
-                viewport.update()
+            self._repaint_hover_row(old_row)
         event.accept()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -1457,6 +1490,13 @@ class LinksTableView(
             self.quickLookRequested.emit()
             event.accept()
             return
+        if event.key() == Qt.Key.Key_Escape:
+            main_win = self.window()
+            links = getattr(main_win, "links", None)
+            if links and hasattr(links, "clipboard") and getattr(links.clipboard, "_clipboard_is_cut", False):
+                links.clipboard.cancel_cut()
+                event.accept()
+                return
         super().keyPressEvent(event)
 
     # Override abstract methods from ``BaseDragDropTableWidget``

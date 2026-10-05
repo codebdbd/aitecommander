@@ -43,6 +43,9 @@ class StructureContextService:
         concrete_db = cast(Database, db)
         self._ss = StructureService(concrete_db)
         self._ls = LinksService(concrete_db)
+        self._cached_clipboard_payload: dict | list | None = None
+        self._clipboard_cache_valid: bool = False
+        self._clipboard_listener_connected: bool = False
 
     # --- Qt helpers ---
     def _get_qapp(self):
@@ -51,6 +54,24 @@ class StructureContextService:
             return QApplication.instance()
         except RuntimeError:
             return None
+
+    def _invalidate_clipboard_cache(self) -> None:
+        self._clipboard_cache_valid = False
+        self._cached_clipboard_payload = None
+
+    def _ensure_clipboard_listener(self) -> None:
+        if getattr(self, "_clipboard_listener_connected", False):
+            return
+        app = self._get_qapp()
+        if not app:
+            return
+        clipboard = app.clipboard()
+        if clipboard:
+            try:
+                clipboard.dataChanged.connect(self._invalidate_clipboard_cache)
+                self._clipboard_listener_connected = True
+            except Exception:
+                pass
 
     # --- Clipboard helpers ---
     def clipboard_has_text(self) -> bool:
@@ -65,7 +86,12 @@ class StructureContextService:
             return False
 
     def _clipboard_get_json(self) -> dict | list | None:
+        self._ensure_clipboard_listener()
+        if getattr(self, "_clipboard_cache_valid", False):
+            return getattr(self, "_cached_clipboard_payload", None)
         if not self.clipboard_has_text():
+            self._cached_clipboard_payload = None
+            self._clipboard_cache_valid = True
             return None
         try:
             app = self._get_qapp()
@@ -73,17 +99,26 @@ class StructureContextService:
                 return None
             txt = app.clipboard().text()
             if not txt:
+                self._cached_clipboard_payload = None
+                self._clipboard_cache_valid = True
                 return None
             stripped = txt.lstrip()
             if not stripped or stripped[0] not in "{[":
+                self._cached_clipboard_payload = None
+                self._clipboard_cache_valid = True
                 return None
-            return json.loads(txt)
+            payload = json.loads(txt)
+            self._cached_clipboard_payload = payload
+            self._clipboard_cache_valid = True
+            return payload
         except json.JSONDecodeError as e:
             logger.debug(
                 "Clipboard JSON parse skipped: %s: %s",
                 type(e).__name__,
                 e,
             )
+            self._cached_clipboard_payload = None
+            self._clipboard_cache_valid = True
             return None
         except (RuntimeError, TypeError) as e:
             logger.warning(
@@ -155,6 +190,8 @@ class StructureContextService:
                 return
             tree = self._ss.export_section_tree(int(section_id))
             payload = {"type": "section_tree", "tree": tree}
+            self._cached_clipboard_payload = payload
+            self._clipboard_cache_valid = True
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
         except (ValueError, TypeError, RuntimeError):
             logger.exception(
@@ -179,6 +216,8 @@ class StructureContextService:
             if not trees:
                 return
             payload = {"type": "section_trees", "trees": trees}
+            self._cached_clipboard_payload = payload
+            self._clipboard_cache_valid = True
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
         except (RuntimeError, TypeError):
             logger.exception("copy_sections_to_clipboard failed")
@@ -191,6 +230,8 @@ class StructureContextService:
                 return
             tree = self._ss.export_category_tree(int(cat_id))
             payload = {"type": "category_tree", "tree": tree}
+            self._cached_clipboard_payload = payload
+            self._clipboard_cache_valid = True
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
         except (ValueError, TypeError, RuntimeError):
             logger.exception(
@@ -215,6 +256,8 @@ class StructureContextService:
             if not trees:
                 return
             payload = {"type": "category_trees", "trees": trees}
+            self._cached_clipboard_payload = payload
+            self._clipboard_cache_valid = True
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
         except (RuntimeError, TypeError):
             logger.exception("copy_categories_to_clipboard failed")

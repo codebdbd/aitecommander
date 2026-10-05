@@ -82,18 +82,34 @@ class DataManagementMixin:
             return False
 
         # Base fields always considered
-        basic_fields = ["name", "is_favorite", "notes", "icon_path", "args"]
+        basic_fields = [
+            "name",
+            "url",
+            "path",
+            "type",
+            "chrome_rotation",
+            "is_favorite",
+            "notes",
+            "icon_path",
+            "args",
+        ]
 
         # Additional fields per mode
         if mode == "normal":
             basic_fields.append("last_used")
         else:  # search mode
             basic_fields.extend(
-                ["url", "path", "sphere_name", "section_name", "category_name"]
+                ["sphere_name", "section_name", "category_name"]
             )
 
         # Optimization: lean on ``all()`` for fast comparison
-        return all(link1.get(field) == link2.get(field) for field in basic_fields)
+        if not all(link1.get(field) == link2.get(field) for field in basic_fields):
+            return False
+
+        # Group launch flag check (support both is_group_launch and legacy group_launch)
+        gl1 = bool(link1.get("group_launch")) if "group_launch" in link1 else bool(link1.get("is_group_launch", 0))
+        gl2 = bool(link2.get("group_launch")) if "group_launch" in link2 else bool(link2.get("is_group_launch", 0))
+        return gl1 == gl2
 
     def _get_current_link_ids(self) -> set[int]:
         """Return the set of current link IDs based on table items (not cache)."""

@@ -9,6 +9,10 @@ from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit
 
 from app.config_data.runtime_config import get_table_stack_index, get_tiles_stack_index
 from app.controllers.ui.undo.commands_structure import (
+    BatchDeleteCategoriesCmd,
+    DeleteCategoryCmd,
+    DeleteSectionCmd,
+    DeleteSectionsCmd,
     PasteCategoriesCmd,
     PasteSectionsCmd,
 )
@@ -44,6 +48,7 @@ class ActionController(QObject):
         self._structure_ctx: StructureContextService | None = None
         self._deferred_action_icons: list[tuple[QAction, str]] = []
         self._global_action_icons_applied = False
+        self._clipboard_is_cut: bool = False
         self._setup_state_hooks()
 
     def _setup_state_hooks(self) -> None:
@@ -683,6 +688,7 @@ class ActionController(QObject):
         svc = self._get_structure_context_service()
         if svc is None:
             return
+        self._clipboard_is_cut = False
         selection_type = self._get_tree_selection_type()
         if selection_type == "section":
             ids = self._get_selected_tree_ids("section")
@@ -702,11 +708,44 @@ class ActionController(QObject):
                 svc.copy_category_tree_to_clipboard(ids[0])
 
     def _cut_tree_selection(self) -> None:
-        self._copy_tree_selection()
-        try:
-            self.main_window.structure.delete_selected_item()
-        except Exception:
-            logger.debug("ActionController: tree cut delete failed", exc_info=True)
+        svc = self._get_structure_context_service()
+        if svc is None:
+            return
+        selection_type = self._get_tree_selection_type()
+        undo_stack = getattr(self.main_window, "undo_stack", None)
+        business = getattr(self.main_window, "structure_business", None)
+        if undo_stack is None or business is None:
+            return
+
+        self._clipboard_is_cut = True
+        if selection_type == "section":
+            ids = self._get_selected_tree_ids("section")
+            if not ids:
+                return
+            if len(ids) > 1:
+                svc.copy_sections_to_clipboard(ids)
+                payloads = [p for p in (business.get_section_data(sid) for sid in ids) if p]
+                if payloads:
+                    undo_stack.push(DeleteSectionsCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
+            else:
+                svc.copy_section_tree_to_clipboard(ids[0])
+                payload = business.get_section_data(ids[0])
+                if payload:
+                    undo_stack.push(DeleteSectionCmd(payload, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
+        elif selection_type == "category":
+            ids = self._get_selected_tree_ids("category")
+            if not ids:
+                return
+            if len(ids) > 1:
+                svc.copy_categories_to_clipboard(ids)
+                payloads = [p for p in (business.get_category_data(cid) for cid in ids) if p]
+                if payloads:
+                    undo_stack.push(BatchDeleteCategoriesCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
+            else:
+                svc.copy_category_tree_to_clipboard(ids[0])
+                payload = business.get_category_data(ids[0])
+                if payload:
+                    undo_stack.push(DeleteCategoryCmd(payload, self.main_window, business=business, undo_manager=undo_stack, skip_reload=False, lightweight_reload=True, is_cut=True))
 
     def _resolve_category_paste_conflicts(self, target_section_id: int, trees: list[dict]) -> list[dict] | None:
         from PyQt6.QtWidgets import QDialog
@@ -784,6 +823,8 @@ class ActionController(QObject):
         svc = self._get_structure_context_service()
         if svc is None:
             return
+        is_cut = self._clipboard_is_cut
+        self._clipboard_is_cut = False
         target_section_id = self._get_tree_target_section_id()
         if target_section_id is not None and svc.clipboard_has_pastable_category():
             payload = svc.get_clipboard_payload()
@@ -809,6 +850,7 @@ class ActionController(QObject):
                     self.main_window,
                     business=getattr(self.main_window, "structure_business", None),
                     undo_manager=undo_stack,
+                    is_cut=is_cut,
                 )
             )
             return
@@ -841,6 +883,7 @@ class ActionController(QObject):
                         self.main_window,
                         business=business,
                         undo_manager=undo_stack,
+                        is_cut=is_cut,
                     )
                 )
 
@@ -848,6 +891,7 @@ class ActionController(QObject):
         svc = self._get_structure_context_service()
         if svc is None:
             return
+        self._clipboard_is_cut = False
         ids = self._get_tiles_selected_ids()
         if not ids:
             return
@@ -857,41 +901,35 @@ class ActionController(QObject):
             svc.copy_category_tree_to_clipboard(ids[0])
 
     def _cut_tiles_selection(self) -> None:
-        self._copy_tiles_selection()
-        self._delete_tiles_selection()
-
-    def _delete_tiles_selection(self) -> None:
+        svc = self._get_structure_context_service()
+        if svc is None:
+            return
         ids = self._get_tiles_selected_ids()
         if not ids:
             return
-        structure = getattr(self.main_window, "structure", None)
-        if not structure:
+        undo_stack = getattr(self.main_window, "undo_stack", None)
+        business = getattr(self.main_window, "structure_business", None)
+        if undo_stack is None or business is None:
             return
-        try:
-            if len(ids) > 1 and hasattr(structure, "handle_delete_categories"):
-                structure.handle_delete_categories(ids)
-                return
-        except Exception:
-            logger.debug(
-                "ActionController: batch tile delete failed for categories %s",
-                ids,
-                exc_info=True,
-            )
-            return
-        for cid in ids:
-            try:
-                structure.handle_delete_category(int(cid))
-            except Exception:
-                logger.debug(
-                    "ActionController: tile delete failed for category %s",
-                    cid,
-                    exc_info=True,
-                )
+
+        self._clipboard_is_cut = True
+        if len(ids) > 1:
+            svc.copy_categories_to_clipboard(ids)
+            payloads = [p for p in (business.get_category_data(cid) for cid in ids) if p]
+            if payloads:
+                undo_stack.push(BatchDeleteCategoriesCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
+        else:
+            svc.copy_category_tree_to_clipboard(ids[0])
+            payload = business.get_category_data(ids[0])
+            if payload:
+                undo_stack.push(DeleteCategoryCmd(payload, self.main_window, business=business, undo_manager=undo_stack, skip_reload=False, lightweight_reload=True, is_cut=True))
 
     def _paste_into_tiles(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
             return
+        is_cut = self._clipboard_is_cut
+        self._clipboard_is_cut = False
         target_section_id = self._get_tiles_target_section_id()
         if target_section_id is not None and svc.clipboard_has_pastable_category():
             payload = svc.get_clipboard_payload()
@@ -917,6 +955,7 @@ class ActionController(QObject):
                     self.main_window,
                     business=getattr(self.main_window, "structure_business", None),
                     undo_manager=undo_stack,
+                    is_cut=is_cut,
                 )
             )
             return
@@ -949,6 +988,7 @@ class ActionController(QObject):
                         self.main_window,
                         business=business,
                         undo_manager=undo_stack,
+                        is_cut=is_cut,
                     )
                 )
 

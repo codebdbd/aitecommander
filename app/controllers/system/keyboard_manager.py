@@ -284,6 +284,10 @@ class EditingKeyHandler(BaseKeyHandler):
         return False
 
     def _handle_escape_key(self, focused_widget: Optional[QWidget]) -> bool:
+        links = self._safe_getattr(self.main_window, "links")
+        if links and hasattr(links, "clipboard") and getattr(links.clipboard, "_clipboard_is_cut", False):
+            self._safe_call(links.clipboard, "cancel_cut")
+            return True
         # In tiles - clear filter
         if self._is_tiles_focused(focused_widget):
             return self._handle_tiles_escape()

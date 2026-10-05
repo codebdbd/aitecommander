@@ -530,9 +530,13 @@ class TreeManagement(QObject):
         selection_handler = getattr(self.controller, "selection_handler", None)
         if selection_handler is not None:
             selection_handler.begin_suppress_selection()
+        sel_model = self.tree.selectionModel() if hasattr(self.tree, "selectionModel") else None
+        prev_blocked = sel_model.blockSignals(True) if sel_model else False
         try:
             self._updates.handle_items_batch_deleted(item_type, ids)
         finally:
+            if sel_model:
+                sel_model.blockSignals(prev_blocked)
             if selection_handler is not None:
                 selection_handler.end_suppress_selection()
 

@@ -12,7 +12,7 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QStyle, QWidget
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
@@ -668,14 +668,48 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return
 
         reverse = order == Qt.SortOrder.DescendingOrder
-        self.layoutAboutToBeChanged.emit()
-        self._links = sorted_links(
+        new_links = sorted_links(
             self._links,
             column,
             descending=reverse,
             type_label_getter=self._type_display_text,
         )
-        self.layoutChanged.emit()
+        id_to_new_row = {
+            item.get("id"): row
+            for row, item in enumerate(new_links)
+            if item.get("id") is not None
+        }
+
+        self.layoutAboutToBeChanged.emit()
+        try:
+            old_indexes = self.persistentIndexList()
+            to_indexes = []
+            for p_idx in old_indexes:
+                if p_idx.isValid() and p_idx.row() < len(self._links):
+                    item = self._links[p_idx.row()]
+                    new_r = id_to_new_row.get(item.get("id"))
+                    if new_r is not None:
+                        to_indexes.append(self.index(new_r, p_idx.column(), p_idx.parent()))
+                    else:
+                        to_indexes.append(p_idx)
+                else:
+                    to_indexes.append(p_idx)
+            self._links = new_links
+            if old_indexes:
+                self.changePersistentIndexList(old_indexes, to_indexes)
+        finally:
+            self.layoutChanged.emit()
+
+    def group_launch_state(self) -> QStyle.StateFlag:
+        """Return the tristate flag for group launch header checkbox directly from underlying data."""
+        if not self._links:
+            return QStyle.StateFlag.State_Off
+        checked_count = sum(1 for link in self._links if link.get("is_group_launch"))
+        if checked_count == 0:
+            return QStyle.StateFlag.State_Off
+        if checked_count == len(self._links):
+            return QStyle.StateFlag.State_On
+        return QStyle.StateFlag.State_NoChange
 
     def _get_cached_icon(self, icon_path: str) -> QIcon | None:
         """Return an icon with LRU caching to avoid memory leaks.

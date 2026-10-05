@@ -56,6 +56,8 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
 
 logger = logging.getLogger(__name__)
 
+_CUT_PASTE_LINK_CMD_ID = 2003
+
 
 def _show_links_command_error(main_window, title: str, message: str) -> None:
     try:
@@ -213,16 +215,22 @@ def _enqueue_link_enrichment(main_window: Any, payload: dict[str, Any]) -> bool:
         return False
 
 class SaveLinkCmd(BaseCommand):
-    def __init__(self, new_data: dict, old_data: dict | None, main_window):
+    def __init__(
+        self, new_data: dict, old_data: dict | None, main_window, *, is_cut: bool = False
+    ):
         super().__init__("Save link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
+        self.is_cut = bool(is_cut)
         self.created_id: int | None = None
         self._in_flight = False
         self._pending_undo = False
+
+    def id(self) -> int:
+        return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
 
     def _merge_old_data(self):
         """Merge missing fields from old_data into new_data."""
@@ -514,7 +522,9 @@ class SaveLinkCmd(BaseCommand):
 
 
 class BatchDeleteLinksCmd(BaseCommand):
-    def __init__(self, links_to_delete: list[dict], main_window):
+    def __init__(
+        self, links_to_delete: list[dict], main_window, *, is_cut: bool = False
+    ):
         super().__init__("Batch delete links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
@@ -522,7 +532,22 @@ class BatchDeleteLinksCmd(BaseCommand):
         # Keep the selected link payload as-is to avoid a large synchronous
         # copy on the UI thread before the async batch delete even starts.
         self.links: list[dict] = list(links_to_delete or [])
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         self._first_redo = True
+
+    def id(self) -> int:
+        return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_LINK_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _emit_top_panels_refresh(self) -> None:
         link_ops = getattr(self.main, "link_operations", None)
@@ -589,6 +614,8 @@ class BatchDeleteLinksCmd(BaseCommand):
                 )
             self._emit_top_panels_refresh()
             self._invalidate_links_cache()
+            if self._paste_cmd is not None:
+                self._paste_cmd.redo()
 
         def _on_error(exc: Exception) -> None:
             logger.warning("BatchDeleteLinksCmd.redo failed: %s", exc)
@@ -607,6 +634,8 @@ class BatchDeleteLinksCmd(BaseCommand):
 
     @log_command
     def undo(self):
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         links_business = getattr(self.main, "links_business", None)
         affected_categories = {
             link.get("category_id")
@@ -659,13 +688,30 @@ class BatchDeleteLinksCmd(BaseCommand):
 
 
 class DeleteLinkCmd(BaseCommand):
-    def __init__(self, link_to_delete: dict, main_window):
+    def __init__(
+        self, link_to_delete: dict, main_window, *, is_cut: bool = False
+    ):
         super().__init__("Delete link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.link = dict(link_to_delete) if link_to_delete else {}
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         self._first_redo = True
+
+    def id(self) -> int:
+        return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_LINK_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _emit_top_panels_refresh(self) -> None:
         link_ops = getattr(self.main, "link_operations", None)
@@ -735,9 +781,13 @@ class DeleteLinkCmd(BaseCommand):
             )
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+        if self._paste_cmd is not None:
+            self._paste_cmd.redo()
 
     @log_command
     def undo(self):
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         # Restore deleted link
         if hasattr(self.main, "links_business") and self.main.links_business:
             self.main.links_business.links.create_or_update_link(self.link)
@@ -765,14 +815,23 @@ class DeleteLinkCmd(BaseCommand):
 
 class BatchSaveLinksCmd(BaseCommand):
     def __init__(
-        self, links_data: list[dict], _old_link_data: dict | None, main_window
+        self,
+        links_data: list[dict],
+        _old_link_data: dict | None,
+        main_window,
+        *,
+        is_cut: bool = False,
     ):
         super().__init__("Batch save links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.links_data = [dict(x) for x in (links_data or [])]
+        self.is_cut = bool(is_cut)
         self.created_ids: list[int] = []
+
+    def id(self) -> int:
+        return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
 
     def _emit_top_panels_refresh(self) -> None:
         link_ops = getattr(self.main, "link_operations", None)
@@ -868,6 +927,14 @@ class BatchSaveLinksCmd(BaseCommand):
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
         self._enqueue_post_save_enrichment()
+        if self.created_ids and not getattr(self, "_suppress_ui", False):
+            try:
+                links_actions = getattr(self.main, "links_actions", None)
+                if links_actions and hasattr(links_actions, "focus_on_link"):
+                    first_link_id = self.created_ids[0]
+                    links_actions.focus_on_link(first_link_id)
+            except Exception as exc:
+                logger.debug("BatchSaveLinksCmd.redo: focus_on_link failed: %s", exc)
 
     @log_command
     def undo(self):

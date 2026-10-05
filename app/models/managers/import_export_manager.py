@@ -274,6 +274,7 @@ class ImportExportManager:
                     raw_links.append(link_copy)
                 if raw_links:
                     self.db.links._upsert_links_no_tx(raw_links)
+        return int(sec_id) if sec_id is not None else None
 
     def import_section_trees_bulk(self, trees: list[dict]) -> None:
         """Imports multiple section subtrees in ONE transaction."""

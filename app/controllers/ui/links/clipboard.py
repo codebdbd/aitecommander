@@ -8,6 +8,7 @@ from app.controllers.ui.undo.commands_links import (
     DeleteLinkCmd,
     SaveLinkCmd,
 )
+from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 
 from .base_component import BaseLinksUIComponent
@@ -19,13 +20,38 @@ logger = logging.getLogger(__name__)
 class LinksUIClipboard(BaseLinksUIComponent):
     """Clipboard logic for LinksUIController."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._clipboard_is_cut: bool = False
+        self._cut_link_ids: set[int] = set()
+
     def cut_link(self):
-        """Cut selected links."""
-        self._process_clipboard_operation(is_cut=True)
+        """Cut selected links (pending cut / dimmed state)."""
+        links = self.get_selected_links()
+        if not links:
+            return
+
+        success = copy_link_to_clipboard(links[0] if len(links) == 1 else links)
+        if success:
+            self._clipboard_is_cut = True
+            self._cut_link_ids = {
+                int(l["id"]) for l in links if isinstance(l, dict) and l.get("id") is not None
+            }
+            if hasattr(self.table, "set_cut_link_ids"):
+                self.table.set_cut_link_ids(self._cut_link_ids)
 
     def copy_link(self):
         """Copy selected links."""
+        self.cancel_cut()
         self._process_clipboard_operation(is_cut=False)
+
+    def cancel_cut(self):
+        """Cancel pending cut state."""
+        self._clipboard_is_cut = False
+        if self._cut_link_ids:
+            self._cut_link_ids.clear()
+            if hasattr(self.table, "set_cut_link_ids"):
+                self.table.set_cut_link_ids(set())
 
     def _process_clipboard_operation(self, is_cut: bool = False):
         """Common logic for copying/cutting links."""
@@ -34,8 +60,10 @@ class LinksUIClipboard(BaseLinksUIComponent):
             return
 
         success = copy_link_to_clipboard(links[0] if len(links) == 1 else links)
-        if is_cut and success:
-            self.delete_links(links)
+        if success:
+            self._clipboard_is_cut = bool(is_cut)
+            if is_cut:
+                self.delete_links(links, is_cut=True)
 
     def paste_link(self):
         """Paste links from clipboard."""
@@ -45,10 +73,28 @@ class LinksUIClipboard(BaseLinksUIComponent):
             self._show_warning(str(e))
             return
 
+        if self._clipboard_is_cut and self._cut_link_ids:
+            cut_ids = list(self._cut_link_ids)
+            self.cancel_cut()
+            try:
+                cmd = MoveLinksCommand(
+                    link_ids=cut_ids,
+                    new_category_id=current_category_id,
+                    main_window=self.main,
+                )
+                self.main.undo_stack.push(cmd)
+            except Exception as e:
+                logger.error("Error moving links on paste: %s", e, exc_info=True)
+                self._show_error(f"Failed to move links: {str(e)}")
+            return
+
         try:
             links = self._validate_clipboard_data()
             if not links:
                 return
+
+            is_cut = self._clipboard_is_cut
+            self._clipboard_is_cut = False
 
             # Get existing links for duplicate checking
             existing = self.business.get_links(current_category_id)
@@ -62,30 +108,44 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 return  # All links are duplicates
 
             # Вставка ссылок
-            self._insert_links(new_links)
+            self._insert_links(new_links, is_cut=is_cut)
 
         except Exception as e:
             logger.error("Error pasting links: %s", e, exc_info=True)
             self._show_error(f"Failed to paste links: {str(e)}")
 
-    def delete_links(self, links: list[dict]):
+    def delete_links(self, links: list[dict], *, is_cut: bool = False):
         """Delete links."""
         if not links:
             return
 
         if len(links) > 1:
             # Batch command: one transaction and one external reload
-            with self.main.undo_stack.macro(f"Deleting {len(links)} links"):
-                command = BatchDeleteLinksCmd(
-                    links_to_delete=links, main_window=self.main
-                )
-                command._suppress_ui = True  # type: ignore[attr-defined]
-                self.main.undo_stack.push(command)
+            command = BatchDeleteLinksCmd(
+                links_to_delete=links, main_window=self.main, is_cut=is_cut
+            )
+            command._suppress_ui = True  # type: ignore[attr-defined]
+            self.main.undo_stack.push(command)
         else:
             for link in links:
-                cmd = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
+                cmd = DeleteLinkCmd(
+                    link_to_delete=link, main_window=self.main, is_cut=is_cut
+                )
                 cmd._suppress_ui = True  # type: ignore[attr-defined]
                 self.main.undo_stack.push(cmd)
+
+        if self._cut_link_ids:
+            del_ids = {
+                int(l["id"])
+                for l in links
+                if isinstance(l, dict) and l.get("id") is not None
+            }
+            self._cut_link_ids.difference_update(del_ids)
+            if not self._cut_link_ids:
+                self.cancel_cut()
+            elif hasattr(self.table, "set_cut_link_ids"):
+                self.table.set_cut_link_ids(self._cut_link_ids)
+
         # Centralized signal emission through LinkOperationsController
         try:
             if len(links) <= 1:
@@ -125,23 +185,26 @@ class LinksUIClipboard(BaseLinksUIComponent):
         new_data["category_id"] = category_id
         return new_data
 
-    def _insert_links(self, links: list[dict]):
+    def _insert_links(self, links: list[dict], *, is_cut: bool = False):
         """Insert list of links with undo support."""
         if len(links) > 1:
             # Batch insertion: one transaction, one reload in command
-            with self.main.undo_stack.macro(f"Inserting {len(links)} links"):
-                cmd = BatchSaveLinksCmd(
-                    links_data=links,
-                    _old_link_data=None,
-                    main_window=self.main,
-                )
-                # Command will perform single reload; external updates not needed
-                self.main.undo_stack.push(cmd)
+            cmd = BatchSaveLinksCmd(
+                links_data=links,
+                _old_link_data=None,
+                main_window=self.main,
+                is_cut=is_cut,
+            )
+            # Command will perform single reload; external updates not needed
+            self.main.undo_stack.push(cmd)
         else:
             for link_data in links:
                 self.main.undo_stack.push(
                     SaveLinkCmd(
-                        new_data=link_data, old_data=None, main_window=self.main
+                        new_data=link_data,
+                        old_data=None,
+                        main_window=self.main,
+                        is_cut=is_cut,
                     )
                 )
 

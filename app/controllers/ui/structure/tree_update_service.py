@@ -89,17 +89,6 @@ class TreeUpdateService(QObject):
                 ),
                 f"restore_cat_{item_id}",
             )
-            # Restore focus to tree after editing category
-            try:
-                manager = get_focus_manager()
-                manager.set_focus(
-                    self._tree, widget_name="structure_tree", origin="user_action"
-                )
-            except Exception:
-                logger.debug(
-                    "TreeUpdateService.handle_item_updated: set_focus failed",
-                    exc_info=True,
-                )
 
     def _handle_category_section_change(
         self, category_id: int, data: dict[str, Any]
@@ -179,6 +168,8 @@ class TreeUpdateService(QObject):
                 )
 
     def handle_item_deleted(self, item_type: str, item_id: int) -> None:
+        surviving_type, surviving_id = self._find_surviving_neighbor(item_type, item_id)
+
         try:
             if item_type == "section":
                 self._model.remove_sections([int(item_id)])
@@ -191,19 +182,16 @@ class TreeUpdateService(QObject):
                 item_id,
             )
         finally:
-            self._post_delete_updates(item_type, item_id)
-            try:
-                manager = get_focus_manager()
-                manager.set_focus(
-                    self._tree, widget_name="structure_tree", origin="user_action"
-                )
-            except Exception:
-                logger.debug(
-                    "TreeUpdateService.handle_item_deleted: set_focus failed",
-                    exc_info=True,
-                )
+            controller = getattr(self._manager, "controller", None)
+            selection_handler = getattr(controller, "selection_handler", None) if controller else None
+            if selection_handler and surviving_type and surviving_id is not None:
+                selection_handler._set_focus_on_new_item_by_id(surviving_type, surviving_id)
+            else:
+                self._post_delete_updates(item_type, item_id)
 
     def handle_items_batch_deleted(self, item_type: str, item_ids: list[int]) -> None:
+        surviving_type, surviving_id = self._find_surviving_batch_neighbor(item_type, item_ids)
+
         try:
             if item_type == "section":
                 self._model.remove_sections([int(i) for i in item_ids or []])
@@ -221,23 +209,12 @@ class TreeUpdateService(QObject):
                 len(item_ids or []),
             )
         finally:
-            try:
+            controller = getattr(self._manager, "controller", None)
+            selection_handler = getattr(controller, "selection_handler", None) if controller else None
+            if selection_handler and surviving_type and surviving_id is not None:
+                selection_handler._set_focus_on_new_item_by_id(surviving_type, surviving_id)
+            else:
                 self._post_delete_updates(item_type, int(item_ids[0]) if item_ids else 0)
-            except Exception:
-                logger.debug(
-                    "TreeUpdateService.handle_items_batch_deleted: post delete updates failed",
-                    exc_info=True,
-                )
-            try:
-                manager = get_focus_manager()
-                manager.set_focus(
-                    self._tree, widget_name="structure_tree", origin="user_action"
-                )
-            except Exception:
-                logger.debug(
-                    "TreeUpdateService.handle_items_batch_deleted: set_focus failed",
-                    exc_info=True,
-                )
 
     def _replace_touched_category_sections(self, category_ids: list[int]) -> bool:
         if not category_ids:
@@ -322,6 +299,57 @@ class TreeUpdateService(QObject):
             )
 
     # --- Helpers --------------------------------------------------------
+    def _find_surviving_neighbor(self, item_type: str, item_id: int) -> tuple[str | None, int | None]:
+        """Identify surviving entity (type, id) before deletion based on stable IDs."""
+        try:
+            if not hasattr(self._model, "index_for"):
+                return None, None
+            idx = self._model.index_for(item_type, int(item_id))
+            if not idx or not idx.isValid():
+                return None, None
+            old_row = idx.row()
+            parent_idx = idx.parent()
+            row_count = self._model.rowCount(parent_idx)
+            if row_count > 1:
+                target_row_before = old_row + 1 if old_row < row_count - 1 else old_row - 1
+                surviving_idx = self._model.index(target_row_before, 0, parent_idx)
+                if surviving_idx.isValid():
+                    node = surviving_idx.internalPointer()
+                    if node and getattr(node, "id", None) is not None:
+                        return getattr(node, "type", item_type), int(node.id)
+            elif parent_idx.isValid():
+                pnode = parent_idx.internalPointer()
+                if pnode and getattr(pnode, "id", None) is not None:
+                    return getattr(pnode, "type", "section"), int(pnode.id)
+        except Exception:
+            logger.debug("TreeUpdateService._find_surviving_neighbor: failed", exc_info=True)
+        return None, None
+
+    def _find_surviving_batch_neighbor(self, item_type: str, item_ids: list[int]) -> tuple[str | None, int | None]:
+        """Identify surviving entity (type, id) before batch deletion."""
+        if not item_ids or not hasattr(self._model, "index_for"):
+            return None, None
+        try:
+            idx = self._model.index_for(item_type, int(item_ids[0]))
+            if not idx or not idx.isValid():
+                return None, None
+            parent_idx = idx.parent()
+            row_count = self._model.rowCount(parent_idx)
+            del_set = {int(x) for x in item_ids}
+            for r in range(row_count):
+                sibling_idx = self._model.index(r, 0, parent_idx)
+                if sibling_idx.isValid():
+                    node = sibling_idx.internalPointer()
+                    if node and getattr(node, "id", None) is not None and int(node.id) not in del_set:
+                        return getattr(node, "type", item_type), int(node.id)
+            if parent_idx.isValid():
+                pnode = parent_idx.internalPointer()
+                if pnode and getattr(pnode, "id", None) is not None:
+                    return getattr(pnode, "type", "section"), int(pnode.id)
+        except Exception:
+            logger.debug("TreeUpdateService._find_surviving_batch_neighbor: failed", exc_info=True)
+        return None, None
+
     @staticmethod
     def _row_to_index(raw_row: Any) -> int:
         try:
@@ -479,21 +507,13 @@ class TreeUpdateService(QObject):
         selection_handler = getattr(controller, "selection_handler", None)
         if selection_handler is None:
             return
+        if selection_handler.is_suppressed():
+            return
         result = selection_handler._set_focus_on_new_item_by_id(item_type, item_id)
         if result is None:
             schedule_selection_restore(
                 lambda: selection_handler._set_focus_on_new_item_by_id(item_type, item_id),  # noqa: SLF001
                 f"new_{item_type}_{item_id}",
-            )
-        try:
-            manager = get_focus_manager()
-            manager.set_focus(
-                self._tree, widget_name="structure_tree", origin="user_action"
-            )
-        except Exception:
-            logger.debug(
-                "TreeUpdateService._focus_on_new_item: set_focus failed",
-                exc_info=True,
             )
 
     def _post_delete_updates(self, item_type: str, item_id: int) -> None:

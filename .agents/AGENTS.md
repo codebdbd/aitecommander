@@ -592,3 +592,48 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   1. **Индексы колонок**: строго `ORDER = 0`, `GROUP_LAUNCH = 1`, `NAME = 2`, `LAUNCH = 3`, `NOTES = 4`, `TYPE = 5`.
   2. **Режимы изменения размера**: `ORDER` — fixed (36 px), `GROUP_LAUNCH` — fixed (32 px), `NAME` — interactive, `LAUNCH` — fixed, `NOTES` — stretch (`min_width = 0`), `TYPE` — interactive (104 px).
   3. **Тултипы**: `NAME` обязан иметь `tooltip_builder="_tooltip_name"`, `TYPE` обязан иметь `tooltip_builder="_tooltip_type"`, `NOTES` обязан иметь `tooltip_builder="_tooltip_notes"`.
+
+## 56. Architecture Standards: Active Context, Selection & Navigation Lifecycle Contract (СТАНДАРТЫ АКТИВНОГО КОНТЕКСТА, НАВИГАЦИИ И Model/View СОСТОЯНИЯ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурные стандарты управления активным контекстом (`current item`), выделением (`selection`), фокусом ввода (`keyboard focus`) и сигналами моделей.
+- **Strict Separation of Concerns (Разделение понятий Qt 6)**:
+  1. **Active Entity**: Идентификатор бизнес-логики (`entity_id`: `section_id`, `category_id`, `link_id`) — единственный источник истины.
+  2. **Current Item**: `QItemSelectionModel.currentIndex()` — единичный активный элемент представления, управляющий контекстом правой панели и стрелочной навигацией.
+  3. **Selection**: `QItemSelectionModel.selection()` — множество выбранных элементов для групповых операций (`batch delete/move/copy`).
+  4. **Keyboard Focus**: `QWidget.focusWidget() / setFocus()` — виджет, перехватывающий ввод. Смена `currentIndex()` категорически не имеет права принудительно вызывать `setFocus()` на родительский `QAbstractItemView`, если активен инлайн-редактор (`QLineEdit`, `F2`), поле поиска или модальный диалог.
+- **Strict Stable Entity Identity Principle (Принцип стабильной идентичности)**:
+  1. **Запрет на `row` в памяти и настройках**: Номер строки (`row`) является временной визуальной координатой и никогда не используется для долговременной идентификации.
+  2. **Персистентность**: В `QSettings` сохраняются строго постоянные ID сущностей: `CurrentSelection_{sphere_id}` = `entity_id`, `ExpandedSections_{sphere_id}` = `[entity_id, ...]`.
+  3. **Proxy Translation**: При наличии `QSortFilterProxyModel` перевод выполняется строго через `proxy.mapToSource()` и `proxy.mapFromSource()`. Запрещено восстанавливать индекс после сортировки или переименования по старому `row`.
+- **Strict Granular Model Signals (Запрет на `modelReset`)**:
+  1. **Запрет на `modelReset()`**: Категорически запрещено вызывать `beginResetModel() / endResetModel()` для локальных CRUD-операций, перемещения (DnD), переименования, смены порядка или вставки элементов, если изменение выразимо гранулярными сигналами.
+  2. **Обязательные сигналы**: Создание/вставка — строго `beginInsertRows`/`endInsertRows`; удаление — строго `beginRemoveRows`/`endRemoveRows`; перемещение — строго `beginMoveRows`/`endMoveRows`; редактирование — строго `dataChanged(topLeft, bottomRight, roles)`; сортировка — строго `layoutAboutToBeChanged` $\rightarrow$ перенос `QPersistentModelIndex` $\rightarrow$ `layoutChanged`.
+- **Strict Single Source of Context Synchronization**:
+  1. **Шина `currentChanged`**: Правая панель подписывается строго на `currentChanged` (или `activeEntityChanged(entity_id)`), а не на сырой `selectionChanged`.
+  2. **Запрет циклических сигналов**: `ActiveContextCoordinator` централизованно изолирует события выбора во избежание взаимных триггеров между деревом, плитками и таблицей.
+- **Strict Operation Matrix & Fallback Cascade**:
+  1. **Созидательные операции (`Create`, `Paste`, `Import`, `Duplicate`)**: Сущность получает постоянный `entity_id`, вставляется через `beginInsertRows`, транслируется в `proxy_index`, получает `setCurrentIndex(index, ClearAndSelect | Rows)` и отображается через штатный reveal (`scrollTo(..., EnsureVisible)` / `ensureWidgetVisible()`).
+  2. **Деструктивные операции (`Delete`, `Multi-Delete`)**:
+     - Одиночное удаление: целевая строка $\text{target\_row} = \min(\text{old\_row},\, \text{rowCount} - 1)$.
+     - Групповое удаление: целевой становится первый выживший элемент после удаленного диапазона (если нет — последний выживший перед диапазоном).
+     - При опустошении контейнера: категория $\rightarrow$ родительский `section_id`; раздел $\rightarrow$ соседний раздел сферы; пустая сфера $\rightarrow$ штатный детерминированный `empty_sphere_state`.
+  3. **Стек отмены (`Undo / Redo`)**:
+     - Классы `QUndoCommand` категорически не хранят ссылок на `QWidget` (`QTreeView`, `LinksTableView`). Команда оперирует только данными модели/репозитория и передает `affected_entity_id` навигационному контроллеру.
+     - `Cut` (`Ctrl+X`) помечает элементы `pending_cut`, а `Paste` (`Ctrl+V`) формирует атомарную команду переноса `MoveEntitiesCommand`, отменяемую одним нажатием `Ctrl+Z`.
+  4. **Переключение сфер**: Чтение `entity_id` из `QSettings` $\rightarrow$ поиск `source_index` $\rightarrow$ `mapFromSource()`. При отсутствии — fallback: `Saved Category ID` $\rightarrow$ `Parent Section ID` $\rightarrow$ `First Selectable Section` $\rightarrow$ `Empty Sphere State`.
+
+
+## 57. Architecture Standards: Single-Step Atomic Undo for Cut & Paste / Move (СТАНДАРТ АТОМАРНОГО UNDO ДЛЯ ВЫРЕЗАНИЯ И ВСТАВКИ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Механизм отмены (`Undo` / `Ctrl+Z`) и повтора (`Redo` / `Ctrl+Y`) операций вырезания и вставки (`Cut & Paste` / `Move`) для всех сущностей приложения (разделы, категории, ссылки) строго обязан выполняться за **ровно 1 шаг (одно нажатие `Ctrl+Z`)**. Категорически запрещена необходимость повторного (двойного) нажатия `Ctrl+Z` для отмены перемещения сущностей.
+- **Strict Command Merging Contract**:
+  1. **Идентификаторы слияния (`id()`)**:
+     - Категории: `_CUT_PASTE_CATEGORY_CMD_ID = 2001`
+     - Разделы: `_CUT_PASTE_SECTION_CMD_ID = 2002`
+     - Ссылки: `_CUT_PASTE_LINK_CMD_ID = 2003`
+     Команды удаления (`DeleteLinkCmd`, `BatchDeleteLinksCmd`, `DeleteCategoryCmd`, `BatchDeleteCategoriesCmd`, `DeleteSectionCmd`, `DeleteSectionsCmd`) и сохранения/вставки (`SaveLinkCmd`, `BatchSaveLinksCmd`, `PasteCategoriesCmd`, `PasteSectionsCmd`) при `is_cut=True` обязаны возвращать соответствующий константный ID из метода `id() -> int`.
+  2. **Атомарное слияние через `mergeWith()`**:
+     Команды удаления при `is_cut=True` реализуют `mergeWith(other: Any) -> bool`. При совпадении ID слияния команда вставки сохраняется как `self._paste_cmd = other`, и возвращается `True`.
+  3. **Делегирование `redo()` и `undo()`**:
+     - При вызове `undo()` команды удаления: строго сначала вызывается `self._paste_cmd.undo()` (удаление сущностей из целевого контейнера), затем восстанавливаются удаленные сущности в исходном контейнере.
+     - При повторе `redo()`: после удаления из исходного контейнера строго вызывается `self._paste_cmd.redo()` (повторная вставка в целевой контейнер).
+  4. **Запрет на `undo_stack.macro()` для вырезания и вставки**:
+     В `LinksUIClipboard` (и аналогичных контроллерах) категорически запрещено оборачивать вызовы команд `Delete` и `Save` в `with undo_stack.macro(...)` при операциях вырезания/вставки, так как макрос Qt создает анонимный составной контейнер без ID, блокируя механизм `mergeWith()` в `QUndoStack`.

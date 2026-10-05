@@ -26,6 +26,9 @@ from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
+_CUT_PASTE_CATEGORY_CMD_ID = 2001
+_CUT_PASTE_SECTION_CMD_ID = 2002
+
 _UNDO_DIALOG_CONTEXT = "UndoCommands"
 _UNDO_DELETE_CANCELED_TITLE = QT_TRANSLATE_NOOP("UndoCommands", "Delete canceled")
 _UNDO_BACKUP_FAILED_MESSAGE = QT_TRANSLATE_NOOP("UndoCommands",
@@ -952,11 +955,14 @@ class DeleteSectionCmd(BaseCommand):
         *,
         business: StructureBusinessLogic | None = None,
         undo_manager: UndoManager | None = None,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Delete section", main_window)
         self.main = main_window
         self._business = business
         self._undo_manager = undo_manager
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         if business is not None:
             self.structure_service = business.structure_service
         else:
@@ -978,6 +984,19 @@ class DeleteSectionCmd(BaseCommand):
                     "DeleteSectionCmd.__init__: unable to export section tree: %s",
                     exc,
                 )
+
+    def id(self) -> int:
+        return _CUT_PASTE_SECTION_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_SECTION_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _store_snapshot(self, snapshot: UndoResultSnapshot | None) -> None:
         self._last_snapshot = snapshot
@@ -1142,6 +1161,8 @@ class DeleteSectionCmd(BaseCommand):
             payload.setdefault("categories_deleted", categories_deleted)
             payload.setdefault("links_deleted", 0)
             self._store_snapshot(_snapshot_from_result(result, payload=payload))
+            if self._paste_cmd is not None:
+                self._paste_cmd.redo()
 
         self._dispatch_result(
             result,
@@ -1150,6 +1171,8 @@ class DeleteSectionCmd(BaseCommand):
         )
 
     def undo(self) -> None:
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         if not self._backup_tree:
             logger.warning("DeleteSectionCmd.undo: backup missing; undo skipped")
             return
@@ -1173,11 +1196,14 @@ class BatchDeleteCategoriesCmd(BaseCommand):
         *,
         business: StructureBusinessLogic | None = None,
         undo_manager: UndoManager | None = None,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Batch delete categories", main_window)
         self.main = main_window
         self._business = business
         self._undo_manager = undo_manager
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         if business is not None:
             self.structure_service = business.structure_service
         else:
@@ -1209,6 +1235,19 @@ class BatchDeleteCategoriesCmd(BaseCommand):
                 else:
                     if tree:
                         self._backup_trees.append(tree)
+
+    def id(self) -> int:
+        return _CUT_PASTE_CATEGORY_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_CATEGORY_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _resolve_business(self) -> StructureBusinessLogic | None:
         return self._business or getattr(self.main, "structure_business", None)
@@ -1291,6 +1330,8 @@ class BatchDeleteCategoriesCmd(BaseCommand):
                         exc,
                         exc_info=True,
                     )
+            if self._paste_cmd is not None:
+                self._paste_cmd.redo()
 
         self._dispatch_result(
             result,
@@ -1300,6 +1341,8 @@ class BatchDeleteCategoriesCmd(BaseCommand):
 
     @log_command
     def undo(self) -> None:
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         if not self._backup_trees:
             logger.warning("BatchDeleteCategoriesCmd.undo: backup missing; undo skipped")
             return
@@ -1692,11 +1735,14 @@ class DeleteSectionsCmd(BaseCommand):
         *,
         business: StructureBusinessLogic | None = None,
         undo_manager: UndoManager | None = None,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Delete sections", main_window)
         self.main = main_window
         self._business = business
         self._undo_manager = undo_manager
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         if business is not None:
             self.structure_service = business.structure_service
         else:
@@ -1728,6 +1774,19 @@ class DeleteSectionsCmd(BaseCommand):
                 else:
                     if tree:
                         self._backup_trees.append(tree)
+
+    def id(self) -> int:
+        return _CUT_PASTE_SECTION_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_SECTION_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _resolve_business(self) -> StructureBusinessLogic | None:
         return self._business or getattr(self.main, "structure_business", None)
@@ -1801,6 +1860,8 @@ class DeleteSectionsCmd(BaseCommand):
                     )
             _invalidate_links_business_cache(self.main)
             _request_top_panels_refresh(self.main)
+            if self._paste_cmd is not None:
+                self._paste_cmd.redo()
 
         self._dispatch_result(
             result,
@@ -1810,6 +1871,8 @@ class DeleteSectionsCmd(BaseCommand):
 
     @log_command
     def undo(self) -> None:
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         if not self._backup_trees:
             logger.warning("DeleteSectionsCmd.undo: backup missing; undo skipped")
             return
@@ -2190,6 +2253,7 @@ class PasteCategoriesCmd(BaseCommand):
         *,
         business: StructureBusinessLogic | None = None,
         undo_manager: UndoManager | None = None,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Paste categories", main_window)
         self.main = main_window
@@ -2197,6 +2261,7 @@ class PasteCategoriesCmd(BaseCommand):
         self._undo_manager = undo_manager
         self._section_id = int(section_id)
         self._trees = list(trees or [])
+        self.is_cut = bool(is_cut)
         self._created_category_ids: list[int] = []
         self._created_link_ids: list[int] = []
         db = _resolve_database(main_window)
@@ -2206,10 +2271,13 @@ class PasteCategoriesCmd(BaseCommand):
         )
         self._links_service = _new_links_service(db)
 
+    def id(self) -> int:
+        return _CUT_PASTE_CATEGORY_CMD_ID if self.is_cut else -1
+
     def _resolve_business(self) -> StructureBusinessLogic | None:
         return self._business or getattr(self.main, "structure_business", None)
 
-    def _refresh_after_categories(self) -> None:
+    def _refresh_after_categories(self, target_category_id: int | None = None, *, is_undo: bool = False) -> None:
         business = self._resolve_business()
         if business is None:
             return
@@ -2229,22 +2297,42 @@ class PasteCategoriesCmd(BaseCommand):
         try:
             structure_ctrl = getattr(self.main, "structure", None)
             tree_manager = getattr(structure_ctrl, "tree_manager", None)
-            if tree_manager is not None and hasattr(
-                tree_manager, "replace_section_categories"
-            ):
-                tree_manager.replace_section_categories(
-                    int(self._section_id),
-                    categories,
-                )
+            selection_handler = getattr(structure_ctrl, "selection_handler", None)
+            if selection_handler is not None:
+                selection_handler.begin_suppress_selection()
+            try:
+                if tree_manager is not None and hasattr(
+                    tree_manager, "replace_section_categories"
+                ):
+                    tree_manager.replace_section_categories(
+                        int(self._section_id),
+                        categories,
+                    )
+                if tree_manager is not None and hasattr(
+                    tree_manager, "refresh_section_tiles"
+                ):
+                    tree_manager.refresh_section_tiles(int(self._section_id), switch_view=False)
+            finally:
+                if selection_handler is not None:
+                    selection_handler.end_suppress_selection()
         except Exception:
             logger.debug(
                 "PasteCategoriesCmd: replace_section_categories failed",
                 exc_info=True,
             )
-        try:
-            business.section_selected.emit(int(self._section_id))
-        except Exception:
-            logger.debug("PasteCategoriesCmd: section_selected failed", exc_info=True)
+        if target_category_id:
+            try:
+                structure_ctrl = getattr(self.main, "structure", None)
+                sel_handler = getattr(structure_ctrl, "selection_handler", None)
+                if sel_handler:
+                    sel_handler._set_focus_on_new_item_by_id("category", int(target_category_id))
+            except Exception:
+                logger.debug("PasteCategoriesCmd: set_focus_on_new_item failed", exc_info=True)
+        elif not (is_undo and self.is_cut):
+            try:
+                business.section_selected.emit(int(self._section_id))
+            except Exception:
+                logger.debug("PasteCategoriesCmd: section_selected failed", exc_info=True)
 
     def redo(self) -> None:
         if not self._trees:
@@ -2258,7 +2346,8 @@ class PasteCategoriesCmd(BaseCommand):
         self._created_link_ids = [
             int(x) for x in (link_ids or []) if isinstance(x, int)
         ]
-        self._refresh_after_categories()
+        target_cat = self._created_category_ids[0] if self._created_category_ids else None
+        self._refresh_after_categories(target_cat)
 
     def undo(self) -> None:
         if self._created_link_ids:
@@ -2271,7 +2360,7 @@ class PasteCategoriesCmd(BaseCommand):
                 self._structure_service.delete_categories_bulk(self._created_category_ids)
             except Exception:
                 logger.exception("PasteCategoriesCmd.undo: delete failed")
-        self._refresh_after_categories()
+        self._refresh_after_categories(is_undo=True)
 
 
 class PasteSectionsCmd(BaseCommand):
@@ -2285,6 +2374,7 @@ class PasteSectionsCmd(BaseCommand):
         *,
         business: StructureBusinessLogic | None = None,
         undo_manager: UndoManager | None = None,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Paste sections", main_window)
         self.main = main_window
@@ -2292,6 +2382,7 @@ class PasteSectionsCmd(BaseCommand):
         self._undo_manager = undo_manager
         self._sphere_id = int(sphere_id)
         self._trees = list(trees or [])
+        self.is_cut = bool(is_cut)
         self._created_section_ids: list[int] = []
         self._merged_section_ids: list[int] = []
         self._merged_category_ids: list[int] = []
@@ -2302,6 +2393,9 @@ class PasteSectionsCmd(BaseCommand):
             business.structure_service if business is not None else _new_structure_service(db)
         )
         self._links_service = _new_links_service(db)
+
+    def id(self) -> int:
+        return _CUT_PASTE_SECTION_CMD_ID if self.is_cut else -1
 
     def _resolve_business(self) -> StructureBusinessLogic | None:
         return self._business or getattr(self.main, "structure_business", None)
@@ -2328,38 +2422,73 @@ class PasteSectionsCmd(BaseCommand):
             }
             structure_ctrl = getattr(self.main, "structure", None)
             tree_manager = getattr(structure_ctrl, "tree_manager", None)
+            selection_handler = getattr(structure_ctrl, "selection_handler", None)
 
-            if is_undo:
-                item_deleted = getattr(business, "item_deleted", None)
-                if item_deleted is not None and hasattr(item_deleted, "emit"):
-                    for section_id in self._created_section_ids:
-                        item_deleted.emit("section", int(section_id))
-                    did_targeted_refresh = True
-            else:
-                item_added = getattr(business, "item_added", None)
-                if item_added is not None and hasattr(item_added, "emit"):
-                    for section_id in self._created_section_ids:
-                        payload = sections_by_id.get(int(section_id))
-                        if payload:
-                            item_added.emit("section", int(self._sphere_id), payload)
+            if selection_handler is not None:
+                selection_handler.begin_suppress_selection()
+            if business is not None:
+                business.begin_batch()
+
+            try:
+                if is_undo:
+                    items_batch_deleted = getattr(business, "items_batch_deleted", None)
+                    if items_batch_deleted is not None and hasattr(items_batch_deleted, "emit") and self._created_section_ids:
+                        items_batch_deleted.emit("section", list(self._created_section_ids))
+                        did_targeted_refresh = True
+                    else:
+                        item_deleted = getattr(business, "item_deleted", None)
+                        if item_deleted is not None and hasattr(item_deleted, "emit"):
+                            for section_id in self._created_section_ids:
+                                item_deleted.emit("section", int(section_id))
                             did_targeted_refresh = True
+                else:
+                    item_added = getattr(business, "item_added", None)
+                    if item_added is not None and hasattr(item_added, "emit"):
+                        for section_id in self._created_section_ids:
+                            payload = sections_by_id.get(int(section_id))
+                            if payload:
+                                payload = dict(payload)
+                                payload["__skip_focus__"] = True
+                                item_added.emit("section", int(self._sphere_id), payload)
+                                did_targeted_refresh = True
 
-            section_ids_to_refresh = {
-                int(section_id)
-                for section_id in (
-                    list(self._created_section_ids) + list(self._merged_section_ids)
-                )
-                if isinstance(section_id, int) and int(section_id) > 0
-            }
-            if (
-                tree_manager is not None
-                and hasattr(tree_manager, "replace_section_categories")
-            ):
-                for section_id in sorted(section_ids_to_refresh):
-                    categories = business.get_categories(int(section_id)) or []
-                    tree_manager.replace_section_categories(int(section_id), categories)
-                if section_ids_to_refresh:
-                    did_targeted_refresh = True
+                section_ids_to_refresh = {
+                    int(section_id)
+                    for section_id in (
+                        list(self._created_section_ids) + list(self._merged_section_ids)
+                    )
+                    if isinstance(section_id, int) and int(section_id) > 0
+                }
+                if (
+                    tree_manager is not None
+                    and hasattr(tree_manager, "replace_section_categories")
+                ):
+                    for section_id in sorted(section_ids_to_refresh):
+                        categories = business.get_categories(int(section_id)) or []
+                        tree_manager.replace_section_categories(int(section_id), categories)
+                    if section_ids_to_refresh:
+                        did_targeted_refresh = True
+            finally:
+                if business is not None:
+                    business.end_batch()
+                if selection_handler is not None:
+                    selection_handler.end_suppress_selection()
+
+            target_section_id = (
+                self._created_section_ids[0]
+                if self._created_section_ids
+                else (self._merged_section_ids[0] if self._merged_section_ids else None)
+            )
+            if not is_undo and target_section_id is not None:
+                if tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
+                    tree_manager.set_pending_selection("section", int(target_section_id))
+                try:
+                    selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                    if selection_handler is not None and hasattr(selection_handler, "_set_focus_on_new_item_by_id"):
+                        selection_handler._set_focus_on_new_item_by_id("section", int(target_section_id))
+                    business.section_selected.emit(int(target_section_id))
+                except Exception:
+                    logger.debug("PasteSectionsCmd: focus on pasted section failed", exc_info=True)
         except Exception:
             logger.debug("PasteSectionsCmd: targeted refresh failed", exc_info=True)
             did_targeted_refresh = False
@@ -2391,13 +2520,18 @@ class PasteSectionsCmd(BaseCommand):
                 self._structure_service.delete_categories_bulk(self._merged_category_ids)
         except Exception:
             logger.exception("PasteSectionsCmd.undo: delete categories failed")
-        for sec_id in reversed(self._created_section_ids):
+        if self._created_section_ids:
             try:
-                self._structure_service.delete_section(int(sec_id))
+                self._structure_service.delete_sections_bulk(self._created_section_ids)
             except Exception:
-                logger.exception(
-                    "PasteSectionsCmd.undo: delete section failed id=%s", sec_id
-                )
+                logger.exception("PasteSectionsCmd.undo: delete sections bulk failed")
+                for sec_id in reversed(self._created_section_ids):
+                    try:
+                        self._structure_service.delete_section(int(sec_id))
+                    except Exception:
+                        logger.exception(
+                            "PasteSectionsCmd.undo: delete section failed id=%s", sec_id
+                        )
         self._refresh_after_sections(is_undo=True)
 
 
@@ -2618,11 +2752,14 @@ class DeleteCategoryCmd(BaseCommand):
         undo_manager: UndoManager | None = None,
         skip_reload: bool = False,
         lightweight_reload: bool = False,
+        is_cut: bool = False,
     ) -> None:
         super().__init__("Delete category", main_window)
         self.main = main_window
         self._business = business
         self._undo_manager = undo_manager
+        self.is_cut = bool(is_cut)
+        self._paste_cmd: Any | None = None
         if business is not None:
             self.structure_service = business.structure_service
         else:
@@ -2646,6 +2783,19 @@ class DeleteCategoryCmd(BaseCommand):
                     "DeleteCategoryCmd.__init__: export_category_tree failed: %s",
                     exc,
                 )
+
+    def id(self) -> int:
+        return _CUT_PASTE_CATEGORY_CMD_ID if self.is_cut else -1
+
+    def mergeWith(self, other: Any) -> bool:
+        if (
+            self.is_cut
+            and getattr(other, "is_cut", False)
+            and getattr(other, "id", lambda: -1)() == _CUT_PASTE_CATEGORY_CMD_ID
+        ):
+            self._paste_cmd = other
+            return True
+        return False
 
     def _store_snapshot(self, snapshot: UndoResultSnapshot | None) -> None:
         self._last_snapshot = snapshot
@@ -2756,22 +2906,42 @@ class DeleteCategoryCmd(BaseCommand):
         business = self._resolve_business()
         category_id = payload.get("id") if isinstance(payload, dict) else None
         section_id = payload.get("section_id") if isinstance(payload, dict) else None
+        structure_ctrl = getattr(self.main, "structure", None)
+        tree_manager = getattr(structure_ctrl, "tree_manager", None)
+        if business is not None and isinstance(section_id, int):
+            try:
+                business._invalidate_categories_cache(section_id)
+            except Exception:
+                logger.debug("DeleteCategoryCmd.undo: invalidate cache failed", exc_info=True)
+            try:
+                categories = business.get_categories(section_id) or []
+                if tree_manager is not None and hasattr(tree_manager, "replace_section_categories"):
+                    tree_manager.replace_section_categories(section_id, categories)
+                if tree_manager is not None and hasattr(tree_manager, "refresh_section_tiles"):
+                    tree_manager.refresh_section_tiles(section_id)
+            except Exception:
+                logger.debug("DeleteCategoryCmd.undo: refresh structure/tiles failed", exc_info=True)
         try:
-            if business and isinstance(category_id, int):
-                business.select_category(category_id)
-        except Exception as exc:
-            logger.debug("DeleteCategoryCmd.undo: select_category failed: %s", exc)
-        try:
-            if business:
-                try:
-                    clear_icon_cache()
-                except Exception:
-                    pass
+            clear_icon_cache()
+        except Exception:
+            pass
+
+        if tree_manager is None and business is not None and isinstance(section_id, int):
+            try:
                 payload = dict(payload)
                 payload["__from_undo__"] = True
                 business.item_added.emit("category", section_id, payload)
+            except Exception as exc:
+                logger.debug("DeleteCategoryCmd.undo: item_added emit failed: %s", exc)
+
+        try:
+            selection_handler = getattr(structure_ctrl, "selection_handler", None)
+            if selection_handler is not None and isinstance(category_id, int):
+                selection_handler._restore_category_selection(category_id, target_section_id=section_id)
+            elif business is not None and isinstance(section_id, int):
+                business.section_selected.emit(section_id)
         except Exception as exc:
-            logger.debug("DeleteCategoryCmd.undo: item_added emit failed: %s", exc)
+            logger.debug("DeleteCategoryCmd.undo: set focus failed: %s", exc)
 
     def _import_backup_tree(self) -> bool:
         try:
@@ -2850,6 +3020,8 @@ class DeleteCategoryCmd(BaseCommand):
             else:
                 self._handle_regular_reload(business, section_id, category_id)
             self._store_snapshot(_snapshot_from_result(result))
+            if self._paste_cmd is not None:
+                self._paste_cmd.redo()
 
         self._dispatch_result(
             result,
@@ -2859,6 +3031,8 @@ class DeleteCategoryCmd(BaseCommand):
 
     @log_command
     def undo(self) -> None:
+        if self._paste_cmd is not None:
+            self._paste_cmd.undo()
         if not self._backup_tree:
             logger.warning("DeleteCategoryCmd.undo: backup missing; undo skipped")
             return
