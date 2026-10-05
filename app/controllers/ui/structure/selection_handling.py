@@ -181,12 +181,23 @@ class SelectionHandling(QObject):
             )
         self._handle_item_selection(current)
 
+    @pyqtSlot(QModelIndex)
     @pyqtSlot(QModelIndex, int)
     def _on_single_click(self, index: QModelIndex, _col: int = 0) -> None:
         try:
             current = self.tree.currentIndex()
         except Exception:
             current = QModelIndex()
+        if not index or not index.isValid():
+            return
+        meta = get_tree_tuple(index, 0)
+        if meta and meta[0] == "category":
+            ui_state = getattr(self.main, "ui_state", None)
+            current_loaded = ui_state.get_current_category_id() if ui_state else None
+            if current_loaded != meta[1]:
+                self._last_handled = None
+                self._handle_item_selection(index)
+                return
         if index == current:
             return
         self._handle_item_selection(index)

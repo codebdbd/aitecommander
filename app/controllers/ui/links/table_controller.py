@@ -294,8 +294,8 @@ class LinksTableController(QObject):
                                 cat_id,
                                 current_category_id,
                             )
-                        self.update_row(payload)
-                        return
+                        if hasattr(self.table, "update_link_by_id") and self.table.update_link_by_id(payload):
+                            return
 
                     except Exception:
                         logger.debug(

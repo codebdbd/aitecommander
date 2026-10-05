@@ -498,7 +498,7 @@ class ActionController(QObject):
             return
 
         # Check focus on links table
-        if self._is_table_focused() and self._table_has_selection():
+        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
             links = self._selected_links()
             if links:
                 self.main_window.links_actions.delete_links_with_confirmation(links)
@@ -526,7 +526,7 @@ class ActionController(QObject):
             self._copy_tiles_selection()
             return
 
-        if self._is_table_focused() and self._table_has_selection():
+        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
             self.main_window.links_actions.copy_selected_links()
             return
 
@@ -549,7 +549,7 @@ class ActionController(QObject):
             self._cut_tiles_selection()
             return
 
-        if self._is_table_focused() and self._table_has_selection():
+        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
             self.main_window.links_actions.cut_selected_links()
             return
 
@@ -568,7 +568,7 @@ class ActionController(QObject):
                 pass
             return
 
-        if self._is_table_focused():
+        if self._is_table_focused() or self._is_table_stack_active():
             self.main_window.links_actions.paste_links()
             return
 
@@ -601,7 +601,7 @@ class ActionController(QObject):
             self._select_all_in_tiles()
             return
 
-        if self._focus_manager.is_type_focused(WidgetType.LINKS_TABLE):
+        if self._is_table_focused() or self._is_table_stack_active():
             self.main_window.select_all_links()
 
     @pyqtSlot()
@@ -636,7 +636,7 @@ class ActionController(QObject):
                     sel.clearSelection()
             return
 
-        if self._is_table_focused():
+        if self._is_table_focused() or self._is_table_stack_active():
             table = getattr(self.main_window, "table", None)
             if table and hasattr(table, "clearSelection"):
                 table.clearSelection()
@@ -1087,6 +1087,7 @@ class ActionController(QObject):
         tree_focused = self._is_tree_focused()
         table_focused = self._is_table_focused()
         tiles_focused = self._is_tiles_focused()
+        is_table_active = table_focused or self._is_table_stack_active()
 
         can_copy = has_text_sel
         can_cut = has_text_sel
@@ -1112,7 +1113,7 @@ class ActionController(QObject):
                 svc
                 and (svc.clipboard_has_pastable_category() or svc.clipboard_has_pastable_section())
             )
-        elif table_focused:
+        elif is_table_active:
             can_copy = table_has_selection
             can_cut = table_has_selection
             can_delete = table_has_selection
@@ -1139,7 +1140,7 @@ class ActionController(QObject):
             self.delete_action.setEnabled(bool(can_delete))
         if self.select_all_action:
             self.select_all_action.setEnabled(
-                bool(widget or tree_focused or table_focused or tiles_focused)
+                bool(widget or tree_focused or is_table_active or tiles_focused)
             )
 
         try:

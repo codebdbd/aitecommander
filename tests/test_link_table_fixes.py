@@ -162,3 +162,20 @@ def test_group_launch_state(qapp):
     # Set all True -> State_On
     model.set_all_group_launch(1)
     assert model.group_launch_state() == QStyle.StateFlag.State_On
+
+
+def test_get_selected_rows_cell_selection_fallback(qapp):
+    from app.utils.ui.qt.roles import get_selected_rows
+
+    table = LinksTableView()
+    table.populate(_sample_links(), mode="normal")
+    model = table.model()
+    sm = table.selectionModel()
+
+    # Select only a single cell in column 1 (Name) without Rows flag
+    cell_idx = model.index(1, int(LinkTableColumn.NAME))
+    sm.select(cell_idx, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+
+    # selectedRows() in Qt is empty for cell selection, but get_selected_rows must resolve row 1
+    assert sm.selectedRows() == []
+    assert get_selected_rows(table) == [1]

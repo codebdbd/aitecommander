@@ -5,9 +5,12 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 
 # Agent Execution Rules: High-Efficiency Mode
 
+## 0. Meta-Rule: Rule Precedence & Conflict Resolution
+- **Rule Superseding**: При возникновении расхождений между разделами приоритет имеет более глобальный и поздний утверждённый контракт (§53 Sharp Geometry, §55 323px Left Panel, §56 Active Context & Model/View). Одновременно действующие взаимоисключающие правила категорически запрещены. Старые формулировки обязаны приводиться в соответствие с действующим контрактом приложения.
+
 ## 1. Algorithmic Restrictions on Terminal Commands
 - **Absolute Ban on Git Restore / Checkout / Reset (ЗАПРЕТ НА ОТКАТ ИЗ ГИТ БЕЗ СОГЛАСОВАНИЯ)**: Категорически ЗАПРЕЩЕНО выполнять `git checkout`, `git restore`, `git reset`, `git revert`, `git clean` или любые другие команды отката, сброса или восстановления файлов из git. БЕЗ ПРЯМОГО ЯВНОГО СОГЛАСОВАНИЯ ПОЛЬЗОВАТЕЛЯ ГИТ НЕ ТРОГАТЬ! Запрещено откатывать файлы через git, затирать незакоммиченные изменения или возвращать файлы из git.
-- **Git Commit Workflow**: When requested to commit, you MUST execute exactly `git add -A` followed by `git commit -m "<message>"` and `git push`. Do NOT run `git status` or `git diff` first.
+- **Git Commit Workflow**: When requested to commit, you MUST run `git status` to verify what files are changed, ensure no caches/dumps are accidentally staged, then execute `git add -A`, `git commit -m "<message>"` and `git push`.
 - **Banned Commands**: You MUST NEVER execute `pytest`, `ruff`, `flake8`, `mypy`, or any other linter/testing tool unless the user explicitly writes the word "проверь", "тест" or "lint".
 - **Time Limits**: For any terminal command, set `WaitMsBeforeAsync` to no more than 5000 (5 seconds). If it takes longer, it must go to the background. DO NOT loop or poll endlessly.
 
@@ -38,7 +41,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 ## 6. Frozen Subsystems: Spheres Bar & Dock Architecture (ЗАПРЕТ НА ИЗМЕНЕНИЕ ПАНЕЛИ СФЕР)
 - **Status: FROZEN / READ-ONLY**: Дизайн, геометрия и физика панели сфер (`spheres_bar`), кнопок сфер (`SphereToolButton`) и контроллера (`SpheresBarController`) полностью зафиксированы.
 - **Strict Parameters**:
-  1. **Ширина левой панели**: строго **320 px** (`splitter_sizes: [320, 704]`).
+  1. **Ширина левой панели**: строго **323 px** (`splitter_sizes: [323, 701]`).
   2. **Отступы и сетка**: `spheres_bar_spacing: 8`, `spheres_bar_margin_left: 8`, `spheres_bar_margin_right: 8`.
   3. **Высота панели**: `spheres_bar_height: 96`, `spheres_layout_margins: [8, 2, 8, 4]`.
   4. **Размер кнопок**: строго **70×88 px** (`icon_w + 6, icon_h + 24`).
@@ -169,9 +172,9 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 ## 19. Architecture Standards: Checkbox Contrast & Indicator Rendering (СТАНДАРТ КОНТРАСТНОСТИ И РЕНДЕРИНГА ЧЕКБОКСОВ)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Рендеринг индикаторов чекбоксов и динамическая окраска иконок зафиксированы для гарантированной видимости во всех 16 темах.
 - **Strict Relative Luminance Rules**:
-  1. **WCAG-расчет цвета символа**: В кастомных чекбоксах (`ProfileCheckBox` и др.) цвет галочки/номера вычисляется строго по формуле относительной яркости `lum = 0.299 * R + 0.587 * G + 0.114 * B`. При `lum > 130` используется глубокий темный цвет `#121212`, при `lum <= 130` — чистый белый `#FFFFFF`. Запрещено использовать наивный `lightness() < 220`, вызывающий исчезновение элементов на желтых, зеленых и розовых акцентах.
+  1. **WCAG-расчет цвета символа**: В кастомных чекбоксах (`ProfileCheckBox` и др.) контрастность галочки/номера проверяется по стандарту относительной яркости WCAG 2.1 (Relative Luminance) и контрастности не ниже 4.5:1 к фону индикатора в соответствии с §27. Для светлых акцентов используется глубокий темный цвет `#121212`, для темных — чистый белый `#FFFFFF`. Запрещено использовать наивный `lightness() < 220`, вызывающий исчезновение элементов на желтых, зеленых и розовых акцентах.
   2. **Динамическая генерация `check.svg`**: В `ThemeStylesheetService._tint_svg_for_qss` цвет `check.svg` обязан строго учитывать цвет фона индикатора в QSS: для темных фонов (`industrial_yellow` на `#4D3800` и др.) строго `#FFFFFF`, а для светлых и ярких фонов (`matrix`, `nord_light`, `sage_light`, `pearl_gray`, `pastel_bloom`) строго `#121212` с контрастом >= 4.5:1.
-  3. **Сглаженная геометрия**: Индикаторы чекбоксов отрисовываются скругленными `drawRoundedRect(box_rect, 2.5, 2.5)` с нативной векторной отрисовкой пути пера 1.8px.
+  3. **Монолитная геометрия**: Индикаторы чекбоксов подчиняются стандарту §53 и отрисовываются строго прямоугольными `drawRect(box_rect)` с нативной векторной отрисовкой пути пера 1.8px без скругления.
 
 ## 20. Architecture Standards: Links Table Tooltip Architecture (СТАНДАРТ ТУЛТИПОВ ТАБЛИЦЫ ССЫЛОК)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Структура и форматирование подсказок ячеек таблицы ссылок зафиксированы для исключения схлопывания по ширине и дублирования данных.
@@ -197,7 +200,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 ## 23. Architecture Standards: QSS Styling & QComboBox Protection (ЗАПРЕТ НА SETSTYLE В QSS-ВИДЖЕТАХ)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Правила стилизации выпадающих списков и виджетов, управляемых QSS, зафиксированы.
 - **Strict QSS Protection Rules**:
-  1. **Защита движка `QStyleSheetStyle`**: В Qt/PyQt вызов `widget.setStyle(QProxyStyle/QStyle)` на отдельном экземпляре виджета, стилизуемом через QSS, полностью отключает и разрушает внутреннюю обертку `QStyleSheetStyle`. Это приводит к полному слету и разрушению оформления темы (границы, скругления, фон, отступы, состояния hover/focus).
+  1. **Защита стилизации QSS**: В Qt/PyQt вызов `widget.setStyle(QProxyStyle/QStyle)` на отдельном экземпляре виджета вступает в прямой конфликт с глобальным менеджером тем и каскадом QSS, приводя к визуальным дефектам оформления темы.
   2. **Категорический запрет на `setStyle()` для QSS-виджетов**: Категорически запрещено вызывать `.setStyle()` на `QComboBox`, `PopupComboBox` и любых других QSS-виджетах для кастомизации подэлементов (включая стрелки/шевроны). Кастомизация обязана производиться строго средствами QSS (`::drop-down`, `::down-arrow`) либо через специализированные сервисы тем без подмены стиля виджета.
 
 ## 24. Architecture Standards: Blank Area Double-Click Creation (СОЗДАНИЕ СУЩНОСТЕЙ ПО ДВОЙНОМУ КЛИКУ НА ПУСТОМ МЕСТЕ)
@@ -225,7 +228,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Карточный дизайн и состояния плиток категорий (`categoryTiles`, `CategoryTilesDelegate`, `QSS`) во всех 16 темах полностью зафиксированы.
 - **Strict Tile Aesthetics Rules**:
   1. **Запрет на сплошную заливку**: Категорически запрещено заливать фон выбранных или наведенных плиток плотными, непрозрачными акцентными цветами или включать `categoryTiles` в групповые селекторы строк таблиц/деревьев (`QTableView::item:selected`).
-  2. **Геометрия и скругление**: Каждая плитка обязана иметь базовое скругление **`border-radius: 6px`** (`common.qss`) и прозрачную рамку в покое (`border: 1px solid transparent;`).
+  2. **Геометрия и скругление**: Каждая плитка подчиняется стандарту монолитной геометрии §53 и обязана иметь **`border-radius: 0`** и прозрачную рамку в покое (`border: 1px solid transparent;`).
   3. **Состояние Hover**: В тёмных темах мягкая нейтральная подсветка **`rgba(255, 255, 255, 0.05)`**, в светлых темах — **`rgba(0, 0, 0, 0.04)`**, `border-color: transparent;`.
   4. **Состояние Selected / Active**: В тёмных темах деликатная дымка **`rgba(255, 255, 255, 0.08)`** (при hover `0.12`), в светлых темах — **`rgba(0, 0, 0, 0.07)`** (при hover `0.10`). Контур строго в **1 px** цвета акцента конкретной темы (`border: 1px solid <accent_border>;`).
   5. **Типографика**: Текст под иконкой строго наследует штатный цвет текста темы **`color: palette(text);`**. Запрещено принудительно затирать цвет текста белым `#FFFFFF` или иными статическими значениями.
@@ -271,7 +274,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
      - Общий распакованный объем: строго не более **50 МБ** (`MAX_TOTAL_UNCOMPRESSED_SIZE`).
      - Размер одного файла иконки/воркспейса: не более **15 МБ** (`MAX_FILE_SIZE`).
      - Размер `manifest.json`: не более **1 МБ** (`MAX_MANIFEST_SIZE`).
-  4. **Защита от Path Traversal (Zip Slip)**: Извлечение любых файлов и директорий ведется строго по очищенному базовому имени через `Path(name).name`. Распаковка по путям, содержащим `../` или абсолютные пути, категорически запрещена.
+  4. **Защита от Path Traversal (Zip Slip)**: Извлечение файлов и директорий пакета ведётся с сохранением внутренней структуры каталогов при условии валидации: целевой путь `(staging_dir / member_name).resolve()` обязан строго находиться внутри `staging_dir.resolve()`. Применение путей с `../`, абсолютных путей или небезопасное схлопывание структуры каталогов категорически запрещено.
   5. **Валидация манифеста и целостности**: Манифест обязан валидироваться по типу пакета (`expected_type`), а `data.json` обязан строго проходить проверку контрольной суммы SHA-256 (`_validate_checksums`).
   6. **Унифицированные каналы импорта**: Импорт пакетов обязан бесшовно поддерживать 4 точки входа:
      - Контекстные меню и главное меню приложения;
@@ -324,7 +327,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Model Renumbering Rules**:
   1. **Атомарная переномерация колонки `#`**: В `LinksTableModel.move_rows` после физического изменения порядка строк модель обязана эмитировать `self.dataChanged` для колонки `0` (`ORDER`) на весь диапазон строк `0..N-1`, гарантируя мгновенное синхронное отображение номеров `1, 2, 3... N` без пересоздания или мерцания таблицы.
 - **Strict Selection & Persistence Rules**:
-  1. **Сохранение выделения и фокуса**: В `LinksTableView.dropEvent` после вызова базового `dropEvent` выделение обязано автоматически восстанавливаться на перемещенных строках по их `id` через `selectionModel().select(...)`, а текущий фокус (`setCurrentIndex`) обязан устанавливаться на первую перемещенную строку.
+  1. **Сохранение выделения и текущего индекса**: В `LinksTableView.dropEvent` после вызова базового `dropEvent` выделение обязано автоматически восстанавливаться на перемещенных строках по их `id` через `selectionModel().select(...)`, а текущий индекс (`setCurrentIndex`) в модели выбора обязан устанавливаться на первую перемещенную строку без отбирания фокуса клавиатуры у других виджетов.
   2. **Сигнальный поток в базу данных**: Завершение перемещения обязано порождать цепочку сигналов: `items_reordered(ids)` -> `links_reordered` -> `handlers._on_links_reordered` -> `business.update_link_order(ids)` для атомарного сохранения нового порядка в базе данных SQLite.
 
 ## 35. Architecture Standards: Dialog Geometry & Equalized Button Box Standard (АРХИТЕКТУРНЫЙ СТАНДАРТ ГЕОМЕТРИИ ДИАЛОГОВ И СИММЕТРИИ КНОПОК)
@@ -363,7 +366,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Installed Apps Dialog Layout Rules**:
   1. **Полноразмерная чистая строка поиска**: Поле поиска (`search_le`) размещается строго на всю ширину диалога (`layout.addWidget(self.search_le)`). Счетчик приложений исключен для устранения визуального шума и сохранения минималистичного нативного стиля Windows.
   2. **Чистый футер действий и оптическая центровка**: В нижней строке (`bottom_layout`) диалога `InstalledAppsDialog` допустимы строго: слева кнопка поиска на диске `[ 📁 Найти на компьютере ]` (`IconTextPushButton` с центрированной иконкой папки `app/resources/ui_icons/folder_icon.png` и типографической центровкой базовой линии `baseline = int(round(mid_y + (fm.ascent() - fm.descent()) / 2.0))`), далее пружина-разделитель `addStretch(1)` и справа парные кнопки `[ Выбрать ] [ Отмена ]` в `QDialogButtonBox`.
-  3. **Минимальная геометрия**: Минимальный размер диалога установленных программ строго **560×560 px** (`resize(580, 620)`), гарантируя полное отсутствие обрезания текста кнопок во всех 6 языковых локалях (RU, EN, UK, DE, ES, FR).
+  3. **Минимальная геометрия**: Диалог установленных программ имеет минимальный размер строго `setMinimumSize(560, 560)` со стартовым `resize(580, 620)`, гарантируя полное отсутствие обрезания текста кнопок во всех 6 языковых локалях (RU, EN, UK, DE, ES, FR).
 
 ## 39. Architecture Standards: Dialog Tables & Lists Clean Border Styling (АРХИТЕКТУРНЫЙ СТАНДАРТ РАМОК ТАБЛИЦ И СПИСКОВ В ДИАЛОГАХ)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Стандарт оформления внешних границ таблиц (`QTableView`, `QTableWidget`) и списков (`QListView`, `QListWidget`) в диалоговых окнах зафиксирован.
@@ -389,7 +392,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Default Directory Rules**:
   1. **Запрет на открытие корня приложения**: Категорически запрещено открывать корень проекта или исполняемого файла приложения по умолчанию при вызове `QFileDialog`.
   2. **Стандарт каталога «Загрузки» (Downloads Standard)**: Для всех операций импорта/экспорта данных, резервных копий базы данных и миграционных архивов (бэкапы, HTML-закладки браузеров, дампы) стартовой директорией по умолчанию выступает папка «Загрузки» пользователя ОС (`QStandardPaths.StandardLocation.DownloadLocation`).
-  3. **Стандарт каталога программ (Applications Standard)**: Для диалогов выбора исполняемых файлов приложений (`InstalledAppsDialog`, выбор `.exe`) стартовой директорией по умолчанию выступает системная папка `Program Files` (`QStandardPaths.StandardLocation.ApplicationsLocation` / `os.environ.get("ProgramFiles")`).
+  3. **Стандарт каталога программ (Applications Standard)**: Для диалогов выбора исполняемых файлов приложений (`InstalledAppsDialog`, выбор `.exe`) на Windows стартовой директорией выступает системная папка `Program Files` (`os.environ.get("ProgramFiles")` или `ProgramFiles(x86)`), а на остальных ОС — `QStandardPaths.StandardLocation.ApplicationsLocation`.
   4. **Неприкосновенность каталога пользовательских иконок**: Выбор локальных пользовательских иконок закладок строго привязан к специализированному хранилищу `user_icons_dir` (`app/resources/icons/user/`). Запрещено перенаправлять выбор иконок в общие папки ОС.
 - **Strict Context-Aware Directory Persistence**:
   1. **Запоминание последнего выбора**: Через централизованный сервис `DialogPathService` путь выбранного файла/папки сохраняется в реестр `QSettings` по контексту (`DialogPaths/{context}`) методом `remember_dir(context, chosen_path)`.
@@ -489,7 +492,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Bulk Toggle Rules**:
   1. **Клик по шапке**: Клик по заголовку колонки `GROUP_LAUNCH` перехватывается в `_on_sort_clicked` до контроллера сортировки и вызывает `_toggle_all_group_launch()`.
   2. **Логика переключения**: Если все строки отмечены — снимаются все; если хотя бы одна не отмечена — отмечаются все строки.
-  3. **Пакетное обновление модели и БД**: Метод `LinksTableModel.set_all_group_launch(val_int)` атомарно обновляет все строки модели, испускает один `dataChanged` на весь диапазон колонки и для каждой записи испускает `groupLaunchToggled(link_id, val_int)` для асинхронного сохранения в БД через `WorkerManager`.
+  3. **Пакетное обновление модели и БД**: Метод `LinksTableModel.set_all_group_launch(val_int)` синхронно обновляет строки модели, испускает один общий `dataChanged` на весь диапазон колонки и для каждой записи испускает сигнал `groupLaunchToggled(link_id, val_int)` для асинхронного сохранения в БД.
 
 ## 48. Architecture Standards: Font Rendering, Unicode Tile Layout & Adaptive Tree Rows (КОНТРАКТ РЕНДЕРИНГА ШРИФТОВ, UNICODE И ВЫСОТЫ СТРОК)
 - **Status: FIXED BEHAVIOR / REGRESSION PROTECTION**: Зафиксировано поведение `app/startup/app_factory.py`, `app/views/widgets/tiles/delegate.py`, `app/views/widgets/custom_widgets.py`, `app/views/widgets/link/base_table.py` и правил типографики в `app/services/theme_stylesheet_service.py`. Изменения этих компонентов обязаны сохранять описанные ниже свойства.
@@ -553,6 +556,7 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
 - **Strict Sharp Geometry Rules**:
   1. **Категорический запрет на скругления**: Во всех интерактивных элементах приложения (кнопки верхнего тулбара, кнопки нижнего бара, плитки категорий `categoryTiles`, элементы дерева, таблиц, списков) строго запрещены любые скругления (`border-radius > 0`). Геометрия обязана оставаться строго монолитной, плоской и прямоугольной (`border-radius: 0`).
   2. **Запрет на локальные скругления в QSS**: Запрещено возвращать `border-radius: 6px` или любые другие радиусы в `common.qss`, файлах тем `.qss` или коде виджетов.
+  3. **Единственное системное исключение (Scrollbar Exception)**: Скроллбар `QScrollBar` с `border-radius: 3px` в `common.qss` (согласно §7) является единственным зафиксированным исключением из правила монолитной геометрии (стиль капсульного скроллбара Fluent / macOS).
 - **Strict Unified Hover Token Rules**:
   1. **Единый источник фона ховера (`hover_bg`)**: Фон при наведении для элементов управления (`QWidget#topBarHost QToolButton`, `QWidget#topBarHost QPushButton`, `QWidget#bottomBarContainer QPushButton`, `QDialog QPushButton`, `QTreeView::item:!selected:hover`, `QListView#categoryTiles::item:hover`, `QMenuBar::item:hover`) обязан использовать системный токен активной темы `@hover_bg` (или сгенерированный `{bg_hover}`).
   2. **Запрет на хардкодные цвета ховера**: Запрещено использовать фиксированные HEX-цвета (вроде `#252D3A`), конфликтующие с палитрой активной темы оформления.
@@ -574,13 +578,13 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
      - Разделители тулбара: строго **1 px** (`width: 1px;`).
      - Левый отступ тулбара: строго **4 px** (`top_bar.setContentsMargins(4, 0, ...)`).
      - Отступ перед разделителем поиска: строго **4 px**.
-     - Суммарная ширина тулбара до разделителя поиска: ровно **323 px** ($4\text{ (margin)} + 8 \times 34\text{ (кнопки)} + 3 \times 1\text{ (разделители)} + 10 \times 4\text{ (отступы)} + 4\text{ (отступ разделителя)} = 323\text{ px}$), строго совпадая со сплиттером левой панели (320 px + 3 px). Категорически запрещено изменять эти размеры.
+     - Суммарная ширина тулбара до разделителя поиска: ровно **323 px** ($4\text{ (margin)} + 8 \times 34\text{ (кнопки)} + 3 \times 1\text{ (разделители)} + 10 \times 4\text{ (отступы)} + 4\text{ (отступ разделителя)} = 323\text{ px}$), строго совпадая с шириной левой панели (323 px). Категорически запрещено изменять эти размеры.
 
 
 ## 55. Architecture Standards: Links Table Performance & 323px Left Panel Contract (СТАНДАРТЫ ТАБЛИЦЫ ССЫЛОК И ПАНЕЛИ 323 PX)
 - **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурные стандарты производительности таблицы ссылок и геометрии левой панели.
 - **Strict Left Panel Width & Auto-Hide Contract**:
-  1. **Ширина левой панели**: строго **323 px** (`left_panel.setMinimumWidth(323)`). Категорически запрещено сбрасывать или уменьшать ширину левой панели в покое.
+  1. **Ширина левой панели**: строго **323 px** (`left_panel.setMinimumWidth(323)` и базовая геометрия сплиттера `[323, ...]`). Категорически запрещено сбрасывать или уменьшать ширину левой панели в покое.
   2. **Защита разворачивания окна на весь экран**: При вызове `isMaximized()` в `_AutoHideTreeFilter` запрещено скрывать левую панель. Если панель была свернута, она обязана восстанавливаться в 323 px.
   3. **Сплиттер**: При сворачивании `left_panel.setMinimumWidth(0)`, при восстановлении `left_panel.setMinimumWidth(323)` с восстановлением сохраненного размера `[323, ...]`.
 - **Strict Table Delegate & Header Performance Contract**:
@@ -637,3 +641,20 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
      - При повторе `redo()`: после удаления из исходного контейнера строго вызывается `self._paste_cmd.redo()` (повторная вставка в целевой контейнер).
   4. **Запрет на `undo_stack.macro()` для вырезания и вставки**:
      В `LinksUIClipboard` (и аналогичных контроллерах) категорически запрещено оборачивать вызовы команд `Delete` и `Save` в `with undo_stack.macro(...)` при операциях вырезания/вставки, так как макрос Qt создает анонимный составной контейнер без ID, блокируя механизм `mergeWith()` в `QUndoStack`.
+
+
+## 58. Architecture Standards: State Mutation & Presentation Reload Contract (КОНТРАКТ ОБНОВЛЕНИЯ ДАННЫХ И UNDO/REDO)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурный контракт обновления отображения после мутаций данных (Undo, Redo, Paste, DnD).
+- **Strict Mutation Reload Rules**:
+  1. **Разделение навигации и обновления данных**: При операциях отката/наката (Undo/Redo) или пакетных мутациях данных в пределах текущей категории запрещено полагаться на навигационные методы дерева (`select_*`), отсекающие повторные переходы.
+  2. **Централизованный `force_reload`**: Принудительное обновление представления при изменении данных в активной категории обязано вызываться через `ui_state_manager.load_category(category_id, force_reload=True)`.
+  3. **Запрет на искажение геометрии при починке данных**: Категорически запрещено изменять параметры сплиттеров, тулбара, размеры панелей или фильтры ресайза окна (`WindowStateChange`, `Resize`) для решения задач обновления списков или отката действий.
+
+## 59. Architecture Standards: Single-Click & Selection Model Contract (ГАРАНТИЯ НАДЁЖНОСТИ ВЫДЕЛЕНИЯ И ДЕЙСТВИЙ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Контракт обработки выделения и активации действий с первого клика полностью зафиксирован.
+- **Strict Rules**:
+  1. **Fallback для строк (`roles.get_selected_rows`)**: Метод `get_selected_rows(view)` обязан использовать fallback на `selectedIndexes()`, если `selectedRows()` возвращает пустой список при наличии `hasSelection()`. Запрещено полагаться исключительно на `selectedRows()`, так как клик по отдельной ячейке не включает флаг полной строки.
+  2. **Сохранение выделения при обновлении (`PopulationManagerMixin._capture_ui_state`)**: Захват выбранных строк перед обновлением таблицы обязан выполняться строго через `get_selected_rows(table)` во избежание сброса выделения в `[]`.
+  3. **Стек представления в `ActionController`**: Определение доступности действий таблицы ссылок (`can_copy`, `can_cut`, `can_delete`, `can_paste`, `select_all_action`) в `update_action_states`, `select_all_current` и `clear_selection_current` обязано проверять `_is_table_focused() or _is_table_stack_active()`. Запрещено требовать исключительного фокуса на таблице.
+  4. **Правый клик по дереву (`StructureUIController._on_context_menu`)**: При вызове контекстного меню по валидному элементу дерева строка обязана немедленно выбираться через `sel_model.setCurrentIndex(item, ClearAndSelect | Rows)`, если она ещё не выбрана.
+  5. **Клик по активному узлу (`SelectionHandling._on_single_click`)**: Сигнал `tree.clicked` обязан быть подключён к `_on_single_click`. Если нажатая категория отличается от отображаемой в таблице (например, после поиска или режима плиток), категория обязана загружаться с первого клика.

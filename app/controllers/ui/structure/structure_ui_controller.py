@@ -144,6 +144,7 @@ class StructureUIController(QObject):
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
+        self.tree.clicked.connect(self.selection_handler._on_single_click)
         try:
             self.tree.externalLinkDropped.connect(self._on_external_link_dropped)
         except Exception:
@@ -184,6 +185,17 @@ class StructureUIController(QObject):
             item = idx if (idx and idx.isValid()) else None
         except Exception:
             item = None
+
+        if item is not None and item.isValid():
+            sel_model = self.tree.selectionModel()
+            if sel_model and not sel_model.isSelected(item):
+                from PyQt6.QtCore import QItemSelectionModel
+
+                sel_model.setCurrentIndex(
+                    item,
+                    QItemSelectionModel.SelectionFlag.ClearAndSelect
+                    | QItemSelectionModel.SelectionFlag.Rows,
+                )
 
         menu = self.main.menu_controller.create_structure_context_menu(
             self.tree,

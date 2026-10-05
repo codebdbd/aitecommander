@@ -256,6 +256,18 @@ class LinksUIHandlers(BaseLinksUIComponent):
         idx = self.table.indexAt(pos)
         try:
             if idx and idx.isValid():
+                sel_model = (
+                    self.table.selectionModel()
+                    if hasattr(self.table, "selectionModel")
+                    else None
+                )
+                if sel_model and not sel_model.isRowSelected(idx.row(), idx.parent()):
+                    from PyQt6.QtCore import QItemSelectionModel
+                    sel_model.setCurrentIndex(
+                        idx,
+                        QItemSelectionModel.SelectionFlag.ClearAndSelect
+                        | QItemSelectionModel.SelectionFlag.Rows,
+                    )
                 logger.debug(
                     "Context menu requested at row=%s, col=%s", idx.row(), idx.column()
                 )

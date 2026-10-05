@@ -186,52 +186,37 @@ class MoveLinksCommand(BaseBulkCommand):
                 if isinstance(first_old_category, int):
                     focus_category_id = int(first_old_category)
 
-        # Unconditionally reload affected categories to refresh table and caches
-        try:
-            if categories_to_update:
-                _reload_links_via_controller(self.main, categories_to_update)
-        except Exception as exc:
-            logger.debug(
-                "Failed to refresh links for categories %s: %s", categories_to_update, exc
-            )
-
-        # Switch sphere if focus category belongs to a different sphere
-        structure_business = getattr(self.main, "structure_business", None)
-        if structure_business and focus_category_id and hasattr(structure_business, "get_category_data"):
-            try:
-                cat_data = structure_business.get_category_data(int(focus_category_id))
-                target_sphere_id = cat_data.get("sphere_id") if cat_data else None
-                if not target_sphere_id and cat_data and cat_data.get("section_id") and hasattr(structure_business, "get_section_data"):
-                    sec_data = structure_business.get_section_data(int(cat_data["section_id"]))
-                    if sec_data:
-                        target_sphere_id = sec_data.get("sphere_id")
-                if target_sphere_id and hasattr(structure_business, "get_current_sphere_id") and hasattr(structure_business, "set_current_sphere"):
-                    current_sphere_id = structure_business.get_current_sphere_id()
-                    if current_sphere_id != target_sphere_id:
-                        structure_business.set_current_sphere(int(target_sphere_id))
-            except Exception as exc:
-                logger.debug("Failed to resolve target sphere for category %s: %s", focus_category_id, exc)
-
         # Switch to focus category and focus on moved link
         if focus_category_id and self.link_ids:
             first_link_id = self.link_ids[0] if self.link_ids else None
             if first_link_id:
-                if structure_business and hasattr(structure_business, "select_category"):
+                # Switch category in tree and load links
+                structure_business = getattr(self.main, 'structure_business', None)
+                if structure_business and hasattr(structure_business, 'select_category'):
                     try:
-                        # Load links for new category
-                        structure_business.select_category(int(focus_category_id))
+                        ui_state = getattr(self.main, "ui_state", None) or getattr(self.main, "ui_state_manager", None)
+                        if ui_state and hasattr(ui_state, "load_category"):
+                            ui_state.load_category(
+                                int(focus_category_id),
+                                source="MoveLinksCommand._refresh_ui",
+                                force_reload=True,
+                            )
+                        else:
+                            # Load links for new category
+                            structure_business.select_category(int(focus_category_id))
 
                         # Set visual selection in tree
-                        struct = getattr(self.main, "structure", None)
+                        struct = getattr(self.main, 'structure', None)
                         if struct:
-                            tree = getattr(struct, "tree", None)
-                            if tree and hasattr(tree, "model"):
+                            tree = getattr(struct, 'tree', None)
+                            if tree and hasattr(tree, 'model'):
                                 model = tree.model()
-                                if model and hasattr(model, "index_for"):
-                                    cat_index = model.index_for("category", int(focus_category_id))
+                                if model and hasattr(model, 'index_for'):
+                                    cat_index = model.index_for('category', int(focus_category_id))
                                     if cat_index and cat_index.isValid():
                                         sel_model = tree.selectionModel()
                                         if sel_model:
+                                            # Clear old selection first, then select new one
                                             sel_model.setCurrentIndex(
                                                 cat_index,
                                                 QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,
@@ -241,10 +226,20 @@ class MoveLinksCommand(BaseBulkCommand):
 
                         # Then focus on the moved link in table
                         self._schedule_focus_on_links(self.link_ids)
+                        return
                     except Exception as e:
                         logger.debug(
                             "Failed to select category %s: %s", focus_category_id, e
                         )
+        
+        # Fallback: just reload categories without focus
+        try:
+            if categories_to_update:
+                _reload_links_via_controller(self.main, categories_to_update)
+        except Exception as exc:
+            logger.debug(
+                "Failed to refresh links for categories %s: %s", categories_to_update, exc
+            )
 
     def _schedule_focus_on_links(self, link_ids: list[int]) -> None:
         """Schedule focus on links after category is loaded."""

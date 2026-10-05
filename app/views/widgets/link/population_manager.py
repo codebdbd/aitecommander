@@ -49,8 +49,10 @@ class PopulationManagerMixin:
             sel = table.selectionModel()
             current_selection = []
             if sel:
-                for i in sel.selectedRows():
-                    link_data = table.get_link_at(i.row())
+                from app.utils.ui.qt.roles import get_selected_rows
+
+                for row_idx in get_selected_rows(table):
+                    link_data = table.get_link_at(row_idx)
                     if link_data and "id" in link_data:
                         current_selection.append(link_data["id"])
         except Exception:

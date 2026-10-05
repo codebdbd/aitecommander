@@ -38,11 +38,20 @@ def _links_service_for(cmd: Any) -> LinksService:
 
 
 def _reload_links_via_controller(main_window, category_ids) -> None:
+    unique_ids = set(category_ids or [])
+    if not unique_ids:
+        return
+    current_cat = getattr(main_window, "current_category_id", None)
+    ui_state = getattr(main_window, "ui_state", None) or getattr(main_window, "ui_state_manager", None)
+    if current_cat in unique_ids and ui_state and hasattr(ui_state, "load_category"):
+        try:
+            ui_state.load_category(current_cat, force_reload=True)
+        except Exception as exc:
+            logger.warning("ui_state.load_category force_reload failed for %s: %s", current_cat, exc)
     ctrl = getattr(main_window, "links_table_controller", None)
     if ctrl is None or not hasattr(ctrl, "reload"):
         logger.warning("LinksTableController unavailable for reload")
         return
-    unique_ids = set(category_ids or [])
     for cat_id in unique_ids:
         if isinstance(cat_id, int) and cat_id > 0:
             try:

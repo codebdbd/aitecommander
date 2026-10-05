@@ -113,10 +113,10 @@ def get_selected_rows(view) -> list[int]:
         if not selection_model:
             return []
 
-        # selectedRows() returns one index per selected row only
-        # This is more efficient than collecting from selectedIndexes() and deduplicating
-        selected_rows = {index.row() for index in selection_model.selectedRows()}
-        return sorted(list(selected_rows))
+        selected = selection_model.selectedRows()
+        if not selected and selection_model.hasSelection():
+            return sorted(list({index.row() for index in selection_model.selectedIndexes()}))
+        return sorted(list({index.row() for index in selected}))
     except Exception:
         return []
 

@@ -33,7 +33,13 @@ class UIStateManager:
         self._history_index: int = -1
         self._navigating_history: bool = False
 
-    def load_category(self, category_id: int, source: str = "unknown") -> bool:
+    def load_category(
+        self,
+        category_id: int,
+        source: str = "unknown",
+        *,
+        force_reload: bool = False,
+    ) -> bool:
         """SINGLE method for category loading in the application.
 
         Replaces all duplicated implementations:
@@ -92,7 +98,7 @@ class UIStateManager:
             already_loaded = (
                 getattr(self.main, "current_category_id", None) == category_id
             )
-            if already_loaded and current_idx == table_idx:
+            if not force_reload and already_loaded and current_idx == table_idx:
                 logger.debug(
                     "load_category skipped: category %s already active and TABLE view set (source=%s)",
                     category_id,
@@ -241,7 +247,9 @@ class UIStateManager:
                         and hasattr(sb, "set_current_sphere")
                     ):
                         sb.set_current_sphere(target_sphere)
-            struct_ctrl = getattr(self.main, "structure_controller", None)
+            struct_ctrl = getattr(self.main, "structure_controller", None) or getattr(
+                self.main, "structure", None
+            )
             handler = getattr(struct_ctrl, "selection_handler", None) if struct_ctrl else None
             if handler and hasattr(handler, "_restore_category_selection"):
                 handler._restore_category_selection(category_id)
