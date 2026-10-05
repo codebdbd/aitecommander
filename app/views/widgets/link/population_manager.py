@@ -129,6 +129,12 @@ class PopulationManagerMixin:
 
         current_ids = helpers._get_current_link_ids()
         new_ids = helpers._get_new_link_ids(links)
+        if current_ids and not (current_ids & new_ids):
+            self.logger.info(
+                "[LinksTableView] Completely new set of links — performing full refresh"
+            )
+            return True
+
         bulk_changes = len(new_ids - current_ids) + len(current_ids - new_ids)
         total_links = len(links)
         # Prefer incremental updates for bulk deletes/inserts as long as the

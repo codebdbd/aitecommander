@@ -361,7 +361,7 @@ class UIConfig(BaseConfig):
 
     def get_splitter_sizes(self) -> list:
         """Return initial splitter sizes."""
-        return self.get("ui.splitter_sizes", [250, 750])
+        return self.get("ui.splitter_sizes", [323, 700])
 
     def get_central_frame_shape(self) -> str:
         """Return the frame shape for the central widget."""

@@ -1125,7 +1125,6 @@ class LinksTableView(
         self._drop_indicator_row: int | None = None
         self._drop_indicator_pos: QAbstractItemView.DropIndicatorPosition | None = None
         self._sort_controller = LinkTableSortController()
-        self._stored_name_width: int = 400
         self._setup_table()
 
         # Forward base-class signal to our alias for compatibility
@@ -1282,7 +1281,6 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to connect orderEdited", exc_info=True
             )
-        self._adjust_responsive_columns()
 
     def _on_model_data_changed(self, *args, **kwargs) -> None:
         try:
@@ -1492,46 +1490,6 @@ class LinksTableView(
                 viewport.update()
         event.accept()
 
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        self._adjust_responsive_columns()
-
-    def _adjust_responsive_columns(self) -> None:
-        """Responsive column visibility guard: cleanly hide notes if < 120 px."""
-        header = self.horizontalHeader()
-        if header is None:
-            return
-        viewport_w = self.viewport().width()
-        if viewport_w <= 0:
-            return
-
-        notes_col = int(LinkTableColumn.NOTES)
-        name_col = int(LinkTableColumn.NAME)
-
-        fixed_others = sum(
-            header.sectionSize(desc.index)
-            for desc in LINK_TABLE_COLUMNS
-            if desc.column not in (LinkTableColumn.NOTES, LinkTableColumn.NAME)
-        )
-        current_name_w = (
-            self._stored_name_width
-            if header.isSectionHidden(notes_col)
-            else max(160, header.sectionSize(name_col))
-        )
-        avail_for_notes = viewport_w - fixed_others - current_name_w
-
-        if avail_for_notes < 120:
-            if not header.isSectionHidden(notes_col):
-                self._stored_name_width = max(160, header.sectionSize(name_col))
-                header.setSectionHidden(notes_col, True)
-                header.setSectionResizeMode(name_col, QHeaderView.ResizeMode.Stretch)
-        else:
-            if header.isSectionHidden(notes_col):
-                header.setSectionHidden(notes_col, False)
-                header.setSectionResizeMode(notes_col, QHeaderView.ResizeMode.Stretch)
-                header.setSectionResizeMode(name_col, QHeaderView.ResizeMode.Interactive)
-                self.setColumnWidth(name_col, self._stored_name_width)
-
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.quickLookRequested.emit()
@@ -1703,8 +1661,17 @@ class LinksTableView(
         if column is None or column < 0:
             return
         try:
-            self.sortByColumn(column, order)
             header = self.horizontalHeader()
+            indicator_same = (
+                header is not None
+                and header.sortIndicatorSection() == column
+                and header.sortIndicatorOrder() == order
+            )
+            self.sortByColumn(column, order)
+            if indicator_same:
+                model = self.model()
+                if model is not None and hasattr(model, "sort"):
+                    model.sort(column, order)
             if header:
                 header.setSortIndicatorShown(True)
                 header.setSortIndicator(column, order)
