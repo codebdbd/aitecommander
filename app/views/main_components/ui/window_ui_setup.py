@@ -235,6 +235,12 @@ class _AutoHideTreeFilter(QObject):
     def _collapse_splitter(self, splitter, w: int) -> None:
         if splitter is None:
             return
+        left = getattr(self.window, "left_panel", None)
+        if left is not None:
+            try:
+                left.setMinimumWidth(0)
+            except Exception:
+                pass
         try:
             splitter.setCollapsible(0, True)
             splitter.setSizes([0, max(1, w)])
@@ -270,6 +276,12 @@ class _AutoHideTreeFilter(QObject):
                 sizes = [int(x) for x in self.default_sizes]
                 splitter.setSizes(sizes)
             splitter.setCollapsible(0, False)
+            left = getattr(self.window, "left_panel", None)
+            if left is not None:
+                try:
+                    left.setMinimumWidth(323)
+                except Exception:
+                    pass
         except (RuntimeError, TypeError, ValueError):
             self._logger.debug("AutoHideTree: failed to restore splitter", exc_info=True)
 
@@ -308,6 +320,11 @@ class _AutoHideTreeFilter(QObject):
         try:
             w = self.window.width()
         except (AttributeError, RuntimeError):
+            return
+
+        if getattr(self.window, "isMaximized", lambda: False)():
+            if self._is_collapsed:
+                self._handle_wide_window(splitter, stack)
             return
 
         effective_threshold = self.threshold
@@ -1098,6 +1115,7 @@ class WindowUISetup:
         self.window.left_panel = left_panel
         left_panel.setObjectName("LeftPanel")
         left_panel.setAutoFillBackground(True)
+        left_panel.setMinimumWidth(323)
 
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(*app_config.ui.get_layout_margins("left"))

@@ -1,6 +1,7 @@
 """Toolbar adapters for top-bar actions with overflow support."""
 from __future__ import annotations
 
+import functools
 import logging
 from pathlib import Path
 import re
@@ -63,6 +64,7 @@ def _icon_from_path(
         return QIcon()
 
 
+@functools.lru_cache(maxsize=64)
 def _contrast_icon_from_path(
     path: Path,
     contrast_color: str = "#FFFFFF",

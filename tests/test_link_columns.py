@@ -53,6 +53,25 @@ def test_column_role_builders_are_declared_in_column_contract() -> None:
     assert descriptor_by_column[LinkTableColumn.TYPE].display_builder == "_display_type"
 
     assert descriptor_by_column[LinkTableColumn.NAME].decoration_builder == "_decoration_name"
+    assert descriptor_by_column[LinkTableColumn.NAME].tooltip_builder == "_tooltip_name"
     assert descriptor_by_column[LinkTableColumn.ORDER].tooltip_builder == "_tooltip_order"
     assert descriptor_by_column[LinkTableColumn.LAUNCH].tooltip_builder == "_tooltip_launch"
+    assert descriptor_by_column[LinkTableColumn.NOTES].tooltip_builder == "_tooltip_notes"
     assert descriptor_by_column[LinkTableColumn.TYPE].tooltip_builder == "_tooltip_type"
+
+
+def test_link_table_column_indices_and_order_contract() -> None:
+    assert int(LinkTableColumn.ORDER) == 0
+    assert int(LinkTableColumn.GROUP_LAUNCH) == 1
+    assert int(LinkTableColumn.NAME) == 2
+    assert int(LinkTableColumn.LAUNCH) == 3
+    assert int(LinkTableColumn.NOTES) == 4
+    assert int(LinkTableColumn.TYPE) == 5
+
+    descriptor_by_column = {
+        descriptor.column: descriptor for descriptor in LINK_TABLE_COLUMNS
+    }
+    assert descriptor_by_column[LinkTableColumn.NOTES].min_width == 0
+    assert descriptor_by_column[LinkTableColumn.NOTES].stretch is True
+    assert descriptor_by_column[LinkTableColumn.GROUP_LAUNCH].min_width == 32
+

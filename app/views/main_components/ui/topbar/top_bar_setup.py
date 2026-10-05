@@ -73,9 +73,6 @@ class TopBarToolBar(QToolBar):
         self._button_height = max(1, int(height))
         self._centre_ext_button()
 
-    def minimumSizeHint(self) -> QSize:
-        return self.sizeHint()
-
     def resizeEvent(self, event) -> None:
         try:
             super().resizeEvent(event)
@@ -97,70 +94,6 @@ class TopBarToolBar(QToolBar):
                 btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
         except (RuntimeError, AttributeError):
             pass
-
-
-class TopBarResponsiveFilter(QObject):
-    """Orchestrates responsive visibility for top bar components on window resize.
-
-    Strict sequence:
-    1. Settings/theme buttons block hides first.
-    2. Search widget compresses down to min width (80px).
-    3. Favorites compress down to 8 base buttons.
-    4. Search widget and its separator hide completely.
-    5. The 8 base buttons remain always visible (323px minimum).
-    """
-
-    def __init__(self, window: QWidget, top_bar_host: QWidget) -> None:
-        super().__init__(top_bar_host)
-        self.window = window
-        self.host = top_bar_host
-
-    def update_responsive(self, width: int | None = None) -> None:
-        if width is None:
-            try:
-                width = self.host.width()
-            except (RuntimeError, AttributeError):
-                return
-
-        toolbar = getattr(self.window, "top_bar_toolbar", None)
-        search = getattr(self.window, "search", None)
-        search_sep = getattr(self.window, "search_separator", None)
-        theme_container = getattr(self.window, "theme_selector_container", None)
-
-        if toolbar is None or search is None:
-            return
-
-        BASE_TOOLBAR_W = 323
-        THEME_BLOCK_W = 125
-        SEARCH_MIN_W = 80
-        SEARCH_SEP_W = 13
-        SEARCH_NORMAL_W = 160
-
-        try:
-            full_toolbar_w = max(BASE_TOOLBAR_W, toolbar.sizeHint().width())
-        except (RuntimeError, AttributeError):
-            full_toolbar_w = BASE_TOOLBAR_W
-
-        threshold_theme = full_toolbar_w + SEARCH_SEP_W + SEARCH_NORMAL_W + THEME_BLOCK_W
-        threshold_search = BASE_TOOLBAR_W + SEARCH_SEP_W + SEARCH_MIN_W
-
-        show_theme = width >= threshold_theme
-        if theme_container is not None and theme_container.isVisible() != show_theme:
-            theme_container.setVisible(show_theme)
-
-        show_search = width >= threshold_search
-        if search.isVisible() != show_search:
-            search.setVisible(show_search)
-        if search_sep is not None and search_sep.isVisible() != show_search:
-            search_sep.setVisible(show_search)
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self.host and event.type() == QEvent.Type.Resize:
-            try:
-                self.update_responsive(event.size().width())  # type: ignore[attr-defined]
-            except Exception:
-                pass
-        return super().eventFilter(watched, event)
 
 
 class TopBarBuilder:
@@ -268,10 +201,9 @@ class TopBarBuilder:
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             toolbar.setSizePolicy(
-                QSizePolicy.Policy.Preferred,
+                getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
                 QSizePolicy.Policy.Fixed,
             )
-            toolbar.setMinimumWidth(323)
             try:
                 toolbar.setFixedHeight(int(app_config.ui.get_top_bar_height()))
             except (TypeError, ValueError, AttributeError):
@@ -487,14 +419,6 @@ class TopBarBuilder:
         except (RuntimeError, AttributeError):
             logger.debug("TopPanel: failed to normalize top bar stretches", exc_info=True)
 
-        # Attach responsive filter to host
-        try:
-            responsive_filter = TopBarResponsiveFilter(self.window, top_bar_host)
-            top_bar_host.installEventFilter(responsive_filter)
-            self.window._top_bar_responsive_filter = responsive_filter
-            responsive_filter.update_responsive()
-        except Exception:
-            logger.debug("TopPanel: failed to install responsive filter", exc_info=True)
 
         # Schedule top panels refresh (toolbar does overflow on its own)
         with timer.measure("schedule"):

@@ -575,3 +575,20 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
      - Левый отступ тулбара: строго **4 px** (`top_bar.setContentsMargins(4, 0, ...)`).
      - Отступ перед разделителем поиска: строго **4 px**.
      - Суммарная ширина тулбара до разделителя поиска: ровно **323 px** ($4\text{ (margin)} + 8 \times 34\text{ (кнопки)} + 3 \times 1\text{ (разделители)} + 10 \times 4\text{ (отступы)} + 4\text{ (отступ разделителя)} = 323\text{ px}$), строго совпадая со сплиттером левой панели (320 px + 3 px). Категорически запрещено изменять эти размеры.
+
+
+## 55. Architecture Standards: Links Table Performance & 323px Left Panel Contract (СТАНДАРТЫ ТАБЛИЦЫ ССЫЛОК И ПАНЕЛИ 323 PX)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектурные стандарты производительности таблицы ссылок и геометрии левой панели.
+- **Strict Left Panel Width & Auto-Hide Contract**:
+  1. **Ширина левой панели**: строго **323 px** (`left_panel.setMinimumWidth(323)`). Категорически запрещено сбрасывать или уменьшать ширину левой панели в покое.
+  2. **Защита разворачивания окна на весь экран**: При вызове `isMaximized()` в `_AutoHideTreeFilter` запрещено скрывать левую панель. Если панель была свернута, она обязана восстанавливаться в 323 px.
+  3. **Сплиттер**: При сворачивании `left_panel.setMinimumWidth(0)`, при восстановлении `left_panel.setMinimumWidth(323)` с восстановлением сохраненного размера `[323, ...]`.
+- **Strict Table Delegate & Header Performance Contract**:
+  1. **Канонический `initStyleOption`**: Настройка шрифтов, цветов, элизии названий и исключение флага `HasCheckIndicator` производятся строго внутри `TableDelegate.initStyleOption`. Запрещено дублировать эти вызовы в `paint()`.
+  2. **Одинарный проход отрисовки `paint()`**: В `TableDelegate.paint()` запрещено вручную повторно вызывать `self.initStyleOption()` или создавать дублирующие копии `QStyleOptionViewItem`. Базовый вызов `super().paint(painter, option, index)` выполняет ровно один проход инициализации в ядре C++.
+  3. **Отрисовка чекбокса `GROUP_LAUNCH`**: Отрисовывается строго через `super().initStyleOption(check_opt, index)` и `style.drawPrimitive(PE_IndicatorItemViewItemCheck, check_opt, painter, widget)`.
+  4. **Фиксация высоты заголовка**: В `ExplorerHeaderView._sync_row_height` высота фиксируется строго через `self.setFixedHeight(h)`. Категорически запрещено вызывать `setDefaultSectionSize`, `setMinimumSectionSize` (перезаписывающие ширину колонок) или `updateGeometry()` внутри `resizeEvent`.
+- **Strict Columns Declarative Contract**:
+  1. **Индексы колонок**: строго `ORDER = 0`, `GROUP_LAUNCH = 1`, `NAME = 2`, `LAUNCH = 3`, `NOTES = 4`, `TYPE = 5`.
+  2. **Режимы изменения размера**: `ORDER` — fixed (36 px), `GROUP_LAUNCH` — fixed (32 px), `NAME` — interactive, `LAUNCH` — fixed, `NOTES` — stretch (`min_width = 0`), `TYPE` — interactive (104 px).
+  3. **Тултипы**: `NAME` обязан иметь `tooltip_builder="_tooltip_name"`, `TYPE` обязан иметь `tooltip_builder="_tooltip_type"`, `NOTES` обязан иметь `tooltip_builder="_tooltip_notes"`.

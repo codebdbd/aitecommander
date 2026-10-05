@@ -246,7 +246,14 @@ class TableDelegate(QStyledItemDelegate):
 
     def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         super().initStyleOption(option, index)
-        if is_column(index.column(), LinkTableColumn.GROUP_LAUNCH):
+        col = index.column()
+        self._apply_column_font_size(option, col)
+        self._apply_column_color(option, col)
+        if is_column(col, LinkTableColumn.NAME):
+            self._apply_name_column_elision(option)
+        elif is_column(col, LinkTableColumn.ORDER):
+            option.text = ""
+        elif is_column(col, LinkTableColumn.GROUP_LAUNCH):
             option.features &= ~QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
 
     def drawDisplay(self, painter, option, rect, text):
@@ -293,65 +300,44 @@ class TableDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         self._paint_hover_highlight(painter, option, index)
 
-        opt = QStyleOptionViewItem(option)
-        self.initStyleOption(opt, index)
-
         col = index.column()
-        self._apply_column_font_size(opt, col)
-
-        self._apply_column_color(opt, col)
-
-        if is_column(col, LinkTableColumn.NAME):
-            self._apply_name_column_elision(opt)
+        try:
+            self._current_paint_col = col
+            self._current_paint_selected = bool(
+                option.state & QStyle.StateFlag.State_Selected
+            )
+            super().paint(painter, option, index)
+        finally:
+            self._current_paint_col = -1
+            self._current_paint_selected = False
 
         if is_column(col, LinkTableColumn.ORDER):
             display_text = str(index.row() + 1)
-            opt.text = ""
-            try:
-                self._current_paint_col = col
-                self._current_paint_selected = bool(
-                    opt.state & QStyle.StateFlag.State_Selected
-                )
-                super().paint(painter, opt, index)
-            finally:
-                self._current_paint_col = -1
-                self._current_paint_selected = False
-
             if display_text:
                 painter.save()
-                is_selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+                is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
                 color = self._resolve_column_color(col)
                 if is_selected:
                     try:
                         tokens = theme_registry.get_theme_tokens(get_current_theme())
                         color = QColor(tokens.get("selection_fg", "#FFFFFF"))
                     except Exception:
-                        color = opt.palette.color(QPalette.ColorRole.HighlightedText)
+                        color = option.palette.color(QPalette.ColorRole.HighlightedText)
                 if color and color.isValid():
                     painter.setPen(color)
-                painter.setFont(opt.font)
-                painter.drawText(opt.rect, int(Qt.AlignmentFlag.AlignCenter), display_text)
+                painter.setFont(option.font)
+                painter.drawText(option.rect, int(Qt.AlignmentFlag.AlignCenter), display_text)
                 painter.restore()
             return
-
-        try:
-            self._current_paint_col = col
-            self._current_paint_selected = bool(
-                opt.state & QStyle.StateFlag.State_Selected
-            )
-            super().paint(painter, opt, index)
-        finally:
-            self._current_paint_col = -1
-            self._current_paint_selected = False
 
         if is_column(col, LinkTableColumn.TYPE):
             link = index.data(Qt.ItemDataRole.UserRole)
             if isinstance(link, dict) and bool(link.get("chrome_rotation")):
-                is_selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+                is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
                 sz = 16
                 margin_right = 10
-                ix = opt.rect.right() - margin_right - sz
-                iy = opt.rect.top() + (opt.rect.height() - sz) // 2
+                ix = option.rect.right() - margin_right - sz
+                iy = option.rect.top() + (option.rect.height() - sz) // 2
                 try:
                     from app.views.widgets.link.links_model import get_rotation_icon
                     icon = get_rotation_icon(sz, is_selected=is_selected)
@@ -561,24 +547,8 @@ class ExplorerHeaderView(QHeaderView):
             return 32
 
     def _sync_row_height(self) -> None:
-        """Pin header height exactly to ``ui.row_height`` (body row height).
-
-        ``QHeaderView`` derives section heights from ``fontMetrics + QSS``
-        which commonly diverges from the explicit body row height used for
-        vertical sections. Fix by clamping all relevant sizes:
-        ``defaultSectionSize``, ``minimumSectionSize``, widget-level fixed
-        height. Also re-apply after Style/Font/Layout events since QSS
-        re-application can reset geometry hints.
-        """
+        """Pin header height exactly to ``ui.row_height`` (body row height)."""
         h = self._global_row_height()
-        try:
-            self.setDefaultSectionSize(h)
-        except Exception:
-            pass
-        try:
-            self.setMinimumSectionSize(h)
-        except Exception:
-            pass
         try:
             self.setFixedHeight(h)
         except Exception:
@@ -587,10 +557,6 @@ class ExplorerHeaderView(QHeaderView):
                 self.setMaximumHeight(h)
             except Exception:
                 pass
-        try:
-            self.updateGeometry()
-        except Exception:
-            pass
 
     def __init__(self, orientation: Qt.Orientation, parent=None):
         super().__init__(orientation, parent)
@@ -635,10 +601,6 @@ class ExplorerHeaderView(QHeaderView):
         super().changeEvent(event)
 
     def resizeEvent(self, event):
-        try:
-            self._sync_row_height()
-        except Exception:
-            pass
         super().resizeEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -1661,17 +1623,8 @@ class LinksTableView(
         if column is None or column < 0:
             return
         try:
-            header = self.horizontalHeader()
-            indicator_same = (
-                header is not None
-                and header.sortIndicatorSection() == column
-                and header.sortIndicatorOrder() == order
-            )
             self.sortByColumn(column, order)
-            if indicator_same:
-                model = self.model()
-                if model is not None and hasattr(model, "sort"):
-                    model.sort(column, order)
+            header = self.horizontalHeader()
             if header:
                 header.setSortIndicatorShown(True)
                 header.setSortIndicator(column, order)

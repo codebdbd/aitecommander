@@ -80,6 +80,7 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         chevron_padding=True,
         config_width_index=1,
         display_builder="_display_name",
+        tooltip_builder="_tooltip_name",
         decoration_builder="_decoration_name",
     ),
     LinkTableColumnDescriptor(
@@ -100,7 +101,6 @@ LINK_TABLE_COLUMNS: tuple[LinkTableColumnDescriptor, ...] = (
         key="notes",
         header_source="Notes",
         chevron_padding=True,
-        min_width=120,
         stretch=True,
         resize_mode="stretch",
         display_builder="_display_notes",
