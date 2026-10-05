@@ -1162,6 +1162,10 @@ class DeleteSectionCmd(BaseCommand):
             payload.setdefault("links_deleted", 0)
             self._store_snapshot(_snapshot_from_result(result, payload=payload))
             if self._paste_cmd is not None:
+                business = self._resolve_business()
+                target_sphere = getattr(self._paste_cmd, "_sphere_id", None)
+                if business is not None and target_sphere is not None and business.get_current_sphere_id() != int(target_sphere):
+                    business.set_current_sphere(int(target_sphere))
                 self._paste_cmd.redo()
 
         self._dispatch_result(
@@ -1180,6 +1184,31 @@ class DeleteSectionCmd(BaseCommand):
         if restored is None:
             return
         section_payload, section_id = restored
+
+        business = self._resolve_business()
+        source_sphere = self.section.get("sphere_id") or (
+            (self._backup_tree.get("section") or {}).get("sphere_id") if isinstance(self._backup_tree, dict) else None
+        ) or section_payload.get("sphere_id")
+        current_sphere = business.get_current_sphere_id() if business else None
+        if business is not None and source_sphere is not None and current_sphere != int(source_sphere):
+            try:
+                business._invalidate_structure_cache()
+                if hasattr(business, "cache_service"):
+                    business.cache_service.invalidate_structure_cache(int(source_sphere))
+                    if self._paste_cmd is not None:
+                        target_sphere = getattr(self._paste_cmd, "_sphere_id", None)
+                        if target_sphere is not None:
+                            business.cache_service.invalidate_structure_cache(int(target_sphere))
+            except Exception:
+                pass
+            structure_ctrl = getattr(self.main, "structure", None)
+            tree_manager = getattr(structure_ctrl, "tree_manager", None)
+            if tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
+                tree_manager.set_pending_selection("section", int(section_id))
+            business.set_current_sphere(int(source_sphere))
+            self._store_snapshot(_snapshot_from_result(Result.success(section_payload)))
+            return
+
         self._emit_section_restore_signals(section_id, section_payload)
         self._restore_section_categories_in_tree(section_id)
         self._select_first_category_after_restore()
@@ -1861,6 +1890,10 @@ class DeleteSectionsCmd(BaseCommand):
             _invalidate_links_business_cache(self.main)
             _request_top_panels_refresh(self.main)
             if self._paste_cmd is not None:
+                business = self._resolve_business()
+                target_sphere = getattr(self._paste_cmd, "_sphere_id", None)
+                if business is not None and target_sphere is not None and business.get_current_sphere_id() != int(target_sphere):
+                    business.set_current_sphere(int(target_sphere))
                 self._paste_cmd.redo()
 
         self._dispatch_result(
@@ -1992,6 +2025,28 @@ class DeleteSectionsCmd(BaseCommand):
             ui_phase_started = time.perf_counter()
             business = self._resolve_business()
 
+            source_sphere_id = next(iter(self._touched_spheres), None)
+            if source_sphere_id is None and restored_payloads:
+                source_sphere_id = restored_payloads[0].get("sphere_id")
+            current_sphere_id = business.get_current_sphere_id() if business else None
+            if business is not None and source_sphere_id is not None and current_sphere_id != int(source_sphere_id):
+                try:
+                    business._invalidate_structure_cache()
+                    if hasattr(business, "cache_service"):
+                        business.cache_service.invalidate_structure_cache(int(source_sphere_id))
+                        if self._paste_cmd is not None:
+                            target_sphere = getattr(self._paste_cmd, "_sphere_id", None)
+                            if target_sphere is not None:
+                                business.cache_service.invalidate_structure_cache(int(target_sphere))
+                except Exception:
+                    pass
+                if restored_payloads:
+                    first_id = restored_payloads[0].get("id")
+                    if isinstance(first_id, int) and tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
+                        tree_manager.set_pending_selection("section", int(first_id))
+                business.set_current_sphere(int(source_sphere_id))
+                return
+
             restore_update_ms = 0.0
             end_batch_ms = 0.0
             focus_restore_ms = 0.0
@@ -2076,7 +2131,7 @@ class DeleteSectionsCmd(BaseCommand):
 
             if business is not None and restored_payloads:
                 first_id = restored_payloads[0].get("id")
-                if isinstance(first_id, int) and not is_large_restore_runtime:
+                if isinstance(first_id, int):
                     focus_started = time.perf_counter()
                     try:
                         business.select_section(first_id)
@@ -2410,6 +2465,8 @@ class PasteSectionsCmd(BaseCommand):
             logger.debug("PasteSectionsCmd: clear_icon_cache failed", exc_info=True)
         try:
             business._invalidate_structure_cache()
+            if hasattr(business, "cache_service"):
+                business.cache_service.invalidate_structure_cache(int(self._sphere_id))
         except Exception:
             logger.debug("PasteSectionsCmd: invalidate cache failed", exc_info=True)
         did_targeted_refresh = False
