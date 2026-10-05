@@ -748,29 +748,26 @@ class ActionController(QObject):
                     undo_stack.push(DeleteCategoryCmd(payload, self.main_window, business=business, undo_manager=undo_stack, skip_reload=False, lightweight_reload=True, is_cut=True))
 
     def _resolve_category_paste_conflicts(self, target_section_id: int, trees: list[dict]) -> list[dict] | None:
-        from PyQt6.QtWidgets import QDialog
-        from app.services.structure_share_service import generate_unique_name
-        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
 
         sb = getattr(self.main_window, "structure_business", None)
         existing_cats = sb.get_categories(int(target_section_id)) or [] if sb else []
         existing_names = [str(c.get("name", "")) for c in existing_cats]
         resolved_trees = []
+        conflict_count = sum(
+            1 for t in trees
+            if (c_name := str((t.get("category") or {}).get("name", "")).strip())
+            and c_name.lower() in [n.lower() for n in existing_names]
+        )
+        session = ConflictResolutionSession(self.main_window, operation="copy", total_conflicts=conflict_count)
+
         for tree in trees:
             cat = dict(tree.get("category") or {})
             cat_name = str(cat.get("name", "")).strip()
             if cat_name and cat_name.lower() in [n.lower() for n in existing_names]:
-                copy_name = generate_unique_name(set(existing_names), cat_name)
-                dlg = ImportConflictDialog(
-                    entity_type="category",
-                    name=cat_name,
-                    copy_name=copy_name,
-                    parent=self.main_window,
-                    operation="copy",
-                )
-                if dlg.exec() != QDialog.DialogCode.Accepted:
+                action, copy_name = session.resolve("category", cat_name, existing_names)
+                if action == "cancel":
                     return None
-                action = dlg.get_action()
                 if action == "copy":
                     tree["category"]["name"] = copy_name
                     existing_names.append(copy_name)
@@ -782,40 +779,33 @@ class ActionController(QObject):
                     if target_cat and target_cat.get("id"):
                         tree["_action"] = "merge"
                         tree["_target_category_id"] = int(target_cat["id"])
-                elif action == "cancel":
-                    return None
             resolved_trees.append(tree)
         return resolved_trees
 
     def _resolve_section_paste_conflicts(self, sphere_id: int, trees: list[dict]) -> list[dict] | None:
-        from PyQt6.QtWidgets import QDialog
-        from app.services.structure_share_service import generate_unique_name
-        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
 
         business = getattr(self.main_window, "structure_business", None)
         existing_secs = business.get_sections(int(sphere_id)) or [] if business else []
         existing_names = [str(s.get("name", "")) for s in existing_secs]
         resolved_trees = []
+        conflict_count = sum(
+            1 for t in trees
+            if (s_name := str((t.get("section") or {}).get("name", "")).strip())
+            and s_name.lower() in [n.lower() for n in existing_names]
+        )
+        session = ConflictResolutionSession(self.main_window, operation="copy", total_conflicts=conflict_count)
+
         for tree in trees:
             sec = dict(tree.get("section") or {})
             sec_name = str(sec.get("name", "")).strip()
             if sec_name and sec_name.lower() in [n.lower() for n in existing_names]:
-                copy_name = generate_unique_name(set(existing_names), sec_name)
-                dlg = ImportConflictDialog(
-                    entity_type="section",
-                    name=sec_name,
-                    copy_name=copy_name,
-                    parent=self.main_window,
-                    operation="copy",
-                )
-                if dlg.exec() != QDialog.DialogCode.Accepted:
+                action, copy_name = session.resolve("section", sec_name, existing_names)
+                if action == "cancel":
                     return None
-                action = dlg.get_action()
                 if action == "copy":
                     tree["section"]["name"] = copy_name
                     existing_names.append(copy_name)
-                elif action == "cancel":
-                    return None
             resolved_trees.append(tree)
         return resolved_trees
 

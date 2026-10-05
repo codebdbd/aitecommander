@@ -123,10 +123,21 @@ class MoveOperationsHandler(TreeHandlerBase):
                 )
                 for l in existing
             }
-            existing_names = [str(l.get("name", "")) for l in existing]
-            from PyQt6.QtWidgets import QDialog
-            from app.services.structure_share_service import generate_unique_name
-            from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+            conflicts: list[int] = []
+            for lid in link_ids:
+                ld = links_service.get_link_by_id(int(lid))
+                if not ld:
+                    continue
+                k = (
+                    str(ld.get("name", "")),
+                    str(ld.get("url", "")),
+                    str(ld.get("args", "")),
+                )
+                if k in existing_keys:
+                    conflicts.append(int(lid))
+
+            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicts))
 
             for lid in link_ids:
                 link_data = links_service.get_link_by_id(int(lid))
@@ -139,17 +150,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 )
                 if key in existing_keys:
                     name = str(link_data.get("name", ""))
-                    copy_name = generate_unique_name(set(existing_names), name)
-                    dlg = ImportConflictDialog(
-                        entity_type="link",
-                        name=name,
-                        copy_name=copy_name,
-                        parent=main_win,
-                        operation="move",
-                    )
-                    if dlg.exec() != QDialog.DialogCode.Accepted:
-                        return
-                    action = dlg.get_action()
+                    action, copy_name = session.resolve("link", name, existing_names)
                     if action == "cancel":
                         return
                     if action == "copy":
@@ -177,55 +178,54 @@ class MoveOperationsHandler(TreeHandlerBase):
         main_win = self.tree_widget.window()
 
         sb = getattr(main_win, "structure_business", None)
-        if sb:
-            sec_data = sb.get_section_data(int(section_id))
-            if sec_data:
-                name = str(sec_data.get("name", "")).strip()
-                target_sections = sb.get_sections(int(target_sphere_id)) or []
-                existing_names = [str(s.get("name", "")) for s in target_sections]
-                colliding = next(
-                    (s for s in target_sections if str(s.get("name", "")).strip().lower() == name.lower()),
-                    None,
+        if not sb:
+            return False
+
+        undo_stack = getattr(main_win, "undo_stack", None)
+        if undo_stack is None:
+            self._show_warning(
+                self.tr("Undo history is unavailable. Move canceled."),
+                self.tr("Undo history unavailable"),
+                informative_text=self.tr(
+                    "Enable undo/redo support or initialize undo_stack in the main window."
+                ),
+            )
+            return False
+
+        sec_data = sb.get_section_data(int(section_id))
+        if not sec_data:
+            return False
+
+        name = str(sec_data.get("name", "")).strip()
+        target_sections = sb.get_sections(int(target_sphere_id)) or []
+        existing_names = [str(s.get("name", "")) for s in target_sections]
+        colliding = next(
+            (s for s in target_sections if str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != int(section_id)),
+            None,
+        )
+
+        from app.utils.ui.dnd.section_command import (
+            MergeSectionToSphereCommand,
+            MoveSectionToSphereCommand,
+        )
+
+        if colliding:
+            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            session = ConflictResolutionSession(main_win, operation="move", total_conflicts=1)
+            action, copy_name = session.resolve("section", name, existing_names)
+            if action == "cancel":
+                return False
+            if action == "merge":
+                undo_stack.push(MergeSectionToSphereCommand(int(section_id), int(colliding["id"]), main_win))
+                return True
+            elif action == "copy":
+                undo_stack.push(
+                    MoveSectionToSphereCommand(int(section_id), int(target_sphere_id), main_win, new_name=copy_name)
                 )
-                if colliding:
-                    from PyQt6.QtWidgets import QDialog
-                    from app.services.structure_share_service import generate_unique_name
-                    from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
+                return True
 
-                    copy_name = generate_unique_name(set(existing_names), name)
-                    dlg = ImportConflictDialog(
-                        entity_type="section",
-                        name=name,
-                        copy_name=copy_name,
-                        parent=main_win,
-                        operation="move",
-                    )
-                    if dlg.exec() != QDialog.DialogCode.Accepted:
-                        return False
-                    action = dlg.get_action()
-                    if action == "cancel":
-                        return False
-                    if action == "copy":
-                        sb.update_section(int(section_id), {"name": copy_name})
-                    elif action == "merge":
-                        colliding_id = int(colliding["id"])
-                        cats = sb.get_categories(int(section_id)) or []
-                        cat_ids = [int(c["id"]) for c in cats if c.get("id")]
-                        if cat_ids:
-                            self.execute_move_categories_command(cat_ids, colliding_id, 0)
-                        sb.delete_section(int(section_id))
-                        return True
-
-        if hasattr(main_win, "undo_stack") and main_win.undo_stack is not None:
-            main_win.undo_stack.push(
-                MoveSectionToSphereCommand(section_id, target_sphere_id, main_win)
-            )
-            logger.info(
-                "MoveSectionToSphereCommand executed: section %s -> sphere %s",
-                section_id,
-                target_sphere_id,
-            )
-            return True
+        undo_stack.push(MoveSectionToSphereCommand(int(section_id), int(target_sphere_id), main_win))
+        return True
 
         self._show_warning(
             self.tr("Undo history is unavailable. Move canceled."),
@@ -277,6 +277,19 @@ class MoveOperationsHandler(TreeHandlerBase):
         target_categories = sb.get_categories(new_section_id) or []
         existing_names = [c.get("name", "") for c in target_categories]
 
+        conflicting_categories = [
+            cid for cid in category_ids
+            if (cat_data := sb.get_category_data(cid))
+            and cat_data.get("section_id") != new_section_id
+            and any(
+                str(c.get("name", "")).strip().lower() == str(cat_data.get("name", "")).strip().lower()
+                and int(c.get("id", 0)) != cid
+                for c in target_categories
+            )
+        ]
+        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+        session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicting_categories))
+
         to_move_ids: list[int] = []
         for cid in list(category_ids):
             cat_data = sb.get_category_data(cid)
@@ -302,21 +315,10 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
 
             if colliding is not None:
-                from app.services.structure_share_service import generate_unique_name
-                from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
-
-                copy_name = generate_unique_name(existing_names, cat_name)
-                dlg = ImportConflictDialog(
-                    entity_type="category",
-                    name=cat_name,
-                    copy_name=copy_name,
-                    parent=main_win,
-                    operation="move",
-                )
-                if dlg.exec() != QDialog.DialogCode.Accepted:
+                action, copy_name = session.resolve("category", cat_name, existing_names)
+                if action == "cancel":
                     return False
 
-                action = dlg.get_action()
                 if action == "copy":
                     sb.update_category(cid, {"name": copy_name})
                     existing_names.append(copy_name)

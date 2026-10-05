@@ -35,12 +35,17 @@ class MoveSectionToSphereCommand(BaseBulkCommand):
     """Command to move a section into another sphere with Undo/Redo."""
 
     def __init__(
-        self, section_id: int, target_sphere_id: int, main_window: object
+        self,
+        section_id: int,
+        target_sphere_id: int,
+        main_window: object,
+        new_name: str | None = None,
     ) -> None:
         super().__init__("Move section to sphere", main_window, "section")
         self.section_id = int(section_id)
         self.target_sphere_id = int(target_sphere_id)
         self.old_sphere_id: int | None = None
+        self._custom_new_name: str | None = new_name
         self.original_name: str = ""
         self.new_name: str = ""
         self.icon_path: str = ""
@@ -63,14 +68,17 @@ class MoveSectionToSphereCommand(BaseBulkCommand):
         self.old_position = int(section_data.get("position", 0) or 0)
 
         # Handle name duplicates in target sphere
-        name = self.original_name
-        if sb.has_duplicate_section(self.target_sphere_id, name, exclude_id=self.section_id):
-            counter = 1
-            while sb.has_duplicate_section(
-                self.target_sphere_id, f"{self.original_name} ({counter})", exclude_id=self.section_id
-            ):
-                counter += 1
-            name = f"{self.original_name} ({counter})"
+        if self._custom_new_name:
+            name = self._custom_new_name
+        else:
+            name = self.original_name
+            if sb.has_duplicate_section(self.target_sphere_id, name, exclude_id=self.section_id):
+                counter = 1
+                while sb.has_duplicate_section(
+                    self.target_sphere_id, f"{self.original_name} ({counter})", exclude_id=self.section_id
+                ):
+                    counter += 1
+                name = f"{self.original_name} ({counter})"
         self.new_name = name
 
         # Compute next position in target sphere
@@ -209,12 +217,23 @@ class MoveSectionsToSphereCommand(BaseCommand):
     """Move multiple sections as one undoable operation and refresh the UI once."""
 
     def __init__(
-        self, section_ids: list[int], target_sphere_id: int, main_window: object
+        self,
+        section_ids: list[int],
+        target_sphere_id: int,
+        main_window: object,
+        *,
+        name_overrides: dict[int, str] | None = None,
     ) -> None:
         super().__init__("Move sections to sphere", main_window)
         self.target_sphere_id = int(target_sphere_id)
+        overrides = name_overrides or {}
         self.commands = [
-            MoveSectionToSphereCommand(section_id, target_sphere_id, main_window)
+            MoveSectionToSphereCommand(
+                section_id,
+                target_sphere_id,
+                main_window,
+                new_name=overrides.get(section_id),
+            )
             for section_id in section_ids
         ]
         self._target_positions_prepared = False
@@ -281,6 +300,103 @@ class MoveSectionsToSphereCommand(BaseCommand):
     def undo(self) -> None:
         if self._run_batched("undo"):
             self._refresh_once("undo")
+
+
+class MergeSectionToSphereCommand(BaseCommand):
+    """Merge a source section into an existing target section in another sphere with Undo/Redo."""
+
+    def __init__(
+        self, source_section_id: int, target_section_id: int, main_window: object
+    ) -> None:
+        super().__init__("Merge section into target", main_window)
+        self.source_id = int(source_section_id)
+        self.target_id = int(target_section_id)
+        self._source_section_data: dict[str, Any] = {}
+        self._moved_category_ids: list[int] = []
+        self._target_sphere_id: int | None = None
+        self._source_sphere_id: int | None = None
+        self._prepared = False
+
+    def _prepare_data(self) -> None:
+        if self._prepared:
+            return
+        sb = _require_structure_business(self.main)
+        s_data = sb.get_section_data(self.source_id)
+        if not s_data:
+            raise ValueError(f"Source section {self.source_id} not found")
+        t_data = sb.get_section_data(self.target_id)
+        if not t_data:
+            raise ValueError(f"Target section {self.target_id} not found")
+
+        self._source_section_data = dict(s_data)
+        self._source_sphere_id = int(s_data["sphere_id"])
+        self._target_sphere_id = int(t_data["sphere_id"])
+
+        cats = sb.get_categories(self.source_id) or []
+        self._moved_category_ids = [int(c["id"]) for c in cats if c.get("id")]
+        self._prepared = True
+
+    def redo(self) -> None:
+        self._prepare_data()
+        sb = _require_structure_business(self.main)
+
+        for cid in self._moved_category_ids:
+            sb.update_category(cid, {"section_id": self.target_id})
+
+        sb.delete_section(self.source_id)
+
+        self._invalidate_caches(sb)
+        self._refresh_ui(self._target_sphere_id, self.target_id)
+
+    def undo(self) -> None:
+        if not self._source_section_data:
+            return
+        sb = _require_structure_business(self.main)
+
+        db = getattr(getattr(sb, "structure_service", None), "db", None)
+        if db and hasattr(db, "connection"):
+            with db.connection:
+                db.connection.execute(
+                    """
+                    INSERT OR REPLACE INTO section (id, sphere_id, name, position, icon_path)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.source_id,
+                        self._source_section_data.get("sphere_id"),
+                        self._source_section_data.get("name"),
+                        self._source_section_data.get("position", 0),
+                        self._source_section_data.get("icon_path", ""),
+                    ),
+                )
+
+        for cid in self._moved_category_ids:
+            sb.update_category(cid, {"section_id": self.source_id})
+
+        self._invalidate_caches(sb)
+        self._refresh_ui(self._source_sphere_id, self.source_id)
+
+    def _invalidate_caches(self, sb: StructureBusinessLogic) -> None:
+        cache_service = getattr(sb, "cache_service", None)
+        if cache_service and hasattr(cache_service, "invalidate_structure_cache"):
+            for sid in (self._source_sphere_id, self._target_sphere_id):
+                if sid is not None:
+                    try:
+                        cache_service.invalidate_structure_cache(sid)
+                    except Exception:
+                        pass
+
+    def _refresh_ui(self, target_sphere: int | None, select_section_id: int | None) -> None:
+        if target_sphere is None:
+            return
+        main_win = _require_main(self.main)
+        structure_ctrl = getattr(main_win, "structure", None)
+        if structure_ctrl and hasattr(structure_ctrl, "switch_sphere"):
+            try:
+                item_to_select = ("section", select_section_id) if select_section_id else None
+                structure_ctrl.switch_sphere(target_sphere, item_to_select=item_to_select)
+            except Exception as e:
+                logger.warning("Failed to refresh UI after merge: %s", e)
 
 
 class ReorderSectionsCommand(BaseBulkCommand):

@@ -235,33 +235,82 @@ class SpheresBarController(QObject):
                 clean_ids,
                 target_sphere_id,
             )
+            sb = getattr(self.w, "structure_business", None)
+            if not sb:
+                return
+
+            target_sections = sb.get_sections(int(target_sphere_id)) or []
+            existing_names = [str(s.get("name", "")) for s in target_sections]
+
+            conflicts: list[int] = []
+            for sid in clean_ids:
+                s_data = sb.get_section_data(sid)
+                if not s_data or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
+                    continue
+                name = str(s_data.get("name", "")).strip()
+                if any(str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid for s in target_sections):
+                    conflicts.append(sid)
+
+            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            session = ConflictResolutionSession(self.w, operation="move", total_conflicts=len(conflicts))
+
+            to_move_ids: list[int] = []
+            name_overrides: dict[int, str] = {}
+            merge_pairs: list[tuple[int, int]] = []
+
+            for sid in clean_ids:
+                s_data = sb.get_section_data(sid)
+                if not s_data or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
+                    continue
+                name = str(s_data.get("name", "")).strip()
+                colliding = next(
+                    (s for s in target_sections if str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid),
+                    None,
+                )
+                if colliding is not None:
+                    action, copy_name = session.resolve("section", name, existing_names)
+                    if action == "cancel":
+                        return
+                    elif action == "copy":
+                        name_overrides[sid] = copy_name
+                        existing_names.append(copy_name)
+                        to_move_ids.append(sid)
+                    elif action == "merge":
+                        merge_pairs.append((sid, int(colliding["id"])))
+                else:
+                    to_move_ids.append(sid)
+
+            undo_stack = getattr(self.w, "undo_stack", None)
+            if not undo_stack:
+                return
+
             from app.utils.ui.dnd.section_command import (
+                MergeSectionToSphereCommand,
                 MoveSectionsToSphereCommand,
                 MoveSectionToSphereCommand,
             )
 
-            undo_stack = getattr(self.w, "undo_stack", None)
-            if undo_stack:
-                if len(clean_ids) > 1:
+            undo_stack.beginMacro("Move sections to sphere")
+            try:
+                for src_id, tgt_id in merge_pairs:
+                    undo_stack.push(MergeSectionToSphereCommand(src_id, tgt_id, self.w))
+                if len(to_move_ids) > 1:
                     undo_stack.push(
                         MoveSectionsToSphereCommand(
-                            clean_ids, target_sphere_id, self.w
+                            to_move_ids, target_sphere_id, self.w, name_overrides=name_overrides
                         )
                     )
-                else:
-                    cmd = MoveSectionToSphereCommand(
-                        clean_ids[0], target_sphere_id, self.w
+                elif len(to_move_ids) == 1:
+                    undo_stack.push(
+                        MoveSectionToSphereCommand(
+                            to_move_ids[0],
+                            target_sphere_id,
+                            self.w,
+                            new_name=name_overrides.get(to_move_ids[0]),
+                        )
                     )
-                    undo_stack.push(cmd)
-            else:
-                logger.warning(
-                    "SpheresBarController: undo_stack not found, executing move directly"
-                )
-                for section_id in clean_ids:
-                    cmd = MoveSectionToSphereCommand(
-                        section_id, target_sphere_id, self.w
-                    )
-                    cmd.redo()
+            finally:
+                undo_stack.endMacro()
         except Exception as e:
             logger.exception(
                 "SpheresBarController: failed to execute move sections to sphere: %s",

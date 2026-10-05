@@ -1389,17 +1389,20 @@ class ImportConflictDialog(BaseDialog):
         copy_name: str,
         parent: QWidget | None = None,
         operation: str = "import",
+        has_multiple: bool = False,
     ) -> None:
         self._entity_type = entity_type
         self._name = name
         self._copy_name = copy_name
         self._operation = operation
+        self._has_multiple = has_multiple
         self._info_label: QLabel | None = None
         self._question_label: QLabel | None = None
         self._radio_merge: QRadioButton | None = None
         self._merge_desc: QLabel | None = None
         self._radio_copy: QRadioButton | None = None
         self._copy_desc: QLabel | None = None
+        self._cb_apply_to_all: QCheckBox | None = None
         self._button_box: QDialogButtonBox | None = None
         super().__init__(parent)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
@@ -1444,6 +1447,11 @@ class ImportConflictDialog(BaseDialog):
         options_layout.addWidget(self._radio_copy)
         options_layout.addWidget(self._copy_desc)
         vbox.addLayout(options_layout)
+
+        if self._has_multiple:
+            self._cb_apply_to_all = QCheckBox()
+            self._cb_apply_to_all.setChecked(True)
+            vbox.addWidget(self._cb_apply_to_all)
 
         vbox.addSpacing(6)
         bb = QDialogButtonBox(
@@ -1534,6 +1542,11 @@ class ImportConflictDialog(BaseDialog):
         self._radio_copy.setText(copy_title)
         self._copy_desc.setText(copy_desc)
 
+        if self._cb_apply_to_all is not None:
+            self._cb_apply_to_all.setText(
+                self.tr("Apply to all conflicts")
+            )
+
         if self._button_box is not None:
             ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
             if ok_btn is not None:
@@ -1545,6 +1558,9 @@ class ImportConflictDialog(BaseDialog):
 
     def get_action(self) -> str:
         return "merge" if self._radio_merge.isChecked() else "copy"
+
+    def apply_to_all(self) -> bool:
+        return bool(self._cb_apply_to_all and self._cb_apply_to_all.isChecked())
 
 
 DuplicateItemDialog = ImportConflictDialog

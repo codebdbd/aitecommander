@@ -228,6 +228,18 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
         new_links = []
         filtered_count = 0
+        conflict_count = sum(
+            1 for l in links
+            if (
+                l.get("url", ""),
+                l.get("type", ""),
+                l.get("args", ""),
+                l.get("name", ""),
+            ) in existing_keys
+        )
+        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+        session = ConflictResolutionSession(self.main, operation="copy", total_conflicts=conflict_count)
+
         for link in links:
             new_data = self._prepare_link_data(link, category_id)
             candidate_key = (
@@ -238,22 +250,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
             )
 
             if candidate_key in existing_keys:
-                from PyQt6.QtWidgets import QDialog
-                from app.services.structure_share_service import generate_unique_name
-                from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
-
                 existing_names = [l.get("name", "") for l in existing_links] + [l.get("name", "") for l in new_links]
-                copy_name = generate_unique_name(existing_names, new_data.get("name", ""))
-                dlg = ImportConflictDialog(
-                    entity_type="link",
-                    name=new_data.get("name", ""),
-                    copy_name=copy_name,
-                    parent=self.main,
-                    operation="copy",
-                )
-                if dlg.exec() != QDialog.DialogCode.Accepted:
-                    return []
-                action = dlg.get_action()
+                action, copy_name = session.resolve("link", new_data.get("name", ""), existing_names)
                 if action == "cancel":
                     return []
                 if action == "copy":
