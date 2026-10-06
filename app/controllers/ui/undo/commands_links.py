@@ -520,6 +520,9 @@ class SaveLinkCmd(BaseCommand):
         self._reload_table_for_undo()
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+        links_actions = getattr(self.main, "links_actions", None)
+        if links_actions and link_id:
+            links_actions.schedule_restore_selection(int(link_id))
 
     @log_command
     def undo(self):
@@ -679,6 +682,9 @@ class BatchDeleteLinksCmd(BaseCommand):
                 )
             self._emit_top_panels_refresh()
             self._invalidate_links_cache()
+            links_actions = getattr(self.main, "links_actions", None)
+            if links_actions and _restored_ids:
+                links_actions.schedule_restore_selection_multiple(_restored_ids)
 
         def _on_error(exc: Exception) -> None:
             logger.warning("BatchDeleteLinksCmd.undo failed: %s", exc)
@@ -820,6 +826,10 @@ class DeleteLinkCmd(BaseCommand):
             )
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+        links_actions = getattr(self.main, "links_actions", None)
+        link_id = self.link.get("id")
+        if links_actions and isinstance(link_id, int):
+            links_actions.schedule_restore_selection(int(link_id))
 
 
 class BatchSaveLinksCmd(BaseCommand):
@@ -830,6 +840,7 @@ class BatchSaveLinksCmd(BaseCommand):
         main_window,
         *,
         is_cut: bool = False,
+        replaced_links: dict[int, dict] | None = None,
     ):
         super().__init__("Batch save links", main_window)
         self.main = main_window
@@ -838,6 +849,7 @@ class BatchSaveLinksCmd(BaseCommand):
         self.links_data = [dict(x) for x in (links_data or [])]
         self.is_cut = bool(is_cut)
         self.created_ids: list[int] = []
+        self.replaced_links: dict[int, dict] = dict(replaced_links or {})
 
     def id(self) -> int:
         return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
@@ -973,7 +985,21 @@ class BatchSaveLinksCmd(BaseCommand):
                     exc,
                     exc_info=True,
                 )
-        
+
+        # Restore replaced records back to their original states
+        if self.replaced_links:
+            restore_payloads = list(self.replaced_links.values())
+            links_business = getattr(self.main, "links_business", None)
+            if links_business and hasattr(links_business, "links"):
+                links_business.links.batch_create_or_update_links(restore_payloads)
+            else:
+                _links_service_for(self).batch_create_or_update_links(restore_payloads)
+            try:
+                if links_business and hasattr(links_business, "batch_updated"):
+                    links_business.batch_updated.emit(True)
+            except Exception as exc:
+                logger.debug("BatchSaveLinksCmd.undo: batch_updated emit failed: %s", exc)
+
         # Reload UI for all affected categories
         try:
             if affected_categories:
@@ -985,3 +1011,12 @@ class BatchSaveLinksCmd(BaseCommand):
             )
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
+        links_actions = getattr(self.main, "links_actions", None)
+        if links_actions and self.replaced_links:
+            restore_ids = [
+                int(k)
+                for k in self.replaced_links.keys()
+                if isinstance(k, int) or str(k).isdigit()
+            ]
+            if restore_ids:
+                links_actions.schedule_restore_selection_multiple(restore_ids)

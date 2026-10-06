@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ConflictResolutionSession:
     """Coordinates conflict resolution during single or batch operations.
 
-    Remembers chosen action ('merge', 'copy') when user selects 'Apply to all conflicts',
+    Remembers chosen action ('merge', 'copy', 'skip') when user selects 'Apply to all conflicts',
     avoiding redundant modal prompts during multi-item operations.
     """
 
@@ -41,7 +41,7 @@ class ConflictResolutionSession:
 
         Returns:
             tuple[action, copy_name]:
-                action: 'merge', 'copy', or 'cancel'
+                action: 'merge', 'copy', 'skip', or 'cancel'
                 copy_name: generated unique name if action is 'copy'
         """
         copy_name = generate_unique_name(set(existing_names), name)

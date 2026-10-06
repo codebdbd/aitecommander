@@ -12,6 +12,6 @@ class MoveCategoryCommand(MoveCategoriesCommand):
         super().__init__(
             category_ids=[category_id],
             new_section_id=new_section_id,
-            target_row=0,
+            base_row=0,
             main_window=main_window,
         )

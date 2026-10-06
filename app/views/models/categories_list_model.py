@@ -38,6 +38,7 @@ class CategoriesListModel(QAbstractListModel):
         self._row_by_id: dict[int, int] = {}
         self._pending_icon_rows: set[int] = set()
         self._icon_timer: Optional[QTimer] = None
+        self._cut_category_ids: set[int] = set()
         self._apply_icon_loading_policy()
         if categories:
             self.set_categories(categories)
@@ -79,6 +80,10 @@ class CategoriesListModel(QAbstractListModel):
             if self._lazy_icons_enabled:
                 self._schedule_icon_row(row)
             return DEFAULT_ICON
+        if role == Qt.ItemDataRole.ForegroundRole:
+            if item.get("id") in self._cut_category_ids:
+                from PyQt6.QtGui import QColor
+                return QColor(140, 140, 140, 160)
         if role == Qt.ItemDataRole.UserRole:
             return item.get("id")
         if role == Qt.ItemDataRole.UserRole + 1:
@@ -359,3 +364,13 @@ class CategoriesListModel(QAbstractListModel):
             prev = row
         ranges.append((start, prev))
         return ranges
+
+    def set_cut_category_ids(self, ids: set[int]) -> None:
+        self._cut_category_ids = set(ids)
+        self.layoutChanged.emit()
+
+    def clear_cut_category_ids(self) -> None:
+        if self._cut_category_ids:
+            self._cut_category_ids.clear()
+            self.layoutChanged.emit()
+

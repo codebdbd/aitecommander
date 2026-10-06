@@ -35,13 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Staging via atomic `.tmp` files and pre-publication `PRAGMA quick_check` integrity verification.
   - Chronological backup rotation strictly by modification timestamp (`st_mtime`) with automatic cleanup of orphaned `.tmp` files.
   - Modernized `RestoreDbDialog` featuring `QTableWidget` with native theme border, hidden row numbers, and automatic format detection (`.db`, `.zip`, `.bak`).
-- **Structure Share System & Safe Packaging (`.aitesec`, `.aitecat`, `.aitelink`)**:
-  - Native export and import of structure packages for sections (`.aitesec`), categories (`.aitecat`), and individual links (`.aitelink`).
+- **Structure Share System & Safe Packaging (`.aitesec`, `.aitecat`)**:
+  - Native export and import of structure packages for sections (`.aitesec`) and categories (`.aitecat`).
   - Packaging and automated extraction of associated workspace files (`workspace_files/`) with local path remapping.
   - Strict OOM & Zip Slip guards: 50 MB total uncompressed limit, 15 MB per-file limit, 1 MB manifest limit, and path normalization via `Path(name).name`.
   - Messenger sharing via Windows clipboard (`CF_HDROP`) for Telegram, WhatsApp, Viber, and Email.
 - **Windows File Associations & SingleInstance IPC**:
-  - Registered file associations for `.aitesec`, `.aitecat`, and `.aitelink` in `HKCU\Software\Classes` with dedicated `package_icon.ico` and Inno Setup integration.
+  - Registered file associations for `.aitesec` and `.aitecat` in `HKCU\Software\Classes` with dedicated `package_icon.ico` and Inno Setup integration.
   - SingleInstanceGuard local socket IPC protocol (`OPEN:<path>`) for opening packages in already-running instances without duplicate processes.
   - Positional CLI argument `[file]` support for importing packages on cold startup.
 - **Interactive Name Conflict Resolution (`ImportConflictDialog`)**:

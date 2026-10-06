@@ -68,6 +68,12 @@ class ItemOperations(QObject):
     def load(self, item_to_select=None) -> None:
         # On structure load, tree_management will automatically save and restore selection
         # if item_to_select is not provided; otherwise the specified selection will be restored
+        if item_to_select and hasattr(self.controller, "tree_manager"):
+            try:
+                item_type, item_id = item_to_select
+                self.controller.tree_manager.set_pending_selection(item_type, item_id)
+            except Exception as e:
+                logger.warning("Failed to set pending selection: %s", e)
         try:
             self.business.async_service.schedule_structure_reload()
         except Exception as exc:

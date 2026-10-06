@@ -536,7 +536,7 @@ class LinksUIController(QObject):
                 row = self._row_by_link_id.get(link_id)
                 if row is None:
                     # Lazy index rebuild
-                    self.rebuild_row_index()
+                    self.rebuild_row_index(dispatch_pending=False)
                     break
             
             for link_id in link_ids:
@@ -586,7 +586,7 @@ class LinksUIController(QObject):
         except Exception as e:
             logger.error("Failed to focus on links %s: %s", link_ids, e)
 
-    def rebuild_row_index(self) -> None:
+    def rebuild_row_index(self, dispatch_pending: bool = True) -> None:
         """Rebuild link_id -> row index from current table contents."""
         try:
             self._row_by_link_id.clear()
@@ -596,11 +596,11 @@ class LinksUIController(QObject):
                 if link and "id" in link:
                     self._row_by_link_id[link["id"]] = row
                     
-            if hasattr(self, "_pending_focus_link_ids") and self._pending_focus_link_ids:
+            if dispatch_pending and hasattr(self, "_pending_focus_link_ids") and self._pending_focus_link_ids:
                 pending = self._pending_focus_link_ids
-                self._pending_focus_link_ids = None
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, lambda: self.focus_on_links(pending))
+                if any(lid in self._row_by_link_id for lid in pending):
+                    self._pending_focus_link_ids = None
+                    self.focus_on_links(pending)
                 
         except Exception as e:
             logger.debug("rebuild_row_index failed: %s", e)

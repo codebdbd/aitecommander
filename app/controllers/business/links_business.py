@@ -288,6 +288,21 @@ class LinksBusinessLogic(QObject):
         self._cache_set(cache_key, links)
         return links
 
+    def get_link_by_id(self, link_id: int) -> dict[str, Any] | None:
+        """Return single link by ID synchronously."""
+        if not self._validate_link_id(link_id):
+            return None
+        return self.links.get_link_by_id(link_id)
+
+    def batch_delete_links(self, link_ids: list[int]) -> int:
+        """Delete multiple links synchronously."""
+        return self.links.batch_delete_links(link_ids)
+
+    def move_links_bulk(self, link_ids: list[int], target_category_id: int) -> int:
+        """Move multiple links to target category synchronously."""
+        return self.links.move_links_bulk(link_ids, target_category_id)
+
+
     @measure_time("search_links", log_threshold_ms=300)
     def search_links(self, query: str) -> None:
         """Search links by query.

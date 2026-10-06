@@ -197,20 +197,37 @@ class MoveSectionToSphereCommand(BaseBulkCommand):
 
         main_window = _require_main(self.main)
         structure_ctrl = getattr(main_window, "structure", None)
-        if structure_ctrl and hasattr(structure_ctrl, "switch_sphere"):
-            try:
-                structure_ctrl.switch_sphere(
-                    target_sphere, item_to_select=("section", self.section_id)
-                )
-                logger.info(
-                    "Switched sphere to %s and requested focus on moved section %s",
-                    target_sphere,
-                    self.section_id,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to switch sphere and focus moved section: %s", e
-                )
+        if structure_ctrl:
+            sb = getattr(main_window, "structure_business", None)
+            current_sphere = getattr(sb, "current_sphere_id", None) if sb else None
+            item_to_select = ("section", self.section_id)
+            if isinstance(current_sphere, int) and current_sphere == target_sphere:
+                if hasattr(structure_ctrl, "load"):
+                    try:
+                        structure_ctrl.load(item_to_select=item_to_select)
+                        logger.info(
+                            "Reloaded current sphere %s and requested focus on moved section %s",
+                            target_sphere,
+                            self.section_id,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to reload structure and focus moved section: %s", e
+                        )
+            elif hasattr(structure_ctrl, "switch_sphere"):
+                try:
+                    structure_ctrl.switch_sphere(
+                        target_sphere, item_to_select=item_to_select
+                    )
+                    logger.info(
+                        "Switched sphere to %s and requested focus on moved section %s",
+                        target_sphere,
+                        self.section_id,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to switch sphere and focus moved section: %s", e
+                    )
 
 
 class MoveSectionsToSphereCommand(BaseCommand):
@@ -313,6 +330,7 @@ class MergeSectionToSphereCommand(BaseCommand):
         self.target_id = int(target_section_id)
         self._source_section_data: dict[str, Any] = {}
         self._moved_category_ids: list[int] = []
+        self._renamed_categories: dict[int, tuple[str, str]] = {}
         self._target_sphere_id: int | None = None
         self._source_sphere_id: int | None = None
         self._prepared = False
@@ -334,16 +352,43 @@ class MergeSectionToSphereCommand(BaseCommand):
 
         cats = sb.get_categories(self.source_id) or []
         self._moved_category_ids = [int(c["id"]) for c in cats if c.get("id")]
+
+        target_cats = sb.get_categories(self.target_id) or []
+        target_cat_names = {str(c.get("name", "")).strip().lower() for c in target_cats}
+        existing_names_set = {str(c.get("name", "")).strip() for c in target_cats}
+
+        from app.utils.naming import generate_unique_name
+        self._renamed_categories = {}
+        for c in cats:
+            cid = int(c["id"])
+            cname = str(c.get("name", "")).strip()
+            if cname.lower() in target_cat_names:
+                unique_name = generate_unique_name(existing_names_set, cname)
+                self._renamed_categories[cid] = (cname, unique_name)
+                existing_names_set.add(unique_name)
+                target_cat_names.add(unique_name.lower())
+
         self._prepared = True
 
     def redo(self) -> None:
         self._prepare_data()
         sb = _require_structure_business(self.main)
+        db = getattr(getattr(sb, "structure_service", None), "db", None)
 
-        for cid in self._moved_category_ids:
-            sb.update_category(cid, {"section_id": self.target_id})
+        def _do_redo():
+            for cid, (_, new_name) in self._renamed_categories.items():
+                sb.update_category(cid, {"name": new_name})
+            for cid in self._moved_category_ids:
+                res = sb.update_category(cid, {"section_id": self.target_id})
+                if not res:
+                    raise RuntimeError(f"Failed to transfer category {cid} to section {self.target_id}")
+            sb.delete_section(self.source_id)
 
-        sb.delete_section(self.source_id)
+        if db and hasattr(db, "transaction"):
+            with db.transaction():
+                _do_redo()
+        else:
+            _do_redo()
 
         self._invalidate_caches(sb)
         self._refresh_ui(self._target_sphere_id, self.target_id)
@@ -352,10 +397,10 @@ class MergeSectionToSphereCommand(BaseCommand):
         if not self._source_section_data:
             return
         sb = _require_structure_business(self.main)
-
         db = getattr(getattr(sb, "structure_service", None), "db", None)
-        if db and hasattr(db, "connection"):
-            with db.connection:
+
+        def _do_undo():
+            if db and hasattr(db, "connection"):
                 db.connection.execute(
                     """
                     INSERT OR REPLACE INTO section (id, sphere_id, name, position, icon_path)
@@ -369,9 +414,16 @@ class MergeSectionToSphereCommand(BaseCommand):
                         self._source_section_data.get("icon_path", ""),
                     ),
                 )
+            for cid in self._moved_category_ids:
+                sb.update_category(cid, {"section_id": self.source_id})
+            for cid, (old_name, _) in self._renamed_categories.items():
+                sb.update_category(cid, {"name": old_name})
 
-        for cid in self._moved_category_ids:
-            sb.update_category(cid, {"section_id": self.source_id})
+        if db and hasattr(db, "transaction"):
+            with db.transaction():
+                _do_undo()
+        else:
+            _do_undo()
 
         self._invalidate_caches(sb)
         self._refresh_ui(self._source_sphere_id, self.source_id)
@@ -391,12 +443,21 @@ class MergeSectionToSphereCommand(BaseCommand):
             return
         main_win = _require_main(self.main)
         structure_ctrl = getattr(main_win, "structure", None)
-        if structure_ctrl and hasattr(structure_ctrl, "switch_sphere"):
-            try:
-                item_to_select = ("section", select_section_id) if select_section_id else None
-                structure_ctrl.switch_sphere(target_sphere, item_to_select=item_to_select)
-            except Exception as e:
-                logger.warning("Failed to refresh UI after merge: %s", e)
+        if structure_ctrl:
+            sb = getattr(main_win, "structure_business", None)
+            current_sphere = getattr(sb, "current_sphere_id", None) if sb else None
+            item_to_select = ("section", select_section_id) if select_section_id else None
+            if isinstance(current_sphere, int) and current_sphere == target_sphere:
+                if hasattr(structure_ctrl, "load"):
+                    try:
+                        structure_ctrl.load(item_to_select=item_to_select)
+                    except Exception as e:
+                        logger.warning("Failed to reload structure after merge: %s", e)
+            elif hasattr(structure_ctrl, "switch_sphere"):
+                try:
+                    structure_ctrl.switch_sphere(target_sphere, item_to_select=item_to_select)
+                except Exception as e:
+                    logger.warning("Failed to refresh UI after merge: %s", e)
 
 
 class ReorderSectionsCommand(BaseBulkCommand):

@@ -271,6 +271,8 @@ class SpheresBarController(QObject):
                     action, copy_name = session.resolve("section", name, existing_names)
                     if action == "cancel":
                         return
+                    if action == "skip":
+                        continue
                     elif action == "copy":
                         name_overrides[sid] = copy_name
                         existing_names.append(copy_name)

@@ -14,7 +14,10 @@ from app.controllers.ui.dialogs.dialog_manager import localize_message_box_butto
 from app.controllers.ui.undo.commands import MacroCommand
 from app.utils.ui.db_tasks import run_db
 from app.utils.ui.dnd.base import TreeHandlerBase
-from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
+from app.utils.ui.dnd.categories_command import (
+    MergeCategoriesCommand,
+    MoveCategoriesCommand,
+)
 from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.utils.ui.dnd.section_command import (
@@ -109,8 +112,11 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Undo stack not found for moving links")
             return
 
+        links_to_move: list[int] = list(link_ids)
+
         # Interactive conflict resolution for moving links
         name_overrides: dict[int, str] = {}
+        replacements: dict[int, int] = {}
         lb = getattr(main_win, "links_business", None)
         links_service = getattr(lb, "links", None) if lb else None
         if lb and links_service:
@@ -123,6 +129,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 )
                 for l in existing
             }
+            existing_names = [str(l.get("name", "")) for l in existing]
             conflicts: list[int] = []
             for lid in link_ids:
                 ld = links_service.get_link_by_id(int(lid))
@@ -139,6 +146,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
             session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicts))
 
+            links_to_move = []
             for lid in link_ids:
                 link_data = links_service.get_link_by_id(int(lid))
                 if not link_data:
@@ -153,21 +161,44 @@ class MoveOperationsHandler(TreeHandlerBase):
                     action, copy_name = session.resolve("link", name, existing_names)
                     if action == "cancel":
                         return
+                    if action == "skip":
+                        continue
                     if action == "copy":
                         name_overrides[int(lid)] = copy_name
                         existing_names.append(copy_name)
+                    elif action == "merge":
+                        matching_target = next(
+                            (
+                                l
+                                for l in existing
+                                if (
+                                    str(l.get("name", "")),
+                                    str(l.get("url", "")),
+                                    str(l.get("args", "")),
+                                )
+                                == key
+                            ),
+                            None,
+                        )
+                        if matching_target and matching_target.get("id"):
+                            replacements[int(lid)] = int(matching_target["id"])
+                links_to_move.append(int(lid))
+
+            if not links_to_move:
+                return
 
         main_win.undo_stack.push(
             MoveLinksCommand(
-                link_ids,
+                links_to_move,
                 new_category_id,
                 main_win,
                 name_overrides=name_overrides,
+                replacements=replacements,
             )
         )
         logger.info(
             "MoveLinksCommand executed: links %s -> category %s",
-            link_ids,
+            links_to_move,
             new_category_id,
         )
 
@@ -213,7 +244,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
             session = ConflictResolutionSession(main_win, operation="move", total_conflicts=1)
             action, copy_name = session.resolve("section", name, existing_names)
-            if action == "cancel":
+            if action in {"cancel", "skip"}:
                 return False
             if action == "merge":
                 undo_stack.push(MergeSectionToSphereCommand(int(section_id), int(colliding["id"]), main_win))
@@ -290,7 +321,11 @@ class MoveOperationsHandler(TreeHandlerBase):
         from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
         session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicting_categories))
 
-        to_move_ids: list[int] = []
+        # Phase 1: Conflict resolution planning (no DB modifications)
+        planned_moves: list[int] = []
+        planned_renames: dict[int, str] = {}
+        planned_merges: list[tuple[int, int]] = []
+
         for cid in list(category_ids):
             cat_data = sb.get_category_data(cid)
             if not cat_data:
@@ -300,7 +335,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             cat_name = cat_data.get("name", "")
 
             if old_sec_id == new_section_id:
-                to_move_ids.append(cid)
+                planned_moves.append(cid)
                 continue
 
             colliding = next(
@@ -318,49 +353,56 @@ class MoveOperationsHandler(TreeHandlerBase):
                 action, copy_name = session.resolve("category", cat_name, existing_names)
                 if action == "cancel":
                     return False
+                if action == "skip":
+                    continue
 
                 if action == "copy":
-                    sb.update_category(cid, {"name": copy_name})
+                    planned_renames[cid] = copy_name
                     existing_names.append(copy_name)
-                    to_move_ids.append(cid)
+                    planned_moves.append(cid)
                 elif action == "merge":
                     target_cat_id = int(colliding["id"])
-                    lb = getattr(main_win, "links_business", None)
-                    if lb is not None:
-                        target_links = lb.get_links(target_cat_id) or []
-                        target_keys = {
-                            (
-                                str(l.get("name", "")),
-                                str(l.get("url", "")),
-                                str(l.get("args", "")),
-                            )
-                            for l in target_links
-                        }
-                        source_links = lb.get_links(cid) or []
-                        links_to_move: list[int] = []
-                        links_to_delete: list[int] = []
-                        for sl in source_links:
-                            s_key = (
-                                str(sl.get("name", "")),
-                                str(sl.get("url", "")),
-                                str(sl.get("args", "")),
-                            )
-                            if s_key in target_keys:
-                                links_to_delete.append(int(sl["id"]))
-                            else:
-                                links_to_move.append(int(sl["id"]))
-                                target_keys.add(s_key)
-
-                        if links_to_delete:
-                            lb.batch_delete_links(links_to_delete)
-                        if links_to_move:
-                            lb.move_links_bulk(links_to_move, target_cat_id)
-
-                    sb.delete_category(cid)
+                    planned_merges.append((cid, target_cat_id))
             else:
-                to_move_ids.append(cid)
+                planned_moves.append(cid)
 
-        if not to_move_ids:
+        # Phase 2: Execute merges and renames via undoable commands
+        undo_stack = getattr(main_win, "undo_stack", None)
+        if undo_stack is None:
+            self._show_warning(
+                self.tr("Undo history is unavailable. Batch move canceled."),
+                self.tr("Undo history unavailable"),
+                informative_text=self.tr(
+                    "Enable undo/redo support or initialize undo_stack in the main window."
+                ),
+            )
+            logger.warning("Undo stack not found for batch move of categories")
+            return False
+
+        for cid, target_cat_id in planned_merges:
+            undo_stack.push(
+                MergeCategoriesCommand(cid, target_cat_id, main_win)
+            )
+
+        to_move_ids = planned_moves
+        if to_move_ids:
+            undo_stack.push(
+                MoveCategoriesCommand(
+                    to_move_ids,
+                    new_section_id,
+                    base_row,
+                    main_win,
+                    name_overrides=planned_renames,
+                )
+            )
+            logger.info(
+                "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
+                to_move_ids,
+                new_section_id,
+                base_row,
+            )
+            return True
+        elif planned_merges:
             facade = getattr(main_win, "_facade", None)
             if facade and hasattr(facade, "refresh_structure_after_import"):
                 facade.refresh_structure_after_import(sb, new_section_id)
@@ -371,29 +413,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                     pass
             return True
 
-        undo_stack = getattr(main_win, "undo_stack", None)
-
-        if undo_stack is not None:
-            undo_stack.push(
-                MoveCategoriesCommand(to_move_ids, new_section_id, base_row, main_win)
-            )
-            logger.info(
-                "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
-                to_move_ids,
-                new_section_id,
-                base_row,
-            )
-            return True
-
-        self._show_warning(
-            self.tr("Undo history is unavailable. Batch move canceled."),
-            self.tr("Undo history unavailable"),
-            informative_text=self.tr(
-                "Enable undo/redo support or initialize undo_stack in the main window."
-            ),
-        )
-        logger.warning("Undo stack not found for batch move of categories")
-        return False
+        return True
 
     def execute_move_categories_batch(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0

@@ -65,22 +65,66 @@ class LinksUIClipboard(BaseLinksUIComponent):
             if is_cut:
                 self.delete_links(links, is_cut=True)
 
-    def paste_link(self):
+    def paste_link(self, target_category_id: int | None = None):
         """Paste links from clipboard."""
         try:
-            current_category_id = self._validate_category_exists(None)
+            current_category_id = self._validate_category_exists(target_category_id)
         except CategoryNotFoundError as e:
             self._show_warning(str(e))
             return
 
+        if not current_category_id:
+            return
+
         if self._clipboard_is_cut and self._cut_link_ids:
             cut_ids = list(self._cut_link_ids)
+            existing = self.business.get_links(current_category_id) or []
+            existing_links = [dict(r) for r in existing]
+            existing_keys = {
+                (str(l.get("url", "")), str(l.get("type", "")), str(l.get("args", "")), str(l.get("name", "")))
+                for l in existing_links
+            }
+            existing_names = [str(l.get("name", "")) for l in existing_links]
+            name_overrides: dict[int, str] = {}
+            replacements: dict[int, int] = {}
+            to_move_ids: list[int] = []
+            links_service = getattr(self.business, "links", None)
+            conflicts = [
+                cid for cid in cut_ids
+                if (
+                    ld := ((links_service.get_link_by_id(cid) if links_service else {}) or {}),
+                    (str(ld.get("url", "")), str(ld.get("type", "")), str(ld.get("args", "")), str(ld.get("name", ""))) in existing_keys
+                )[1]
+            ]
+            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            session = ConflictResolutionSession(self.main, operation="move", total_conflicts=len(conflicts))
+            for cid in cut_ids:
+                link_data = (links_service.get_link_by_id(cid) if links_service else {}) or {}
+                key = (str(link_data.get("url", "")), str(link_data.get("type", "")), str(link_data.get("args", "")), str(link_data.get("name", "")))
+                if key in existing_keys:
+                    action, copy_name = session.resolve("link", str(link_data.get("name", "")), existing_names)
+                    if action == "cancel":
+                        return
+                    if action == "skip":
+                        continue
+                    if action == "copy":
+                        name_overrides[cid] = copy_name
+                        existing_names.append(copy_name)
+                    elif action == "merge":
+                        target_match = next((l for l in existing_links if (str(l.get("url", "")), str(l.get("type", "")), str(l.get("args", "")), str(l.get("name", ""))) == key), None)
+                        if target_match and target_match.get("id"):
+                            replacements[cid] = int(target_match["id"])
+                to_move_ids.append(cid)
+            if not to_move_ids:
+                return
             self.cancel_cut()
             try:
                 cmd = MoveLinksCommand(
-                    link_ids=cut_ids,
+                    link_ids=to_move_ids,
                     new_category_id=current_category_id,
                     main_window=self.main,
+                    name_overrides=name_overrides,
+                    replacements=replacements,
                 )
                 self.main.undo_stack.push(cmd)
             except Exception as e:
@@ -188,21 +232,26 @@ class LinksUIClipboard(BaseLinksUIComponent):
     def _insert_links(self, links: list[dict], *, is_cut: bool = False):
         """Insert list of links with undo support."""
         if len(links) > 1:
-            # Batch insertion: one transaction, one reload in command
+            replaced_links = {
+                int(l["id"]): l.pop("_old_link_snapshot")
+                for l in links
+                if "_old_link_snapshot" in l and l.get("id")
+            }
             cmd = BatchSaveLinksCmd(
                 links_data=links,
                 _old_link_data=None,
                 main_window=self.main,
                 is_cut=is_cut,
+                replaced_links=replaced_links,
             )
-            # Command will perform single reload; external updates not needed
             self.main.undo_stack.push(cmd)
         else:
             for link_data in links:
+                old_data = link_data.pop("_old_link_snapshot", None)
                 self.main.undo_stack.push(
                     SaveLinkCmd(
                         new_data=link_data,
-                        old_data=None,
+                        old_data=old_data,
                         main_window=self.main,
                         is_cut=is_cut,
                     )
@@ -254,6 +303,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 action, copy_name = session.resolve("link", new_data.get("name", ""), existing_names)
                 if action == "cancel":
                     return []
+                if action == "skip":
+                    continue
                 if action == "copy":
                     new_data["name"] = copy_name
                 elif action == "merge":
@@ -273,6 +324,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                     )
                     if matching_link and matching_link.get("id"):
                         new_data["id"] = matching_link["id"]
+                        new_data["_old_link_snapshot"] = dict(matching_link)
                 candidate_key = (
                     new_data.get("url", ""),
                     new_data.get("type", ""),

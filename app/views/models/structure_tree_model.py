@@ -231,6 +231,8 @@ class StructureTreeModel(QAbstractItemModel):
         self._section_by_id: dict[int, TreeNode] = {}
         self._category_by_id: dict[int, TreeNode] = {}
         self._placeholder_icon = self._create_placeholder_icon()
+        self._cut_sections: set[int] = set()
+        self._cut_categories: set[int] = set()
 
         self._thread_pool = QThreadPool(self)
         try:
@@ -498,6 +500,12 @@ class StructureTreeModel(QAbstractItemModel):
             return node.name
         if role == Qt.ItemDataRole.DecorationRole:
             return node.icon
+        if role == Qt.ItemDataRole.ForegroundRole:
+            if (node.type == "section" and node.id in self._cut_sections) or (
+                node.type == "category" and node.id in self._cut_categories
+            ):
+                from PyQt6.QtGui import QColor
+                return QColor(140, 140, 140, 160)
         if role == Qt.ItemDataRole.UserRole:
             return (node.type, node.id)
         return None
@@ -1472,6 +1480,26 @@ class StructureTreeModel(QAbstractItemModel):
                 return self.createIndex(node.row(), 0, node)
             return QModelIndex()
         return QModelIndex()
+
+    def set_cut_items(self, item_type: str, item_ids: set[int]) -> None:
+        if item_type == "section":
+            self._cut_sections = set(item_ids)
+            self._cut_categories.clear()
+        elif item_type == "category":
+            self._cut_categories = set(item_ids)
+            self._cut_sections.clear()
+        else:
+            self._cut_sections.clear()
+            self._cut_categories.clear()
+        if self._root.children:
+            self.layoutChanged.emit()
+
+    def clear_cut_items(self) -> None:
+        if self._cut_sections or self._cut_categories:
+            self._cut_sections.clear()
+            self._cut_categories.clear()
+            if self._root.children:
+                self.layoutChanged.emit()
 
     def _node_from_index(self, index: QModelIndex) -> TreeNode:
         if index.isValid():

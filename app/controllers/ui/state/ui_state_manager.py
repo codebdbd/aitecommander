@@ -244,9 +244,15 @@ class UIStateManager:
                         isinstance(target_sphere, int)
                         and target_sphere > 0
                         and target_sphere != current_sphere
-                        and hasattr(sb, "set_current_sphere")
                     ):
-                        sb.set_current_sphere(target_sphere)
+                        struct_ctrl = getattr(self.main, "structure_controller", None) or getattr(
+                            self.main, "structure", None
+                        )
+                        if struct_ctrl and hasattr(struct_ctrl, "switch_sphere"):
+                            struct_ctrl.switch_sphere(target_sphere, item_to_select=("category", category_id))
+                            return True
+                        if hasattr(sb, "set_current_sphere"):
+                            sb.set_current_sphere(target_sphere)
             struct_ctrl = getattr(self.main, "structure_controller", None) or getattr(
                 self.main, "structure", None
             )

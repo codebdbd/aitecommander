@@ -1402,6 +1402,8 @@ class ImportConflictDialog(BaseDialog):
         self._merge_desc: QLabel | None = None
         self._radio_copy: QRadioButton | None = None
         self._copy_desc: QLabel | None = None
+        self._radio_skip: QRadioButton | None = None
+        self._skip_desc: QLabel | None = None
         self._cb_apply_to_all: QCheckBox | None = None
         self._button_box: QDialogButtonBox | None = None
         super().__init__(parent)
@@ -1441,11 +1443,19 @@ class ImportConflictDialog(BaseDialog):
         self._copy_desc.setWordWrap(True)
         self._copy_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
 
+        self._radio_skip = QRadioButton()
+        self._skip_desc = QLabel()
+        self._skip_desc.setWordWrap(True)
+        self._skip_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
+
         options_layout.addWidget(self._radio_merge)
         options_layout.addWidget(self._merge_desc)
         options_layout.addSpacing(4)
         options_layout.addWidget(self._radio_copy)
         options_layout.addWidget(self._copy_desc)
+        options_layout.addSpacing(4)
+        options_layout.addWidget(self._radio_skip)
+        options_layout.addWidget(self._skip_desc)
         vbox.addLayout(options_layout)
 
         if self._has_multiple:
@@ -1499,6 +1509,9 @@ class ImportConflictDialog(BaseDialog):
             copy_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Save alongside under a unique name."
             )
+            skip_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Do not modify existing section and leave original unchanged."
+            )
         elif self._entity_type == "link":
             info_text = QCoreApplication.translate(
                 "ImportConflictDialog",
@@ -1514,6 +1527,9 @@ class ImportConflictDialog(BaseDialog):
             ).format(name=self._copy_name)
             copy_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Save alongside under a unique name."
+            )
+            skip_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Do not modify existing link and leave original unchanged."
             )
         else:  # category
             info_text = QCoreApplication.translate(
@@ -1531,6 +1547,9 @@ class ImportConflictDialog(BaseDialog):
             copy_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Save alongside under a unique name."
             )
+            skip_desc = QCoreApplication.translate(
+                "ImportConflictDialog", "Do not modify existing category and leave original unchanged."
+            )
 
         self._info_label.setText(info_text)
         if self._question_label is not None:
@@ -1541,6 +1560,9 @@ class ImportConflictDialog(BaseDialog):
         self._merge_desc.setText(merge_desc)
         self._radio_copy.setText(copy_title)
         self._copy_desc.setText(copy_desc)
+        if self._radio_skip is not None and self._skip_desc is not None:
+            self._radio_skip.setText(QCoreApplication.translate("ImportConflictDialog", "Skip"))
+            self._skip_desc.setText(skip_desc)
 
         if self._cb_apply_to_all is not None:
             self._cb_apply_to_all.setText(
@@ -1557,7 +1579,11 @@ class ImportConflictDialog(BaseDialog):
             self.equalize_button_box(self._button_box, min_width=app_config.ui.get_fixed_button_width())
 
     def get_action(self) -> str:
-        return "merge" if self._radio_merge.isChecked() else "copy"
+        if self._radio_merge and self._radio_merge.isChecked():
+            return "merge"
+        if self._radio_copy and self._radio_copy.isChecked():
+            return "copy"
+        return "skip"
 
     def apply_to_all(self) -> bool:
         return bool(self._cb_apply_to_all and self._cb_apply_to_all.isChecked())

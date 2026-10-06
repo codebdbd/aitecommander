@@ -49,6 +49,8 @@ class ActionController(QObject):
         self._deferred_action_icons: list[tuple[QAction, str]] = []
         self._global_action_icons_applied = False
         self._clipboard_is_cut: bool = False
+        self._cut_item_type: str | None = None
+        self._cut_item_ids: set[int] = set()
         self._setup_state_hooks()
 
     def _setup_state_hooks(self) -> None:
@@ -423,6 +425,28 @@ class ActionController(QObject):
                         return None
         return None
 
+    def _get_tree_target_category_id(self) -> int | None:
+        try:
+            tree = self.main_window.tree
+        except Exception:
+            return None
+        if not tree or not hasattr(tree, "currentIndex"):
+            return None
+        idx = tree.currentIndex()
+        if not (idx and idx.isValid()):
+            return None
+        t = get_tree_tuple(idx, 0)
+        if not t or t[0] != "category":
+            return None
+        try:
+            return int(t[1])
+        except Exception:
+            return None
+
+    def _get_tiles_target_category_id(self) -> int | None:
+        selected = self._get_tiles_selected_ids()
+        return int(selected[0]) if len(selected) == 1 else None
+
     def _bind_selection_signals(self) -> None:
         tree = getattr(self.main_window, "tree", None)
         if tree and hasattr(tree, "selectionModel"):
@@ -470,17 +494,17 @@ class ActionController(QObject):
                 self.main_window.structure.handle_edit_category(current_category_id)
                 return
 
-        # Check links table (active)
-        if self._is_table_stack_active() and self._table_has_selection():
-            self._edit_selected_link()
-            return
-
-        # Check focus on structure tree (QTreeView-only)
+        # 1. Direct focus: structure tree
         if self._is_tree_focused() and self._has_tree_selection():
             self.main_window.structure.edit_selected_item()
             return
 
-        # Check focus on links table
+        # 2. Check links table (active)
+        if self._is_table_stack_active() and self._table_has_selection():
+            self._edit_selected_link()
+            return
+
+        # 3. Check focus on links table
         if self._is_table_focused() and self._table_has_selection():
             self._edit_selected_link()
 
@@ -492,23 +516,24 @@ class ActionController(QObject):
             self._delete_text_selection(widget)
             return
 
+        # 1. Direct focus: structure tree
+        if self._is_tree_focused() and self._has_tree_selection():
+            self.main_window.structure.delete_selected_item()
+            self.main_window.update_statusbar()
+            return
+
+        # 2. Direct focus: category tiles
         if self._is_tiles_focused():
             self._delete_tiles_selection()
             self.main_window.update_statusbar()
             return
 
-        # Check focus on links table
-        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
+        # 3. Direct focus or fallback: links table (only if tree is not focused)
+        if (self._is_table_focused() or (self._is_table_stack_active() and not self._is_tree_focused())) and self._table_has_selection():
             links = self._selected_links()
             if links:
                 self.main_window.links_actions.delete_links_with_confirmation(links)
                 self.main_window.update_statusbar()
-            return
-
-        # Check focus on structure tree (QTreeView-only)
-        if self._is_tree_focused() and self._has_tree_selection():
-            self.main_window.structure.delete_selected_item()
-            self.main_window.update_statusbar()
             return
 
     @pyqtSlot()
@@ -522,16 +547,19 @@ class ActionController(QObject):
                 pass
             return
 
+        # 1. Direct focus: structure tree
+        if self._is_tree_focused() and self._has_tree_selection():
+            self._copy_tree_selection()
+            return
+
+        # 2. Direct focus: category tiles
         if self._is_tiles_focused():
             self._copy_tiles_selection()
             return
 
-        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
+        # 3. Direct focus or fallback: links table (only if tree is not focused)
+        if (self._is_table_focused() or (self._is_table_stack_active() and not self._is_tree_focused())) and self._table_has_selection():
             self.main_window.links_actions.copy_selected_links()
-            return
-
-        if self._is_tree_focused() and self._has_tree_selection():
-            self._copy_tree_selection()
             return
 
     @pyqtSlot()
@@ -545,16 +573,19 @@ class ActionController(QObject):
                 pass
             return
 
+        # 1. Direct focus: structure tree
+        if self._is_tree_focused() and self._has_tree_selection():
+            self._cut_tree_selection()
+            return
+
+        # 2. Direct focus: category tiles
         if self._is_tiles_focused():
             self._cut_tiles_selection()
             return
 
-        if (self._is_table_focused() or self._is_table_stack_active()) and self._table_has_selection():
+        # 3. Direct focus or fallback: links table (only if tree is not focused)
+        if (self._is_table_focused() or (self._is_table_stack_active() and not self._is_tree_focused())) and self._table_has_selection():
             self.main_window.links_actions.cut_selected_links()
-            return
-
-        if self._is_tree_focused() and self._has_tree_selection():
-            self._cut_tree_selection()
             return
 
     @pyqtSlot()
@@ -568,16 +599,19 @@ class ActionController(QObject):
                 pass
             return
 
-        if self._is_table_focused() or self._is_table_stack_active():
-            self.main_window.links_actions.paste_links()
+        # 1. Direct focus: structure tree
+        if self._is_tree_focused():
+            self._paste_into_tree()
             return
 
+        # 2. Direct focus: category tiles
         if self._is_tiles_focused():
             self._paste_into_tiles()
             return
 
-        if self._is_tree_focused():
-            self._paste_into_tree()
+        # 3. Direct focus or fallback: links table (only if tree is not focused)
+        if self._is_table_focused() or (self._is_table_stack_active() and not self._is_tree_focused()):
+            self.main_window.links_actions.paste_links()
             return
 
         self.main_window.links_actions.paste_links()
@@ -684,11 +718,40 @@ class ActionController(QObject):
             )
             return []
 
+    def cancel_cut(self) -> None:
+        """Cancel cut operation and restore item visuals."""
+        self._clipboard_is_cut = False
+        self._cut_item_type = None
+        self._cut_item_ids = set()
+        self._clear_cut_visuals()
+
+    def _clear_cut_visuals(self) -> None:
+        tree = getattr(self.main_window, "tree", None)
+        if tree and hasattr(tree, "model") and tree.model() and hasattr(tree.model(), "clear_cut_items"):
+            tree.model().clear_cut_items()
+        tiles = getattr(self.main_window, "tiles", None)
+        tiles_view = getattr(tiles, "view", None) if tiles else None
+        if tiles_view and hasattr(tiles_view, "model") and tiles_view.model() and hasattr(tiles_view.model(), "clear_cut_category_ids"):
+            tiles_view.model().clear_cut_category_ids()
+
+    def _update_cut_visuals(self) -> None:
+        self._clear_cut_visuals()
+        if not self._clipboard_is_cut or not self._cut_item_ids:
+            return
+        tree = getattr(self.main_window, "tree", None)
+        if tree and hasattr(tree, "model") and tree.model() and hasattr(tree.model(), "set_cut_items"):
+            tree.model().set_cut_items(self._cut_item_type, self._cut_item_ids)
+        if self._cut_item_type == "category":
+            tiles = getattr(self.main_window, "tiles", None)
+            tiles_view = getattr(tiles, "view", None) if tiles else None
+            if tiles_view and hasattr(tiles_view, "model") and tiles_view.model() and hasattr(tiles_view.model(), "set_cut_category_ids"):
+                tiles_view.model().set_cut_category_ids(self._cut_item_ids)
+
     def _copy_tree_selection(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
             return
-        self._clipboard_is_cut = False
+        self.cancel_cut()
         selection_type = self._get_tree_selection_type()
         if selection_type == "section":
             ids = self._get_selected_tree_ids("section")
@@ -712,176 +775,336 @@ class ActionController(QObject):
         if svc is None:
             return
         selection_type = self._get_tree_selection_type()
-        undo_stack = getattr(self.main_window, "undo_stack", None)
-        business = getattr(self.main_window, "structure_business", None)
-        if undo_stack is None or business is None:
-            return
-
-        self._clipboard_is_cut = True
         if selection_type == "section":
             ids = self._get_selected_tree_ids("section")
             if not ids:
                 return
             if len(ids) > 1:
                 svc.copy_sections_to_clipboard(ids)
-                payloads = [p for p in (business.get_section_data(sid) for sid in ids) if p]
-                if payloads:
-                    undo_stack.push(DeleteSectionsCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
             else:
                 svc.copy_section_tree_to_clipboard(ids[0])
-                payload = business.get_section_data(ids[0])
-                if payload:
-                    undo_stack.push(DeleteSectionCmd(payload, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
+            self._clipboard_is_cut = True
+            self._cut_item_type = "section"
+            self._cut_item_ids = set(ids)
+            self._update_cut_visuals()
         elif selection_type == "category":
             ids = self._get_selected_tree_ids("category")
             if not ids:
                 return
             if len(ids) > 1:
                 svc.copy_categories_to_clipboard(ids)
-                payloads = [p for p in (business.get_category_data(cid) for cid in ids) if p]
-                if payloads:
-                    undo_stack.push(BatchDeleteCategoriesCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
             else:
                 svc.copy_category_tree_to_clipboard(ids[0])
-                payload = business.get_category_data(ids[0])
-                if payload:
-                    undo_stack.push(DeleteCategoryCmd(payload, self.main_window, business=business, undo_manager=undo_stack, skip_reload=False, lightweight_reload=True, is_cut=True))
+            self._clipboard_is_cut = True
+            self._cut_item_type = "category"
+            self._cut_item_ids = set(ids)
+            self._update_cut_visuals()
 
-    def _resolve_category_paste_conflicts(self, target_section_id: int, trees: list[dict]) -> list[dict] | None:
+    def _resolve_category_paste_conflicts(
+        self, target_section_id: int, trees: list[dict], is_cut: bool = False
+    ) -> list[dict] | None:
+        import copy
         from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
 
         sb = getattr(self.main_window, "structure_business", None)
         existing_cats = sb.get_categories(int(target_section_id)) or [] if sb else []
         existing_names = [str(c.get("name", "")) for c in existing_cats]
         resolved_trees = []
-        conflict_count = sum(
-            1 for t in trees
-            if (c_name := str((t.get("category") or {}).get("name", "")).strip())
-            and c_name.lower() in [n.lower() for n in existing_names]
-        )
-        session = ConflictResolutionSession(self.main_window, operation="copy", total_conflicts=conflict_count)
 
-        for tree in trees:
+        allocated_names_lower = {n.lower() for n in existing_names}
+        conflict_count = 0
+        for t in trees:
+            c_name = str((t.get("category") or {}).get("name", "")).strip()
+            if not c_name:
+                continue
+            if c_name.lower() in allocated_names_lower:
+                conflict_count += 1
+            else:
+                allocated_names_lower.add(c_name.lower())
+
+        session = ConflictResolutionSession(
+            self.main_window,
+            operation=("move" if is_cut else "copy"),
+            total_conflicts=conflict_count,
+        )
+        existing_names_set = set(existing_names)
+        allocated_names_lower = {n.lower() for n in existing_names}
+
+        for tree in copy.deepcopy(trees):
             cat = dict(tree.get("category") or {})
             cat_name = str(cat.get("name", "")).strip()
-            if cat_name and cat_name.lower() in [n.lower() for n in existing_names]:
-                action, copy_name = session.resolve("category", cat_name, existing_names)
+            if cat_name and cat_name.lower() in allocated_names_lower:
+                action, copy_name = session.resolve(
+                    "category", cat_name, existing_names_set
+                )
                 if action == "cancel":
                     return None
+                if action == "skip":
+                    continue
                 if action == "copy":
                     tree["category"]["name"] = copy_name
-                    existing_names.append(copy_name)
+                    existing_names_set.add(copy_name)
+                    allocated_names_lower.add(copy_name.lower())
                 elif action == "merge":
                     target_cat = next(
-                        (c for c in existing_cats if str(c.get("name", "")).strip().lower() == cat_name.lower()),
+                        (
+                            c
+                            for c in existing_cats
+                            if str(c.get("name", "")).strip().lower()
+                            == cat_name.lower()
+                        ),
                         None,
                     )
                     if target_cat and target_cat.get("id"):
                         tree["_action"] = "merge"
                         tree["_target_category_id"] = int(target_cat["id"])
+            else:
+                if cat_name:
+                    existing_names_set.add(cat_name)
+                    allocated_names_lower.add(cat_name.lower())
             resolved_trees.append(tree)
         return resolved_trees
 
-    def _resolve_section_paste_conflicts(self, sphere_id: int, trees: list[dict]) -> list[dict] | None:
+    def _resolve_section_paste_conflicts(
+        self, sphere_id: int, trees: list[dict], is_cut: bool = False
+    ) -> list[dict] | None:
+        import copy
         from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
 
         business = getattr(self.main_window, "structure_business", None)
-        existing_secs = business.get_sections(int(sphere_id)) or [] if business else []
+        existing_secs = (
+            business.get_sections(int(sphere_id)) or [] if business else []
+        )
         existing_names = [str(s.get("name", "")) for s in existing_secs]
         resolved_trees = []
-        conflict_count = sum(
-            1 for t in trees
-            if (s_name := str((t.get("section") or {}).get("name", "")).strip())
-            and s_name.lower() in [n.lower() for n in existing_names]
-        )
-        session = ConflictResolutionSession(self.main_window, operation="copy", total_conflicts=conflict_count)
 
-        for tree in trees:
+        allocated_names_lower = {n.lower() for n in existing_names}
+        conflict_count = 0
+        for t in trees:
+            s_name = str((t.get("section") or {}).get("name", "")).strip()
+            if not s_name:
+                continue
+            if s_name.lower() in allocated_names_lower:
+                conflict_count += 1
+            else:
+                allocated_names_lower.add(s_name.lower())
+
+        session = ConflictResolutionSession(
+            self.main_window,
+            operation=("move" if is_cut else "copy"),
+            total_conflicts=conflict_count,
+        )
+        existing_names_set = set(existing_names)
+        allocated_names_lower = {n.lower() for n in existing_names}
+
+        for tree in copy.deepcopy(trees):
             sec = dict(tree.get("section") or {})
             sec_name = str(sec.get("name", "")).strip()
-            if sec_name and sec_name.lower() in [n.lower() for n in existing_names]:
-                action, copy_name = session.resolve("section", sec_name, existing_names)
+            if sec_name and sec_name.lower() in allocated_names_lower:
+                action, copy_name = session.resolve(
+                    "section", sec_name, existing_names_set
+                )
                 if action == "cancel":
                     return None
+                if action == "skip":
+                    continue
                 if action == "copy":
                     tree["section"]["name"] = copy_name
-                    existing_names.append(copy_name)
+                    existing_names_set.add(copy_name)
+                    allocated_names_lower.add(copy_name.lower())
+                elif action == "merge":
+                    target_sec = next(
+                        (
+                            s
+                            for s in existing_secs
+                            if str(s.get("name", "")).strip().lower()
+                            == sec_name.lower()
+                        ),
+                        None,
+                    )
+                    if target_sec and target_sec.get("id"):
+                        tree["_action"] = "merge"
+                        tree["_target_section_id"] = int(target_sec["id"])
+            else:
+                if sec_name:
+                    existing_names_set.add(sec_name)
+                    allocated_names_lower.add(sec_name.lower())
             resolved_trees.append(tree)
         return resolved_trees
+
+    def _execute_paste_categories(self, target_section_id: int, is_cut: bool) -> None:
+        svc = self._get_structure_context_service()
+        if svc is None:
+            return
+        payload = svc.get_clipboard_payload()
+        trees = svc.normalize_category_trees(payload)
+        if not trees:
+            return
+        resolved_trees = self._resolve_category_paste_conflicts(
+            int(target_section_id), trees, is_cut=is_cut
+        )
+        if resolved_trees is None:
+            return
+        if not resolved_trees:
+            if is_cut:
+                self.cancel_cut()
+            return
+
+        undo_stack = getattr(self.main_window, "undo_stack", None)
+        if undo_stack is None:
+            return
+
+        if is_cut and self._cut_item_type == "category" and self._cut_item_ids:
+            from app.utils.ui.dnd.categories_command import (
+                MergeCategoriesCommand,
+                MoveCategoriesCommand,
+            )
+
+            planned_moves: list[int] = []
+            name_overrides: dict[int, str] = {}
+            planned_merges: list[tuple[int, int]] = []
+            for t in resolved_trees:
+                cid = (t.get("category") or {}).get("id")
+                if cid and cid in self._cut_item_ids:
+                    if t.get("_action") == "merge" and t.get("_target_category_id"):
+                        planned_merges.append(
+                            (int(cid), int(t["_target_category_id"]))
+                        )
+                    else:
+                        planned_moves.append(int(cid))
+                        new_name = (t.get("category") or {}).get("name")
+                        if new_name:
+                            name_overrides[int(cid)] = str(new_name)
+
+            for cid, tgt_id in planned_merges:
+                undo_stack.push(MergeCategoriesCommand(cid, tgt_id, self.main_window))
+            if planned_moves:
+                undo_stack.push(
+                    MoveCategoriesCommand(
+                        planned_moves,
+                        int(target_section_id),
+                        0,
+                        self.main_window,
+                        name_overrides=name_overrides,
+                    )
+                )
+            self.cancel_cut()
+            return
+
+        undo_stack.push(
+            PasteCategoriesCmd(
+                resolved_trees,
+                int(target_section_id),
+                self.main_window,
+                business=getattr(self.main_window, "structure_business", None),
+                undo_manager=undo_stack,
+                is_cut=False,
+            )
+        )
+        if is_cut:
+            self.cancel_cut()
+
+    def _execute_paste_sections(self, sphere_id: int, is_cut: bool) -> None:
+        svc = self._get_structure_context_service()
+        if svc is None:
+            return
+        business = getattr(self.main_window, "structure_business", None)
+        payload = svc.get_clipboard_payload()
+        trees = svc.normalize_section_trees(payload)
+        if not trees:
+            return
+        resolved_trees = self._resolve_section_paste_conflicts(
+            int(sphere_id), trees, is_cut=is_cut
+        )
+        if resolved_trees is None:
+            return
+        if not resolved_trees:
+            if is_cut:
+                self.cancel_cut()
+            return
+
+        undo_stack = getattr(self.main_window, "undo_stack", None)
+        if undo_stack is None:
+            return
+
+        if is_cut and self._cut_item_type == "section" and self._cut_item_ids:
+            from app.utils.ui.dnd.section_command import (
+                MergeSectionToSphereCommand,
+                MoveSectionsToSphereCommand,
+            )
+
+            planned_moves: list[int] = []
+            name_overrides: dict[int, str] = {}
+            planned_merges: list[tuple[int, int]] = []
+            for t in resolved_trees:
+                sid = (t.get("section") or {}).get("id")
+                if sid and sid in self._cut_item_ids:
+                    if t.get("_action") == "merge" and t.get("_target_section_id"):
+                        planned_merges.append(
+                            (int(sid), int(t["_target_section_id"]))
+                        )
+                    else:
+                        planned_moves.append(int(sid))
+                        new_name = (t.get("section") or {}).get("name")
+                        if new_name:
+                            name_overrides[int(sid)] = str(new_name)
+            for sid, tgt_id in planned_merges:
+                undo_stack.push(
+                    MergeSectionToSphereCommand(sid, tgt_id, self.main_window)
+                )
+            if planned_moves:
+                undo_stack.push(
+                    MoveSectionsToSphereCommand(
+                        planned_moves,
+                        int(sphere_id),
+                        self.main_window,
+                        name_overrides=name_overrides,
+                    )
+                )
+            self.cancel_cut()
+            return
+
+        undo_stack.push(
+            PasteSectionsCmd(
+                resolved_trees,
+                int(sphere_id),
+                self.main_window,
+                business=business,
+                undo_manager=undo_stack,
+                is_cut=False,
+            )
+        )
+        if is_cut:
+            self.cancel_cut()
 
     def _paste_into_tree(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
             return
         is_cut = self._clipboard_is_cut
-        self._clipboard_is_cut = False
         target_section_id = self._get_tree_target_section_id()
         if target_section_id is not None and svc.clipboard_has_pastable_category():
-            payload = svc.get_clipboard_payload()
-            trees = svc.normalize_category_trees(payload)
-            if not trees:
-                return
-            resolved_trees = self._resolve_category_paste_conflicts(int(target_section_id), trees)
-            if not resolved_trees:
-                return
-            trees = resolved_trees
-            undo_stack = getattr(self.main_window, "undo_stack", None)
-            if undo_stack is None:
-                return
-            logger.debug(
-                "PasteCategoriesCmd queued: section_id=%s items=%s",
-                target_section_id,
-                len(trees),
-            )
-            undo_stack.push(
-                PasteCategoriesCmd(
-                    trees,
-                    int(target_section_id),
-                    self.main_window,
-                    business=getattr(self.main_window, "structure_business", None),
-                    undo_manager=undo_stack,
-                    is_cut=is_cut,
-                )
-            )
+            self._execute_paste_categories(int(target_section_id), is_cut)
             return
         if svc.clipboard_has_pastable_section():
             business = getattr(self.main_window, "structure_business", None)
-            sphere_id = None
-            if business and hasattr(business, "get_current_sphere_id"):
-                sphere_id = business.get_current_sphere_id()
+            sphere_id = (
+                business.get_current_sphere_id()
+                if business and hasattr(business, "get_current_sphere_id")
+                else None
+            )
             if sphere_id:
-                payload = svc.get_clipboard_payload()
-                trees = svc.normalize_section_trees(payload)
-                if not trees:
-                    return
-                resolved_trees = self._resolve_section_paste_conflicts(int(sphere_id), trees)
-                if not resolved_trees:
-                    return
-                trees = resolved_trees
-                undo_stack = getattr(self.main_window, "undo_stack", None)
-                if undo_stack is None:
-                    return
-                logger.debug(
-                    "PasteSectionsCmd queued: sphere_id=%s items=%s",
-                    sphere_id,
-                    len(trees),
-                )
-                undo_stack.push(
-                    PasteSectionsCmd(
-                        trees,
-                        int(sphere_id),
-                        self.main_window,
-                        business=business,
-                        undo_manager=undo_stack,
-                        is_cut=is_cut,
-                    )
-                )
+                self._execute_paste_sections(int(sphere_id), is_cut)
+                return
+        target_category_id = self._get_tree_target_category_id()
+        if target_category_id is not None and hasattr(self.main_window, "links_actions"):
+            self.main_window.links_actions.paste_link(target_category_id=target_category_id)
 
     def _copy_tiles_selection(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
             return
-        self._clipboard_is_cut = False
+        self.cancel_cut()
         ids = self._get_tiles_selected_ids()
         if not ids:
             return
@@ -897,90 +1120,33 @@ class ActionController(QObject):
         ids = self._get_tiles_selected_ids()
         if not ids:
             return
-        undo_stack = getattr(self.main_window, "undo_stack", None)
-        business = getattr(self.main_window, "structure_business", None)
-        if undo_stack is None or business is None:
-            return
-
         self._clipboard_is_cut = True
-        if len(ids) > 1:
-            svc.copy_categories_to_clipboard(ids)
-            payloads = [p for p in (business.get_category_data(cid) for cid in ids) if p]
-            if payloads:
-                undo_stack.push(BatchDeleteCategoriesCmd(payloads, self.main_window, business=business, undo_manager=undo_stack, is_cut=True))
-        else:
-            svc.copy_category_tree_to_clipboard(ids[0])
-            payload = business.get_category_data(ids[0])
-            if payload:
-                undo_stack.push(DeleteCategoryCmd(payload, self.main_window, business=business, undo_manager=undo_stack, skip_reload=False, lightweight_reload=True, is_cut=True))
+        self._cut_item_type = "category"
+        self._cut_item_ids = set(ids)
+        self._update_cut_visuals()
 
     def _paste_into_tiles(self) -> None:
         svc = self._get_structure_context_service()
         if svc is None:
             return
         is_cut = self._clipboard_is_cut
-        self._clipboard_is_cut = False
         target_section_id = self._get_tiles_target_section_id()
         if target_section_id is not None and svc.clipboard_has_pastable_category():
-            payload = svc.get_clipboard_payload()
-            trees = svc.normalize_category_trees(payload)
-            if not trees:
-                return
-            resolved_trees = self._resolve_category_paste_conflicts(int(target_section_id), trees)
-            if not resolved_trees:
-                return
-            trees = resolved_trees
-            undo_stack = getattr(self.main_window, "undo_stack", None)
-            if undo_stack is None:
-                return
-            logger.debug(
-                "PasteCategoriesCmd queued (tiles): section_id=%s items=%s",
-                target_section_id,
-                len(trees),
-            )
-            undo_stack.push(
-                PasteCategoriesCmd(
-                    trees,
-                    int(target_section_id),
-                    self.main_window,
-                    business=getattr(self.main_window, "structure_business", None),
-                    undo_manager=undo_stack,
-                    is_cut=is_cut,
-                )
-            )
+            self._execute_paste_categories(int(target_section_id), is_cut)
             return
         if svc.clipboard_has_pastable_section():
             business = getattr(self.main_window, "structure_business", None)
-            sphere_id = None
-            if business and hasattr(business, "get_current_sphere_id"):
-                sphere_id = business.get_current_sphere_id()
+            sphere_id = (
+                business.get_current_sphere_id()
+                if business and hasattr(business, "get_current_sphere_id")
+                else None
+            )
             if sphere_id:
-                payload = svc.get_clipboard_payload()
-                trees = svc.normalize_section_trees(payload)
-                if not trees:
-                    return
-                resolved_trees = self._resolve_section_paste_conflicts(int(sphere_id), trees)
-                if not resolved_trees:
-                    return
-                trees = resolved_trees
-                undo_stack = getattr(self.main_window, "undo_stack", None)
-                if undo_stack is None:
-                    return
-                logger.debug(
-                    "PasteSectionsCmd queued (tiles): sphere_id=%s items=%s",
-                    sphere_id,
-                    len(trees),
-                )
-                undo_stack.push(
-                    PasteSectionsCmd(
-                        trees,
-                        int(sphere_id),
-                        self.main_window,
-                        business=business,
-                        undo_manager=undo_stack,
-                        is_cut=is_cut,
-                    )
-                )
+                self._execute_paste_sections(int(sphere_id), is_cut)
+                return
+        target_category_id = self._get_tiles_target_category_id()
+        if target_category_id is not None and hasattr(self.main_window, "links_actions"):
+            self.main_window.links_actions.paste_link(target_category_id=target_category_id)
 
     def _select_all_in_tiles(self) -> None:
         view = self._get_tiles_view()

@@ -47,13 +47,16 @@ class MoveLinksCommand(BaseBulkCommand):
         main_window,
         *,
         name_overrides: dict[int, str] | None = None,
+        replacements: dict[int, int] | None = None,
     ) -> None:
         super().__init__(f"Moving {len(list(link_ids))} links", main_window, "link")
         self.link_ids = [int(lid) for lid in link_ids]
         self.new_category_id = int(new_category_id)
         self.name_overrides: dict[int, str] = dict(name_overrides or {})
+        self.replacements: dict[int, int] = dict(replacements or {})
         self._old_states: list[dict[str, Any]] = []
         self._new_states: list[dict[str, Any]] = []
+        self._replaced_states: dict[int, dict[str, Any]] = {}
         self.old_category_id: int | None = None
         self._old_category_ids: set[int] = set()
         self._prepared = False
@@ -106,10 +109,21 @@ class MoveLinksCommand(BaseBulkCommand):
         for offset, original in enumerate(self._old_states):
             candidate = dict(original)
             candidate["category_id"] = self.new_category_id
-            candidate["position"] = start_pos + offset
             lid = candidate.get("id")
+            if lid is not None and int(lid) in self.replacements:
+                target_id = self.replacements[int(lid)]
+                target_row = next((r for r in existing_links if r.get("id") == target_id), None)
+                if target_row:
+                    self._replaced_states[target_id] = dict(target_row)
+                    candidate["position"] = target_row.get("position", start_pos + offset)
+                else:
+                    candidate["position"] = start_pos + offset
+            else:
+                candidate["position"] = start_pos + offset
             if lid is not None and int(lid) in self.name_overrides:
                 candidate["name"] = self.name_overrides[int(lid)]
+            elif lid is not None and int(lid) in self.replacements:
+                pass
             elif self._is_duplicate(candidate, existing_links):
                 from app.services.structure_share_service import generate_unique_name
                 existing_names = [get_value(l, "name", "") for l in existing_links]
@@ -132,7 +146,13 @@ class MoveLinksCommand(BaseBulkCommand):
     def _execute_operation(self) -> bool:
         """Выполнение перемещения ссылок."""
         try:
+            if self._replaced_states:
+                links_business = getattr(self.main, "links_business", None)
+                del_ids = list(self._replaced_states.keys())
+                if links_business and hasattr(links_business, "links"):
+                    links_business.links.batch_delete_links(del_ids)
             self._execute_batch_operation(self._new_states)
+            self._invalidate_links_cache()
             return True
         except Exception as exc:
             context = {
@@ -147,6 +167,12 @@ class MoveLinksCommand(BaseBulkCommand):
         """Восстановление исходного состояния ссылок."""
         try:
             self._execute_batch_operation(self._old_states)
+            if self._replaced_states:
+                links_business = getattr(self.main, "links_business", None)
+                restore_rows = list(self._replaced_states.values())
+                if links_business and hasattr(links_business, "links"):
+                    links_business.links.batch_create_or_update_links(restore_rows)
+            self._invalidate_links_cache()
             return True
         except Exception as exc:
             context = {
@@ -156,6 +182,14 @@ class MoveLinksCommand(BaseBulkCommand):
             }
             error_handler.handle_error(exc, context)
             return False
+
+    def _invalidate_links_cache(self) -> None:
+        lb = getattr(self.main, "links_business", None)
+        if lb is not None and hasattr(lb, "invalidate_cache"):
+            try:
+                lb.invalidate_cache()
+            except Exception:
+                pass
 
     def _execute_batch_operation(self, states):
         if not states:
@@ -167,12 +201,23 @@ class MoveLinksCommand(BaseBulkCommand):
         try:
             # Use batch_update to preserve positions and avoid duplicate issues.
             links_business.links.batch_update(states)
+            for st in states:
+                lid = st.get("id")
+                st_name = st.get("name")
+                if isinstance(lid, int) and st_name and hasattr(links_business.links, "repo"):
+                    try:
+                        links_business.links.repo.connection.execute(
+                            "UPDATE link SET name = ? WHERE id = ?", (st_name, lid)
+                        )
+                    except Exception:
+                        pass
         except Exception as exc:
             logger.error("Error during batch link operation: %s", exc, exc_info=True)
             raise
 
     def _refresh_ui(self, affected_items: list = None) -> None:
         """Обновление UI после перемещения ссылок."""
+        self._invalidate_links_cache()
         categories_to_update = set(self._old_category_ids)
         categories_to_update.add(self.new_category_id)
 
@@ -192,6 +237,28 @@ class MoveLinksCommand(BaseBulkCommand):
             if first_link_id:
                 # Switch category in tree and load links
                 structure_business = getattr(self.main, 'structure_business', None)
+                target_sphere = None
+                current_sphere = getattr(structure_business, 'current_sphere_id', None) if structure_business else None
+                if structure_business and hasattr(structure_business, 'get_category_hierarchy'):
+                    hierarchy = structure_business.get_category_hierarchy(int(focus_category_id))
+                    if hierarchy and isinstance(hierarchy, dict):
+                        target_sphere = hierarchy.get("sphere_id")
+
+                if (
+                    isinstance(target_sphere, int)
+                    and target_sphere > 0
+                    and target_sphere != current_sphere
+                ):
+                    struct_ctrl = getattr(self.main, "structure_controller", None) or getattr(
+                        self.main, "structure", None
+                    )
+                    if struct_ctrl and hasattr(struct_ctrl, "switch_sphere"):
+                        struct_ctrl.switch_sphere(
+                            target_sphere, item_to_select=("category", int(focus_category_id))
+                        )
+                        self._schedule_focus_on_links(self.link_ids)
+                        return
+
                 if structure_business and hasattr(structure_business, 'select_category'):
                     try:
                         ui_state = getattr(self.main, "ui_state", None) or getattr(self.main, "ui_state_manager", None)
@@ -226,6 +293,13 @@ class MoveLinksCommand(BaseBulkCommand):
 
                         # Then focus on the moved link in table
                         self._schedule_focus_on_links(self.link_ids)
+                        links_ctrl = getattr(self.main, "links", None) or getattr(self.main, "links_controller", None)
+                        if links_ctrl and hasattr(links_ctrl, "table"):
+                            table = getattr(links_ctrl, "table", None)
+                            if table and hasattr(table, "load_links"):
+                                lb = getattr(self.main, "links_business", None)
+                                fresh_links = lb.get_links(int(focus_category_id)) if lb else []
+                                table.load_links(fresh_links)
                         return
                     except Exception as e:
                         logger.debug(

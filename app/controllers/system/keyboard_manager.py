@@ -284,6 +284,10 @@ class EditingKeyHandler(BaseKeyHandler):
         return False
 
     def _handle_escape_key(self, focused_widget: Optional[QWidget]) -> bool:
+        ac = self._safe_getattr(self.main_window, "action_controller")
+        if ac and getattr(ac, "_clipboard_is_cut", False):
+            self._safe_call(ac, "cancel_cut")
+            return True
         links = self._safe_getattr(self.main_window, "links")
         if links and hasattr(links, "clipboard") and getattr(links.clipboard, "_clipboard_is_cut", False):
             self._safe_call(links.clipboard, "cancel_cut")

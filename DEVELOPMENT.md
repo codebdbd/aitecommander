@@ -131,7 +131,7 @@ aitecommander/
 │   │   ├── bulk_operation_service.py # Массовые операции
 │   │   ├── structure_service.py      # Сервис структуры
 │   │   ├── structure_context_service.py
-│   │   ├── structure_share_service.py # Пакеты .aitesec/.aitecat/.aitelink
+│   │   ├── structure_share_service.py # Пакеты .aitesec/.aitecat
 │   │   ├── links_service.py          # Сервис ссылок
 │   │   ├── db_ui_adapter.py          # Адаптер БД ↔ UI
 │   │   ├── database_restore_worker.py

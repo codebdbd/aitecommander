@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 from PyQt6.QtCore import QItemSelectionModel, QTimer
 
 from app.core.constants import AppConstants
+from app.controllers.ui.undo.base import BaseCommand
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.command_utils import (
     _get_structure_business,
@@ -27,7 +28,15 @@ error_handler = BulkOperationErrorHandler()
 class MoveCategoriesCommand(BaseBulkCommand):
     """Batch moving multiple categories to one section with unified undo/redo."""
 
-    def __init__(self, category_ids, new_section_id, base_row, main_window) -> None:
+    def __init__(
+        self,
+        category_ids,
+        new_section_id,
+        base_row,
+        main_window,
+        *,
+        name_overrides: dict[int, str] | None = None,
+    ) -> None:
         super().__init__(f"Moving {len(category_ids)} categories", main_window, "category")
         self.category_ids = list(category_ids or [])
         if not isinstance(new_section_id, int):
@@ -36,6 +45,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
         if not isinstance(base_row, int):
             raise ValueError(f"base_row must be int, got {type(base_row).__name__}")
         self.base_row = base_row
+        self.name_overrides: dict[int, str] = dict(name_overrides or {})
         self._old_states: list[dict[str, Any]] = []  # [{id, name, section_id, position, icon_path}]
         self._new_states: list[dict[str, Any]] = []  # same format but with target section/position
         self._prepared = False
@@ -82,11 +92,11 @@ class MoveCategoriesCommand(BaseBulkCommand):
 
         for st in old_states:
             cid = st["id"]
-            name = st.get("name", "")
+            name = self.name_overrides.get(cid, st.get("name", ""))
 
-            # Name duplicates in target section — skip
+            # Name duplicates in target section — skip if not explicitly overridden
             try:
-                if sb.has_duplicate_category(self.new_section_id, name, cid):
+                if cid not in self.name_overrides and sb.has_duplicate_category(self.new_section_id, name, cid):
                     logger.debug(
                         "Duplicate category '%s' in target section %s, skipping id=%s",
                         name,
@@ -329,6 +339,16 @@ class MoveCategoriesCommand(BaseBulkCommand):
             moved_ids, batch_done = self._try_batch_move(
                 sb, target_ids, target_section_id, states
             )
+            if self.name_overrides:
+                for st in states:
+                    cid = st.get("id")
+                    if cid in self.name_overrides and cid in moved_ids:
+                        name = st.get("name")
+                        if name:
+                            try:
+                                sb.update_category(cid, {"name": name})
+                            except Exception as exc:
+                                logger.error("Error updating name for category %s: %s", cid, exc)
 
         moved_ids_set = set(moved_ids)
         remaining_states = [st for st in states if st.get("id") not in moved_ids_set]
@@ -416,6 +436,34 @@ class MoveCategoriesCommand(BaseBulkCommand):
             )
         except Exception:
             pass
+
+        # Refresh category tiles and invalidate structure caches for all touched sections
+        structure_ctrl = getattr(main_window, "structure", None)
+        tree_manager = getattr(structure_ctrl, "tree_manager", None) if structure_ctrl else None
+        touched_sections = {target_section_id}
+        for st in getattr(self, "_old_states", []):
+            sec = st.get("section_id")
+            if isinstance(sec, int):
+                touched_sections.add(sec)
+
+        for sec_id in touched_sections:
+            try:
+                sb._invalidate_categories_cache(sec_id)
+            except Exception:
+                pass
+            if tree_manager is not None:
+                try:
+                    fresh_cats = sb.get_categories(sec_id) or []
+                    if hasattr(tree_manager, "replace_section_categories"):
+                        tree_manager.replace_section_categories(sec_id, fresh_cats)
+                except Exception:
+                    pass
+
+        if tree_manager is not None and hasattr(tree_manager, "refresh_section_tiles"):
+            try:
+                tree_manager.refresh_section_tiles(int(target_section_id), switch_view=False)
+            except Exception:
+                pass
 
     def _apply_tree_model_moves(self, tree) -> None:
         """Apply tree model moves."""
@@ -533,26 +581,13 @@ class MoveCategoriesCommand(BaseBulkCommand):
 
             def _restore_focus():
                 try:
-                    if tree and hasattr(tree, 'model'):
-                        model = tree.model()
-                        if model and hasattr(model, 'index_for'):
-                            cat_index = model.index_for('category', focus_category_id)
-                            if cat_index and cat_index.isValid():
-                                sel_model = tree.selectionModel()
-                                if sel_model:
-                                    sel_model.setCurrentIndex(
-                                        cat_index,
-                                        QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows,
-                                    )
-                                else:
-                                    tree.setCurrentIndex(cat_index)
-                                from app.utils.ui.focus import get_focus_manager
-                                manager = get_focus_manager()
-                                manager.set_focus(
-                                    tree,
-                                    widget_name="structure_tree",
-                                    origin="user_action",
-                                )
+                    structure_ctrl = getattr(self.main, "structure", None)
+                    selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                    if selection_handler is not None and hasattr(selection_handler, "_restore_category_selection"):
+                        selection_handler._restore_category_selection(
+                            int(focus_category_id),
+                            target_section_id=int(section_id),
+                        )
                 except Exception as e:
                     logger.debug('Failed to restore focus after batch move: %s', e)
 
@@ -594,3 +629,178 @@ class MoveCategoriesCommand(BaseBulkCommand):
             )
         finally:
             self._preload_suspended = False
+
+
+class MergeCategoriesCommand(BaseCommand):
+    """Merge a source category into a target category with full Undo/Redo."""
+
+    def __init__(
+        self, source_category_id: int, target_category_id: int, main_window: object
+    ) -> None:
+        super().__init__("Merge categories", main_window)
+        self.source_id = int(source_category_id)
+        self.target_id = int(target_category_id)
+        self._source_cat_data: dict[str, Any] = {}
+        self._source_links_data: list[dict[str, Any]] = []
+        self._moved_link_ids: list[int] = []
+        self._deleted_link_ids: list[int] = []
+        self._target_section_id: int | None = None
+        self._source_section_id: int | None = None
+        self._prepared = False
+
+    def _prepare_data(self) -> None:
+        if self._prepared:
+            return
+        sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+
+        s_data = sb.get_category_data(self.source_id)
+        if not s_data:
+            raise ValueError(f"Source category {self.source_id} not found")
+        t_data = sb.get_category_data(self.target_id)
+        if not t_data:
+            raise ValueError(f"Target category {self.target_id} not found")
+
+        self._source_cat_data = dict(s_data)
+        self._source_section_id = int(s_data.get("section_id", 0))
+        self._target_section_id = int(t_data.get("section_id", 0))
+
+        if lb is not None:
+            source_links = lb.get_links(self.source_id) or []
+            self._source_links_data = [dict(l) for l in source_links]
+            target_links = lb.get_links(self.target_id) or []
+            target_keys = {
+                (
+                    str(l.get("name", "")),
+                    str(l.get("url", "")),
+                    str(l.get("args", "")),
+                )
+                for l in target_links
+            }
+            self._moved_link_ids = []
+            self._deleted_link_ids = []
+            for sl in source_links:
+                s_key = (
+                    str(sl.get("name", "")),
+                    str(sl.get("url", "")),
+                    str(sl.get("args", "")),
+                )
+                lid = int(sl["id"])
+                if s_key in target_keys:
+                    self._deleted_link_ids.append(lid)
+                else:
+                    self._moved_link_ids.append(lid)
+                    target_keys.add(s_key)
+        self._prepared = True
+
+    def redo(self) -> None:
+        self._prepare_data()
+        sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+        db = getattr(getattr(sb, "structure_service", None), "db", None)
+
+        def _do_redo():
+            if lb is not None:
+                links_svc = getattr(lb, "links", lb)
+                if self._deleted_link_ids:
+                    links_svc.batch_delete_links(self._deleted_link_ids)
+                if self._moved_link_ids:
+                    links_svc.move_links_bulk(self._moved_link_ids, self.target_id)
+            sb.delete_category(self.source_id)
+
+        if db and hasattr(db, "transaction"):
+            with db.transaction():
+                _do_redo()
+        else:
+            _do_redo()
+
+        self._refresh_ui()
+
+    def undo(self) -> None:
+        if not self._source_cat_data:
+            return
+        sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+        db = getattr(getattr(sb, "structure_service", None), "db", None)
+
+        def _do_undo():
+            # 1. Restore category record
+            if db and hasattr(db, "connection"):
+                db.connection.execute(
+                    """
+                    INSERT OR REPLACE INTO category (id, section_id, name, position, icon_path)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.source_id,
+                        self._source_cat_data.get("section_id"),
+                        self._source_cat_data.get("name"),
+                        self._source_cat_data.get("position", 0),
+                        self._source_cat_data.get("icon_path", ""),
+                    ),
+                )
+            # 2. Move transferred links back
+            if lb is not None:
+                links_svc = getattr(lb, "links", lb)
+                if self._moved_link_ids:
+                    links_svc.move_links_bulk(self._moved_link_ids, self.source_id)
+                # 3. Restore deleted duplicate links
+                if self._deleted_link_ids:
+                    for ldata in self._source_links_data:
+                        if int(ldata.get("id", 0)) in self._deleted_link_ids:
+                            db.connection.execute(
+                                """
+                                INSERT OR REPLACE INTO link (id, category_id, name, url, type, icon_path, notes, position, args, is_favorite)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    ldata["id"],
+                                    self.source_id,
+                                    ldata.get("name", ""),
+                                    ldata.get("url", ""),
+                                    ldata.get("type", "web"),
+                                    ldata.get("icon_path", ""),
+                                    ldata.get("notes", ""),
+                                    ldata.get("position", 0),
+                                    ldata.get("args", ""),
+                                    ldata.get("is_favorite", 0),
+                                ),
+                            )
+
+        if db and hasattr(db, "transaction"):
+            with db.transaction():
+                _do_undo()
+        else:
+            _do_undo()
+
+        self._refresh_ui()
+
+    def _refresh_ui(self) -> None:
+        sb = _get_structure_business(self.main)
+        if sb is not None:
+            for sec_id in {self._source_section_id, self._target_section_id}:
+                if isinstance(sec_id, int):
+                    try:
+                        sb._invalidate_categories_cache(sec_id)
+                    except Exception:
+                        pass
+        facade = getattr(self.main, "_facade", None)
+        if (
+            facade
+            and hasattr(facade, "refresh_structure_after_import")
+            and self._target_section_id
+        ):
+            facade.refresh_structure_after_import(sb, self._target_section_id)
+        elif sb and self._target_section_id:
+            try:
+                sb.section_selected.emit(int(self._target_section_id))
+            except Exception:
+                pass
+        target_cat = self._source_category_id if getattr(self, "_last_operation", "") == "undo" else self._target_category_id
+        target_sec = self._source_section_id if getattr(self, "_last_operation", "") == "undo" else self._target_section_id
+        if target_cat:
+            structure_ctrl = getattr(self.main, "structure", None)
+            selection_handler = getattr(structure_ctrl, "selection_handler", None)
+            if selection_handler and hasattr(selection_handler, "_restore_category_selection"):
+                selection_handler._restore_category_selection(int(target_cat), target_section_id=target_sec)
+

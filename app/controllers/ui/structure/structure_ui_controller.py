@@ -188,14 +188,17 @@ class StructureUIController(QObject):
 
         if item is not None and item.isValid():
             sel_model = self.tree.selectionModel()
-            if sel_model and not sel_model.isSelected(item):
+            if sel_model:
                 from PyQt6.QtCore import QItemSelectionModel
 
-                sel_model.setCurrentIndex(
-                    item,
-                    QItemSelectionModel.SelectionFlag.ClearAndSelect
-                    | QItemSelectionModel.SelectionFlag.Rows,
-                )
+                if not sel_model.isSelected(item):
+                    sel_model.setCurrentIndex(
+                        item,
+                        QItemSelectionModel.SelectionFlag.ClearAndSelect
+                        | QItemSelectionModel.SelectionFlag.Rows,
+                    )
+                else:
+                    sel_model.setCurrentIndex(item, QItemSelectionModel.SelectionFlag.NoUpdate)
 
         menu = self.main.menu_controller.create_structure_context_menu(
             self.tree,

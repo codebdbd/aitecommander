@@ -855,7 +855,12 @@ class SaveSectionCmd(BaseCommand):
                     )
                 if not switched:
                     try:
-                        business.section_selected.emit(self.new_id)
+                        structure_ctrl = getattr(self.main, "structure", None)
+                        selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                        if selection_handler is not None and hasattr(selection_handler, "_restore_selection_after_load"):
+                            selection_handler._restore_selection_after_load("section", int(self.new_id))
+                        else:
+                            business.section_selected.emit(self.new_id)
                     except Exception as exc:
                         logger.warning("SaveSectionCmd.redo: section_selected failed: %s", exc)
             if not self._target_sphere_changed(payload):
@@ -926,7 +931,12 @@ class SaveSectionCmd(BaseCommand):
                     )
                 if not switched:
                     try:
-                        business.section_selected.emit(int(restored["id"]))
+                        structure_ctrl = getattr(self.main, "structure", None)
+                        selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                        if selection_handler is not None and hasattr(selection_handler, "_restore_selection_after_load"):
+                            selection_handler._restore_selection_after_load("section", int(restored["id"]))
+                        else:
+                            business.section_selected.emit(int(restored["id"]))
                     except Exception as exc:
                         logger.warning(
                             "SaveSectionCmd.undo: select_section failed: %s",
@@ -1211,7 +1221,13 @@ class DeleteSectionCmd(BaseCommand):
 
         self._emit_section_restore_signals(section_id, section_payload)
         self._restore_section_categories_in_tree(section_id)
-        self._select_first_category_after_restore()
+        structure_ctrl = getattr(self.main, "structure", None)
+        tree_manager = getattr(structure_ctrl, "tree_manager", None)
+        if tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
+            tree_manager.set_pending_selection("section", int(section_id))
+        selection_handler = getattr(structure_ctrl, "selection_handler", None)
+        if selection_handler is not None and hasattr(selection_handler, "_restore_selection_after_load"):
+            selection_handler._restore_selection_after_load("section", int(section_id))
         self._store_snapshot(_snapshot_from_result(Result.success(section_payload)))
 
 
@@ -1687,7 +1703,12 @@ class BatchDeleteCategoriesCmd(BaseCommand):
 
                             QTimer.singleShot(180, _select_when_ready)
                         else:
-                            business.select_category(first_id)
+                            structure_ctrl = getattr(self.main, "structure", None)
+                            selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                            if selection_handler is not None and hasattr(selection_handler, "_restore_category_selection"):
+                                selection_handler._restore_category_selection(int(first_id), target_section_id=first_section_id)
+                            else:
+                                business.select_category(first_id)
                     except Exception as exc:
                         logger.debug(
                             "BatchDeleteCategoriesCmd.undo: select_category failed: %s",
@@ -2134,7 +2155,15 @@ class DeleteSectionsCmd(BaseCommand):
                 if isinstance(first_id, int):
                     focus_started = time.perf_counter()
                     try:
-                        business.select_section(first_id)
+                        structure_ctrl = getattr(self.main, "structure", None)
+                        tree_manager = getattr(structure_ctrl, "tree_manager", None)
+                        if tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
+                            tree_manager.set_pending_selection("section", int(first_id))
+                        selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                        if selection_handler is not None and hasattr(selection_handler, "_restore_selection_after_load"):
+                            selection_handler._restore_selection_after_load("section", int(first_id))
+                        else:
+                            business.select_section(first_id)
                     except Exception as exc:
                         logger.debug(
                             "DeleteSectionsCmd.undo: select_section failed: %s",
@@ -2380,14 +2409,19 @@ class PasteCategoriesCmd(BaseCommand):
                 structure_ctrl = getattr(self.main, "structure", None)
                 sel_handler = getattr(structure_ctrl, "selection_handler", None)
                 if sel_handler:
-                    sel_handler._set_focus_on_new_item_by_id("category", int(target_category_id))
+                    sel_handler._restore_category_selection(int(target_category_id), target_section_id=int(self._section_id))
             except Exception:
                 logger.debug("PasteCategoriesCmd: set_focus_on_new_item failed", exc_info=True)
-        elif not (is_undo and self.is_cut):
+        else:
             try:
-                business.section_selected.emit(int(self._section_id))
+                structure_ctrl = getattr(self.main, "structure", None)
+                sel_handler = getattr(structure_ctrl, "selection_handler", None)
+                if sel_handler and hasattr(sel_handler, "_restore_selection_after_load"):
+                    sel_handler._restore_selection_after_load("section", int(self._section_id))
+                elif business:
+                    business.section_selected.emit(int(self._section_id))
             except Exception:
-                logger.debug("PasteCategoriesCmd: section_selected failed", exc_info=True)
+                logger.debug("PasteCategoriesCmd: section focus failed", exc_info=True)
 
     def redo(self) -> None:
         if not self._trees:
@@ -2546,6 +2580,13 @@ class PasteSectionsCmd(BaseCommand):
                     business.section_selected.emit(int(target_section_id))
                 except Exception:
                     logger.debug("PasteSectionsCmd: focus on pasted section failed", exc_info=True)
+            elif is_undo:
+                try:
+                    selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                    if selection_handler is not None and hasattr(selection_handler, "_select_first_item_if_needed"):
+                        selection_handler._select_first_item_if_needed()
+                except Exception:
+                    logger.debug("PasteSectionsCmd.undo: select_first_item failed", exc_info=True)
         except Exception:
             logger.debug("PasteSectionsCmd: targeted refresh failed", exc_info=True)
             did_targeted_refresh = False
@@ -2721,7 +2762,13 @@ class SaveCategoryCmd(BaseCommand):
                 and not was_new
             ):
                 try:
-                    business.select_category(self.new_id)
+                    structure_ctrl = getattr(self.main, "structure", None)
+                    selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                    sec_id = (self.new_data or {}).get("section_id")
+                    if selection_handler is not None and hasattr(selection_handler, "_restore_category_selection"):
+                        selection_handler._restore_category_selection(int(self.new_id), target_section_id=sec_id)
+                    else:
+                        business.select_category(self.new_id)
                 except Exception as exc:
                     logger.warning("SaveCategoryCmd.redo: select_category failed: %s", exc)
             self._emit_reload(payload)
@@ -2746,7 +2793,12 @@ class SaveCategoryCmd(BaseCommand):
                 if business is not None and not self.skip_reload and isinstance(self.new_id, int):
                     try:
                         section_id = self.new_data.get("section_id")
-                        business.section_selected.emit(int(section_id))
+                        structure_ctrl = getattr(self.main, "structure", None)
+                        selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                        if selection_handler is not None and isinstance(section_id, int):
+                            selection_handler._restore_selection_after_load("section", int(section_id))
+                        else:
+                            business.section_selected.emit(int(section_id))
                     except Exception as exc:
                         logger.warning("SaveCategoryCmd.undo: select_section failed: %s", exc)
                 business = self._resolve_business()
@@ -2779,7 +2831,13 @@ class SaveCategoryCmd(BaseCommand):
             business = self._resolve_business()
             if business is not None and not self.skip_reload:
                 try:
-                    business.select_category(int(restored["id"]))
+                    structure_ctrl = getattr(self.main, "structure", None)
+                    selection_handler = getattr(structure_ctrl, "selection_handler", None)
+                    sec_id = restored.get("section_id")
+                    if selection_handler is not None and hasattr(selection_handler, "_restore_category_selection"):
+                        selection_handler._restore_category_selection(int(restored["id"]), target_section_id=sec_id)
+                    else:
+                        business.select_category(int(restored["id"]))
                 except Exception as exc:
                     logger.warning(
                         "SaveCategoryCmd.undo: select_category failed: %s",

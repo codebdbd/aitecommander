@@ -2075,87 +2075,107 @@ Failed: {3}</source>
 </context><context>
     <name>ImportConflictDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1478" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1488" />
         <source>Move</source>
         <translation>Переміщення</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1479" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1489" />
         <source>Copy</source>
         <translation>Копіювання</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1480" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1490" />
         <source>Import</source>
         <translation>Імпортувати</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1487" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1497" />
         <source>Section «{name}» already exists in this sphere.</source>
         <translation>Розділ «{name}» вже є в цій сфері.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1523" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1491" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1539" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1501" />
         <source>Merge contents</source>
         <translation>Об'єднати вміст</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1492" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1502" />
         <source>Move all items into the existing section without overwriting.</source>
         <translation>Перенести всі елементи в існуючий розділ без перезапису.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1528" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1512" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1496" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1544" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1525" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1506" />
         <source>Keep both (create copy «{name}»)</source>
         <translation>Залишити обидва (створити копію «{name}»)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1531" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1515" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1499" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1547" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1528" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1509" />
         <source>Save alongside under a unique name.</source>
         <translation>Зберегти поруч під унікальною назвою.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1503" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1512" />
+        <source>Do not modify existing section and leave original unchanged.</source>
+        <translation>Не змінювати наявний розділ і залишити вихідний без змін.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1516" />
         <source>Link «{name}» already exists in this category.</source>
         <translation>Посилання «{name}» вже є в цій категорії.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1507" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1520" />
         <source>Replace existing</source>
         <translation>Замінити існуюче</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1508" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1521" />
         <source>Update the existing link with new parameters.</source>
         <translation>Оновити дані існуючого посилання.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1519" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1531" />
+        <source>Do not modify existing link and leave original unchanged.</source>
+        <translation>Не змінювати наявне посилання і залишити вихідне без змін.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1535" />
         <source>Category «{name}» already exists in this section.</source>
         <translation>Категорія «{name}» вже є в цьому розділі.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1524" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1540" />
         <source>Move all items into the existing category without overwriting.</source>
         <translation>Перенести всі елементи в існуючу категорію без перезапису.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1538" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1550" />
+        <source>Do not modify existing category and leave original unchanged.</source>
+        <translation>Не змінювати наявну категорію і залишити вихідну без змін.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1557" />
         <source>Choose what to do:</source>
         <translation>Що зробити:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1553" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1564" />
+        <source>Skip</source>
+        <translation>Пропустити</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1575" />
         <source>Apply</source>
         <translation>Застосувати</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1547" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1569" />
         <source>Apply to all conflicts</source>
         <translation>Застосувати до всіх конфліктів</translation>
     </message>
@@ -3476,60 +3496,60 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>MoveOperationsHandler</name>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="259" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="231" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="187" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="267" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="239" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="195" />
         <source>Undo history is unavailable. Move canceled.</source>
         <translation>Історія скасувань недоступна. Переміщення скасовано.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="390" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="260" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="232" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="188" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="412" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="268" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="240" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="196" />
         <source>Undo history unavailable</source>
         <translation>Недоступна історія скасувань</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="391" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="261" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="233" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="189" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="413" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="269" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="241" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="197" />
         <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
         <translation>Увімкніть підтримку скасування/повтору або ініціалізуйте undo_stack у головному вікні.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="389" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="411" />
         <source>Undo history is unavailable. Batch move canceled.</source>
         <translation>Історія скасувань недоступна. Пакетне переміщення скасовано.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="712" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="734" />
         <source>A category with the same name already exists in the selected section.</source>
         <translation>Категорія з такою назвою вже існує у вибраному розділі.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="715" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="737" />
         <source>Category duplicate</source>
         <translation>Дублікат категорії</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="716" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="738" />
         <source>Rename the category or choose another section.</source>
         <translation>Перейменуйте категорію або виберіть іншу секцію.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="728" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="750" />
         <source>Failed to update item positions.</source>
         <translation>Не вдалося оновити позиції елементів.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="729" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="751" />
         <source>Database error during move</source>
         <translation>Помилка бази даних під час переміщення</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="730" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="752" />
         <source>Position changes were not saved.</source>
         <translation>Зміни позицій не збережено.</translation>
     </message>
@@ -4086,51 +4106,51 @@ Version 1.0
 </context><context>
     <name>SpheresBarController</name>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="338" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="340" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="164" />
         <source>AI</source>
         <translation>ШІ</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="339" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="341" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="165" />
         <source>Work</source>
         <translation>Робота</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="340" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="342" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="166" />
         <source>Study</source>
         <translation>Навчання</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="341" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="343" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="167" />
         <source>Personal</source>
         <translation>Особисте</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="372" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="374" />
         <source>Change Icon</source>
         <translation>Змінити іконку</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="379" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="381" />
         <source>Reset to Default Icon</source>
         <translation>Скинути іконку за замовчуванням</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="393" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="395" />
         <source>Rename Sphere</source>
         <translation>Перейменувати сферу</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="400" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="402" />
         <source>Reset to Default Name</source>
         <translation>Скинути ім'я за замовчуванням</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="483" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="485" />
         <source>Select Icon</source>
         <translation>Вибір іконки</translation>
     </message>

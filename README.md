@@ -21,8 +21,8 @@ Hierarchical bookmark and link manager for Windows. Organize your web links, fil
 - **Bad URL checking** — Detect and remove unreachable links
 - **Database backup/restore** — SQLite Online Backup API with WAL checkpoints, integrity validation, and unified portable ZIP bundles with staging rollback
 - **Smart File Dialog Navigation** — Centralized `DialogPathService` opening Downloads/Program Files by default with per-context folder remembering
-- **Structure Share Packages** — Export and import `.aitesec`, `.aitecat`, and `.aitelink` packages with workspace files, Zip Slip & OOM protection
-- **Windows Shell Integration** — File associations for `.aitesec`/`.aitecat`/`.aitelink` packages, package icons, and single-instance IPC launch
+- **Structure Share Packages** — Export and import `.aitesec` and `.aitecat` packages with workspace files, Zip Slip & OOM protection
+- **Windows Shell Integration** — File associations for `.aitesec`/`.aitecat` packages, package icons, and single-instance IPC launch
 - **Context Menus & Blank Area Creation** — Full context menu parity on empty space; instant entity creation on blank area double-click (Tree, Tiles, Table)
 - **HiDPI support** — High DPI scaling
 
@@ -68,7 +68,7 @@ Or run `.\.venv\Scripts\python.exe main.py`, or double-click `aitecommander.bat`
 
 | Option | Description |
 |--------|-------------|
-| `[file]` | Optional path to an `.aitesec`, `.aitecat`, or `.aitelink` package to import on startup |
+| `[file]` | Optional path to an `.aitesec` or `.aitecat` package to import on startup |
 | `--debug` | Enable debug mode |
 | `--log-level LEVEL` | Set log level (DEBUG, INFO, WARNING, ERROR) |
 | `--no-gui` | Run without graphical interface |

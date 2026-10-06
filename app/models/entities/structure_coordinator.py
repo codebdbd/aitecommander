@@ -280,8 +280,8 @@ class StructureCoordinator:
         """
         try:
             payload = dict(data) if data else {}
-            payload["id"] = category_id
-            self.upsert_category(payload)
+            with self.db.transaction():
+                self.db.categories.update_category(category_id, payload)
             return True
         except Exception as e:
             self.logger.error(
