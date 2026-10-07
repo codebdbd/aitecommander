@@ -771,7 +771,7 @@ class WindowUISetup:
                 val = int(app_config.ui.get_topbar_min_search_width_absolute())
             except (TypeError, ValueError, AttributeError):
                 val = 148
-        return max(160, val)
+        return max(148, val)
 
     @safe_ui_operation("TopPanel: _normalize_top_bar_stretches failed", exc=(Exception,))
     def _normalize_top_bar_stretches(self, top_bar: QHBoxLayout) -> None:

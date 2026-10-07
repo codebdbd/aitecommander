@@ -108,14 +108,8 @@ class TopBarToolBar(QToolBar):
 
             geo = btn.geometry()
             target_y = max(0, (self.height() - self._button_height) // 2)
-            target_x = max(0, self.width() - self._button_height)
-            if (
-                geo.x() != target_x
-                or geo.y() != target_y
-                or geo.width() != self._button_height
-                or geo.height() != self._button_height
-            ):
-                btn.setGeometry(target_x, target_y, self._button_height, self._button_height)
+            if geo.y() != target_y or geo.height() != self._button_height:
+                btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
         except (RuntimeError, AttributeError):
             pass
 
@@ -312,6 +306,32 @@ class TopBarBuilder:
             top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)
             self.main_layout.addWidget(top_bar_host)
             self.window.top_bar_host = top_bar_host
+
+            # Responsive folding controller for Favorites block
+            class _ResponsiveTopBarFilter(QObject):
+                def __init__(self, fav_adapt, host_w):
+                    super().__init__(host_w)
+                    self._fav = fav_adapt
+                    self._host = host_w
+
+                def eventFilter(self, watched, event):
+                    if event.type() == QEvent.Type.Resize:
+                        items = self._fav.get_items()
+                        k = len(items)
+                        expanded_fav_w = k * 34 + max(0, k - 1) * 4
+                        needed_w = 323 + 27 + 220 + 110 + expanded_fav_w
+                        w = self._host.width()
+                        if self._fav.is_folded():
+                            if w >= needed_w + 20:
+                                self._fav.set_folded(False)
+                        else:
+                            if w < needed_w - 20:
+                                self._fav.set_folded(True)
+                    return False
+
+            top_bar_filter = _ResponsiveTopBarFilter(fav_adapter, top_bar_host)
+            top_bar_host.installEventFilter(top_bar_filter)
+            self.window._top_bar_responsive_filter = top_bar_filter
 
         # Add separator before search
         try:

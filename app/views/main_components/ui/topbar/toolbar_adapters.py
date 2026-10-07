@@ -964,6 +964,9 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         self._emit_refresh_on_click = emit_refresh_on_click
         self._separator_controller = separator_controller
         self._last_items: list[dict[str, Any]] = []
+        self._link_actions: list[QAction] = []
+        self._more_action: QAction | None = None
+        self._is_folded: bool = False
 
     def set_data(
         self,
@@ -972,7 +975,14 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         fast_icons: bool = False,
     ) -> None:
         self._last_items = self._normalize_items(items)
-        self.clear_actions()
+        for act in self._link_actions:
+            try:
+                self._toolbar.removeAction(act)
+                act.deleteLater()
+            except (RuntimeError, AttributeError):
+                pass
+        self._link_actions.clear()
+
         for link_data in self._last_items:
             name = link_data.get("name") or "Unknown"
             link_type = ((link_data.get("type") or "file").strip() or "file").lower()
@@ -1001,11 +1011,94 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
             action.setData(link_data)
             action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
+            self._link_actions.append(action)
             self._add_action(action)
+
+        if self._group_name == "fav":
+            self._setup_more_action(fast_icons=fast_icons)
+            self._apply_fold_visibility()
+
         self._mark_last_button()
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count(self._group_name, len(self._actions))
+            count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            self._separator_controller.set_group_count(self._group_name, count)
+
+    def _setup_more_action(self, *, fast_icons: bool = False) -> None:
+        from app.utils.ui.menu_builders.base import get_menu_icon
+        theme = _resolve_theme()
+        icon = get_menu_icon("more", theme)
+        if not icon or icon.isNull():
+            icon_path = icon_path_service.get_ui_icons_dir() / "base" / "more.svg"
+            icon = _icon_from_path(icon_path)
+
+        menu = TopBarMenu(self._toolbar)
+        menu.setObjectName("favoriteLinksMenu")
+        for link_data in self._last_items:
+            name = link_data.get("name") or "Unknown"
+            link_type = ((link_data.get("type") or "file").strip() or "file").lower()
+            icon_p = _resolve_icon_for_link_fast(link_data) if fast_icons else resolve_icon_for_link(link_data)
+            item_icon = _icon_from_path(Path(icon_p), link_type=link_type) if icon_p else _icon_from_path(Path(""), link_type=link_type)
+            act = QAction(item_icon, name, menu)
+            act.setData(link_data)
+            act.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
+            menu.addAction(act)
+
+        if self._more_action is None:
+            more_act = QAction(icon, self.tr("Favorites"), self._toolbar)
+            more_act.setToolTip(self.tr("Favorites"))
+            more_act.setMenu(menu)
+            self._more_action = more_act
+            self._add_action(more_act)
+            btn = self._toolbar.widgetForAction(more_act)
+            if isinstance(btn, QToolButton):
+                btn.setObjectName("favoriteMoreButton")
+                btn.setProperty("toolbar_btn", True)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+                menu.set_target_button(btn)
+                _setup_topbar_button_contrast(btn, icon, "more.svg")
+        else:
+            old_menu = self._more_action.menu()
+            if old_menu is not None:
+                old_menu.deleteLater()
+            self._more_action.setMenu(menu)
+            btn = self._toolbar.widgetForAction(self._more_action)
+            if isinstance(btn, QToolButton):
+                menu.set_target_button(btn)
+
+    def set_folded(self, folded: bool) -> None:
+        if self._group_name != "fav" or self._is_folded == folded:
+            return
+        self._is_folded = folded
+        self._apply_fold_visibility()
+        if self._separator_controller is not None:
+            count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            self._separator_controller.set_group_count(self._group_name, count)
+
+    def is_folded(self) -> bool:
+        return self._is_folded
+
+    def _apply_fold_visibility(self) -> None:
+        has_items = bool(self._last_items)
+        if self._more_action is not None:
+            self._more_action.setVisible(self._is_folded and has_items)
+        for act in self._link_actions:
+            act.setVisible((not self._is_folded) and has_items)
+
+    def refresh_actions(self) -> None:
+        if self._more_action is not None:
+            from app.utils.ui.menu_builders.base import get_menu_icon
+            theme = _resolve_theme()
+            icon = get_menu_icon("more", theme)
+            if not icon or icon.isNull():
+                icon_path = icon_path_service.get_ui_icons_dir() / "base" / "more.svg"
+                icon = _icon_from_path(icon_path)
+            if icon and not icon.isNull():
+                self._more_action.setIcon(icon)
+                btn = self._toolbar.widgetForAction(self._more_action)
+                if isinstance(btn, QToolButton):
+                    _setup_topbar_button_contrast(btn, icon, "more.svg")
 
     def get_items(self) -> list[dict[str, Any]]:
         return [dict(item) for item in self._last_items]
