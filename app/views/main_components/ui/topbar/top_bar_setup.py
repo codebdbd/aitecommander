@@ -20,6 +20,7 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     ToolbarSeparatorController,
     ToolsToolbarAdapter,
     _icon_from_path,
+    _resolve_theme,
     _setup_topbar_button_contrast,
 )
 from app.views.widgets.theme_selector import ThemeSelector
@@ -87,10 +88,34 @@ class TopBarToolBar(QToolBar):
         if btn is None or btn.isHidden():
             return
         try:
+            if not btn.property("toolbar_btn"):
+                btn.setProperty("toolbar_btn", True)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setArrowType(Qt.ArrowType.NoArrow)
+                btn.setIconSize(self.iconSize())
+                from app.utils.ui.menu_builders.base import get_menu_icon
+                theme = _resolve_theme()
+                icon = get_menu_icon("more", theme)
+                if not icon or icon.isNull():
+                    icon_path = icon_path_service.get_ui_icons_dir() / "base" / "more.svg"
+                    icon = _icon_from_path(icon_path)
+                if icon and not icon.isNull():
+                    btn.setIcon(icon)
+                style = btn.style()
+                if style is not None:
+                    style.unpolish(btn)
+                    style.polish(btn)
+
             geo = btn.geometry()
             target_y = max(0, (self.height() - self._button_height) // 2)
-            if geo.y() != target_y or geo.height() != self._button_height:
-                btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
+            target_x = max(0, self.width() - self._button_height)
+            if (
+                geo.x() != target_x
+                or geo.y() != target_y
+                or geo.width() != self._button_height
+                or geo.height() != self._button_height
+            ):
+                btn.setGeometry(target_x, target_y, self._button_height, self._button_height)
         except (RuntimeError, AttributeError):
             pass
 
