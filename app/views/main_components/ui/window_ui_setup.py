@@ -41,9 +41,6 @@ from app.utils.ui.focus import WidgetRegistry, WidgetType
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.custom_widgets import StructureTreeView
-from app.views.widgets.panels.favorites_panel_widget import FavoritesPanelWidget
-from app.views.widgets.panels.quick_add_panel_widget import QuickAddPanelWidget
-from app.views.widgets.panels.recent_panel_widget import RecentPanelWidget
 from app.views.widgets.status_bar import setup_status_bar as init_status_bar
 from i18n.language_service import LanguageService
 
@@ -642,12 +639,6 @@ class WindowUISetup:
         except Exception:
             logger.exception("WindowUISetup: failed to retranslate status bar")
 
-        try:
-            topbar_manager = getattr(self.window, "_topbar_manager", None)
-            if topbar_manager and hasattr(topbar_manager, "retranslate_topbar"):
-                topbar_manager.retranslate_topbar()
-        except Exception:
-            logger.debug("WindowUISetup: failed to retranslate top bar", exc_info=True)
 
         for widget_attr in (
             "tools_actions_widget",
@@ -698,29 +689,6 @@ class WindowUISetup:
             logger.warning(
                 "WindowUISetup: failed to connect top bar cleanup", exc_info=True
             )
-
-    def _create_widget_by_mode(self, mode: PanelMode | str) -> QWidget:
-        mode_enum = PanelMode(mode) if isinstance(mode, str) else mode
-
-        if mode_enum == PanelMode.QUICK:
-            return QuickAddPanelWidget(self.window, category_provider=self.window)
-        elif mode_enum == PanelMode.FAVORITES:
-            return FavoritesPanelWidget(self.window)
-        elif mode_enum == PanelMode.RECENT:
-            return RecentPanelWidget(self.window)
-        else:
-            raise ValueError(f"Unknown panel mode: {mode_enum}")
-
-    def _get_panel_height(self) -> int:
-        try:
-            search_h = int(app_config.ui.get_top_panel_search_height())
-        except (TypeError, ValueError):
-            search_h = app_config.ui.get_top_panel_search_height()
-        try:
-            btn_h = int(app_config.ui.get_top_panel_button_size())
-        except (TypeError, ValueError):
-            btn_h = app_config.ui.get_topbar_button_size()
-        return max(search_h, btn_h)
 
     @safe_ui_operation("TopPanel: failed to create vertical separator", exc=(Exception,))
     def _create_vertical_separator(self) -> QWidget:

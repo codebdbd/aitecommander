@@ -58,9 +58,6 @@ def _deferred_setup(window: Any, controllers: dict[str, Any]) -> None:
                 if hasattr(window, "_auto_hide_tree_filter")
                 else None
             ),
-            topbar_manager=(
-                window._topbar_manager if hasattr(window, "_topbar_manager") else None
-            ),
         )
     except (AttributeError, TypeError, SetupError) as e:
         logger.error("Failed during deferred dependency injection: %s", e)

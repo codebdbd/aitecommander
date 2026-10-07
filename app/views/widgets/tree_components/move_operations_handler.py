@@ -245,16 +245,6 @@ class MoveOperationsHandler(TreeHandlerBase):
         undo_stack.push(MoveSectionToSphereCommand(int(section_id), int(target_sphere_id), main_win))
         return True
 
-        self._show_warning(
-            self.tr("Undo history is unavailable. Move canceled."),
-            self.tr("Undo history unavailable"),
-            informative_text=self.tr(
-                "Enable undo/redo support or initialize undo_stack in the main window."
-            ),
-        )
-        logger.warning("Undo stack not found for moving a section")
-        return False
-
     def execute_reorder_sections_command(
         self, section_ids: list[int], target_row: int
     ) -> bool:

@@ -293,7 +293,12 @@ class SpheresBarController(QObject):
                 MoveSectionToSphereCommand,
             )
 
-            undo_stack.beginMacro("Move sections to sphere")
+            if not merge_pairs and not to_move_ids:
+                return
+
+            macro_needed = (len(merge_pairs) + (1 if to_move_ids else 0)) > 1
+            if macro_needed:
+                undo_stack.beginMacro(self.tr("Move sections to sphere"))
             try:
                 for src_id, tgt_id in merge_pairs:
                     undo_stack.push(MergeSectionToSphereCommand(src_id, tgt_id, self.w))
@@ -313,7 +318,8 @@ class SpheresBarController(QObject):
                         )
                     )
             finally:
-                undo_stack.endMacro()
+                if macro_needed:
+                    undo_stack.endMacro()
         except Exception as e:
             logger.exception(
                 "SpheresBarController: failed to execute move sections to sphere: %s",

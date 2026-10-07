@@ -60,6 +60,26 @@ class DatabaseDialogs(QObject):
         apply_uniform_height_to_message_box(box)
         return box.exec() == QMessageBox.StandardButton.Ok
 
+    def confirm_terminate_locking_process(self, process_info: str) -> bool:
+        """Ask user confirmation to terminate a blocking process and retry restore."""
+        parent = cast(QWidget, self.parent()) if self.parent() else None
+        box = QMessageBox(parent)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(self.tr("Database restore"))
+        box.setText(self.tr("The database file is in use by another process."))
+        box.setInformativeText(
+            self.tr(
+                "Process: {process}\n\nDo you want to terminate this process and retry restore?"
+            ).format(process=process_info)
+        )
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel
+        )
+        box.setDefaultButton(QMessageBox.StandardButton.Yes)
+        localize_message_box_buttons(box)
+        apply_uniform_height_to_message_box(box)
+        return box.exec() == QMessageBox.StandardButton.Yes
+
     def get_restore_file(self) -> Optional[Path]:
         """Return the file path for restoring the database."""
         parent = cast(QWidget, self.parent()) if self.parent() else None

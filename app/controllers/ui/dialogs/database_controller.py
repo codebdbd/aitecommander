@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from PyQt6.QtCore import (
     QObject,
+    QTimer,
     pyqtSignal,
     pyqtSlot,
 )
@@ -50,6 +51,7 @@ class DatabaseController(QObject):
         self.db = db
         self.dialogs = DatabaseDialogs(parent)
         self._is_restoring = False
+        self._last_restore_backup_path = None
 
     def _emit_success(self, message: str, *, title: str | None = None) -> None:
         self.operation_success.emit(title or self.tr("Done"), message)
@@ -104,6 +106,7 @@ class DatabaseController(QObject):
         
         Avoids GUI freeze from blocking operations (sleep, file I/O, DB checkpoint).
         """
+        self._last_restore_backup_path = backup_path
         worker = DatabaseRestoreWorker(self.db, backup_path)
         worker.signals.success.connect(self._on_restore_success)
         worker.signals.error.connect(self._on_restore_error)
@@ -114,6 +117,7 @@ class DatabaseController(QObject):
     def _on_restore_success(self, new_db, backup_name):
         """Handle successful restore in GUI thread."""
         self._is_restoring = False
+        self._restore_retry_count = 0
         logger.info(f"Restore completed, updating DB reference: {new_db}")
         self.db = new_db
         self.database_restored.emit(new_db)
@@ -128,8 +132,54 @@ class DatabaseController(QObject):
         """Handle restore error in GUI thread."""
         self._is_restoring = False
         logger.error(f"Restore failed: {error_msg}")
+
+        # Check if error indicates a locked file held by a process
+        if (
+            "PID " in error_msg
+            and getattr(self, "_last_restore_backup_path", None)
+            and getattr(self, "_restore_retry_count", 0) < 1
+        ):
+            import re
+
+            match = re.search(r"([A-Za-z0-9_\-\. ]+?)\s*\(PID\s*(\d+)\)", error_msg)
+            if match:
+                proc_name = match.group(1).strip()
+                pid = int(match.group(2))
+                proc_str = f"{proc_name} (PID {pid})"
+                if pid != os.getpid() and any(
+                    k in proc_name.lower() for k in ("python", "aite", "commander")
+                ):
+                    if self.dialogs.confirm_terminate_locking_process(proc_str):
+                        self._restore_retry_count = getattr(self, "_restore_retry_count", 0) + 1
+                        self._terminate_process_and_retry_restore(pid)
+                        return
+
+        self._restore_retry_count = 0
         self._emit_error(
             self.tr("Restore error: {error}").format(error=error_msg),
+        )
+
+    def _terminate_process_and_retry_restore(self, pid: int) -> None:
+        """Safely terminate a conflicting app process and retry restore with slight delay."""
+        try:
+            import signal
+
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            try:
+                import subprocess
+
+                subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid)],
+                    capture_output=True,
+                    check=False,
+                )
+            except Exception:
+                pass
+        self._is_restoring = True
+        QTimer.singleShot(
+            600,
+            lambda: self._perform_database_restore_async(self._last_restore_backup_path),
         )
 
     def handle_connect_database(self):

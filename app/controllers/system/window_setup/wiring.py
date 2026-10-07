@@ -55,13 +55,12 @@ def _connect_top_panels_signals_explicit(
     recent_links_widget: Any,
     quick_add_widget: Any | None = None,
     auto_hide_tree_filter: Any | None = None,
-    topbar_manager: Any | None = None,
 ) -> None:
     """Connect top panel signals with explicit dependency passing."""
     _connect_quick_add_widget(quick_add_widget, links_actions)
     _connect_favorites_widget(fav_widget, top_panels_controller, links_actions)
     _connect_recent_widget(recent_links_widget, top_panels_controller, links_actions)
-    _setup_ui_adjustments(auto_hide_tree_filter, topbar_manager)
+    _setup_ui_adjustments(auto_hide_tree_filter)
 
 
 def _connect_quick_add_widget(quick_add_widget: Any | None, links_actions: Any) -> None:
@@ -160,7 +159,7 @@ def _connect_widget_action_signal(
 
 
 def _setup_ui_adjustments(
-    auto_hide_tree_filter: Any | None, topbar_manager: Any | None
+    auto_hide_tree_filter: Any | None
 ) -> None:
     """Set up additional UI adjustments."""
     if auto_hide_tree_filter is not None:
@@ -168,11 +167,6 @@ def _setup_ui_adjustments(
             auto_hide_tree_filter._apply
         ):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
-
-    if topbar_manager is not None:
-        if not hasattr(topbar_manager, "adjust") or not callable(topbar_manager.adjust):
-            raise SetupError("_topbar_manager must provide callable adjust()")
-        QTimer.singleShot(0, topbar_manager.adjust)
 
 
 def setup_signal_connections(

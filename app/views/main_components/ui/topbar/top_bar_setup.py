@@ -8,7 +8,15 @@ from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QSize, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWidget
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QProxyStyle,
+    QSizePolicy,
+    QStyle,
+    QToolBar,
+    QToolButton,
+    QWidget,
+)
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.path_service import icon_path_service
@@ -18,7 +26,9 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     RecentHistoryToolbarAdapter,
     StructureActionsToolbarAdapter,
     ToolbarSeparatorController,
+    TopBarButtonHoverFilter,
     ToolsToolbarAdapter,
+    _get_topbar_button_icons,
     _icon_from_path,
     _setup_topbar_button_contrast,
 )
@@ -50,6 +60,22 @@ class _StageTimer:
             self.timings[name] = (perf_counter() - start) * 1000.0
 
 
+class _ToolBarExtensionStyle(QProxyStyle):
+    """Proxy style ensuring QToolBar reserves full button width for the extension button."""
+
+    def __init__(self, button_size: int, parent_style=None) -> None:
+        super().__init__(parent_style)
+        self._button_size = max(1, int(button_size))
+
+    def set_button_size(self, size: int) -> None:
+        self._button_size = max(1, int(size))
+
+    def pixelMetric(self, metric, option=None, widget=None):
+        if metric == QStyle.PixelMetric.PM_ToolBarExtensionExtent:
+            return self._button_size
+        return super().pixelMetric(metric, option, widget)
+
+
 class TopBarToolBar(QToolBar):
     """QToolBar subclass that vertically centres the Qt extension (overflow) button."""
 
@@ -62,6 +88,9 @@ class TopBarToolBar(QToolBar):
             except TypeError:
                 super().__init__()
         self._button_height = max(1, int(button_height))
+        self._extension_style = _ToolBarExtensionStyle(self._button_height, self.style())
+        self.setStyle(self._extension_style)
+        self._hover_filter = TopBarButtonHoverFilter(self)
         try:
             if self.layout() is not None:
                 self.layout().setSpacing(_DEFAULT_SPACING)
@@ -70,6 +99,8 @@ class TopBarToolBar(QToolBar):
 
     def set_button_height(self, height: int) -> None:
         self._button_height = max(1, int(height))
+        if hasattr(self, "_extension_style"):
+            self._extension_style.set_button_size(self._button_height)
         self._centre_ext_button()
 
     def resizeEvent(self, event) -> None:
@@ -87,10 +118,31 @@ class TopBarToolBar(QToolBar):
         if btn is None or btn.isHidden():
             return
         try:
+            if not btn.property("toolbar_btn"):
+                btn.setProperty("toolbar_btn", True)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setIconSize(self.iconSize())
+                rest_icon, hover_icon = _get_topbar_button_icons("more.svg")
+                if rest_icon and not rest_icon.isNull():
+                    btn.setIcon(rest_icon)
+                    btn._rest_icon = rest_icon
+                    btn._hover_icon = hover_icon
+                    btn.installEventFilter(self._hover_filter)
+                style = btn.style()
+                if style is not None:
+                    style.unpolish(btn)
+                    style.polish(btn)
+
             geo = btn.geometry()
             target_y = max(0, (self.height() - self._button_height) // 2)
-            if geo.y() != target_y or geo.height() != self._button_height:
-                btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
+            target_x = min(geo.x(), max(0, self.width() - self._button_height))
+            if (
+                geo.x() != target_x
+                or geo.y() != target_y
+                or geo.height() != self._button_height
+                or geo.width() != self._button_height
+            ):
+                btn.setGeometry(target_x, target_y, self._button_height, self._button_height)
         except (RuntimeError, AttributeError):
             pass
 

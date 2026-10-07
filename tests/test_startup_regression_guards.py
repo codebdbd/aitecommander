@@ -1,6 +1,8 @@
-from __future__ import annotations
-
+import os
 from types import SimpleNamespace
+
+import pytest
+from PyQt6.QtWidgets import QApplication
 
 import app.controllers.system.window_setup.coordinator as coordinator
 import app.views.main_components.ui.topbar.top_bar_setup as top_bar_setup
@@ -10,6 +12,13 @@ from app.startup.initializer import (
     application_context,
 )
 from app.startup.runtime import _register_cleanup_handler
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
+@pytest.fixture(scope="module")
+def qapp() -> QApplication:
+    return QApplication.instance() or QApplication([])
 
 
 class _DummyWindow(SimpleNamespace):
@@ -108,7 +117,7 @@ def test_initialize_spheres_creates_controller_when_missing(monkeypatch):
     assert window.spheres_controller.init_calls == [None]
 
 
-def test_topbar_builder_prefills_before_manager(monkeypatch):
+def test_topbar_builder_prefills_before_manager(qapp, monkeypatch):
     class LayoutStub:
         def __init__(self):
             self.add_calls = []
@@ -226,6 +235,18 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
         def __init__(self, *args, **kwargs):
             pass
 
+    class StructureStub:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class ToolsStub:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class RecentStub:
+        def __init__(self, *args, **kwargs):
+            pass
+
     class SeparatorControllerStub:
         def __init__(self, *args, **kwargs):
             pass
@@ -278,7 +299,10 @@ def test_topbar_builder_prefills_before_manager(monkeypatch):
     monkeypatch.setattr(top_bar_setup, "QSize", lambda w, h: (w, h))
     monkeypatch.setattr(top_bar_setup, "QSizePolicy", FakeSizePolicy)
     monkeypatch.setattr(top_bar_setup, "Qt", FakeQt)
+    monkeypatch.setattr(top_bar_setup, "StructureActionsToolbarAdapter", StructureStub)
     monkeypatch.setattr(top_bar_setup, "QuickAddToolbarAdapter", QuickAddStub)
+    monkeypatch.setattr(top_bar_setup, "ToolsToolbarAdapter", ToolsStub)
+    monkeypatch.setattr(top_bar_setup, "RecentHistoryToolbarAdapter", RecentStub)
     monkeypatch.setattr(top_bar_setup, "LinksToolbarAdapter", LinksStub)
     monkeypatch.setattr(
         top_bar_setup, "ToolbarSeparatorController", SeparatorControllerStub

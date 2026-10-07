@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import sys
 import time
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -281,8 +282,8 @@ class DatabaseRestoreWorker(QRunnable):
             temp_conn = self._open_sqlite_connection(db_path, timeout=10.0)
             try:
                 temp_conn.execute("PRAGMA mmap_size = 0")
-                temp_conn.execute("PRAGMA journal_mode = DELETE")
                 temp_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                temp_conn.execute("PRAGMA journal_mode = DELETE")
                 temp_conn.commit()
                 logger.info("Successfully switched to DELETE journal mode")
             finally:
@@ -317,14 +318,81 @@ class DatabaseRestoreWorker(QRunnable):
                 if "wal" in extra_file.lower():
                     raise self._build_locked_wal_error(extra_file) from retry_exc
 
+    def _get_locking_processes_info(self, file_path: str) -> list[str]:
+        """Identify Windows processes locking the file using Restart Manager API."""
+        if sys.platform != "win32":
+            return []
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            rstrtmgr = ctypes.WinDLL("rstrtmgr")
+            session_handle = wintypes.DWORD()
+            session_key = (wintypes.WCHAR * 33)()
+            if rstrtmgr.RmStartSession(ctypes.byref(session_handle), 0, session_key) != 0:
+                return []
+            try:
+                files = (wintypes.LPCWSTR * 1)(os.path.abspath(file_path))
+                if rstrtmgr.RmRegisterResources(session_handle, 1, files, 0, None, 0, None) != 0:
+                    return []
+
+                class RM_UNIQUE_PROCESS(ctypes.Structure):
+                    _fields_ = [
+                        ("dwProcessId", wintypes.DWORD),
+                        ("ProcessStartTime", wintypes.FILETIME),
+                    ]
+
+                class RM_PROCESS_INFO(ctypes.Structure):
+                    _fields_ = [
+                        ("Process", RM_UNIQUE_PROCESS),
+                        ("strAppName", wintypes.WCHAR * 256),
+                        ("strServiceShortName", wintypes.WCHAR * 64),
+                        ("ApplicationType", wintypes.DWORD),
+                        ("AppStatus", wintypes.ULONG),
+                        ("TSSessionId", wintypes.DWORD),
+                        ("bRestartable", wintypes.BOOL),
+                    ]
+
+                needed = wintypes.UINT(0)
+                count = wintypes.UINT(0)
+                reboot_reasons = wintypes.DWORD(0)
+                res = rstrtmgr.RmGetList(
+                    session_handle, ctypes.byref(needed), ctypes.byref(count), None, ctypes.byref(reboot_reasons)
+                )
+                if res == 234 and needed.value > 0:  # ERROR_MORE_DATA
+                    count.value = needed.value
+                    proc_info = (RM_PROCESS_INFO * count.value)()
+                    if (
+                        rstrtmgr.RmGetList(
+                            session_handle,
+                            ctypes.byref(needed),
+                            ctypes.byref(count),
+                            proc_info,
+                            ctypes.byref(reboot_reasons),
+                        )
+                        == 0
+                    ):
+                        return [f"{p.strAppName} (PID {p.Process.dwProcessId})" for p in proc_info]
+            finally:
+                rstrtmgr.RmEndSession(session_handle)
+        except Exception as exc:
+            logger.debug("Failed to query locking processes: %s", exc)
+        return []
+
     def _build_locked_wal_error(self, file_name: str) -> OSError:
+        locking_procs = self._get_locking_processes_info(file_name)
+        display_name = file_name
+        if locking_procs:
+            procs_str = ", ".join(locking_procs)
+            logger.error("WAL file %s is held by processes: %s", file_name, procs_str)
+            display_name = f"{file_name} [{procs_str}]"
         message = QCoreApplication.translate(
             "DatabaseRestoreWorker",
             (
                 "Cannot restore database: WAL file {file_name} is locked. "
                 "Please close all connections and try again."
             ),
-        ).format(file_name=file_name)
+        ).format(file_name=display_name)
         return OSError(message)
 
     def _copy_backup_with_retries(self, backup_path, db_path, *, max_retries: int = 3) -> None:

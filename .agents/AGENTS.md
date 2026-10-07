@@ -714,3 +714,13 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   2. **Системный текстовый формат (CF_UNICODETEXT)**: Через `mime_data.setText(...)` передаётся список чистых URL/путей (разделитель `\n`) для текстовых редакторов, веб-полей и AiteBar.
   3. **Формат списков URI и файлов (CF_HDROP / text/uri-list)**: Через `mime_data.setUrls(...)` локальные пути передаются строго как `QUrl.fromLocalFile(...)`, а веб-ссылки — с валидированной схемой (`https://`). Обязательна очистка обрамляющих кавычек путей (`strip('"\'')`).
   4. **Сохранение целостности OLE**: Запрещено удалять или повреждать внутренний JSON-формат `ids` при наполнении стандартных MIME-форматов.
+
+## 63. Architecture Standards: Database Single-Instance Guard & Restore Conflict Resolution Contract (ЗАЩИТА БАЗЫ ДАННЫХ ОТ КОНФЛИКТОВ И БЛОКИРОВОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Полный регламент защиты SQLite базы данных профиля от параллельного доступа, предотвращения зомби-процессов и интерактивного разрешения конфликтов при восстановлении из резервной копии.
+- **Strict Single-Instance & Headless Rules**:
+  1. **Глобальный SingleInstanceGuard**: Применяется ко всем режимам запуска приложения (`GUI`, `HEADLESS`). Запрещено запускать второй процесс над рабочей базой профиля. Повторный процесс обязан через IPC активировать существующий экземпляр (или передать открываемый файл) и штатно завершаться с `ExitCode.SUCCESS` без открытия базы данных SQLite.
+  2. **Предотвращение зависания Headless-режима**: Режим `HEADLESS` без переданных файлов и без `auto_quit` обязан немедленно завершаться после завершения задач инициализации, не оставаясь в памяти в бесконечном цикле `app.exec()`.
+- **Strict Database Restore Rules**:
+  1. **Порядок PRAGMA перед заменой файлов**: В `DatabaseRestoreWorker._switch_journal_mode_for_restore` вызов `PRAGMA wal_checkpoint(TRUNCATE)` обязан выполняться строго **до** `PRAGMA journal_mode = DELETE` для гарантированного сброса страниц WAL в основной файл.
+  2. **Диагностика блокирующих процессов**: При возникновении `WinError 32` на файлах базы или WAL `_get_locking_processes_info` опрашивает Windows Restart Manager (`rstrtmgr.dll`) и включает имена и PID блокирующих процессов в сообщение об ошибке.
+  3. **Интерактивное разрешение конфликтов**: `DatabaseController` при перехвате ошибки с блокирующим процессом приложения (`python`, `aite`, `commander`) показывает диалог `confirm_terminate_locking_process`. При согласии пользователя конфликтующий процесс безопасно завершается, и восстановление автоматически повторяется с защитой от повторного зацикливания (`_restore_retry_count < 1`).

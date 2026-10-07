@@ -200,6 +200,8 @@ class MoveSectionToSphereCommand(BaseBulkCommand):
         if structure_ctrl:
             sb = getattr(main_window, "structure_business", None)
             current_sphere = getattr(sb, "current_sphere_id", None) if sb else None
+            if current_sphere is None and hasattr(sb, "get_current_sphere_id"):
+                current_sphere = sb.get_current_sphere_id()
             item_to_select = ("section", self.section_id)
             if isinstance(current_sphere, int) and current_sphere == target_sphere:
                 if hasattr(structure_ctrl, "load"):
@@ -498,7 +500,27 @@ class MergeSectionToSphereCommand(BaseCommand):
                         links_svc.move_links_bulk(item["moved_link_ids"], s_cid)
                     if item["deleted_link_ids"]:
                         for ldata in item["deleted_links_data"]:
-                            links_svc.create_or_update_link(ldata)
+                            if db and hasattr(db, "connection"):
+                                db.connection.execute(
+                                    """
+                                    INSERT OR REPLACE INTO link (id, category_id, name, url, type, icon_path, notes, position, args, is_favorite)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        ldata["id"],
+                                        s_cid,
+                                        ldata.get("name", ""),
+                                        ldata.get("url", ""),
+                                        ldata.get("type", "web"),
+                                        ldata.get("icon_path", ""),
+                                        ldata.get("notes", ""),
+                                        ldata.get("position", 0),
+                                        ldata.get("args", ""),
+                                        ldata.get("is_favorite", 0),
+                                    ),
+                                )
+                            elif hasattr(links_svc, "create_or_update_link"):
+                                links_svc.create_or_update_link(ldata)
 
         if db and hasattr(db, "transaction"):
             with db.transaction():
@@ -538,6 +560,8 @@ class MergeSectionToSphereCommand(BaseCommand):
         if structure_ctrl:
             sb = getattr(main_win, "structure_business", None)
             current_sphere = getattr(sb, "current_sphere_id", None) if sb else None
+            if current_sphere is None and hasattr(sb, "get_current_sphere_id"):
+                current_sphere = sb.get_current_sphere_id()
             item_to_select = ("section", select_section_id) if select_section_id else None
             if isinstance(current_sphere, int) and current_sphere == target_sphere:
                 if hasattr(structure_ctrl, "load"):

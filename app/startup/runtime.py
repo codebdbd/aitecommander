@@ -668,15 +668,16 @@ def run(options: StartupOptions | None = None) -> int:
         if options.mode == StartupMode.GUI:
             _install_qt_message_filter()
 
-        if options.mode == StartupMode.GUI:
-            single_instance_guard = SingleInstanceGuard(
-                _single_instance_server_name(),
-                lambda: _activate_owned_main_window(initializer_ref),
-                open_file_callback=lambda p: _handle_open_file_ipc(initializer_ref, p),
-            )
-            if not single_instance_guard.acquire(file_to_open=args.file):
-                resolved_exit = ExitCode.SUCCESS
-                return resolved_exit
+        # Single instance guard prevents concurrent processes from locking the profile database
+        single_instance_guard = SingleInstanceGuard(
+            _single_instance_server_name(),
+            lambda: _activate_owned_main_window(initializer_ref),
+            open_file_callback=lambda p: _handle_open_file_ipc(initializer_ref, p),
+        )
+        if not single_instance_guard.acquire(file_to_open=args.file):
+            logger.info("Another instance is already running; exiting to prevent database locks.")
+            resolved_exit = ExitCode.SUCCESS
+            return resolved_exit
 
         initializer = ApplicationInitializer(mode=options.mode)
         initializer_ref[0] = initializer
@@ -706,6 +707,10 @@ def run(options: StartupOptions | None = None) -> int:
                 QTimer.singleShot(
                     200, lambda: window.import_archive_file(target_path)
                 )
+        elif options.mode == StartupMode.HEADLESS and not args.file and not options.auto_quit:
+            logger.info("Headless startup without tasks completed; exiting.")
+            resolved_exit = ExitCode.SUCCESS
+            return resolved_exit
 
         exit_code = app.exec()
         resolved_exit = _handle_exit_code(exit_code)

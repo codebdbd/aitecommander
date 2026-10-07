@@ -95,11 +95,11 @@
         <translation>Missing target: {0}</translation>
     </message>
 </context><context>
-    <name>AsyncHelpers</name>
+    <name>ActionController</name>
     <message>
-        <location filename="..\app\utils\ui\async_helpers.py" line="53" />
-        <source>Importing data structure...</source>
-        <translation>Importing data structure...</translation>
+        <location filename="..\app\controllers\ui\action_controller.py" line="985" />
+        <source>Paste categories</source>
+        <translation>Paste categories</translation>
     </message>
     <message>
         <location filename="..\app\utils\ui\async_helpers.py" line="65" />
@@ -710,7 +710,7 @@
 </context><context>
     <name>BaseDragDropTable</name>
     <message numerus="yes">
-        <location filename="..\app\views\widgets\base\base_widgets.py" line="715" />
+        <location filename="..\app\views\widgets\base\base_widgets.py" line="716" />
         <source>%n item selected</source>
         <translation>
             <numerusform>%n item selected</numerusform>
@@ -1166,114 +1166,114 @@
 </context><context>
     <name>DatabaseController</name>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="55" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="57" />
         <source>Done</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="58" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="60" />
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="64" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="66" />
         <source>Database path not found.</source>
         <translation>Database path not found.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="89" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="91" />
         <source>Database restoration is already in progress.</source>
         <translation>Database restoration is already in progress.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="121" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="124" />
         <source>Database restored from backup:
 {backup_name}</source>
         <translation>Database restored from backup:
 {backup_name}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="132" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="151" />
         <source>Restore error: {error}</source>
         <translation>Restore error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="183" />
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="138" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="225" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="180" />
         <source>Database operation is already in progress.</source>
         <translation>Database operation is already in progress.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="166" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="208" />
         <source>Database connected from:
 {file_name}</source>
         <translation>Database connected from:
 {file_name}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="177" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="219" />
         <source>Database connection error: {error}</source>
         <translation>Database connection error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="239" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="281" />
         <source>Database copy saved:
 {path}</source>
         <translation>Database copy saved:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="318" />
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="248" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="360" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="290" />
         <source>Save error: {error}</source>
         <translation>Save error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="309" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="351" />
         <source>Database backup saved:
 {path}</source>
         <translation>Database backup saved:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="328" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="370" />
         <source>Icons folder not found: {path}</source>
         <translation>Icons folder not found: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="344" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="386" />
         <source>Icon archive saved to:
 {path}</source>
         <translation>Icon archive saved to:
 {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="348" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="390" />
         <source>Archive creation error: {error}</source>
         <translation>Archive creation error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="368" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="410" />
         <source>Icons successfully added to: {path}</source>
         <translation>Icons successfully added to: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="374" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="416" />
         <source>Archive load error: {error}</source>
         <translation>Archive load error: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="433" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="475" />
         <source>File {name} exceeds maximum allowed size ({size} MB)</source>
         <translation>File {name} exceeds maximum allowed size ({size} MB)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="441" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="483" />
         <source>Archive exceeds total allowed icon size ({size} MB)</source>
         <translation>Archive exceeds total allowed icon size ({size} MB)</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="449" />
+        <location filename="..\app\controllers\ui\dialogs\database_controller.py" line="491" />
         <source>Archive contains too many icons ({count} &gt; {limit})</source>
         <translation>Archive contains too many icons ({count} &gt; {limit})</translation>
     </message>
@@ -1305,57 +1305,60 @@
         <translation>Backup file: {name}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="69" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="89" />
         <source>Select a backup file to restore</source>
         <translation>Select a backup file to restore</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="71" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="91" />
         <source>SQLite DB (*.db);;All files (*)</source>
         <translation>SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="83" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="103" />
         <source>Select a database file to connect</source>
         <translation>Select a database file to connect</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="85" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="105" />
         <source>Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
         <translation>Backup archive or SQLite DB (*.zip *.db);;ZIP archive (*.zip);;SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="101" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="121" />
         <source>Save database copy</source>
         <translation>Save database copy</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="103" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="123" />
         <source>Backup archive (*.zip);;SQLite DB (*.db);;All files (*)</source>
         <translation>Backup archive (*.zip);;SQLite DB (*.db);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="119" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="139" />
         <source>Save icons archive</source>
         <translation>Save icons archive</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="133" />
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="121" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="153" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="141" />
         <source>ZIP archive (*.zip);;All files (*)</source>
         <translation>ZIP archive (*.zip);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="131" />
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="151" />
         <source>Select an icons archive to import</source>
         <translation>Select an icons archive to import</translation>
     </message>
-</context><context>
-    <name>DatabaseInit</name>
     <message>
-        <location filename="..\app\models\db.py" line="46" />
-        <source>Applying migrations...</source>
-        <translation>Applying migrations...</translation>
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="68" />
+        <source>Database restore</source>
+        <translation>Database restore</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\database_dialogs.py" line="69" />
+        <source>The database file is in use by another process.</source>
+        <translation>The database file is in use by another process.</translation>
     </message>
     <message>
         <location filename="..\app\models\db.py" line="48" />
@@ -1383,32 +1386,32 @@
 </context><context>
     <name>DatabaseRestoreWorker</name>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="159" />
+        <location filename="..\app\services\database_restore_worker.py" line="160" />
         <source>Restored database failed verification: {error}</source>
         <translation>Restored database failed verification: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="217" />
+        <location filename="..\app\services\database_restore_worker.py" line="218" />
         <source>Archive does not contain a valid database file.</source>
         <translation>Archive does not contain a valid database file.</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="321" />
+        <location filename="..\app\services\database_restore_worker.py" line="389" />
         <source>Cannot restore database: WAL file {file_name} is locked. Please close all connections and try again.</source>
         <translation>Cannot restore database: WAL file {file_name} is locked. Please close all connections and try again.</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="452" />
+        <location filename="..\app\services\database_restore_worker.py" line="520" />
         <source>Backup file does not exist: {path}</source>
         <translation>Backup file does not exist: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="460" />
+        <location filename="..\app\services\database_restore_worker.py" line="528" />
         <source>Backup file is empty: {path}</source>
         <translation>Backup file is empty: {path}</translation>
     </message>
     <message>
-        <location filename="..\app\services\database_restore_worker.py" line="519" />
+        <location filename="..\app\services\database_restore_worker.py" line="587" />
         <source>Backup integrity check failed: {error}</source>
         <translation>Backup integrity check failed: {error}</translation>
     </message>
@@ -1540,12 +1543,12 @@
 </context><context>
     <name>DialogProvider</name>
     <message>
-        <location filename="..\app\controllers\system\window_setup\ui.py" line="95" />
+        <location filename="..\app\controllers\system\window_setup\ui.py" line="92" />
         <source>Cannot open link dialog: window not ready.</source>
         <translation>Cannot open link dialog: window not ready.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\system\window_setup\ui.py" line="103" />
+        <location filename="..\app\controllers\system\window_setup\ui.py" line="100" />
         <source>Error opening link dialog: {error}</source>
         <translation>Error opening link dialog: {error}</translation>
     </message>
@@ -3080,12 +3083,12 @@ Would you like to open the first {limit} selected links?</translation>
         <translation>Hidden button</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="1040" />
+        <location filename="..\app\views\windows\main_window.py" line="1048" />
         <source>Section</source>
         <translation>Section</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="1073" />
+        <location filename="..\app\views\windows\main_window.py" line="1081" />
         <source>Category</source>
         <translation>Category</translation>
     </message>
@@ -3131,8 +3134,8 @@ Would you like to open the first {limit} selected links?</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\main_window.py" line="505" />
-        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="390" />
-        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="775" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="441" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="658" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
         <source>Settings</source>
@@ -3478,15 +3481,15 @@ Would you like to open the first {limit} selected links?</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\main_window.py" line="512" />
-        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="351" />
-        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="782" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="402" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="665" />
         <source>Light themes</source>
         <translation>Light themes</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\main_window.py" line="519" />
-        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="371" />
-        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="789" />
+        <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="422" />
+        <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="672" />
         <source>Dark themes</source>
         <translation>Dark themes</translation>
     </message>
@@ -3520,60 +3523,57 @@ Would you like to open the first {limit} selected links?</translation>
 </context><context>
     <name>MoveOperationsHandler</name>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="290" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="262" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="218" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="267" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="205" />
         <source>Undo history is unavailable. Move canceled.</source>
         <translation>Undo history is unavailable. Move canceled.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="374" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="291" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="263" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="219" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="351" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="268" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="206" />
         <source>Undo history unavailable</source>
         <translation>Undo history unavailable</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="375" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="292" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="264" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="220" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="352" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="269" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="207" />
         <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
         <translation>Enable undo/redo support or initialize undo_stack in the main window.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="373" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="350" />
         <source>Undo history is unavailable. Batch move canceled.</source>
         <translation>Undo history is unavailable. Batch move canceled.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="732" />
-        <source>A category with the same name already exists in the selected section.</source>
-        <translation>A category with the same name already exists in the selected section.</translation>
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="365" />
+        <source>Move categories</source>
+        <translation>Move categories</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="735" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="720" />
         <source>Category duplicate</source>
         <translation>Category duplicate</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="736" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="721" />
         <source>Rename the category or choose another section.</source>
         <translation>Rename the category or choose another section.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="748" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="733" />
         <source>Failed to update item positions.</source>
         <translation>Failed to update item positions.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="749" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="734" />
         <source>Database error during move</source>
         <translation>Database error during move</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="750" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="735" />
         <source>Position changes were not saved.</source>
         <translation>Position changes were not saved.</translation>
     </message>
@@ -4126,58 +4126,58 @@ Version 1.0
 </context><context>
     <name>SpheresBarController</name>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="340" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="347" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="164" />
         <source>AI</source>
         <translation>AI</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="341" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="348" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="165" />
         <source>Work</source>
         <translation>Work</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="342" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="349" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="166" />
         <source>Study</source>
         <translation>Study</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="343" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="350" />
         <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="167" />
         <source>Personal</source>
         <translation>Personal</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="374" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="381" />
         <source>Change Icon</source>
         <translation>Change Icon</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="381" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="388" />
         <source>Reset to Default Icon</source>
         <translation>Reset to Default Icon</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="395" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="402" />
         <source>Rename Sphere</source>
         <translation>Rename Sphere</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="402" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="409" />
         <source>Reset to Default Name</source>
         <translation>Reset to Default Name</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="485" />
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="492" />
         <source>Select Icon</source>
         <translation>Select Icon</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1338" />
-        <source>Rename Sphere</source>
-        <translation>Rename Sphere</translation>
+        <location filename="..\app\controllers\ui\structure\spheres_bar_controller.py" line="301" />
+        <source>Move sections to sphere</source>
+        <translation>Move sections to sphere</translation>
     </message>
 </context><context>
     <name>StatusBar</name>
@@ -4345,7 +4345,7 @@ Are you sure you want to continue?</translation>
         <translation>Category Archive (*.aitecat);;All files (*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="903" />
+        <location filename="..\app\views\windows\main_window.py" line="911" />
         <location filename="..\app\views\windows\main_window.py" line="775" />
         <location filename="..\app\views\windows\main_window.py" line="734" />
         <source>Import error</source>
@@ -4357,19 +4357,19 @@ Are you sure you want to continue?</translation>
         <translation>Select an archive to import</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="900" />
+        <location filename="..\app\views\windows\main_window.py" line="908" />
         <location filename="..\app\views\windows\main_window.py" line="772" />
         <source>Failed to import archive: {error}</source>
         <translation>Failed to import archive: {error}</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="919" />
+        <location filename="..\app\views\windows\main_window.py" line="927" />
         <location filename="..\app\views\windows\main_window.py" line="784" />
         <source>Import completed.</source>
         <translation>Import completed.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\main_window.py" line="1021" />
+        <location filename="..\app\views\windows\main_window.py" line="1029" />
         <source>Structure service unavailable.</source>
         <translation>Structure service unavailable.</translation>
     </message>

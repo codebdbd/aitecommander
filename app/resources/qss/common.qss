@@ -240,6 +240,18 @@ QWidget#topBarHost QToolButton:checked {
     border-color: transparent;
 }
 
+QWidget#topBarHost QToolButton#qt_toolbar_ext_button {
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+QWidget#topBarHost QToolButton#qt_toolbar_ext_button::menu-indicator,
 QWidget#topBarHost QToolButton::menu-indicator {
     image: none;
     width: 0px;

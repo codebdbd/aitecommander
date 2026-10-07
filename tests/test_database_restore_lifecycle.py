@@ -42,3 +42,43 @@ class TestDatabaseRestoreLifecycle(unittest.TestCase):
 
         self.assertIs(sb.structure_service._bulk.db, new_db)
         self.assertIs(sb.structure_service.db, new_db)
+
+    def test_database_restore_worker_locked_wal_error_formatting(self) -> None:
+        """Verify _build_locked_wal_error includes locking process info when present."""
+        from unittest.mock import patch
+        from app.services.database_restore_worker import DatabaseRestoreWorker
+
+        worker = DatabaseRestoreWorker(MagicMock(), "dummy.db")
+        with patch.object(
+            worker,
+            "_get_locking_processes_info",
+            return_value=["python.exe (PID 9999)"],
+        ):
+            err = worker._build_locked_wal_error("links.db-wal")
+            self.assertIn("links.db-wal [python.exe (PID 9999)]", str(err))
+
+    def test_database_controller_conflict_resolution_retry(self) -> None:
+        """Verify DatabaseController prompts user and retries restore when conflicting process is found."""
+        from unittest.mock import patch
+        from app.controllers.ui.dialogs.database_controller import DatabaseController
+
+        db_mock = MagicMock()
+        controller = DatabaseController(db_mock)
+        controller._last_restore_backup_path = "backup.db"
+
+        with (
+            patch.object(
+                controller.dialogs,
+                "confirm_terminate_locking_process",
+                return_value=True,
+            ) as mock_confirm,
+            patch.object(
+                controller,
+                "_terminate_process_and_retry_restore",
+            ) as mock_terminate,
+        ):
+            error_msg = "Cannot restore database: WAL file links.db-wal [Python (PID 99999)] is locked."
+            controller._on_restore_error(error_msg)
+
+            mock_confirm.assert_called_once_with("Python (PID 99999)")
+            mock_terminate.assert_called_once_with(99999)

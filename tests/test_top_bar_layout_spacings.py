@@ -4,6 +4,7 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -149,6 +150,9 @@ def test_topbar_toolbar_ext_button_alignment(qapp: QApplication) -> None:
     toolbar._centre_ext_button()
     assert ext_btn.geometry().y() == (40 - 32) // 2
     assert ext_btn.geometry().height() == 32
+    assert ext_btn.geometry().width() == 32
+    assert ext_btn.property("toolbar_btn") is True
+    assert ext_btn.cursor().shape() == Qt.CursorShape.PointingHandCursor
 
 
 def test_icon_from_path_fallback_by_link_type(qapp: QApplication) -> None:
