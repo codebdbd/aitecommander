@@ -640,6 +640,9 @@ class MergeCategoriesCommand(BaseCommand):
         super().__init__("Merge categories", main_window)
         self.source_id = int(source_category_id)
         self.target_id = int(target_category_id)
+        self._source_category_id = self.source_id
+        self._target_category_id = self.target_id
+        self._last_operation = "redo"
         self._source_cat_data: dict[str, Any] = {}
         self._source_links_data: list[dict[str, Any]] = []
         self._moved_link_ids: list[int] = []
@@ -694,6 +697,7 @@ class MergeCategoriesCommand(BaseCommand):
         self._prepared = True
 
     def redo(self) -> None:
+        self._last_operation = "redo"
         self._prepare_data()
         sb = _require_structure_business(self.main)
         lb = getattr(self.main, "links_business", None)
@@ -717,6 +721,7 @@ class MergeCategoriesCommand(BaseCommand):
         self._refresh_ui()
 
     def undo(self) -> None:
+        self._last_operation = "undo"
         if not self._source_cat_data:
             return
         sb = _require_structure_business(self.main)
@@ -785,19 +790,19 @@ class MergeCategoriesCommand(BaseCommand):
                     except Exception:
                         pass
         facade = getattr(self.main, "_facade", None)
+        target_cat = self.source_id if getattr(self, "_last_operation", "") == "undo" else self.target_id
+        target_sec = self._source_section_id if getattr(self, "_last_operation", "") == "undo" else self._target_section_id
         if (
             facade
             and hasattr(facade, "refresh_structure_after_import")
-            and self._target_section_id
+            and target_sec
         ):
-            facade.refresh_structure_after_import(sb, self._target_section_id)
-        elif sb and self._target_section_id:
+            facade.refresh_structure_after_import(sb, target_sec)
+        elif sb and target_sec:
             try:
-                sb.section_selected.emit(int(self._target_section_id))
+                sb.section_selected.emit(int(target_sec))
             except Exception:
                 pass
-        target_cat = self._source_category_id if getattr(self, "_last_operation", "") == "undo" else self._target_category_id
-        target_sec = self._source_section_id if getattr(self, "_last_operation", "") == "undo" else self._target_section_id
         if target_cat:
             structure_ctrl = getattr(self.main, "structure", None)
             selection_handler = getattr(structure_ctrl, "selection_handler", None)

@@ -43,7 +43,10 @@ class LinksUIClipboard(BaseLinksUIComponent):
     def copy_link(self):
         """Copy selected links."""
         self.cancel_cut()
-        self._process_clipboard_operation(is_cut=False)
+        links = self.get_selected_links()
+        if not links:
+            return
+        copy_link_to_clipboard(links[0] if len(links) == 1 else links)
 
     def cancel_cut(self):
         """Cancel pending cut state."""
@@ -52,18 +55,6 @@ class LinksUIClipboard(BaseLinksUIComponent):
             self._cut_link_ids.clear()
             if hasattr(self.table, "set_cut_link_ids"):
                 self.table.set_cut_link_ids(set())
-
-    def _process_clipboard_operation(self, is_cut: bool = False):
-        """Common logic for copying/cutting links."""
-        links = self.get_selected_links()
-        if not links:
-            return
-
-        success = copy_link_to_clipboard(links[0] if len(links) == 1 else links)
-        if success:
-            self._clipboard_is_cut = bool(is_cut)
-            if is_cut:
-                self.delete_links(links, is_cut=True)
 
     def paste_link(self, target_category_id: int | None = None):
         """Paste links from clipboard."""
@@ -238,31 +229,21 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
     def _insert_links(self, links: list[dict], *, is_cut: bool = False):
         """Insert list of links with undo support."""
-        if len(links) > 1:
-            replaced_links = {
-                int(l["id"]): l.pop("_old_link_snapshot")
-                for l in links
-                if "_old_link_snapshot" in l and l.get("id")
-            }
-            cmd = BatchSaveLinksCmd(
-                links_data=links,
-                _old_link_data=None,
-                main_window=self.main,
-                is_cut=is_cut,
-                replaced_links=replaced_links,
-            )
-            self.main.undo_stack.push(cmd)
-        else:
-            for link_data in links:
-                old_data = link_data.pop("_old_link_snapshot", None)
-                self.main.undo_stack.push(
-                    SaveLinkCmd(
-                        new_data=link_data,
-                        old_data=old_data,
-                        main_window=self.main,
-                        is_cut=is_cut,
-                    )
-                )
+        if not links:
+            return
+        replaced_links = {
+            int(l["id"]): l.pop("_old_link_snapshot")
+            for l in links
+            if "_old_link_snapshot" in l and l.get("id")
+        }
+        cmd = BatchSaveLinksCmd(
+            links_data=links,
+            _old_link_data=None,
+            main_window=self.main,
+            is_cut=is_cut,
+            replaced_links=replaced_links,
+        )
+        self.main.undo_stack.push(cmd)
 
     def _filter_duplicates_optimized(
         self, links: list[dict], existing_links: list[dict], category_id: int

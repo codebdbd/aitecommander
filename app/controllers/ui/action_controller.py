@@ -976,18 +976,22 @@ class ActionController(QObject):
                         if new_name:
                             name_overrides[int(cid)] = str(new_name)
 
-            for cid, tgt_id in planned_merges:
-                undo_stack.push(MergeCategoriesCommand(cid, tgt_id, self.main_window))
-            if planned_moves:
-                undo_stack.push(
-                    MoveCategoriesCommand(
-                        planned_moves,
-                        int(target_section_id),
-                        0,
-                        self.main_window,
-                        name_overrides=name_overrides,
+            undo_stack.beginMacro(self.tr("Paste categories"))
+            try:
+                for cid, tgt_id in planned_merges:
+                    undo_stack.push(MergeCategoriesCommand(cid, tgt_id, self.main_window))
+                if planned_moves:
+                    undo_stack.push(
+                        MoveCategoriesCommand(
+                            planned_moves,
+                            int(target_section_id),
+                            0,
+                            self.main_window,
+                            name_overrides=name_overrides,
+                        )
                     )
-                )
+            finally:
+                undo_stack.endMacro()
             self.cancel_cut()
             return
 
@@ -1048,19 +1052,23 @@ class ActionController(QObject):
                         new_name = (t.get("section") or {}).get("name")
                         if new_name:
                             name_overrides[int(sid)] = str(new_name)
-            for sid, tgt_id in planned_merges:
-                undo_stack.push(
-                    MergeSectionToSphereCommand(sid, tgt_id, self.main_window)
-                )
-            if planned_moves:
-                undo_stack.push(
-                    MoveSectionsToSphereCommand(
-                        planned_moves,
-                        int(sphere_id),
-                        self.main_window,
-                        name_overrides=name_overrides,
+            undo_stack.beginMacro(self.tr("Paste sections"))
+            try:
+                for sid, tgt_id in planned_merges:
+                    undo_stack.push(
+                        MergeSectionToSphereCommand(sid, tgt_id, self.main_window)
                     )
-                )
+                if planned_moves:
+                    undo_stack.push(
+                        MoveSectionsToSphereCommand(
+                            planned_moves,
+                            int(sphere_id),
+                            self.main_window,
+                            name_overrides=name_overrides,
+                        )
+                    )
+            finally:
+                undo_stack.endMacro()
             self.cancel_cut()
             return
 

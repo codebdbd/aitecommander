@@ -4,7 +4,10 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.utils.ui.dnd.categories_command import MoveCategoriesCommand
+from app.utils.ui.dnd.categories_command import (
+    MergeCategoriesCommand,
+    MoveCategoriesCommand,
+)
 from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.commands import (
     MoveCategoriesCommand as LegacyMoveCategoriesCommand,
@@ -47,8 +50,36 @@ class TestDndMoveCommands(unittest.TestCase):
         cmd.redo()
         cmd.undo()
 
-        self.assertGreaterEqual(sb.move_categories_batch.call_count, 1)
-        sb.select_category.assert_called()
+        self.assertGreaterEqual(sb.move_categories_batch.call_count, 2)
+
+    def test_reorder_links_command_redo_undo(self) -> None:
+        from app.utils.ui.dnd.links_command import ReorderLinksCommand
+
+        main = Mock()
+        links_business = Mock()
+        links_business.get_links.return_value = [{"id": 1}, {"id": 2}, {"id": 3}]
+        main.links_business = links_business
+        main.links_table_controller = Mock()
+
+        cmd = ReorderLinksCommand(category_id=10, new_order=[3, 1, 2], main_window=main)
+        self.assertEqual(cmd.old_order, [1, 2, 3])
+        self.assertEqual(cmd.new_order, [3, 1, 2])
+
+        # Redo 1 (first redo from DnD drop): writes new_order without reload
+        cmd.redo()
+        links_business.update_link_order.assert_called_with([3, 1, 2])
+        main.links_table_controller.reload.assert_not_called()
+
+        # Undo: writes old_order and reloads table
+        cmd.undo()
+        links_business.update_link_order.assert_called_with([1, 2, 3])
+        main.links_table_controller.reload.assert_called_with(10)
+
+        # Redo 2 (subsequent redo): writes new_order and reloads table
+        main.links_table_controller.reload.reset_mock()
+        cmd.redo()
+        links_business.update_link_order.assert_called_with([3, 1, 2])
+        main.links_table_controller.reload.assert_called_with(10)
 
     def test_move_categories_command_redo_calls_batch_move(self) -> None:
         main = self._build_main_with_structure()
@@ -142,6 +173,52 @@ class TestDndMoveCommands(unittest.TestCase):
         _tree, focus_id, section_id = cmd._maybe_schedule_tree_focus.call_args.args
         self.assertEqual(focus_id, 1)
         self.assertEqual(section_id, 10)
+
+    def test_merge_categories_command_attributes_and_refresh_ui_redo(self) -> None:
+        main = self._build_main_with_structure()
+        sb = Mock()
+        main.structure_business = sb
+        facade = Mock()
+        main._facade = facade
+
+        cmd = MergeCategoriesCommand(10, 20, main)
+        cmd._source_section_id = 100
+        cmd._target_section_id = 200
+        cmd._last_operation = "redo"
+
+        # Verify attributes exist and no AttributeError is raised
+        self.assertEqual(cmd._source_category_id, 10)
+        self.assertEqual(cmd._target_category_id, 20)
+        self.assertEqual(cmd.source_id, 10)
+        self.assertEqual(cmd.target_id, 20)
+
+        cmd._refresh_ui()
+
+        sb._invalidate_categories_cache.assert_any_call(100)
+        sb._invalidate_categories_cache.assert_any_call(200)
+        facade.refresh_structure_after_import.assert_called_once_with(sb, 200)
+        main.structure.selection_handler._restore_category_selection.assert_called_once_with(
+            20, target_section_id=200
+        )
+
+    def test_merge_categories_command_attributes_and_refresh_ui_undo(self) -> None:
+        main = self._build_main_with_structure()
+        sb = Mock()
+        main.structure_business = sb
+        facade = Mock()
+        main._facade = facade
+
+        cmd = MergeCategoriesCommand(10, 20, main)
+        cmd._source_section_id = 100
+        cmd._target_section_id = 200
+        cmd._last_operation = "undo"
+
+        cmd._refresh_ui()
+
+        facade.refresh_structure_after_import.assert_called_once_with(sb, 100)
+        main.structure.selection_handler._restore_category_selection.assert_called_once_with(
+            10, target_section_id=100
+        )
 
 
 if __name__ == "__main__":

@@ -370,8 +370,22 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if not link_ids or not isinstance(link_ids, list):
                 return
 
-            # Execute order update through business logic
-            self.business.update_link_order(link_ids)
+            cat_id = (
+                self._category_provider.get_current_category_id()
+                if hasattr(self, "_category_provider") and self._category_provider
+                else None
+            )
+            undo_stack = getattr(self.main, "undo_stack", None)
+            if cat_id and undo_stack:
+                from app.utils.ui.dnd.links_command import ReorderLinksCommand
+                cmd = ReorderLinksCommand(
+                    category_id=int(cat_id),
+                    new_order=link_ids,
+                    main_window=self.main,
+                )
+                undo_stack.push(cmd)
+            else:
+                self.business.update_link_order(link_ids)
 
         except Exception as e:
             logger.error(

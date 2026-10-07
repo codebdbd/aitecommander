@@ -248,7 +248,7 @@ class DragDropHandler(TreeHandlerBase):
         if not target_index or not target_index.isValid():
             self._cancel_auto_expand_timer()
             self.tree_widget.clear_drag_highlight()
-            if pkg_type == "section":
+            if pkg_type in ("section", "category"):
                 event.setDropAction(Qt.DropAction.CopyAction)
                 event.accept()
                 return
@@ -285,17 +285,11 @@ class DragDropHandler(TreeHandlerBase):
             else:
                 event.ignore()
         elif targets:
-            if pkg_type == "category":
+            if pkg_type in ("section", "category"):
                 self._cancel_auto_expand_timer()
-                if target_type == "section":
-                    valid_drop = True
-                    event.setDropAction(Qt.DropAction.CopyAction)
-                    event.accept()
-                else:
-                    event.ignore()
-            elif pkg_type == "section":
-                self._cancel_auto_expand_timer()
-                event.ignore()
+                valid_drop = True
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
             elif target_type == "category":
                 self._cancel_auto_expand_timer()
                 valid_drop = True
@@ -810,39 +804,22 @@ class DragDropHandler(TreeHandlerBase):
         pkg_type = self._detect_package_type(targets[0]) if len(targets) == 1 else None
         ttuple = get_tree_tuple(target_index, 0) if (target_index and target_index.isValid()) else None
 
-        # 1. Dropping a section package into empty space of the tree
-        if pkg_type == "section":
-            if ttuple is None:
-                self.tree_widget.externalLinkDropped.emit(
-                    {
-                        "type": "external_link_to_category",
-                        "item_type": None,
-                        "item_id": None,
-                        "category_id": None,
-                        "targets": targets,
-                        "urls": targets,
-                        "title": "",
-                    }
-                )
-                return True
-            return False
-
-        # 2. Dropping a category package onto a section
-        if pkg_type == "category":
-            if ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int):
-                self.tree_widget.externalLinkDropped.emit(
-                    {
-                        "type": "external_link_to_category",
-                        "item_type": "section",
-                        "item_id": int(ttuple[1]),
-                        "category_id": None,
-                        "targets": targets,
-                        "urls": targets,
-                        "title": target_index.data(),
-                    }
-                )
-                return True
-            return False
+        # Smart Routing for share packages (.aitesec, .aitecat)
+        if pkg_type in ("section", "category"):
+            item_type = ttuple[0] if ttuple else None
+            item_id = int(ttuple[1]) if ttuple else None
+            self.tree_widget.externalLinkDropped.emit(
+                {
+                    "type": "external_link_to_category",
+                    "item_type": item_type,
+                    "item_id": item_id,
+                    "category_id": None,
+                    "targets": targets,
+                    "urls": targets,
+                    "title": target_index.data() if (target_index and target_index.isValid()) else "",
+                }
+            )
+            return True
 
         if not (ttuple and ttuple[0] in ("category", "section") and isinstance(ttuple[1], int)):
             return False

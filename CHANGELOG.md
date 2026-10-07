@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **External Drag & Drop to System Apps and AiteBar**:
+  - Enabled external drag-and-drop of links from `LinksTableView` to AiteBar, Windows Explorer, web browsers, and text editors.
+  - Configured multi-format `QMimeData` payload: `CF_UNICODETEXT` (`text/plain`), `CF_HDROP` / `text/uri-list` (`setUrls`), and internal `application/x-aite-links`.
+  - Expanded drag execution mask in `BaseDragDropTableWidget` to support `CopyAction | MoveAction | LinkAction`.
 - **Advanced File & Content Search Dialog (`FileSearchDialog`)**:
   - Multithreaded disk scanning with regex, whole words, and case-sensitive filters.
   - Content text search with match snippet extraction in the results table.

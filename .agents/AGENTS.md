@@ -704,3 +704,13 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   4. **Приоритет видимой области (Visible Viewport First)**: В фоновом потоке `_AppsLoaderThread` извлечение и назначение иконок сначала выполняется для первых 25 видимых элементов списка, обеспечивая мгновенную отзывчивость интерфейса, а остальные элементы догружаются в фоне.
   5. **Бесшовный UI и скрытие индикаторов**: Индикатор загрузки (`loading_bar` и `loading_label`) скрывается немедленно в `_on_apps_loaded` при получении списка программ, не дожидаясь фоновой расстановки иконок. При наличии валидного кэша индикатор загрузки не показывается вовсе.
   6. **Горячая клавиша принудительного обновления**: Диалог `InstalledAppsDialog` поддерживает горячую клавишу `F5` для принудительного полного пересканирования системы (`force_refresh=True`).
+
+## 62. Architecture Standards: External Drag-and-Drop & System OLE Contract (ВНЕШНИЙ DRAG & DROP ССЫЛОК)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура перетаскивания ссылок из таблицы `LinksTableView` во внешние системные приложения (AiteBar, Проводник Windows, браузеры, текстовые редакторы).
+- **Strict OLE Actions Rules**:
+  1. **Снятие монополии MoveAction**: В `BaseDragDropTableWidget.startDrag` вызов `drag.exec()` обязан разрешать комбинацию действий `Qt.DropAction.CopyAction | Qt.DropAction.MoveAction | Qt.DropAction.LinkAction`. Запрещено ограничивать перетаскивание только внутренним `MoveAction`.
+- **Strict Multi-Format Payload Rules**:
+  1. **Двухуровневый QMimeData**: Метод `LinksTableView.mimeData` обязан сохранять внутренний служебный формат `application/x-aite-links` (через `super().mimeData`) для внутренней сортировки и переноса по категориям.
+  2. **Системный текстовый формат (CF_UNICODETEXT)**: Через `mime_data.setText(...)` передаётся список чистых URL/путей (разделитель `\n`) для текстовых редакторов, веб-полей и AiteBar.
+  3. **Формат списков URI и файлов (CF_HDROP / text/uri-list)**: Через `mime_data.setUrls(...)` локальные пути передаются строго как `QUrl.fromLocalFile(...)`, а веб-ссылки — с валидированной схемой (`https://`). Обязательна очистка обрамляющих кавычек путей (`strip('"\'')`).
+  4. **Сохранение целостности OLE**: Запрещено удалять или повреждать внутренний JSON-формат `ids` при наполнении стандартных MIME-форматов.

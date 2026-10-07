@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -17,8 +18,8 @@ class FileAssociationService:
 
     EXTENSIONS = (".aitesec", ".aitecat")
     PROG_IDS = {
-        ".aitesec": ("aitecommander.section", "AiteCommander Section Archive"),
-        ".aitecat": ("aitecommander.category", "AiteCommander Category Archive"),
+        ".aitesec": ("AiteCommander.Section", "AiteCommander Section Archive"),
+        ".aitecat": ("AiteCommander.Category", "AiteCommander Category Archive"),
     }
 
     @classmethod
@@ -41,7 +42,7 @@ class FileAssociationService:
     def _get_icon_path(cls) -> str:
         icon_path = Path(__file__).resolve().parents[1] / "resources" / "package_icon.ico"
         if icon_path.exists():
-            return str(icon_path)
+            return f'"{icon_path}",0'
         if getattr(sys, "frozen", False):
             return f'"{sys.executable}",0'
         return ""
@@ -80,6 +81,10 @@ class FileAssociationService:
             for ext, (prog_id, description) in cls.PROG_IDS.items():
                 with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}") as key:
                     winreg.SetValueEx(key, "", 0, winreg.REG_SZ, prog_id)
+
+                if icon:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}\\DefaultIcon") as key:
+                        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, icon)
 
                 with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}") as key:
                     winreg.SetValueEx(key, "", 0, winreg.REG_SZ, description)
@@ -138,3 +143,7 @@ class FileAssociationService:
             ctypes.windll.shell32.SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0)
         except Exception as exc:
             logger.debug("SHChangeNotify failed: %s", exc)
+        try:
+            subprocess.run(["ie4uinit.exe", "-show"], capture_output=True, timeout=3, check=False)
+        except Exception:
+            pass

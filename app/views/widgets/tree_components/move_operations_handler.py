@@ -121,13 +121,10 @@ class MoveOperationsHandler(TreeHandlerBase):
         links_service = getattr(lb, "links", None) if lb else None
         if lb and links_service:
             existing = lb.get_links(int(new_category_id)) or []
-            existing_keys = {
-                (
-                    str(l.get("name", "")),
-                    str(l.get("url", "")),
-                    str(l.get("args", "")),
-                )
+            existing_by_name = {
+                str(l.get("name", "")).strip().lower(): dict(l)
                 for l in existing
+                if str(l.get("name", "")).strip()
             }
             existing_names = [str(l.get("name", "")) for l in existing]
             conflicts: list[int] = []
@@ -135,12 +132,8 @@ class MoveOperationsHandler(TreeHandlerBase):
                 ld = links_service.get_link_by_id(int(lid))
                 if not ld:
                     continue
-                k = (
-                    str(ld.get("name", "")),
-                    str(ld.get("url", "")),
-                    str(ld.get("args", "")),
-                )
-                if k in existing_keys:
+                c_name = str(ld.get("name", "")).strip()
+                if c_name.lower() in existing_by_name:
                     conflicts.append(int(lid))
 
             from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
@@ -151,14 +144,16 @@ class MoveOperationsHandler(TreeHandlerBase):
                 link_data = links_service.get_link_by_id(int(lid))
                 if not link_data:
                     continue
-                key = (
-                    str(link_data.get("name", "")),
-                    str(link_data.get("url", "")),
-                    str(link_data.get("args", "")),
-                )
-                if key in existing_keys:
-                    name = str(link_data.get("name", ""))
-                    action, copy_name = session.resolve("link", name, existing_names)
+                c_name = str(link_data.get("name", "")).strip()
+                if c_name.lower() in existing_by_name:
+                    matching_target = existing_by_name[c_name.lower()]
+                    action, copy_name = session.resolve(
+                        "link",
+                        c_name,
+                        existing_names,
+                        existing_info=matching_target,
+                        incoming_info=link_data,
+                    )
                     if action == "cancel":
                         return
                     if action == "skip":
@@ -166,22 +161,14 @@ class MoveOperationsHandler(TreeHandlerBase):
                     if action == "copy":
                         name_overrides[int(lid)] = copy_name
                         existing_names.append(copy_name)
+                        existing_by_name[copy_name.strip().lower()] = link_data
                     elif action == "merge":
-                        matching_target = next(
-                            (
-                                l
-                                for l in existing
-                                if (
-                                    str(l.get("name", "")),
-                                    str(l.get("url", "")),
-                                    str(l.get("args", "")),
-                                )
-                                == key
-                            ),
-                            None,
-                        )
                         if matching_target and matching_target.get("id"):
                             replacements[int(lid)] = int(matching_target["id"])
+                else:
+                    if c_name:
+                        existing_names.append(c_name)
+                        existing_by_name[c_name.lower()] = link_data
                 links_to_move.append(int(lid))
 
             if not links_to_move:

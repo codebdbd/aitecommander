@@ -229,7 +229,7 @@ class CategoryTiles(QWidget):
         from app.utils.ui.dnd.mime import MimeDataParser
 
         targets = MimeDataParser.extract_external_link_targets(event.mimeData())
-        if len(targets) == 1 and targets[0].lower().endswith((".aitepack", ".zip")):
+        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
             return

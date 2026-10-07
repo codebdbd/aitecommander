@@ -858,9 +858,19 @@ class MainWindow(QMainWindow, ReTranslatable):
         target_sphere_for_switch: int | None = None
 
         if package_type == "section":
-            if isinstance(target_id, int):
+            if target_type == "sphere" and isinstance(target_id, int):
+                resolved_target_id = target_id
+            elif target_type == "section" and isinstance(target_id, int):
+                sec_row = sb.structure_service.get_section_by_id(target_id) if hasattr(sb, "structure_service") else None
+                resolved_target_id = sec_row.get("sphere_id") if sec_row else None
+            elif target_type == "category" and isinstance(target_id, int):
+                hier = sb.get_category_hierarchy(target_id) if hasattr(sb, "get_category_hierarchy") else None
+                resolved_target_id = hier.get("sphere_id") if hier else None
+            elif isinstance(target_id, int):
                 resolved_target_id = target_id
             else:
+                resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
+            if resolved_target_id is None:
                 resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
             if isinstance(resolved_target_id, int):
                 target_sphere_for_switch = resolved_target_id

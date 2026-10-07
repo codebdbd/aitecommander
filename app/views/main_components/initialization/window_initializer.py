@@ -571,6 +571,23 @@ class WindowInitializer:
 
         """
         try:
+            # Ensure Windows file associations and package icons (.aitesec, .aitecat) are registered
+            def _register_associations_task() -> None:
+                try:
+                    from app.services.file_association_service import FileAssociationService
+
+                    if (
+                        FileAssociationService.is_supported()
+                        and not FileAssociationService.is_registered()
+                    ):
+                        FileAssociationService.register_associations()
+                except Exception:
+                    logger.debug(
+                        "Automatic file associations registration failed", exc_info=True
+                    )
+
+            QTimer.singleShot(1500, _register_associations_task)
+
             # Schedule background orphaned icons cleanup 5 seconds after startup
             def _task() -> None:
                 try:

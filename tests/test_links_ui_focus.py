@@ -98,11 +98,11 @@ class TestLinksUiFocus(unittest.TestCase):
             controller.get_link_at = Mock(return_value={"id": 201})
             
             # Trigger rebuild_row_index
-            with patch('PyQt6.QtCore.QTimer.singleShot') as mock_timer:
-                controller.rebuild_row_index()
-                self.assertEqual(controller._row_by_link_id, {201: 0})
-                self.assertIsNone(controller._pending_focus_link_ids)
-                mock_timer.assert_called_once()
+            controller.focus_on_links = Mock()
+            controller.rebuild_row_index()
+            self.assertEqual(controller._row_by_link_id, {201: 0})
+            self.assertIsNone(controller._pending_focus_link_ids)
+            controller.focus_on_links.assert_called_with([201])
 
     def test_quick_look_navigation_sets_current_name_cell(self):
         table_widget = Mock()

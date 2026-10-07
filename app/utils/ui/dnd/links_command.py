@@ -9,6 +9,7 @@ from PyQt6.QtCore import QItemSelectionModel
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
 from app.utils.common import get_value
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
+from app.controllers.ui.undo.base import BaseCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
 
 if TYPE_CHECKING:
@@ -362,3 +363,37 @@ class MoveLinksCommand(BaseBulkCommand):
             )
         except Exception as e:
             logger.debug("Failed to schedule focus on link %s: %s", link_id, e)
+
+
+class ReorderLinksCommand(BaseCommand):
+    """Command for reordering links within their category with Undo/Redo."""
+
+    def __init__(
+        self, category_id: int, new_order: list[int], main_window: object
+    ) -> None:
+        super().__init__("Reorder links", main_window)
+        self.category_id = int(category_id)
+        self.new_order = [int(x) for x in new_order]
+        self.main = main_window
+        self._first_redo = True
+
+        lb = getattr(self.main, "links_business", None)
+        current_links = lb.get_links(self.category_id) or [] if lb else []
+        self.old_order = [int(l["id"]) for l in current_links if l.get("id")]
+
+    def redo(self) -> None:
+        lb = getattr(self.main, "links_business", None)
+        if self._first_redo:
+            self._first_redo = False
+            if lb:
+                lb.update_link_order(self.new_order)
+            return
+        if lb:
+            lb.update_link_order(self.new_order)
+        _reload_links_via_controller(self.main, {self.category_id})
+
+    def undo(self) -> None:
+        lb = getattr(self.main, "links_business", None)
+        if lb:
+            lb.update_link_order(self.old_order)
+        _reload_links_via_controller(self.main, {self.category_id})
