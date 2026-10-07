@@ -309,17 +309,30 @@ class TopBarBuilder:
 
             # Responsive folding controller for Favorites block
             class _ResponsiveTopBarFilter(QObject):
-                def __init__(self, fav_adapt, host_w):
+                def __init__(self, fav_adapt, host_w, adapters, btn_sz, sep_sp, left_w):
                     super().__init__(host_w)
                     self._fav = fav_adapt
                     self._host = host_w
+                    self._adapters = adapters
+                    self._btn_sz = btn_sz
+                    self._sep_sp = sep_sp
+                    self._left_w = left_w
+
+                def _calc_needed(self) -> int:
+                    fav_k = len(self._fav.get_items())
+                    fav_w = fav_k * self._btn_sz
+                    others_w = sum(
+                        len(a.actions) * self._btn_sz
+                        for a in self._adapters
+                    )
+                    search_min = app_config.ui.get_top_panel_search_min_width()
+                    theme_btns_w = 3 * self._btn_sz  # light + dark + settings
+                    sep_total = 2 * self._sep_sp     # separators around search
+                    return self._left_w + others_w + fav_w + search_min + theme_btns_w + sep_total
 
                 def eventFilter(self, watched, event):
                     if event.type() == QEvent.Type.Resize:
-                        items = self._fav.get_items()
-                        k = len(items)
-                        expanded_fav_w = k * 34 + max(0, k - 1) * 4
-                        needed_w = 323 + 27 + 220 + 110 + expanded_fav_w
+                        needed_w = self._calc_needed()
                         w = self._host.width()
                         if self._fav.is_folded():
                             if w >= needed_w + 20:
@@ -329,7 +342,17 @@ class TopBarBuilder:
                                 self._fav.set_folded(True)
                     return False
 
-            top_bar_filter = _ResponsiveTopBarFilter(fav_adapter, top_bar_host)
+            _btn_sz = int(app_config.ui.get_top_panel_button_size())
+            _sep_sp = int(app_config.ui.get_topbar_separator_spacing())
+            _left_w = app_config.ui.get_splitter_sizes()[0]
+            top_bar_filter = _ResponsiveTopBarFilter(
+                fav_adapter,
+                top_bar_host,
+                [structure_adapter, quick_adapter, tools_adapter, recent_adapter],
+                _btn_sz,
+                _sep_sp,
+                _left_w,
+            )
             top_bar_host.installEventFilter(top_bar_filter)
             self.window._top_bar_responsive_filter = top_bar_filter
 
