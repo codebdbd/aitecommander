@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
-import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+import threading
+import time
 from typing import Any
 
 from app.config_data import app_config
@@ -134,7 +135,15 @@ class TopBarSnapshotStore:
                     json.dumps(payload, ensure_ascii=False),
                     encoding="utf-8",
                 )
-                tmp_path.replace(path)
+                for attempt in range(3):
+                    try:
+                        tmp_path.replace(path)
+                        break
+                    except OSError:
+                        if attempt == 2:
+                            raise
+                        time.sleep(0.025)
+
                 logger.debug(
                     "TopBarSnapshotStore: saved snapshot (%s favorites, %s recents)",
                     len(snapshot.favorites),

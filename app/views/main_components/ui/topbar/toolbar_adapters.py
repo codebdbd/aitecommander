@@ -126,6 +126,22 @@ def _resolve_theme(category_provider: Any | None = None) -> str:
     return theme or "light"
 
 
+def _format_link_rich_tooltip(link_data: dict[str, Any]) -> str:
+    """Format rich HTML tooltip for a link button/action with target, category, and timestamp."""
+    name = link_data.get("name") or "Unknown"
+    tooltip_parts = [f"<b>{name}</b>"]
+    target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
+    if target_path:
+        tooltip_parts.append(f"📍 {target_path}")
+    category_name = link_data.get("category_name") or link_data.get("category")
+    if category_name:
+        tooltip_parts.append(f"📁 {category_name}")
+    last_opened = link_data.get("last_opened_at") or link_data.get("last_opened")
+    if last_opened:
+        tooltip_parts.append(f"🕐 {last_opened}")
+    return "<br/>".join(tooltip_parts)
+
+
 class ToolbarSeparatorController:
     def __init__(
         self,
@@ -314,13 +330,16 @@ class ToolbarActionAdapter(QObject):
                 new_last = button
                 break
 
-        previous_last = getattr(self._toolbar, "_global_last_button", None)
+        previous_last = self._toolbar.property("_global_last_button")
+        if not isinstance(previous_last, QToolButton):
+            previous_last = getattr(self._toolbar, "_global_last_button", None)
         if previous_last is new_last:
             return
         if previous_last is not None:
             self._set_button_last(previous_last, False)
         if new_last is not None:
             self._set_button_last(new_last, True)
+        self._toolbar.setProperty("_global_last_button", new_last)
         self._toolbar._global_last_button = new_last
 
     def set_actions_visible(self, visible: bool) -> None:
@@ -699,19 +718,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
     def refresh_actions(self) -> None:
         """Refresh quick-add action icon in place."""
         if hasattr(self, "_main_action") and self._actions:
-            theme = None
-            if self._category_provider is not None:
-                if hasattr(self._category_provider, "settings") and hasattr(
-                    self._category_provider.settings, "get_theme"
-                ):
-                    theme = self._category_provider.settings.get_theme()
-            if not theme:
-                try:
-                    from app.utils.ui.icon.path_service import get_current_theme
-
-                    theme = get_current_theme()
-                except Exception:
-                    theme = "light"
+            theme = _resolve_theme(self._category_provider)
 
             from app.utils.ui.menu_builders.base import get_menu_icon
 
@@ -757,26 +764,7 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
             if code not in ordered_codes:
                 ordered_codes.append(code)
 
-        theme = None
-        if self._category_provider is not None:
-            if hasattr(self._category_provider, "settings") and hasattr(
-                self._category_provider.settings, "get_theme"
-            ):
-                theme = self._category_provider.settings.get_theme()
-        if not theme:
-            try:
-                from app.core.settings_manager import SettingsManager
-
-                theme = SettingsManager.get("theme.name")
-            except Exception:
-                pass
-        if not theme:
-            try:
-                from app.utils.ui.icon.path_service import get_current_theme
-
-                theme = get_current_theme()
-            except Exception:
-                theme = "light"
+        theme = _resolve_theme(self._category_provider)
 
         from app.utils.ui.menu_builders.base import get_menu_icon
 
@@ -831,16 +819,12 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         provider = self._category_provider
         if provider is None:
             return None
-        if hasattr(provider, "get_current_category_id"):
+        target = provider if hasattr(provider, "get_current_category_id") else getattr(provider, "facade", None)
+        if target is not None and hasattr(target, "get_current_category_id"):
             try:
-                return provider.get_current_category_id()
+                return target.get_current_category_id()
             except (RuntimeError, AttributeError, TypeError, ValueError):
                 logger.debug("QuickAddToolbar: failed to get current category", exc_info=True)
-        if hasattr(provider, "facade") and provider.facade:
-            try:
-                return provider.facade.get_current_category_id()
-            except (RuntimeError, AttributeError, TypeError, ValueError):
-                logger.debug("QuickAddToolbar: facade category lookup failed", exc_info=True)
         return None
 
 
@@ -901,19 +885,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
                 else _icon_from_path(Path(""), link_type=link_type)
             )
             action = QAction(icon, name, self._toolbar)
-
-            tooltip_parts = [f"<b>{name}</b>"]
-            target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
-            if target_path:
-                tooltip_parts.append(f"📍 {target_path}")
-            category_name = link_data.get("category_name") or link_data.get("category")
-            if category_name:
-                tooltip_parts.append(f"📁 {category_name}")
-            last_opened = link_data.get("last_opened_at") or link_data.get("last_opened")
-            if last_opened:
-                tooltip_parts.append(f"🕐 {last_opened}")
-            action.setToolTip("<br/>".join(tooltip_parts))
-
+            action.setToolTip(_format_link_rich_tooltip(link_data))
             action.setData(link_data)
             action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
             self._link_actions.append(action)
@@ -1094,27 +1066,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
         self._rebuild_menu()
 
     def _resolve_theme(self) -> str:
-        theme = None
-        if self._category_provider is not None:
-            if hasattr(self._category_provider, "settings") and hasattr(
-                self._category_provider.settings, "get_theme"
-            ):
-                theme = self._category_provider.settings.get_theme()
-        if not theme:
-            try:
-                from app.core.settings_manager import SettingsManager
-
-                theme = SettingsManager.get("theme.name")
-            except Exception:
-                pass
-        if not theme:
-            try:
-                from app.utils.ui.icon.path_service import get_current_theme
-
-                theme = get_current_theme()
-            except Exception:
-                theme = "light"
-        return theme or "light"
+        return _resolve_theme(self._category_provider)
 
     def refresh_actions(self) -> None:
         """Refresh favorites button icon in place without destroying toolbar buttons."""
@@ -1188,16 +1140,7 @@ class FavoritesToolbarAdapter(ToolbarActionAdapter):
                     else _icon_from_path(Path(""), link_type=link_type)
                 )
                 action = QAction(icon, name, menu)
-
-                tooltip_parts = [f"<b>{name}</b>"]
-                target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
-                if target_path:
-                    tooltip_parts.append(f"📍 {target_path}")
-                category_name = link_data.get("category_name") or link_data.get("category")
-                if category_name:
-                    tooltip_parts.append(f"📁 {category_name}")
-                action.setToolTip("<br/>".join(tooltip_parts))
-
+                action.setToolTip(_format_link_rich_tooltip(link_data))
                 action.setData(link_data)
                 action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
                 menu.addAction(action)
@@ -1263,27 +1206,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         self._rebuild_menu()
 
     def _resolve_theme(self) -> str:
-        theme = None
-        if self._category_provider is not None:
-            if hasattr(self._category_provider, "settings") and hasattr(
-                self._category_provider.settings, "get_theme"
-            ):
-                theme = self._category_provider.settings.get_theme()
-        if not theme:
-            try:
-                from app.core.settings_manager import SettingsManager
-
-                theme = SettingsManager.get("theme.name")
-            except Exception:
-                pass
-        if not theme:
-            try:
-                from app.utils.ui.icon.path_service import get_current_theme
-
-                theme = get_current_theme()
-            except Exception:
-                theme = "light"
-        return theme or "light"
+        return _resolve_theme(self._category_provider)
 
     def refresh_actions(self) -> None:
         """Refresh history button icon in place without destroying toolbar buttons."""
@@ -1352,19 +1275,7 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
                     else _icon_from_path(Path(""), link_type=link_type)
                 )
                 action = QAction(icon, name, menu)
-
-                tooltip_parts = [f"<b>{name}</b>"]
-                target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
-                if target_path:
-                    tooltip_parts.append(f"📍 {target_path}")
-                category_name = link_data.get("category_name") or link_data.get("category")
-                if category_name:
-                    tooltip_parts.append(f"📁 {category_name}")
-                last_opened = link_data.get("last_opened_at") or link_data.get("last_opened")
-                if last_opened:
-                    tooltip_parts.append(f"🕐 {last_opened}")
-                action.setToolTip("<br/>".join(tooltip_parts))
-
+                action.setToolTip(_format_link_rich_tooltip(link_data))
                 action.setData(link_data)
                 action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
                 menu.addAction(action)

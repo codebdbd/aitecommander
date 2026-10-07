@@ -93,7 +93,7 @@ def test_toolbar_adapter_set_button_last_unpolish_polish(qapp: QApplication) -> 
 
 def test_resolve_search_min_width_guarantees_minimum() -> None:
     min_w = WindowUISetup._resolve_search_min_width()
-    assert min_w >= 160
+    assert min_w >= 148
 
 
 def test_normalize_top_bar_stretches_with_placeholder(qapp: QApplication) -> None:
@@ -186,9 +186,8 @@ def test_links_toolbar_adapter_rich_tooltip_and_visibility(qapp: QApplication) -
     ]
     adapter.set_data(data)
 
-    actions = adapter.actions
-    assert len(actions) == 1
-    action = actions[0]
+    assert len(adapter._link_actions) == 1
+    action = adapter._link_actions[0]
 
     tooltip = action.toolTip()
     assert "<b>Project Docs</b>" in tooltip

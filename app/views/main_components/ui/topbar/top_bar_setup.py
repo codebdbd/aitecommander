@@ -34,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_SPACING: int = 4
 _DEFAULT_BUTTON_SIZE: int = 32
+_DEFAULT_SIDE_SPACING: int = 6
+_THEME_SELECTOR_BUTTONS_COUNT: int = 3  # light + dark + settings
+_RESPONSIVE_HYSTERESIS_PX: int = 20
+_DEFAULT_LEFT_PANEL_WIDTH: int = 323  # Contract §55 323px Left Panel
+_MAX_SIZE_POLICY = getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed)
 
 
 class _StageTimer:
@@ -55,13 +60,7 @@ class TopBarToolBar(QToolBar):
     """QToolBar subclass that vertically centres the Qt extension (overflow) button."""
 
     def __init__(self, parent: QWidget | None = None, button_height: int = _DEFAULT_BUTTON_SIZE) -> None:
-        if isinstance(parent, QWidget):
-            super().__init__(parent)
-        else:
-            try:
-                super().__init__(parent)
-            except TypeError:
-                super().__init__()
+        super().__init__(parent)
         self._button_height = max(1, int(button_height))
         try:
             if self.layout() is not None:
@@ -108,10 +107,56 @@ class TopBarToolBar(QToolBar):
 
             geo = btn.geometry()
             target_y = max(0, (self.height() - self._button_height) // 2)
-            if geo.y() != target_y or geo.height() != self._button_height:
-                btn.setGeometry(geo.x(), target_y, geo.width(), self._button_height)
+            if (
+                geo.y() != target_y
+                or geo.height() != self._button_height
+                or geo.width() != self._button_height
+            ):
+                btn.setGeometry(geo.x(), target_y, self._button_height, self._button_height)
         except (RuntimeError, AttributeError):
             pass
+
+
+class _ResponsiveTopBarFilter(QObject):
+    """Event filter that monitors top-bar host resize events and auto-folds/unfolds favorites."""
+
+    def __init__(
+        self,
+        fav_adapter: Any,
+        host_w: QWidget,
+        adapters: list[Any],
+        btn_sz: int,
+        sep_sp: int,
+        left_w: int,
+    ) -> None:
+        super().__init__(host_w)
+        self._fav = fav_adapter
+        self._host = host_w
+        self._adapters = adapters
+        self._btn_sz = btn_sz
+        self._sep_sp = sep_sp
+        self._left_w = left_w
+
+    def _calc_needed(self) -> int:
+        fav_k = len(self._fav.get_items())
+        fav_w = fav_k * self._btn_sz
+        others_w = sum(len(a.actions) * self._btn_sz for a in self._adapters)
+        search_min = app_config.ui.get_top_panel_search_min_width()
+        theme_btns_w = _THEME_SELECTOR_BUTTONS_COUNT * self._btn_sz
+        sep_total = 2 * self._sep_sp
+        return self._left_w + others_w + fav_w + search_min + theme_btns_w + sep_total
+
+    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
+        if event is not None and event.type() == QEvent.Type.Resize:
+            needed_w = self._calc_needed()
+            w = self._host.width()
+            if self._fav.is_folded():
+                if w >= needed_w + _RESPONSIVE_HYSTERESIS_PX:
+                    self._fav.set_folded(False)
+            else:
+                if w < needed_w - _RESPONSIVE_HYSTERESIS_PX:
+                    self._fav.set_folded(True)
+        return False
 
 
 class TopBarBuilder:
@@ -190,8 +235,8 @@ class TopBarBuilder:
             try:
                 side = int(app_config.ui.get_top_bar_widgets_side_spacing())
             except (TypeError, ValueError):
-                side = 6
-                logger.warning("TopPanel: invalid side spacing in config; using default 8")
+                side = _DEFAULT_SIDE_SPACING
+                logger.warning("TopPanel: invalid side spacing in config; using default %d", _DEFAULT_SIDE_SPACING)
             top_bar.setContentsMargins(4, 0, side, 0)
             top_bar.setSpacing(0)
             top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -219,7 +264,7 @@ class TopBarBuilder:
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             toolbar.setSizePolicy(
-                getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                _MAX_SIZE_POLICY,
                 QSizePolicy.Policy.Fixed,
             )
             try:
@@ -307,44 +352,14 @@ class TopBarBuilder:
             self.main_layout.addWidget(top_bar_host)
             self.window.top_bar_host = top_bar_host
 
-            # Responsive folding controller for Favorites block
-            class _ResponsiveTopBarFilter(QObject):
-                def __init__(self, fav_adapt, host_w, adapters, btn_sz, sep_sp, left_w):
-                    super().__init__(host_w)
-                    self._fav = fav_adapt
-                    self._host = host_w
-                    self._adapters = adapters
-                    self._btn_sz = btn_sz
-                    self._sep_sp = sep_sp
-                    self._left_w = left_w
-
-                def _calc_needed(self) -> int:
-                    fav_k = len(self._fav.get_items())
-                    fav_w = fav_k * self._btn_sz
-                    others_w = sum(
-                        len(a.actions) * self._btn_sz
-                        for a in self._adapters
-                    )
-                    search_min = app_config.ui.get_top_panel_search_min_width()
-                    theme_btns_w = 3 * self._btn_sz  # light + dark + settings
-                    sep_total = 2 * self._sep_sp     # separators around search
-                    return self._left_w + others_w + fav_w + search_min + theme_btns_w + sep_total
-
-                def eventFilter(self, watched, event):
-                    if event.type() == QEvent.Type.Resize:
-                        needed_w = self._calc_needed()
-                        w = self._host.width()
-                        if self._fav.is_folded():
-                            if w >= needed_w + 20:
-                                self._fav.set_folded(False)
-                        else:
-                            if w < needed_w - 20:
-                                self._fav.set_folded(True)
-                    return False
-
             _btn_sz = int(app_config.ui.get_top_panel_button_size())
             _sep_sp = int(app_config.ui.get_topbar_separator_spacing())
-            _left_w = app_config.ui.get_splitter_sizes()[0]
+            _splitter_sizes = app_config.ui.get_splitter_sizes()
+            _left_w = (
+                int(_splitter_sizes[0])
+                if isinstance(_splitter_sizes, (list, tuple)) and _splitter_sizes
+                else _DEFAULT_LEFT_PANEL_WIDTH
+            )
             top_bar_filter = _ResponsiveTopBarFilter(
                 fav_adapter,
                 top_bar_host,
@@ -379,7 +394,7 @@ class TopBarBuilder:
             try:
                 theme_container.setFixedHeight(int(app_config.ui.get_top_bar_height()))
                 theme_container.setSizePolicy(
-                    getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed),
+                    _MAX_SIZE_POLICY,
                     QSizePolicy.Policy.Fixed,
                 )
             except (TypeError, ValueError, AttributeError):
