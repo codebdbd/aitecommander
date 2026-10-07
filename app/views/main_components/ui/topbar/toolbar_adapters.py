@@ -1013,6 +1013,12 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
             self._link_actions.append(action)
             self._add_action(action)
+            btn = self._toolbar.widgetForAction(action)
+            if isinstance(btn, QToolButton) and self._group_name == "fav":
+                btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+                btn.customContextMenuRequested.connect(
+                    lambda pos, b=btn, data=link_data: self._show_context_menu(b.mapToGlobal(pos), data)
+                )
 
         if self._group_name == "fav":
             self._setup_more_action(fast_icons=fast_icons)
@@ -1023,6 +1029,37 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         if self._separator_controller is not None:
             count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
             self._separator_controller.set_group_count(self._group_name, count)
+
+    def _show_context_menu(self, global_pos: QPoint, link_data: dict[str, Any]) -> None:
+        menu = QMenu(self._toolbar)
+        theme = _resolve_theme()
+        from app.utils.ui.menu_builders.base import get_menu_icon
+
+        edit_icon = get_menu_icon("edit", theme)
+        if not edit_icon or edit_icon.isNull():
+            edit_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "edit.svg")
+        edit_text = QCoreApplication.translate("MenuActions", "Edit")
+        edit_action = QAction(edit_icon, edit_text, menu)
+        edit_action.triggered.connect(
+            lambda checked=False, d=link_data: self.actionRequested.emit(
+                {"type": "edit_link", "link": d}
+            )
+        )
+        menu.addAction(edit_action)
+
+        del_icon = get_menu_icon("delete_favorites", theme)
+        if not del_icon or del_icon.isNull():
+            del_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "delete_favorites.svg")
+        del_text = QCoreApplication.translate("MenuActions", "Remove from favorites")
+        del_action = QAction(del_icon, del_text, menu)
+        del_action.triggered.connect(
+            lambda checked=False, d=link_data: self.actionRequested.emit(
+                {"type": "remove_favorite", "link": d}
+            )
+        )
+        menu.addAction(del_action)
+
+        menu.exec(global_pos)
 
     def _setup_more_action(self, *, fast_icons: bool = False) -> None:
         from app.utils.ui.menu_builders.base import get_menu_icon

@@ -227,7 +227,9 @@ class LinksActions:
         - type: str — action type.
             - "open_link": open link from panel.
             - "quick_add": quickly add link of specified type.
-        - link: dict | None — link (for type == "open_link").
+            - "edit_link": open link edit dialog.
+            - "remove_favorite": toggle favorite status off for link.
+        - link: dict | None — link (for type in ("open_link", "edit_link", "remove_favorite")).
         - link_type: str | None — quick link type (for type == "quick_add").
         - category_id: int | None — target category (optional; if not specified,
           current category via LinksUIController is used).
@@ -235,6 +237,8 @@ class LinksActions:
         Behavior:
         - open_link: delegates to self.open_link(link).
         - quick_add: delegates to LinksUIController.quick_add_link(link_type, category_id).
+        - edit_link: delegates to self.show_link_dialog(link).
+        - remove_favorite: delegates to self.toggle_link_favorite(link).
         """
         if not isinstance(action_data, dict):
             return
@@ -244,6 +248,16 @@ class LinksActions:
             link = action_data.get("link")
             if link:
                 self.open_link(link)
+        elif action_type == "edit_link":
+            link = action_data.get("link")
+            if link:
+                result = self.show_link_dialog(link=link)
+                if result and hasattr(self.main, "update_statusbar"):
+                    self.main.update_statusbar()
+        elif action_type == "remove_favorite":
+            link = action_data.get("link")
+            if link:
+                self.toggle_link_favorite(link=link)
         elif action_type == "quick_add":
             # Delegate to LinksUIController for unified behavior
             link_type = action_data.get("link_type")
