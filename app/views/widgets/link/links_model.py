@@ -68,9 +68,7 @@ def get_rotation_icon(size: int = 16, *, is_selected: bool = False) -> QIcon | N
             return cached
 
         from pathlib import Path
-        from PyQt6.QtCore import QRectF, Qt
-        from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
-        from PyQt6.QtSvg import QSvgRenderer
+        from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon
 
         svg_path = (
             Path(__file__).resolve().parents[3]
@@ -82,29 +80,9 @@ def get_rotation_icon(size: int = 16, *, is_selected: bool = False) -> QIcon | N
         if not svg_path.exists():
             return None
 
-        renderer = QSvgRenderer(str(svg_path))
-        if not renderer.isValid():
+        icon = _create_tinted_svg_icon(str(svg_path), color_hex)
+        if icon.isNull():
             return None
-
-        sz = size
-        inner = max(12, sz - 2)
-        pix = QPixmap(sz, sz)
-        pix.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pix)
-        offset = (sz - inner) / 2.0
-        renderer.render(p, QRectF(offset, offset, inner, inner))
-        p.end()
-
-        tinted = QPixmap(sz, sz)
-        tinted.fill(Qt.GlobalColor.transparent)
-        tp = QPainter(tinted)
-        tp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        tp.drawPixmap(0, 0, pix)
-        tp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
-        tp.fillRect(tinted.rect(), QColor(color_hex))
-        tp.end()
-
-        icon = QIcon(tinted)
         _ROTATION_ICON_CACHE[cache_key] = icon
         return icon
     except Exception:

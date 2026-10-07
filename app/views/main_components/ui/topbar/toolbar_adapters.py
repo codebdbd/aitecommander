@@ -1,15 +1,12 @@
 """Toolbar adapters for top-bar actions with overflow support."""
 from __future__ import annotations
 
-import functools
 import logging
 from pathlib import Path
-import re
 from typing import Any
 
-from PyQt6.QtCore import QByteArray, QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QColor, QIcon, QPixmap
 from PyQt6.QtWidgets import QMenu, QSizePolicy, QToolBar, QToolButton, QWidget, QWidgetAction
 
 from app.config_data.runtime_config import runtime_app_config
@@ -64,98 +61,6 @@ def _icon_from_path(
         return QIcon()
 
 
-@functools.lru_cache(maxsize=64)
-def _contrast_icon_from_path(
-    path: Path,
-    contrast_color: str = "#FFFFFF",
-) -> QIcon:
-    try:
-        raw_svg = path.read_text(encoding="utf-8")
-        tinted = re.sub(r'stroke="(?!none")[^"]*"', f'stroke="{contrast_color}"', raw_svg)
-        tinted = re.sub(r'fill="(?!none")[^"]*"', f'fill="{contrast_color}"', tinted)
-        if "fill=" not in tinted and "stroke=" not in tinted:
-            tinted = raw_svg.replace("<svg ", f'<svg fill="{contrast_color}" ')
-        renderer = QSvgRenderer(QByteArray(tinted.encode("utf-8")))
-        if not renderer.isValid():
-            return QIcon()
-        icon = QIcon()
-        for sz in (16, 20, 24, 32, 48):
-            pm = QPixmap(sz, sz)
-            pm.fill(Qt.GlobalColor.transparent)
-            p = QPainter(pm)
-            renderer.render(p)
-            p.end()
-            icon.addPixmap(pm)
-        return icon
-    except Exception:
-        return QIcon()
-
-
-def _get_theme_contrast_color(theme_name: str | None = None) -> str:
-    try:
-        from app.services.theme_registry import theme_registry
-        tokens = theme_registry.get_theme_tokens(theme_name or "")
-        return tokens.get("selection_fg", "#FFFFFF")
-    except Exception:
-        return "#FFFFFF"
-
-
-def _get_topbar_button_icons(
-    svg_filename: str,
-    theme_name: str | None = None,
-) -> tuple[QIcon, QIcon]:
-    from app.services.theme_registry import theme_registry
-    from app.utils.ui.icon.path_service import get_current_theme
-
-    cur_theme = theme_name or get_current_theme()
-    tokens = theme_registry.get_theme_tokens(cur_theme)
-    rest_color = tokens.get("text_secondary", "#8B949E")
-    hover_color = tokens.get("text_primary", "#FFFFFF")
-
-    svg_path = icon_path_service.get_ui_icons_dir() / "base" / svg_filename
-    rest_icon = _contrast_icon_from_path(svg_path, rest_color)
-    hover_icon = _contrast_icon_from_path(svg_path, hover_color)
-    return rest_icon, hover_icon
-
-
-class TopBarButtonHoverFilter(QObject):
-    """Event filter to handle button hover while preserving normal icon and enabling menu hover switching."""
-
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        t = event.type()
-        if t == QEvent.Type.Enter:
-            if isinstance(obj, QToolButton):
-                active = TopBarMenu._active_menu
-                if (
-                    active is not None
-                    and active.isVisible()
-                    and getattr(active, "_target_button", None) is not obj
-                ):
-                    btn_menu = obj.menu() or (
-                        obj.defaultAction().menu()
-                        if hasattr(obj, "defaultAction") and obj.defaultAction()
-                        else None
-                    )
-                    if btn_menu is not None:
-                        active.close()
-                        obj.showMenu()
-                hover_icon = getattr(obj, "_hover_icon", None)
-                if hover_icon and not hover_icon.isNull():
-                    obj.setIcon(hover_icon)
-        elif t == QEvent.Type.Leave:
-            if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                rest_icon = getattr(obj, "_rest_icon", None)
-                if rest_icon and not rest_icon.isNull():
-                    obj.setIcon(rest_icon)
-        elif t == QEvent.Type.MouseButtonRelease:
-            if isinstance(obj, QToolButton) and not bool(obj.property("menu_active")):
-                if not obj.underMouse():
-                    rest_icon = getattr(obj, "_rest_icon", None)
-                    if rest_icon and not rest_icon.isNull():
-                        obj.setIcon(rest_icon)
-        elif t == QEvent.Type.ContextMenu:
-            return True
-        return False
 
 
 def _setup_topbar_button_contrast(

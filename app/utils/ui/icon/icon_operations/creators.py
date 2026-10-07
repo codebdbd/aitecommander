@@ -9,8 +9,8 @@ import time
 import re
 from pathlib import Path
 
-from PyQt6.QtCore import QByteArray, QSize, Qt, QThread
-from PyQt6.QtGui import QIcon, QPainter, QPixmap
+from PyQt6.QtCore import QByteArray, QRect, QRectF, QSize, Qt, QThread
+from PyQt6.QtGui import QIcon, QIconEngine, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
@@ -96,6 +96,66 @@ def _create_svg_icon_fast(svg_path: str, size: int) -> QIcon:
 # === SVG ICON CREATION ===
 
 
+class TintedSvgIconEngine(QIconEngine):
+    """Vector-native high-DPI icon engine rendering tinted SVG directly."""
+
+    def __init__(self, svg_bytes: bytes) -> None:
+        super().__init__()
+        self._svg_bytes = svg_bytes
+        self._renderer = QSvgRenderer(QByteArray(svg_bytes))
+
+    def paint(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        mode: QIcon.Mode,
+        state: QIcon.State,
+    ) -> None:
+        if not self._renderer.isValid():
+            return
+        rect_f = QRectF(
+            float(rect.x()),
+            float(rect.y()),
+            float(rect.width()),
+            float(rect.height()),
+        )
+        if mode == QIcon.Mode.Disabled:
+            prev_opacity = painter.opacity()
+            painter.setOpacity(prev_opacity * 0.38)
+            self._renderer.render(painter, rect_f)
+            painter.setOpacity(prev_opacity)
+        else:
+            self._renderer.render(painter, rect_f)
+
+    def actualSize(
+        self, size: QSize, mode: QIcon.Mode, state: QIcon.State
+    ) -> QSize:
+        return size
+
+    def pixmap(
+        self, size: QSize, mode: QIcon.Mode, state: QIcon.State
+    ) -> QPixmap:
+        app = QApplication.instance()
+        dpr = 1.0
+        if app:
+            screen = app.primaryScreen()
+            if screen:
+                dpr = screen.devicePixelRatio()
+        w = max(1, int(size.width() * dpr))
+        h = max(1, int(size.height() * dpr))
+        pm = QPixmap(w, h)
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self.paint(p, QRect(0, 0, size.width(), size.height()), mode, state)
+        p.end()
+        return pm
+
+    def clone(self) -> QIconEngine:
+        return TintedSvgIconEngine(self._svg_bytes)
+
+
 def _create_tinted_svg_icon(svg_path: str, color_hex: str) -> QIcon:
     """Create high-DPI QIcon from SVG file tinted with the theme color."""
     try:
@@ -104,18 +164,11 @@ def _create_tinted_svg_icon(svg_path: str, color_hex: str) -> QIcon:
         tinted = re.sub(r'fill="(?!none")[^"]*"', f'fill="{color_hex}"', tinted)
         if 'fill=' not in tinted and 'stroke=' not in tinted:
             tinted = raw_svg.replace("<svg ", f'<svg fill="{color_hex}" ')
-        renderer = QSvgRenderer(QByteArray(tinted.encode("utf-8")))
+        svg_bytes = tinted.encode("utf-8")
+        renderer = QSvgRenderer(QByteArray(svg_bytes))
         if not renderer.isValid():
             return _create_svg_icon(svg_path)
-        icon = QIcon()
-        for sz in (16, 24, 32, 48, 64):
-            pm = QPixmap(sz, sz)
-            pm.fill(Qt.GlobalColor.transparent)
-            p = QPainter(pm)
-            renderer.render(p)
-            p.end()
-            icon.addPixmap(pm)
-        return icon
+        return QIcon(TintedSvgIconEngine(svg_bytes))
     except Exception as exc:
         logger.debug("Failed to tint SVG icon %s: %s", svg_path, exc)
         return _create_svg_icon(svg_path)
