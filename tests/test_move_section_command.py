@@ -236,7 +236,14 @@ class TestSpheresBarControllerSectionDrops(unittest.TestCase):
 
     def test_multiple_section_drop_uses_single_batch_command(self):
         window = Mock()
-        window.structure_business = Mock()
+        sb = Mock()
+        sb.get_sections.return_value = []
+        sb.get_section_data.side_effect = lambda sid: {
+            "id": sid,
+            "sphere_id": 1,
+            "name": f"Section {sid}",
+        }
+        window.structure_business = sb
         window.structure = Mock()
         window.sphere_group = Mock()
         window.spheres_bar = Mock()

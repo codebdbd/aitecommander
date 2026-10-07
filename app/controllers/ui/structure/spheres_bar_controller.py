@@ -239,16 +239,17 @@ class SpheresBarController(QObject):
             if not sb:
                 return
 
-            target_sections = sb.get_sections(int(target_sphere_id)) or []
+            raw_sections = sb.get_sections(int(target_sphere_id))
+            target_sections = [s for s in raw_sections if isinstance(s, dict)] if isinstance(raw_sections, (list, tuple)) else []
             existing_names = [str(s.get("name", "")) for s in target_sections]
 
             conflicts: list[int] = []
             for sid in clean_ids:
                 s_data = sb.get_section_data(sid)
-                if not s_data or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
+                if not isinstance(s_data, dict) or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
                     continue
                 name = str(s_data.get("name", "")).strip()
-                if any(str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid for s in target_sections):
+                if any(isinstance(s, dict) and str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid for s in target_sections):
                     conflicts.append(sid)
 
             from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
@@ -260,11 +261,11 @@ class SpheresBarController(QObject):
 
             for sid in clean_ids:
                 s_data = sb.get_section_data(sid)
-                if not s_data or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
+                if not isinstance(s_data, dict) or int(s_data.get("sphere_id", -1)) == int(target_sphere_id):
                     continue
                 name = str(s_data.get("name", "")).strip()
                 colliding = next(
-                    (s for s in target_sections if str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid),
+                    (s for s in target_sections if isinstance(s, dict) and str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid),
                     None,
                 )
                 if colliding is not None:

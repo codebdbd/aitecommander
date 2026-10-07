@@ -15,6 +15,7 @@ from app.utils.ui.dnd.commands import (
 from app.utils.ui.dnd.commands import MoveCategoryCommand as LegacyMoveCategoryCommand
 from app.utils.ui.dnd.commands import MoveLinksCommand as LegacyMoveLinksCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
+from app.utils.ui.dnd.section_command import MergeSectionToSphereCommand
 
 
 class TestDndMoveCommands(unittest.TestCase):
@@ -219,6 +220,39 @@ class TestDndMoveCommands(unittest.TestCase):
         main.structure.selection_handler._restore_category_selection.assert_called_once_with(
             10, target_section_id=100
         )
+
+    def test_merge_section_to_sphere_command_refresh_ui_redo(self) -> None:
+        main = self._build_main_with_structure()
+        sb = Mock()
+        sb.current_sphere_id = 1
+        main.structure_business = sb
+        structure_ctrl = Mock()
+        main.structure = structure_ctrl
+
+        cmd = MergeSectionToSphereCommand(10, 20, main)
+        cmd._target_sphere_id = 1
+        cmd._source_sphere_id = 2
+
+        self.assertEqual(cmd.source_id, 10)
+        self.assertEqual(cmd.target_id, 20)
+
+        cmd._refresh_ui(cmd._target_sphere_id, cmd.target_id)
+        structure_ctrl.load.assert_called_once_with(item_to_select=("section", 20))
+
+    def test_merge_section_to_sphere_command_refresh_ui_undo(self) -> None:
+        main = self._build_main_with_structure()
+        sb = Mock()
+        sb.current_sphere_id = 1
+        main.structure_business = sb
+        structure_ctrl = Mock()
+        main.structure = structure_ctrl
+
+        cmd = MergeSectionToSphereCommand(10, 20, main)
+        cmd._target_sphere_id = 1
+        cmd._source_sphere_id = 2
+
+        cmd._refresh_ui(cmd._source_sphere_id, cmd.source_id)
+        structure_ctrl.switch_sphere.assert_called_once_with(2, item_to_select=("section", 10))
 
 
 if __name__ == "__main__":

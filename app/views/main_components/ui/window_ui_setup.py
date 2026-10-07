@@ -82,61 +82,9 @@ def safe_ui_operation(
     return decorator
 
 
-@dataclass(frozen=True)
-class PanelPlaceholderCalculator:
-    button_size: int
-    spacing: int
-    baseline_items: int
-    min_search_width: int
-    padding: int
-    min_panel_width: int
-
-    def width(self) -> int:
-        count = max(1, self.baseline_items)
-        items_width = self.button_size * count
-        spacing_width = self.spacing * (count - 1) if count > 1 else 0
-        min_required = max(self.min_panel_width * 2, int(self.min_search_width * 0.5))
-        return max(items_width + spacing_width + self.padding, min_required)
-
-    @classmethod
-    def from_mode(cls, mode: str) -> PanelPlaceholderCalculator:
-        try:
-            button_size = int(app_config.ui.get_top_panel_button_size())
-        except (TypeError, ValueError):
-            button_size = app_config.ui.get_topbar_button_size()
-
-        try:
-            spacing = int(app_config.ui.get_top_bar_buttons_spacing())
-        except (TypeError, ValueError):
-            spacing = int(app_config.ui.get_top_bar_buttons_spacing())
-
-        baseline_items = {
-            "favorites": max(3, app_config.ui.get_topbar_min_visible_fav() or 3),
-            "recent": max(3, app_config.ui.get_topbar_min_visible_recent() or 3),
-        }.get(mode, 3)
-
-        min_search_width = WindowUISetup._resolve_search_min_width()
-
-        padding = app_config.ui.get_topbar_panel_padding()
-        min_panel_width = app_config.ui.get_topbar_min_panel_width()
-        return cls(
-            button_size=button_size,
-            spacing=spacing,
-            baseline_items=baseline_items,
-            min_search_width=min_search_width,
-            padding=padding,
-            min_panel_width=min_panel_width,
-        )
-
 # lupdate hint for dynamic placeholder text
 if False:  # pragma: no cover
     QCoreApplication.translate("WindowUISetup", WindowStrings.SEARCH_PLACEHOLDER)
-
-
-class PanelMode(str, Enum):
-    QUICK = "quick"
-    FAVORITES = "favorites"
-    RECENT = "recent"
 
 
 @dataclass(frozen=True)
@@ -502,10 +450,6 @@ class WindowUISetup:
 
         TopBarBuilder(self).build()
 
-    def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
-        """Build top bar widgets."""
-        self.setup_top_bar_widgets(top_bar)
-
     def _create_top_bar_host(
         self, container_parent: QWidget, top_bar: QHBoxLayout
     ) -> QWidget:
@@ -520,15 +464,11 @@ class WindowUISetup:
         return top_bar_host
 
     def _init_and_schedule_topbar_manager(self) -> None:
-        self.window._topbar_manager = None
-        mgr = None
         try:
             if hasattr(self.window, "shown"):
-                self.window.shown.connect(
-                    partial(self._schedule_topbar_initialization, mgr)
-                )
+                self.window.shown.connect(self._schedule_topbar_initialization)
             else:
-                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, partial(self._schedule_topbar_initialization, mgr))
+                QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, self._schedule_topbar_initialization)
         except Exception:
             logger.debug(
                 "TopPanel: failed to schedule topbar initialization", exc_info=True
@@ -619,48 +559,11 @@ class WindowUISetup:
             self._topbar_snapshot_applied = True
         return applied, snapshot
 
-    def _schedule_topbar_initialization(
-        self, mgr: object | None
-    ) -> None:
+    def _schedule_topbar_initialization(self) -> None:
         if getattr(self.window, "_topbar_initialized", False):
             return
         self.window._topbar_initialized = True
-        QTimer.singleShot(UIConstants.IMMEDIATE_TIMER, partial(self._finalize_topbar_startup, mgr))
-
-    def _prepare_initial_topbar_layout(self, mgr: object | None) -> None:
-        """Initialize static topbar layout before data arrives."""
-        if mgr is None:
-            return
-        try:
-            mgr.prepare_initial_layout()  # type: ignore[attr-defined]
-        except (RuntimeError, AttributeError):
-            logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
-        except Exception:
-            logger.debug("TopPanel: initial layout setup failed", exc_info=True)
-
-    def _load_and_apply_snapshot(
-        self, controller
-    ) -> tuple[bool, TopBarSnapshot | None]:
-        """Load cached snapshot and apply it via controller or widgets."""
-        return self._prefill_topbar_from_snapshot(controller)
-
-    def _connect_topbar_data_signal(
-        self, controller, mgr: object | None
-    ) -> None:
-        """Wire controller data-loaded signal to layout manager readiness."""
-        if mgr is None:
-            return
-        if controller and hasattr(controller, "data_loaded"):
-            try:
-                from PyQt6.QtCore import Qt
-
-                controller.data_loaded.connect(
-                    mgr.mark_data_ready,  # type: ignore[attr-defined]
-                    Qt.ConnectionType.SingleShotConnection,
-                )
-                logger.debug("TopPanel: connected to data_loaded signal")
-            except Exception as e:
-                logger.warning(f"TopPanel: failed to connect data_loaded: {e}")
+        self._finalize_topbar_startup()
 
     def _trigger_topbar_refresh(self, controller, delay_ms: int | None = None) -> None:
         """Trigger async refresh of controller-managed panels."""
@@ -687,21 +590,10 @@ class WindowUISetup:
                 len(snapshot.recents),
             )
 
-    def _finalize_topbar_startup(self, mgr: object | None) -> None:
-        self._prepare_initial_topbar_layout(mgr)
-
+    def _finalize_topbar_startup(self) -> None:
         controller = _get_top_panels_controller(self.window)
-
-        snapshot_loaded, snapshot = self._load_and_apply_snapshot(controller)
-        self._connect_topbar_data_signal(controller, mgr)
-        refresh_delay = 0
-        self._trigger_topbar_refresh(controller, delay_ms=refresh_delay)
-
-        if mgr is not None:
-            try:
-                mgr.mark_data_ready()  # type: ignore[attr-defined]
-            except Exception:
-                logger.debug("TopPanel: immediate mark_data_ready failed", exc_info=True)
+        snapshot_loaded, snapshot = self._prefill_topbar_from_snapshot(controller)
+        self._trigger_topbar_refresh(controller, delay_ms=0)
 
         self._log_snapshot_info(snapshot_loaded, snapshot)
 
@@ -830,96 +722,6 @@ class WindowUISetup:
             btn_h = app_config.ui.get_topbar_button_size()
         return max(search_h, btn_h)
 
-    def _compute_panel_placeholder_width(self, mode: str) -> int:
-        """Estimate placeholder width for data-driven panels."""
-        if mode == "quick":
-            # Quick panel has static content immediately; no placeholder needed.
-            return 0
-
-        calculator = PanelPlaceholderCalculator.from_mode(mode)
-        return calculator.width()
-
-    def _configure_panel_widget(
-        self,
-        widget,
-        object_name: str | None,
-        log_label: str,
-        mode: str,
-    ) -> None:
-        if object_name:
-            widget.setObjectName(object_name)
-        widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-
-        fixed_h = self._get_panel_height()
-        try:
-            widget.setFixedHeight(fixed_h)
-        except Exception:
-            logger.debug(f"TopPanel: failed to set height on {log_label}", exc_info=True)
-
-        placeholder_width = self._compute_panel_placeholder_width(mode)
-        if placeholder_width > 0:
-            try:
-                widget._placeholder_min_width = placeholder_width
-                widget.setMinimumWidth(placeholder_width)
-            except Exception:
-                logger.debug(
-                    f"TopPanel: failed to configure placeholder width on {log_label}",
-                    exc_info=True,
-                )
-
-    @safe_ui_operation("TopPanel: failed to adjust spacing", exc=(Exception,))
-    def _adjust_panel_spacing(self, widget, log_label: str) -> None:
-        lay = getattr(widget, "panel_layout", None)
-        if lay is not None and hasattr(lay, "spacing") and hasattr(lay, "setSpacing"):
-            cur = int(lay.spacing())
-            # Slightly tighten spacing for a denser look
-            adjust = app_config.ui.get_topbar_panel_spacing_adjustment()
-            lay.setSpacing(max(0, cur + adjust))
-
-    def _create_top_panel_widget(
-        self,
-        top_bar: QHBoxLayout,
-        mode: str,
-        attr_name: str,
-        object_name: str | None,
-        log_label: str,
-    ) -> None:
-        try:
-            widget = self._create_widget_by_mode(mode)
-            self._configure_panel_widget(widget, object_name, log_label, mode)
-            setattr(self.window, attr_name, widget)
-            top_bar.addWidget(widget)
-            self._adjust_panel_spacing(widget, log_label)
-        except Exception:
-            setattr(self.window, attr_name, None)
-            logger.exception(f"TopPanel: failed to create {log_label} widget")
-
-    def setup_top_bar_widgets(self, top_bar: QHBoxLayout) -> None:
-        widgets_params = [
-            ("quick", "quick_add_widget", None, "QuickAdd"),
-            ("favorites", "fav_widget", "favoritesWidget", "Favorites"),
-            ("recent", "recent_links_widget", "recentLinksWidget", "Recent"),
-        ]
-        for idx, (mode, attr_name, obj_name, label) in enumerate(widgets_params):
-            self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
-            
-            if idx < len(widgets_params) - 1:
-                try:
-                    top_bar.addSpacing(app_config.ui.get_topbar_separator_spacing())
-                    top_bar.addWidget(self._create_vertical_separator())
-                    top_bar.addSpacing(app_config.ui.get_topbar_separator_spacing())
-                except Exception:
-                    logger.debug("TopPanel: failed to insert separator", exc_info=True)
-
-        try:
-            top_bar.addSpacing(app_config.ui.get_topbar_separator_spacing())
-            top_bar.addWidget(self._create_vertical_separator())
-            top_bar.addSpacing(app_config.ui.get_topbar_separator_spacing())
-        except Exception:
-            logger.debug("TopPanel: failed to insert separator before search", exc_info=True)
-
-        self.setup_search_widget(top_bar)
-
     @safe_ui_operation("TopPanel: failed to create vertical separator", exc=(Exception,))
     def _create_vertical_separator(self) -> QWidget:
         sep = QWidget(self.window)
@@ -944,7 +746,7 @@ class WindowUISetup:
         search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         try:
-            search.setMinimumWidth(80)
+            search.setMinimumWidth(self._resolve_search_min_width())
         except Exception:
             logger.debug("SearchWidget: failed to set min width", exc_info=True)
 

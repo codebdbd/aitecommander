@@ -16,6 +16,8 @@ class _BusinessStub:
         self.select_section = Mock()
         self.suspend_structure_preload = Mock()
         self.resume_structure_preload = Mock()
+        self.current_sphere_id = 3
+        self.set_current_sphere = Mock()
 
     def current_structure_mutation_generation(self) -> int:
         return self._generation

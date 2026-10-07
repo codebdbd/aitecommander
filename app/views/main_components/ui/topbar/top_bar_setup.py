@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QToolBar, QToolButton, QWi
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.main_components.ui.topbar.toolbar_adapters import (
-    FavoritesToolbarAdapter,
     LinksToolbarAdapter,
     QuickAddToolbarAdapter,
     RecentHistoryToolbarAdapter,

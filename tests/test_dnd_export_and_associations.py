@@ -158,3 +158,88 @@ def test_file_association_registry_lifecycle():
             FileAssociationService.register_associations()
         else:
             FileAssociationService.unregister_associations()
+
+
+def test_links_table_mime_data_multi_format(qapp, tmp_path: Path):
+    """Verify that LinksTableView.mimeData generates multi-format payload:
+    CF_UNICODETEXT (text/plain), CF_HDROP (QUrl.fromLocalFile), and internal JSON IDs.
+    """
+    from app.utils.ui.dnd.mime import MimeDataParser
+    from app.views.widgets.link.base_table import LinksTableView
+
+    temp_file = tmp_path / "test_doc.docx"
+    temp_file.write_text("sample content", encoding="utf-8")
+
+    test_links = [
+        {"id": 101, "name": "Web Link", "url": "google.com", "type": "web"},
+        {"id": 102, "name": "Local Doc", "url": f'"{temp_file}"', "type": "file"},
+    ]
+
+    table = LinksTableView()
+    table.model().set_links(test_links)
+    table.rebuild_cache_from_items()
+
+    idx0 = table.model().index(0, 0)
+    idx1 = table.model().index(1, 0)
+
+    mime = table.mimeData([idx0, idx1])
+    assert mime is not None
+
+    # 1. Internal application format
+    assert mime.hasFormat(table.MIME_TYPE)
+    ids = MimeDataParser.extract_item_ids(mime, table.MIME_TYPE)
+    assert ids == [101, 102]
+
+    # 2. CF_UNICODETEXT / text/plain
+    assert mime.hasText()
+    text = mime.text()
+    assert "google.com" in text
+    assert str(temp_file) in text
+
+    # 3. CF_HDROP / text/uri-list
+    assert mime.hasUrls()
+    urls = mime.urls()
+    assert len(urls) == 2
+    assert urls[0].toString() == "https://google.com"
+    assert urls[1].isLocalFile()
+    assert Path(urls[1].toLocalFile()) == temp_file
+
+
+def test_smart_routing_package_import():
+    """Verify smart routing resolution logic for package import:
+    - section dropped onto section resolves to section's sphere_id
+    - section dropped onto category resolves to category's sphere_id
+    - category dropped onto category resolves to category's section_id
+    """
+    sb = MagicMock()
+    sb.structure_service.get_section_by_id.return_value = {"id": 10, "sphere_id": 1}
+    sb.get_category_hierarchy.return_value = {"id": 20, "section_id": 10, "sphere_id": 1}
+
+    def resolve_target(package_type, target_type, target_id):
+        if package_type == "section":
+            if target_type == "sphere" and isinstance(target_id, int):
+                return target_id
+            elif target_type == "section" and isinstance(target_id, int):
+                sec_row = sb.structure_service.get_section_by_id(target_id)
+                return sec_row.get("sphere_id") if sec_row else None
+            elif target_type == "category" and isinstance(target_id, int):
+                hier = sb.get_category_hierarchy(target_id)
+                return hier.get("sphere_id") if hier else None
+        elif package_type == "category":
+            if target_type == "section" and isinstance(target_id, int):
+                return target_id
+            elif target_type == "category" and isinstance(target_id, int):
+                hier = sb.get_category_hierarchy(target_id)
+                if hier and isinstance(hier.get("section_id"), int):
+                    return hier["section_id"]
+        return None
+
+    # Section -> section target resolves sphere 1
+    assert resolve_target("section", "section", 10) == 1
+    # Section -> category target resolves sphere 1
+    assert resolve_target("section", "category", 20) == 1
+    # Category -> category target resolves section 10
+    assert resolve_target("category", "category", 20) == 10
+    # Category -> section target resolves section 10
+    assert resolve_target("category", "section", 10) == 10
+

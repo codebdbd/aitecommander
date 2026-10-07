@@ -2045,11 +2045,18 @@ class DeleteSectionsCmd(BaseCommand):
             )
             ui_phase_started = time.perf_counter()
             business = self._resolve_business()
+            structure_ctrl = getattr(self.main, "structure", None)
+            selection_handler = getattr(structure_ctrl, "selection_handler", None)
+            tree_manager = getattr(structure_ctrl, "tree_manager", None)
 
             source_sphere_id = next(iter(self._touched_spheres), None)
             if source_sphere_id is None and restored_payloads:
                 source_sphere_id = restored_payloads[0].get("sphere_id")
-            current_sphere_id = business.get_current_sphere_id() if business else None
+            current_sphere_id = (
+                getattr(business, "current_sphere_id", None)
+                if hasattr(business, "current_sphere_id")
+                else (business.get_current_sphere_id() if hasattr(business, "get_current_sphere_id") else None)
+            )
             if business is not None and source_sphere_id is not None and current_sphere_id != int(source_sphere_id):
                 try:
                     business._invalidate_structure_cache()
@@ -2065,7 +2072,8 @@ class DeleteSectionsCmd(BaseCommand):
                     first_id = restored_payloads[0].get("id")
                     if isinstance(first_id, int) and tree_manager is not None and hasattr(tree_manager, "set_pending_selection"):
                         tree_manager.set_pending_selection("section", int(first_id))
-                business.set_current_sphere(int(source_sphere_id))
+                if hasattr(business, "set_current_sphere"):
+                    business.set_current_sphere(int(source_sphere_id))
                 return
 
             restore_update_ms = 0.0

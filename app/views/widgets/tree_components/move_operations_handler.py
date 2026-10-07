@@ -366,39 +366,47 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Undo stack not found for batch move of categories")
             return False
 
-        for cid, target_cat_id in planned_merges:
-            undo_stack.push(
-                MergeCategoriesCommand(cid, target_cat_id, main_win)
-            )
-
         to_move_ids = planned_moves
-        if to_move_ids:
-            undo_stack.push(
-                MoveCategoriesCommand(
+        if not planned_merges and not to_move_ids:
+            return False
+
+        macro_needed = (len(planned_merges) + (1 if to_move_ids else 0)) > 1
+        if macro_needed:
+            undo_stack.beginMacro(self.tr("Move categories"))
+        try:
+            for cid, target_cat_id in planned_merges:
+                undo_stack.push(
+                    MergeCategoriesCommand(cid, target_cat_id, main_win)
+                )
+
+            if to_move_ids:
+                undo_stack.push(
+                    MoveCategoriesCommand(
+                        to_move_ids,
+                        new_section_id,
+                        base_row,
+                        main_win,
+                        name_overrides=planned_renames,
+                    )
+                )
+                logger.info(
+                    "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
                     to_move_ids,
                     new_section_id,
                     base_row,
-                    main_win,
-                    name_overrides=planned_renames,
                 )
-            )
-            logger.info(
-                "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
-                to_move_ids,
-                new_section_id,
-                base_row,
-            )
-            return True
-        elif planned_merges:
-            facade = getattr(main_win, "_facade", None)
-            if facade and hasattr(facade, "refresh_structure_after_import"):
-                facade.refresh_structure_after_import(sb, new_section_id)
-            else:
-                try:
-                    sb.section_selected.emit(int(new_section_id))
-                except Exception:
-                    pass
-            return True
+            elif planned_merges:
+                facade = getattr(main_win, "_facade", None)
+                if facade and hasattr(facade, "refresh_structure_after_import"):
+                    facade.refresh_structure_after_import(sb, new_section_id)
+                else:
+                    try:
+                        sb.section_selected.emit(int(new_section_id))
+                    except Exception:
+                        pass
+        finally:
+            if macro_needed:
+                undo_stack.endMacro()
 
         return True
 

@@ -976,7 +976,13 @@ class ActionController(QObject):
                         if new_name:
                             name_overrides[int(cid)] = str(new_name)
 
-            undo_stack.beginMacro(self.tr("Paste categories"))
+            if not planned_merges and not planned_moves:
+                self.cancel_cut()
+                return
+
+            macro_needed = (len(planned_merges) + (1 if planned_moves else 0)) > 1
+            if macro_needed:
+                undo_stack.beginMacro(self.tr("Paste categories"))
             try:
                 for cid, tgt_id in planned_merges:
                     undo_stack.push(MergeCategoriesCommand(cid, tgt_id, self.main_window))
@@ -991,7 +997,8 @@ class ActionController(QObject):
                         )
                     )
             finally:
-                undo_stack.endMacro()
+                if macro_needed:
+                    undo_stack.endMacro()
             self.cancel_cut()
             return
 
@@ -1052,7 +1059,13 @@ class ActionController(QObject):
                         new_name = (t.get("section") or {}).get("name")
                         if new_name:
                             name_overrides[int(sid)] = str(new_name)
-            undo_stack.beginMacro(self.tr("Paste sections"))
+            if not planned_merges and not planned_moves:
+                self.cancel_cut()
+                return
+
+            macro_needed = (len(planned_merges) + (1 if planned_moves else 0)) > 1
+            if macro_needed:
+                undo_stack.beginMacro(self.tr("Paste sections"))
             try:
                 for sid, tgt_id in planned_merges:
                     undo_stack.push(
@@ -1068,7 +1081,8 @@ class ActionController(QObject):
                         )
                     )
             finally:
-                undo_stack.endMacro()
+                if macro_needed:
+                    undo_stack.endMacro()
             self.cancel_cut()
             return
 

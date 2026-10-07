@@ -1527,7 +1527,7 @@ class LinksTableView(
                 if (
                     os.path.exists(clean_url)
                     or clean_url.startswith(("\\\\", "/"))
-                    or (len(clean_url) > 2 and clean_url[1] == ":")
+                    or (len(clean_url) > 2 and clean_url[0].isalpha() and clean_url[1] == ":" and "://" not in clean_url)
                 ):
                     qurls.append(QUrl.fromLocalFile(clean_url))
                 else:

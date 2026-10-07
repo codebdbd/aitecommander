@@ -868,8 +868,6 @@ class MainWindow(QMainWindow, ReTranslatable):
                 resolved_target_id = hier.get("sphere_id") if hier else None
             elif isinstance(target_id, int):
                 resolved_target_id = target_id
-            else:
-                resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
             if resolved_target_id is None:
                 resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
             if isinstance(resolved_target_id, int):
@@ -892,7 +890,7 @@ class MainWindow(QMainWindow, ReTranslatable):
                 except Exception:
                     pass
 
-        if not resolved_target_id:
+        if resolved_target_id is None:
             return False
 
         try:
