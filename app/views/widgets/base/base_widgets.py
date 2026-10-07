@@ -423,7 +423,8 @@ class BaseDragDropTableWidget(QTableView):
 
         # Force move behavior
         try:
-            drag.exec(Qt.DropAction.MoveAction)
+            actions = Qt.DropAction.CopyAction | Qt.DropAction.MoveAction | Qt.DropAction.LinkAction
+            drag.exec(actions)
         except Exception:
             drag.exec(supportedActions)
 

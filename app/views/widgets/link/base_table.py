@@ -3,16 +3,20 @@
 
 import html
 import logging
+import os
+from urllib.parse import urlparse
 
 from PyQt6.QtCore import (
     QEvent,
     QItemSelectionModel,
+    QMimeData,
     QModelIndex,
     QPoint,
     QPointF,
     QRect,
     QSize,
     Qt,
+    QUrl,
     pyqtProperty,
     pyqtSignal,
 )
@@ -1500,6 +1504,46 @@ class LinksTableView(
         super().keyPressEvent(event)
 
     # Override abstract methods from ``BaseDragDropTableWidget``
+    def mimeData(self, items):
+        """Create MIME data with internal link IDs and standard URL/text formats."""
+        mime_data = super().mimeData(items)
+        if mime_data is None:
+            return None
+        try:
+            rows = sorted({idx.row() for idx in items if idx and idx.isValid()})
+            if not rows:
+                return mime_data
+            urls_text: list[str] = []
+            qurls: list[QUrl] = []
+            for row in rows:
+                link_data = self.get_link_at(row)
+                if not link_data:
+                    continue
+                raw_url = str(link_data.get("url") or "").strip()
+                if not raw_url:
+                    continue
+                clean_url = raw_url.strip('"\'')
+                urls_text.append(clean_url)
+                if (
+                    os.path.exists(clean_url)
+                    or clean_url.startswith(("\\\\", "/"))
+                    or (len(clean_url) > 2 and clean_url[1] == ":")
+                ):
+                    qurls.append(QUrl.fromLocalFile(clean_url))
+                else:
+                    parsed = urlparse(clean_url)
+                    if not parsed.scheme:
+                        qurls.append(QUrl(f"https://{clean_url}"))
+                    else:
+                        qurls.append(QUrl(clean_url))
+            if urls_text:
+                mime_data.setText("\n".join(urls_text))
+            if qurls:
+                mime_data.setUrls(qurls)
+        except Exception as exc:
+            logger.warning("[LinksTableView] Failed to populate external MIME formats: %s", exc)
+        return mime_data
+
     def _extract_item_ids_from_items(self, items):
         """Extract link IDs from selected items."""
         # Delegate to ``DragDropHandlerMixin`` implementation
