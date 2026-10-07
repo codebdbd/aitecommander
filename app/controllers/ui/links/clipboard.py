@@ -80,9 +80,10 @@ class LinksUIClipboard(BaseLinksUIComponent):
             cut_ids = list(self._cut_link_ids)
             existing = self.business.get_links(current_category_id) or []
             existing_links = [dict(r) for r in existing]
-            existing_keys = {
-                (str(l.get("url", "")), str(l.get("type", "")), str(l.get("args", "")), str(l.get("name", "")))
+            existing_by_name = {
+                str(l.get("name", "")).strip().lower(): dict(l)
                 for l in existing_links
+                if str(l.get("name", "")).strip()
             }
             existing_names = [str(l.get("name", "")) for l in existing_links]
             name_overrides: dict[int, str] = {}
@@ -93,16 +94,23 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 cid for cid in cut_ids
                 if (
                     ld := ((links_service.get_link_by_id(cid) if links_service else {}) or {}),
-                    (str(ld.get("url", "")), str(ld.get("type", "")), str(ld.get("args", "")), str(ld.get("name", ""))) in existing_keys
+                    str(ld.get("name", "")).strip().lower() in existing_by_name
                 )[1]
             ]
             from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
-            session = ConflictResolutionSession(self.main, operation="move", total_conflicts=len(conflicts))
+            session = ConflictResolutionSession(self.main, operation="paste", total_conflicts=len(conflicts))
             for cid in cut_ids:
                 link_data = (links_service.get_link_by_id(cid) if links_service else {}) or {}
-                key = (str(link_data.get("url", "")), str(link_data.get("type", "")), str(link_data.get("args", "")), str(link_data.get("name", "")))
-                if key in existing_keys:
-                    action, copy_name = session.resolve("link", str(link_data.get("name", "")), existing_names)
+                c_name = str(link_data.get("name", "")).strip()
+                if c_name.lower() in existing_by_name:
+                    target_match = existing_by_name[c_name.lower()]
+                    action, copy_name = session.resolve(
+                        "link",
+                        c_name,
+                        existing_names,
+                        existing_info=target_match,
+                        incoming_info=link_data,
+                    )
                     if action == "cancel":
                         return
                     if action == "skip":
@@ -111,7 +119,6 @@ class LinksUIClipboard(BaseLinksUIComponent):
                         name_overrides[cid] = copy_name
                         existing_names.append(copy_name)
                     elif action == "merge":
-                        target_match = next((l for l in existing_links if (str(l.get("url", "")), str(l.get("type", "")), str(l.get("args", "")), str(l.get("name", ""))) == key), None)
                         if target_match and target_match.get("id"):
                             replacements[cid] = int(target_match["id"])
                 to_move_ids.append(cid)
@@ -260,89 +267,53 @@ class LinksUIClipboard(BaseLinksUIComponent):
     def _filter_duplicates_optimized(
         self, links: list[dict], existing_links: list[dict], category_id: int
     ) -> list[dict]:
-        """Optimized duplicate filtering using set for O(n) complexity."""
-        # Create set of existing keys for fast lookup
-        existing_keys = set()
-        for link in existing_links:
-            link_dict = dict(link) if not isinstance(link, dict) else link
-            key = (
-                link_dict.get("url", ""),
-                link_dict.get("type", ""),
-                link_dict.get("args", ""),
-                link_dict.get(
-                    "name", ""
-                ),  # Учитываем name, как в UNIQUE(category_id,name,url,args)
-            )
-            existing_keys.add(key)
+        """Optimized duplicate filtering with conflict resolution."""
+        existing_by_name = {
+            str(l.get("name", "")).strip().lower(): dict(l)
+            for l in existing_links
+            if str(l.get("name", "")).strip()
+        }
+        existing_names = [str(l.get("name", "")) for l in existing_links]
 
         new_links = []
-        filtered_count = 0
         conflict_count = sum(
             1 for l in links
-            if (
-                l.get("url", ""),
-                l.get("type", ""),
-                l.get("args", ""),
-                l.get("name", ""),
-            ) in existing_keys
+            if str(l.get("name", "")).strip().lower() in existing_by_name
         )
         from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
-        session = ConflictResolutionSession(self.main, operation="copy", total_conflicts=conflict_count)
+        session = ConflictResolutionSession(self.main, operation="paste", total_conflicts=conflict_count)
 
         for link in links:
             new_data = self._prepare_link_data(link, category_id)
-            candidate_key = (
-                new_data.get("url", ""),
-                new_data.get("type", ""),
-                new_data.get("args", ""),
-                new_data.get("name", ""),
-            )
+            c_name = str(new_data.get("name", "")).strip()
 
-            if candidate_key in existing_keys:
-                existing_names = [l.get("name", "") for l in existing_links] + [l.get("name", "") for l in new_links]
-                action, copy_name = session.resolve("link", new_data.get("name", ""), existing_names)
+            if c_name.lower() in existing_by_name:
+                matching_link = existing_by_name[c_name.lower()]
+                action, copy_name = session.resolve(
+                    "link",
+                    c_name,
+                    existing_names,
+                    existing_info=matching_link,
+                    incoming_info=new_data,
+                )
                 if action == "cancel":
                     return []
                 if action == "skip":
                     continue
                 if action == "copy":
                     new_data["name"] = copy_name
+                    existing_names.append(copy_name)
+                    existing_by_name[copy_name.strip().lower()] = new_data
                 elif action == "merge":
-                    matching_link = next(
-                        (
-                            l
-                            for l in existing_links
-                            if (
-                                l.get("url", ""),
-                                l.get("type", ""),
-                                l.get("args", ""),
-                                l.get("name", ""),
-                            )
-                            == candidate_key
-                        ),
-                        None,
-                    )
                     if matching_link and matching_link.get("id"):
                         new_data["id"] = matching_link["id"]
                         new_data["_old_link_snapshot"] = dict(matching_link)
-                candidate_key = (
-                    new_data.get("url", ""),
-                    new_data.get("type", ""),
-                    new_data.get("args", ""),
-                    new_data.get("name", ""),
-                )
+            else:
+                if c_name:
+                    existing_names.append(c_name)
+                    existing_by_name[c_name.lower()] = new_data
             new_links.append(new_data)
-            existing_keys.add(candidate_key)
 
-
-
-
-        if filtered_count:
-            logger.info(
-                "[Paste] Filtered duplicates: %s out of %s by key (url,type,args,name)",
-                filtered_count,
-                len(links),
-            )
         return new_links
 
     def _is_duplicate(self, candidate: dict, links: list[dict]) -> bool:

@@ -1390,12 +1390,18 @@ class ImportConflictDialog(BaseDialog):
         parent: QWidget | None = None,
         operation: str = "import",
         has_multiple: bool = False,
+        existing_info: dict | None = None,
+        incoming_info: dict | None = None,
     ) -> None:
         self._entity_type = entity_type
         self._name = name
         self._copy_name = copy_name
         self._operation = operation
         self._has_multiple = has_multiple
+        self._existing_info = existing_info or {}
+        self._incoming_info = incoming_info or {}
+        self._lbl_diff_existing_title: QLabel | None = None
+        self._lbl_diff_incoming_title: QLabel | None = None
         self._info_label: QLabel | None = None
         self._question_label: QLabel | None = None
         self._radio_merge: QRadioButton | None = None
@@ -1423,10 +1429,41 @@ class ImportConflictDialog(BaseDialog):
         font.setPointSize(font.pointSize() + 1)
         font.setBold(True)
         self._info_label.setFont(font)
+        self._info_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._info_label.setWordWrap(True)
         vbox.addWidget(self._info_label)
 
+        existing_url = str(self._existing_info.get("url") or "").strip()
+        incoming_url = str(self._incoming_info.get("url") or "").strip()
+        if existing_url or incoming_url:
+            diff_card = QFrame()
+            diff_card.setObjectName("ConflictDiffCard")
+            diff_card.setStyleSheet(
+                "QFrame#ConflictDiffCard {"
+                "  background: rgba(128, 128, 128, 0.08);"
+                "  border: 1px solid rgba(128, 128, 128, 0.2);"
+                "  border-radius: 6px;"
+                "  padding: 8px;"
+                "}"
+            )
+            diff_layout = QFormLayout(diff_card)
+            diff_layout.setContentsMargins(10, 8, 10, 8)
+            diff_layout.setHorizontalSpacing(10)
+            diff_layout.setVerticalSpacing(4)
+            self._lbl_diff_existing_title = QLabel()
+            self._lbl_diff_existing_title.setStyleSheet("font-weight: bold; opacity: 0.8;")
+            lbl_existing_val = QLabel(existing_url or "—")
+            lbl_existing_val.setWordWrap(True)
+            self._lbl_diff_incoming_title = QLabel()
+            self._lbl_diff_incoming_title.setStyleSheet("font-weight: bold; opacity: 0.8;")
+            lbl_incoming_val = QLabel(incoming_url or "—")
+            lbl_incoming_val.setWordWrap(True)
+            diff_layout.addRow(self._lbl_diff_existing_title, lbl_existing_val)
+            diff_layout.addRow(self._lbl_diff_incoming_title, lbl_incoming_val)
+            vbox.addWidget(diff_card)
+
         self._question_label = QLabel()
+        self._question_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._question_label.setWordWrap(True)
         vbox.addWidget(self._question_label)
 
@@ -1436,16 +1473,19 @@ class ImportConflictDialog(BaseDialog):
         self._radio_merge.setChecked(True)
         self._merge_desc = QLabel()
         self._merge_desc.setWordWrap(True)
+        self._merge_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._merge_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
 
         self._radio_copy = QRadioButton()
         self._copy_desc = QLabel()
         self._copy_desc.setWordWrap(True)
+        self._copy_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._copy_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
 
         self._radio_skip = QRadioButton()
         self._skip_desc = QLabel()
         self._skip_desc.setWordWrap(True)
+        self._skip_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._skip_desc.setStyleSheet("opacity: 0.75; margin-left: 22px;")
 
         options_layout.addWidget(self._radio_merge)
@@ -1463,6 +1503,7 @@ class ImportConflictDialog(BaseDialog):
             self._cb_apply_to_all.setChecked(True)
             vbox.addWidget(self._cb_apply_to_all)
 
+        vbox.addStretch(1)
         vbox.addSpacing(6)
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -1487,6 +1528,7 @@ class ImportConflictDialog(BaseDialog):
         op_titles = {
             "move": QCoreApplication.translate("ImportConflictDialog", "Move"),
             "copy": QCoreApplication.translate("ImportConflictDialog", "Copy"),
+            "paste": QCoreApplication.translate("ImportConflictDialog", "Paste"),
             "import": QCoreApplication.translate("ImportConflictDialog", "Import"),
         }
         self.setWindowTitle(op_titles.get(self._operation, op_titles["import"]))
@@ -1501,13 +1543,13 @@ class ImportConflictDialog(BaseDialog):
             merge_title = QCoreApplication.translate("ImportConflictDialog", "Merge contents")
             merge_desc = QCoreApplication.translate(
                 "ImportConflictDialog",
-                "Move all items into the existing section without overwriting.",
+                "Add missing items into the existing section without creating duplicates.",
             )
             copy_title = QCoreApplication.translate(
-                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+                "ImportConflictDialog", "Create separate section «{name}»"
             ).format(name=self._copy_name)
             copy_desc = QCoreApplication.translate(
-                "ImportConflictDialog", "Save alongside under a unique name."
+                "ImportConflictDialog", "Create a duplicate alongside with a suffix in the name."
             )
             skip_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Do not modify existing section and leave original unchanged."
@@ -1523,10 +1565,10 @@ class ImportConflictDialog(BaseDialog):
                 "Update the existing link with new parameters.",
             )
             copy_title = QCoreApplication.translate(
-                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+                "ImportConflictDialog", "Create separate link «{name}»"
             ).format(name=self._copy_name)
             copy_desc = QCoreApplication.translate(
-                "ImportConflictDialog", "Save alongside under a unique name."
+                "ImportConflictDialog", "Create a duplicate link alongside."
             )
             skip_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Do not modify existing link and leave original unchanged."
@@ -1539,13 +1581,13 @@ class ImportConflictDialog(BaseDialog):
             merge_title = QCoreApplication.translate("ImportConflictDialog", "Merge contents")
             merge_desc = QCoreApplication.translate(
                 "ImportConflictDialog",
-                "Move all items into the existing category without overwriting.",
+                "Add missing items into the existing category without creating duplicates.",
             )
             copy_title = QCoreApplication.translate(
-                "ImportConflictDialog", "Keep both (create copy «{name}»)"
+                "ImportConflictDialog", "Create separate category «{name}»"
             ).format(name=self._copy_name)
             copy_desc = QCoreApplication.translate(
-                "ImportConflictDialog", "Save alongside under a unique name."
+                "ImportConflictDialog", "Create a duplicate alongside with a suffix in the name."
             )
             skip_desc = QCoreApplication.translate(
                 "ImportConflictDialog", "Do not modify existing category and leave original unchanged."
@@ -1563,10 +1605,17 @@ class ImportConflictDialog(BaseDialog):
         if self._radio_skip is not None and self._skip_desc is not None:
             self._radio_skip.setText(QCoreApplication.translate("ImportConflictDialog", "Skip"))
             self._skip_desc.setText(skip_desc)
-
         if self._cb_apply_to_all is not None:
             self._cb_apply_to_all.setText(
                 self.tr("Apply to all conflicts")
+            )
+        if self._lbl_diff_existing_title is not None:
+            self._lbl_diff_existing_title.setText(
+                QCoreApplication.translate("ImportConflictDialog", "Existing:")
+            )
+        if self._lbl_diff_incoming_title is not None:
+            self._lbl_diff_incoming_title.setText(
+                QCoreApplication.translate("ImportConflictDialog", "Incoming:")
             )
 
         if self._button_box is not None:

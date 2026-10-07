@@ -824,7 +824,7 @@ class ActionController(QObject):
 
         session = ConflictResolutionSession(
             self.main_window,
-            operation=("move" if is_cut else "copy"),
+            operation="paste",
             total_conflicts=conflict_count,
         )
         existing_names_set = set(existing_names)
@@ -891,7 +891,7 @@ class ActionController(QObject):
 
         session = ConflictResolutionSession(
             self.main_window,
-            operation=("move" if is_cut else "copy"),
+            operation="paste",
             total_conflicts=conflict_count,
         )
         existing_names_set = set(existing_names)

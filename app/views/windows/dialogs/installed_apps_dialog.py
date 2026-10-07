@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QFileInfo, QRect, QSize, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFileIconProvider,
@@ -102,9 +102,10 @@ class _AppsLoaderThread(QThread):
     icon_ready = pyqtSignal(int, object)
     all_done = pyqtSignal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, force_refresh: bool = False, parent=None) -> None:
         super().__init__(parent)
         self._is_cancelled = False
+        self._force_refresh = force_refresh
 
     def cancel(self) -> None:
         self._is_cancelled = True
@@ -112,13 +113,16 @@ class _AppsLoaderThread(QThread):
 
     def run(self) -> None:
         try:
-            apps = get_installed_apps()
+            apps = get_installed_apps(force_refresh=self._force_refresh)
             if self._is_cancelled or self.isInterruptionRequested():
                 return
             self.apps_ready.emit(apps)
 
-            # Progressive icon extraction in background (works for UWP and clean .exe)
-            for idx, app in enumerate(apps):
+            # Prioritize visible viewport first (first 25 items), then the rest
+            total_apps = len(apps)
+            order = list(range(min(25, total_apps))) + list(range(25, total_apps))
+            for idx in order:
+                app = apps[idx]
                 if self._is_cancelled or self.isInterruptionRequested():
                     return
                 if getattr(app, "cached_image", None) is not None:
@@ -163,6 +167,8 @@ class InstalledAppsDialog(BaseDialog):
 
         self._setup_ui()
         self._start_loading()
+        self._refresh_shortcut = QShortcut(QKeySequence("F5"), self)
+        self._refresh_shortcut.activated.connect(self._on_refresh)
         self.retranslateUi()
 
     def _get_browse_disk_icon(self) -> QIcon:
@@ -191,6 +197,10 @@ class InstalledAppsDialog(BaseDialog):
         self.loading_bar.setRange(0, 0)  # Indeterminate
         self.loading_bar.setFixedHeight(4)
         self.loading_bar.setTextVisible(False)
+        from app.utils.system.installed_apps_service import AppsCacheManager
+        has_cached = AppsCacheManager.get().get_cache() is not None
+        self.loading_label.setVisible(not has_cached)
+        self.loading_bar.setVisible(not has_cached)
         layout.addWidget(self.loading_label)
         layout.addWidget(self.loading_bar)
 
@@ -238,16 +248,26 @@ class InstalledAppsDialog(BaseDialog):
 
         layout.addLayout(bottom_layout)
 
-    def _start_loading(self) -> None:
+    def _start_loading(self, force_refresh: bool = False) -> None:
         # Pass parent=None to prevent QThread destroyed while running crash on dialog destruction
-        self.loader_thread = _AppsLoaderThread(parent=None)
+        self.loader_thread = _AppsLoaderThread(force_refresh=force_refresh, parent=None)
         self.loader_thread.finished.connect(self.loader_thread.deleteLater)
         self.loader_thread.apps_ready.connect(self._on_apps_loaded)
         self.loader_thread.icon_ready.connect(self._on_icon_loaded)
         self.loader_thread.all_done.connect(self._on_loading_done)
+        if not self._all_apps:
+            self.loading_label.setVisible(True)
+            self.loading_bar.setVisible(True)
         self.loader_thread.start()
 
+    def _on_refresh(self) -> None:
+        if hasattr(self, "loader_thread") and self.loader_thread.isRunning():
+            self.loader_thread.cancel()
+        self._start_loading(force_refresh=True)
+
     def _on_apps_loaded(self, apps: list[InstalledAppInfo]) -> None:
+        self.loading_label.setVisible(False)
+        self.loading_bar.setVisible(False)
         self._all_apps = apps
 
         self.apps_list.clear()

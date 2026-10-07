@@ -36,6 +36,8 @@ class ConflictResolutionSession:
         entity_type: str,
         name: str,
         existing_names: Sequence[str] | set[str],
+        existing_info: dict | None = None,
+        incoming_info: dict | None = None,
     ) -> tuple[str, str]:
         """Resolve conflict for an entity.
 
@@ -56,6 +58,8 @@ class ConflictResolutionSession:
             parent=self.parent,
             operation=self.operation,
             has_multiple=(self.total_conflicts > 1),
+            existing_info=existing_info,
+            incoming_info=incoming_info,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return "cancel", ""

@@ -7,6 +7,8 @@ Discovers applications from:
 """
 
 import ctypes
+import hashlib
+import json
 import logging
 import os
 import platform
@@ -28,6 +30,8 @@ from ctypes import (
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+
+from app.config_data.runtime_config import runtime_app_config as app_config
 
 from PyQt6.QtCore import QFileSystemWatcher, QObject
 
@@ -253,9 +257,13 @@ def get_start_menu_shortcuts() -> dict[str, str]:
 
 
 class AppsCacheManager(QObject):
-    """Singleton for monitoring Start Menu directories and maintaining apps cache automatically."""
+    """Singleton for monitoring Start Menu directories and maintaining apps cache on disk and in memory."""
     
     _instance = None
+    _START_DIRS = [
+        os.path.expandvars(r"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs"),
+        os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs"),
+    ]
     
     @classmethod
     def get(cls) -> 'AppsCacheManager':
@@ -272,26 +280,109 @@ class AppsCacheManager(QObject):
         self.watcher.directoryChanged.connect(self._on_dir_changed)
         
         # Monitor Start Menu directories
-        start_dirs = [
-            os.path.expandvars(r"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs"),
-            os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs")
-        ]
-        for d in start_dirs:
+        for d in self._START_DIRS:
             if os.path.exists(d):
                 self.watcher.addPath(d)
+
+    def _get_cache_dir(self) -> Path:
+        cache_dir = app_config.paths.get_user_data_dir() / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+
+    def _get_cache_file(self) -> Path:
+        return self._get_cache_dir() / "installed_apps.json"
+
+    def _get_icons_cache_dir(self) -> Path:
+        icons_dir = self._get_cache_dir() / "app_icons"
+        icons_dir.mkdir(parents=True, exist_ok=True)
+        return icons_dir
+
+    def _get_dirs_mtimes(self) -> dict[str, float]:
+        mtimes: dict[str, float] = {}
+        for d in self._START_DIRS:
+            if os.path.exists(d):
+                try:
+                    mtimes[d] = os.path.getmtime(d)
+                except OSError:
+                    pass
+        return mtimes
 
     def _on_dir_changed(self, path: str):
         logger.debug("Start menu changed: %s. Invalidating cache.", path)
         with self._lock:
             self.cached_apps = None
+        try:
+            cache_file = self._get_cache_file()
+            if cache_file.exists():
+                cache_file.unlink()
+        except OSError:
+            pass
 
     def set_cache(self, apps: list[InstalledAppInfo]):
         with self._lock:
             self.cached_apps = apps
-            
+        try:
+            cache_file = self._get_cache_file()
+            data = {
+                "mtimes": self._get_dirs_mtimes(),
+                "apps": [
+                    {
+                        "name": a.name,
+                        "path": a.path,
+                        "app_type": a.app_type,
+                        "description": a.description,
+                        "icon_path": a.icon_path,
+                        "icon_index": a.icon_index,
+                        "args": a.args,
+                    }
+                    for a in apps
+                ],
+            }
+            temp_file = cache_file.with_suffix(".tmp")
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+            temp_file.replace(cache_file)
+        except Exception as e:
+            logger.debug("Failed to write installed apps disk cache: %s", e)
+
     def get_cache(self) -> Optional[list[InstalledAppInfo]]:
         with self._lock:
-            return self.cached_apps
+            if self.cached_apps is not None:
+                return self.cached_apps
+        try:
+            cache_file = self._get_cache_file()
+            if not cache_file.exists():
+                return None
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cached_mtimes = data.get("mtimes", {})
+            current_mtimes = self._get_dirs_mtimes()
+            if cached_mtimes != current_mtimes:
+                logger.debug("Start menu mtime mismatch, disk cache stale")
+                return None
+            apps_data = data.get("apps", [])
+            apps = [
+                InstalledAppInfo(
+                    name=item["name"],
+                    path=item["path"],
+                    app_type=item.get("app_type", "desktop"),
+                    description=item.get("description", ""),
+                    icon_path=item.get("icon_path"),
+                    icon_index=item.get("icon_index", 0),
+                    args=item.get("args", ""),
+                )
+                for item in apps_data
+            ]
+            with self._lock:
+                self.cached_apps = apps
+            return apps
+        except Exception as e:
+            logger.debug("Failed reading installed apps disk cache: %s", e)
+            return None
+
+    def get_icon_disk_cache_path(self, target_src: str) -> Path:
+        key = hashlib.md5(target_src.strip().lower().encode("utf-8")).hexdigest()
+        return self._get_icons_cache_dir() / f"{key}.png"
 
 
 def get_installed_apps(force_refresh: bool = False) -> list[InstalledAppInfo]:
@@ -456,6 +547,13 @@ def extract_shell_icon_image(path: str) -> Optional[Any]:
     try:
         from PyQt6.QtGui import QImage
 
+        cache_manager = AppsCacheManager.get()
+        icon_cache_path = cache_manager.get_icon_disk_cache_path(path)
+        if icon_cache_path.exists():
+            img = QImage(str(icon_cache_path))
+            if not img.isNull():
+                return img
+
         shell32 = ctypes.windll.shell32
         user32 = ctypes.windll.user32
         ole32 = ctypes.windll.ole32
@@ -485,6 +583,10 @@ def extract_shell_icon_image(path: str) -> Optional[Any]:
         img = QImage.fromHICON(sfi.hIcon)
         user32.DestroyIcon(sfi.hIcon)
         if not img.isNull():
+            try:
+                img.save(str(icon_cache_path), "PNG")
+            except Exception:
+                pass
             return img.copy()
     except Exception as e:
         logger.debug("Failed to extract shell icon for %s: %s", path, e)

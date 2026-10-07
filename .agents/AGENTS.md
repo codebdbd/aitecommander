@@ -690,3 +690,17 @@ description: Strict, algorithmically actionable guidelines to ensure the agent e
   7. **Импорт браузера и архивов (Import Safety & Refresh Guard)**:
      - Импорт браузерных закладок HTML ведётся строго стековым парсером по контракту §8 с созданием обязательного снапшота базы данных перед записью (`_backup_before_import`).
      - После любого импорта (HTML или архивов `.aitesec`/`.aitecat`) обязательна очистка кэша иконок (`clear_icon_cache`), инвалидация кэшей структуры (`_invalidate_categories_cache` / `_invalidate_structure_cache`) и планирование немедленной перезагрузки представления через `schedule_structure_reload(0)` и `links_table_controller.reload()`.
+
+
+
+## 61. Architecture Standards: Installed Applications Discovery & Persistent Cache Contract (ДИАЛОГ И КЭШИРОВАНИЕ УСТАНОВЛЕННЫХ ПРОГРАММ)
+- **Status: FROZEN ARCHITECTURE / STRICT RULES**: Архитектура обнаружения установленных приложений Windows (`installed_apps_service.py`), дискового кэширования метаданных и иконок (`AppsCacheManager`) и диалога выбора (`InstalledAppsDialog`).
+- **Strict Discovery & Cache Rules**:
+  1. **Персистентный дисковый кэш метаданных**: Распарсенный список программ сериализуется в JSON-файл `%APPDATA%/.../cache/installed_apps.json` с фиксацией меток времени `mtime` системных каталогов меню «Пуск» (`%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs` и `%APPDATA%\Microsoft\Windows\Start Menu\Programs`). При совпадении `mtime` список загружается мгновенно (<5 мс) без повторного сканирования файловой системы и COM-интерфейсов.
+  2. **Персистентный дисковый кэш системных иконок**: Извлечённые системные иконки сохраняются в PNG в директории кэша `%APPDATA%/.../cache/app_icons/{md5_hash}.png`. При повторных обращениях иконка считывается напрямую из PNG без дорогостоящих вызовов Shell API (`SHGetFileInfoW` / `ExtractIconExW`).
+  3. **Двухуровневая автоматическая инвалидация**: 
+     - В рантайме: через `QFileSystemWatcher` на системные каталоги меню «Пуск» при любых изменениях состава файлов.
+     - При обращении: через сравнение текущих `mtime` директорий меню «Пуск» с сохранёнными в JSON кэша.
+  4. **Приоритет видимой области (Visible Viewport First)**: В фоновом потоке `_AppsLoaderThread` извлечение и назначение иконок сначала выполняется для первых 25 видимых элементов списка, обеспечивая мгновенную отзывчивость интерфейса, а остальные элементы догружаются в фоне.
+  5. **Бесшовный UI и скрытие индикаторов**: Индикатор загрузки (`loading_bar` и `loading_label`) скрывается немедленно в `_on_apps_loaded` при получении списка программ, не дожидаясь фоновой расстановки иконок. При наличии валидного кэша индикатор загрузки не показывается вовсе.
+  6. **Горячая клавиша принудительного обновления**: Диалог `InstalledAppsDialog` поддерживает горячую клавишу `F5` для принудительного полного пересканирования системы (`force_refresh=True`).

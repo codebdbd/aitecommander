@@ -2072,107 +2072,134 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>ImportConflictDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1488" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1529" />
         <source>Move</source>
         <translation>Verschieben</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1489" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1530" />
         <source>Copy</source>
         <translation>Kopieren</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1490" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1531" />
+        <source>Paste</source>
+        <translation>Einfügen</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1532" />
         <source>Import</source>
         <translation>Importieren</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1497" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1539" />
         <source>Section «{name}» already exists in this sphere.</source>
         <translation>Der Bereich «{name}» ist in dieser Sphäre bereits vorhanden.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1539" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1501" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1581" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1543" />
         <source>Merge contents</source>
         <translation>Inhalte zusammenführen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1502" />
-        <source>Move all items into the existing section without overwriting.</source>
-        <translation>Alle Elemente ohne Überschreiben in den vorhandenen Bereich verschieben.</translation>
-    </message>
-    <message>
         <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1544" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1525" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1506" />
-        <source>Keep both (create copy «{name}»)</source>
-        <translation>Beide behalten (Kopie «{name}» erstellen)</translation>
+        <source>Add missing items into the existing section without creating duplicates.</source>
+        <translation>Fehlende Elemente im vorhandenen Bereich hinzufügen, ohne Duplikate zu erstellen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1547" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1528" />
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1509" />
-        <source>Save alongside under a unique name.</source>
-        <translation>Unter einem eindeutigen Namen daneben speichern.</translation>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1548" />
+        <source>Create separate section «{name}»</source>
+        <translation>Separaten Bereich «{name}» erstellen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1512" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1589" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1551" />
+        <source>Create a duplicate alongside with a suffix in the name.</source>
+        <translation>Ein Duplikat daneben mit einem Suffix im Namen erstellen.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1554" />
         <source>Do not modify existing section and leave original unchanged.</source>
         <translation>Vorhandenen Bereich nicht ändern und Original unverändert lassen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1516" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1558" />
         <source>Link «{name}» already exists in this category.</source>
         <translation>Der Link «{name}» ist in dieser Kategorie bereits vorhanden.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1520" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1562" />
         <source>Replace existing</source>
         <translation>Vorhandenen ersetzen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1521" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1563" />
         <source>Update the existing link with new parameters.</source>
         <translation>Vorhandenen Link mit neuen Parametern aktualisieren.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1531" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1567" />
+        <source>Create separate link «{name}»</source>
+        <translation>Separaten Link «{name}» erstellen</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1570" />
+        <source>Create a duplicate link alongside.</source>
+        <translation>Ein Duplikat des Links daneben erstellen.</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1573" />
         <source>Do not modify existing link and leave original unchanged.</source>
         <translation>Vorhandenen Link nicht ändern und Original unverändert lassen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1535" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1577" />
         <source>Category «{name}» already exists in this section.</source>
         <translation>Die Kategorie «{name}» ist in diesem Bereich bereits vorhanden.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1540" />
-        <source>Move all items into the existing category without overwriting.</source>
-        <translation>Alle Elemente ohne Überschreiben in die vorhandene Kategorie verschieben.</translation>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1582" />
+        <source>Add missing items into the existing category without creating duplicates.</source>
+        <translation>Fehlende Elemente in der vorhandenen Kategorie hinzufügen, ohne Duplikate zu erstellen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1550" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1586" />
+        <source>Create separate category «{name}»</source>
+        <translation>Separate Kategorie «{name}» erstellen</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1592" />
         <source>Do not modify existing category and leave original unchanged.</source>
         <translation>Vorhandene Kategorie nicht ändern und Original unverändert lassen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1557" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1599" />
         <source>Choose what to do:</source>
         <translation>Vorgehensweise auswählen:</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1564" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1606" />
         <source>Skip</source>
         <translation>Überspringen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1575" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1614" />
+        <source>Existing:</source>
+        <translation>Vorhanden:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1618" />
+        <source>Incoming:</source>
+        <translation>Neu:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1624" />
         <source>Apply</source>
         <translation>Anwenden</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1569" />
+        <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="1610" />
         <source>Apply to all conflicts</source>
         <translation>Auf alle Konflikte anwenden</translation>
     </message>
@@ -2243,22 +2270,22 @@ Fehlgeschlagen: {3}</translation>
 </context><context>
     <name>InstalledAppsDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="397" />
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="156" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="417" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="160" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="41" />
         <source>Select Installed Application</source>
         <translation>Installierte Anwendung auswählen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="399" />
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="182" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="419" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="188" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="42" />
         <source>Search applications...</source>
         <translation>Anwendungen suchen...</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="402" />
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="188" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="422" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="194" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="43" />
         <source>Loading installed applications...</source>
         <translation>Installierte Anwendungen werden geladen...</translation>
@@ -2274,8 +2301,8 @@ Fehlgeschlagen: {3}</translation>
         <translation>Angezeigt: %d von %d</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="404" />
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="230" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="424" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="240" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="46" />
         <source>Select</source>
         <translation>Auswählen</translation>
@@ -2286,19 +2313,19 @@ Fehlgeschlagen: {3}</translation>
         <translation>Abbrechen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="410" />
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="213" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="430" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="223" />
         <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="48" />
         <source>Find on computer</source>
         <translation>Auf dem Computer suchen</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="306" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="326" />
         <source>Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)</source>
         <translation>Programme (*.exe *.bat *.com *.msi *.lnk);;Alle Dateien (*.*)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="310" />
+        <location filename="..\app\views\windows\dialogs\installed_apps_dialog.py" line="330" />
         <source>Select Program</source>
         <translation>Programm auswählen</translation>
     </message>
@@ -2827,17 +2854,17 @@ Möchten Sie den Speicherort auf diesem Computer angeben?</translation>
 </context><context>
     <name>LinksBusinessLogic</name>
     <message>
-        <location filename="..\app\controllers\business\links_business.py" line="441" />
+        <location filename="..\app\controllers\business\links_business.py" line="456" />
         <source>Invalid link data for toggle_favorite</source>
         <translation>Ungültige Linkdaten für toggle_favorite</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\business\links_business.py" line="451" />
+        <location filename="..\app\controllers\business\links_business.py" line="466" />
         <source>Invalid link ID</source>
         <translation>Ungültige Link-ID</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\business\links_business.py" line="454" />
+        <location filename="..\app\controllers\business\links_business.py" line="469" />
         <source>Link not found</source>
         <translation>Link nicht gefunden</translation>
     </message>
@@ -3493,60 +3520,60 @@ Möchten Sie die ersten {limit} ausgewählten Links öffnen?</translation>
 </context><context>
     <name>MoveOperationsHandler</name>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="267" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="239" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="195" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="290" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="262" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="218" />
         <source>Undo history is unavailable. Move canceled.</source>
         <translation>Verlauf nicht verfügbar. Verschiebung abgebrochen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="412" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="268" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="240" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="196" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="374" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="291" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="263" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="219" />
         <source>Undo history unavailable</source>
         <translation>Verlauf nicht verfügbar</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="413" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="269" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="241" />
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="197" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="375" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="292" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="264" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="220" />
         <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
         <translation>Aktivieren Sie die Undo/Redo-Unterstützung oder initialisieren Sie den undo_stack im Hauptfenster.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="411" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="373" />
         <source>Undo history is unavailable. Batch move canceled.</source>
         <translation>Verlauf nicht verfügbar. Stapelverschiebung abgebrochen.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="734" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="732" />
         <source>A category with the same name already exists in the selected section.</source>
         <translation>Eine Kategorie mit demselben Namen ist im ausgewählten Bereich bereits vorhanden.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="737" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="735" />
         <source>Category duplicate</source>
         <translation>Kategorieduplikat</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="738" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="736" />
         <source>Rename the category or choose another section.</source>
         <translation>Benennen Sie die Kategorie um oder wählen Sie einen anderen Abschnitt.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="750" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="748" />
         <source>Failed to update item positions.</source>
         <translation>Elementpositionen konnten nicht aktualisiert werden.</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="751" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="749" />
         <source>Database error during move</source>
         <translation>Datenbankfehler beim Verschieben</translation>
     </message>
     <message>
-        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="752" />
+        <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="750" />
         <source>Position changes were not saved.</source>
         <translation>Positionsänderungen wurden nicht gespeichert.</translation>
     </message>

@@ -330,7 +330,7 @@ class MergeSectionToSphereCommand(BaseCommand):
         self.target_id = int(target_section_id)
         self._source_section_data: dict[str, Any] = {}
         self._moved_category_ids: list[int] = []
-        self._renamed_categories: dict[int, tuple[str, str]] = {}
+        self._merged_categories: list[dict[str, Any]] = []
         self._target_sphere_id: int | None = None
         self._source_sphere_id: int | None = None
         self._prepared = False
@@ -339,6 +339,8 @@ class MergeSectionToSphereCommand(BaseCommand):
         if self._prepared:
             return
         sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+
         s_data = sb.get_section_data(self.source_id)
         if not s_data:
             raise ValueError(f"Source section {self.source_id} not found")
@@ -351,37 +353,92 @@ class MergeSectionToSphereCommand(BaseCommand):
         self._target_sphere_id = int(t_data["sphere_id"])
 
         cats = sb.get_categories(self.source_id) or []
-        self._moved_category_ids = [int(c["id"]) for c in cats if c.get("id")]
-
         target_cats = sb.get_categories(self.target_id) or []
-        target_cat_names = {str(c.get("name", "")).strip().lower() for c in target_cats}
-        existing_names_set = {str(c.get("name", "")).strip() for c in target_cats}
+        target_cats_by_name = {
+            str(c.get("name", "")).strip().lower(): dict(c)
+            for c in target_cats
+            if c.get("id") and str(c.get("name", "")).strip()
+        }
 
-        from app.utils.naming import generate_unique_name
-        self._renamed_categories = {}
+        self._moved_category_ids = []
+        self._merged_categories = []
+
         for c in cats:
             cid = int(c["id"])
             cname = str(c.get("name", "")).strip()
-            if cname.lower() in target_cat_names:
-                unique_name = generate_unique_name(existing_names_set, cname)
-                self._renamed_categories[cid] = (cname, unique_name)
-                existing_names_set.add(unique_name)
-                target_cat_names.add(unique_name.lower())
+            if cname.lower() in target_cats_by_name:
+                tgt_cat = target_cats_by_name[cname.lower()]
+                tgt_cid = int(tgt_cat["id"])
+
+                source_links = lb.get_links(cid) or [] if lb is not None else []
+                target_links = lb.get_links(tgt_cid) or [] if lb is not None else []
+                target_keys = {
+                    (
+                        str(l.get("name", "")),
+                        str(l.get("url", "")),
+                        str(l.get("args", "")),
+                    )
+                    for l in target_links
+                }
+
+                moved_link_ids: list[int] = []
+                deleted_link_ids: list[int] = []
+                for sl in source_links:
+                    s_key = (
+                        str(sl.get("name", "")),
+                        str(sl.get("url", "")),
+                        str(sl.get("args", "")),
+                    )
+                    lid = int(sl["id"])
+                    if s_key in target_keys:
+                        deleted_link_ids.append(lid)
+                    else:
+                        moved_link_ids.append(lid)
+                        target_keys.add(s_key)
+
+                self._merged_categories.append(
+                    {
+                        "source_cat_id": cid,
+                        "source_cat_data": dict(c),
+                        "target_cat_id": tgt_cid,
+                        "moved_link_ids": moved_link_ids,
+                        "deleted_link_ids": deleted_link_ids,
+                        "deleted_links_data": [
+                            dict(sl)
+                            for sl in source_links
+                            if int(sl["id"]) in deleted_link_ids
+                        ],
+                    }
+                )
+            else:
+                self._moved_category_ids.append(cid)
 
         self._prepared = True
 
     def redo(self) -> None:
         self._prepare_data()
         sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+        links_svc = getattr(lb, "links", lb) if lb is not None else None
         db = getattr(getattr(sb, "structure_service", None), "db", None)
 
         def _do_redo():
-            for cid, (_, new_name) in self._renamed_categories.items():
-                sb.update_category(cid, {"name": new_name})
+            for item in self._merged_categories:
+                if links_svc is not None:
+                    if item["deleted_link_ids"]:
+                        links_svc.batch_delete_links(item["deleted_link_ids"])
+                    if item["moved_link_ids"]:
+                        links_svc.move_links_bulk(
+                            item["moved_link_ids"], item["target_cat_id"]
+                        )
+                sb.delete_category(item["source_cat_id"])
+
             for cid in self._moved_category_ids:
                 res = sb.update_category(cid, {"section_id": self.target_id})
                 if not res:
-                    raise RuntimeError(f"Failed to transfer category {cid} to section {self.target_id}")
+                    raise RuntimeError(
+                        f"Failed to transfer category {cid} to section {self.target_id}"
+                    )
             sb.delete_section(self.source_id)
 
         if db and hasattr(db, "transaction"):
@@ -397,6 +454,8 @@ class MergeSectionToSphereCommand(BaseCommand):
         if not self._source_section_data:
             return
         sb = _require_structure_business(self.main)
+        lb = getattr(self.main, "links_business", None)
+        links_svc = getattr(lb, "links", lb) if lb is not None else None
         db = getattr(getattr(sb, "structure_service", None), "db", None)
 
         def _do_undo():
@@ -416,8 +475,30 @@ class MergeSectionToSphereCommand(BaseCommand):
                 )
             for cid in self._moved_category_ids:
                 sb.update_category(cid, {"section_id": self.source_id})
-            for cid, (old_name, _) in self._renamed_categories.items():
-                sb.update_category(cid, {"name": old_name})
+
+            for item in self._merged_categories:
+                s_cid = item["source_cat_id"]
+                c_data = item["source_cat_data"]
+                if db and hasattr(db, "connection"):
+                    db.connection.execute(
+                        """
+                        INSERT OR REPLACE INTO category (id, section_id, name, position, icon_path)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            s_cid,
+                            c_data.get("section_id"),
+                            c_data.get("name"),
+                            c_data.get("position", 0),
+                            c_data.get("icon_path", ""),
+                        ),
+                    )
+                if links_svc is not None:
+                    if item["moved_link_ids"]:
+                        links_svc.move_links_bulk(item["moved_link_ids"], s_cid)
+                    if item["deleted_link_ids"]:
+                        for ldata in item["deleted_links_data"]:
+                            links_svc.create_or_update_link(ldata)
 
         if db and hasattr(db, "transaction"):
             with db.transaction():
@@ -437,6 +518,17 @@ class MergeSectionToSphereCommand(BaseCommand):
                         cache_service.invalidate_structure_cache(sid)
                     except Exception:
                         pass
+        for sec_id in (self.source_id, self.target_id):
+            try:
+                sb._invalidate_categories_cache(sec_id)
+            except Exception:
+                pass
+        lb = getattr(self.main, "links_business", None)
+        if lb and hasattr(lb, "invalidate_cache"):
+            try:
+                lb.invalidate_cache()
+            except Exception:
+                pass
 
     def _refresh_ui(self, target_sphere: int | None, select_section_id: int | None) -> None:
         if target_sphere is None:
