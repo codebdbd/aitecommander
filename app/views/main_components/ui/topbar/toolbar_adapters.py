@@ -24,7 +24,6 @@ __all__ = [
     "ToolbarActionAdapter",
     "LinksToolbarAdapter",
     "QuickAddToolbarAdapter",
-    "FavoritesToolbarAdapter",
     "RecentHistoryToolbarAdapter",
     "StructureActionsToolbarAdapter",
     "ToolsToolbarAdapter",
@@ -66,8 +65,13 @@ def _icon_from_path(
 def _setup_topbar_button_contrast(
     btn: QToolButton,
     normal_icon: QIcon,
-    svg_filename: str,
+    svg_filename: str = "",
 ) -> None:
+    """Apply icon to topbar button.
+
+    Under rules §52 and §54, button contrast and hover states are handled
+    strictly via unified QSS styling tokens. Retained as a stable facade.
+    """
     btn.setIcon(normal_icon)
 
 
@@ -330,16 +334,13 @@ class ToolbarActionAdapter(QObject):
                 new_last = button
                 break
 
-        previous_last = self._toolbar.property("_global_last_button")
-        if not isinstance(previous_last, QToolButton):
-            previous_last = getattr(self._toolbar, "_global_last_button", None)
+        previous_last = getattr(self._toolbar, "_global_last_button", None)
         if previous_last is new_last:
             return
         if previous_last is not None:
             self._set_button_last(previous_last, False)
         if new_last is not None:
             self._set_button_last(new_last, True)
-        self._toolbar.setProperty("_global_last_button", new_last)
         self._toolbar._global_last_button = new_last
 
     def set_actions_visible(self, visible: bool) -> None:
@@ -535,7 +536,8 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
 
         self._update_global_last_button()
         if self._separator_controller is not None:
-            self._separator_controller.set_group_count("structure", len(self._actions))
+            button_count = sum(1 for a in self._actions if not a.isSeparator())
+            self._separator_controller.set_group_count("structure", button_count)
 
     def _on_add_section(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
@@ -1035,144 +1037,6 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         self.actionRequested.emit({"type": "open_link", "link": link_data})
         if self._emit_refresh_on_click:
             self.refreshRequested.emit({"limit": RECENT_LINKS_LIMIT})
-
-
-class FavoritesToolbarAdapter(ToolbarActionAdapter):
-    """Single favorites button with a popup menu showing favorite links."""
-
-    def __init__(
-        self,
-        toolbar: QToolBar,
-        *,
-        insert_before: QAction | None,
-        button_object_name: str = "favoriteButton",
-        category_provider: Any | None = None,
-        separator_controller: ToolbarSeparatorController | None = None,
-    ) -> None:
-        button_size_raw = runtime_app_config.ui.get_top_panel_button_size()
-        icon_size = runtime_app_config.ui.get_top_panel_icon_size()
-        button_size, icon_size = _button_sizes(button_size_raw, icon_size)
-        super().__init__(
-            toolbar,
-            insert_before=insert_before,
-            button_object_name=button_object_name,
-            button_size=button_size,
-            icon_size=icon_size,
-        )
-        self._category_provider = category_provider
-        self._separator_controller = separator_controller
-        self._last_items: list[dict[str, Any]] = []
-        self._main_action: QAction | None = None
-        self._rebuild_menu()
-
-    def _resolve_theme(self) -> str:
-        return _resolve_theme(self._category_provider)
-
-    def refresh_actions(self) -> None:
-        """Refresh favorites button icon in place without destroying toolbar buttons."""
-        if hasattr(self, "_main_action") and self._actions:
-            theme = _resolve_theme(self._category_provider)
-            from app.utils.ui.menu_builders.base import get_menu_icon
-
-            fav_icon = get_menu_icon("add_favorites", theme)
-            if not fav_icon or fav_icon.isNull():
-                fav_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_favorites.svg"
-                fav_icon = _icon_from_path(fav_icon_path, link_type="file")
-            if fav_icon and not fav_icon.isNull():
-                self._main_action.setIcon(fav_icon)
-                btn = self._toolbar.widgetForAction(self._main_action)
-                if isinstance(btn, QToolButton):
-                    _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
-            return
-        self._rebuild_menu()
-
-    def set_data(
-        self,
-        items: list[dict[str, Any]],
-        *,
-        fast_icons: bool = False,
-    ) -> None:
-        self._last_items = self._normalize_items(items)
-        self._rebuild_menu(fast_icons=fast_icons)
-
-    def get_items(self) -> list[dict[str, Any]]:
-        return [dict(item) for item in self._last_items]
-
-    def clear_favorites(self) -> None:
-        try:
-            self.clearRequested.emit()
-        except (RuntimeError, AttributeError):
-            logger.debug("TopBarToolbar: failed to emit clearRequested", exc_info=True)
-
-    def _rebuild_menu(self, *, fast_icons: bool = False) -> None:
-        has_main = self._main_action is not None and self._main_action in self._actions
-        if not has_main:
-            self.clear_actions()
-        theme = self._resolve_theme()
-
-        from app.utils.ui.menu_builders.base import get_menu_icon
-
-        fav_icon = get_menu_icon("add_favorites", theme)
-        if not fav_icon or fav_icon.isNull():
-            fav_icon = get_menu_icon("fav_ok", theme)
-        if not fav_icon or fav_icon.isNull():
-            fav_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_favorites.svg"
-            fav_icon = _icon_from_path(fav_icon_path, link_type="file")
-
-        menu = TopBarMenu(self._toolbar)
-        menu.setObjectName("favoriteLinksMenu")
-
-        if not self._last_items:
-            empty_action = QAction(self.tr("No favorite links"), menu)
-            empty_action.setEnabled(False)
-            menu.addAction(empty_action)
-        else:
-            for link_data in self._last_items:
-                name = link_data.get("name") or "Unknown"
-                link_type = ((link_data.get("type") or "file").strip() or "file").lower()
-                if fast_icons:
-                    icon_path = _resolve_icon_for_link_fast(link_data)
-                else:
-                    icon_path = resolve_icon_for_link(link_data)
-                icon = (
-                    _icon_from_path(Path(icon_path), link_type=link_type)
-                    if icon_path
-                    else _icon_from_path(Path(""), link_type=link_type)
-                )
-                action = QAction(icon, name, menu)
-                action.setToolTip(_format_link_rich_tooltip(link_data))
-                action.setData(link_data)
-                action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
-                menu.addAction(action)
-
-        if has_main and self._main_action is not None:
-            old_menu = self._main_action.menu()
-            if old_menu is not None:
-                old_menu.deleteLater()
-            self._main_action.setMenu(menu)
-            btn = self._toolbar.widgetForAction(self._main_action)
-            if isinstance(btn, QToolButton):
-                menu.set_target_button(btn)
-        else:
-            main_action = QAction(fav_icon, self.tr("Favorites"), self._toolbar)
-            main_action.setToolTip(self.tr("Favorites"))
-            main_action.setMenu(menu)
-            self._main_action = main_action
-            self._add_action(main_action)
-
-            btn = self._toolbar.widgetForAction(main_action)
-            if isinstance(btn, QToolButton):
-                btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-                menu.set_target_button(btn)
-                _setup_topbar_button_contrast(btn, fav_icon, "add_favorites.svg")
-
-            self._mark_last_button()
-            self._update_global_last_button()
-            if self._separator_controller is not None:
-                self._separator_controller.set_group_count("fav", len(self._actions))
-
-    def _on_link(self, link_data: dict[str, Any]) -> None:
-        self.actionRequested.emit({"type": "open_link", "link": link_data})
 
 
 class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
