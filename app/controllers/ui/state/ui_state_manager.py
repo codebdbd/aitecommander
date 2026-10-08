@@ -210,6 +210,12 @@ class UIStateManager:
         if len(self._history) > 50:
             self._history.pop(0)
         self._history_index = len(self._history) - 1
+        self.sync_navigation_state()
+
+    def sync_navigation_state(self) -> None:
+        updater = getattr(self.main, "update_navigation_history_state", None)
+        if callable(updater):
+            updater(self.can_navigate_back(), self.can_navigate_forward())
 
     def can_navigate_back(self) -> bool:
         return self._history_index > 0
@@ -221,6 +227,7 @@ class UIStateManager:
         if not self.can_navigate_back():
             return False
         self._history_index -= 1
+        self.sync_navigation_state()
         target_id = self._history[self._history_index]
         return self._navigate_to_history_category(target_id)
 
@@ -228,6 +235,7 @@ class UIStateManager:
         if not self.can_navigate_forward():
             return False
         self._history_index += 1
+        self.sync_navigation_state()
         target_id = self._history[self._history_index]
         return self._navigate_to_history_category(target_id)
 

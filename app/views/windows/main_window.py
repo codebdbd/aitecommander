@@ -183,6 +183,11 @@ class MainWindow(QMainWindow, ReTranslatable):
             return bool(ui_state.navigate_forward())
         return False
 
+    def update_navigation_history_state(self, can_back: bool, can_forward: bool) -> None:
+        struct_widget = getattr(self, "structure_actions_widget", None)
+        if struct_widget and hasattr(struct_widget, "update_navigation_state"):
+            struct_widget.update_navigation_state(can_back, can_forward)
+
     def edit_structure_item(self, item: "StructureItem") -> None:
         """Edit a structure item."""
         if self.structure:

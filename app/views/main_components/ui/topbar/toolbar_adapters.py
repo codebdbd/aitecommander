@@ -484,6 +484,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         back_btn = self._toolbar.widgetForAction(back_action)
         if isinstance(back_btn, QToolButton):
             back_btn.setObjectName("topBarBackButton")
+            back_btn.setProperty("nav_available", "false")
             _setup_topbar_button_contrast(back_btn, back_icon, "skip_previous.svg")
 
         # Navigate forward
@@ -500,6 +501,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         fwd_btn = self._toolbar.widgetForAction(fwd_action)
         if isinstance(fwd_btn, QToolButton):
             fwd_btn.setObjectName("topBarForwardButton")
+            fwd_btn.setProperty("nav_available", "false")
             _setup_topbar_button_contrast(fwd_btn, fwd_icon, "skip_next.svg")
 
         self._add_separator()
@@ -538,6 +540,37 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if self._separator_controller is not None:
             button_count = sum(1 for a in self._actions if not a.isSeparator())
             self._separator_controller.set_group_count("structure", button_count)
+
+    def update_navigation_state(self, can_back: bool, can_forward: bool) -> None:
+        back_base = QCoreApplication.translate("MenuActions", "Back")
+        fwd_base = QCoreApplication.translate("MenuActions", "Forward")
+        empty_msg = QCoreApplication.translate("MenuActions", "history empty")
+
+        if hasattr(self, "_back_action") and self._back_action is not None:
+            tip = f"{back_base} (Alt+Left)" if can_back else f"{back_base} ({empty_msg})"
+            self._back_action.setToolTip(tip)
+            btn = self._toolbar.widgetForAction(self._back_action)
+            if isinstance(btn, QToolButton):
+                val = "true" if can_back else "false"
+                if btn.property("nav_available") != val:
+                    btn.setProperty("nav_available", val)
+                    style = btn.style()
+                    if style is not None:
+                        style.unpolish(btn)
+                        style.polish(btn)
+
+        if hasattr(self, "_forward_action") and self._forward_action is not None:
+            tip = f"{fwd_base} (Alt+Right)" if can_forward else f"{fwd_base} ({empty_msg})"
+            self._forward_action.setToolTip(tip)
+            btn = self._toolbar.widgetForAction(self._forward_action)
+            if isinstance(btn, QToolButton):
+                val = "true" if can_forward else "false"
+                if btn.property("nav_available") != val:
+                    btn.setProperty("nav_available", val)
+                    style = btn.style()
+                    if style is not None:
+                        style.unpolish(btn)
+                        style.polish(btn)
 
     def _on_add_section(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
@@ -837,7 +870,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         *,
         insert_before: QAction | None,
         button_object_name: str,
-        group_name: str,
+        group_name: str = "fav",
         emit_refresh_on_click: bool = False,
         separator_controller: ToolbarSeparatorController | None = None,
     ) -> None:
@@ -893,15 +926,14 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             self._link_actions.append(action)
             self._add_action(action)
             btn = self._toolbar.widgetForAction(action)
-            if isinstance(btn, QToolButton) and self._group_name == "fav":
+            if isinstance(btn, QToolButton):
                 btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 btn.customContextMenuRequested.connect(
                     lambda pos, b=btn, data=link_data: self._show_context_menu(b.mapToGlobal(pos), data)
                 )
 
-        if self._group_name == "fav":
-            self._setup_more_action(fast_icons=fast_icons)
-            self._apply_fold_visibility()
+        self._setup_more_action(fast_icons=fast_icons)
+        self._apply_fold_visibility()
 
         self._mark_last_button()
         self._update_global_last_button()
@@ -984,7 +1016,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
                 menu.set_target_button(btn)
 
     def set_folded(self, folded: bool) -> None:
-        if self._group_name != "fav" or self._is_folded == folded:
+        if self._is_folded == folded:
             return
         self._is_folded = folded
         self._apply_fold_visibility()
@@ -1019,15 +1051,8 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
     def get_items(self) -> list[dict[str, Any]]:
         return [dict(item) for item in self._last_items]
 
-    def get_limit(self) -> int | None:
-        if self._group_name != "recent":
-            return None
-        return RECENT_LINKS_LIMIT
-
     def clear_favorites(self) -> None:
         """Emit clearRequested to mirror FavoritesPanelWidget behavior."""
-        if self._group_name != "fav":
-            return
         try:
             self.clearRequested.emit()
         except (RuntimeError, AttributeError):

@@ -453,10 +453,27 @@ class StructureTreeView(QTreeView):
         # Clean implementation of custom branch indicators via QProxyStyle.
         # Icons are fetched from the shared cache per current theme at paint time — no subscriptions/hooks.
         try:
-            def _get_branch_icons():
+            _branch_icons_cache: dict[tuple[str, bool], tuple[QIcon, QIcon]] = {}
+
+            def _get_branch_icons(is_selected: bool) -> tuple[QIcon, QIcon]:
                 theme = get_current_theme()
-                closed_ic = icon_cache.get_icon("right", theme, source="tree_branch")
-                open_ic = icon_cache.get_icon("down", theme, source="tree_branch")
+                cache_key = (theme, is_selected)
+                cached = _branch_icons_cache.get(cache_key)
+                if cached is not None:
+                    return cached
+
+                from app.services.theme_registry import theme_registry
+                from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon
+                from app.utils.ui.icon.path_service import get_icon_path
+
+                tokens = theme_registry.get_theme_tokens(theme) or {}
+                color = tokens.get("selection_fg", "#FFFFFF") if is_selected else tokens.get("text_primary", "#FFFFFF")
+
+                right_path = get_icon_path("right.svg", theme) or ""
+                down_path = get_icon_path("down.svg", theme) or ""
+                closed_ic = _create_tinted_svg_icon(right_path, color) if right_path else QIcon()
+                open_ic = _create_tinted_svg_icon(down_path, color) if down_path else QIcon()
+                _branch_icons_cache[cache_key] = (closed_ic, open_ic)
                 return closed_ic, open_ic
 
             class _BranchStyle(QProxyStyle):
@@ -483,7 +500,8 @@ class StructureTreeView(QTreeView):
                                     element, option, painter, widget
                                 )
                             is_open = bool(option.state & QStyle.StateFlag.State_Open)
-                            closed_ic, open_ic = _get_branch_icons()
+                            is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
+                            closed_ic, open_ic = _get_branch_icons(is_selected)
                             icon = open_ic if is_open else closed_ic
                             if not icon.isNull():
                                 target_rect = QStyle.alignedRect(

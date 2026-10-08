@@ -259,7 +259,7 @@ class ThemeStylesheetService:
         bg_canvas = tokens.get("bg_canvas")
         bg_surface = tokens.get("bg_surface")
         bg_header = tokens.get("bg_header")
-        border_subtle = tokens.get("border_subtle", "#3A3E44" if "#FFF" in tokens.get("text_on_accent", "") else "#D0D7DE")
+        border_subtle = tokens.get("border_subtle", "#30363D" if ("#0" in tokens.get("bg_canvas", "") or "#1" in tokens.get("bg_canvas", "")) else "#D0D7DE")
         text_muted = tokens.get("text_muted", tokens.get("text_secondary", "#8B949E"))
         text_accent = tokens.get("text_accent", tokens.get("selection_bg", "#0969DA"))
         status_error = tokens.get("status_error", "#FF5555")
@@ -287,8 +287,11 @@ class ThemeStylesheetService:
                 f"    padding: 0 4px;\n"
                 f"    color: {tokens['text_secondary']};\n"
                 f"}}\n"
-                f"LinksTableView, QTableView, QTableWidget, QListView#categoryTiles, QListWidget#categoryTiles {{\n"
+                f"LinksTableView, QTableView, QTableWidget {{\n"
                 f"    background-color: {bg_surface};\n"
+                f"}}\n"
+                f"QListView#categoryTiles, QListWidget#categoryTiles {{\n"
+                f"    background-color: {bg_canvas};\n"
                 f"}}\n"
                 f"LinksTableView, QTableView, QTableWidget {{\n"
                 f"    alternate-background-color: {bg_canvas};\n"
@@ -326,6 +329,7 @@ class ThemeStylesheetService:
             f"}}\n"
             f"QTreeView::item:!selected:hover {{\n"
             f"    background-color: {hover_bg};\n"
+            f"    color: {tokens['text_primary']};\n"
             f"}}\n"
             f"QWidget#topBarHost QToolButton:hover, QWidget#topBarHost QPushButton:hover, QWidget#bottomBarContainer QPushButton:hover {{\n"
             f"    background-color: {hover_bg};\n"
@@ -528,7 +532,7 @@ class ThemeStylesheetService:
         if icon_name == "check.svg":
             from app.services.theme_registry import theme_registry
             tokens = theme_registry.get_theme_tokens(theme_name)
-            color_hex = tokens.get("text_on_accent", "#FFFFFF")
+            color_hex = tokens.get("text_primary", "#FFFFFF")
         elif icon_name in ("chevron_down.svg", "chevron_up.svg", "down.svg", "up.svg"):
             from app.services.theme_registry import theme_registry
             tokens = theme_registry.get_theme_tokens(theme_name)

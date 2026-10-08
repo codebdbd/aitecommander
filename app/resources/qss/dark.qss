@@ -34,7 +34,7 @@ stop: 0.95 #2E5A52, stop: 1 #2E5A52
 );
 }
 QWidget#spheres_bar QToolButton {
-    color: #2EA8FF;
+    color: @text_accent;
     border: none;
     border-radius: 8px;
 }
@@ -258,7 +258,7 @@ background-color: #444444;
 color: palette(text);
 }
 QWidget[class="separator"] {
-background-color: #3A3E44;
+background-color: @border_subtle;
 }
 QWidget[class="vertical_separator"] {
 background-color: #3A3E44;
@@ -359,7 +359,7 @@ border-color: @text_accent;
 }
 QCheckBox::indicator:checked,
 QDialog QCheckBox::indicator:checked {
-background: @text_accent;
+background: #1E2D42;
 border-color: @text_accent;
 image: url(":/icons/dark/check.svg");
 }
@@ -467,7 +467,6 @@ QDialog QToolButton:hover,
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover,
 QWidget#bottomBarContainer QPushButton:hover,
-QTreeView::item:!selected:hover,
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {

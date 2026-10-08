@@ -11,13 +11,17 @@
     "text_secondary": "#63686B",
     "text_muted": "#7A7E81",
     "text_accent": "#707980",
-    "text_on_accent": "#FFFFFF",
+    "text_on_accent": "#000000",
     "selection_bg": "#D4D7D9",
     "selection_fg": "#25282A",
     "hover_bg": "#ECEEED",
     "bg_canvas": "#F5F5F4",
     "bg_surface": "#FFFFFF",
     "bg_header": "#EEEEED",
-    "border_subtle": "#D7D8D6"
+    "border_subtle": "#D7D8D6",
+    "status_error": "#D32F2F",
+    "status_warning": "#E65100",
+    "status_info": "#0277BD",
+    "status_success": "#2E7D32"
   }
 }

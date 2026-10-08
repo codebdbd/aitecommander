@@ -9,7 +9,7 @@
   "tokens": {
     "text_primary": "#E6EBF1",
     "text_secondary": "#7B8FA6",
-    "text_muted": "#455364",
+    "text_muted": "#7B8FA6",
     "text_accent": "#74D9E7",
     "text_on_accent": "#FFFFFF",
     "selection_bg": "#73526E",
@@ -18,6 +18,10 @@
     "bg_canvas": "#11151B",
     "bg_surface": "#1B2029",
     "bg_header": "#18202A",
-    "border_subtle": "#34404E"
+    "border_subtle": "#34404E",
+    "status_error": "#FF5555",
+    "status_warning": "#FFB74D",
+    "status_info": "#74D9E7",
+    "status_success": "#4DD0E1"
   }
 }

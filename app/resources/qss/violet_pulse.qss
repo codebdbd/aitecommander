@@ -34,7 +34,7 @@ stop: 0.95 #5A2A82, stop: 1 #5A2A82
 );
 }
 QWidget#spheres_bar QToolButton {
-    color: #FF4FA3;
+    color: @text_accent;
     border: none;
     border-radius: 8px;
 }
@@ -452,7 +452,6 @@ QDialog QToolButton:hover,
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover,
 QWidget#bottomBarContainer QPushButton:hover,
-QTreeView::item:!selected:hover,
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {

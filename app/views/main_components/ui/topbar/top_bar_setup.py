@@ -128,6 +128,7 @@ class _ResponsiveTopBarFilter(QObject):
         btn_sz: int,
         sep_sp: int,
         left_w: int,
+        toolbar: QToolBar | None = None,
     ) -> None:
         super().__init__(host_w)
         self._fav = fav_adapter
@@ -136,15 +137,37 @@ class _ResponsiveTopBarFilter(QObject):
         self._btn_sz = btn_sz
         self._sep_sp = sep_sp
         self._left_w = left_w
+        self._toolbar = toolbar
 
     def _calc_needed(self) -> int:
-        fav_k = len(self._fav.get_items())
-        fav_w = fav_k * self._btn_sz
-        others_w = sum(len(a.actions) * self._btn_sz for a in self._adapters)
-        search_min = app_config.ui.get_top_panel_search_min_width()
-        theme_btns_w = _THEME_SELECTOR_BUTTONS_COUNT * self._btn_sz
+        fav_items = self._fav.get_items()
+        fav_k = len(fav_items)
+        fav_unfolded_w = fav_k * self._btn_sz
+
+        # Determine actual left panel width from splitter if available
+        left_width = self._left_w
+        host_parent = self._host.parentWidget()
+        if host_parent is not None:
+            splitter = getattr(host_parent, "splitter", None)
+            if splitter is not None and hasattr(splitter, "sizes"):
+                sizes = splitter.sizes()
+                if sizes and sizes[0] > 0:
+                    left_width = sizes[0]
+
+        # Measure actual non-fav actions width from adapters
+        others_count = sum(
+            len(a.actions) if hasattr(a, "actions") else 0
+            for a in self._adapters
+        )
+        others_w = others_count * self._btn_sz
+
+        try:
+            search_min = int(app_config.ui.get_top_panel_search_min_width())
+        except Exception:
+            search_min = 160
+        theme_btns_w = int(_THEME_SELECTOR_BUTTONS_COUNT * self._btn_sz)
         sep_total = 2 * self._sep_sp
-        return self._left_w + others_w + fav_w + search_min + theme_btns_w + sep_total
+        return left_width + others_w + fav_unfolded_w + search_min + theme_btns_w + sep_total
 
     def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
         if event is not None and event.type() == QEvent.Type.Resize:
@@ -367,6 +390,7 @@ class TopBarBuilder:
                 _btn_sz,
                 _sep_sp,
                 _left_w,
+                toolbar=toolbar,
             )
             top_bar_host.installEventFilter(top_bar_filter)
             self.window._top_bar_responsive_filter = top_bar_filter

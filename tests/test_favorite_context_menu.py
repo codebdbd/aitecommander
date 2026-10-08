@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtWidgets import QApplication, QToolBar, QToolButton
+from PyQt6.QtWidgets import QApplication, QMenu, QToolBar, QToolButton
 
 from app.controllers.ui.links.links_actions import LinksActions
 from app.views.main_components.ui.topbar.toolbar_adapters import LinksToolbarAdapter
@@ -75,6 +75,42 @@ def test_links_toolbar_adapter_context_menu_actions(qapp: QApplication) -> None:
     assert len(captured_emits) == 2
     assert captured_emits[1]["type"] == "remove_favorite"
     assert captured_emits[1]["link"]["id"] == 42
+
+
+def test_links_toolbar_adapter_context_menu_real_signal_flow(qapp: QApplication) -> None:
+    toolbar = QToolBar()
+    adapter = LinksToolbarAdapter(
+        toolbar,
+        insert_before=None,
+        button_object_name="favoriteButton",
+        group_name="fav",
+    )
+    link_data = {"id": 105, "name": "Python Docs", "url": "https://python.org", "type": "url"}
+    adapter.set_data([link_data])
+
+    captured = []
+    adapter.actionRequested.connect(lambda p: captured.append(p))
+
+    btn = toolbar.widgetForAction(adapter._link_actions[0])
+    assert isinstance(btn, QToolButton)
+
+    # Intercept QMenu.exec to inspect the active menu created via real Qt signal dispatch
+    exec_menus: list[QMenu] = []
+    with patch.object(QMenu, "exec", autospec=True, side_effect=lambda menu, *args, **kwargs: exec_menus.append(menu)):
+        btn.customContextMenuRequested.emit(QPoint(10, 10))
+
+    assert len(exec_menus) == 1
+    active_menu = exec_menus[0]
+    actions = active_menu.actions()
+    assert len(actions) == 2
+
+    # Trigger edit action
+    actions[0].trigger()
+    assert len(captured) == 1 and captured[0]["type"] == "edit_link"
+
+    # Trigger remove action
+    actions[1].trigger()
+    assert len(captured) == 2 and captured[1]["type"] == "remove_favorite"
 
 
 def test_links_actions_on_action_requested_edit_and_remove() -> None:

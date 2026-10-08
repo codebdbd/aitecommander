@@ -18,6 +18,10 @@
     "bg_canvas": "#050806",
     "bg_surface": "#08100B",
     "bg_header": "#0A100C",
-    "border_subtle": "#1E3A28"
+    "border_subtle": "#1E3A28",
+    "status_error": "#FF4444",
+    "status_warning": "#FFBB33",
+    "status_info": "#33B5E5",
+    "status_success": "#39FF88"
   }
 }

@@ -453,7 +453,6 @@ QDialog QToolButton:hover,
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover,
 QWidget#bottomBarContainer QPushButton:hover,
-QTreeView::item:!selected:hover,
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {

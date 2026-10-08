@@ -5,19 +5,23 @@
   "is_dark": true,
   "qss": "resources/qss/matrix.qss",
   "icons_dir": "resources/ui_icons/base",
-  "icon_color": "#3BF989",
+  "icon_color": "#00FF66",
   "tokens": {
     "text_primary": "#E6FFE8",
     "text_secondary": "#73B082",
     "text_muted": "#356B42",
     "text_accent": "#00FF66",
     "text_on_accent": "#000000",
-    "selection_bg": "#0F3F24",
+    "selection_bg": "#145C33",
     "selection_fg": "#C9FFD8",
-    "hover_bg": "#0F3F24",
+    "hover_bg": "#0A2B18",
     "bg_canvas": "#000000",
     "bg_surface": "#040F07",
     "bg_header": "#020D08",
-    "border_subtle": "#0F3F24"
+    "border_subtle": "#124B2B",
+    "status_error": "#FF3333",
+    "status_warning": "#FFCC00",
+    "status_info": "#33FFCC",
+    "status_success": "#00FF66"
   }
 }

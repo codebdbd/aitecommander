@@ -359,8 +359,8 @@ border-color: #3BF989;
 }
 QCheckBox::indicator:checked,
 QDialog QCheckBox::indicator:checked {
-background: #3BF989;
-border-color: #3BF989;
+background: #0A2B18;
+border-color: @text_accent;
 image: url(":/icons/matrix/check.svg");
 }
 QCheckBox::indicator:disabled,
@@ -452,7 +452,6 @@ QDialog QToolButton:hover,
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QPushButton:hover,
 QWidget#bottomBarContainer QPushButton:hover,
-QTreeView::item:!selected:hover,
 QComboBox QAbstractItemView::item:hover,
 QDialog QComboBox QAbstractItemView::item:hover,
 QListView#comboPopupView::item:hover {
