@@ -37,7 +37,6 @@ _DEFAULT_BUTTON_SIZE: int = 32
 _DEFAULT_SIDE_SPACING: int = 6
 _THEME_SELECTOR_BUTTONS_COUNT: int = 3  # light + dark + settings
 _RESPONSIVE_HYSTERESIS_PX: int = 20
-_DEFAULT_LEFT_PANEL_WIDTH: int = 323  # Contract §55 323px Left Panel
 _MAX_SIZE_POLICY = getattr(QSizePolicy.Policy, "Maximum", QSizePolicy.Policy.Fixed)
 
 
@@ -127,8 +126,6 @@ class _ResponsiveTopBarFilter(QObject):
         adapters: list[Any],
         btn_sz: int,
         sep_sp: int,
-        left_w: int,
-        toolbar: QToolBar | None = None,
     ) -> None:
         super().__init__(host_w)
         self._fav = fav_adapter
@@ -136,23 +133,10 @@ class _ResponsiveTopBarFilter(QObject):
         self._adapters = adapters
         self._btn_sz = btn_sz
         self._sep_sp = sep_sp
-        self._left_w = left_w
-        self._toolbar = toolbar
 
     def _calc_needed(self) -> int:
-        fav_items = self._fav.get_items()
-        fav_k = len(fav_items)
+        fav_k = len(getattr(self._fav, "_last_items", []))
         fav_unfolded_w = fav_k * self._btn_sz
-
-        # Determine actual left panel width from splitter if available
-        left_width = self._left_w
-        host_parent = self._host.parentWidget()
-        if host_parent is not None:
-            splitter = getattr(host_parent, "splitter", None)
-            if splitter is not None and hasattr(splitter, "sizes"):
-                sizes = splitter.sizes()
-                if sizes and sizes[0] > 0:
-                    left_width = sizes[0]
 
         # Measure actual non-fav actions width from adapters
         others_count = sum(
@@ -167,7 +151,7 @@ class _ResponsiveTopBarFilter(QObject):
             search_min = 160
         theme_btns_w = int(_THEME_SELECTOR_BUTTONS_COUNT * self._btn_sz)
         sep_total = 2 * self._sep_sp
-        return left_width + others_w + fav_unfolded_w + search_min + theme_btns_w + sep_total
+        return others_w + fav_unfolded_w + search_min + theme_btns_w + sep_total
 
     def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
         if event is not None and event.type() == QEvent.Type.Resize:
@@ -377,20 +361,12 @@ class TopBarBuilder:
 
             _btn_sz = int(app_config.ui.get_top_panel_button_size())
             _sep_sp = int(app_config.ui.get_topbar_separator_spacing())
-            _splitter_sizes = app_config.ui.get_splitter_sizes()
-            _left_w = (
-                int(_splitter_sizes[0])
-                if isinstance(_splitter_sizes, (list, tuple)) and _splitter_sizes
-                else _DEFAULT_LEFT_PANEL_WIDTH
-            )
             top_bar_filter = _ResponsiveTopBarFilter(
                 fav_adapter,
                 top_bar_host,
                 [structure_adapter, quick_adapter, tools_adapter, recent_adapter],
                 _btn_sz,
                 _sep_sp,
-                _left_w,
-                toolbar=toolbar,
             )
             top_bar_host.installEventFilter(top_bar_filter)
             self.window._top_bar_responsive_filter = top_bar_filter

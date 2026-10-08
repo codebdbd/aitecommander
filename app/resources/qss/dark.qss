@@ -239,7 +239,7 @@ background-color: @bg_header;
 QTableView,
 QTableWidget {
 background-color: @bg_surface;
-alternate-background-color: #1A1F26;
+alternate-background-color: @bg_canvas;
 }
 LinksTableView {
 qproperty-openedColColor: #A0A7B5;

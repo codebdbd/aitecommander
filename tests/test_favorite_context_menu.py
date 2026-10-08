@@ -95,12 +95,17 @@ def test_links_toolbar_adapter_context_menu_real_signal_flow(qapp: QApplication)
     assert isinstance(btn, QToolButton)
 
     # Intercept QMenu.exec to inspect the active menu created via real Qt signal dispatch
-    exec_menus: list[QMenu] = []
-    with patch.object(QMenu, "exec", autospec=True, side_effect=lambda menu, *args, **kwargs: exec_menus.append(menu)):
+    intercepted_menus: list[QMenu] = []
+
+    def fake_exec(menu_self, *args, **kwargs):
+        intercepted_menus.append(menu_self)
+        return None
+
+    with patch("PyQt6.QtWidgets.QMenu.exec", new=fake_exec):
         btn.customContextMenuRequested.emit(QPoint(10, 10))
 
-    assert len(exec_menus) == 1
-    active_menu = exec_menus[0]
+    assert len(intercepted_menus) == 1
+    active_menu = intercepted_menus[0]
     actions = active_menu.actions()
     assert len(actions) == 2
 

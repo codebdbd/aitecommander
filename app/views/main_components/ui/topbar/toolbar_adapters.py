@@ -5,9 +5,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QIcon, QPixmap
-from PyQt6.QtWidgets import QMenu, QSizePolicy, QToolBar, QToolButton, QWidget, QWidgetAction
+from PyQt6.QtCore import QCoreApplication, QObject, QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QMenu, QSizePolicy, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -1035,6 +1035,17 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             act.setVisible((not self._is_folded) and has_items)
 
     def refresh_actions(self) -> None:
+        for action, item in zip(self._link_actions, self._last_items):
+            link_type = str(item.get("link_type") or "url")
+            icon_path = resolve_icon_for_link(item)
+            icon = (
+                _icon_from_path(Path(icon_path), link_type=link_type)
+                if icon_path
+                else _icon_from_path(Path(""), link_type=link_type)
+            )
+            if icon and not icon.isNull():
+                action.setIcon(icon)
+
         if self._more_action is not None:
             from app.utils.ui.menu_builders.base import get_menu_icon
             theme = _resolve_theme()
@@ -1053,6 +1064,8 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
     def clear_favorites(self) -> None:
         """Emit clearRequested to mirror FavoritesPanelWidget behavior."""
+        if self._group_name != "fav":
+            return
         try:
             self.clearRequested.emit()
         except (RuntimeError, AttributeError):
