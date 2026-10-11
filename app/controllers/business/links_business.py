@@ -145,6 +145,7 @@ class LinksBusinessLogic(QObject):
         self.task_counter = 0
         self._request_generation = 0
         self._cache_generation = 0
+        self._search_generation = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         # TTLCache with automatic expiration for better memory management
@@ -210,6 +211,7 @@ class LinksBusinessLogic(QObject):
         with self._tasks_lock:
             self.pending_tasks.clear()
             self._request_generation += 1
+            self._search_generation += 1
         self._load_links_started.clear()
         self._invalidate_cache()
 
@@ -309,6 +311,10 @@ class LinksBusinessLogic(QObject):
 
         ✅ Метрика производительности: измеряется время выполнения.
         """
+        with self._tasks_lock:
+            self._search_generation += 1
+            gen = self._search_generation
+
         q = (query or "").strip()
         if not q:
             self.logger.debug(
@@ -317,7 +323,7 @@ class LinksBusinessLogic(QObject):
             self._run_db_task(
                 lambda: self.links.get_recent_links(limit=1000) or [],
                 description="search_links(all)",
-                on_finished=self._on_search_finished,
+                on_finished=lambda results: self._on_search_finished(results, gen),
             )
             return
 
@@ -326,7 +332,7 @@ class LinksBusinessLogic(QObject):
         self._run_db_task(
             lambda: self.links.search(q) or [],
             description=f"search_links(query={q!r})",
-            on_finished=self._on_search_finished,
+            on_finished=lambda results: self._on_search_finished(results, gen),
         )
 
     def update_link_order(self, link_ids: list[int]) -> None:
@@ -1025,8 +1031,19 @@ class LinksBusinessLogic(QObject):
             self.links_loaded.emit(links or [], category_id, task_id)
 
     @pyqtSlot(object)
-    def _on_search_finished(self, search_results: list[dict[str, Any]]) -> None:
+    def _on_search_finished(
+        self, search_results: list[dict[str, Any]], generation: int | None = None
+    ) -> None:
         """Handle completion of a search operation."""
+        if generation is not None:
+            with self._tasks_lock:
+                if generation != self._search_generation:
+                    self.logger.debug(
+                        "Dropping stale search results (gen %s != current %s)",
+                        generation,
+                        self._search_generation,
+                    )
+                    return
         self.search_results_ready.emit(search_results or [])
 
     @pyqtSlot(int, object, object)

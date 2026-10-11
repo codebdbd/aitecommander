@@ -1302,6 +1302,11 @@ class ActionController(QObject):
                 can_copy = bool(selection_type)
                 can_cut = bool(selection_type)
                 can_delete = bool(selection_type)
+                svc = self._get_structure_context_service()
+                can_paste = bool(
+                    svc
+                    and (svc.clipboard_has_pastable_category() or svc.clipboard_has_pastable_section())
+                )
             elif table_has_selection:
                 can_copy = True
                 can_cut = True

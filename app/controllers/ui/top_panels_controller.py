@@ -255,19 +255,6 @@ class TopPanelsController(QObject):
         tracking_enabled = (
             _refresh_token is not None and _refresh_token == self._data_loaded_token
         )
-        if not self._is_locked_db_warmup_ready():
-            now = time.perf_counter()
-            if self._favorites_warmup_wait_started_ts <= 0.0:
-                self._favorites_warmup_wait_started_ts = now
-            waited_ms = (now - self._favorites_warmup_wait_started_ts) * 1000.0
-            if waited_ms < _FAVORITES_WARMUP_MAX_DELAY_MS:
-                QTimer.singleShot(
-                    _FAVORITES_WARMUP_RETRY_MS,
-                    lambda tok=_refresh_token: self.refresh_favorites(
-                        _refresh_token=tok
-                    ),
-                )
-                return
         self._favorites_warmup_wait_started_ts = 0.0
 
         fav_limit = self._get_favorites_limit()

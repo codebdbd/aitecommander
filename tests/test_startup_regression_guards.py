@@ -275,6 +275,10 @@ def test_topbar_builder_prefills_before_manager(qapp, monkeypatch):
         def get_top_panel_button_size():
             return 32
 
+        @staticmethod
+        def get_topbar_separator_spacing():
+            return 4
+
     host = object()
     layout = LayoutStub()
     window = WindowStub()

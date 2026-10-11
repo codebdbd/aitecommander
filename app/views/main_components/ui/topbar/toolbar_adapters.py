@@ -7,7 +7,7 @@ from typing import Any
 
 from PyQt6.QtCore import QCoreApplication, QObject, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtWidgets import QMenu, QSizePolicy, QToolBar, QToolButton, QWidget
+from PyQt6.QtWidgets import QApplication, QMenu, QSizePolicy, QToolBar, QToolButton, QWidget
 
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -164,6 +164,7 @@ class ToolbarSeparatorController:
             self._sep_recent_fav.setVisible(False)
         self._counts: dict[str, int] = {
             "structure": 0,
+            "structure_add": 0,
             "quick": 0,
             "tools": 0,
             "fav": 0,
@@ -175,13 +176,13 @@ class ToolbarSeparatorController:
         self._update()
 
     def _update(self) -> None:
-        structure = self._counts.get("structure", 0)
+        structure_add = self._counts.get("structure_add", 0)
         quick = self._counts.get("quick", 0)
         tools = self._counts.get("tools", 0)
         recent = self._counts.get("recent", 0)
         fav = self._counts.get("fav", 0)
 
-        add_block = structure + quick
+        add_block = structure_add + quick
         if self._sep_add_tools is not None:
             self._sep_add_tools.setVisible(add_block > 0 and (tools > 0 or recent > 0 or fav > 0))
         if self._sep_tools_recent is not None:
@@ -478,6 +479,8 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         back_action = QAction(back_icon, back_text, self._toolbar)
         back_action.setToolTip(f"{back_text} (Alt+Left)")
         back_action.setShortcut("Alt+Left")
+        back_action.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
+        back_action.setEnabled(False)
         back_action.triggered.connect(self._on_navigate_back)
         self._add_action(back_action)
         self._back_action = back_action
@@ -495,6 +498,8 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         fwd_action = QAction(fwd_icon, fwd_text, self._toolbar)
         fwd_action.setToolTip(f"{fwd_text} (Alt+Right)")
         fwd_action.setShortcut("Alt+Right")
+        fwd_action.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
+        fwd_action.setEnabled(False)
         fwd_action.triggered.connect(self._on_navigate_forward)
         self._add_action(fwd_action)
         self._forward_action = fwd_action
@@ -540,6 +545,12 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if self._separator_controller is not None:
             button_count = sum(1 for a in self._actions if not a.isSeparator())
             self._separator_controller.set_group_count("structure", button_count)
+            add_actions = [
+                a
+                for a in (getattr(self, "_sec_action", None), getattr(self, "_cat_action", None))
+                if a is not None
+            ]
+            self._separator_controller.set_group_count("structure_add", len(add_actions))
 
     def update_navigation_state(self, can_back: bool, can_forward: bool) -> None:
         back_base = QCoreApplication.translate("MenuActions", "Back")
@@ -549,6 +560,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if hasattr(self, "_back_action") and self._back_action is not None:
             tip = f"{back_base} (Alt+Left)" if can_back else f"{back_base} ({empty_msg})"
             self._back_action.setToolTip(tip)
+            self._back_action.setEnabled(bool(can_back))
             btn = self._toolbar.widgetForAction(self._back_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_back else "false"
@@ -562,6 +574,7 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if hasattr(self, "_forward_action") and self._forward_action is not None:
             tip = f"{fwd_base} (Alt+Right)" if can_forward else f"{fwd_base} ({empty_msg})"
             self._forward_action.setToolTip(tip)
+            self._forward_action.setEnabled(bool(can_forward))
             btn = self._toolbar.widgetForAction(self._forward_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_forward else "false"
@@ -585,10 +598,14 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
             self._category_provider.toggle_left_panel()
 
     def _on_navigate_back(self) -> None:
+        if QApplication.activeModalWidget() is not None:
+            return
         if self._category_provider and hasattr(self._category_provider, "navigate_back"):
             self._category_provider.navigate_back()
 
     def _on_navigate_forward(self) -> None:
+        if QApplication.activeModalWidget() is not None:
+            return
         if self._category_provider and hasattr(self._category_provider, "navigate_forward"):
             self._category_provider.navigate_forward()
 
@@ -905,6 +922,8 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
                 act.deleteLater()
             except (RuntimeError, AttributeError):
                 pass
+        old_actions_set = set(self._link_actions)
+        self._actions = [a for a in self._actions if a not in old_actions_set]
         self._link_actions.clear()
 
         for link_data in self._last_items:
@@ -932,7 +951,8 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
                     lambda pos, b=btn, data=link_data: self._show_context_menu(b.mapToGlobal(pos), data)
                 )
 
-        self._setup_more_action(fast_icons=fast_icons)
+        if self._group_name == "fav" and self._is_folded:
+            self._setup_more_action(fast_icons=fast_icons)
         self._apply_fold_visibility()
 
         self._mark_last_button()
@@ -1019,6 +1039,8 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         if self._is_folded == folded:
             return
         self._is_folded = folded
+        if self._is_folded:
+            self._setup_more_action()
         self._apply_fold_visibility()
         if self._separator_controller is not None:
             count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
