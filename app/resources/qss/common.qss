@@ -234,8 +234,10 @@ QWidget#topBarHost QToolButton {
     background: transparent;
 }
 
-QWidget#topBarHost QToolButton[nav_available="false"]:hover {
-    background-color: rgba(140, 140, 140, 0.14);
+
+QWidget#topBarHost QToolButton[nav_available="false"]:hover,
+QWidget#topBarHost QToolButton[nav_available="false"]:pressed {
+    background-color: rgba(140, 140, 140, 0.12);
     border-color: transparent;
 }
 

@@ -47,6 +47,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
+Type: files; Name: "{app}\_internal\Qt6*.dll"
 Type: files; Name: "{app}\_internal\app\resources\qss\high_contrast.qss"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\high_contrast"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\high_contrast"

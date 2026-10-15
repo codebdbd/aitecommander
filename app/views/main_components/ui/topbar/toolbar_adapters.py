@@ -5,9 +5,24 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QObject, QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QObject,
+    QPoint,
+    QSize,
+    Qt,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtWidgets import QApplication, QMenu, QSizePolicy, QToolBar, QToolButton, QWidget
+from PyQt6.QtWidgets import (
+    QApplication,
+    QGraphicsOpacityEffect,
+    QMenu,
+    QToolBar,
+    QToolButton,
+    QWidget,
+)
 
 from app.config_data.runtime_config import runtime_app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
@@ -376,6 +391,30 @@ class ToolbarActionAdapter(QObject):
             self._set_button_last(button, False)
         self._set_button_last(new_last, True)
 
+
+class _NavButtonDimmer(QObject):
+    """Event filter that dims inactive navigation buttons on hover without border."""
+
+    def __init__(self, button: QToolButton) -> None:
+        super().__init__(button)
+        self._button = button
+        self._effect = QGraphicsOpacityEffect(button)
+        self._effect.setOpacity(1.0)
+        button.setGraphicsEffect(self._effect)
+
+    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
+        if watched is self._button and event is not None:
+            etype = event.type()
+            if etype == QEvent.Type.Enter:
+                if self._button.property("nav_available") == "false":
+                    self._effect.setOpacity(0.35)
+                else:
+                    self._effect.setOpacity(1.0)
+            elif etype in (QEvent.Type.Leave, QEvent.Type.HoverLeave):
+                self._effect.setOpacity(1.0)
+        return False
+
+
 class StructureActionsToolbarAdapter(ToolbarActionAdapter):
     """Toolbar buttons for structure operations: add section and add category."""
 
@@ -480,7 +519,6 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         back_action.setToolTip(f"{back_text} (Alt+Left)")
         back_action.setShortcut("Alt+Left")
         back_action.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
-        back_action.setEnabled(False)
         back_action.triggered.connect(self._on_navigate_back)
         self._add_action(back_action)
         self._back_action = back_action
@@ -488,6 +526,10 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if isinstance(back_btn, QToolButton):
             back_btn.setObjectName("topBarBackButton")
             back_btn.setProperty("nav_available", "false")
+            back_btn.setCursor(Qt.CursorShape.ArrowCursor)
+            dimmer = _NavButtonDimmer(back_btn)
+            back_btn.installEventFilter(dimmer)
+            back_btn._dimmer = dimmer
             _setup_topbar_button_contrast(back_btn, back_icon, "skip_previous.svg")
 
         # Navigate forward
@@ -499,7 +541,6 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         fwd_action.setToolTip(f"{fwd_text} (Alt+Right)")
         fwd_action.setShortcut("Alt+Right")
         fwd_action.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
-        fwd_action.setEnabled(False)
         fwd_action.triggered.connect(self._on_navigate_forward)
         self._add_action(fwd_action)
         self._forward_action = fwd_action
@@ -507,6 +548,10 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if isinstance(fwd_btn, QToolButton):
             fwd_btn.setObjectName("topBarForwardButton")
             fwd_btn.setProperty("nav_available", "false")
+            fwd_btn.setCursor(Qt.CursorShape.ArrowCursor)
+            dimmer = _NavButtonDimmer(fwd_btn)
+            fwd_btn.installEventFilter(dimmer)
+            fwd_btn._dimmer = dimmer
             _setup_topbar_button_contrast(fwd_btn, fwd_icon, "skip_next.svg")
 
         self._add_separator()
@@ -560,30 +605,42 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         if hasattr(self, "_back_action") and self._back_action is not None:
             tip = f"{back_base} (Alt+Left)" if can_back else f"{back_base} ({empty_msg})"
             self._back_action.setToolTip(tip)
-            self._back_action.setEnabled(bool(can_back))
             btn = self._toolbar.widgetForAction(self._back_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_back else "false"
+                btn.setCursor(Qt.CursorShape.PointingHandCursor if can_back else Qt.CursorShape.ArrowCursor)
                 if btn.property("nav_available") != val:
                     btn.setProperty("nav_available", val)
                     style = btn.style()
                     if style is not None:
                         style.unpolish(btn)
                         style.polish(btn)
+                dimmer = getattr(btn, "_dimmer", None)
+                if dimmer is not None:
+                    if btn.underMouse() and val == "false":
+                        dimmer._effect.setOpacity(0.35)
+                    else:
+                        dimmer._effect.setOpacity(1.0)
 
         if hasattr(self, "_forward_action") and self._forward_action is not None:
             tip = f"{fwd_base} (Alt+Right)" if can_forward else f"{fwd_base} ({empty_msg})"
             self._forward_action.setToolTip(tip)
-            self._forward_action.setEnabled(bool(can_forward))
             btn = self._toolbar.widgetForAction(self._forward_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_forward else "false"
+                btn.setCursor(Qt.CursorShape.PointingHandCursor if can_forward else Qt.CursorShape.ArrowCursor)
                 if btn.property("nav_available") != val:
                     btn.setProperty("nav_available", val)
                     style = btn.style()
                     if style is not None:
                         style.unpolish(btn)
                         style.polish(btn)
+                dimmer = getattr(btn, "_dimmer", None)
+                if dimmer is not None:
+                    if btn.underMouse() and val == "false":
+                        dimmer._effect.setOpacity(0.35)
+                    else:
+                        dimmer._effect.setOpacity(1.0)
 
     def _on_add_section(self) -> None:
         if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
@@ -600,11 +657,17 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
     def _on_navigate_back(self) -> None:
         if QApplication.activeModalWidget() is not None:
             return
+        btn = self._toolbar.widgetForAction(self._back_action) if hasattr(self, "_back_action") else None
+        if btn is not None and btn.property("nav_available") == "false":
+            return
         if self._category_provider and hasattr(self._category_provider, "navigate_back"):
             self._category_provider.navigate_back()
 
     def _on_navigate_forward(self) -> None:
         if QApplication.activeModalWidget() is not None:
+            return
+        btn = self._toolbar.widgetForAction(self._forward_action) if hasattr(self, "_forward_action") else None
+        if btn is not None and btn.property("nav_available") == "false":
             return
         if self._category_provider and hasattr(self._category_provider, "navigate_forward"):
             self._category_provider.navigate_forward()

@@ -60,8 +60,10 @@ scripts/*.png
 *.zip
 *.7z
 
-# AI tools
+# AI tools and agent instructions
 .mimocode/
+.agents/
+GEMINI.md
 
 # Executables and build outputs
 *.exe
