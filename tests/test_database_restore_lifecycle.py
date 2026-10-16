@@ -46,6 +46,7 @@ class TestDatabaseRestoreLifecycle(unittest.TestCase):
     def test_database_restore_worker_locked_wal_error_formatting(self) -> None:
         """Verify _build_locked_wal_error includes locking process info when present."""
         from unittest.mock import patch
+
         from app.services.database_restore_worker import DatabaseRestoreWorker
 
         worker = DatabaseRestoreWorker(MagicMock(), "dummy.db")
@@ -60,6 +61,7 @@ class TestDatabaseRestoreLifecycle(unittest.TestCase):
     def test_database_controller_conflict_resolution_retry(self) -> None:
         """Verify DatabaseController prompts user and retries restore when conflicting process is found."""
         from unittest.mock import patch
+
         from app.controllers.ui.dialogs.database_controller import DatabaseController
 
         db_mock = MagicMock()

@@ -1,6 +1,7 @@
 """Tests verifying Rule 54: Unified Top Bar Button Styling and Theme Color Isolation."""
 
 from pathlib import Path
+
 from app.config_data import app_config
 from app.services.theme_stylesheet_service import ThemeStylesheetService
 

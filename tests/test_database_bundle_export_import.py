@@ -5,10 +5,10 @@ import shutil
 import sqlite3
 import unittest
 import zipfile
-from pathlib import Path
 from types import SimpleNamespace
 
 from conftest import build_test_temp_path
+
 from app.controllers.ui.dialogs.database_controller import DatabaseController
 from app.services.database_restore_worker import DatabaseRestoreWorker
 from app.utils.ui.icon.path_service import icon_path_service

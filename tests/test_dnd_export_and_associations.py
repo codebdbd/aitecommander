@@ -1,12 +1,10 @@
 """Unit tests for drag-and-drop export, import destination dialog and file associations."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from PyQt6.QtCore import QModelIndex, QMimeData, Qt
 from PyQt6.QtWidgets import QApplication
 
 from app.services.file_association_service import FileAssociationService

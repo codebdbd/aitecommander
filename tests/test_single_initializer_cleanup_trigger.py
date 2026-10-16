@@ -1,6 +1,7 @@
 """Architectural guard: verify ApplicationInitializer cleanup is called through aboutToQuit only."""
 
 from unittest.mock import MagicMock
+
 from app.startup.initializer import ApplicationInitializer
 
 
@@ -8,7 +9,6 @@ def test_no_initializer_cleanup_handler_in_shutdown_controller() -> None:
     """Verify ApplicationInitializer does NOT register a shutdown handler in AppShutdownController."""
     mock_app = MagicMock()
     initializer = ApplicationInitializer(mock_app)
-    mock_shutdown_controller = MagicMock()
 
     # The registration call was deleted in Stage 3; ensure it remains absent
     assert not hasattr(initializer, "_cleanup_via_shutdown_controller")

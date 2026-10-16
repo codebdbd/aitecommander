@@ -2,9 +2,9 @@
 """Regression tests for targeted link table updates."""
 
 import sys
-from types import SimpleNamespace
-from time import perf_counter
 from pathlib import Path
+from time import perf_counter
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -15,11 +15,11 @@ from PyQt6.QtWidgets import QApplication
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from app.controllers.ui.links.handlers import LinksUIHandlers
+from app.controllers.ui.links.table_controller import LinksTableController
+from app.core.database_manager import DatabaseManager
 from app.views.widgets.link.base_table import LinksTableView
 from app.views.widgets.link.columns import LinkTableColumn
-from app.core.database_manager import DatabaseManager
-from app.controllers.ui.links.table_controller import LinksTableController
-from app.controllers.ui.links.handlers import LinksUIHandlers
 
 LARGE_CATEGORY_POPULATE_BUDGET_SECONDS = 2.0
 TARGETED_ROW_UPDATE_BUDGET_SECONDS = 0.15

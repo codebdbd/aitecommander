@@ -1,6 +1,7 @@
 """Unit tests for DialogPathService initial directory resolution and memory."""
 
 from pathlib import Path
+
 from PyQt6.QtCore import QSettings
 
 from app.services.dialog_path_service import DialogPathService

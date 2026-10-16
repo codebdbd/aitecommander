@@ -157,6 +157,7 @@ def test_topbar_toolbar_ext_button_alignment(qapp: QApplication) -> None:
 
 def test_icon_from_path_fallback_by_link_type(qapp: QApplication) -> None:
     from pathlib import Path
+
     from app.views.main_components.ui.topbar.toolbar_adapters import _icon_from_path
 
     # Non-existent path with link_type="folder" should not return empty icon if resolver finds something
@@ -205,7 +206,9 @@ def test_links_toolbar_adapter_rich_tooltip_and_visibility(qapp: QApplication) -
 
 def test_auto_hide_tree_filter_threshold_and_screen_scale(qapp: QApplication) -> None:
     from unittest.mock import patch
+
     from PyQt6.QtWidgets import QSplitter, QStackedWidget
+
     from app.views.main_components.ui.window_ui_setup import _AutoHideTreeFilter
 
     window = QMainWindow()

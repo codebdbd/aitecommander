@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
+
 from PyQt6.QtCore import QRect, QSize
 from PyQt6.QtGui import QIcon, QIconEngine, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication

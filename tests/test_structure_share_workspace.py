@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import json
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
 from app.services.structure_share_service import (
-    ALLOWED_WORKSPACE_EXTENSIONS,
-    MAX_WORKSPACE_FILE_SIZE,
     StructureShareService,
-    get_user_workspace_files_dir,
 )
 
 

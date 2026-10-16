@@ -68,7 +68,11 @@ def test_validate_theme_contrast_semitransparent_text_blended_per_background():
 
 def test_theme_import_service_rejects_null_tokens(tmp_path):
     import json
-    from app.services.theme_import_service import ThemeImportService, ThemeValidationError
+
+    from app.services.theme_import_service import (
+        ThemeImportService,
+        ThemeValidationError,
+    )
 
     theme_dir = tmp_path / "bad_theme"
     theme_dir.mkdir()
@@ -90,7 +94,11 @@ def test_theme_import_service_rejects_null_tokens(tmp_path):
 
 def test_theme_import_service_rejects_invalid_token_color(tmp_path):
     import json
-    from app.services.theme_import_service import ThemeImportService, ThemeValidationError
+
+    from app.services.theme_import_service import (
+        ThemeImportService,
+        ThemeValidationError,
+    )
 
     theme_dir = tmp_path / "invalid_color_theme"
     theme_dir.mkdir()

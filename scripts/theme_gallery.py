@@ -34,7 +34,9 @@ from PyQt6.QtWidgets import (  # noqa: E402
     QWidget,
 )
 
-from app.config_data.runtime_config import runtime_app_config as app_config  # noqa: E402
+from app.config_data.runtime_config import (
+    runtime_app_config as app_config,  # noqa: E402
+)
 from app.core.style_manager import StyleManager  # noqa: E402
 from app.services.theme_registry import theme_registry  # noqa: E402
 from app.services.theme_stylesheet_service import ThemeStylesheetService  # noqa: E402

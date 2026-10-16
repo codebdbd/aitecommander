@@ -209,7 +209,7 @@ def cmd_update(args: argparse.Namespace) -> int:
             print(f"[{lang.upper()}] ERROR: {output.strip()}")
             has_errors = True
         else:
-            summary = [l.strip() for l in output.splitlines() if l.strip()]
+            summary = [line.strip() for line in output.splitlines() if line.strip()]
             short_summary = "; ".join(summary) if summary else "No changes"
             print(f"[{lang.upper()}] {short_summary}")
 
@@ -233,7 +233,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
             print(f"[{lang.upper()}] ERROR: {res.stderr.strip()}")
             has_errors = True
         else:
-            lines = [l.strip() for l in res.stdout.splitlines() if "Generated" in l]
+            lines = [line.strip() for line in res.stdout.splitlines() if "Generated" in line]
             status = lines[0] if lines else "OK"
             print(f"[{lang.upper()}] {status}")
 
@@ -289,7 +289,7 @@ def cmd_add_language(args: argparse.Namespace) -> int:
     print(f"\nLanguage '{code}' initialized. Next steps:")
     print(f"1. Add '{code}' to LanguageService._languages in i18n/language_service.py")
     print(f"2. Translate strings in {ts_path}")
-    print(f"3. Run `python -m i18n compile` and `python -m i18n check`")
+    print("3. Run `python -m i18n compile` and `python -m i18n check`")
     return 0
 
 

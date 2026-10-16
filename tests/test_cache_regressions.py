@@ -295,6 +295,7 @@ def test_large_links_fresh_emits_and_stale_dropped(links):
 
 def test_icon_cache_universal_set_expires_by_ttl():
     import time
+
     from app.utils.ui.icon.cache_manager import ThreadSafeIconCache
 
     cache = ThreadSafeIconCache(maxsize=10)
@@ -307,8 +308,10 @@ def test_icon_cache_universal_set_expires_by_ttl():
 
 def test_background_invalidation_dispatches_to_main_thread():
     import threading
+
     from PyQt6.QtWidgets import QApplication
-    from app.utils.ui.icon.cache_manager import invalidate_icon, _icon_manager
+
+    from app.utils.ui.icon.cache_manager import _icon_manager, invalidate_icon
 
     _ = QApplication.instance() or QApplication([])
 
@@ -342,7 +345,7 @@ def test_previously_missing_icon_available_immediately_after_save():
 
 
 def test_update_single_icon_preserves_other_icons_and_metrics():
-    from app.utils.ui.icon.cache_manager import invalidate_icon, _icon_manager
+    from app.utils.ui.icon.cache_manager import _icon_manager, invalidate_icon
 
     cache = _icon_manager._cache
     cache.metrics.reset()
@@ -360,9 +363,11 @@ def test_update_single_icon_preserves_other_icons_and_metrics():
 
 
 def test_profile_cache_exit_error_triggers_automatic_retry(tmp_path):
-    import time
     from unittest.mock import Mock
-    from app.utils.browser.browser_profiles.persistent_cache import PersistentProfileCache
+
+    from app.utils.browser.browser_profiles.persistent_cache import (
+        PersistentProfileCache,
+    )
 
     cache = PersistentProfileCache()
     cache._path = tmp_path / "profiles.json"

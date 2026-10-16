@@ -1,5 +1,5 @@
 import pytest
-from PyQt6.QtCore import QItemSelectionModel, QModelIndex, Qt
+from PyQt6.QtCore import QItemSelectionModel, Qt
 from PyQt6.QtWidgets import QApplication, QStyle, QStyleOptionViewItem
 
 from app.views.widgets.link.base_table import LinksTableView
@@ -50,8 +50,6 @@ def test_sort_preserves_persistent_indexes(qapp):
 
     # Link 10 ("Bravo") is initially at row 0
     p_idx = model.index(0, 0)
-    # Track as persistent
-    persistent = [model.index(0, 0)]
     # In Qt, selecting row creates persistent indexes in selectionModel
     sm = table.selectionModel()
     sm.select(

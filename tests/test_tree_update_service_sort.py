@@ -139,12 +139,10 @@ class TestTreeUpdateServiceCategoryMoveOnEdit(unittest.TestCase):
         schedule_mock.assert_called_once()
 
 
-    @patch("app.controllers.ui.structure.tree_update_service.get_focus_manager")
     @patch("app.controllers.ui.structure.tree_update_service.schedule_selection_restore")
     def test_category_update_in_same_section_keeps_in_place_update(
         self,
         _schedule_mock: Mock,
-        _focus_manager_mock: Mock,
     ) -> None:
         svc, business, _manager, model = self._build_service()
         model.section_ids_for_categories.return_value = [20]

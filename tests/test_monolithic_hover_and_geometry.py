@@ -2,8 +2,6 @@
 import re
 from pathlib import Path
 
-import pytest
-
 from app.services.theme_registry import theme_registry
 from app.services.theme_stylesheet_service import ThemeStylesheetService
 

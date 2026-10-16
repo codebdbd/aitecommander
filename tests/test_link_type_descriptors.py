@@ -4,7 +4,6 @@ from app.config_data.settings_config import SettingsConfig
 from app.models.types.link_type import LinkType
 from app.utils.links.type_labels import (
     LINK_TYPE_DESCRIPTORS,
-    link_type_address_tooltip,
     translate_link_type_label,
 )
 

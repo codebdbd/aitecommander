@@ -6,16 +6,16 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QApplication, QDialogButtonBox, QPushButton
 
-from app.views.windows.dialogs.browser_profile_dialog import BrowserProfileDialog
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.views.windows.dialogs.bad_url_cleanup_dialog import BadUrlCleanupDialog
+from app.views.windows.dialogs.browser_profile_dialog import BrowserProfileDialog
 from app.views.windows.dialogs.entity_dialogs import (
-    SectionDialog,
     CategoryDialog,
-    SettingsDialog,
     ChromeProfileDialog,
+    SectionDialog,
+    SettingsDialog,
 )
 from app.views.windows.dialogs.import_browser_dialog import ImportBrowserDialog
-from app.config_data.runtime_config import runtime_app_config as app_config
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
