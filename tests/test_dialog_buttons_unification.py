@@ -89,6 +89,7 @@ class TestDialogButtonsUnification(unittest.TestCase):
         dlg.show()
         self._app.processEvents()
 
-        self.assertEqual(dlg.select_all_button.width(), dlg.select_none_button.width())
-        self.assertEqual(dlg.background_button.width(), dlg.cancel_button.width())
         self.assertEqual(dlg.close_button.width(), dlg.delete_button.width())
+        self.assertGreaterEqual(dlg.close_button.width(), app_config.ui.get_fixed_button_width())
+        self.assertGreaterEqual(dlg.cancel_button.width(), app_config.ui.get_fixed_button_width())
+

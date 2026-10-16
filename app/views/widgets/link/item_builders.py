@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import html
-
-from PyQt6.QtCore import QCoreApplication
-
-from app.utils.links.type_labels import link_type_address_tooltip, translate_link_type_label
+from app.utils.links.type_labels import (
+    link_type_address_tooltip,
+    translate_link_type_label,
+)
 
 # Constants for magic numbers
 MAX_NOTES_DISPLAY_LENGTH = 462

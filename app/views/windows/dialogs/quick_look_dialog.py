@@ -37,7 +37,6 @@ from PyQt6.QtGui import (
     QKeyEvent,
     QKeySequence,
     QMouseEvent,
-    QPainter,
     QPalette,
     QPixmap,
     QShortcut,
@@ -59,7 +58,6 @@ from PyQt6.QtWidgets import (
     QMenu,
     QPushButton,
     QSizePolicy,
-    QSizeGrip,
     QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -83,15 +81,15 @@ except ImportError:
     _HAS_MULTIMEDIA = False
 
 try:
-    from PIL import Image, PsdImagePlugin
+    from PIL import Image, PsdImagePlugin  # noqa: F401
     _HAS_PIL = True
 except ImportError:
     _HAS_PIL = False
 
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.hotkey_manager import HotkeyManager
 from app.models.types.link_type import LinkType
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.icon_service import get_icon
 from app.utils.ui.icon.path_service import get_current_theme
@@ -867,7 +865,6 @@ class QuickLookDialog(BaseDialog):
         url = str(link.get("url") or "").strip()
         raw_type = link.get("type") or "web"
         link_type = LinkType.from_value(raw_type)
-        icon_name = link.get("icon")
 
         self.setWindowTitle(name)
         if hasattr(self, "_header_title_lbl"):

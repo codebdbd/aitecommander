@@ -11,6 +11,7 @@ from app.utils.links.type_labels import LINK_TYPE_DESCRIPTORS
 
 from .base_config import BaseConfig
 
+
 def _tr(text: str) -> str:
     return QCoreApplication.translate("SettingsConfig", text)
 
@@ -45,7 +46,7 @@ class SettingsConfig(BaseConfig):
         # Prefer the new key ``app.version``; fall back to the legacy ``application.version``
         ver = self.get("app.version")
         if ver is None:
-            ver = self.get("application.version", "1.1.8")
+            ver = self.get("application.version", "1.1.9")
         return ver
 
     def is_debug_mode(self) -> bool:

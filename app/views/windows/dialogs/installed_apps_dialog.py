@@ -5,7 +5,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 from PyQt6 import sip
-from PyQt6.QtCore import QCoreApplication, QFileInfo, QRect, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QRect,
+    QSize,
+    Qt,
+    QThread,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QDialogButtonBox,
@@ -321,6 +328,7 @@ class InstalledAppsDialog(BaseDialog):
 
     def _on_browse_disk(self) -> None:
         from PyQt6.QtWidgets import QFileDialog
+
         from app.services.dialog_path_service import DialogPathService
 
         filters = self.tr("Programs (*.exe *.bat *.com *.msi *.lnk);;All files (*.*)")

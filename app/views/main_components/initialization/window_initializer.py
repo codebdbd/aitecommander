@@ -574,7 +574,9 @@ class WindowInitializer:
             # Ensure Windows file associations and package icons (.aitesec, .aitecat) are registered
             def _register_associations_task() -> None:
                 try:
-                    from app.services.file_association_service import FileAssociationService
+                    from app.services.file_association_service import (
+                        FileAssociationService,
+                    )
 
                     if (
                         FileAssociationService.is_supported()

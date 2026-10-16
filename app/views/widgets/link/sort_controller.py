@@ -6,7 +6,11 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
 
-from app.views.widgets.link.columns import LinkTableColumn, descriptor_for_column, is_column
+from app.views.widgets.link.columns import (
+    LinkTableColumn,
+    descriptor_for_column,
+    is_column,
+)
 
 
 @dataclass(frozen=True)

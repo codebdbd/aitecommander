@@ -2,8 +2,9 @@
 
 import logging
 
-from ..base.db_base import db_lock
 from app.utils.naming import generate_unique_name
+
+from ..base.db_base import db_lock
 
 logger = logging.getLogger(__name__)
 

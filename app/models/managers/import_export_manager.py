@@ -191,7 +191,9 @@ class ImportExportManager:
                         (sphere_id, name),
                     ).fetchone()
                     if collision:
-                        from app.services.structure_share_service import generate_unique_name
+                        from app.services.structure_share_service import (
+                            generate_unique_name,
+                        )
                         existing_names = {
                             row[0]
                             for row in self.db.connection.execute(

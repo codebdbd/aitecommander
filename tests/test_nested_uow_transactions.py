@@ -3,11 +3,14 @@
 import shutil
 import unittest
 
+import pytest
+
 from app.core.database_manager import DatabaseManager
 from app.models.db import Database
 from tests.conftest import build_test_temp_path
 
 
+@pytest.mark.usefixtures("qapp")
 class TestNestedUoWTransactions(unittest.TestCase):
     """Verify shared transaction state across models and nested savepoint rollback."""
 

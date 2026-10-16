@@ -7,7 +7,7 @@ import os
 from functools import partial
 from typing import Any
 
-from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QTimer, pyqtSlot
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, pyqtSlot
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.links.table_controller import LinksTableController

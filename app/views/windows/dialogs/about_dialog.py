@@ -4,7 +4,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QCoreApplication, Qt, QUrl
+from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialogButtonBox,

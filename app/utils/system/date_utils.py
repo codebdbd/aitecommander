@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from PyQt6.QtCore import QCoreApplication, QLocale
+from PyQt6.QtCore import QCoreApplication
 
 _DATE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {

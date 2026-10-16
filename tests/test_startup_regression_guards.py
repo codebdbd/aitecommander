@@ -279,7 +279,7 @@ def test_topbar_builder_prefills_before_manager(qapp, monkeypatch):
         def get_topbar_separator_spacing():
             return 4
 
-    host = object()
+    host = QWidget()
     layout = LayoutStub()
     window = WindowStub()
     prefill_called = {"value": False}

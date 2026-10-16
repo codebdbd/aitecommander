@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 from PyQt6.QtCore import (
     QEvent,
     QItemSelectionModel,
-    QMimeData,
     QModelIndex,
     QPoint,
     QPointF,
@@ -36,9 +35,9 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHeaderView,
+    QLineEdit,
     QProxyStyle,
     QStyle,
-    QLineEdit,
     QStyledItemDelegate,
     QStyleOptionHeader,
     QStyleOptionViewItem,
@@ -59,8 +58,14 @@ from app.views.widgets.link.columns import (
     is_column,
     resize_mode_name_for_descriptor,
 )
-from app.views.widgets.link.links_model import HEADER_CHEVRON_PADDING_ROLE, LinksTableModel
-from app.views.widgets.link.sort_controller import LinkSortAction, LinkTableSortController
+from app.views.widgets.link.links_model import (
+    HEADER_CHEVRON_PADDING_ROLE,
+    LinksTableModel,
+)
+from app.views.widgets.link.sort_controller import (
+    LinkSortAction,
+    LinkTableSortController,
+)
 from i18n.language_service import LanguageService
 
 from .data_management import DataManagementMixin
@@ -909,7 +914,9 @@ class LinksTableView(
                     )
                     if vh is not None:
                         try:
-                            from app.config_data.runtime_config import runtime_app_config as app_config
+                            from app.config_data.runtime_config import (
+                                runtime_app_config as app_config,
+                            )
 
                             vh.setDefaultSectionSize(
                                 int(app_config.ui.get_row_height())

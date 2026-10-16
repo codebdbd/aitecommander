@@ -1,7 +1,5 @@
 import logging
-import os
 import platform
-import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -13,8 +11,8 @@ from PyQt6.QtCore import (
     QFileInfo,
     QModelIndex,
     QSettings,
-    QTimer,
     Qt,
+    QTimer,
     pyqtSignal,
 )
 from PyQt6.QtGui import QIcon, QKeySequence
@@ -849,8 +847,8 @@ class FileSearchDialog(BaseDialog):
         if not self._quick_look_dialog:
             self._quick_look_dialog = QuickLookDialog(
                 self,
-                on_open_callback=lambda l: self._open_file_in_explorer(
-                    l.get("url") if isinstance(l, dict) else str(l)
+                on_open_callback=lambda item: self._open_file_in_explorer(
+                    item.get("url") if isinstance(item, dict) else str(item)
                 ),
                 on_navigate_callback=self._on_quick_look_navigate,
             )

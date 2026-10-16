@@ -6,7 +6,14 @@ from typing import Any, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt
 from PyQt6.QtGui import QColor, QPainter, QPaintEvent, QPalette
-from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QStyle, QStyleOptionButton, QWidget
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QPushButton,
+    QSizePolicy,
+    QStyle,
+    QStyleOptionButton,
+    QWidget,
+)
 
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.core.strings import DialogStrings, MenuStrings, StatusStrings

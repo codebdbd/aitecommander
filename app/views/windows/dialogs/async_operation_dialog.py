@@ -19,6 +19,7 @@ from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.i18n.common import tr as tr_common
 from app.views.windows.dialogs.base_dialog import BaseDialog
 
+
 def _tr(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate("AsyncOperationDialog", text, disambiguation)
 

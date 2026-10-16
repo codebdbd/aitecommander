@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QSignalSpy
+from PyQt6.QtTest import QSignalSpy
 from PyQt6.QtWidgets import QApplication
 
 from app.startup.database_ready_service import DatabaseReadyService

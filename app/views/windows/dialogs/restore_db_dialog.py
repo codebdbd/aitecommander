@@ -3,7 +3,7 @@
 import datetime
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (

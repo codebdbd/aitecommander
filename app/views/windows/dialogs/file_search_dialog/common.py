@@ -5,9 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .text_extractors import (
-    check_document_content,
     check_document_content_with_snippet,
-    extract_text_by_format,
     find_match_in_text,
     make_snippet,
 )

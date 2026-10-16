@@ -106,12 +106,10 @@ class TestTreeUpdateServiceCategoryMoveOnEdit(unittest.TestCase):
         model = Mock()
         return TreeUpdateService(manager, tree, model), business, manager, model
 
-    @patch("app.controllers.ui.structure.tree_update_service.get_focus_manager")
     @patch("app.controllers.ui.structure.tree_update_service.schedule_selection_restore")
     def test_category_update_with_new_section_replaces_source_and_target_sections(
         self,
         schedule_mock: Mock,
-        focus_manager_mock: Mock,
     ) -> None:
         svc, business, manager, model = self._build_service()
         model.section_ids_for_categories.return_value = [10]
@@ -139,7 +137,7 @@ class TestTreeUpdateServiceCategoryMoveOnEdit(unittest.TestCase):
         manager.refresh_section_tiles.assert_any_call(10)
         manager.refresh_section_tiles.assert_any_call(20)
         schedule_mock.assert_called_once()
-        focus_manager_mock.return_value.set_focus.assert_called_once()
+
 
     @patch("app.controllers.ui.structure.tree_update_service.get_focus_manager")
     @patch("app.controllers.ui.structure.tree_update_service.schedule_selection_restore")

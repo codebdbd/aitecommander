@@ -1428,6 +1428,7 @@ class BatchDeleteCategoriesCmd(BaseCommand):
             return total
 
         def _after_restore(_restored_count: int) -> None:
+            nonlocal selection_handler, tree_manager
             after_db_ts = time.perf_counter()
             elapsed_ms = (after_db_ts - started) * 1000.0
             logger.info(
@@ -1930,16 +1931,6 @@ class DeleteSectionsCmd(BaseCommand):
         if not self._backup_trees:
             logger.warning("DeleteSectionsCmd.undo: backup missing; undo skipped")
             return
-        selection_handler = None
-        tree_manager = None
-        try:
-            structure_ctrl = getattr(self.main, "structure", None)
-            selection_handler = getattr(structure_ctrl, "selection_handler", None)
-            tree_manager = getattr(structure_ctrl, "tree_manager", None)
-        except Exception:
-            selection_handler = None
-            tree_manager = None
-
         started = time.perf_counter()
         total = len(self._backup_trees)
         large_restore_sections_threshold = 8

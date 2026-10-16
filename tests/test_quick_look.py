@@ -188,7 +188,8 @@ class TestQuickLookDialog(unittest.TestCase):
         self.assertEqual(28, self.dialog._open_btn.height())
 
     def test_folder_preview_margins_constrained_to_768(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        from tests.conftest import TEST_TEMP_ROOT
+        with tempfile.TemporaryDirectory(dir=str(TEST_TEMP_ROOT), ignore_cleanup_errors=True) as tmp_dir:
             f1 = Path(tmp_dir) / "file1.txt"
             f1.write_text("hello", encoding="utf-8")
             self.dialog.set_link({"name": "Test Folder", "url": tmp_dir, "type": "folder"})

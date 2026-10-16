@@ -1,8 +1,8 @@
 # app/views/main_components/top_bar_setup.py
 from __future__ import annotations
 
-from contextlib import contextmanager
 import logging
+from contextlib import contextmanager
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +23,6 @@ from app.views.main_components.ui.topbar.toolbar_adapters import (
     _resolve_theme,
     _setup_topbar_button_contrast,
 )
-from app.views.widgets.theme_selector import ThemeSelector
 
 if TYPE_CHECKING:
     from app.views.main_components.ui.window_ui_setup import WindowUISetup
@@ -411,7 +410,9 @@ class TopBarBuilder:
             self.window.theme_selector_separator = theme_separator
 
             from app.utils.ui.menu_builders.base import get_menu_icon
-            from app.views.main_components.ui.topbar.toolbar_adapters import _resolve_theme
+            from app.views.main_components.ui.topbar.toolbar_adapters import (
+                _resolve_theme,
+            )
             theme = _resolve_theme()
 
             btn_size = int(app_config.ui.get_top_panel_button_size())

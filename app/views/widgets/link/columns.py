@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 
+
 class LinkTableColumn(IntEnum):
     ORDER = 0
     GROUP_LAUNCH = 1

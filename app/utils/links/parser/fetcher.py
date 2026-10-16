@@ -26,7 +26,6 @@ from .constants import BS_PARSER, CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 from .domain import apply_jitter, base_domain, sanitize_domain_for_filename
 from .http_client import http_request
 from .icon_downloader import pick_icon_parallel, save_icon
-from .icon_fallback import clear_domain_failed, is_domain_failed, mark_domain_failed
 from .title_parser import (
     get_provider_title_fast,
     get_title,

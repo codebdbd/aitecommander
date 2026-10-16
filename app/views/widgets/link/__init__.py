@@ -7,8 +7,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .columns import (
-    LINK_TABLE_COLUMNS,
     LINK_TABLE_COLUMN_MAP,
+    LINK_TABLE_COLUMNS,
     LinkTableColumn,
     LinkTableColumnDescriptor,
 )

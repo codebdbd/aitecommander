@@ -10,6 +10,7 @@ from app.controllers.ui.dialogs.dialog_manager import localize_message_box_butto
 from app.utils.i18n.common import tr as tr_common
 from app.views.windows.dialogs.base_dialog import apply_uniform_height_to_message_box
 
+
 def _tr(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate("DatabaseDialogs", text, disambiguation)
 

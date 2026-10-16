@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from app.utils.cache.selective_lru import selective_lru_cache
 from typing import Any
 
 from PyQt6.QtCore import (
@@ -14,6 +13,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QStyle, QWidget
 
+from app.utils.cache.selective_lru import selective_lru_cache
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.common.retranslatable import ReTranslatable
@@ -68,6 +68,7 @@ def get_rotation_icon(size: int = 16, *, is_selected: bool = False) -> QIcon | N
             return cached
 
         from pathlib import Path
+
         from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon
 
         svg_path = (

@@ -164,7 +164,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         except LinkValidationError as e:
             logger.error("Link validation error: %s", e)
             self._show_error(f"{self.get_message('validation_error')}: {str(e)}")
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             raw_path = target_link.get("url", "")
             logger.warning("File or folder not found: %s", raw_path)
             self._prompt_relocate_missing_link(target_link, raw_path)

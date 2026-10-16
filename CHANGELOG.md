@@ -5,7 +5,7 @@ All notable changes to **Aite Commander** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.9] - 2026-10-15
 
 ### Added
 - **External Drag & Drop to System Apps and AiteBar**:
@@ -101,6 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced loud system chimes with silent notifications and warning cards when files are moved or deleted.
 
 ### Fixed
+- **Tree Refresh after Undo of Deleted Categories**:
+  - Fixed `UnboundLocalError` in `BatchDeleteCategoriesCmd.undo` (`_after_restore`) ensuring immediate category tree model reload and selection restoration after undoing deleted categories.
+- **Path Security Validator GUID and Sandbox Support**:
+  - Permitted curly braces `{}` in file paths to support Windows applications, temporary directories, and sandbox environments containing GUID identifiers.
+- **Clean Application Teardown & Fastfail Prevention**:
+  - Eliminated Windows process teardown Access Violations (`0xC0000005` / `0xC0000409`) on shutdown by guarding against access to deleted Qt C++ objects and invoking `ExitProcess` during production exit.
+- **Full 6-Language Qt Translation Parity (100%)**:
+  - Completed missing translation keys in workers, database initialization, and dialogs across English, Russian, Ukrainian, German, Spanish, and French catalogs.
 - **Tree Category Drag & Drop Priority**:
   - Fixed internal vs external drop dispatch order in `DragDropHandler.handle_drop_event`.
   - Symmetrical UP/DOWN target row calculation and Qt `beginMoveRows` contract synchronization with `reorder_categories`.

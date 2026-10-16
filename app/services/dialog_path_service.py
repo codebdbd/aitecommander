@@ -2,9 +2,10 @@
 
 import os
 from pathlib import Path
+
 from PyQt6.QtCore import QSettings, QStandardPaths
 
-from app.config_data import app_config
+from app.config_data.runtime_config import runtime_app_config as app_config
 
 
 class DialogPathService:

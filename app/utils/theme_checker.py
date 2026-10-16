@@ -6,7 +6,6 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 from PyQt6.QtGui import QColor
 
@@ -131,11 +130,11 @@ def validate_theme_contrast(qss_content: str, is_dark: bool, tokens: dict[str, s
     sel_bg = parse_color(effective_tokens.get("selection_bg", ""), bg_canvas)
     sel_fg = parse_color(effective_tokens.get("selection_fg", ""), sel_bg)
     if not bg_canvas or not text_canvas:
-        return False, 0.0, f"Cannot parse canvas or text color in tokens"
+        return False, 0.0, "Cannot parse canvas or text color in tokens"
     if not bg_surface or not text_surface:
-        return False, 0.0, f"Cannot parse surface or text color in tokens"
+        return False, 0.0, "Cannot parse surface or text color in tokens"
     if not sel_bg or not sel_fg:
-        return False, 0.0, f"Cannot parse selection color in tokens"
+        return False, 0.0, "Cannot parse selection color in tokens"
     if bg_canvas and text_canvas:
         cr_canvas = contrast_ratio(bg_canvas, text_canvas)
         if cr_canvas < 4.5:
@@ -193,7 +192,7 @@ def main() -> int:
         print(f"[RESULT] All {len(results)} themes passed WCAG contrast & luminance check.")
         return 0
     else:
-        print(f"[RESULT] Failures detected in themes validation.")
+        print("[RESULT] Failures detected in themes validation.")
         return 1
 
 

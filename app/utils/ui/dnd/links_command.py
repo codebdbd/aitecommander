@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any
 from PyQt6.QtCore import QItemSelectionModel
 
 from app.config_data.runtime_config import get_table_selection_restore_delay_ms
+from app.controllers.ui.undo.base import BaseCommand
 from app.utils.common import get_value
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
-from app.controllers.ui.undo.base import BaseCommand
 from app.utils.ui.dnd.error_handler import BulkOperationErrorHandler
 
 if TYPE_CHECKING:
@@ -127,7 +127,7 @@ class MoveLinksCommand(BaseBulkCommand):
                 pass
             elif self._is_duplicate(candidate, existing_links):
                 from app.services.structure_share_service import generate_unique_name
-                existing_names = [get_value(l, "name", "") for l in existing_links]
+                existing_names = [get_value(lnk, "name", "") for lnk in existing_links]
                 candidate["name"] = generate_unique_name(existing_names, candidate.get("name", ""))
             prepared.append(candidate)
             existing_links.append(candidate)
@@ -379,7 +379,7 @@ class ReorderLinksCommand(BaseCommand):
 
         lb = getattr(self.main, "links_business", None)
         current_links = lb.get_links(self.category_id) or [] if lb else []
-        self.old_order = [int(l["id"]) for l in current_links if l.get("id")]
+        self.old_order = [int(lnk["id"]) for lnk in current_links if lnk.get("id")]
 
     def redo(self) -> None:
         lb = getattr(self.main, "links_business", None)

@@ -6,9 +6,9 @@ from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
+from app.utils.ui.icon.icon_resolver import resolve_category_icon_path
 from app.utils.ui.icon.loading_policy import get_tiles_icon_loading_policy
 from app.utils.ui.icon.loading_service import icon_loading_service
-from app.utils.ui.icon.icon_resolver import resolve_category_icon_path
 
 logger = logging.getLogger(__name__)
 

@@ -9,6 +9,8 @@ from PyQt6.QtCore import QCoreApplication, QRunnable
 
 from .common import (
     matches_criteria as _matches_common,
+)
+from .common import (
     matches_criteria_with_snippet as _matches_with_snippet,
 )
 from .search_signals import SearchSignals

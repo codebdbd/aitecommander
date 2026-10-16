@@ -1,5 +1,6 @@
 from PyQt6.QtCore import QCoreApplication
 
+
 def tr(text: str) -> str:
     return QCoreApplication.translate("Common", text)
 

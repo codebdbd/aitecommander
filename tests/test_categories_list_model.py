@@ -14,6 +14,17 @@ class TestCategoriesListModelSyncPrefetch(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls._app = QApplication.instance() or QApplication([])
 
+    def setUp(self) -> None:
+        self._res_patcher = patch(
+            "app.views.models.categories_list_model.resolve_category_icon_path",
+            side_effect=lambda p: p,
+        )
+        self._res_patcher.start()
+
+    def tearDown(self) -> None:
+        self._res_patcher.stop()
+
+
     def test_sync_prefetch_loads_first_rows_immediately(self) -> None:
         categories = [
             {"id": 1, "name": "A", "icon_path": "a.png"},

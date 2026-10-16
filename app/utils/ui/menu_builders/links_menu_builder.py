@@ -8,7 +8,6 @@ from PyQt6.QtCore import QCoreApplication, QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
-from app.utils.links.type_labels import normalize_link_type_key
 
 from .base import create_context_action, get_menu_icon
 

@@ -259,8 +259,9 @@ def test_import_sanitizes_external_icon_path(tmp_path: Path) -> None:
     with patch("app.utils.ui.icon.path_service.icon_path_service.get_user_icons_dir", return_value=icons_dir):
         prepared = service._prepare_category_tree_for_import(data, section_id=10, valid_icons={"installed.png"})
 
-    # External path on category should be stripped to empty default
-    assert prepared["category"]["icon_path"] == ""
+    # External path on category should be stripped to default category icon
+    assert prepared["category"]["icon_path"] == "category.png"
+
 
     # External path on link should be sanitized to default icon
     assert prepared["links"][0]["icon_path"] in ("documents_icon.png", "web_icon.png")

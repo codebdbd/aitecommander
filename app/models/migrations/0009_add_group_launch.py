@@ -1,6 +1,7 @@
 import sqlite3
 from typing import Any
 
+
 def migrate(conn: sqlite3.Connection, logger: Any) -> None:
     """Add is_group_launch to link table."""
     cols = conn.execute("PRAGMA table_info('link')").fetchall()

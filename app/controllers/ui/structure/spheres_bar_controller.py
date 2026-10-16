@@ -252,7 +252,9 @@ class SpheresBarController(QObject):
                 if any(isinstance(s, dict) and str(s.get("name", "")).strip().lower() == name.lower() and int(s.get("id", 0)) != sid for s in target_sections):
                     conflicts.append(sid)
 
-            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            from app.controllers.ui.conflict_resolution_session import (
+                ConflictResolutionSession,
+            )
             session = ConflictResolutionSession(self.w, operation="move", total_conflicts=len(conflicts))
 
             to_move_ids: list[int] = []

@@ -12,7 +12,6 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QDialogButtonBox,
     QFormLayout,
     QFrame,
@@ -22,21 +21,17 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QStackedWidget,
-    QTextEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
-from app.utils.links.type_labels import link_type_label_source
 from app.utils.i18n.common import tr as tr_common
-from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.utils.links.type_labels import link_type_label_source
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.combo_helpers import PopupComboBox
-from app.views.widgets.input_frame import InputFrame
 
 logger = logging.getLogger(__name__)
 

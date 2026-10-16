@@ -55,6 +55,11 @@ class DbReadyGate:
         db_checker: Callable[[], bool] | None = None,
     ) -> None:
         """Ensure readiness or keep waiting with optional timeout and DB checks."""
+        from PyQt6 import sip
+
+        if not self._window or sip.isdeleted(self._window):
+            return
+
         # Initial readiness probe (optionally using direct DB checks)
         try:
             is_ready = self._is_ready(db_checker)
@@ -62,6 +67,8 @@ class DbReadyGate:
                 self._execute_callbacks_and_metrics(on_ready)
                 return
         except (RuntimeError, AttributeError, TypeError) as e:
+            if not self._window or sip.isdeleted(self._window):
+                return
             self._logger.warning(
                 "DbReadyGate: initial readiness check failed (%s); falling back to ready",
                 e,
@@ -106,6 +113,11 @@ class DbReadyGate:
 
     def _is_ready(self, db_checker: Callable[[], bool] | None) -> bool:
         """Check readiness using DB callback first, then window state."""
+        from PyQt6 import sip
+
+        if not self._window or sip.isdeleted(self._window):
+            return False
+
         if db_checker is not None:
             try:
                 if db_checker():
@@ -119,7 +131,10 @@ class DbReadyGate:
         # Window `isEnabled` check
         is_enabled_method = getattr(self._window, "isEnabled", None)
         if callable(is_enabled_method):
-            return bool(is_enabled_method())
+            try:
+                return bool(is_enabled_method())
+            except RuntimeError:
+                return False
         return False  # If not callable, assume not ready
 
     def _check_and_continue(self, db_checker: Callable[[], bool] | None) -> None:
@@ -172,6 +187,12 @@ class DbReadyGate:
         self, single_callback: Callable[[], None] | None = None
     ) -> None:
         """Execute callbacks (all or the provided one) and log wait metrics."""
+        from PyQt6 import sip
+
+        if not self._window or sip.isdeleted(self._window):
+            self._pending_callbacks.clear()
+            return
+
         callbacks_to_execute = (
             [single_callback] if single_callback else self._pending_callbacks
         )

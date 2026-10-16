@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import QMainWindow
 
 from app.controllers.system.app_shutdown_controller import (
     AppShutdownController,
-    ShutdownPriority,
 )
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database

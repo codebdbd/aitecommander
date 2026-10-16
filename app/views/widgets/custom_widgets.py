@@ -1,5 +1,5 @@
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
 from math import ceil
 
 from PyQt6.QtCore import (
@@ -14,7 +14,17 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QBrush, QColor, QDrag, QFontMetricsF, QIcon, QMouseEvent, QPainter, QPalette, QPen, QWheelEvent
+from PyQt6.QtGui import (
+    QColor,
+    QDrag,
+    QFontMetricsF,
+    QIcon,
+    QMouseEvent,
+    QPainter,
+    QPalette,
+    QPen,
+    QWheelEvent,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QProxyStyle,
@@ -27,7 +37,6 @@ from PyQt6.QtWidgets import (
 from app.config_data.runtime_config import runtime_app_config as app_config
 from app.utils.ui.dnd.pixmap import create_text_pixmap
 from app.utils.ui.dnd.tree import DragDropHandler
-from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.tree_components.move_operations_handler import (
     MoveOperationsHandler,
@@ -463,7 +472,9 @@ class StructureTreeView(QTreeView):
                     return cached
 
                 from app.services.theme_registry import theme_registry
-                from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon
+                from app.utils.ui.icon.icon_operations.creators import (
+                    _create_tinted_svg_icon,
+                )
                 from app.utils.ui.icon.path_service import get_icon_path
 
                 tokens = theme_registry.get_theme_tokens(theme) or {}
@@ -591,9 +602,11 @@ class StructureTreeView(QTreeView):
     ) -> None:
         """Generate temporary export archives for external drag-and-drop into Explorer/Telegram."""
         try:
-            from pathlib import Path
             import tempfile
+            from pathlib import Path
+
             from PyQt6.QtCore import QUrl
+
             from app.services.structure_share_service import StructureShareService
             from app.utils.ui.qt.roles import get_tree_tuple
 

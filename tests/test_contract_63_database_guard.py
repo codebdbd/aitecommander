@@ -20,7 +20,12 @@ class TestContract63DatabaseGuard(unittest.TestCase):
 
         def track_execute(sql: str, *args, **kwargs):
             executed_statements.append(sql.strip())
-            return MagicMock()
+            cursor = MagicMock()
+            if "wal_checkpoint" in sql:
+                cursor.fetchone.return_value = (0, 0, 0)
+            elif "journal_mode" in sql:
+                cursor.fetchone.return_value = ("delete",)
+            return cursor
 
         conn_mock.execute.side_effect = track_execute
 

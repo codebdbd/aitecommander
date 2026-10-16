@@ -19,7 +19,9 @@ if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
 _SYSTEM_TEMP_ROOT = Path(tempfile.gettempdir())
-if _SYSTEM_TEMP_ROOT.name == "aitecommander_pytest":
+if "sandbox" in str(_SYSTEM_TEMP_ROOT).lower():
+    _SYSTEM_TEMP_ROOT = PROJECT_ROOT / ".pytest_temp"
+elif _SYSTEM_TEMP_ROOT.name == "aitecommander_pytest":
     _SYSTEM_TEMP_ROOT = _SYSTEM_TEMP_ROOT.parent
 
 TEST_TEMP_ROOT = _SYSTEM_TEMP_ROOT / "aitecommander_pytest_files"
@@ -53,3 +55,10 @@ def tmp_path(request) -> Path:
         yield path
     finally:
         shutil.rmtree(path, ignore_errors=True)
+
+
+@pytest.fixture
+def qapp():
+    from PyQt6.QtWidgets import QApplication
+    return QApplication.instance() or QApplication([])
+

@@ -63,9 +63,9 @@ def equalize_button_box(
     """Ensure uniform width for all buttons in the button box based on font metrics across languages."""
     if box is None:
         return 0
-    l = box.layout()
-    if l is not None:
-        l.setSpacing(8)
+    box_layout = box.layout()
+    if box_layout is not None:
+        box_layout.setSpacing(8)
     buttons = box.findChildren(QPushButton)
     if not buttons:
         return 0

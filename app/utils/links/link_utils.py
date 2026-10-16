@@ -232,7 +232,7 @@ class SecurityValidator:
 
     # More strict patterns for different argument types
     CHROME_ARG_PATTERN = re.compile(r'^--[\w-]+(=[\w\s\-_./:\\"{}?&=]+)?$')
-    PATH_PATTERN = re.compile(r"^[a-zA-Z]:[\\\/][\w\s\-_./\\:()]+$|^[\w\s\-_./()]+$")
+    PATH_PATTERN = re.compile(r"^[a-zA-Z]:[\\\/][\w\s\-_./\\:(){}]+$|^[\w\s\-_./(){}]+$")
     URL_PATTERN = re.compile(r'^https?://[^\s<>"{}|\\^`\[\]]+$')
 
     # Whitelist of allowed Chrome arguments
@@ -311,8 +311,8 @@ class SecurityValidator:
                 forbidden = {"|", ";", ">", "<", "`", "$", "\r", "\n", "\0", "&"}
                 return not any(char in path for char in forbidden)
 
-        # Check for dangerous characters (except allowed for paths)
-        dangerous_for_paths = cls.DANGEROUS_CHARS - {"(", ")"}
+        # Check for dangerous characters (except allowed for paths like () and {} for GUIDs)
+        dangerous_for_paths = cls.DANGEROUS_CHARS - {"(", ")", "{", "}"}
         if any(char in path for char in dangerous_for_paths):
             return False
 

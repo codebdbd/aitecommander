@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QCoreApplication, Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon
 
 from app.models import LinkType
@@ -58,7 +58,6 @@ class TypeChangeMixin:
         """Update UI state according to link type."""
         lt = LinkType.from_value(self.dialog.link_type)
         is_web = lt == LinkType.WEB
-        is_program = lt == LinkType.PROGRAM
         profile_label = self.dialog.ui.widgets.get("profile_label")
         profile_container = self.dialog.ui.widgets.get("profile_container")
         browse_btn = self.dialog._get_browse_btn()

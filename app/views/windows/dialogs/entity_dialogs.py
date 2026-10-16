@@ -6,8 +6,6 @@ from typing import Any
 
 from PyQt6.QtCore import (
     QCoreApplication,
-    QEvent,
-    QPoint,
     QRunnable,
     QSize,
     Qt,
@@ -16,45 +14,25 @@ from PyQt6.QtCore import (
     pyqtSlot,
 )
 from PyQt6.QtGui import (
-    QAction,
-    QCloseEvent,
-    QColor,
     QDesktopServices,
-    QFont,
-    QIcon,
-    QKeyEvent,
-    QMouseEvent,
-    QPalette,
-    QTextBlockFormat,
-    QTextCharFormat,
-    QTextCursor,
-    QTextFormat,
-    QTextListFormat,
-    QWheelEvent,
 )
 from PyQt6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
-    QGroupBox,
-    QRadioButton,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
-    QLayout,
     QLineEdit,
-    QMenu,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QSizePolicy,
-    QTextEdit,
-    QToolButton,
     QVBoxLayout,
     QWidget,
-    QFrame,
 )
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -70,7 +48,6 @@ from app.services.theme_registry import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.icon_operations.creators import (
-    _create_tinted_svg_icon,
     create_icon_from_path,
 )
 from app.utils.ui.icon.icon_resolver import (
@@ -83,7 +60,6 @@ from app.utils.ui.qt.combo_helpers import (
     add_combo_mapping_item,
     select_combo_data,
 )
-from app.views.widgets.input_frame import InputFrame
 from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import (
     get_cached_icon_with_fallback,
@@ -1512,7 +1488,6 @@ class ImportConflictDialog(BaseDialog):
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn is not None:
             ok_btn.setDefault(True)
-        cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
 
         self.equalize_button_box(bb, min_width=app_config.ui.get_fixed_button_width())
 

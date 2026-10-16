@@ -118,7 +118,10 @@ class BackupManager:
         should_close = False
         
         try:
-            self.db.operation_started.emit(operation, 2)
+            try:
+                self.db.operation_started.emit(operation, 2)
+            except Exception:
+                pass
             
             # Get max backups setting
             from app.config_data import app_config
@@ -144,7 +147,10 @@ class BackupManager:
             if not backup_path:
                 raise DatabaseError("Backup did not return a valid path")
             
-            self.db.operation_finished.emit(operation, True)
+            try:
+                self.db.operation_finished.emit(operation, True)
+            except Exception:
+                pass
             
             # Notify UI about successful backup creation
             try:
@@ -160,7 +166,10 @@ class BackupManager:
             
         except Exception as e:
             logger.error("Error creating backup: %s", e, exc_info=True)
-            self.db.operation_finished.emit(operation, False)
+            try:
+                self.db.operation_finished.emit(operation, False)
+            except Exception:
+                pass
             try:
                 self.db.error_occurred.emit("Backup error", str(e))
             except Exception:

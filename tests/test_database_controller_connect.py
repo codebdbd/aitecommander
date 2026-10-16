@@ -132,7 +132,7 @@ def test_connect_database_rejects_missing_required_tables(tmp_path: Path) -> Non
     assert controller._is_restoring is False
 
 
-def test_connect_database_success_with_wal_source(tmp_path: Path) -> None:
+def test_connect_database_success_with_wal_source(qapp, tmp_path: Path) -> None:
     live_dir = tmp_path / "app_data"
     live_dir.mkdir()
     live_db_path = live_dir / "links.db"

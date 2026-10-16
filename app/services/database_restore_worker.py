@@ -127,7 +127,8 @@ class DatabaseRestoreWorker(QRunnable):
                     has_orig = True
                     logger.info(f"Preserved original database as {orig_backup}")
                 except Exception as e:
-                    logger.warning(f"Failed to preserve original DB via rename: {e}")
+                    logger.error(f"Failed to preserve original DB via rename: {e}")
+                    raise
 
             # 5. Atomically move staged DB to live target path
             try:
@@ -209,7 +210,7 @@ class DatabaseRestoreWorker(QRunnable):
             # Find database member (database.db or root *.db)
             for member in infolist:
                 norm_name = member.filename.replace("\\", "/")
-                if norm_name == "database.db" or (not "/" in norm_name and norm_name.lower().endswith(".db")):
+                if norm_name == "database.db" or ("/" not in norm_name and norm_name.lower().endswith(".db")):
                     db_member = member
                     break
 
@@ -276,14 +277,18 @@ class DatabaseRestoreWorker(QRunnable):
         self._remove_wal_sidecar_files(db_path)
 
     def _switch_journal_mode_for_restore(self, db_path) -> None:
-        """Best-effort switch to DELETE journal mode before file replacement."""
+        """Require a successful checkpoint before removing any SQLite sidecars."""
         logger.info("Switching database to DELETE journal mode for restore")
         try:
             temp_conn = self._open_sqlite_connection(db_path, timeout=10.0)
             try:
                 temp_conn.execute("PRAGMA mmap_size = 0")
-                temp_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                temp_conn.execute("PRAGMA journal_mode = DELETE")
+                checkpoint = temp_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                if checkpoint is None or checkpoint[0] != 0:
+                    raise sqlite3.OperationalError("Database checkpoint is busy; restore aborted")
+                mode = temp_conn.execute("PRAGMA journal_mode = DELETE").fetchone()
+                if mode is None or str(mode[0]).lower() != "delete":
+                    raise sqlite3.OperationalError("Cannot leave WAL mode; restore aborted")
                 temp_conn.commit()
                 logger.info("Successfully switched to DELETE journal mode")
             finally:
@@ -292,6 +297,13 @@ class DatabaseRestoreWorker(QRunnable):
                 gc.collect()
         except Exception as journal_err:
             logger.warning(f"Failed to switch journal mode: {journal_err}")
+            # A corrupt main file without a WAL can still be preserved and
+            # replaced safely. Never discard a journal after a failed checkpoint.
+            wal_path = Path(f"{db_path}-wal")
+            error_code = getattr(journal_err, "sqlite_errorcode", 0) & 0xFF
+            if error_code in (sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB) and not wal_path.exists():
+                return
+            raise
 
     def _remove_wal_sidecar_files(self, db_path) -> None:
         """Remove SQLite sidecar files (`-wal`, `-shm`) before restore copy."""

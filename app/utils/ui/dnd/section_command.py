@@ -376,11 +376,11 @@ class MergeSectionToSphereCommand(BaseCommand):
                 target_links = lb.get_links(tgt_cid) or [] if lb is not None else []
                 target_keys = {
                     (
-                        str(l.get("name", "")),
-                        str(l.get("url", "")),
-                        str(l.get("args", "")),
+                        str(lnk.get("name", "")),
+                        str(lnk.get("url", "")),
+                        str(lnk.get("args", "")),
                     )
-                    for l in target_links
+                    for lnk in target_links
                 }
 
                 moved_link_ids: list[int] = []

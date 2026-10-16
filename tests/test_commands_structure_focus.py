@@ -262,7 +262,7 @@ class TestSaveCategoryCmdSignals(unittest.TestCase):
         cmd = SaveCategoryCmd(
             new_data={"id": 42, "name": "Updated cat", "section_id": 10},
             old_data={"id": 42, "name": "Old cat", "section_id": 10},
-            main_window=Mock(),
+            main_window=SimpleNamespace(),
             business=business,
         )
         cmd.redo()
@@ -270,6 +270,7 @@ class TestSaveCategoryCmdSignals(unittest.TestCase):
         business.select_category.assert_called_once_with(42)
         business.item_updated.emit.assert_called_once_with("category", 42, payload)
         business.item_added.emit.assert_not_called()
+
 
 
 class TestPasteCategoriesCmdRefresh(unittest.TestCase):
@@ -313,6 +314,8 @@ class TestPasteSectionsCmdRefresh(unittest.TestCase):
             ),
             item_added=_signal(),
             item_deleted=_signal(),
+            begin_batch=Mock(),
+            end_batch=Mock(),
             async_service=SimpleNamespace(schedule_structure_reload=Mock()),
         )
         cmd = PasteSectionsCmd.__new__(PasteSectionsCmd)
@@ -333,7 +336,7 @@ class TestPasteSectionsCmdRefresh(unittest.TestCase):
         business.item_added.emit.assert_called_once_with(
             "section",
             3,
-            {"id": 101, "sphere_id": 3, "name": "sec"},
+            {"id": 101, "sphere_id": 3, "name": "sec", "__skip_focus__": True},
         )
         tree_manager.replace_section_categories.assert_any_call(
             101,

@@ -5,7 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from app.views.widgets.link.columns import LinkTableColumn, is_column, sort_key_for_column
+from app.views.widgets.link.columns import (
+    LinkTableColumn,
+    is_column,
+    sort_key_for_column,
+)
 
 TypeLabelGetter = Callable[[dict[str, Any]], str]
 

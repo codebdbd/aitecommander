@@ -6,10 +6,9 @@ from app.controllers.ui.undo.commands_links import (
     BatchDeleteLinksCmd,
     BatchSaveLinksCmd,
     DeleteLinkCmd,
-    SaveLinkCmd,
 )
-from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
+from app.utils.ui.dnd.links_command import MoveLinksCommand
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import CategoryNotFoundError
@@ -35,7 +34,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if success:
             self._clipboard_is_cut = True
             self._cut_link_ids = {
-                int(l["id"]) for l in links if isinstance(l, dict) and l.get("id") is not None
+                int(lnk["id"]) for lnk in links if isinstance(lnk, dict) and lnk.get("id") is not None
             }
             if hasattr(self.table, "set_cut_link_ids"):
                 self.table.set_cut_link_ids(self._cut_link_ids)
@@ -72,11 +71,11 @@ class LinksUIClipboard(BaseLinksUIComponent):
             existing = self.business.get_links(current_category_id) or []
             existing_links = [dict(r) for r in existing]
             existing_by_name = {
-                str(l.get("name", "")).strip().lower(): dict(l)
-                for l in existing_links
-                if str(l.get("name", "")).strip()
+                str(lnk.get("name", "")).strip().lower(): dict(lnk)
+                for lnk in existing_links
+                if str(lnk.get("name", "")).strip()
             }
-            existing_names = [str(l.get("name", "")) for l in existing_links]
+            existing_names = [str(lnk.get("name", "")) for lnk in existing_links]
             name_overrides: dict[int, str] = {}
             replacements: dict[int, int] = {}
             to_move_ids: list[int] = []
@@ -88,7 +87,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
                     str(ld.get("name", "")).strip().lower() in existing_by_name
                 )[1]
             ]
-            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            from app.controllers.ui.conflict_resolution_session import (
+                ConflictResolutionSession,
+            )
             session = ConflictResolutionSession(self.main, operation="paste", total_conflicts=len(conflicts))
             for cid in cut_ids:
                 link_data = (links_service.get_link_by_id(cid) if links_service else {}) or {}
@@ -178,9 +179,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
         if self._cut_link_ids:
             del_ids = {
-                int(l["id"])
-                for l in links
-                if isinstance(l, dict) and l.get("id") is not None
+                int(lnk["id"])
+                for lnk in links
+                if isinstance(lnk, dict) and lnk.get("id") is not None
             }
             self._cut_link_ids.difference_update(del_ids)
             if not self._cut_link_ids:
@@ -232,9 +233,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if not links:
             return
         replaced_links = {
-            int(l["id"]): l.pop("_old_link_snapshot")
-            for l in links
-            if "_old_link_snapshot" in l and l.get("id")
+            int(lnk["id"]): lnk.pop("_old_link_snapshot")
+            for lnk in links
+            if "_old_link_snapshot" in lnk and lnk.get("id")
         }
         cmd = BatchSaveLinksCmd(
             links_data=links,
@@ -250,18 +251,20 @@ class LinksUIClipboard(BaseLinksUIComponent):
     ) -> list[dict]:
         """Optimized duplicate filtering with conflict resolution."""
         existing_by_name = {
-            str(l.get("name", "")).strip().lower(): dict(l)
-            for l in existing_links
-            if str(l.get("name", "")).strip()
+            str(lnk.get("name", "")).strip().lower(): dict(lnk)
+            for lnk in existing_links
+            if str(lnk.get("name", "")).strip()
         }
-        existing_names = [str(l.get("name", "")) for l in existing_links]
+        existing_names = [str(lnk.get("name", "")) for lnk in existing_links]
 
         new_links = []
         conflict_count = sum(
-            1 for l in links
-            if str(l.get("name", "")).strip().lower() in existing_by_name
+            1 for lnk in links
+            if str(lnk.get("name", "")).strip().lower() in existing_by_name
         )
-        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+        from app.controllers.ui.conflict_resolution_session import (
+            ConflictResolutionSession,
+        )
         session = ConflictResolutionSession(self.main, operation="paste", total_conflicts=conflict_count)
 
         for link in links:

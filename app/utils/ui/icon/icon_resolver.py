@@ -1,9 +1,10 @@
-from app.utils.cache.selective_lru import selective_lru_cache
 import re
 from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import QCoreApplication
+
+from app.utils.cache.selective_lru import selective_lru_cache
 
 from .path_service import icon_path_service
 from .validation import is_valid_icon_file

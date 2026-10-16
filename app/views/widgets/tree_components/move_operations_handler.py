@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-from PyQt6.QtWidgets import QDialog, QMessageBox
+from PyQt6.QtWidgets import QMessageBox
 
 from app.controllers.ui.dialogs.dialog_manager import localize_message_box_buttons
 from app.controllers.ui.undo.commands import MacroCommand
@@ -18,7 +18,6 @@ from app.utils.ui.dnd.categories_command import (
     MergeCategoriesCommand,
     MoveCategoriesCommand,
 )
-from app.utils.ui.dnd.category_command import MoveCategoryCommand
 from app.utils.ui.dnd.links_command import MoveLinksCommand
 from app.utils.ui.dnd.section_command import (
     MoveSectionToSphereCommand,
@@ -122,11 +121,11 @@ class MoveOperationsHandler(TreeHandlerBase):
         if lb and links_service:
             existing = lb.get_links(int(new_category_id)) or []
             existing_by_name = {
-                str(l.get("name", "")).strip().lower(): dict(l)
-                for l in existing
-                if str(l.get("name", "")).strip()
+                str(lnk.get("name", "")).strip().lower(): dict(lnk)
+                for lnk in existing
+                if str(lnk.get("name", "")).strip()
             }
-            existing_names = [str(l.get("name", "")) for l in existing]
+            existing_names = [str(lnk.get("name", "")) for lnk in existing]
             conflicts: list[int] = []
             for lid in link_ids:
                 ld = links_service.get_link_by_id(int(lid))
@@ -136,7 +135,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                 if c_name.lower() in existing_by_name:
                     conflicts.append(int(lid))
 
-            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            from app.controllers.ui.conflict_resolution_session import (
+                ConflictResolutionSession,
+            )
             session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicts))
 
             links_to_move = []
@@ -224,11 +225,12 @@ class MoveOperationsHandler(TreeHandlerBase):
 
         from app.utils.ui.dnd.section_command import (
             MergeSectionToSphereCommand,
-            MoveSectionToSphereCommand,
         )
 
         if colliding:
-            from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+            from app.controllers.ui.conflict_resolution_session import (
+                ConflictResolutionSession,
+            )
             session = ConflictResolutionSession(main_win, operation="move", total_conflicts=1)
             action, copy_name = session.resolve("section", name, existing_names)
             if action in {"cancel", "skip"}:
@@ -295,7 +297,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                 for c in target_categories
             )
         ]
-        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+        from app.controllers.ui.conflict_resolution_session import (
+            ConflictResolutionSession,
+        )
         session = ConflictResolutionSession(main_win, operation="move", total_conflicts=len(conflicting_categories))
 
         # Phase 1: Conflict resolution planning (no DB modifications)

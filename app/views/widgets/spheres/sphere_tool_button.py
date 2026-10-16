@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from PyQt6.QtCore import QRectF, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QColor,

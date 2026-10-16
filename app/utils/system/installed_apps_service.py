@@ -31,9 +31,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from app.config_data.runtime_config import runtime_app_config as app_config
-
 from PyQt6.QtCore import QFileSystemWatcher, QObject
+
+from app.config_data.runtime_config import runtime_app_config as app_config
 
 logger = logging.getLogger(__name__)
 

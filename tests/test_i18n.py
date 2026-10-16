@@ -59,31 +59,31 @@ class TestI18nSubsystem(unittest.TestCase):
         # Russian (3 grammatical forms: 1, 2-4, 5+)
         self.service.set_language("ru")
         self.assertEqual(
-            "Всего 1 приложение",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 1),
+            "Выбран 1 элемент",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 1),
         )
         self.assertEqual(
-            "Всего 2 приложения",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 2),
+            "Выбрано 2 элемента",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 2),
         )
         self.assertEqual(
-            "Всего 5 приложений",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 5),
+            "Выбрано 5 элементов",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 5),
         )
 
         # English (2 grammatical forms: 1, 2+)
         self.service.set_language("en")
         self.assertEqual(
-            "1 application total",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 1),
+            "1 item selected",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 1),
         )
         self.assertEqual(
-            "2 applications total",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 2),
+            "2 items selected",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 2),
         )
         self.assertEqual(
-            "5 applications total",
-            QCoreApplication.translate("InstalledAppsDialog", "%n application(s) total", "", 5),
+            "5 items selected",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 5),
         )
 
 

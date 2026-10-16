@@ -18,7 +18,10 @@ def test_no_initializer_cleanup_handler_in_shutdown_controller() -> None:
 def test_initializer_cleanup_is_idempotent() -> None:
     """Verify ApplicationInitializer.cleanup() runs cleanly and is idempotent."""
     mock_app = MagicMock()
-    initializer = ApplicationInitializer(mock_app)
+    mock_pool = MagicMock()
+    mock_pool.activeThreadCount.return_value = 0
+    mock_pool.waitForDone.return_value = True
+    initializer = ApplicationInitializer(mock_app, thread_pool=mock_pool)
 
     # Initial state
     assert initializer.has_pending_cleanup() is True

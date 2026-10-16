@@ -8,7 +8,6 @@ from PyQt6.QtGui import QIcon
 
 from app.config_data.runtime_config import is_tree_alphabetical_sort_enabled
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
-from app.utils.ui.focus import get_focus_manager
 
 logger = logging.getLogger(__name__)
 

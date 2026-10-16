@@ -1,7 +1,6 @@
 """Mixin handling browser profile modes and selection inside `LinkDialogHandlers`."""
 
 import logging
-from typing import Any
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QDialog

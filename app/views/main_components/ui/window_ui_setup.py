@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
-from functools import partial, wraps
+from functools import wraps
 from pathlib import Path
 from time import perf_counter
 from typing import Protocol
@@ -24,7 +23,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QSizePolicy,
-    QToolBar,
     QVBoxLayout,
     QWidget,
 )

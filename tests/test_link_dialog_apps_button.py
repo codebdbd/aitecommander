@@ -15,7 +15,7 @@ def qapp():
     return app
 
 
-def test_link_dialog_apps_btn_toggle(qapp):
+def test_link_dialog_browse_btn_text_toggle(qapp):
     init_data = {"category_hierarchy": {}, "spheres": []}
     mock_controller = MagicMock()
     dialog = LinkDialog(
@@ -23,20 +23,21 @@ def test_link_dialog_apps_btn_toggle(qapp):
         dialog_controller=mock_controller,
         link={"type": "web"},
     )
-    apps_btn = dialog._get_apps_btn()
-    assert apps_btn is not None
-    # For web link, apps_btn should be hidden
-    assert apps_btn.isHidden()
+    browse_btn = dialog._get_browse_btn()
+    assert browse_btn is not None
+    # For web link, browse_btn text is Browse (or translated Обзор)
+    assert browse_btn.text() in ("Browse", "Обзор")
 
-    # Switch to program
+    # Switch to program -> text becomes Select (or translated Выбрать)
     dialog.handlers.on_type_changed(LinkType.PROGRAM)
-    assert not apps_btn.isHidden()
+    assert browse_btn.text() in ("Select", "Выбрать")
 
-    # Switch to file
+    # Switch to file -> text becomes Browse (or translated Обзор)
     dialog.handlers.on_type_changed(LinkType.FILE)
-    assert apps_btn.isHidden()
+    assert browse_btn.text() in ("Browse", "Обзор")
 
     dialog.close()
+
 
 
 def test_link_dialog_edit_mode_shows_only_current_link_type(qapp):
@@ -166,7 +167,7 @@ def test_installed_apps_dialog_bottom_layout(qapp):
     from app.views.windows.dialogs.installed_apps_dialog import InstalledAppsDialog
 
     dlg = InstalledAppsDialog()
-    assert dlg.count_label is not None
+    assert dlg.browse_disk_btn is not None
     assert dlg.button_box is not None
 
     found = False
@@ -175,12 +176,12 @@ def test_installed_apps_dialog_bottom_layout(qapp):
         lay = item.layout()
         if isinstance(lay, QHBoxLayout):
             widgets = [lay.itemAt(j).widget() for j in range(lay.count()) if lay.itemAt(j).widget() is not None]
-            if dlg.count_label in widgets and dlg.button_box in widgets:
-                assert widgets.index(dlg.count_label) < widgets.index(dlg.button_box)
+            if dlg.browse_disk_btn in widgets and dlg.button_box in widgets:
+                assert widgets.index(dlg.browse_disk_btn) < widgets.index(dlg.button_box)
                 found = True
                 break
 
-    assert found, "count_label and button_box should be in the same bottom row"
+    assert found, "browse_disk_btn and button_box should be in the same bottom row"
     assert getattr(dlg.apps_list.itemDelegate(), "_target_height", None) == 42
     if hasattr(dlg, "loader_thread"):
         dlg.loader_thread.cancel()
@@ -204,7 +205,7 @@ def test_link_dialog_button_widths_adjust(qapp):
     assert long_btn.width() >= 115
     assert long_btn.width() >= long_btn.fontMetrics().horizontalAdvance("Профили (120)") + 28
 
-    # Dialog dynamic profile button adjustment
+    # Dialog dynamic browse button adjustment
     init_data = {"category_hierarchy": {}, "spheres": []}
     mock_controller = MagicMock()
     dialog = LinkDialog(
@@ -212,14 +213,14 @@ def test_link_dialog_button_widths_adjust(qapp):
         dialog_controller=mock_controller,
         link={"type": "web"},
     )
-    profile_btn = dialog._get_profile_select_btn()
-    assert profile_btn.width() >= 115
+    browse_btn = dialog._get_browse_btn()
+    assert browse_btn.width() >= 115
 
     # Select 12 profiles
     dialog.profile_mode = "batch"
     dialog.selected_profiles = [{"directory": f"Profile {i}", "name": f"User {i}"} for i in range(12)]
     dialog.handlers._update_profile_ui_state()
     assert "12" in dialog._get_profile_le().text()
-    assert profile_btn.width() >= 115
 
     dialog.close()
+

@@ -7,8 +7,8 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 
 import json
 import logging
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from PyQt6.QtCore import QModelIndex, QPersistentModelIndex, QRect, Qt, QTimer
 from PyQt6.QtGui import QDropEvent

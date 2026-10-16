@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import QItemSelectionModel, QTimer
 
-from app.core.constants import AppConstants
 from app.controllers.ui.undo.base import BaseCommand
+from app.core.constants import AppConstants
 from app.utils.ui.dnd.base_bulk_command import BaseBulkCommand
 from app.utils.ui.dnd.command_utils import (
     _get_structure_business,
@@ -670,15 +670,15 @@ class MergeCategoriesCommand(BaseCommand):
 
         if lb is not None:
             source_links = lb.get_links(self.source_id) or []
-            self._source_links_data = [dict(l) for l in source_links]
+            self._source_links_data = [dict(lnk) for lnk in source_links]
             target_links = lb.get_links(self.target_id) or []
             target_keys = {
                 (
-                    str(l.get("name", "")),
-                    str(l.get("url", "")),
-                    str(l.get("args", "")),
+                    str(lnk.get("name", "")),
+                    str(lnk.get("url", "")),
+                    str(lnk.get("args", "")),
                 )
-                for l in target_links
+                for lnk in target_links
             }
             self._moved_link_ids = []
             self._deleted_link_ids = []

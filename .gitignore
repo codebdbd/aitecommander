@@ -82,6 +82,7 @@ site/
 # Tool caches
 .ruff_cache/
 .pytest_cache/
+.pytest_temp/
 
 # Design files
 *.ai
@@ -102,3 +103,5 @@ PANEL_ARCHITECTURE_LEVEL3.md
 
 # Debug / temporary markdown
 debug-*.md
+scratch/
+release-readiness/

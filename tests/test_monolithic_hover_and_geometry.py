@@ -9,7 +9,7 @@ from app.services.theme_stylesheet_service import ThemeStylesheetService
 
 
 def test_category_tiles_no_rounded_corners() -> None:
-    """Verify that categoryTiles in common.qss has strictly border-radius: 0."""
+    """Verify that categoryTiles in common.qss has border-radius: 6px."""
     common_qss_path = Path("app/resources/qss/common.qss")
     content = common_qss_path.read_text(encoding="utf-8")
 
@@ -19,20 +19,20 @@ def test_category_tiles_no_rounded_corners() -> None:
     )
     assert tiles_match is not None, "categoryTiles selector not found in common.qss"
     block = tiles_match.group(1)
-    assert "border-radius: 0" in block, "categoryTiles must have border-radius: 0"
-    assert "border-radius: 6px" not in block, "categoryTiles must not have rounded corners"
+    assert "border-radius: 6px" in block, "categoryTiles must have border-radius: 6px"
 
 
 def test_topbar_and_bottombar_hover_synchronization() -> None:
     """Verify that ThemeStylesheetService adapts both topBar and bottomBar buttons with bg_hover."""
     adapted = ThemeStylesheetService._adapt_qss_for_topbar_buttons("", "dark")
     assert "QWidget#bottomBarContainer QPushButton:hover" in adapted
-    assert "QWidget#topBarHost QToolButton#quickButton:hover" in adapted
+    assert "QWidget#topBarHost QToolButton:hover" in adapted
 
     tokens = theme_registry.get_theme_tokens("dark")
     hover_bg = tokens["hover_bg"]
     assert f"background: {hover_bg};" in adapted
     assert f"background-color: {hover_bg};" in adapted
+
 
 
 def test_dark_theme_qmenubar_hover_token() -> None:

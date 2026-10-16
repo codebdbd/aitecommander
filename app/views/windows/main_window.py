@@ -56,8 +56,8 @@ from app.utils.ui.full_diag import (
 from app.utils.ui.updates import suspend_updates
 from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
 from app.views.main_components.ui.window_widgets import MainWindowWidgets
-from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 from app.views.widgets.status_bar import set_status_message
+from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
 
@@ -823,8 +823,9 @@ class MainWindow(QMainWindow, ReTranslatable):
         )
 
     def _resolve_import_conflict(self, entity_type: str, name: str, copy_name: str) -> str:
-        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
         from PyQt6.QtWidgets import QDialog
+
+        from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
 
         dlg = ImportConflictDialog(entity_type, name, copy_name, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -985,6 +986,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         file_filter: str,
     ) -> Path | None:
         from PyQt6.QtWidgets import QFileDialog
+
         from app.services.dialog_path_service import DialogPathService
 
         start_dir = DialogPathService.get_downloads_dir("Share")
@@ -1009,6 +1011,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         file_filter: str,
     ) -> Path | None:
         from PyQt6.QtWidgets import QFileDialog
+
         from app.services.dialog_path_service import DialogPathService
 
         resolved_start = start_dir or DialogPathService.get_downloads_dir("Share")
@@ -1040,6 +1043,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def _prompt_import_target_sphere(self, manifest: dict[str, Any], sb: Any) -> int | None:
         from PyQt6.QtWidgets import QDialog
+
         from app.views.dialogs.import_destination_dialog import ImportDestinationDialog
 
         spheres = sb.get_spheres() if hasattr(sb, "get_spheres") else []
@@ -1066,6 +1070,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def _prompt_import_target_category(self, manifest: dict[str, Any], sb: Any) -> int | None:
         from PyQt6.QtWidgets import QDialog
+
         from app.views.dialogs.import_destination_dialog import ImportDestinationDialog
 
         spheres = sb.get_spheres() if hasattr(sb, "get_spheres") else []

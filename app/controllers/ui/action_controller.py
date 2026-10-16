@@ -9,10 +9,6 @@ from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit
 
 from app.config_data.runtime_config import get_table_stack_index, get_tiles_stack_index
 from app.controllers.ui.undo.commands_structure import (
-    BatchDeleteCategoriesCmd,
-    DeleteCategoryCmd,
-    DeleteSectionCmd,
-    DeleteSectionsCmd,
     PasteCategoriesCmd,
     PasteSectionsCmd,
 )
@@ -804,7 +800,10 @@ class ActionController(QObject):
         self, target_section_id: int, trees: list[dict], is_cut: bool = False
     ) -> list[dict] | None:
         import copy
-        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+
+        from app.controllers.ui.conflict_resolution_session import (
+            ConflictResolutionSession,
+        )
 
         sb = getattr(self.main_window, "structure_business", None)
         existing_cats = sb.get_categories(int(target_section_id)) or [] if sb else []
@@ -869,7 +868,10 @@ class ActionController(QObject):
         self, sphere_id: int, trees: list[dict], is_cut: bool = False
     ) -> list[dict] | None:
         import copy
-        from app.controllers.ui.conflict_resolution_session import ConflictResolutionSession
+
+        from app.controllers.ui.conflict_resolution_session import (
+            ConflictResolutionSession,
+        )
 
         business = getattr(self.main_window, "structure_business", None)
         existing_secs = (

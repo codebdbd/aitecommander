@@ -29,6 +29,7 @@ from app.views.windows.dialogs.link_dialog.icon_utils import (
 
 from .base_dialog import BaseDialog
 
+
 def _tr(text: str, disambiguation: str | None = None) -> str:
     return QCoreApplication.translate("ImportBrowserDialog", text, disambiguation)
 

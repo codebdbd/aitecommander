@@ -21,7 +21,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config_data.runtime_config import runtime_app_config as app_config
 from app.controllers.ui.theme_controller import theme_registry
 from app.utils.i18n.common import tr as tr_common
 from app.utils.ui.icon.icon_operations.creators import _create_tinted_svg_icon

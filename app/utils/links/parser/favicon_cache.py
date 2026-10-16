@@ -11,12 +11,12 @@ import os
 import shelve
 import threading
 import time
+import weakref
 from collections import OrderedDict
 from collections.abc import Mapping
 from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
-import weakref
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache

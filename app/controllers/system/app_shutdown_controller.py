@@ -321,9 +321,7 @@ class AppShutdownController:
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout
         )
-        eff_timeout_sec = (
-            max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
-        )
+
 
         logger.debug(
             "Executing shutdown handler: %s (timeout=%sms, critical=%s)",
@@ -469,7 +467,9 @@ class AppShutdownController:
 
     def _shutdown_controllers(self, timeout_ms: int) -> bool:
         """Stop background controllers - improved version of original."""
-        if not self.window:
+        from PyQt6 import sip
+
+        if not self.window or sip.isdeleted(self.window):
             return True
         controllers_to_shutdown = [
             ("links", "Links controller"),
@@ -640,13 +640,19 @@ class AppShutdownController:
     def _backup_database(self, timeout_ms: int) -> bool:
         """Create database backup during shutdown."""
         try:
+            from PyQt6 import sip
+
+            if not self.window or sip.isdeleted(self.window):
+                logger.debug("Window already deleted, skipping shutdown backup")
+                return True
+
             if not hasattr(self.window, "db"):
                 logger.debug("No 'db' attribute found on window, skipping backup")
                 return True
 
             db = self.window.db
-            if db is None:
-                logger.debug("Database instance is None, skipping backup")
+            if db is None or sip.isdeleted(db):
+                logger.debug("Database instance is None or deleted, skipping backup")
                 return True
 
             backup_dir = PathManager.backups_dir()

@@ -322,7 +322,7 @@ def _schedule_auto_quit(
 
         QTimer.singleShot(max(0, options.quit_after_ms), _auto_quit)
 
-    if options.mode == StartupMode.GUI:
+    if options.mode == StartupMode.GUI and not options.auto_quit:
         startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
         QTimer.singleShot(
             startup_delay, lambda: logger.info("Application started successfully")
@@ -757,35 +757,34 @@ def run(options: StartupOptions | None = None) -> int:
             _resources_initialized = False
 
         if initializer is not None:
-            if getattr(initializer, "main_window", None) is not None:
-                try:
-                    initializer.main_window.close()
-                    initializer.main_window.deleteLater()
-                except Exception:
-                    pass
-                initializer.main_window = None
             initializer = None
         initializer_ref[0] = None
 
-        if app is not None:
-            try:
-                app.processEvents()
-            except Exception:
-                pass
-            try:
-                app.quit()
-            except Exception:
-                pass
-            app = None
-
         _disable_fault_handler()
         log_shutdown()
-        try:
-            LogManager.shutdown()
-        except Exception:
-            pass
+        target_code = int(resolved_exit)
+        if (
+            options.exit_on_finish
+            and options.mode == StartupMode.GUI
+            and not getattr(sys, "_running_tests", False)
+            and "PYTEST_CURRENT_TEST" not in os.environ
+        ):
+            try:
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except Exception:
+                pass
+            if sys.platform == "win32":
+                try:
+                    import ctypes
 
-        return int(resolved_exit)
+                    ctypes.windll.kernel32.ExitProcess(target_code)
+                except Exception:
+                    os._exit(target_code)
+            else:
+                os._exit(target_code)
+
+        return target_code
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]

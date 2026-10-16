@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import re
+import time
 from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, QRect, QRectF, QSize, Qt, QThread
