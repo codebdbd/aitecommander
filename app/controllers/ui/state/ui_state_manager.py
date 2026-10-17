@@ -193,6 +193,11 @@ class UIStateManager:
                     )
             except Exception:
                 pass
+            try:
+                if hasattr(self.main, "update_group_launch_action_state"):
+                    self.main.update_group_launch_action_state()
+            except Exception:
+                pass
 
     def _handle_load_error(self):
         """Handle category loading errors."""
@@ -358,6 +363,11 @@ class UIStateManager:
                         "Failed to update status bar after switching to tiles",
                         exc_info=True,
                     )
+                try:
+                    if hasattr(self.main, "update_group_launch_action_state"):
+                        self.main.update_group_launch_action_state()
+                except Exception:
+                    pass
                 if _time is not None and perf_t0 is not None:
                     t_status_done = _time.perf_counter()
             # 3. Apply tile data through the central UI state path.

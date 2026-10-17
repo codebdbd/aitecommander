@@ -690,6 +690,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return QStyle.StateFlag.State_On
         return QStyle.StateFlag.State_NoChange
 
+    def has_marked_links(self) -> bool:
+        """Return True if at least one link is marked for group launch."""
+        if not self._links:
+            return False
+        return any(bool(link.get("is_group_launch")) for link in self._links)
+
     def _get_cached_icon(self, icon_path: str) -> QIcon | None:
         """Return an icon with LRU caching to avoid memory leaks.
 

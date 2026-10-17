@@ -1618,6 +1618,13 @@ class LinksTableView(
         model.set_all_group_launch(new_val)
         self.horizontalHeader().viewport().update()
 
+    def has_marked_links(self) -> bool:
+        """Return True if at least one link is marked for group launch."""
+        model = self.model()
+        if model is not None and hasattr(model, "has_marked_links"):
+            return bool(model.has_marked_links())
+        return False
+
     def _on_rows_moved(self, *_args) -> None:
         """Handle rows moved signal to rebuild cache."""
         self._rebuild_cache_on_layout()

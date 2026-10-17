@@ -207,25 +207,23 @@ class MainWindow(QMainWindow, ReTranslatable):
         category_id = self.get_current_category_id()
         is_enabled = False
         if category_id and table is not None:
-            from PyQt6.QtWidgets import QApplication
+            from app.config_data.runtime_config import get_tiles_stack_index
 
-            focused = QApplication.focusWidget()
-            table_focused = bool(
-                focused is not None
-                and (
-                    focused == table
-                    or table.hasFocus()
-                    or (hasattr(table, "isAncestorOf") and table.isAncestorOf(focused))
-                )
+            stack = getattr(self, "stack", None)
+            is_table_active = (
+                stack is None or stack.currentIndex() != get_tiles_stack_index()
             )
-            if table_focused:
-                model = table.model()
-                if model is not None:
-                    for row in range(model.rowCount()):
-                        link = self.get_link_at_row(row)
-                        if link and bool(link.get("is_group_launch")):
-                            is_enabled = True
-                            break
+            if is_table_active:
+                if hasattr(table, "has_marked_links"):
+                    is_enabled = bool(table.has_marked_links())
+                else:
+                    model = table.model()
+                    if model is not None:
+                        for row in range(model.rowCount()):
+                            link = self.get_link_at_row(row)
+                            if link and bool(link.get("is_group_launch")):
+                                is_enabled = True
+                                break
         container = getattr(self, "bottom_bar_container", None)
         if container:
             btn = container.findChild(QPushButton, "bottomBarButton_launch_marked")
