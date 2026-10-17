@@ -777,8 +777,19 @@ def run(options: StartupOptions | None = None) -> int:
             if sys.platform == "win32":
                 try:
                     import ctypes
+                    from ctypes import wintypes
 
-                    ctypes.windll.kernel32.ExitProcess(target_code)
+                    # Cleanup and DB flushes above are already complete. ExitProcess
+                    # still runs DLL_PROCESS_DETACH: QtCore can crash there and
+                    # launch Windows Error Reporting even with an exit code of 0.
+                    # Terminate only our own process, bypassing that unsafe final
+                    # DLL teardown (never use this before application cleanup).
+                    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+                    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+                    kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+                    kernel32.TerminateProcess.restype = wintypes.BOOL
+                    if not kernel32.TerminateProcess(kernel32.GetCurrentProcess(), target_code):
+                        raise ctypes.WinError(ctypes.get_last_error())
                 except Exception:
                     os._exit(target_code)
             else:

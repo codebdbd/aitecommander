@@ -1,6 +1,6 @@
 #define MyAppName "Aite Commander"
 #define MyAppExeName "AiteCommander.exe"
-#define MyAppVersion "1.1.9"
+#define MyAppVersion "1.1.10"
 #define MyAppPublisher "Codebdbd"
 #define MyAppURL "https://github.com/codebdbd/aitecommander"
 #define MyAppDistDir "..\dist\AiteCommander"

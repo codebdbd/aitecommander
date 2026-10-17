@@ -68,8 +68,8 @@ def main() -> int:
     Гарантии:
     - CoInitialize / CoUninitialize симметричны (тот же модуль, тот же finally).
     - atexit-хендлеры срабатывают явно перед CoUninitialize (shelve close и др.).
-    - На Windows (не-тесты) финальный выход — через ExitProcess, чтобы предотвратить
-      беспорядочную финализацию C++ Qt-объектов циклическим GC Python.
+    - На Windows (не-тесты) рантайм завершает свой процесс после очистки ресурсов,
+      обходя аварийную финализацию Qt в DLL_PROCESS_DETACH.
     """
     exit_code = 0
     try:

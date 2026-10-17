@@ -657,9 +657,9 @@ class AppShutdownController:
 
             backup_dir = PathManager.backups_dir()
             if backup_dir.exists():
-                existing = sorted(backup_dir.glob("*.db*"))
+                existing = [f for f in backup_dir.glob("aite_bd_*.db") if f.is_file()]
                 if existing:
-                    latest = existing[-1]
+                    latest = max(existing, key=lambda f: f.stat().st_mtime)
                     try:
                         latest_mtime = latest.stat().st_mtime
                         if time.time() - latest_mtime < 900:

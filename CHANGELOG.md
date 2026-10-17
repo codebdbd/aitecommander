@@ -5,6 +5,15 @@ All notable changes to **Aite Commander** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.10] - 2026-10-17
+
+### Fixed
+- **Instant Clean Application Shutdown on Windows**:
+  - Fixed shutdown backup frequency check in `AppShutdownController` to inspect genuine database backups (`aite_bd_*.db`) sorted by modification time (`st_mtime`), preventing redundant synchronous database backups on every window close.
+  - Hardened process termination lifecycle on Windows: application explicitly terminates its process upon successful resource cleanup and database commit, bypassing unsafe C++ Qt teardown during `DLL_PROCESS_DETACH` that could trigger Windows Error Reporting spinner/hangs.
+- **Shutdown Regression & Cleanliness Verification**:
+  - Added comprehensive automated exit tests in `tests/test_exit_cleanliness.py` ensuring clean zero-exit status for CLI commands, scheduled timeouts, and full `MainWindow.closeEvent` lifecycles.
+
 ## [1.1.9] - 2026-10-15
 
 ### Added
