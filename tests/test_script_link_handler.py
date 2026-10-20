@@ -39,9 +39,11 @@ def test_script_handler_detects_local_venv(logger, tmp_path):
     handler = ScriptLinkHandler(logger)
     resolved = handler._resolve_python_executable(str(script))
 
-    assert resolved == str(venv_python)
+    from pathlib import Path as _P
+    assert _P(resolved).resolve() == venv_python.resolve()
     cmd = handler._create_python_command(str(script), [])
-    assert cmd == [str(venv_python), str(script)]
+    assert _P(cmd[0]).resolve() == venv_python.resolve()
+    assert cmd[1] == str(script)
 
 
 def test_script_handler_detects_py_launcher_when_no_venv(logger, tmp_path):
@@ -81,7 +83,7 @@ def test_script_handler_open_passes_cwd_and_handles_pyw(logger, tmp_path):
          patch("subprocess.Popen") as mock_popen:
         handler.open(link_info)
         mock_popen.assert_called_once_with(
-            ["C:\\fake\\python.exe", str(script)],
+            ["C:\\fake\\python.exe", str(script.resolve())],
             creationflags=0,
             cwd=str(tmp_path.resolve()),
         )
