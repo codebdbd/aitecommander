@@ -203,13 +203,12 @@ class ClipboardKeyHandler(BaseKeyHandler):
             sel_model = tree.selectionModel()
             if sel_model is None:
                 return
-            sel_model.clearSelection()
             top_left = model.index(0, 0, parent_idx)
             bottom_right = model.index(rows - 1, 0, parent_idx)
             selection = QItemSelection(top_left, bottom_right)
             sel_model.select(
                 selection,
-                QItemSelectionModel.SelectionFlag.Select
+                QItemSelectionModel.SelectionFlag.ClearAndSelect
                 | QItemSelectionModel.SelectionFlag.Rows,
             )
         except Exception:

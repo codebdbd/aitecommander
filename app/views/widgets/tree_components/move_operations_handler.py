@@ -5,6 +5,8 @@
 import logging
 from typing import TYPE_CHECKING, Any
 
+from app.utils.naming import UniqueNameAllocator
+
 if TYPE_CHECKING:
     pass
 
@@ -125,10 +127,13 @@ class MoveOperationsHandler(TreeHandlerBase):
                 for lnk in existing
                 if str(lnk.get("name", "")).strip()
             }
-            existing_names = [str(lnk.get("name", "")) for lnk in existing]
+            existing_names = UniqueNameAllocator(str(lnk.get("name", "")) for lnk in existing)
+            source_by_id = {
+                row["id"]: row for row in links_service.get_links_by_ids(list(link_ids))
+            }
             conflicts: list[int] = []
             for lid in link_ids:
-                ld = links_service.get_link_by_id(int(lid))
+                ld = source_by_id.get(int(lid))
                 if not ld:
                     continue
                 c_name = str(ld.get("name", "")).strip()
@@ -142,7 +147,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
             links_to_move = []
             for lid in link_ids:
-                link_data = links_service.get_link_by_id(int(lid))
+                link_data = source_by_id.get(int(lid))
                 if not link_data:
                     continue
                 c_name = str(link_data.get("name", "")).strip()
@@ -161,14 +166,14 @@ class MoveOperationsHandler(TreeHandlerBase):
                         continue
                     if action == "copy":
                         name_overrides[int(lid)] = copy_name
-                        existing_names.append(copy_name)
+                        existing_names.add(copy_name)
                         existing_by_name[copy_name.strip().lower()] = link_data
                     elif action == "merge":
                         if matching_target and matching_target.get("id"):
                             replacements[int(lid)] = int(matching_target["id"])
                 else:
                     if c_name:
-                        existing_names.append(c_name)
+                        existing_names.add(c_name)
                         existing_by_name[c_name.lower()] = link_data
                 links_to_move.append(int(lid))
 
@@ -285,17 +290,18 @@ class MoveOperationsHandler(TreeHandlerBase):
             return False
 
         target_categories = sb.get_categories(new_section_id) or []
-        existing_names = [c.get("name", "") for c in target_categories]
+        existing_names = UniqueNameAllocator(c.get("name", "") for c in target_categories)
+        target_by_name = {}
+        for category in target_categories:
+            target_by_name.setdefault(str(category.get("name", "")).strip().lower(), category)
+        source_by_id = {cid: sb.get_category_data(cid) for cid in category_ids}
 
         conflicting_categories = [
             cid for cid in category_ids
-            if (cat_data := sb.get_category_data(cid))
+            if (cat_data := source_by_id.get(cid))
             and cat_data.get("section_id") != new_section_id
-            and any(
-                str(c.get("name", "")).strip().lower() == str(cat_data.get("name", "")).strip().lower()
-                and int(c.get("id", 0)) != cid
-                for c in target_categories
-            )
+            and (target := target_by_name.get(str(cat_data.get("name", "")).strip().lower()))
+            and int(target.get("id", 0)) != cid
         ]
         from app.controllers.ui.conflict_resolution_session import (
             ConflictResolutionSession,
@@ -308,7 +314,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         planned_merges: list[tuple[int, int]] = []
 
         for cid in list(category_ids):
-            cat_data = sb.get_category_data(cid)
+            cat_data = source_by_id.get(cid)
             if not cat_data:
                 continue
 
@@ -319,16 +325,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                 planned_moves.append(cid)
                 continue
 
-            colliding = next(
-                (
-                    c
-                    for c in target_categories
-                    if str(c.get("name", "")).strip().lower()
-                    == str(cat_name).strip().lower()
-                    and int(c.get("id", 0)) != cid
-                ),
-                None,
-            )
+            colliding = target_by_name.get(str(cat_name).strip().lower())
+            if colliding and int(colliding.get("id", 0)) == cid:
+                colliding = None
 
             if colliding is not None:
                 action, copy_name = session.resolve("category", cat_name, existing_names)
@@ -339,7 +338,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
                 if action == "copy":
                     planned_renames[cid] = copy_name
-                    existing_names.append(copy_name)
+                    existing_names.add(copy_name)
                     planned_moves.append(cid)
                 elif action == "merge":
                     target_cat_id = int(colliding["id"])

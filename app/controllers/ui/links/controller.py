@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
 
 from PyQt6.QtCore import QCoreApplication, QObject, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
@@ -462,7 +463,7 @@ class LinksUIController(QObject):
         return limit
 
     def _open_links_sequentially(self, links: list[dict], *, max_total: int | None) -> None:
-        pending = list(links)
+        pending = deque(links)
         opened = 0
 
         def _open_next() -> None:
@@ -471,7 +472,7 @@ class LinksUIController(QObject):
                 return
             if not pending:
                 return
-            link = pending.pop(0)
+            link = pending.popleft()
             if max_total is not None and opened >= max_total:
                 return
             self.link_ops._open_link(link)
@@ -545,24 +546,11 @@ class LinksUIController(QObject):
                     rows_to_select.append(row)
                     
             if rows_to_select:
-                from PyQt6.QtCore import QItemSelection, QItemSelectionModel
+                from app.utils.ui.qt.row_selection import select_rows
                 
                 sel_model = self.table.selectionModel()
                 if sel_model:
-                    model = self.table.model()
-                    selection = QItemSelection()
-                    for row in rows_to_select:
-                        left_idx = model.index(row, 0)
-                        right_idx = model.index(row, model.columnCount() - 1)
-                        selection.select(left_idx, right_idx)
-                        
-                    sel_model.select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
-                    
-                    # Set current index without clearing the selection we just made
-                    first_row = rows_to_select[0]
-                    first_idx = model.index(first_row, 0)
-                    if first_idx.isValid():
-                        sel_model.setCurrentIndex(first_idx, QItemSelectionModel.SelectionFlag.NoUpdate)
+                    select_rows(self.table, rows_to_select)
                 else:
                     for row in rows_to_select:
                         self.select_row(row)

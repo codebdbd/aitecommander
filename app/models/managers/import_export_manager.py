@@ -153,10 +153,14 @@ class ImportExportManager:
     def export_section_tree(self, section_id: int) -> dict:
         """Exports section along with all categories and links."""
         section = self.db.sections.get_section_by_id(section_id) or {}
+        category_rows = self.db.categories.get_categories(section_id)
+        links_by_category = self.db.links.get_links_for_categories(
+            [cat["id"] for cat in category_rows]
+        )
         categories = []
-        for cat_row in self.db.categories.get_categories(section_id):
+        for cat_row in category_rows:
             cat = cat_row.copy()
-            links = self.db.links.get_links(cat["id"])
+            links = links_by_category.get(cat["id"], [])
             categories.append({"category": cat, "links": links})
         return {"section": section, "categories": categories}
 

@@ -113,6 +113,16 @@ def get_selected_rows(view) -> list[int]:
         if not selection_model:
             return []
 
+        # This flat model enables every cell. Full-width ranges therefore
+        # identify rows directly, without Qt checking flags for every cell.
+        from app.views.widgets.link.links_model import LinksTableModel
+
+        model = selection_model.model()
+        if isinstance(model, LinksTableModel):
+            ranges = selection_model.selection()
+            if all(r.left() == 0 and r.right() == model.columnCount() - 1 for r in ranges):
+                return sorted({row for r in ranges for row in range(r.top(), r.bottom() + 1)})
+
         selected = selection_model.selectedRows()
         if not selected and selection_model.hasSelection():
             return sorted(list({index.row() for index in selection_model.selectedIndexes()}))

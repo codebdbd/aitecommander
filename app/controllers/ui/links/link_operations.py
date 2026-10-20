@@ -5,7 +5,7 @@ from datetime import datetime
 
 from PyQt6.QtWidgets import QDialog
 
-from app.controllers.ui.undo.commands_links import SaveLinkCmd
+from app.controllers.ui.undo.commands_links import BatchSaveLinksCmd, SaveLinkCmd
 from app.utils.links.link_utils import (
     LinkInfo,
     LinkOpener,
@@ -61,12 +61,14 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
         if dlg.exec() == QDialog.DialogCode.Accepted:
             links_to_save = link_controller.get_result_data()
-            if links_to_save:
-                for data in links_to_save:
-                    cmd = SaveLinkCmd(
-                        new_data=data, old_data=None, main_window=self.main
-                    )
-                    self.main.undo_stack.push(cmd)
+            if links_to_save and len(links_to_save) > 1:
+                self.main.undo_stack.push(BatchSaveLinksCmd(
+                    links_data=links_to_save, _old_link_data=None, main_window=self.main
+                ))
+            elif links_to_save:
+                self.main.undo_stack.push(SaveLinkCmd(
+                    new_data=links_to_save[0], old_data=None, main_window=self.main
+                ))
 
     def show_note_dialog(self, link: dict):
         """Show note dialog for link."""

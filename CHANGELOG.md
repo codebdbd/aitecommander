@@ -5,6 +5,21 @@ All notable changes to **Aite Commander** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-20
+
+### Added
+- **Optimized Selection & Batch Row Extraction**:
+  - Implemented `extract_selected_model_rows` using index ranges (`selection().asRangeList()`) in `app/utils/ui/qt/row_selection.py`, eliminating excessive per-cell/per-row iterations and `flags()` evaluations on large link datasets (30,000+ items).
+  - Fast selection state detection in `ActionController` without enumerating entire selection models.
+
+### Changed
+- **High-Performance Bulk Operations**:
+  - Chunked SQL parameterization with bounded queries in `LinkModel.get_links_by_ids` and `update_group_launch_bulk`, preventing SQLite variable limit overflow while maintaining single-transaction consistency.
+  - Linear $O(N)$ unique name generation via `UniqueNameAllocator` in `app/utils/naming.py`, eliminating $O(N^2)$ quadratic scanning during bulk duplicate and paste operations.
+  - Accelerated Drag & Drop, clipboard operations, and conflict resolution across large batches of links and structure items.
+- **Robust Path Resolution**:
+  - Protected browser profile path probing in `PathConfig` against `OSError` / permission errors in restricted or sandboxed environments.
+
 ## [1.1.10] - 2026-10-17
 
 ### Fixed

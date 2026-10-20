@@ -37,6 +37,10 @@ class LinksService:
         self._validate_positive_int(link_id, "link_id")
         return self.repo.get_link_by_id(link_id)
 
+    def get_links_by_ids(self, link_ids: list[int]) -> list[LinkDict]:
+        self._validate_positive_int_list(link_ids, "link_ids")
+        return self.repo.get_links_by_ids(link_ids)
+
     def get_recent_links(self, limit: int = 10) -> list[LinkDict]:
         self._validate_positive_int(limit, "limit")
         return self.repo.get_recent_links(limit)

@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 import logging
 
+from app.utils.naming import UniqueNameAllocator
+
 logger = logging.getLogger(__name__)
 error_handler = BulkOperationErrorHandler()
 
@@ -50,8 +52,9 @@ class MoveLinksCommand(BaseBulkCommand):
         name_overrides: dict[int, str] | None = None,
         replacements: dict[int, int] | None = None,
     ) -> None:
-        super().__init__(f"Moving {len(list(link_ids))} links", main_window, "link")
-        self.link_ids = [int(lid) for lid in link_ids]
+        link_ids = list(dict.fromkeys(int(lid) for lid in link_ids))
+        super().__init__(f"Moving {len(link_ids)} links", main_window, "link")
+        self.link_ids = link_ids
         self.new_category_id = int(new_category_id)
         self.name_overrides: dict[int, str] = dict(name_overrides or {})
         self.replacements: dict[int, int] = dict(replacements or {})
@@ -73,13 +76,15 @@ class MoveLinksCommand(BaseBulkCommand):
             raise RuntimeError("links_business.links service is unavailable")
 
         self._old_states.clear()
+        try:
+            loaded = {link["id"]: link for link in links_service.get_links_by_ids(self.link_ids)}
+        except Exception as exc:
+            error_handler.handle_error(
+                exc, {"link_ids": self.link_ids, "operation": "get_links", "attempted_operation": "move"}
+            )
+            raise ValueError(f"Failed to load links for move: {exc}") from exc
         for lid in self.link_ids:
-            try:
-                link_data = links_service.get_link_by_id(int(lid)) or {}
-            except Exception as exc:
-                context = {"link_id": lid, "operation": "get_link", "attempted_operation": "move"}
-                error_handler.handle_error(exc, context)
-                raise ValueError(f"Failed to load link #{lid}: {exc}") from exc
+            link_data = loaded.get(lid) or {}
             if not link_data:
                 raise ValueError(f"Link with id {lid} not found")
             self._old_states.append(dict(link_data))
@@ -106,6 +111,12 @@ class MoveLinksCommand(BaseBulkCommand):
         except Exception:
             existing_links = []
 
+        existing_by_id = {row.get("id"): row for row in existing_links}
+        duplicate_keys = {
+            (get_value(row, "name", ""), get_value(row, "url", ""), get_value(row, "args", ""))
+            for row in existing_links
+        }
+        existing_names = UniqueNameAllocator(get_value(row, "name", "") for row in existing_links)
         prepared: list[dict[str, Any]] = []
         for offset, original in enumerate(self._old_states):
             candidate = dict(original)
@@ -113,7 +124,7 @@ class MoveLinksCommand(BaseBulkCommand):
             lid = candidate.get("id")
             if lid is not None and int(lid) in self.replacements:
                 target_id = self.replacements[int(lid)]
-                target_row = next((r for r in existing_links if r.get("id") == target_id), None)
+                target_row = existing_by_id.get(target_id)
                 if target_row:
                     self._replaced_states[target_id] = dict(target_row)
                     candidate["position"] = target_row.get("position", start_pos + offset)
@@ -125,12 +136,13 @@ class MoveLinksCommand(BaseBulkCommand):
                 candidate["name"] = self.name_overrides[int(lid)]
             elif lid is not None and int(lid) in self.replacements:
                 pass
-            elif self._is_duplicate(candidate, existing_links):
+            elif (candidate.get("name", ""), candidate.get("url", ""), candidate.get("args", "")) in duplicate_keys:
                 from app.services.structure_share_service import generate_unique_name
-                existing_names = [get_value(lnk, "name", "") for lnk in existing_links]
                 candidate["name"] = generate_unique_name(existing_names, candidate.get("name", ""))
             prepared.append(candidate)
-            existing_links.append(candidate)
+            existing_by_id.setdefault(lid, candidate)
+            existing_names.add(candidate.get("name", ""))
+            duplicate_keys.add((candidate.get("name", ""), candidate.get("url", ""), candidate.get("args", "")))
         self._new_states = prepared
         self._prepared = True
 
@@ -202,16 +214,6 @@ class MoveLinksCommand(BaseBulkCommand):
         try:
             # Use batch_update to preserve positions and avoid duplicate issues.
             links_business.links.batch_update(states)
-            for st in states:
-                lid = st.get("id")
-                st_name = st.get("name")
-                if isinstance(lid, int) and st_name and hasattr(links_business.links, "repo"):
-                    try:
-                        links_business.links.repo.connection.execute(
-                            "UPDATE link SET name = ? WHERE id = ?", (st_name, lid)
-                        )
-                    except Exception:
-                        pass
         except Exception as exc:
             logger.error("Error during batch link operation: %s", exc, exc_info=True)
             raise

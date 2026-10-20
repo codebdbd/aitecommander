@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 
 from PyQt6.QtCore import (
     QEvent,
-    QItemSelectionModel,
     QModelIndex,
     QPoint,
     QPointF,
@@ -1433,19 +1432,13 @@ class LinksTableView(
             model = self.model()
             sm = self.selectionModel()
             if model is not None and sm is not None and hasattr(model, "find_row_by_id"):
-                sm.clearSelection()
-                for link_id in moved_ids:
-                    row = model.find_row_by_id(link_id)
-                    if row >= 0:
-                        idx = model.index(row, 0)
-                        sm.select(
-                            idx,
-                            QItemSelectionModel.SelectionFlag.Select
-                            | QItemSelectionModel.SelectionFlag.Rows,
-                        )
-                first_row = model.find_row_by_id(moved_ids[0])
-                if first_row >= 0:
-                    self.setCurrentIndex(model.index(first_row, 0))
+                from app.utils.ui.qt.row_selection import select_rows
+
+                if hasattr(model, "find_rows_by_ids"):
+                    rows = model.find_rows_by_ids(moved_ids)
+                else:
+                    rows = [model.find_row_by_id(link_id) for link_id in moved_ids]
+                select_rows(self, rows)
 
     def _has_external_link_targets(self, event) -> bool:
         return bool(self._external_link_targets_from_event(event))

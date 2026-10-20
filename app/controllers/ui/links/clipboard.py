@@ -7,6 +7,7 @@ from app.controllers.ui.undo.commands_links import (
     BatchSaveLinksCmd,
     DeleteLinkCmd,
 )
+from app.utils.naming import UniqueNameAllocator
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 from app.utils.ui.dnd.links_command import MoveLinksCommand
 
@@ -75,24 +76,24 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 for lnk in existing_links
                 if str(lnk.get("name", "")).strip()
             }
-            existing_names = [str(lnk.get("name", "")) for lnk in existing_links]
+            existing_names = UniqueNameAllocator(str(lnk.get("name", "")) for lnk in existing_links)
             name_overrides: dict[int, str] = {}
             replacements: dict[int, int] = {}
             to_move_ids: list[int] = []
             links_service = getattr(self.business, "links", None)
+            source_by_id = {
+                row["id"]: row for row in links_service.get_links_by_ids(cut_ids)
+            } if links_service else {}
             conflicts = [
                 cid for cid in cut_ids
-                if (
-                    ld := ((links_service.get_link_by_id(cid) if links_service else {}) or {}),
-                    str(ld.get("name", "")).strip().lower() in existing_by_name
-                )[1]
+                if str(source_by_id.get(cid, {}).get("name", "")).strip().lower() in existing_by_name
             ]
             from app.controllers.ui.conflict_resolution_session import (
                 ConflictResolutionSession,
             )
             session = ConflictResolutionSession(self.main, operation="paste", total_conflicts=len(conflicts))
             for cid in cut_ids:
-                link_data = (links_service.get_link_by_id(cid) if links_service else {}) or {}
+                link_data = source_by_id.get(cid, {})
                 c_name = str(link_data.get("name", "")).strip()
                 if c_name.lower() in existing_by_name:
                     target_match = existing_by_name[c_name.lower()]
@@ -109,7 +110,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                         continue
                     if action == "copy":
                         name_overrides[cid] = copy_name
-                        existing_names.append(copy_name)
+                        existing_names.add(copy_name)
                     elif action == "merge":
                         if target_match and target_match.get("id"):
                             replacements[cid] = int(target_match["id"])
@@ -255,7 +256,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             for lnk in existing_links
             if str(lnk.get("name", "")).strip()
         }
-        existing_names = [str(lnk.get("name", "")) for lnk in existing_links]
+        existing_names = UniqueNameAllocator(str(lnk.get("name", "")) for lnk in existing_links)
 
         new_links = []
         conflict_count = sum(
@@ -286,7 +287,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                     continue
                 if action == "copy":
                     new_data["name"] = copy_name
-                    existing_names.append(copy_name)
+                    existing_names.add(copy_name)
                     existing_by_name[copy_name.strip().lower()] = new_data
                 elif action == "merge":
                     if matching_link and matching_link.get("id"):
@@ -294,7 +295,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                         new_data["_old_link_snapshot"] = dict(matching_link)
             else:
                 if c_name:
-                    existing_names.append(c_name)
+                    existing_names.add(c_name)
                     existing_by_name[c_name.lower()] = new_data
             new_links.append(new_data)
 

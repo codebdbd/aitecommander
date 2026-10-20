@@ -14,6 +14,7 @@ from app.controllers.ui.undo.commands_structure import (
 )
 from app.core.hotkey_manager import HotkeyManager
 from app.services.structure_context_service import StructureContextService
+from app.utils.naming import UniqueNameAllocator
 from app.utils.ui.clipboard import get_link_from_clipboard
 from app.utils.ui.focus import WidgetType, get_focus_manager
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
@@ -270,7 +271,9 @@ class ActionController(QObject):
 
     def _table_has_selection(self) -> bool:
         try:
-            return bool(self.main_window.links_actions.get_selected_rows())
+            table = self.main_window.table
+            selection = table.selectionModel() if table is not None else None
+            return bool(selection is not None and selection.hasSelection())
         except Exception:
             return False
 
@@ -372,6 +375,11 @@ class ActionController(QObject):
             except Exception:
                 continue
         return ids
+
+    def _tiles_has_selection(self) -> bool:
+        view = self._get_tiles_view()
+        selection = view.selectionModel() if view is not None else None
+        return bool(selection is not None and selection.hasSelection())
 
     def _get_tiles_target_section_id(self) -> int | None:
         sb = getattr(self.main_window, "structure_business", None)
@@ -826,7 +834,7 @@ class ActionController(QObject):
             operation="paste",
             total_conflicts=conflict_count,
         )
-        existing_names_set = set(existing_names)
+        existing_names_set = UniqueNameAllocator(existing_names)
         allocated_names_lower = {n.lower() for n in existing_names}
 
         for tree in copy.deepcopy(trees):
@@ -896,7 +904,7 @@ class ActionController(QObject):
             operation="paste",
             total_conflicts=conflict_count,
         )
-        existing_names_set = set(existing_names)
+        existing_names_set = UniqueNameAllocator(existing_names)
         allocated_names_lower = {n.lower() for n in existing_names}
 
         for tree in copy.deepcopy(trees):
@@ -1186,7 +1194,6 @@ class ActionController(QObject):
             return
         if rows <= 0:
             return
-        sel_model.clearSelection()
         from PyQt6.QtCore import QItemSelection, QItemSelectionModel
 
         top_left = model.index(0, 0)
@@ -1194,7 +1201,7 @@ class ActionController(QObject):
         selection = QItemSelection(top_left, bottom_right)
         sel_model.select(
             selection,
-            QItemSelectionModel.SelectionFlag.Select,
+            QItemSelectionModel.SelectionFlag.ClearAndSelect,
         )
 
     def _select_all_in_tree(self) -> None:
@@ -1221,7 +1228,6 @@ class ActionController(QObject):
             return
         if rows <= 0:
             return
-        sel_model.clearSelection()
         top_left = model.index(0, 0, parent_idx)
         bottom_right = model.index(rows - 1, 0, parent_idx)
         from PyQt6.QtCore import QItemSelection, QItemSelectionModel
@@ -1229,7 +1235,7 @@ class ActionController(QObject):
         selection = QItemSelection(top_left, bottom_right)
         sel_model.select(
             selection,
-            QItemSelectionModel.SelectionFlag.Select
+            QItemSelectionModel.SelectionFlag.ClearAndSelect
             | QItemSelectionModel.SelectionFlag.Rows,
         )
 
@@ -1263,7 +1269,7 @@ class ActionController(QObject):
 
         tree_has_selection = self._has_tree_selection()
         table_has_selection = self._table_has_selection()
-        tiles_has_selection = bool(self._get_tiles_selected_ids())
+        tiles_has_selection = self._tiles_has_selection()
         tree_focused = self._is_tree_focused()
         table_focused = self._is_table_focused()
         tiles_focused = self._is_tiles_focused()

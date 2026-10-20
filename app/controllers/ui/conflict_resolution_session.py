@@ -7,7 +7,7 @@ from typing import Sequence
 
 from PyQt6.QtWidgets import QDialog, QWidget
 
-from app.utils.naming import generate_unique_name
+from app.utils.naming import UniqueNameAllocator, generate_unique_name
 from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class ConflictResolutionSession:
         self,
         entity_type: str,
         name: str,
-        existing_names: Sequence[str] | set[str],
+        existing_names: Sequence[str] | set[str] | UniqueNameAllocator,
         existing_info: dict | None = None,
         incoming_info: dict | None = None,
     ) -> tuple[str, str]:
@@ -46,7 +46,9 @@ class ConflictResolutionSession:
                 action: 'merge', 'copy', 'skip', or 'cancel'
                 copy_name: generated unique name if action is 'copy'
         """
-        copy_name = generate_unique_name(set(existing_names), name)
+        if self.batch_action is not None and self.batch_action != "copy":
+            return self.batch_action, ""
+        copy_name = generate_unique_name(existing_names, name)
 
         if self.batch_action is not None:
             return self.batch_action, copy_name

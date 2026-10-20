@@ -384,24 +384,13 @@ class PopulationManagerMixin:
                     sm = table.selectionModel() if hasattr(table, "selectionModel") else None
                     model = table.model() if hasattr(table, "model") else None
                     if sm is not None and model is not None and hasattr(table, "find_row_by_link_id"):
-                        from PyQt6.QtCore import QItemSelectionModel
-                        sm.clearSelection()
-                        first_focused = False
-                        for link_id in selection:
-                            row = table.find_row_by_link_id(link_id)
-                            if row is not None and 0 <= row < model.rowCount():
-                                idx = model.index(row, 0)
-                                sm.select(
-                                    idx,
-                                    QItemSelectionModel.SelectionFlag.Select
-                                    | QItemSelectionModel.SelectionFlag.Rows,
-                                )
-                                if not first_focused:
-                                    sm.setCurrentIndex(
-                                        idx,
-                                        QItemSelectionModel.SelectionFlag.NoUpdate,
-                                    )
-                                    first_focused = True
+                        from app.utils.ui.qt.row_selection import select_rows
+
+                        if hasattr(model, "find_rows_by_ids"):
+                            rows = model.find_rows_by_ids(selection)
+                        else:
+                            rows = [table.find_row_by_link_id(link_id) for link_id in selection]
+                        select_rows(table, [row for row in rows if row is not None])
                     elif hasattr(table, "focus_on_link_id"):
                         table.focus_on_link_id(selection[0])
                 except Exception:

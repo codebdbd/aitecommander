@@ -212,8 +212,11 @@ class PathConfig(BaseConfig):
         root = os.getenv(env_var, "")
         if root:
             candidate = Path(root) / vendor_path
-            if candidate.exists():
-                return candidate
+            try:
+                if candidate.exists():
+                    return candidate
+            except OSError:
+                pass
         conf = self.get(config_key)
         if conf:
             p = Path(conf)

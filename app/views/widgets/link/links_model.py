@@ -121,6 +121,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """
 
     groupLaunchToggled = pyqtSignal(int, int)  # link_id, val_int
+    groupLaunchBatchToggled = pyqtSignal(list, int)
     orderEdited = pyqtSignal(list)  # link IDs in the new order
 
     def __init__(
@@ -521,10 +522,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         top = self.index(0, int(LinkTableColumn.GROUP_LAUNCH))
         bot = self.index(len(self._links) - 1, int(LinkTableColumn.GROUP_LAUNCH))
         self.dataChanged.emit(top, bot, [Qt.ItemDataRole.CheckStateRole])
-        for link in self._links:
-            link_id = link.get("id")
-            if link_id:
-                self.groupLaunchToggled.emit(link_id, val_int)
+        link_ids = [link["id"] for link in self._links if link.get("id")]
+        if link_ids:
+            self.groupLaunchBatchToggled.emit(link_ids, val_int)
 
     def remove_row(self, row: int) -> bool:
         if not (0 <= row < len(self._links)):
@@ -565,6 +565,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             if link.get("id") == link_id:
                 return i
         return -1
+
+    def find_rows_by_ids(self, link_ids) -> list[int]:
+        """Resolve a batch in input order with a single scan of the model."""
+        row_by_id = {}
+        for row, link in enumerate(self._links):
+            row_by_id.setdefault(link.get("id"), row)
+        return [row_by_id[link_id] for link_id in link_ids if link_id in row_by_id]
 
     # --- Row reordering ---
     def move_rows(self, source_rows: list[int], target_row: int) -> None:

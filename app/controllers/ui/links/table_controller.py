@@ -76,6 +76,8 @@ class LinksTableController(QObject):
             model = getattr(self.table, "model", lambda: None)()
             if model and hasattr(model, "groupLaunchToggled"):
                 model.groupLaunchToggled.connect(self._on_group_launch_toggled)
+            if model and hasattr(model, "groupLaunchBatchToggled"):
+                model.groupLaunchBatchToggled.connect(self._on_group_launch_batch_toggled)
         except Exception as e:
             logger.warning("LinksTableController: failed to connect groupLaunchToggled: %s", e)
 
@@ -174,6 +176,16 @@ class LinksTableController(QObject):
                 db.links.update_group_launch(link_id, val_int)
         except Exception as e:
             logger.warning("LinksTableController: Failed to save is_group_launch: %s", e)
+
+    def _on_group_launch_batch_toggled(self, link_ids: list[int], value: int) -> None:
+        from app.core.worker_manager import WorkerManager
+
+        WorkerManager.run(self._update_group_launch_batch_task, link_ids, value)
+
+    def _update_group_launch_batch_task(self, link_ids: list[int], value: int) -> None:
+        from app.models.db import Database
+
+        Database().links.update_group_launch_bulk(link_ids, value)
 
     # --- Slots for business signals ---
     def on_links_loaded(

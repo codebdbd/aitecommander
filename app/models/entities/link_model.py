@@ -461,6 +461,20 @@ class LinkModel(DatabaseBase):
         assert row is None or isinstance(row, sqlite3.Row)  # type: ignore[unreachable]
         return int(row_to_dict(row)["cnt"]) if row else 0
 
+    def update_group_launch_bulk(self, link_ids: list[int], value: int) -> None:
+        """Persist marks for explicit IDs in one transaction and bounded queries."""
+        ids = self._validate_and_deduplicate_ids(link_ids, "link")
+        if not ids:
+            return
+        with self.transaction():
+            for start in range(0, len(ids), 900):
+                chunk = ids[start:start + 900]
+                placeholders = build_in_clause_placeholders(len(chunk))
+                self._execute_with_error_handling(
+                    f"UPDATE link SET is_group_launch = ? WHERE id IN ({placeholders})",
+                    (int(bool(value)), *chunk),
+                )
+
     def clear_favorites(self):
         """Reset favorite flag for all links."""
         try:
@@ -602,14 +616,30 @@ class LinkModel(DatabaseBase):
             logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
             raise
 
+    def get_links_by_ids(self, link_ids: list[int]) -> list[LinkDict]:
+        """Read a batch with bounded SQL parameters, preserving input order."""
+        ids = self._validate_and_deduplicate_ids(link_ids, "link")
+        by_id = {}
+        for start in range(0, len(ids), 900):
+            chunk = ids[start:start + 900]
+            placeholders = build_in_clause_placeholders(len(chunk))
+            rows = self._execute_with_error_handling(
+                f"SELECT {LINK_ALL_COLUMNS} FROM link WHERE id IN ({placeholders})",
+                tuple(chunk), fetch_method="all",
+            )
+            for row in rows:
+                link = row_to_dict(row)
+                by_id[link["id"]] = link
+        return [by_id[lid] for lid in ids if lid in by_id]
+
     def update_link_order(self, link_ids: list[int]) -> bool:
         """Update link order."""
         try:
             with self.transaction():
-                for i, link_id in enumerate(link_ids):
-                    self._execute_with_error_handling(
-                        "UPDATE link SET position = ? WHERE id = ?", (i, link_id)
-                    )
+                self._execute_many_with_error_handling(
+                    "UPDATE link SET position = ? WHERE id = ?",
+                    list(enumerate(link_ids)),
+                )
             return True
         except Exception as e:
             logger.error("Error updating link order: %s", e, exc_info=True)
@@ -642,6 +672,15 @@ class LinkModel(DatabaseBase):
         try:
             with self.transaction():
                 cursor = self._execute_many_with_error_handling(sql, params)
+                name_updates = [
+                    (item["name"], item["id"])
+                    for item in links_data
+                    if isinstance(item.get("id"), int) and item["id"] > 0 and item.get("name")
+                ]
+                if name_updates:
+                    self._execute_many_with_error_handling(
+                        "UPDATE link SET name = ? WHERE id = ?", name_updates
+                    )
                 # rowcount may be -1 for some drivers; wrap safely
                 try:
                     affected = int(getattr(cursor, "rowcount", 0) or 0)

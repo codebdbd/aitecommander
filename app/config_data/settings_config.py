@@ -46,7 +46,7 @@ class SettingsConfig(BaseConfig):
         # Prefer the new key ``app.version``; fall back to the legacy ``application.version``
         ver = self.get("app.version")
         if ver is None:
-            ver = self.get("application.version", "1.1.10")
+            ver = self.get("application.version", "1.2.0")
         return ver
 
     def is_debug_mode(self) -> bool:

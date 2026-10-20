@@ -117,6 +117,7 @@ class TestDndMoveCommands(unittest.TestCase):
             "category_id": 1,
             "position": 0,
         }
+        links_repo.get_links_by_ids.return_value = [links_repo.get_link_by_id.return_value]
         links_repo.batch_update.return_value = True
         links_business = Mock()
         links_business.links = links_repo

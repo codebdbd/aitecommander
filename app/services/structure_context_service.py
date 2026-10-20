@@ -696,13 +696,16 @@ class StructureContextService:
         merged_section_ids: list[int] = []
         merged_category_ids: list[int] = []
         merged_link_ids: list[int] = []
+        sections_by_name = {}
+        for section in self.db.sections.get_sections(int(sphere_id)) or []:
+            sections_by_name.setdefault(self._normalize_name_key(section.get("name")), section)
 
         for tree in trees or []:
             section = dict((tree or {}).get("section") or {})
             name = section.get("name")
             if not isinstance(name, str) or not name.strip():
                 continue
-            existing = self._find_section_by_name(int(sphere_id), name)
+            existing = sections_by_name.get(self._normalize_name_key(name))
             if existing and isinstance(existing.get("id"), int):
                 existing_id = int(existing["id"])
                 if existing_id not in merged_section_ids:
@@ -726,6 +729,9 @@ class StructureContextService:
                 continue
             if isinstance(sec_id, int):
                 created_section_ids.append(sec_id)
+                sections_by_name[self._normalize_name_key(name)] = {
+                    **prepared["section"], "id": sec_id,
+                }
 
         return {
             "created_section_ids": created_section_ids,

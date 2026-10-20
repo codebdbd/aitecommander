@@ -26,7 +26,7 @@ def parse_arguments() -> AppArguments:
     parser.add_argument(
         "--version",
         action="version",
-        version="AiteCommander 1.1.10",
+        version="AiteCommander 1.2.0",
         help="Show version and exit",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
