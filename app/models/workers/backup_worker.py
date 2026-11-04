@@ -47,7 +47,7 @@ class BackupWorker(DatabaseWorker):
         """
         from datetime import datetime
 
-        self.emit_progress(0, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Preparing backup..."))
+        self.emit_progress(0, 3, QCoreApplication.translate("BackupWorker", "Preparing backup..."))
 
         # Create backup directory if it doesn't exist
         try:
@@ -64,7 +64,7 @@ class BackupWorker(DatabaseWorker):
         if self.is_cancelled:
             return {}
 
-        self.emit_progress(1, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Creating backup..."))
+        self.emit_progress(1, 3, QCoreApplication.translate("BackupWorker", "Creating backup..."))
 
         # Execute checkpoint for WAL mode
         try:
@@ -108,7 +108,7 @@ class BackupWorker(DatabaseWorker):
                     logger.warning("Failed to delete backup file on cancellation %s: %s", backup_path, e)
             return {}
 
-        self.emit_progress(2, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Cleaning up old backups..."))
+        self.emit_progress(2, 3, QCoreApplication.translate("BackupWorker", "Cleaning up old backups..."))
 
         purge_old_backups(
             self.backup_dir,
@@ -120,6 +120,6 @@ class BackupWorker(DatabaseWorker):
             sleeper=time.sleep,
         )
 
-        self.emit_progress(3, 3, QCoreApplication.translate(_BACKUP_CONTEXT, "Backup completed"))
+        self.emit_progress(3, 3, QCoreApplication.translate("BackupWorker", "Backup completed"))
 
         return {"backup_path": str(backup_path), "backup_filename": backup_filename}
