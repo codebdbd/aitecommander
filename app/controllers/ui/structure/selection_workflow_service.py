@@ -336,6 +336,8 @@ class SelectionWorkflowService(QObject):
             self._actions.load_category_via_ui_state(
                 item_id, source="SelectionHandling._handle_item_selection"
             )
+        elif item_type == "section":
+            self._actions.refresh_tiles(item_id)
         return index
 
     def restore_category_selection(

@@ -2963,29 +2963,21 @@ class DeleteCategoryCmd(BaseCommand):
         section_id: int | None,
         category_id: int,
     ) -> None:
-        try:
-            if business and isinstance(section_id, int):
-                business.section_selected.emit(section_id)
-        except Exception as exc:
-            logger.warning(
-                "DeleteCategoryCmd.redo(lightweight): select_section failed: %s",
-                exc,
-            )
-        try:
-            if business and isinstance(section_id, int):
-                try:
-                    business._invalidate_categories_cache(section_id)
-                except Exception as exc:
-                    logger.debug(
-                        "DeleteCategoryCmd.redo(lightweight): invalidate cache failed: %s",
-                        exc,
-                    )
-                business.section_selected.emit(section_id)
+        if business and isinstance(section_id, int):
+            try:
+                business._invalidate_categories_cache(section_id)
+            except Exception as exc:
+                logger.debug(
+                    "DeleteCategoryCmd.redo(lightweight): invalidate cache failed: %s",
+                    exc,
+                )
+        if business:
+            try:
                 business.item_deleted.emit("category", category_id)
-        except Exception as exc:
-            logger.warning(
-                "DeleteCategoryCmd.redo(lightweight): updates failed: %s", exc
-            )
+            except Exception as exc:
+                logger.warning(
+                    "DeleteCategoryCmd.redo(lightweight): updates failed: %s", exc
+                )
 
     def _handle_regular_reload(
         self,
@@ -2993,28 +2985,24 @@ class DeleteCategoryCmd(BaseCommand):
         section_id: int | None,
         category_id: int,
     ) -> None:
-        try:
-            if business and isinstance(section_id, int):
-                try:
-                    business._invalidate_categories_cache(section_id)
-                except Exception as exc:
-                    logger.debug(
-                        "DeleteCategoryCmd.redo: invalidate cache failed: %s", exc
-                    )
-                business.section_selected.emit(section_id)
-        except Exception as exc:
-            logger.warning("DeleteCategoryCmd.redo: select_section failed: %s", exc)
-        try:
-            if business:
-                try:
-                    clear_icon_cache()
-                except Exception as exc:
-                    logger.debug(
-                        "DeleteCategoryCmd.redo: clear_icon_cache failed: %s", exc
-                    )
+        if business and isinstance(section_id, int):
+            try:
+                business._invalidate_categories_cache(section_id)
+            except Exception as exc:
+                logger.debug(
+                    "DeleteCategoryCmd.redo: invalidate cache failed: %s", exc
+                )
+        if business:
+            try:
+                clear_icon_cache()
+            except Exception as exc:
+                logger.debug(
+                    "DeleteCategoryCmd.redo: clear_icon_cache failed: %s", exc
+                )
+            try:
                 business.item_deleted.emit("category", category_id)
-        except Exception as exc:
-            logger.warning("DeleteCategoryCmd.redo: item_deleted emit failed: %s", exc)
+            except Exception as exc:
+                logger.warning("DeleteCategoryCmd.redo: item_deleted emit failed: %s", exc)
 
     def _emit_restore_signals(self, payload: dict[str, Any]) -> None:
         business = self._resolve_business()

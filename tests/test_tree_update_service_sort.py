@@ -214,5 +214,47 @@ class TestTreeUpdateServiceDeletePostUpdates(unittest.TestCase):
         model.update_item.assert_called_once()
 
 
+class TestTreeUpdateServiceHandleItemDeleted(unittest.TestCase):
+    def _build_service(self):
+        selection_handler = SimpleNamespace(
+            begin_suppress_selection=Mock(),
+            end_suppress_selection=Mock(),
+            _set_focus_on_new_item_by_id=Mock(),
+        )
+        controller = SimpleNamespace(
+            business=SimpleNamespace(),
+            selection_handler=selection_handler,
+        )
+        manager = SimpleNamespace(controller=controller)
+        sel_model = Mock()
+        tree = SimpleNamespace(selectionModel=Mock(return_value=sel_model))
+        model = Mock()
+        svc = TreeUpdateService(manager, tree, model)
+        return svc, manager, tree, model, sel_model, selection_handler
+
+    def test_handle_item_deleted_suppresses_selection_and_focuses_surviving_category(self) -> None:
+        svc, manager, tree, model, sel_model, selection_handler = self._build_service()
+        svc._find_surviving_neighbor = Mock(return_value=("category", 88))  # type: ignore[method-assign]
+
+        svc.handle_item_deleted("category", 42)
+
+        selection_handler.begin_suppress_selection.assert_called_once()
+        sel_model.blockSignals.assert_any_call(True)
+        model.remove_categories.assert_called_once_with([42])
+        selection_handler.end_suppress_selection.assert_called_once()
+        selection_handler._set_focus_on_new_item_by_id.assert_called_once_with("category", 88)
+
+    def test_handle_item_deleted_focuses_section_when_no_surviving_categories(self) -> None:
+        svc, manager, tree, model, sel_model, selection_handler = self._build_service()
+        svc._find_surviving_neighbor = Mock(return_value=("section", 12))  # type: ignore[method-assign]
+
+        svc.handle_item_deleted("category", 42)
+
+        selection_handler.begin_suppress_selection.assert_called_once()
+        model.remove_categories.assert_called_once_with([42])
+        selection_handler.end_suppress_selection.assert_called_once()
+        selection_handler._set_focus_on_new_item_by_id.assert_called_once_with("section", 12)
+
+
 if __name__ == "__main__":
     unittest.main()

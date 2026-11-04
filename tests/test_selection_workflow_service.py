@@ -52,6 +52,56 @@ class TestSelectionWorkflowService(unittest.TestCase):
         tree.scrollTo.assert_called_once_with(category_index)
         actions.focus_tree.assert_called_once_with(use_scheduler=False)
 
+    def test_set_focus_on_new_item_by_id_loads_category_for_category_item(self) -> None:
+        tree = Mock()
+        actions = Mock()
+        service = SelectionWorkflowService(handler=None, tree=tree, actions=actions)
+
+        selection_model = Mock()
+        model = Mock()
+        tree.model.return_value = model
+        tree.selectionModel.return_value = selection_model
+
+        category_index = Mock()
+        category_index.isValid.return_value = True
+        model.index_for.return_value = category_index
+
+        result = service.set_focus_on_new_item_by_id("category", 55)
+
+        self.assertIs(result, category_index)
+        model.index_for.assert_called_once_with("category", 55)
+        selection_model.setCurrentIndex.assert_called_once()
+        tree.scrollTo.assert_called_once_with(category_index)
+        actions.focus_tree.assert_called_once_with(use_scheduler=False)
+        actions.load_category_via_ui_state.assert_called_once_with(
+            55, source="SelectionHandling._handle_item_selection"
+        )
+        actions.refresh_tiles.assert_not_called()
+
+    def test_set_focus_on_new_item_by_id_refreshes_tiles_for_section_item(self) -> None:
+        tree = Mock()
+        actions = Mock()
+        service = SelectionWorkflowService(handler=None, tree=tree, actions=actions)
+
+        selection_model = Mock()
+        model = Mock()
+        tree.model.return_value = model
+        tree.selectionModel.return_value = selection_model
+
+        section_index = Mock()
+        section_index.isValid.return_value = True
+        model.index_for.return_value = section_index
+
+        result = service.set_focus_on_new_item_by_id("section", 22)
+
+        self.assertIs(result, section_index)
+        model.index_for.assert_called_once_with("section", 22)
+        selection_model.setCurrentIndex.assert_called_once()
+        tree.scrollTo.assert_called_once_with(section_index)
+        actions.focus_tree.assert_called_once_with(use_scheduler=False)
+        actions.refresh_tiles.assert_called_once_with(22)
+        actions.load_category_via_ui_state.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

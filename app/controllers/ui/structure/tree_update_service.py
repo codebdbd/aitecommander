@@ -169,6 +169,18 @@ class TreeUpdateService(QObject):
     def handle_item_deleted(self, item_type: str, item_id: int) -> None:
         surviving_type, surviving_id = self._find_surviving_neighbor(item_type, item_id)
 
+        controller = getattr(self._manager, "controller", None)
+        selection_handler = (
+            getattr(controller, "selection_handler", None) if controller else None
+        )
+        sel_model = (
+            self._tree.selectionModel()
+            if hasattr(self._tree, "selectionModel")
+            else None
+        )
+        if selection_handler is not None:
+            selection_handler.begin_suppress_selection()
+        prev_blocked = sel_model.blockSignals(True) if sel_model else False
         try:
             if item_type == "section":
                 self._model.remove_sections([int(item_id)])
@@ -181,8 +193,11 @@ class TreeUpdateService(QObject):
                 item_id,
             )
         finally:
-            controller = getattr(self._manager, "controller", None)
-            selection_handler = getattr(controller, "selection_handler", None) if controller else None
+            if sel_model:
+                sel_model.blockSignals(prev_blocked)
+            if selection_handler is not None:
+                selection_handler.end_suppress_selection()
+
             if selection_handler and surviving_type and surviving_id is not None:
                 selection_handler._set_focus_on_new_item_by_id(surviving_type, surviving_id)
             else:

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from app.controllers.ui.undo.commands_structure import (
+    DeleteCategoryCmd,
     PasteCategoriesCmd,
     PasteSectionsCmd,
     SaveCategoryCmd,
@@ -369,6 +370,54 @@ class TestPasteSectionsCmdRefresh(unittest.TestCase):
         cmd._refresh_after_sections()
 
         business.async_service.schedule_structure_reload.assert_called_once_with(0)
+
+
+class TestDeleteCategoryCmdSignals(unittest.TestCase):
+    def _build_business(self, service: Mock) -> SimpleNamespace:
+        return SimpleNamespace(
+            structure_service=service,
+            item_deleted=_signal(),
+            section_selected=_signal(),
+            _invalidate_categories_cache=Mock(),
+        )
+
+    def test_redo_lightweight_reload_does_not_emit_section_selected(self) -> None:
+        service = Mock()
+        service.export_category_tree.return_value = {"category": {"id": 15, "section_id": 3}}
+        service.delete_category.return_value = Result.success({"id": 15})
+        business = self._build_business(service)
+
+        cmd = DeleteCategoryCmd(
+            category_data={"id": 15, "section_id": 3},
+            main_window=SimpleNamespace(_suppress_deletes=False),
+            business=business,
+            lightweight_reload=True,
+            skip_reload=False,
+        )
+        cmd.redo()
+
+        business._invalidate_categories_cache.assert_called_once_with(3)
+        business.item_deleted.emit.assert_called_once_with("category", 15)
+        business.section_selected.emit.assert_not_called()
+
+    def test_redo_regular_reload_does_not_emit_section_selected(self) -> None:
+        service = Mock()
+        service.export_category_tree.return_value = {"category": {"id": 16, "section_id": 4}}
+        service.delete_category.return_value = Result.success({"id": 16})
+        business = self._build_business(service)
+
+        cmd = DeleteCategoryCmd(
+            category_data={"id": 16, "section_id": 4},
+            main_window=SimpleNamespace(_suppress_deletes=False),
+            business=business,
+            lightweight_reload=False,
+            skip_reload=False,
+        )
+        cmd.redo()
+
+        business._invalidate_categories_cache.assert_called_once_with(4)
+        business.item_deleted.emit.assert_called_once_with("category", 16)
+        business.section_selected.emit.assert_not_called()
 
 
 if __name__ == "__main__":
