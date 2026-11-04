@@ -207,7 +207,7 @@ class LinkDialog(BaseDialog):
         # Configure UI and load data
         self._setup_ui_properties()
         self._load_initial()
-        
+
         # Initial translation pass
         self.retranslateUi()
 
@@ -339,14 +339,16 @@ class LinkDialog(BaseDialog):
     def _setup_ui_properties(self) -> None:
         """Configure dialog UI properties."""
         # Window title is updated in retranslateUi()
-        self.setWindowFlags(self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint)
+        self.setWindowFlags(
+            self.windowFlags() | Qt.WindowType.MSWindowsFixedSizeDialogHint
+        )
         self.setFixedWidth(app_config.ui.get_link_dialog_width())
         self.adjustSize()
 
     def _extract_profile_and_user_args(self) -> tuple[list[dict], str]:
         """Parses `self.link.get("args")` to detect selected profiles
         and extract the remaining user launch arguments.
-        
+
         Returns:
             (selected_profiles, clean_user_args)
         """
@@ -363,8 +365,11 @@ class LinkDialog(BaseDialog):
 
         try:
             from app.utils.browser.browser_profiles import get_profile_manager
+
             manager = get_profile_manager()
-            browser_key = self.link.get("browser_key") or manager.detect_browser_from_args(args)
+            browser_key = self.link.get(
+                "browser_key"
+            ) or manager.detect_browser_from_args(args)
             if browser_key:
                 finder = manager.finders.get(browser_key)
                 if finder:
@@ -379,7 +384,7 @@ class LinkDialog(BaseDialog):
                                 break
                         if not matched_profile:
                             matched_profile = profile_data
-                        
+
                         matched_profile["browser_key"] = browser_key
                         selected_profiles = [matched_profile]
 
@@ -472,7 +477,6 @@ class LinkDialog(BaseDialog):
 
         logger.debug("Initial values applied to UI; continuing with icon setup")
 
-
         # Initial icon is applied after the first paint to avoid blocking dialog open.
 
         # Populate hierarchy
@@ -481,12 +485,11 @@ class LinkDialog(BaseDialog):
         # Load migrated profiles if present
         if self.link and self.link.get("migrated_profiles"):
             self.selected_profiles = self.link["migrated_profiles"]
-            
+
         self._update_profile_button_state()
 
         # Update UI state
         self.handlers._update_ui_state()
-
 
         # Set focus depending on link type:
         #  - WEB: focus URL/path field
@@ -504,9 +507,7 @@ class LinkDialog(BaseDialog):
                         target = self._get_browse_btn()
                         if target is None or not target.isVisible():
                             target = self._get_url_le()
-                        target.setFocus(
-                            Qt.FocusReason.ActiveWindowFocusReason
-                        )
+                        target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
                 except Exception:
                     pass
 
@@ -588,14 +589,18 @@ class LinkDialog(BaseDialog):
         3) delegate updating sections/categories to `HierarchyMixin`.
         """
         from PyQt6.QtCore import QSignalBlocker
-        
+
         sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
 
         # CRITICAL FIX: Block signals during initialization to prevent
         # automatic DB queries from currentIndexChanged handlers
-        with QSignalBlocker(sphere_cb), QSignalBlocker(section_cb), QSignalBlocker(category_cb):
+        with (
+            QSignalBlocker(sphere_cb),
+            QSignalBlocker(section_cb),
+            QSignalBlocker(category_cb),
+        ):
             # 1) Load spheres from initialization_data
             self._populate_spheres()
 
@@ -664,7 +669,13 @@ class LinkDialog(BaseDialog):
             if sphere_cb.itemData(idx) == sphere_id:
                 sp_name = sphere_cb.itemText(idx)
                 icon = get_cached_icon_with_fallback(
-                    icon_path, "sphere", entity_data={"id": sphere_id, "name": sp_name, "icon_path": icon_path}
+                    icon_path,
+                    "sphere",
+                    entity_data={
+                        "id": sphere_id,
+                        "name": sp_name,
+                        "icon_path": icon_path,
+                    },
                 )
                 if icon:
                     sphere_cb.setItemIcon(idx, icon)
@@ -790,9 +801,13 @@ class LinkDialog(BaseDialog):
         """Format detailed tooltip for selected profiles button."""
         if not profiles:
             return self.tr("Select browser profile")
-        names = [p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles]
+        names = [
+            p.get("name") or p.get("email") or p.get("directory", "?") for p in profiles
+        ]
         if len(names) == 1:
-            return self.tr("Selected profile: {name}\n(Click to change)").format(name=names[0])
+            return self.tr("Selected profile: {name}\n(Click to change)").format(
+                name=names[0]
+            )
         lines = [self.tr("Selected profiles ({count}):").format(count=len(names))]
         for n in names:
             lines.append(f"• {n}")
@@ -801,7 +816,9 @@ class LinkDialog(BaseDialog):
 
     def _update_profile_button_state(self) -> None:
         """Update profile button text and tooltip."""
-        if hasattr(self, "handlers") and hasattr(self.handlers, "_update_profile_ui_state"):
+        if hasattr(self, "handlers") and hasattr(
+            self.handlers, "_update_profile_ui_state"
+        ):
             self.handlers._update_profile_ui_state()
 
     def _cleanup_processing(self) -> None:
@@ -848,18 +865,30 @@ class LinkDialog(BaseDialog):
                 try:
                     file_path.unlink(missing_ok=True)
                 except Exception as e:
-                    logger.warning("LinkDialog: could not delete draft script %s: %s", file_path, e)
+                    logger.warning(
+                        "LinkDialog: could not delete draft script %s: %s", file_path, e
+                    )
             pending_writes.clear()
         else:
             # Apply pending modifications to existing files on disk
             from app.services.script_storage_service import ScriptStorageService
+
+            disk_backups: dict[Path, tuple[bytes, bytes]] = {}
             for file_path, (code, ext) in list(pending_writes.items()):
                 try:
-                    ScriptStorageService.save_script(
+                    old_bytes = file_path.read_bytes() if file_path.is_file() else None
+                    new_path = ScriptStorageService.save_script(
                         code=code,
                         ext=ext,
                         existing_path=file_path,
                     )
+                    new_bytes = new_path.read_bytes() if new_path.is_file() else None
+                    if (
+                        old_bytes is not None
+                        and new_bytes is not None
+                        and old_bytes != new_bytes
+                    ):
+                        disk_backups[file_path] = (old_bytes, new_bytes)
                 except Exception as e:
                     logger.warning(
                         "LinkDialog: failed to save script changes to %s: %s",
@@ -868,6 +897,22 @@ class LinkDialog(BaseDialog):
                         exc_info=True,
                     )
             pending_writes.clear()
+
+            ctrl = getattr(self, "link_controller", None) or getattr(
+                self, "dialog_controller", None
+            )
+            if disk_backups and ctrl:
+                for item in getattr(ctrl, "result_data", []) or []:
+                    item_url = item.get("url")
+                    if item_url:
+                        try:
+                            p = Path(item_url).resolve()
+                            for fpath, (old_b, new_b) in disk_backups.items():
+                                if p == fpath.resolve():
+                                    item["_script_undo_backup"] = (fpath, old_b)
+                                    item["_script_redo_backup"] = (fpath, new_b)
+                        except Exception:
+                            pass
 
             # Remove any created script drafts that were superseded by another path
             current_url = self._safe_current_url_for_log()
@@ -917,7 +962,7 @@ class LinkDialog(BaseDialog):
         """
         # CRITICAL: Set flag to prevent callbacks from accessing deleted dialog
         self._is_closing = True
-        
+
         if self.handlers._is_processing or self.handlers._active_worker:
             if not self._show_confirm_close_while_processing():
                 self._is_closing = False  # Reset if user cancels close

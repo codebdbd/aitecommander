@@ -41,16 +41,22 @@ def sanitize_url_for_logging(url: str) -> str:
         is_windows_path = len(url) > 2 and url[1] == ":" and url[2] in ("/", "\\")
         is_posix_path = url.startswith("/") and not url.startswith("//")
         is_unc_path = url.startswith("\\\\")
-        if (is_windows_path or is_posix_path or is_unc_path) and ("?" not in url and "#" not in url):
+        if (is_windows_path or is_posix_path or is_unc_path) and (
+            "?" not in url and "#" not in url
+        ):
             return url
 
         has_scheme = "://" in url
         has_query_or_frag = "?" in url or "#" in url
-        has_userinfo = "@" in url and not (is_windows_path or is_posix_path or is_unc_path)
+        has_userinfo = "@" in url and not (
+            is_windows_path or is_posix_path or is_unc_path
+        )
 
         dummy_prefix = False
         target = url
-        if not has_scheme and (has_query_or_frag or has_userinfo or url.startswith("//")):
+        if not has_scheme and (
+            has_query_or_frag or has_userinfo or url.startswith("//")
+        ):
             target = "//" + url
             dummy_prefix = True
 
@@ -232,7 +238,9 @@ class SecurityValidator:
 
     # More strict patterns for different argument types
     CHROME_ARG_PATTERN = re.compile(r'^--[\w-]+(=[\w\s\-_./:\\"{}?&=]+)?$')
-    PATH_PATTERN = re.compile(r"^[a-zA-Z]:[\\\/][\w\s\-_./\\:(){}]+$|^[\w\s\-_./(){}]+$")
+    PATH_PATTERN = re.compile(
+        r"^[a-zA-Z]:[\\\/][\w\s\-_./\\:(){}]+$|^[\w\s\-_./(){}]+$"
+    )
     URL_PATTERN = re.compile(r'^https?://[^\s<>"{}|\\^`\[\]]+$')
 
     # Whitelist of allowed Chrome arguments
@@ -303,9 +311,12 @@ class SecurityValidator:
         # Windows shell:appsfolder\ paths and bare AppUserModelID (UWP / Store apps).
         # AUMID format: Publisher.PackageName!AppId (e.g. OpenAI.Codex_abc!App)
         if platform.system() == "Windows":
-            aumid_like = (
-                path_lower.startswith("shell:appsfolder\\")
-                or ("!" in path and "." in path and " " not in path and "\\" not in path and "/" not in path)
+            aumid_like = path_lower.startswith("shell:appsfolder\\") or (
+                "!" in path
+                and "." in path
+                and " " not in path
+                and "\\" not in path
+                and "/" not in path
             )
             if aumid_like:
                 forbidden = {"|", ";", ">", "<", "`", "$", "\r", "\n", "\0", "&"}
@@ -367,7 +378,7 @@ class SecurityValidator:
             return ""
         clean = arg.replace("\r", "").replace("\n", "")
         clean = clean.replace('"', '\\"')
-        return re.sub(r'([&|<>\^%])', r'^\1', clean)
+        return re.sub(r"([&|<>\^%])", r"^\1", clean)
 
     @classmethod
     def split_cmdline(cls, cmdline: str) -> list[str]:
@@ -391,7 +402,10 @@ class SecurityValidator:
                 shell32 = ctypes.windll.shell32
                 kernel32 = ctypes.windll.kernel32
                 CommandLineToArgvW = shell32.CommandLineToArgvW
-                CommandLineToArgvW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+                CommandLineToArgvW.argtypes = [
+                    wintypes.LPCWSTR,
+                    ctypes.POINTER(ctypes.c_int),
+                ]
                 CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
 
                 num_args = ctypes.c_int()
@@ -479,13 +493,15 @@ class SecurityValidator:
                     validated.append("-kiosk")
             # Firefox native profile flag handling
             elif arg == "-P" and i + 1 < len(parsed):
-                validated.extend(["-P", parsed[i+1]])
+                validated.extend(["-P", parsed[i + 1]])
                 i += 1
             # Firefox native flags
             elif arg in ["-private-window", "-new-window"]:
                 validated.append(arg)
             else:
-                logger.warning("Argument not in Firefox whitelist or not translatable: %s", arg)
+                logger.warning(
+                    "Argument not in Firefox whitelist or not translatable: %s", arg
+                )
             i += 1
 
         return validated
@@ -568,10 +584,14 @@ class BrowserConfig:
         # Common installation locations by browser key.
         local_app_data = os.environ.get("LOCALAPPDATA", "")
         program_files = os.environ.get("PROGRAMFILES", r"C:\Program Files")
-        program_files_x86 = os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")
+        program_files_x86 = os.environ.get(
+            "PROGRAMFILES(X86)", r"C:\Program Files (x86)"
+        )
         candidates = {
             "chrome": [
-                os.path.join(program_files, "Google", "Chrome", "Application", "chrome.exe"),
+                os.path.join(
+                    program_files, "Google", "Chrome", "Application", "chrome.exe"
+                ),
                 os.path.join(
                     program_files_x86, "Google", "Chrome", "Application", "chrome.exe"
                 ),
@@ -580,7 +600,9 @@ class BrowserConfig:
                 ),
             ],
             "edge": [
-                os.path.join(program_files, "Microsoft", "Edge", "Application", "msedge.exe"),
+                os.path.join(
+                    program_files, "Microsoft", "Edge", "Application", "msedge.exe"
+                ),
                 os.path.join(
                     program_files_x86, "Microsoft", "Edge", "Application", "msedge.exe"
                 ),
@@ -590,7 +612,11 @@ class BrowserConfig:
             ],
             "brave": [
                 os.path.join(
-                    program_files, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"
+                    program_files,
+                    "BraveSoftware",
+                    "Brave-Browser",
+                    "Application",
+                    "brave.exe",
                 ),
                 os.path.join(
                     program_files_x86,
@@ -609,7 +635,9 @@ class BrowserConfig:
             ],
             "vivaldi": [
                 os.path.join(program_files, "Vivaldi", "Application", "vivaldi.exe"),
-                os.path.join(program_files_x86, "Vivaldi", "Application", "vivaldi.exe"),
+                os.path.join(
+                    program_files_x86, "Vivaldi", "Application", "vivaldi.exe"
+                ),
                 os.path.join(local_app_data, "Vivaldi", "Application", "vivaldi.exe"),
             ],
             "opera": [
@@ -619,13 +647,25 @@ class BrowserConfig:
             ],
             "yandex": [
                 os.path.join(
-                    local_app_data, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                    local_app_data,
+                    "Yandex",
+                    "YandexBrowser",
+                    "Application",
+                    "browser.exe",
                 ),
                 os.path.join(
-                    program_files, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                    program_files,
+                    "Yandex",
+                    "YandexBrowser",
+                    "Application",
+                    "browser.exe",
                 ),
                 os.path.join(
-                    program_files_x86, "Yandex", "YandexBrowser", "Application", "browser.exe"
+                    program_files_x86,
+                    "Yandex",
+                    "YandexBrowser",
+                    "Application",
+                    "browser.exe",
                 ),
             ],
             "firefox": [
@@ -718,7 +758,9 @@ class WebLinkHandler(LinkHandler):
             )
             webbrowser.open(link_info.path)
         except Exception as e:
-            self.logger.error("Failed to open URL %s with %s: %s", safe_url, browser_key, e)
+            self.logger.error(
+                "Failed to open URL %s with %s: %s", safe_url, browser_key, e
+            )
             # Fallback to system browser
             webbrowser.open(link_info.path)
 
@@ -777,6 +819,7 @@ class ScriptLinkHandler(LinkHandler):
         self._py_keep_open = False
 
     _alias_status_cache: dict[str, bool] = {}
+    _uv_python_cache: dict[tuple[str, bool], Optional[str]] = {}
 
     @classmethod
     def _is_windowsapps_stub(cls, path_str: str) -> bool:
@@ -802,10 +845,10 @@ class ScriptLinkHandler(LinkHandler):
                     timeout=2,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
-                is_broken = (res.returncode != 0)
+                is_broken = res.returncode != 0
             else:
                 with open(p, "rb") as f:
-                    is_broken = (f.read(2) != b"MZ")
+                    is_broken = f.read(2) != b"MZ"
         except Exception:
             is_broken = True
 
@@ -831,9 +874,7 @@ class ScriptLinkHandler(LinkHandler):
 
         # If the configured executable is available and not a broken Store alias, use it.
         found_cfg = (
-            configured
-            if Path(configured).is_file()
-            else shutil.which(configured)
+            configured if Path(configured).is_file() else shutil.which(configured)
         )
         if found_cfg and not self._is_windowsapps_stub(found_cfg):
             return found_cfg
@@ -900,7 +941,11 @@ class ScriptLinkHandler(LinkHandler):
 
     def open(self, link_info: LinkInfo) -> None:
         """Opens script"""
-        raw_path = os.path.expandvars(os.path.expanduser(link_info.path)) if link_info.path else ""
+        raw_path = (
+            os.path.expandvars(os.path.expanduser(link_info.path))
+            if link_info.path
+            else ""
+        )
         if not SecurityValidator.is_safe_path(raw_path):
             raise ValueError(f"Unsafe script path: {raw_path}")
 
@@ -951,7 +996,9 @@ class ScriptLinkHandler(LinkHandler):
             cwd = str(path.parent.resolve())
             if run_as_admin and platform.system() == "Windows":
                 self._open_as_admin(script_path_str, ext, arg_list, cwd=cwd)
-                self.logger.info("Successfully launched script as admin: %s", script_path_str)
+                self.logger.info(
+                    "Successfully launched script as admin: %s", script_path_str
+                )
                 return
 
             if handler:
@@ -981,9 +1028,14 @@ class ScriptLinkHandler(LinkHandler):
             self.logger.info("Successfully launched script: %s", script_path_str)
         except (OSError, subprocess.SubprocessError) as e:
             self.logger.error(
-                "Failed to execute script '%s' (args: %s): %s", script_path_str, arg_list, e
+                "Failed to execute script '%s' (args: %s): %s",
+                script_path_str,
+                arg_list,
+                e,
             )
-            raise RuntimeError(f"Failed to execute script '{script_path_str}': {e}") from e
+            raise RuntimeError(
+                f"Failed to execute script '{script_path_str}': {e}"
+            ) from e
 
     def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
         """Creates PowerShell script command"""
@@ -1028,9 +1080,15 @@ class ScriptLinkHandler(LinkHandler):
                                         if install_dir:
                                             cand = Path(str(install_dir)) / exe_name
                                             if not cand.is_file() and windowed:
-                                                cand = Path(str(install_dir)) / "python.exe"
-                                            if cand.is_file() and not self._is_windowsapps_stub(
-                                                str(cand)
+                                                cand = (
+                                                    Path(str(install_dir))
+                                                    / "python.exe"
+                                                )
+                                            if (
+                                                cand.is_file()
+                                                and not self._is_windowsapps_stub(
+                                                    str(cand)
+                                                )
                                             ):
                                                 return str(cand)
                                 except OSError:
@@ -1064,7 +1122,9 @@ class ScriptLinkHandler(LinkHandler):
             versioned_roots.append((Path(appdata) / "uv" / "python", "cpython-*"))
         if localappdata:
             versioned_roots.append((Path(localappdata) / "uv" / "python", "cpython-*"))
-            versioned_roots.append((Path(localappdata) / "Programs" / "Python", "Python*"))
+            versioned_roots.append(
+                (Path(localappdata) / "Programs" / "Python", "Python*")
+            )
         versioned_roots.extend(
             [
                 (Path(progfiles), "Python*"),
@@ -1116,18 +1176,25 @@ class ScriptLinkHandler(LinkHandler):
         if not uv_exe:
             for uv_cand in (
                 home / ".local" / "bin" / "uv.exe",
-                Path(os.environ.get("CARGO_HOME", str(home / ".cargo"))) / "bin" / "uv.exe",
+                Path(os.environ.get("CARGO_HOME", str(home / ".cargo")))
+                / "bin"
+                / "uv.exe",
             ):
                 if uv_cand.is_file():
                     uv_exe = str(uv_cand)
                     break
         if uv_exe:
+            script_dir = Path(script_path).parent
+            run_cwd = str(script_dir) if script_dir.is_dir() else ""
+            cache_key = (run_cwd, windowed)
+            if cache_key in self._uv_python_cache:
+                return self._uv_python_cache[cache_key]
+
+            resolved_py: Optional[str] = None
             try:
-                script_dir = Path(script_path).parent
-                run_cwd = str(script_dir) if script_dir.is_dir() else None
                 res = subprocess.run(
                     [uv_exe, "python", "find"],
-                    cwd=run_cwd,
+                    cwd=run_cwd or None,
                     capture_output=True,
                     text=True,
                     timeout=3,
@@ -1139,15 +1206,22 @@ class ScriptLinkHandler(LinkHandler):
                         pyw = found_py.with_name("pythonw.exe")
                         if pyw.is_file():
                             found_py = pyw
-                    if found_py.is_file() and not self._is_windowsapps_stub(str(found_py)):
+                    if found_py.is_file() and not self._is_windowsapps_stub(
+                        str(found_py)
+                    ):
                         self.logger.info("Resolved Python via uv: %s", found_py)
-                        return str(found_py)
+                        resolved_py = str(found_py)
             except Exception as e:
                 self.logger.debug("uv python find failed: %s", e)
 
+            self._uv_python_cache[cache_key] = resolved_py
+            return resolved_py
+
         return None
 
-    def _resolve_python_executable(self, script_path: str, windowed: bool = False) -> Optional[str]:
+    def _resolve_python_executable(
+        self, script_path: str, windowed: bool = False
+    ) -> Optional[str]:
         """Resolves the best Python executable for the script automatically.
 
         Zero-config cascade resolution order:
@@ -1193,11 +1267,15 @@ class ScriptLinkHandler(LinkHandler):
                         candidate = venv_dir / "bin" / "python"
                     if candidate.is_file():
                         self.logger.info(
-                            "Found local virtualenv Python for %s: %s", script_path, candidate
+                            "Found local virtualenv Python for %s: %s",
+                            script_path,
+                            candidate,
                         )
                         return str(candidate)
         except Exception as e:
-            self.logger.debug("Error checking local virtualenv for %s: %s", script_path, e)
+            self.logger.debug(
+                "Error checking local virtualenv for %s: %s", script_path, e
+            )
 
         # 3. Windows Python Launcher (py.exe / pyw.exe)
         if platform.system() == "Windows":
@@ -1210,13 +1288,17 @@ class ScriptLinkHandler(LinkHandler):
                     break
             if not py_launcher:
                 sys_root = Path(os.environ.get("SystemRoot", "C:\\Windows"))
-                for exe_name in (("pyw.exe", "py.exe") if windowed else ("py.exe",)):
+                for exe_name in ("pyw.exe", "py.exe") if windowed else ("py.exe",):
                     win_py = sys_root / exe_name
                     if win_py.is_file():
                         py_launcher = str(win_py)
                         break
             if py_launcher:
-                self.logger.info("Using Windows Python Launcher (%s) for %s", py_launcher, script_path)
+                self.logger.info(
+                    "Using Windows Python Launcher (%s) for %s",
+                    py_launcher,
+                    script_path,
+                )
                 return py_launcher
 
         # 4. Running Python interpreter (if running from source / virtualenv, not PyInstaller frozen)
@@ -1230,7 +1312,9 @@ class ScriptLinkHandler(LinkHandler):
                 return str(exec_path)
 
         # 5. System PATH python / python3
-        path_names = ("pythonw", "python", "python3") if windowed else ("python", "python3")
+        path_names = (
+            ("pythonw", "python", "python3") if windowed else ("python", "python3")
+        )
         for cmd_name in path_names:
             found = shutil.which(cmd_name)
             if found and not self._is_windowsapps_stub(found):
@@ -1280,7 +1364,8 @@ class ScriptLinkHandler(LinkHandler):
         flag = "/k" if self._batch_keep_open else "/c"
         if args:
             safe_args = " ".join(
-                f'"{SecurityValidator.sanitize_cmd_arg(a)}"' if " " in a
+                f'"{SecurityValidator.sanitize_cmd_arg(a)}"'
+                if " " in a
                 else SecurityValidator.sanitize_cmd_arg(a)
                 for a in args
             )
@@ -1290,7 +1375,9 @@ class ScriptLinkHandler(LinkHandler):
     def _resolve_wsh_executable(self, console: bool = False) -> str:
         """Resolve Windows Script Host executable (cscript.exe or wscript.exe)."""
         exe_name = "cscript.exe" if console else "wscript.exe"
-        sys_root = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32" / exe_name
+        sys_root = (
+            Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32" / exe_name
+        )
         if sys_root.is_file():
             return str(sys_root)
         return shutil.which(exe_name) or exe_name
@@ -1318,9 +1405,19 @@ class ScriptLinkHandler(LinkHandler):
 
         # 2. Common Git Bash locations
         candidates = [
-            Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "Git" / "bin" / "bash.exe",
-            Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")) / "Git" / "bin" / "bash.exe",
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Git" / "bin" / "bash.exe",
+            Path(os.environ.get("PROGRAMFILES", "C:\\Program Files"))
+            / "Git"
+            / "bin"
+            / "bash.exe",
+            Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"))
+            / "Git"
+            / "bin"
+            / "bash.exe",
+            Path(os.environ.get("LOCALAPPDATA", ""))
+            / "Programs"
+            / "Git"
+            / "bin"
+            / "bash.exe",
         ]
         for candidate in candidates:
             if candidate.is_file():
@@ -1338,7 +1435,9 @@ class ScriptLinkHandler(LinkHandler):
             )
         return [bash_exe, path] + args
 
-    def _open_as_admin(self, script_path: str, ext: str, args: list[str], cwd: str) -> None:
+    def _open_as_admin(
+        self, script_path: str, ext: str, args: list[str], cwd: str
+    ) -> None:
         """Launches script with elevated administrator privileges via Windows UAC."""
         import ctypes
 
@@ -1356,11 +1455,15 @@ class ScriptLinkHandler(LinkHandler):
                 params = f'{flag} ""{safe_path}" {safe_args}"'
             else:
                 params = f'{flag} ""{safe_path}""'
-            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", "cmd.exe", params, cwd, 1
+            )
         elif ext == ".ps1":
             ps_flag = "-NoExit " if self._ps_keep_open else ""
             params = f'{ps_flag}-ExecutionPolicy Bypass -File "{script_path}" {arg_str}'.strip()
-            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", self.powershell_path, params, cwd, 1)
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", self.powershell_path, params, cwd, 1
+            )
         elif ext in (".py", ".pyw"):
             windowed = ext == ".pyw"
             python_exe = self._resolve_python_executable(script_path, windowed=windowed)
@@ -1373,22 +1476,36 @@ class ScriptLinkHandler(LinkHandler):
             if not windowed and getattr(self, "_py_keep_open", False):
                 tokens = [python_exe, script_path] + args
                 params = SecurityValidator.build_cmd_params(tokens, keep_open=True)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+                ret = ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", "cmd.exe", params, cwd, 1
+                )
             else:
-                params = " ".join(SecurityValidator.escape_cmd_token(t) for t in [script_path] + args)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", python_exe, params, cwd, 1)
+                params = " ".join(
+                    SecurityValidator.escape_cmd_token(t) for t in [script_path] + args
+                )
+                ret = ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", python_exe, params, cwd, 1
+                )
         elif ext in (".vbs", ".js"):
             if self._batch_keep_open:
                 cscript_exe = self._resolve_wsh_executable(console=True)
                 tokens = [cscript_exe, "//NoLogo", script_path] + args
                 params = SecurityValidator.build_cmd_params(tokens, keep_open=True)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+                ret = ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", "cmd.exe", params, cwd, 1
+                )
             else:
                 wscript_exe = self._resolve_wsh_executable(console=False)
-                params = " ".join(SecurityValidator.escape_cmd_token(t) for t in [script_path] + args)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", wscript_exe, params, cwd, 1)
+                params = " ".join(
+                    SecurityValidator.escape_cmd_token(t) for t in [script_path] + args
+                )
+                ret = ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", wscript_exe, params, cwd, 1
+                )
         else:
-            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", script_path, arg_str, cwd, 1)
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", script_path, arg_str, cwd, 1
+            )
 
         # Ret <= 32 indicates an error in ShellExecuteW; 1223 = ERROR_CANCELLED (user clicked 'No' in UAC)
         if ret <= 32 and ret != 1223:
@@ -1408,13 +1525,17 @@ class ProgramLinkHandler(LinkHandler):
             raise ValueError(f"Unsafe program path: {link_info.path}")
 
         # Windows AppsFolder virtual applications
-        if platform.system() == "Windows" and link_info.path.lower().startswith("shell:appsfolder\\"):
+        if platform.system() == "Windows" and link_info.path.lower().startswith(
+            "shell:appsfolder\\"
+        ):
             try:
                 os.startfile(link_info.path)
                 self.logger.info("Successfully launched shell app: %s", link_info.path)
                 return
             except OSError as e:
-                self.logger.error("Failed to launch shell app %s: %s", link_info.path, e)
+                self.logger.error(
+                    "Failed to launch shell app %s: %s", link_info.path, e
+                )
                 raise
 
         # Bare AppUserModelID (UWP / Store App): Publisher.PackageName!AppId
@@ -1443,7 +1564,11 @@ class ProgramLinkHandler(LinkHandler):
             raise FileNotFoundError(f"Program not found: {link_info.path}")
 
         try:
-            norm_path = os.path.normpath(link_info.path) if platform.system() == "Windows" else link_info.path
+            norm_path = (
+                os.path.normpath(link_info.path)
+                if platform.system() == "Windows"
+                else link_info.path
+            )
 
             # For programs use Windows argument splitting without strict Chrome validation
             arg_list = []
@@ -1452,7 +1577,9 @@ class ProgramLinkHandler(LinkHandler):
                     arg_list = SecurityValidator.split_cmdline(link_info.args)
                 except ValueError as e:
                     self.logger.error(
-                        "Failed to parse program arguments for '%s': %s", link_info.path, e
+                        "Failed to parse program arguments for '%s': %s",
+                        link_info.path,
+                        e,
                     )
                     raise ValueError(f"Invalid program arguments: {e}") from e
 
@@ -1470,11 +1597,19 @@ class ProgramLinkHandler(LinkHandler):
                     import ctypes
 
                     ret = ctypes.windll.shell32.ShellExecuteW(
-                        None, "runas" if run_as_admin else "open", norm_path, arg_str, work_dir, 1
+                        None,
+                        "runas" if run_as_admin else "open",
+                        norm_path,
+                        arg_str,
+                        work_dir,
+                        1,
                     )
                     if ret <= 32 and ret != 1223:
                         raise OSError(f"ShellExecuteW failed with error code {ret}")
-                    self.logger.info("Successfully launched shortcut via ShellExecuteW: %s", norm_path)
+                    self.logger.info(
+                        "Successfully launched shortcut via ShellExecuteW: %s",
+                        norm_path,
+                    )
                 else:
                     os.startfile(norm_path)
                     self.logger.info("Successfully launched shortcut: %s", norm_path)
@@ -1484,10 +1619,14 @@ class ProgramLinkHandler(LinkHandler):
                 import ctypes
 
                 arg_str = " ".join(f'"{a}"' if " " in a else a for a in arg_list)
-                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", norm_path, arg_str, work_dir, 1)
+                ret = ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", norm_path, arg_str, work_dir, 1
+                )
                 if ret <= 32 and ret != 1223:
                     raise OSError(f"ShellExecuteW runas failed with error code {ret}")
-                self.logger.info("Successfully launched program as admin: %s", norm_path)
+                self.logger.info(
+                    "Successfully launched program as admin: %s", norm_path
+                )
                 return
 
             subprocess.Popen([norm_path] + arg_list, cwd=work_dir)
@@ -1503,6 +1642,7 @@ class ProgramLinkHandler(LinkHandler):
         except (OSError, subprocess.SubprocessError) as e:
             self.logger.error("Failed to launch program %s: %s", link_info.path, e)
             raise
+
 
 class LinkOpener:
     """Main class for opening various types of links"""
@@ -1575,7 +1715,6 @@ class LinkOpener:
         if not isinstance(link_info.link_type, LinkType):
             raise ValueError(f"Incorrect link type: {link_info.link_type}")
 
-
         # Defense-in-depth: auto-correct link_type for known virtual/WIndows paths.
         # If the actual path content clearly indicates a different type (e.g. AUMID stored as FILE),
         # override for routing only to avoid FileNotFoundError on non-existent virtual paths.
@@ -1601,7 +1740,12 @@ class LinkOpener:
                 and effective_type in (LinkType.FILE, LinkType.FOLDER)
                 and Path(link_info.path).exists()
             ):
-                if Path(link_info.path).suffix.lower() in (".exe", ".lnk", ".msi", ".app"):
+                if Path(link_info.path).suffix.lower() in (
+                    ".exe",
+                    ".lnk",
+                    ".msi",
+                    ".app",
+                ):
                     self.logger.warning(
                         "Link type autocorrect: id=%s stored_type=%s path=%s → routing as PROGRAM",
                         link_info.id,
@@ -1616,6 +1760,7 @@ class LinkOpener:
         # Keep original link_type untouched for logging / caller-visible state.
         if effective_type is not link_info.link_type:
             from dataclasses import replace
+
             routing_info = replace(link_info, link_type=effective_type)
         else:
             routing_info = link_info

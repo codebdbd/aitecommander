@@ -102,7 +102,9 @@ def test_save_and_read_script_utf8_bom_for_ps1(tmp_path: Path):
 
 
 def test_script_editor_dialog_paste_and_state(qapp):
-    dlg = ScriptEditorDialog(initial_code="", initial_ext=".ps1", initial_keep_open=True)
+    dlg = ScriptEditorDialog(
+        initial_code="", initial_ext=".ps1", initial_keep_open=True
+    )
     assert dlg.ok_button is not None
     assert not dlg.ok_button.isEnabled()
     assert dlg.get_keep_console_open() is True
@@ -119,9 +121,7 @@ def test_script_editor_dialog_paste_and_state(qapp):
     dlg.close()
 
 
-def test_link_dialog_script_create_and_cancel_rolls_back_file(
-    qapp, tmp_path: Path
-):
+def test_link_dialog_script_create_and_cancel_rolls_back_file(qapp, tmp_path: Path):
     init_data = {"category_hierarchy": {}, "spheres": []}
     mock_controller = MagicMock()
 
@@ -292,6 +292,7 @@ def test_powershell_skips_broken_windowsapps_pwsh_stub(tmp_path: Path):
         handler = ScriptLinkHandler(logging.getLogger("test_ps_stub"))
         assert handler.powershell_path == str(real_ps)
 
+
 def test_read_and_save_cmd_file_preserves_cmd_extension(tmp_path: Path):
     cmd_file = tmp_path / "custom_tool.cmd"
     cmd_file.write_text("@echo off\necho 123\n", encoding="utf-8")
@@ -367,7 +368,10 @@ def test_windowsapps_usable_alias_caching():
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
-        with patch("pathlib.Path.is_file", return_value=True), patch("pathlib.Path.stat") as mock_stat:
+        with (
+            patch("pathlib.Path.is_file", return_value=True),
+            patch("pathlib.Path.stat") as mock_stat,
+        ):
             mock_stat.return_value = MagicMock(st_size=0)
             alias_path = r"C:\Users\test\AppData\Local\Microsoft\WindowsApps\pwsh.exe"
 
@@ -381,3 +385,126 @@ def test_windowsapps_usable_alias_caching():
             assert not is_broken_again
             assert mock_run.call_count == 1
 
+
+def test_uv_python_find_caching(tmp_path: Path):
+    import logging
+    import os
+
+    from app.utils.links.link_utils import ScriptLinkHandler
+
+    ScriptLinkHandler._uv_python_cache.clear()
+    handler = ScriptLinkHandler(logging.getLogger("test"))
+
+    fake_py = tmp_path / "python.exe"
+    fake_py.write_text("fake binary")
+
+    script_path = str(tmp_path / "script.py")
+
+    clean_env = {
+        "APPDATA": str(tmp_path / "nonexistent_appdata"),
+        "LOCALAPPDATA": str(tmp_path / "nonexistent_local"),
+        "ProgramFiles": str(tmp_path / "nonexistent_pf"),
+        "PROGRAMDATA": str(tmp_path / "nonexistent_pd"),
+        "UV_PYTHON_INSTALL_DIR": "",
+    }
+
+    with (
+        patch.dict(os.environ, clean_env),
+        patch.object(Path, "home", return_value=tmp_path),
+        patch("shutil.which", return_value="uv.exe"),
+        patch("subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = MagicMock(returncode=0, stdout=str(fake_py))
+
+        res1 = handler._find_python_in_standard_dirs(script_path, windowed=False)
+        assert res1 == str(fake_py)
+        assert mock_run.call_count == 1
+
+        # Second call with same directory and windowed flag should hit cache
+        res2 = handler._find_python_in_standard_dirs(script_path, windowed=False)
+        assert res2 == str(fake_py)
+        assert mock_run.call_count == 1
+
+        # Different windowed flag should query again
+        mock_pyw = tmp_path / "pythonw.exe"
+        mock_pyw.write_text("fake pyw")
+        mock_run.return_value = MagicMock(returncode=0, stdout=str(mock_pyw))
+        res3 = handler._find_python_in_standard_dirs(script_path, windowed=True)
+        assert res3 == str(mock_pyw)
+        assert mock_run.call_count == 2
+
+
+def test_save_link_cmd_disk_undo_redo(tmp_path: Path):
+    from app.controllers.ui.undo.commands_links import SaveLinkCmd
+
+    script_file = tmp_path / "test_cmd_script.ps1"
+    initial_content = b"Write-Host 'V1'"
+    modified_content = b"Write-Host 'V2'"
+    script_file.write_bytes(initial_content)
+
+    mock_main = MagicMock()
+    mock_main.links_business = MagicMock()
+    mock_main.current_category_id = 1
+    mock_main.get_current_category_id.return_value = 1
+
+    old_data = {
+        "id": 10,
+        "name": "Script Link",
+        "url": str(script_file),
+        "type": "script",
+        "category_id": 1,
+    }
+    new_data = {
+        "id": 10,
+        "name": "Script Link",
+        "url": str(script_file),
+        "type": "script",
+        "category_id": 1,
+        "_script_undo_backup": (script_file, initial_content),
+        "_script_redo_backup": (script_file, modified_content),
+    }
+
+    # Simulate link saved after edit: disk initially has modified content
+    script_file.write_bytes(modified_content)
+
+    cmd = SaveLinkCmd(new_data=new_data, old_data=old_data, main_window=mock_main)
+
+    # Undo should restore disk file to initial_content
+    cmd.undo()
+    assert script_file.read_bytes() == initial_content
+
+    # Redo should re-apply modified_content to disk file
+    cmd.redo()
+    assert script_file.read_bytes() == modified_content
+
+
+def test_find_and_purge_unused_managed_scripts(tmp_path: Path):
+    with patch.object(ScriptStorageService, "get_scripts_dir", return_value=tmp_path):
+        active_script = tmp_path / "active_script.ps1"
+        active_script.write_text("Write-Host 'active'")
+
+        unused_script1 = tmp_path / "orphan_1.bat"
+        unused_script1.write_text("@echo off")
+
+        unused_script2 = tmp_path / "orphan_2.py"
+        unused_script2.write_text("print('orphan')")
+
+        tmp_file = tmp_path / "ignored.tmp"
+        tmp_file.write_text("temporary")
+
+        active_urls = [str(active_script)]
+
+        unused = ScriptStorageService.find_unused_managed_scripts(active_urls)
+        assert len(unused) == 2
+        assert unused_script1.resolve() in unused
+        assert unused_script2.resolve() in unused
+        assert active_script.resolve() not in unused
+        assert tmp_file.resolve() not in unused
+
+        # Purge unused scripts
+        purged_count = ScriptStorageService.purge_unused_managed_scripts(active_urls)
+        assert purged_count == 2
+        assert active_script.exists()
+        assert not unused_script1.exists()
+        assert not unused_script2.exists()
+        assert tmp_file.exists()

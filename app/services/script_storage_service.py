@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 
 from app.config_data.runtime_config import runtime_app_config as app_config
@@ -107,7 +108,11 @@ class ScriptStorageService:
         # 1. Shebang or explicit header checks
         if first_line.startswith("#!") and "python" in first_line:
             return ".py"
-        if first_line.startswith("@echo ") or first_line.startswith("rem ") or first_line.startswith("::"):
+        if (
+            first_line.startswith("@echo ")
+            or first_line.startswith("rem ")
+            or first_line.startswith("::")
+        ):
             return ".bat"
         if first_line.startswith("#requires") or first_line.startswith("<#"):
             return ".ps1"
@@ -229,7 +234,11 @@ class ScriptStorageService:
         if existing_path:
             try:
                 candidate = Path(existing_path)
-                if candidate.is_file() or cls.is_managed_script(candidate) or candidate.parent.is_dir():
+                if (
+                    candidate.is_file()
+                    or cls.is_managed_script(candidate)
+                    or candidate.parent.is_dir()
+                ):
                     if candidate.suffix.lower() == norm_ext:
                         target_path = candidate
                     elif cls.is_managed_script(candidate):
@@ -265,7 +274,9 @@ class ScriptStorageService:
             encoding = "utf-8"
 
         # Atomic write via temporary file
-        tmp_target = target_path.with_name(f"{target_path.name}.{uuid.uuid4().hex[:6]}.tmp")
+        tmp_target = target_path.with_name(
+            f"{target_path.name}.{uuid.uuid4().hex[:6]}.tmp"
+        )
         try:
             tmp_target.write_text(payload_text, encoding=encoding, newline="")
             tmp_target.replace(target_path)
@@ -314,3 +325,68 @@ class ScriptStorageService:
             except UnicodeDecodeError:
                 continue
         return raw_bytes.decode("utf-8", errors="replace").replace("\r\n", "\n"), ext
+
+    @classmethod
+    def find_unused_managed_scripts(
+        cls, active_urls: Iterable[str | Path]
+    ) -> list[Path]:
+        """Find scripts inside the managed scripts directory that are not referenced by active links.
+
+        Args:
+            active_urls: Collection of paths or URLs currently referenced in the database.
+
+        Returns:
+            Sorted list of unreferenced managed script paths.
+        """
+        scripts_dir = cls.get_scripts_dir(ensure_exists=False)
+        if not scripts_dir.is_dir():
+            return []
+
+        active_resolved: set[Path] = set()
+        for raw_url in active_urls:
+            if not raw_url:
+                continue
+            try:
+                active_resolved.add(Path(raw_url).resolve())
+            except Exception:
+                continue
+
+        unused: list[Path] = []
+        try:
+            for item in scripts_dir.iterdir():
+                if not item.is_file():
+                    continue
+                if item.name.startswith(".") or ".tmp" in item.name.lower():
+                    continue
+                if item.suffix.lower() not in SUPPORTED_SCRIPT_EXTENSIONS:
+                    continue
+                try:
+                    if item.resolve() not in active_resolved:
+                        unused.append(item.resolve())
+                except Exception:
+                    continue
+        except OSError as e:
+            logger.warning("Error reading scripts directory: %s", e)
+
+        unused.sort()
+        return unused
+
+    @classmethod
+    def purge_unused_managed_scripts(cls, active_urls: Iterable[str | Path]) -> int:
+        """Purge managed scripts not referenced by any active link.
+
+        Returns:
+            Count of successfully deleted script files.
+        """
+        unused = cls.find_unused_managed_scripts(active_urls)
+        deleted_count = 0
+        for script_path in unused:
+            try:
+                script_path.unlink(missing_ok=True)
+                deleted_count += 1
+                logger.info("Purged unused managed script: %s", script_path)
+            except OSError as e:
+                logger.warning(
+                    "Failed to purge unused managed script %s: %s", script_path, e
+                )
+        return deleted_count

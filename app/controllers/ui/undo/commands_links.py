@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import QCoreApplication
@@ -42,12 +43,18 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
     if not unique_ids:
         return
     current_cat = getattr(main_window, "current_category_id", None)
-    ui_state = getattr(main_window, "ui_state", None) or getattr(main_window, "ui_state_manager", None)
+    ui_state = getattr(main_window, "ui_state", None) or getattr(
+        main_window, "ui_state_manager", None
+    )
     if current_cat in unique_ids and ui_state and hasattr(ui_state, "load_category"):
         try:
             ui_state.load_category(current_cat, force_reload=True)
         except Exception as exc:
-            logger.warning("ui_state.load_category force_reload failed for %s: %s", current_cat, exc)
+            logger.warning(
+                "ui_state.load_category force_reload failed for %s: %s",
+                current_cat,
+                exc,
+            )
     ctrl = getattr(main_window, "links_table_controller", None)
     if ctrl is None or not hasattr(ctrl, "reload"):
         logger.warning("LinksTableController unavailable for reload")
@@ -62,6 +69,7 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
                     cat_id,
                     exc,
                 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +177,9 @@ def _validate_batch_link_restore_result(
     links: list[dict[str, Any]],
     restored_ids: list[int] | tuple[int, ...] | None,
 ) -> list[int]:
-    restored = [int(link_id) for link_id in (restored_ids or []) if isinstance(link_id, int)]
+    restored = [
+        int(link_id) for link_id in (restored_ids or []) if isinstance(link_id, int)
+    ]
     expected_count = len(list(links or []))
     if len(restored) != expected_count:
         raise RuntimeError(
@@ -181,13 +191,13 @@ def _validate_batch_link_restore_result(
         if isinstance(link, dict) and isinstance(link.get("id"), int)
     ]
     if len(expected_ids) == expected_count and set(restored) != set(expected_ids):
-        raise RuntimeError(
-            "restored link ids do not match expected deleted link ids"
-        )
+        raise RuntimeError("restored link ids do not match expected deleted link ids")
     return restored
 
 
-def _apply_created_id_to_link(link: dict[str, Any], link_id: int | None) -> dict[str, Any]:
+def _apply_created_id_to_link(
+    link: dict[str, Any], link_id: int | None
+) -> dict[str, Any]:
     payload = dict(link or {})
     if isinstance(link_id, int) and link_id > 0:
         payload["id"] = link_id
@@ -207,9 +217,7 @@ def _extract_internal_link_flags(link: dict[str, Any]) -> dict[str, Any]:
 def _should_enqueue_link_enrichment(link: dict[str, Any]) -> bool:
     if not isinstance(link, dict):
         return False
-    return bool(
-        link.get("_defer_enrichment") or link.get("_reparse_icon")
-    )
+    return bool(link.get("_defer_enrichment") or link.get("_reparse_icon"))
 
 
 def _enqueue_link_enrichment(main_window: Any, payload: dict[str, Any]) -> bool:
@@ -223,9 +231,15 @@ def _enqueue_link_enrichment(main_window: Any, payload: dict[str, Any]) -> bool:
         logger.debug("Failed to enqueue link enrichment", exc_info=True)
         return False
 
+
 class SaveLinkCmd(BaseCommand):
     def __init__(
-        self, new_data: dict, old_data: dict | None, main_window, *, is_cut: bool = False
+        self,
+        new_data: dict,
+        old_data: dict | None,
+        main_window,
+        *,
+        is_cut: bool = False,
     ):
         super().__init__("Save link", main_window)
         self.main = main_window
@@ -237,6 +251,55 @@ class SaveLinkCmd(BaseCommand):
         self.created_id: int | None = None
         self._in_flight = False
         self._pending_undo = False
+        self._has_undone = False
+        self._script_undo_backup: tuple[Path, bytes] | None = None
+        self._script_redo_backup: tuple[Path, bytes] | None = None
+        self._init_script_backups()
+
+    @staticmethod
+    def _is_script_path(url: Any) -> bool:
+        if not url or not isinstance(url, (str, Path)):
+            return False
+        try:
+            return Path(url).suffix.lower() in (
+                ".ps1",
+                ".bat",
+                ".py",
+                ".pyw",
+                ".vbs",
+                ".cmd",
+                ".sh",
+            )
+        except Exception:
+            return False
+
+    def _init_script_backups(self) -> None:
+        """Initialize in-memory backups of script file content for disk Undo/Redo."""
+        if "_script_undo_backup" in self.new_data:
+            backup = self.new_data["_script_undo_backup"]
+            if isinstance(backup, (tuple, list)) and len(backup) == 2:
+                try:
+                    self._script_undo_backup = (Path(backup[0]), bytes(backup[1]))
+                except Exception:
+                    pass
+        if "_script_redo_backup" in self.new_data:
+            backup = self.new_data["_script_redo_backup"]
+            if isinstance(backup, (tuple, list)) and len(backup) == 2:
+                try:
+                    self._script_redo_backup = (Path(backup[0]), bytes(backup[1]))
+                except Exception:
+                    pass
+
+        if self._script_undo_backup is None and self.old_data:
+            old_type = self.old_data.get("type")
+            old_url = self.old_data.get("url")
+            if (old_type == "script" or self._is_script_path(old_url)) and old_url:
+                try:
+                    p = Path(old_url)
+                    if p.is_file():
+                        self._script_undo_backup = (p, p.read_bytes())
+                except Exception:
+                    pass
 
     def id(self) -> int:
         return _CUT_PASTE_LINK_CMD_ID if self.is_cut else -1
@@ -344,8 +407,10 @@ class SaveLinkCmd(BaseCommand):
             cat_id = self.new_data.get("category_id") or (self.old_data or {}).get(
                 "category_id"
             )
-            if isinstance(cat_id, int) and cat_id > 0 and hasattr(
-                link_ops, "emit_links_changed"
+            if (
+                isinstance(cat_id, int)
+                and cat_id > 0
+                and hasattr(link_ops, "emit_links_changed")
             ):
                 link_ops.emit_links_changed(cat_id)
             if hasattr(link_ops, "emit_link_saved"):
@@ -391,6 +456,25 @@ class SaveLinkCmd(BaseCommand):
     @log_command
     def redo(self):
         self._merge_old_data()
+        if self._has_undone and self._script_redo_backup:
+            try:
+                path, data = self._script_redo_backup
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            except Exception as exc:
+                logger.warning(
+                    "SaveLinkCmd.redo: failed to restore script content: %s", exc
+                )
+        elif self._script_redo_backup is None and self.new_data:
+            new_type = self.new_data.get("type")
+            new_url = self.new_data.get("url")
+            if (new_type == "script" or self._is_script_path(new_url)) and new_url:
+                try:
+                    p = Path(new_url)
+                    if p.is_file():
+                        self._script_redo_backup = (p, p.read_bytes())
+                except Exception:
+                    pass
         category_id = _ensure_link_category_id(self.main, self.new_data)
         if category_id is None:
             logger.warning("SaveLinkCmd.redo skipped: missing category_id")
@@ -440,7 +524,9 @@ class SaveLinkCmd(BaseCommand):
             try:
                 self._refresh_saved_link_payload()
                 if self._pending_undo:
-                    logger.info("SaveLinkCmd._on_finished: executing pending deferred undo")
+                    logger.info(
+                        "SaveLinkCmd._on_finished: executing pending deferred undo"
+                    )
                     self._pending_undo = False
                     self._execute_undo()
                     return
@@ -483,6 +569,15 @@ class SaveLinkCmd(BaseCommand):
 
     def _undo_update_link(self):
         """Restore old link data."""
+        if self._script_undo_backup:
+            try:
+                path, data = self._script_undo_backup
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            except Exception as exc:
+                logger.warning(
+                    "SaveLinkCmd.undo: failed to restore script content: %s", exc
+                )
         if self.old_data:
             if hasattr(self.main, "links_business") and self.main.links_business:
                 self.main.links_business.links.create_or_update_link(self.old_data)
@@ -517,6 +612,7 @@ class SaveLinkCmd(BaseCommand):
             self._undo_new_link(link_id)
         else:
             self._undo_update_link()
+        self._has_undone = True
         self._reload_table_for_undo()
         self._emit_top_panels_refresh()
         self._invalidate_links_cache()
@@ -528,7 +624,9 @@ class SaveLinkCmd(BaseCommand):
     def undo(self):
         if self._in_flight:
             self._pending_undo = True
-            logger.info("SaveLinkCmd.undo deferred: redo still in flight, marked pending")
+            logger.info(
+                "SaveLinkCmd.undo deferred: redo still in flight, marked pending"
+            )
             return
         self._execute_undo()
 
@@ -601,6 +699,7 @@ class BatchDeleteLinksCmd(BaseCommand):
         }
         links_business = getattr(self.main, "links_business", None)
         self._first_redo = False
+
         def _task() -> int:
             if links_business and hasattr(links_business, "links"):
                 return int(links_business.links.batch_delete_links(ids))
@@ -659,7 +758,9 @@ class BatchDeleteLinksCmd(BaseCommand):
             if links_business and hasattr(links_business, "links"):
                 result = links_business.links.batch_create_or_update_links(self.links)
             else:
-                result = _links_service_for(self).batch_create_or_update_links(self.links)
+                result = _links_service_for(self).batch_create_or_update_links(
+                    self.links
+                )
             return _validate_batch_link_restore_result(self.links, result)
 
         def _on_finished(_restored_ids: list[int]) -> None:
@@ -703,9 +804,7 @@ class BatchDeleteLinksCmd(BaseCommand):
 
 
 class DeleteLinkCmd(BaseCommand):
-    def __init__(
-        self, link_to_delete: dict, main_window, *, is_cut: bool = False
-    ):
+    def __init__(self, link_to_delete: dict, main_window, *, is_cut: bool = False):
         super().__init__("Delete link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
@@ -766,7 +865,7 @@ class DeleteLinkCmd(BaseCommand):
             else:
                 # Fallback via service layer
                 _links_service_for(self).delete_link(link_id)
-            
+
             # Emit link_deleted signal
             try:
                 if links_business and hasattr(links_business, "link_deleted"):
@@ -777,9 +876,9 @@ class DeleteLinkCmd(BaseCommand):
                     exc,
                     exc_info=True,
                 )
-        
-        skip_initial = (
-            getattr(self, "_suppress_ui", False) and getattr(self, "_first_redo", False)
+
+        skip_initial = getattr(self, "_suppress_ui", False) and getattr(
+            self, "_first_redo", False
         )
         self._first_redo = False
 
@@ -886,7 +985,9 @@ class BatchSaveLinksCmd(BaseCommand):
             return
         try:
             for index, link in enumerate(self.links_data):
-                link_id = self.created_ids[index] if index < len(self.created_ids) else None
+                link_id = (
+                    self.created_ids[index] if index < len(self.created_ids) else None
+                )
                 payload = _apply_created_id_to_link(link, link_id)
                 if not _should_enqueue_link_enrichment(payload):
                     continue
@@ -912,19 +1013,17 @@ class BatchSaveLinksCmd(BaseCommand):
                 "Cannot save links because no category is selected.",
             )
             return
-        
+
         # Выполняем пакетный upsert в одной транзакции через сервисный слой
         links_business = getattr(self.main, "links_business", None)
         if links_business and hasattr(links_business, "links"):
-            created = links_business.links.batch_create_or_update_links(
-                self.links_data
-            )
+            created = links_business.links.batch_create_or_update_links(self.links_data)
         else:
             created = _links_service_for(self).batch_create_or_update_links(
                 self.links_data
             )
         self.created_ids.extend(created or [])
-        
+
         # Emit batch update signal
         try:
             if links_business and hasattr(links_business, "batch_updated"):
@@ -935,7 +1034,7 @@ class BatchSaveLinksCmd(BaseCommand):
                 exc,
                 exc_info=True,
             )
-        
+
         # Reload UI for all affected categories if not suppressed
         try:
             if not getattr(self, "_suppress_ui", False) and affected_categories:
@@ -965,7 +1064,7 @@ class BatchSaveLinksCmd(BaseCommand):
             for link in self.links_data
             if isinstance(link.get("category_id"), int) and link.get("category_id") > 0
         }
-        
+
         # Удаляем созданные записи одним батчем
         ids = [lid for lid in self.created_ids if isinstance(lid, int) and lid > 0]
         if ids:
@@ -974,7 +1073,7 @@ class BatchSaveLinksCmd(BaseCommand):
                 links_business.links.batch_delete_links(ids)
             else:
                 _links_service_for(self).batch_delete_links(ids)
-            
+
             # Emit batch deletion signal
             try:
                 if links_business and hasattr(links_business, "items_batch_deleted"):
@@ -998,7 +1097,9 @@ class BatchSaveLinksCmd(BaseCommand):
                 if links_business and hasattr(links_business, "batch_updated"):
                     links_business.batch_updated.emit(True)
             except Exception as exc:
-                logger.debug("BatchSaveLinksCmd.undo: batch_updated emit failed: %s", exc)
+                logger.debug(
+                    "BatchSaveLinksCmd.undo: batch_updated emit failed: %s", exc
+                )
 
         # Reload UI for all affected categories
         try:
