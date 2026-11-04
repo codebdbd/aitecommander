@@ -508,3 +508,66 @@ def test_find_and_purge_unused_managed_scripts(tmp_path: Path):
         assert not unused_script1.exists()
         assert not unused_script2.exists()
         assert tmp_file.exists()
+
+
+def test_editing_existing_script_change_extension_renames_managed_file(
+    qapp, tmp_path: Path
+):
+    with patch.object(ScriptStorageService, "get_scripts_dir", return_value=tmp_path):
+        ps1_file = tmp_path / "my_managed_script_1234.ps1"
+        ps1_file.write_text("Write-Host 'Old PS1'", encoding="utf-8-sig")
+
+        init_data = {"category_hierarchy": {}, "spheres": []}
+        mock_controller = MagicMock()
+        mock_controller.result_data = [
+            {"id": 42, "name": "Test Script", "url": str(ps1_file), "type": "script"}
+        ]
+
+        dialog = LinkDialog(
+            initialization_data=init_data,
+            dialog_controller=mock_controller,
+            link={"id": 42, "type": "script", "url": str(ps1_file)},
+        )
+
+        fake_editor = MagicMock()
+        fake_editor.exec.return_value = QDialog.DialogCode.Accepted
+        fake_editor.get_selected_disk_path.return_value = None
+        fake_editor.get_script_code.return_value = "@echo off\necho Hello Batch"
+        fake_editor.get_selected_extension.return_value = ".bat"
+        fake_editor.get_keep_console_open.return_value = True
+        fake_editor._user_manually_changed_ext = True
+
+        with patch(
+            "app.views.windows.dialogs.link_dialog.handlers_mixins.script_editor_mixin.ScriptEditorDialog",
+            return_value=fake_editor,
+        ):
+            dialog.handlers._on_script_editor()
+
+        # url_le in LinkDialog UI must now point to the .bat path!
+        new_url_value = dialog.ui.get_widget_value("url_le")
+        assert new_url_value.endswith(".bat")
+
+        # When dialog is accepted, changes are committed to disk
+        dialog.done(int(QDialog.DialogCode.Accepted))
+
+        bat_file = ps1_file.with_suffix(".bat")
+        assert bat_file.exists()
+        assert not ps1_file.exists()
+        assert "Hello Batch" in bat_file.read_text(encoding="utf-8")
+        assert mock_controller.result_data[0]["url"] == str(bat_file)
+
+
+def test_script_editor_auto_detects_bat_on_code_change(qapp):
+    dlg = ScriptEditorDialog(
+        initial_code="", initial_ext=".ps1", initial_keep_open=True
+    )
+    assert dlg.get_selected_extension() == ".ps1"
+
+    # Typing or pasting batch script content without manually touching type combo
+    dlg.code_edit.setPlainText(":: Quick test\n@echo off\npause")
+    assert dlg.get_selected_extension() == ".bat"
+
+    # Typing python content
+    dlg._user_manually_changed_ext = False
+    dlg.code_edit.setPlainText("import os\nprint(os.getcwd())")
+    assert dlg.get_selected_extension() == ".py"

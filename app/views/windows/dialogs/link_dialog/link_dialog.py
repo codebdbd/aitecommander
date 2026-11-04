@@ -873,6 +873,9 @@ class LinkDialog(BaseDialog):
             # Apply pending modifications to existing files on disk
             from app.services.script_storage_service import ScriptStorageService
 
+            ctrl = getattr(self, "link_controller", None) or getattr(
+                self, "dialog_controller", None
+            )
             disk_backups: dict[Path, tuple[bytes, bytes]] = {}
             for file_path, (code, ext) in list(pending_writes.items()):
                 try:
@@ -888,7 +891,13 @@ class LinkDialog(BaseDialog):
                         and new_bytes is not None
                         and old_bytes != new_bytes
                     ):
-                        disk_backups[file_path] = (old_bytes, new_bytes)
+                        disk_backups[new_path] = (old_bytes, new_bytes)
+
+                    # If extension changed (e.g. .ps1 -> .bat), update result_data URL
+                    if new_path != file_path and ctrl:
+                        for item in getattr(ctrl, "result_data", []) or []:
+                            if item.get("url") == str(file_path):
+                                item["url"] = str(new_path)
                 except Exception as e:
                     logger.warning(
                         "LinkDialog: failed to save script changes to %s: %s",
@@ -898,9 +907,6 @@ class LinkDialog(BaseDialog):
                     )
             pending_writes.clear()
 
-            ctrl = getattr(self, "link_controller", None) or getattr(
-                self, "dialog_controller", None
-            )
             if disk_backups and ctrl:
                 for item in getattr(ctrl, "result_data", []) or []:
                     item_url = item.get("url")

@@ -41,9 +41,11 @@ from app.views.windows.dialogs.installed_apps_dialog import IconTextPushButton
 
 logger = logging.getLogger(__name__)
 
+
 def tr_script_ui(context: str, source: str) -> str:
     """Translate string via Qt translator."""
     return QCoreApplication.translate(context, source)
+
 
 # lupdate hints for ScriptEditorDialog
 if False:  # pragma: no cover
@@ -104,47 +106,158 @@ class _ScriptSyntaxHighlighter(QSyntaxHighlighter):
 
         if ext == ".ps1":
             keywords = [
-                "if", "else", "elseif", "switch", "foreach", "for", "while", "do",
-                "until", "function", "filter", "param", "begin", "process", "end",
-                "try", "catch", "finally", "throw", "return", "break", "continue",
-                "exit", "in",
+                "if",
+                "else",
+                "elseif",
+                "switch",
+                "foreach",
+                "for",
+                "while",
+                "do",
+                "until",
+                "function",
+                "filter",
+                "param",
+                "begin",
+                "process",
+                "end",
+                "try",
+                "catch",
+                "finally",
+                "throw",
+                "return",
+                "break",
+                "continue",
+                "exit",
+                "in",
             ]
             self._rules.append(
-                (re.compile(r"\b(" + "|".join(keywords) + r")\b", re.IGNORECASE), kw_fmt)
+                (
+                    re.compile(r"\b(" + "|".join(keywords) + r")\b", re.IGNORECASE),
+                    kw_fmt,
+                )
             )
             self._rules.append((re.compile(r"\b[A-Za-z]+-[A-Za-z0-9]+\b"), kw_fmt))
             self._rules.append((re.compile(r"\$[A-Za-z0-9_:]+"), var_fmt))
             self._rules.append((re.compile(r"#.*$"), comm_fmt))
         elif ext in (".bat", ".cmd"):
             keywords = [
-                "echo", "off", "on", "set", "setlocal", "endlocal", "if", "else",
-                "not", "exist", "defined", "errorlevel", "for", "in", "do", "call",
-                "goto", "exit", "pause", "start", "chcp", "cd", "pushd", "popd",
+                "echo",
+                "off",
+                "on",
+                "set",
+                "setlocal",
+                "endlocal",
+                "if",
+                "else",
+                "not",
+                "exist",
+                "defined",
+                "errorlevel",
+                "for",
+                "in",
+                "do",
+                "call",
+                "goto",
+                "exit",
+                "pause",
+                "start",
+                "chcp",
+                "cd",
+                "pushd",
+                "popd",
             ]
             self._rules.append(
-                (re.compile(r"(?:@|\b)(" + "|".join(keywords) + r")\b", re.IGNORECASE), kw_fmt)
+                (
+                    re.compile(
+                        r"(?:@|\b)(" + "|".join(keywords) + r")\b", re.IGNORECASE
+                    ),
+                    kw_fmt,
+                )
             )
             self._rules.append((re.compile(r"%[A-Za-z0-9_~:*]+%?"), var_fmt))
             self._rules.append((re.compile(r"(?i)^\s*(?:rem\b|::).*$"), comm_fmt))
         elif ext in (".py", ".pyw"):
             keywords = [
-                "and", "as", "assert", "async", "await", "break", "class", "continue",
-                "def", "del", "elif", "else", "except", "finally", "for", "from",
-                "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
-                "or", "pass", "raise", "return", "try", "while", "with", "yield",
-                "None", "True", "False", "self",
+                "and",
+                "as",
+                "assert",
+                "async",
+                "await",
+                "break",
+                "class",
+                "continue",
+                "def",
+                "del",
+                "elif",
+                "else",
+                "except",
+                "finally",
+                "for",
+                "from",
+                "global",
+                "if",
+                "import",
+                "in",
+                "is",
+                "lambda",
+                "nonlocal",
+                "not",
+                "or",
+                "pass",
+                "raise",
+                "return",
+                "try",
+                "while",
+                "with",
+                "yield",
+                "None",
+                "True",
+                "False",
+                "self",
             ]
-            self._rules.append((re.compile(r"\b(" + "|".join(keywords) + r")\b"), kw_fmt))
+            self._rules.append(
+                (re.compile(r"\b(" + "|".join(keywords) + r")\b"), kw_fmt)
+            )
             self._rules.append((re.compile(r"#.*$"), comm_fmt))
         elif ext == ".vbs":
             keywords = [
-                "Dim", "Set", "If", "Then", "Else", "ElseIf", "End", "For", "Each",
-                "In", "Next", "While", "Wend", "Do", "Loop", "Until", "Sub", "Function",
-                "Exit", "Option", "Explicit", "On", "Error", "Resume", "Nothing",
-                "True", "False", "Call", "CreateObject", "MsgBox",
+                "Dim",
+                "Set",
+                "If",
+                "Then",
+                "Else",
+                "ElseIf",
+                "End",
+                "For",
+                "Each",
+                "In",
+                "Next",
+                "While",
+                "Wend",
+                "Do",
+                "Loop",
+                "Until",
+                "Sub",
+                "Function",
+                "Exit",
+                "Option",
+                "Explicit",
+                "On",
+                "Error",
+                "Resume",
+                "Nothing",
+                "True",
+                "False",
+                "Call",
+                "CreateObject",
+                "MsgBox",
             ]
             self._rules.append(
-                (re.compile(r"\b(" + "|".join(keywords) + r")\b", re.IGNORECASE), kw_fmt)
+                (
+                    re.compile(r"\b(" + "|".join(keywords) + r")\b", re.IGNORECASE),
+                    kw_fmt,
+                )
             )
             self._rules.append((re.compile(r"'.*$"), comm_fmt))
         else:
@@ -154,6 +267,25 @@ class _ScriptSyntaxHighlighter(QSyntaxHighlighter):
         for pattern, fmt in self._rules:
             for match in pattern.finditer(text):
                 self.setFormat(match.start(), match.end() - match.start(), fmt)
+
+
+class _ScriptCodeEdit(QPlainTextEdit):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.dialog: Optional[ScriptEditorDialog] = None
+
+    def insertFromMimeData(self, source) -> None:
+        if source and source.hasText() and self.dialog is not None:
+            raw = source.text()
+            full_len = len(self.toPlainText().strip())
+            cursor = self.textCursor()
+            is_empty_or_all = (full_len == 0) or (
+                cursor.hasSelection() and len(cursor.selectedText().strip()) == full_len
+            )
+            if is_empty_or_all:
+                self.dialog._apply_pasted_text(raw, replace_all=True)
+                return
+        super().insertFromMimeData(source)
 
 
 class ScriptEditorDialog(BaseDialog):
@@ -271,7 +403,8 @@ class ScriptEditorDialog(BaseDialog):
         layout.addLayout(top_row)
 
         # 2. Code editor
-        self.code_edit = QPlainTextEdit()
+        self.code_edit = _ScriptCodeEdit()
+        self.code_edit.dialog = self
         self.code_edit.setObjectName("scriptCodePlainTextEdit")
         mono_font = QFont("Cascadia Code", 10)
         mono_font.setStyleHint(QFont.StyleHint.Monospace)
@@ -288,7 +421,7 @@ class ScriptEditorDialog(BaseDialog):
             self.code_edit.setPlainText(initial_code)
             self._user_manually_changed_ext = True
 
-        self.code_edit.textChanged.connect(self._update_save_state)
+        self.code_edit.textChanged.connect(self._on_code_text_changed)
         self.code_edit.installEventFilter(self)
         layout.addWidget(self.code_edit, 1)
 
@@ -375,7 +508,9 @@ class ScriptEditorDialog(BaseDialog):
         else:
             self.code_edit.insertPlainText(cleaned)
 
-        if detected_ext and (was_empty or replace_all or not self._user_manually_changed_ext):
+        if detected_ext and (
+            was_empty or replace_all or not self._user_manually_changed_ext
+        ):
             self._set_extension_programmatically(detected_ext)
 
     def _on_paste_from_clipboard(self) -> None:
@@ -384,7 +519,9 @@ class ScriptEditorDialog(BaseDialog):
             return
         text = clipboard.text()
         if text:
-            self._apply_pasted_text(text, replace_all=not self.code_edit.toPlainText().strip())
+            self._apply_pasted_text(
+                text, replace_all=not self.code_edit.toPlainText().strip()
+            )
             self.code_edit.setFocus()
 
     def _on_clear_clicked(self) -> None:
@@ -392,13 +529,27 @@ class ScriptEditorDialog(BaseDialog):
         self._user_manually_changed_ext = False
         self.code_edit.setFocus()
 
+    def _on_code_text_changed(self) -> None:
+        self._update_save_state()
+        if not self._user_manually_changed_ext:
+            code = self.code_edit.toPlainText().strip()
+            if code:
+                detected = ScriptStorageService.detect_extension_from_code(code)
+                if detected and detected != self.get_selected_extension():
+                    self._set_extension_programmatically(detected)
+
     def _update_save_state(self) -> None:
         has_code = bool(self.code_edit.toPlainText().strip())
         if self.ok_button is not None:
             self.ok_button.setEnabled(has_code)
 
     def _on_accepted(self) -> None:
-        if self.code_edit.toPlainText().strip():
+        code = self.code_edit.toPlainText().strip()
+        if code:
+            if not self._user_manually_changed_ext:
+                detected = ScriptStorageService.detect_extension_from_code(code)
+                if detected and detected != self.get_selected_extension():
+                    self._set_extension_programmatically(detected)
             self._selected_disk_path = None
             self.accept()
 
@@ -454,9 +605,10 @@ class ScriptEditorDialog(BaseDialog):
         return super().eventFilter(obj, event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        if (
-            event.modifiers() == Qt.KeyboardModifier.ControlModifier
-            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_S)
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() in (
+            Qt.Key.Key_Return,
+            Qt.Key.Key_Enter,
+            Qt.Key.Key_S,
         ):
             if self.code_edit.toPlainText().strip():
                 self._on_accepted()

@@ -273,6 +273,15 @@ class ScriptStorageService:
         else:
             encoding = "utf-8"
 
+        # If existing managed file is renamed to a different extension, remove the old file
+        if existing_path:
+            try:
+                candidate = Path(existing_path)
+                if candidate.is_file() and candidate.resolve() != target_path.resolve():
+                    candidate.unlink(missing_ok=True)
+            except Exception:
+                pass
+
         # Atomic write via temporary file
         tmp_target = target_path.with_name(
             f"{target_path.name}.{uuid.uuid4().hex[:6]}.tmp"

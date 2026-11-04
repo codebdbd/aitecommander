@@ -81,6 +81,10 @@ class ScriptEditorMixin:
                 return
 
             ext = dlg.get_selected_extension()
+            if not getattr(dlg, "_user_manually_changed_ext", False):
+                detected_ext = ScriptStorageService.detect_extension_from_code(code)
+                if detected_ext:
+                    ext = detected_ext
             name_widget = self.dialog._get_name_le()
             current_name = name_widget.text().strip()
             suggested_name = (
@@ -100,9 +104,15 @@ class ScriptEditorMixin:
 
             if existing_file is not None and existing_file not in created_files:
                 # Defer modifying existing file on disk until user clicks OK in LinkDialog
+                if (
+                    ScriptStorageService.is_managed_script(existing_file)
+                    and existing_file.suffix.lower() != ext.lower()
+                ):
+                    saved_path = existing_file.with_suffix(ext.lower())
+                else:
+                    saved_path = existing_file
                 pending_writes[existing_file] = (code, ext)
                 self.dialog._pending_script_writes = pending_writes
-                saved_path = existing_file
             else:
                 saved_path = ScriptStorageService.save_script(
                     code=code,
@@ -129,4 +139,6 @@ class ScriptEditorMixin:
             self.trigger_link_processing(saved_path_str)
 
         except Exception as e:
-            logger.error("Error in ScriptEditorMixin._on_script_editor: %s", e, exc_info=True)
+            logger.error(
+                "Error in ScriptEditorMixin._on_script_editor: %s", e, exc_info=True
+            )
