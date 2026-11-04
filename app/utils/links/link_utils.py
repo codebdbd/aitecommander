@@ -332,6 +332,31 @@ class SecurityValidator:
         return bool(cls.PATH_PATTERN.match(path))
 
     @classmethod
+    def escape_cmd_token(cls, token: str) -> str:
+        """Escape a command-line token for safe embedding into a cmd.exe wrapper command line.
+
+        Used when cmd.exe (/c or /k) launches an executable (Python, CScript, etc.).
+        Strips newlines, doubles internal quotes, and wraps in double quotes so cmd.exe
+        treats shell metacharacters (&, |, <, >, ^, %, (, )) as literal argument text.
+        """
+        clean = token.replace("\r", "").replace("\n", "").replace('"', '""')
+        return f'"{clean}"'
+
+    @classmethod
+    def build_cmd_command(cls, tokens: list[str], keep_open: bool = True) -> str:
+        """Build a full cmd.exe /k or /c command line launching an executable safely."""
+        flag = "/k" if keep_open else "/c"
+        escaped_tokens = " ".join(cls.escape_cmd_token(t) for t in tokens)
+        return f'cmd.exe {flag} "{escaped_tokens}"'
+
+    @classmethod
+    def build_cmd_params(cls, tokens: list[str], keep_open: bool = True) -> str:
+        """Build params argument for ShellExecuteW(None, 'runas', 'cmd.exe', params, ...)."""
+        flag = "/k" if keep_open else "/c"
+        escaped_tokens = " ".join(cls.escape_cmd_token(t) for t in tokens)
+        return f'{flag} "{escaped_tokens}"'
+
+    @classmethod
     def sanitize_cmd_arg(cls, arg: str) -> str:
         """Sanitizes argument for safe execution in Windows cmd.exe /c start.
 
@@ -749,6 +774,51 @@ class ScriptLinkHandler(LinkHandler):
         self.python_path = python_path or self._get_python_path()
         self._ps_keep_open = self._get_ps_keep_open()
         self._batch_keep_open = self._get_batch_keep_open()
+        self._py_keep_open = False
+
+    _alias_status_cache: dict[str, bool] = {}
+
+    @classmethod
+    def _is_windowsapps_stub(cls, path_str: str) -> bool:
+        """Return True if path points to a broken or inaccessible WindowsApps Store alias."""
+        if not path_str or platform.system() != "Windows":
+            return False
+        norm = os.path.normpath(path_str).lower()
+        if "windowsapps" not in norm:
+            return False
+        if norm in cls._alias_status_cache:
+            return cls._alias_status_cache[norm]
+
+        is_broken = True
+        try:
+            p = Path(path_str)
+            if not p.is_file():
+                is_broken = True
+            elif p.stat().st_size == 0:
+                # Execution alias - test if it can actually be invoked
+                res = subprocess.run(
+                    [path_str, "--version"],
+                    capture_output=True,
+                    timeout=2,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                is_broken = (res.returncode != 0)
+            else:
+                with open(p, "rb") as f:
+                    is_broken = (f.read(2) != b"MZ")
+        except Exception:
+            is_broken = True
+
+        cls._alias_status_cache[norm] = is_broken
+        return is_broken
+
+    @staticmethod
+    def _extract_version_tuple(name: str) -> tuple[int, ...]:
+        """Extract leading semantic version tuple from folder/tag name for descending sort."""
+        m = re.search(r"(\d+(?:\.\d+)+|\d+)", name)
+        if not m:
+            return (0,)
+        return tuple(int(x) for x in m.group(1).split("."))
 
     def _get_powershell_path(self) -> str:
         """Gets PowerShell path with auto-fallback: pwsh.exe → powershell.exe."""
@@ -759,21 +829,41 @@ class ScriptLinkHandler(LinkHandler):
         except Exception:
             configured = "powershell.exe"
 
-        # If the configured executable is available, use it directly.
-        if shutil.which(configured):
-            return configured
+        # If the configured executable is available and not a broken Store alias, use it.
+        found_cfg = (
+            configured
+            if Path(configured).is_file()
+            else shutil.which(configured)
+        )
+        if found_cfg and not self._is_windowsapps_stub(found_cfg):
+            return found_cfg
 
         # Fallback cascade: PowerShell 7 Core → Windows PowerShell 5.1
         for ps_name in ("pwsh.exe", "pwsh", "powershell.exe", "powershell"):
             found = shutil.which(ps_name)
-            if found:
+            if found and not self._is_windowsapps_stub(found):
                 self.logger.info(
-                    "PowerShell '%s' not found; falling back to: %s", configured, found
+                    "PowerShell '%s' not usable; falling back to: %s", configured, found
                 )
                 return found
 
-        # Nothing found — return configured and let Popen fail with a clear message.
-        return configured
+        if platform.system() == "Windows":
+            sys_candidates = [
+                Path(os.environ.get("ProgramFiles", "C:\\Program Files"))
+                / "PowerShell"
+                / "7"
+                / "pwsh.exe",
+                Path(os.environ.get("SystemRoot", "C:\\Windows"))
+                / "System32"
+                / "WindowsPowerShell"
+                / "v1.0"
+                / "powershell.exe",
+            ]
+            for cand in sys_candidates:
+                if cand.is_file() and not self._is_windowsapps_stub(str(cand)):
+                    return str(cand)
+
+        return "powershell.exe"
 
     def _get_python_path(self) -> Optional[str]:
         """Gets configured Python path, if any"""
@@ -834,10 +924,16 @@ class ScriptLinkHandler(LinkHandler):
         if run_as_admin:
             arg_list = [a for a in arg_list if a not in admin_flags]
 
+        # Reset per-call keep-open state from config before applying link-level flag
+        self._ps_keep_open = self._get_ps_keep_open()
+        self._batch_keep_open = self._get_batch_keep_open()
+        self._py_keep_open = False
+
         if "--keep-open" in arg_list:
             arg_list = [a for a in arg_list if a != "--keep-open"]
             self._batch_keep_open = True
             self._ps_keep_open = True
+            self._py_keep_open = True
 
         script_handlers = {
             ".ps1": self._create_powershell_command,
@@ -845,6 +941,8 @@ class ScriptLinkHandler(LinkHandler):
             ".pyw": self._create_python_command,
             ".bat": self._create_batch_command,
             ".cmd": self._create_batch_command,
+            ".vbs": self._create_wsh_command,
+            ".js": self._create_wsh_command,
             ".sh": self._create_bash_command,
         }
 
@@ -859,12 +957,20 @@ class ScriptLinkHandler(LinkHandler):
             if handler:
                 cmd = handler(script_path_str, arg_list)
                 if not cmd:
-                    # Command handled directly (e.g. via os.startfile fallback)
                     return
-                flags = 0 if ext in (".bat", ".cmd", ".pyw") else subprocess.CREATE_NEW_CONSOLE
+                new_console = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
                 if isinstance(cmd, str):
-                    subprocess.Popen(cmd, shell=True, creationflags=flags, cwd=cwd)
+                    subprocess.Popen(
+                        cmd,
+                        shell=False,
+                        creationflags=new_console,
+                        cwd=cwd,
+                    )
                 else:
+                    no_console = ext == ".pyw" or (
+                        ext in (".vbs", ".js") and not self._batch_keep_open
+                    )
+                    flags = 0 if no_console else new_console
                     subprocess.Popen(cmd, creationflags=flags, cwd=cwd)
             else:
                 # For unknown extensions use system handler
@@ -889,15 +995,168 @@ class ScriptLinkHandler(LinkHandler):
             cmd_args.extend(args)
         return [self.powershell_path] + cmd_args
 
+    def _find_python_in_windows_registry(self, windowed: bool = False) -> Optional[str]:
+        """Query Windows Registry (HKCU / HKLM PythonCore) for installed Python runtimes."""
+        if platform.system() != "Windows":
+            return None
+        try:
+            import winreg
+
+            exe_name = "pythonw.exe" if windowed else "python.exe"
+            for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                for reg_path in (
+                    r"Software\Python\PythonCore",
+                    r"Software\WOW6432Node\Python\PythonCore",
+                ):
+                    try:
+                        with winreg.OpenKey(hive, reg_path) as core_key:
+                            versions: list[str] = []
+                            idx = 0
+                            while True:
+                                try:
+                                    versions.append(winreg.EnumKey(core_key, idx))
+                                    idx += 1
+                                except OSError:
+                                    break
+                            versions.sort(key=self._extract_version_tuple, reverse=True)
+                            for ver in versions:
+                                try:
+                                    with winreg.OpenKey(
+                                        core_key, f"{ver}\\InstallPath"
+                                    ) as ip_key:
+                                        install_dir, _ = winreg.QueryValueEx(ip_key, "")
+                                        if install_dir:
+                                            cand = Path(str(install_dir)) / exe_name
+                                            if not cand.is_file() and windowed:
+                                                cand = Path(str(install_dir)) / "python.exe"
+                                            if cand.is_file() and not self._is_windowsapps_stub(
+                                                str(cand)
+                                            ):
+                                                return str(cand)
+                                except OSError:
+                                    continue
+                    except OSError:
+                        continue
+        except Exception as e:
+            self.logger.debug("Registry Python lookup failed: %s", e)
+        return None
+
+    def _find_python_in_standard_dirs(
+        self, script_path: str, windowed: bool = False
+    ) -> Optional[str]:
+        """Search uv, Python.org, pyenv-win, Scoop, and Conda installation directories."""
+        if platform.system() != "Windows":
+            return None
+
+        exe_name = "pythonw.exe" if windowed else "python.exe"
+        appdata = os.environ.get("APPDATA", "")
+        localappdata = os.environ.get("LOCALAPPDATA", "")
+        progfiles = os.environ.get("ProgramFiles", "C:\\Program Files")
+        progdata = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        uv_custom = os.environ.get("UV_PYTHON_INSTALL_DIR", "")
+        home = Path.home()
+
+        # Directories containing versioned subdirectories (e.g. cpython-3.12.13-..., Python312)
+        versioned_roots: list[tuple[Path, str]] = []
+        if uv_custom:
+            versioned_roots.append((Path(uv_custom), "*"))
+        if appdata:
+            versioned_roots.append((Path(appdata) / "uv" / "python", "cpython-*"))
+        if localappdata:
+            versioned_roots.append((Path(localappdata) / "uv" / "python", "cpython-*"))
+            versioned_roots.append((Path(localappdata) / "Programs" / "Python", "Python*"))
+        versioned_roots.extend(
+            [
+                (Path(progfiles), "Python*"),
+                (Path("C:\\"), "Python*"),
+                (home / ".pyenv" / "pyenv-win" / "versions", "*"),
+            ]
+        )
+
+        for root_dir, pattern in versioned_roots:
+            try:
+                if not root_dir.is_dir():
+                    continue
+                subdirs = [d for d in root_dir.glob(pattern) if d.is_dir()]
+                subdirs.sort(
+                    key=lambda d: self._extract_version_tuple(d.name), reverse=True
+                )
+                for subdir in subdirs:
+                    cand = subdir / exe_name
+                    if not cand.is_file() and windowed:
+                        cand = subdir / "python.exe"
+                    if cand.is_file() and not self._is_windowsapps_stub(str(cand)):
+                        self.logger.info("Found Python in %s: %s", root_dir, cand)
+                        return str(cand)
+            except OSError:
+                continue
+
+        # Direct installation roots (Scoop / Conda / Miniconda)
+        direct_dirs = [
+            home / "scoop" / "apps" / "python" / "current",
+            home / "miniconda3",
+            home / "anaconda3",
+            Path(localappdata) / "miniconda3" if localappdata else None,
+            Path(localappdata) / "anaconda3" if localappdata else None,
+            Path(progdata) / "miniconda3",
+            Path(progdata) / "anaconda3",
+        ]
+        for d_dir in direct_dirs:
+            if d_dir is None or not d_dir.is_dir():
+                continue
+            cand = d_dir / exe_name
+            if not cand.is_file() and windowed:
+                cand = d_dir / "python.exe"
+            if cand.is_file() and not self._is_windowsapps_stub(str(cand)):
+                self.logger.info("Found Python in %s: %s", d_dir, cand)
+                return str(cand)
+
+        # Final fallback: query `uv python find` if uv CLI is installed
+        uv_exe = shutil.which("uv")
+        if not uv_exe:
+            for uv_cand in (
+                home / ".local" / "bin" / "uv.exe",
+                Path(os.environ.get("CARGO_HOME", str(home / ".cargo"))) / "bin" / "uv.exe",
+            ):
+                if uv_cand.is_file():
+                    uv_exe = str(uv_cand)
+                    break
+        if uv_exe:
+            try:
+                script_dir = Path(script_path).parent
+                run_cwd = str(script_dir) if script_dir.is_dir() else None
+                res = subprocess.run(
+                    [uv_exe, "python", "find"],
+                    cwd=run_cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                if res.returncode == 0 and res.stdout.strip():
+                    found_py = Path(res.stdout.strip())
+                    if windowed:
+                        pyw = found_py.with_name("pythonw.exe")
+                        if pyw.is_file():
+                            found_py = pyw
+                    if found_py.is_file() and not self._is_windowsapps_stub(str(found_py)):
+                        self.logger.info("Resolved Python via uv: %s", found_py)
+                        return str(found_py)
+            except Exception as e:
+                self.logger.debug("uv python find failed: %s", e)
+
+        return None
+
     def _resolve_python_executable(self, script_path: str, windowed: bool = False) -> Optional[str]:
         """Resolves the best Python executable for the script automatically.
 
         Zero-config cascade resolution order:
         1. Explicitly configured path in settings (self.python_path).
         2. Local virtualenv near the script (.venv, venv, env, .env).
-        3. Windows Python Launcher (py.exe).
+        3. Windows Python Launcher (py.exe / pyw.exe).
         4. Current running Python interpreter (if running from source / virtualenv).
-        5. System PATH python (python / python3), ignoring 0-byte WindowsApps stubs.
+        5. System PATH python (python / python3), ignoring broken WindowsApps stubs.
+        6. Windows Registry (PythonCore) and standard / uv / Conda directories.
 
         Args:
             windowed: if True, prefer pythonw.exe (no console window) for .pyw scripts.
@@ -912,7 +1171,11 @@ class ScriptLinkHandler(LinkHandler):
         # 2. Local virtual environment near script
         try:
             script_file = Path(script_path).resolve()
-            search_dirs = [script_file.parent, script_file.parent.parent]
+            search_dirs = [
+                script_file.parent,
+                script_file.parent.parent,
+                script_file.parent.parent.parent,
+            ]
             for parent_dir in search_dirs:
                 if not parent_dir.is_dir():
                     continue
@@ -936,52 +1199,70 @@ class ScriptLinkHandler(LinkHandler):
         except Exception as e:
             self.logger.debug("Error checking local virtualenv for %s: %s", script_path, e)
 
-        # 3. Windows Python Launcher (py.exe)
+        # 3. Windows Python Launcher (py.exe / pyw.exe)
         if platform.system() == "Windows":
-            py_launcher = shutil.which("py")
+            launcher_names = ("pyw", "py") if windowed else ("py",)
+            py_launcher = None
+            for lname in launcher_names:
+                cand = shutil.which(lname)
+                if cand and not self._is_windowsapps_stub(cand):
+                    py_launcher = cand
+                    break
             if not py_launcher:
-                win_py = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "py.exe"
-                if win_py.is_file():
-                    py_launcher = str(win_py)
+                sys_root = Path(os.environ.get("SystemRoot", "C:\\Windows"))
+                for exe_name in (("pyw.exe", "py.exe") if windowed else ("py.exe",)):
+                    win_py = sys_root / exe_name
+                    if win_py.is_file():
+                        py_launcher = str(win_py)
+                        break
             if py_launcher:
-                self.logger.info("Using Windows Python Launcher (py.exe) for %s", script_path)
+                self.logger.info("Using Windows Python Launcher (%s) for %s", py_launcher, script_path)
                 return py_launcher
 
         # 4. Running Python interpreter (if running from source / virtualenv, not PyInstaller frozen)
         if not getattr(sys, "frozen", False) and sys.executable:
             exec_path = Path(sys.executable)
+            if windowed and platform.system() == "Windows":
+                pyw = exec_path.with_name("pythonw.exe")
+                if pyw.is_file():
+                    return str(pyw)
             if exec_path.is_file():
                 return str(exec_path)
 
         # 5. System PATH python / python3
-        for cmd_name in ("python", "python3"):
+        path_names = ("pythonw", "python", "python3") if windowed else ("python", "python3")
+        for cmd_name in path_names:
             found = shutil.which(cmd_name)
-            if found:
-                if platform.system() == "Windows" and "WindowsApps" in found:
-                    try:
-                        if Path(found).stat().st_size == 0:
-                            continue
-                    except OSError:
-                        continue
+            if found and not self._is_windowsapps_stub(found):
                 return found
+
+        # 6. Windows Registry + standard / uv / Conda directories
+        if platform.system() == "Windows":
+            reg_py = self._find_python_in_windows_registry(windowed=windowed)
+            if reg_py:
+                return reg_py
+            dir_py = self._find_python_in_standard_dirs(script_path, windowed=windowed)
+            if dir_py:
+                return dir_py
 
         return None
 
-    def _create_python_command(self, path: str, args: list[str]) -> list[str]:
-        """Creates Python script command with zero-config cascade resolution."""
+    def _create_python_command(self, path: str, args: list[str]) -> list[str] | str:
+        """Creates Python script command with zero-config cascade resolution.
+
+        Never falls back to os.startfile(), which would open .py files in a text editor.
+        """
         windowed = Path(path).suffix.lower() == ".pyw"
         python_exe = self._resolve_python_executable(path, windowed=windowed)
         if python_exe:
+            if (
+                not windowed
+                and getattr(self, "_py_keep_open", False)
+                and platform.system() == "Windows"
+            ):
+                tokens = [python_exe, path] + args
+                return SecurityValidator.build_cmd_command(tokens, keep_open=True)
             return [python_exe, path] + args
-
-        # Fallback: on Windows without extra arguments, let the shell open via file association
-        if platform.system() == "Windows" and not args:
-            try:
-                self.logger.info("No Python executable found; launching via Windows shell: %s", path)
-                os.startfile(path)
-                return []
-            except OSError as e:
-                self.logger.warning("os.startfile failed for %s: %s", path, e)
 
         raise FileNotFoundError(
             f"Python interpreter not found to run '{path}'. "
@@ -989,10 +1270,11 @@ class ScriptLinkHandler(LinkHandler):
         )
 
     def _create_batch_command(self, path: str, args: list[str]) -> str:
-        """Creates batch file launch command via cmd.exe /c start.
+        """Creates batch file launch command directly via cmd.exe (/k or /c).
 
-        Returns a raw command string (str) instead of a list to prevent
-        subprocess.list2cmdline from escaping the empty-title token ("").
+        Executes directly in cmd.exe rather than `start "" "file.bat"` so Windows
+        file associations (e.g. Notepad/VS Code) never hijack .bat/.cmd execution
+        and `/k` keeps the actual script console open.
         """
         safe_path = path.replace('"', "")
         flag = "/k" if self._batch_keep_open else "/c"
@@ -1002,8 +1284,27 @@ class ScriptLinkHandler(LinkHandler):
                 else SecurityValidator.sanitize_cmd_arg(a)
                 for a in args
             )
-            return f'cmd.exe {flag} start "" "{safe_path}" {safe_args}'
-        return f'cmd.exe {flag} start "" "{safe_path}"'
+            return f'cmd.exe {flag} ""{safe_path}" {safe_args}"'
+        return f'cmd.exe {flag} ""{safe_path}""'
+
+    def _resolve_wsh_executable(self, console: bool = False) -> str:
+        """Resolve Windows Script Host executable (cscript.exe or wscript.exe)."""
+        exe_name = "cscript.exe" if console else "wscript.exe"
+        sys_root = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32" / exe_name
+        if sys_root.is_file():
+            return str(sys_root)
+        return shutil.which(exe_name) or exe_name
+
+    def _create_wsh_command(self, path: str, args: list[str]) -> list[str] | str:
+        """Creates Windows Script Host command for .vbs / .js scripts."""
+        if platform.system() != "Windows":
+            raise FileNotFoundError(f"Windows Script Host is required to run '{path}'.")
+        if self._batch_keep_open:
+            cscript_exe = self._resolve_wsh_executable(console=True)
+            tokens = [cscript_exe, "//NoLogo", path] + args
+            return SecurityValidator.build_cmd_command(tokens, keep_open=True)
+        wscript_exe = self._resolve_wsh_executable(console=False)
+        return [wscript_exe, path] + args
 
     def _resolve_bash_executable(self) -> Optional[str]:
         """Finds bash interpreter on Windows (Git Bash or WSL) or POSIX."""
@@ -1043,17 +1344,49 @@ class ScriptLinkHandler(LinkHandler):
 
         arg_str = " ".join(f'"{a}"' if " " in a else a for a in args)
         if ext in (".bat", ".cmd"):
+            safe_path = script_path.replace('"', "")
             flag = "/k" if self._batch_keep_open else "/c"
-            params = f'{flag} ""{script_path}"" {arg_str}'.strip()
+            if args:
+                safe_args = " ".join(
+                    f'"{SecurityValidator.sanitize_cmd_arg(a)}"'
+                    if " " in a
+                    else SecurityValidator.sanitize_cmd_arg(a)
+                    for a in args
+                )
+                params = f'{flag} ""{safe_path}" {safe_args}"'
+            else:
+                params = f'{flag} ""{safe_path}""'
             ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
         elif ext == ".ps1":
             ps_flag = "-NoExit " if self._ps_keep_open else ""
             params = f'{ps_flag}-ExecutionPolicy Bypass -File "{script_path}" {arg_str}'.strip()
             ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", self.powershell_path, params, cwd, 1)
         elif ext in (".py", ".pyw"):
-            python_exe = self._resolve_python_executable(script_path, windowed=(ext == ".pyw")) or sys.executable
-            params = f'"{script_path}" {arg_str}'.strip()
-            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", python_exe, params, cwd, 1)
+            windowed = ext == ".pyw"
+            python_exe = self._resolve_python_executable(script_path, windowed=windowed)
+            if not python_exe and not getattr(sys, "frozen", False):
+                python_exe = sys.executable
+            if not python_exe:
+                raise FileNotFoundError(
+                    f"Python interpreter not found to run '{script_path}'."
+                )
+            if not windowed and getattr(self, "_py_keep_open", False):
+                tokens = [python_exe, script_path] + args
+                params = SecurityValidator.build_cmd_params(tokens, keep_open=True)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+            else:
+                params = " ".join(SecurityValidator.escape_cmd_token(t) for t in [script_path] + args)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", python_exe, params, cwd, 1)
+        elif ext in (".vbs", ".js"):
+            if self._batch_keep_open:
+                cscript_exe = self._resolve_wsh_executable(console=True)
+                tokens = [cscript_exe, "//NoLogo", script_path] + args
+                params = SecurityValidator.build_cmd_params(tokens, keep_open=True)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, cwd, 1)
+            else:
+                wscript_exe = self._resolve_wsh_executable(console=False)
+                params = " ".join(SecurityValidator.escape_cmd_token(t) for t in [script_path] + args)
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", wscript_exe, params, cwd, 1)
         else:
             ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", script_path, arg_str, cwd, 1)
 
@@ -1410,7 +1743,7 @@ def get_link_type_from_path(path: str) -> LinkType:
             return LinkType.FOLDER
         elif Path(path).is_file():
             ext = Path(path).suffix.lower()
-            if ext in (".ps1", ".py", ".pyw", ".bat", ".cmd", ".sh"):
+            if ext in (".ps1", ".py", ".pyw", ".bat", ".cmd", ".vbs", ".sh"):
                 return LinkType.SCRIPT
             elif ext in (".exe", ".msi", ".app", ".lnk"):
                 return LinkType.PROGRAM

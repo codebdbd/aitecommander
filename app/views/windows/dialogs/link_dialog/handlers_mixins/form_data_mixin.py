@@ -35,6 +35,13 @@ class FormDataMixin:
             if "--run-as-admin" not in collected_args:
                 collected_args = f"--run-as-admin {collected_args}".strip()
 
+        if (
+            LinkType.from_value(self.dialog.link_type) == LinkType.SCRIPT
+            and getattr(self.dialog, "_script_keep_open", False)
+        ):
+            if "--keep-open" not in collected_args:
+                collected_args = f"--keep-open {collected_args}".strip()
+
         collected_link_id = self.dialog.link.get("id") if self.dialog.link else None
 
         logger.debug("_collect_form_data: collected name from UI='%s'", collected_name)

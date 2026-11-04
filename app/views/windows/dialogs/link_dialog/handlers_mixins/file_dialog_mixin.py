@@ -55,6 +55,9 @@ class FileDialogMixin:
         if lt == LinkType.PROGRAM:
             self._on_apps_picker()
             return
+        if lt == LinkType.SCRIPT:
+            self._on_script_editor()
+            return
         path = ""
 
         # Obtain default path from config

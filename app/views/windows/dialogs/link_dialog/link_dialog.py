@@ -239,6 +239,9 @@ class LinkDialog(BaseDialog):
         self.rotation_profiles: list[dict] = []
         self._profiles_explicitly_changed = False
         self._processing_cleanup_done = False
+        self._script_keep_open = False
+        self._created_script_files: set[Path] = set()
+        self._pending_script_writes: dict[Path, tuple[str, str]] = {}
 
     def _get_visible_link_types(self) -> list[tuple[str, str]]:
         """Return link type buttons visible in this dialog context."""
@@ -417,14 +420,21 @@ class LinkDialog(BaseDialog):
             self.profile_mode = "single"
             self.selected_profiles = detected_profiles
 
-        # Extract admin flag for program/script
+        # Extract admin and keep-open flags for program/script
         is_admin = False
+        is_keep_open = False
         if user_args:
             admin_tokens = {"--run-as-admin", "--admin"}
             tokens = user_args.split()
             if any(t in admin_tokens for t in tokens):
                 is_admin = True
-                user_args = " ".join(t for t in tokens if t not in admin_tokens)
+                tokens = [t for t in tokens if t not in admin_tokens]
+            if "--keep-open" in tokens:
+                is_keep_open = True
+                tokens = [t for t in tokens if t != "--keep-open"]
+            user_args = " ".join(tokens)
+
+        self._script_keep_open = is_keep_open
 
         # Prepare form data
         form_data = {
@@ -819,6 +829,67 @@ class LinkDialog(BaseDialog):
                 "LinkDialog: failed to stop processing timer during cleanup: %s", e
             )
 
+    def _cleanup_script_drafts(self, result: int) -> None:
+        """Roll back unsaved script files/edits if dialog was rejected or apply pending writes on accept."""
+        from PyQt6.QtWidgets import QDialog
+
+        created_files: set[Path] = getattr(self, "_created_script_files", set())
+        pending_writes: dict[Path, tuple[str, str]] = getattr(
+            self, "_pending_script_writes", {}
+        )
+        is_accepted_script = (
+            result == int(QDialog.DialogCode.Accepted)
+            and LinkType.from_value(getattr(self, "link_type", "web"))
+            == LinkType.SCRIPT
+        )
+
+        if not is_accepted_script:
+            for file_path in list(created_files):
+                try:
+                    file_path.unlink(missing_ok=True)
+                except Exception as e:
+                    logger.warning("LinkDialog: could not delete draft script %s: %s", file_path, e)
+            pending_writes.clear()
+        else:
+            # Apply pending modifications to existing files on disk
+            from app.services.script_storage_service import ScriptStorageService
+            for file_path, (code, ext) in list(pending_writes.items()):
+                try:
+                    ScriptStorageService.save_script(
+                        code=code,
+                        ext=ext,
+                        existing_path=file_path,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "LinkDialog: failed to save script changes to %s: %s",
+                        file_path,
+                        e,
+                        exc_info=True,
+                    )
+            pending_writes.clear()
+
+            # Remove any created script drafts that were superseded by another path
+            current_url = self._safe_current_url_for_log()
+            final_path: Path | None = None
+            if current_url:
+                try:
+                    final_path = Path(current_url).resolve()
+                except Exception:
+                    final_path = None
+            for file_path in list(created_files):
+                if final_path is None or file_path != final_path:
+                    try:
+                        file_path.unlink(missing_ok=True)
+                    except Exception as e:
+                        logger.warning(
+                            "LinkDialog: could not delete superseded draft script %s: %s",
+                            file_path,
+                            e,
+                        )
+
+        created_files.clear()
+
     def done(self, result: int) -> None:  # type: ignore[override]
         """Handle accept/reject paths that may bypass closeEvent cleanup."""
         logger.info(
@@ -828,6 +899,7 @@ class LinkDialog(BaseDialog):
             self._safe_current_url_for_log(),
         )
         self._is_closing = True
+        self._cleanup_script_drafts(result)
         self._cleanup_processing()
         super().done(result)
 

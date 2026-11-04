@@ -61,8 +61,13 @@ if False:  # pragma: no cover
     QCoreApplication.translate("LinkDialogUI", "Create for each profile")
     QCoreApplication.translate("LinkDialogUI", "Rotation")
     QCoreApplication.translate("LinkDialogUI", "Select")
+    QCoreApplication.translate("LinkDialogUI", "Create")
+    QCoreApplication.translate("LinkDialogUI", "Edit")
     QCoreApplication.translate("LinkDialogUI", "Profile:")
     QCoreApplication.translate("LinkDialogUI", "Favorites")
+    QCoreApplication.translate(
+        "LinkDialogUI", "Click 'Create' to paste script code..."
+    )
 
 
 class LinkDialogUI:
@@ -429,6 +434,8 @@ class LinkDialogUI:
                 QDialogButtonBox.StandardButton.Ok
             )
             ok_btn.setEnabled(url_ok and name_ok)
+            if str(getattr(self.parent, "link_type", "")).lower() == "script":
+                self.update_browse_button_text("script")
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to update save button state: %s", e)
 
@@ -481,16 +488,43 @@ class LinkDialogUI:
     def update_browse_button_text(self, link_type: str | None = None) -> None:
         """Update Browse button text according to link type."""
         try:
+            lt = str(link_type or getattr(self.parent, "link_type", "web")).lower()
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
-                lt = link_type or getattr(self.parent, "link_type", "web")
-                is_program = str(lt).lower() == "program"
-                self.browse_btn.setText(
-                    QCoreApplication.translate("LinkDialogUI", "Select")
-                    if is_program
-                    else QCoreApplication.translate("LinkDialogUI", "Browse")
-                )
+                if lt == "program":
+                    btn_text = QCoreApplication.translate("LinkDialogUI", "Select")
+                elif lt == "script":
+                    from app.views.windows.dialogs.script_editor_dialog import (
+                        tr_script_ui,
+                    )
+
+                    has_path = bool(
+                        hasattr(self, "url_le")
+                        and self.url_le is not None
+                        and self.url_le.text().strip()
+                    )
+                    btn_text = (
+                        tr_script_ui("LinkDialogUI", "Edit")
+                        if has_path
+                        else tr_script_ui("LinkDialogUI", "Create")
+                    )
+                else:
+                    btn_text = QCoreApplication.translate("LinkDialogUI", "Browse")
+                self.browse_btn.setText(btn_text)
                 self.adjust_button_width(self.browse_btn)
                 self._equalize_form_side_buttons()
+            if hasattr(self, "url_le") and self.url_le is not None:
+                if lt == "script":
+                    from app.views.windows.dialogs.script_editor_dialog import (
+                        tr_script_ui,
+                    )
+
+                    self.url_le.setPlaceholderText(
+                        tr_script_ui(
+                            "LinkDialogUI", "Click 'Create' to paste script code..."
+                        )
+                    )
+                else:
+                    self.url_le.setPlaceholderText("")
         except Exception:
             pass
 

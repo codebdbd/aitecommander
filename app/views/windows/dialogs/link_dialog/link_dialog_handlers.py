@@ -16,6 +16,7 @@ from .handlers_mixins.icons_mixin import IconsMixin
 from .handlers_mixins.link_processing_mixin import LinkProcessingMixin
 from .handlers_mixins.profiles_mixin import ProfilesMixin
 from .handlers_mixins.rotation_mixin import RotationMixin
+from .handlers_mixins.script_editor_mixin import ScriptEditorMixin
 from .handlers_mixins.type_change_mixin import TypeChangeMixin
 from .handlers_mixins.validation_mixin import ValidationMixin
 from .link_dialog_signals import LinkDialogSignals
@@ -27,6 +28,7 @@ class LinkDialogHandlers(
     TypeChangeMixin,
     FileDialogMixin,
     AppsPickerMixin,
+    ScriptEditorMixin,
     IconsMixin,
     ProfilesMixin,
     RotationMixin,

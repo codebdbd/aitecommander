@@ -23,6 +23,7 @@ class TypeChangeMixin:
         self.dialog.ui.set_widget_value("url_le", "")
         self.dialog.ui.set_widget_value("name_le", "")
         self.dialog.ui.set_widget_value("args_le", "")
+        self.dialog._script_keep_open = False
 
         # Reset processing state so auto-fill can run again
         self._last_processed_path = ""
