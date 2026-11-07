@@ -405,6 +405,13 @@ class WindowInitializer:
             )
 
         logger.info("WindowInitializer: window shell is ready for first paint")
+        shutdown_ctrl = getattr(self.window, "app_shutdown", None)
+        if shutdown_ctrl is not None and (
+            getattr(shutdown_ctrl, "shutdown_in_progress", False)
+            or getattr(shutdown_ctrl, "_shutdown_completed", False)
+        ):
+            logger.debug("WindowInitializer: skipping window.show() because shutdown is active")
+            return
 
         try:
             if hasattr(self.window, "show"):

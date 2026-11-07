@@ -86,6 +86,7 @@ class SystemDialogController:
         self._file_search_dialog = None
         self._icon_refresh_service = None  # Сервис обновления иконок
         self._bad_url_check_service = None  # Сервис проверки недоступных URL
+        self._link_health_service = None  # Сервис проверки локальных путей (Health Radar)
 
         # Validate required dependencies
         if self.database_controller is None:
@@ -683,6 +684,48 @@ class SystemDialogController:
         from app.controllers.services.bad_url_check_service import BadUrlCheckService
 
         return BadUrlCheckService(db, parent=self.main_window)
+
+    def handle_check_local_paths(self):
+        """Launch the Local Path Health Radar dialog."""
+        try:
+            if (
+                self._link_health_service is not None
+                and self._link_health_service.show_dialog()
+            ):
+                return
+
+            from app.controllers.services.link_health_service import LinkHealthService
+            from app.views.windows.dialogs.health_radar_dialog import HealthRadarDialog
+
+            db = self._get_structure_db()
+            shutdown_ctrl = getattr(self.main_window, "app_shutdown", None)
+            service = LinkHealthService(
+                db,
+                parent=self.main_window,
+                shutdown_controller=shutdown_ctrl,
+            )
+            self._link_health_service = service
+
+            dialog = HealthRadarDialog(service, db, parent=self.main_window)
+            service.set_dialog(dialog)
+            dialog.show()
+
+            from PyQt6.QtWidgets import QApplication
+
+            QApplication.processEvents()
+            if not service.start_check():
+                logger.warning("Failed to start local paths check")
+                dialog.close()
+        except Exception as exc:
+            logger.error("Failed to start local paths check: %s", exc, exc_info=True)
+            DialogManager.show_error(
+                self.main_window,
+                QCoreApplication.translate("HealthRadarDialog", "Error: {0}").format(
+                    str(exc)
+                ),
+                QCoreApplication.translate("HealthRadarDialog", "Health Check Error"),
+                details=str(exc),
+            )
 
     def _set_icon_refresh_busy(self, busy: bool) -> None:
         """Toggle manual refresh controls if available."""

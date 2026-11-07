@@ -1121,3 +1121,122 @@ class BatchSaveLinksCmd(BaseCommand):
             ]
             if restore_ids:
                 links_actions.schedule_restore_selection_multiple(restore_ids)
+
+
+
+class BatchRelinkCmd(BaseCommand):
+    """Undoable batch relink command that updates link URLs in-place by ID.
+
+    Unlike ``SaveLinkCmd`` or ``BatchSaveLinksCmd``, this command never deletes
+    existing records on ``undo()`` and never touches or overwrites local script
+    files on disk. Both ``redo()`` and ``undo()`` perform an in-place SQLite
+    update via ``batch_create_or_update_links``.
+    """
+
+    _keep_alive: list[BatchRelinkCmd] = []
+
+    def __init__(
+        self,
+        old_links: list[dict[str, Any]],
+        new_links: list[dict[str, Any]],
+        main_window,
+        *,
+        db: Any = None,
+    ) -> None:
+        super().__init__("Batch relink paths", main_window)
+        BatchRelinkCmd._keep_alive.append(self)
+        if len(BatchRelinkCmd._keep_alive) > 200:
+            del BatchRelinkCmd._keep_alive[:-200]
+        self.main = main_window
+        dc = getattr(main_window, "database_controller", None)
+        self.db = db if db is not None else getattr(dc, "db", None)
+        self.old_links: list[dict[str, Any]] = [dict(x) for x in (old_links or [])]
+        self.new_links: list[dict[str, Any]] = [dict(x) for x in (new_links or [])]
+        self.updated_ids: list[int] = []
+
+    def _emit_top_panels_refresh(self) -> None:
+        link_ops = getattr(self.main, "link_operations", None)
+        if link_ops is None:
+            return
+        try:
+            link_ops.emit_top_panels_changed(favorites=True, recents=True)
+        except Exception:
+            logger.debug(
+                "BatchRelinkCmd: top panels refresh emit failed",
+                exc_info=True,
+            )
+
+    def _invalidate_links_cache(self) -> None:
+        links_business = getattr(self.main, "links_business", None)
+        if links_business is None:
+            return
+        try:
+            if hasattr(links_business, "invalidate_cache"):
+                links_business.invalidate_cache()
+            elif hasattr(links_business, "_invalidate_cache"):
+                links_business._invalidate_cache()
+        except Exception:
+            logger.debug(
+                "BatchRelinkCmd: cache invalidation failed",
+                exc_info=True,
+            )
+
+    def _apply_payloads(self, payloads: list[dict[str, Any]]) -> list[int]:
+        if not payloads:
+            return []
+        links_business = getattr(self.main, "links_business", None)
+        if links_business and hasattr(links_business, "links"):
+            updated = links_business.links.batch_create_or_update_links(payloads)
+        else:
+            updated = _links_service_for(self).batch_create_or_update_links(payloads)
+
+        try:
+            if links_business and hasattr(links_business, "batch_updated"):
+                links_business.batch_updated.emit(True)
+        except Exception as exc:
+            logger.debug(
+                "BatchRelinkCmd: batch_updated emit failed: %s",
+                exc,
+                exc_info=True,
+            )
+
+        affected_categories = {
+            int(link["category_id"])
+            for link in payloads
+            if isinstance(link.get("category_id"), int) and int(link["category_id"]) > 0
+        }
+        try:
+            if not getattr(self, "_suppress_ui", False) and affected_categories:
+                _reload_links_via_controller(self.main, affected_categories)
+        except Exception as exc:
+            logger.warning("BatchRelinkCmd: reload failed: %s", exc)
+
+        self._emit_top_panels_refresh()
+        self._invalidate_links_cache()
+        return list(updated or [])
+
+    @log_command
+    def redo(self) -> None:
+        self.updated_ids = self._apply_payloads(self.new_links)
+        try:
+            for link in self.new_links:
+                if _should_enqueue_link_enrichment(link):
+                    _enqueue_link_enrichment(self.main, link)
+        except Exception:
+            logger.debug(
+                "BatchRelinkCmd.redo: failed to enqueue post-relink enrichment",
+                exc_info=True,
+            )
+
+    @log_command
+    def undo(self) -> None:
+        restored_ids = self._apply_payloads(self.old_links)
+        links_actions = getattr(self.main, "links_actions", None)
+        if links_actions and restored_ids:
+            try:
+                links_actions.schedule_restore_selection_multiple(restored_ids)
+            except Exception:
+                logger.debug(
+                    "BatchRelinkCmd.undo: restore selection failed",
+                    exc_info=True,
+                )

@@ -469,6 +469,9 @@ def _register_hotkeys() -> None:
     HotkeyManager.register(
         "global.redo_alt", "Ctrl+Y", context=Qt.ShortcutContext.WindowShortcut
     )
+    HotkeyManager.register(
+        "global.command_palette", "Alt+`", context=Qt.ShortcutContext.ApplicationShortcut
+    )
 
     # Table actions
     HotkeyManager.register(

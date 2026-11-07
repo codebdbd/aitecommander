@@ -436,6 +436,13 @@ class MainMenuBuilder:
         )
         data_menu.addAction(
             self._create_action(
+                MenuTexts.CHECK_LOCAL_PATHS,
+                self._check_local_paths,
+                icon_name="folder_check",
+            )
+        )
+        data_menu.addAction(
+            self._create_action(
                 MenuTexts.REFRESH_ICONS,
                 self._refresh_icons,
                 Shortcuts.CTRL_ALT_H,
@@ -505,6 +512,11 @@ class MainMenuBuilder:
         """Check bad URLs — delegated to SystemDialogController."""
         if hasattr(self.main_window, "system_dialogs"):
             self.main_window.system_dialogs.handle_check_bad_urls()
+
+    def _check_local_paths(self):
+        """Check local paths (Health Radar) — delegated to SystemDialogController."""
+        if hasattr(self.main_window, "system_dialogs"):
+            self.main_window.system_dialogs.handle_check_local_paths()
     
     def _restore_database(self):
         """Restore database — delegated to DialogController."""

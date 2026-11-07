@@ -99,6 +99,7 @@ class MenuTexts:
     EXPORT_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Export Icons")
     IMPORT_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Import Icons")
     CHECK_LINKS = QT_TRANSLATE_NOOP("MenuActions", "Check Links")
+    CHECK_LOCAL_PATHS = QT_TRANSLATE_NOOP("MenuActions", "Check Local Paths")
     REFRESH_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Refresh Icons")
     SEARCH_FILES = QT_TRANSLATE_NOOP("MenuActions", "Search files")
     ABOUT = QT_TRANSLATE_NOOP("MenuActions", "About")

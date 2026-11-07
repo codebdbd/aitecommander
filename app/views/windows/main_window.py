@@ -447,6 +447,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.select_all_action = None
         self._undo_actions_stack = None
         self.app_shutdown = None
+        self.command_palette_controller = None
         self._menu_bar_widget: QMenuBar | None = None
 
         self._search_timer = QTimer(self)
@@ -1127,6 +1128,10 @@ class MainWindow(QMainWindow, ReTranslatable):
         if self.system_dialogs is not None:
             self.system_dialogs.show_file_search_dialog()
 
+    def show_health_radar_dialog(self) -> None:
+        if self.system_dialogs is not None:
+            self.system_dialogs.handle_check_local_paths()
+
     def update_theme(self) -> None:
         """Apply the current theme and refresh the UI."""
         if self.facade:
@@ -1149,6 +1154,13 @@ class MainWindow(QMainWindow, ReTranslatable):
                 self.system_dialogs._settings_dialog.update_theme_selection()
             except Exception as e:
                 logger.debug("MainWindow.update_theme: failed to update settings dialog theme: %s", e)
+
+        cp_ctrl = getattr(self, "command_palette_controller", None)
+        if cp_ctrl is not None and hasattr(cp_ctrl, "refresh_theme"):
+            try:
+                cp_ctrl.refresh_theme()
+            except Exception as e:
+                logger.debug("MainWindow.update_theme: failed to update command palette theme: %s", e)
 
     def apply_font_size_to_content(self, fs: int) -> None:
         """Apply font size to tree and table widgets."""
@@ -1239,6 +1251,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         cleanup_tasks = [
             ("search_timer", lambda: self._cleanup_timer()),
             ("undo_stack", lambda: self._cleanup_undo_stack()),
+            ("command_palette_controller", lambda: self._cleanup_command_palette()),
             ("top_panels_controller", lambda: self._cleanup_top_panels_controller()),
             ("facade", lambda: self._cleanup_facade()),
             ("table", lambda: self._cleanup_table()),
@@ -1297,6 +1310,12 @@ class MainWindow(QMainWindow, ReTranslatable):
     def _cleanup_top_panels_controller(self) -> None:
         """Cleanup top panels controller timers/signals if present."""
         controller = getattr(self, "top_panels_controller", None)
+        if controller and hasattr(controller, "cleanup"):
+            controller.cleanup()
+
+    def _cleanup_command_palette(self) -> None:
+        """Cleanup global command palette controller and OS hotkeys if present."""
+        controller = getattr(self, "command_palette_controller", None)
         if controller and hasattr(controller, "cleanup"):
             controller.cleanup()
 

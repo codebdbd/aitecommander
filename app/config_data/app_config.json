@@ -587,6 +587,11 @@
       "program": 60,
       "script": 100,
       "default": 20
+    },
+    "command_palette": {
+      "enabled": true,
+      "hotkey": "Alt+",
+      "max_results": 10
     }
   }
 }

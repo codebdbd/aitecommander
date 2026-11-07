@@ -563,6 +563,12 @@ class ThemeController:
                 fav_widget.refresh_actions()
         except Exception as exc:
             logger.warning("Favorites widget refresh error: %s", exc, exc_info=True)
+        try:
+            cp_ctrl = getattr(mw, "command_palette_controller", None)
+            if cp_ctrl and hasattr(cp_ctrl, "refresh_theme"):
+                cp_ctrl.refresh_theme()
+        except Exception as exc:
+            logger.warning("Command palette theme refresh error: %s", exc, exc_info=True)
         cur_theme = ""
         if hasattr(self, "settings") and self.settings and hasattr(self.settings, "get_theme"):
             cur_theme = self.settings.get_theme()

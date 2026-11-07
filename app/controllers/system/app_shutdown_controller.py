@@ -205,6 +205,13 @@ class AppShutdownController:
                 event.accept()
             except Exception:
                 pass
+        try:
+            app = QApplication.instance()
+            if app is not None and app.quitOnLastWindowClosed():
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, app.quit)
+        except Exception:
+            pass
 
     def _execute_shutdown_sequence(self):
         """Execute shutdown operations sequence by priorities with global deadline consideration."""

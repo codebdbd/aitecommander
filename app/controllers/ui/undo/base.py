@@ -17,8 +17,13 @@ class BaseCommand(QUndoCommand):
     All subclasses must override redo() and undo().
     """
 
+    _keep_alive: list[BaseCommand] = []
+
     def __init__(self, text: str = "", main_window: object | None = None) -> None:
         super().__init__(text)
+        BaseCommand._keep_alive.append(self)
+        if len(BaseCommand._keep_alive) > 500:
+            del BaseCommand._keep_alive[:-500]
         self.main = main_window
         if text:
             self.setText(text)
