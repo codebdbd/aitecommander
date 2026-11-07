@@ -19,7 +19,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 OutputDir=..\dist\installer
-OutputBaseFilename=AiteCommander-Setup-{#MyAppVersion}
+OutputBaseFilename=AiteCommander-Setup
 SetupIconFile=..\app\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoCompany={#MyAppPublisher}
@@ -58,9 +58,10 @@ Type: files; Name: "{app}\_internal\app\resources\qss\dreamy_room.qss"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\themes\dreamy_room"
 Type: filesandordirs; Name: "{app}\_internal\app\resources\ui_icons\dreamy_room"
 
+Type: filesandordirs; Name: "{autoprograms}\{#MyAppName}"
+
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]

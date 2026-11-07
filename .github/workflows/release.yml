@@ -106,7 +106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: dist/installer/AiteCommander-Setup-*.exe
+          path: dist/installer/AiteCommander-Setup*.exe
           if-no-files-found: error
 
       - name: Publish GitHub release asset
@@ -114,5 +114,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.target.outputs.tag }}
-          files: dist/installer/AiteCommander-Setup-*.exe
+          files: dist/installer/AiteCommander-Setup*.exe
           generate_release_notes: true

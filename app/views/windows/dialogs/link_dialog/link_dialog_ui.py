@@ -157,6 +157,7 @@ class LinkDialogUI:
         container.addWidget(type_frame)
         self.widgets["type_group"] = self.type_group
         self._apply_link_type_translations()
+        self.apply_deferred_type_icons()
 
     def apply_deferred_type_icons(self) -> None:
         """Apply link type icons after the dialog is shown."""

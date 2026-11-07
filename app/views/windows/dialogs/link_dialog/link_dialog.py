@@ -199,6 +199,7 @@ class LinkDialog(BaseDialog):
 
         # Init components
         self._init_components()
+        self._type_icons_applied = True
 
         # Validate configuration
         if not self._validate_configuration():
@@ -477,7 +478,9 @@ class LinkDialog(BaseDialog):
 
         logger.debug("Initial values applied to UI; continuing with icon setup")
 
-        # Initial icon is applied after the first paint to avoid blocking dialog open.
+        # Apply initial icon synchronously during setup
+        self._set_initial_icon()
+        self._initial_icon_applied = True
 
         # Populate hierarchy
         self._populate_hierarchy()
@@ -490,6 +493,8 @@ class LinkDialog(BaseDialog):
 
         # Update UI state
         self.handlers._update_ui_state()
+        if hasattr(self, "ui") and self.ui is not None:
+            self.ui._equalize_form_side_buttons()
 
         # Set focus depending on link type:
         #  - WEB: focus URL/path field
@@ -983,13 +988,13 @@ class LinkDialog(BaseDialog):
         if hasattr(self, "ui") and self.ui is not None:
             self.ui._equalize_form_side_buttons()
         if not self._initial_icon_applied:
-            QTimer.singleShot(0, self._apply_initial_icon)
+            self._apply_initial_icon()
         if not self._type_icons_applied:
-            QTimer.singleShot(0, self._apply_type_icons)
+            self._apply_type_icons()
         if not self._sphere_icons_applied:
-            QTimer.singleShot(0, self._apply_sphere_icons)
+            self._apply_sphere_icons()
         if not self._hierarchy_icons_applied:
-            QTimer.singleShot(0, self._apply_current_hierarchy_icons)
+            self._apply_current_hierarchy_icons()
 
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update UI texts on language change."""

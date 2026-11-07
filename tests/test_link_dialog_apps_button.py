@@ -224,3 +224,31 @@ def test_link_dialog_button_widths_adjust(qapp):
 
     dialog.close()
 
+
+
+def test_link_dialog_icons_applied_synchronously_without_delay(qapp):
+    init_data = {
+        "category_hierarchy": {},
+        "spheres": [{"id": 1, "name": "Work", "icon_path": ""}],
+    }
+    dialog = LinkDialog(
+        initialization_data=init_data,
+        dialog_controller=MagicMock(),
+    )
+
+    # All type buttons must have valid icons immediately upon creation (no pop-in)
+    type_buttons = dialog.ui._type_buttons
+    assert len(type_buttons) > 0
+    for code, btn in type_buttons.items():
+        assert not btn.icon().isNull(), f"Type button {code} has null icon before show"
+
+    # Icon preview button must also have valid icon immediately
+    assert not dialog.ui.icon_btn.icon().isNull(), "Icon button has null icon before show"
+
+    # Immediately on showEvent, icons are already present without deferring to singleShot timers
+    dialog.show()
+    for code, btn in type_buttons.items():
+        assert not btn.icon().isNull()
+    assert not dialog.ui.icon_btn.icon().isNull()
+
+    dialog.close()
