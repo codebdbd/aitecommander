@@ -5,6 +5,54 @@ All notable changes to **Aite Commander** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-08
+
+### Added
+- **Selective Note Encryption & Password Protection**:
+  - Secure authenticated encryption using `PBKDF2-HMAC-SHA256` (200,000 iterations), `BLAKE2b-CTR` stream cipher, `HMAC-SHA256` integrity authentication (*Encrypt-then-MAC*), and `zlib` payload compression.
+  - Distraction-free Zen editor preservation: `NoteDialog` remains clean and uncluttered; encryption management is accessible via the link row context menu (*Encrypt note* / *Decrypt note*).
+  - Password modal dialog (`NotePasswordDialog`) with real-time confirmation matching, incorrect password feedback, and unlock/decrypt modes.
+  - Seamless unlock workflow: entering the password decrypts the note for editing in Zen mode, and saving automatically re-encrypts the updated text with the active password.
+  - UI confidentiality masking: encrypted notes display as `🔒 Encrypted` in table cells, tooltips, macOS-style Quick Look preview (`Space`), and the Command Palette.
+  - Search hygiene: raw base64 ciphertext is excluded from global substring and SQLite `LIKE` search queries to avoid false positive matches.
+  - Zero external dependencies: implemented purely via Python standard library (`hashlib`, `hmac`, `secrets`, `base64`, `zlib`), preserving 100% compatibility with SQLite schema, database migrations, backups, and `.aitepack` export packages.
+- **Global Command Palette (`Alt+\` or `Ctrl+K`)**:
+  - Fast, Unicode-aware fuzzy search across all spheres, sections, categories, and links with instant breadcrumb hierarchy preview.
+  - Prefix query operators for targeted filtering:
+    - `>` — filter scripts
+    - `/` — filter files, folders, and applications
+    - `@sphere` — filter within a specific sphere
+  - Keyboard-first interaction with direct execution (`Enter`), edit dialog (`F2`), and Quick Look preview (`Space`).
+  - Native theme integration matching all 17 dark, light, and accent themes.
+- **Local Path Health Monitor (`HealthRadarDialog`)**:
+  - Asynchronous background scanner for local files, folders, and executable targets to detect broken, moved, or deleted resources.
+  - Batch results table with quick path relocation, Explorer reveal, and one-click removal of orphaned items.
+  - Non-intrusive status indicators and dedicated tools menu action.
+- **Integrated Script Editor & Managed Scripts Pipeline**:
+  - Full-featured inline script editor (`ScriptEditorDialog`) embedded directly into `LinkDialog` for `.bat`, `.cmd`, `.ps1`, `.vbs`, and `.py` scripts.
+  - Python script acceleration through automated `uv` runner caching.
+  - Disk-level Undo/Redo integration (`SaveLinkCmd`, `BatchSaveLinksCmd`) preserving on-disk script files across undo/redo actions.
+  - Automated script file renaming and URL synchronization when script types or extensions change.
+  - Automatic purging of abandoned or orphaned managed script files.
+  - Script security hardening: argument escaping, execution isolation, and UTF-8 console output enforcement (`chcp 65001`).
+- **High-Definition Multi-Frame Vector Icons**:
+  - Crisp multi-resolution application and package icons (`app_icon.ico`, `package_icon.ico`) with complete frame suites (16, 24, 32, 48, 64, 128, 256 px) for Windows 10/11 taskbar and high-DPI desktop scaling.
+
+### Changed
+- **Synchronous LinkDialog Rendering**:
+  - Replaced asynchronous zero-delay timers with synchronous icon and button layout rendering, eliminating geometry jitter and rendering delay when opening the link dialog.
+- **Streamlined Windows Installer & Start Menu Shortcuts**:
+  - Switched installer packaging to canonical unversioned `AiteCommander-Setup.exe` target naming.
+  - Cleaned up Windows Start Menu integration to create a single, prominent application shortcut without redundant subfolders or standalone uninstaller shortcuts.
+- **Translation Parity & Localization Completeness**:
+  - Synchronized translation catalogs across all 6 supported languages (`de`, `en`, `es`, `fr`, `ru`, `uk`) with 100% string coverage (901/901 messages) and compiled binary `.qm` resources.
+
+### Fixed
+- **Structure Tree Selection & Focus Stability**:
+  - Fixed category selection recovery and focus transitions during category deletion and Undo restoration in `SelectionWorkflowService` and `TreeUpdateService`.
+- **Backup Worker Localization Context**:
+  - Unified `BackupWorker` translation contexts to eliminate missing string warnings during background database backup operations.
+
 ## [1.2.0] - 2026-10-20
 
 ### Added

@@ -5,6 +5,7 @@ import unittest
 
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from app.config_data.runtime_config import runtime_app_config as app_config
 from app.views.windows.dialogs.about_dialog import AboutDialog
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -21,7 +22,7 @@ class TestAboutDialog(unittest.TestCase):
 
         try:
             self.assertEqual("AboutDialog", type(dialog).__name__)
-            self.assertIn("1.2.", dialog.version_label.text())
+            self.assertIn(app_config.get_app_version(), dialog.version_label.text())
             self.assertIn("Codebdbd", dialog.developer_label.text())
             self.assertIn("GPL", dialog.license_label.text())
             self.assertTrue(dialog.support_button.text())

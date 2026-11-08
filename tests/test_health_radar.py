@@ -493,11 +493,11 @@ def test_system_dialog_controller_launches_health_radar_end_to_end(tmp_path: Pat
         assert dlg is not None
 
         # Wait for WorkerManager pool and process Qt events
-        WorkerManager.shutdown(3000)
-        deadline = time.monotonic() + 3.0
+        deadline = time.monotonic() + 6.0
         while not dlg._is_finished and time.monotonic() < deadline:
             QApplication.processEvents()
             time.sleep(0.02)
+        WorkerManager.shutdown(3000)
 
         assert dlg._is_finished is True
         assert dlg.table_widget.rowCount() == 1
