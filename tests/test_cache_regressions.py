@@ -104,6 +104,48 @@ def test_structure_error_after_mutation_releases_load(structure):
     )
 
 
+def test_structure_shutdown_stops_preload_and_disconnects_batch_delete(structure):
+    from PyQt6.QtWidgets import QApplication
+
+    _ = QApplication.instance() or QApplication([])
+    business, jobs = structure
+    business.event_service = SimpleNamespace(
+        on_item_added=Mock(),
+        on_item_updated=Mock(),
+        on_item_deleted=Mock(),
+        on_items_batch_deleted=Mock(),
+    )
+    business.async_service = SimpleNamespace(shutdown=Mock())
+    business._result_dispatcher = None
+    business._setup_preload_timer()
+    business._connect_internal_signals()
+
+    handle = SimpleNamespace(cancel=Mock())
+    business.preload_structure_async()
+    business._structure_preload_handle = handle
+    business._structure_preload_timer.start(5000)
+    assert business._structure_preload_timer.isActive()
+
+    business.shutdown()
+
+    assert not business._structure_preload_timer.isActive()
+    handle.cancel.assert_called_once()
+    assert business._structure_preload_handle is None
+    assert not business._structure_preload_in_progress
+    assert business._structure_preload_active_token is None
+
+    # Late preload completion after shutdown must not repopulate caches
+    jobs[0]["on_finished"](([{"id": 1, "name": "late"}], {}, {}))
+    assert not business._structure_cache_ready
+    assert business.cache_manager.get("all_spheres") is None
+
+    # Emitting items_batch_deleted after shutdown must not trigger mutation handler
+    gen_before = business._structure_mutation_generation
+    business.items_batch_deleted.emit("category", [1, 2])
+    assert business._structure_mutation_generation == gen_before
+
+
+
 @pytest.fixture
 def links():
     business = LinksBusinessLogic(

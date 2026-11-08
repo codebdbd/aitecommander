@@ -218,6 +218,10 @@ class StructureBusinessLogic(QObject):
             self._safe_disconnect(self.item_updated, self._handle_structure_mutation)
             self._safe_disconnect(self.item_deleted, self._handle_structure_mutation)
             self._safe_disconnect(
+                self.items_batch_deleted,
+                self._handle_structure_mutation,
+            )
+            self._safe_disconnect(
                 self.structure_loaded,
                 self._handle_structure_reloaded,
             )
@@ -225,6 +229,29 @@ class StructureBusinessLogic(QObject):
                 self.structure_loaded,
                 self._on_structure_loaded_warm_cache,
             )
+
+            preload_timer = getattr(self, "_structure_preload_timer", None)
+            if preload_timer is not None:
+                try:
+                    if preload_timer.isActive():
+                        preload_timer.stop()
+                except RuntimeError:
+                    pass
+                self._safe_disconnect(
+                    preload_timer.timeout,
+                    self.preload_structure_async,
+                )
+
+            preload_handle = getattr(self, "_structure_preload_handle", None)
+            if preload_handle is not None and hasattr(preload_handle, "cancel"):
+                try:
+                    preload_handle.cancel()
+                except Exception:
+                    pass
+            self._structure_preload_handle = None
+            self._structure_preload_pending = False
+            self._structure_preload_in_progress = False
+            self._structure_preload_active_token = None
 
             if getattr(self, "_result_dispatcher", None) is not None:
                 try:
