@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 
+from app.utils.security.note_crypto import is_encrypted_note
+
 
 class LinkTableColumn(IntEnum):
     ORDER = 0
@@ -212,7 +214,8 @@ def sort_key_for_column(column: int, link: dict[str, Any], type_label: str = "")
         except Exception:
             return 0
     if is_column(column, LinkTableColumn.NOTES):
-        return str(link.get("notes", "")).casefold()
+        raw_notes = str(link.get("notes", ""))
+        return "🔒" if is_encrypted_note(raw_notes) else raw_notes.casefold()
     if is_column(column, LinkTableColumn.TYPE):
         return type_label.casefold()
     return None

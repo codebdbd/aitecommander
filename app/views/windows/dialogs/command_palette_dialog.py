@@ -106,6 +106,9 @@ class CommandPaletteModel(QAbstractListModel):
         if role == int(Qt.ItemDataRole.ToolTipRole):
             url = str(item.get("url") or "")
             notes = str(item.get("notes") or "").strip()
+            if notes.startswith("aite_enc:v1:"):
+                enc_label = QCoreApplication.translate("NotePasswordDialog", "Encrypted")
+                notes = f"🔒 {enc_label}"
             return f"{url}\n{notes}".strip() if notes else url
         return None
 

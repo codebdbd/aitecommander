@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...utils.security.note_crypto import is_encrypted_note
 from ..base.db_base import ValidationError
 from ..types.constants import (
     MAX_NAME_LENGTH,
@@ -46,7 +47,12 @@ def validate_link_data(link_data: dict[str, Any]) -> None:
     
     if "notes" in link_data and link_data["notes"]:
         notes_str = str(link_data["notes"])
-        if len(notes_str) > MAX_NOTES_LENGTH:
+        max_notes_len = (
+            MAX_NOTES_LENGTH * 4
+            if is_encrypted_note(notes_str)
+            else MAX_NOTES_LENGTH
+        )
+        if len(notes_str) > max_notes_len:
             raise ValidationError(
                 f"Link notes too long: {len(notes_str)} chars (max {MAX_NOTES_LENGTH})"
             )

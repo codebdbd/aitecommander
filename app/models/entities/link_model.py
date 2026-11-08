@@ -502,7 +502,7 @@ class LinkModel(DatabaseBase):
                 "JOIN sphere sph ON sect.sphere_id = sph.id "
                 "WHERE l.name LIKE ? COLLATE NOCASE "
                 "OR l.url LIKE ? COLLATE NOCASE "
-                "OR l.notes LIKE ? COLLATE NOCASE "
+                "OR (l.notes NOT LIKE 'aite_enc:v1:%' AND l.notes LIKE ? COLLATE NOCASE) "
                 "OR l.args LIKE ? COLLATE NOCASE "
                 "ORDER BY l.name COLLATE NOCASE",
                 (search_term, search_term, search_term, search_term),

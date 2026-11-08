@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable
 from PyQt6.QtCore import QCoreApplication, QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
+from app.utils.security.note_crypto import is_encrypted_note
 from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 from .base import create_context_action, get_menu_icon
@@ -109,7 +110,8 @@ class LinksMenuBuilder:
             )
         )
 
-        has_notes = bool(str(link.get("notes", "") or "").strip())
+        raw_notes = str(link.get("notes", "") or "").strip()
+        has_notes = bool(raw_notes)
         note_text = MenuTexts.EDIT_NOTE if has_notes else MenuTexts.ADD_NOTE
         menu.addAction(
             self.actions.create(
@@ -119,6 +121,20 @@ class LinksMenuBuilder:
                 get_menu_icon("edit_note", self.theme),
             )
         )
+        if has_notes:
+            crypto_text = (
+                MenuTexts.DECRYPT_NOTE
+                if is_encrypted_note(raw_notes)
+                else MenuTexts.ENCRYPT_NOTE
+            )
+            menu.addAction(
+                self.actions.create(
+                    crypto_text,
+                    lambda: self.main_window.links_actions.toggle_note_encryption(link),
+                    None,
+                    get_menu_icon("edit_note", self.theme),
+                )
+            )
 
         if self._is_web_link(link):
             menu.addSeparator()

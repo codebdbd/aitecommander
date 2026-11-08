@@ -1998,7 +1998,12 @@ class QuickLookDialog(BaseDialog):
             f"{self.tr('Profile')}: {html.escape(str(profile)) or self.tr('Default')}"
         )
         if notes:
-            info_html += f"<br><br>{self.tr('Notes')}: <i>{html.escape(str(notes))}</i>"
+            notes_str = str(notes).strip()
+            if notes_str.startswith("aite_enc:v1:"):
+                enc_lbl = QCoreApplication.translate("NotePasswordDialog", "Encrypted")
+                info_html += f"<br><br>{self.tr('Notes')}: <i>🔒 {html.escape(enc_lbl)}</i>"
+            else:
+                info_html += f"<br><br>{self.tr('Notes')}: <i>{html.escape(str(notes))}</i>"
         self._render_generic_card(qicon, info_html)
 
     def _render_generic_card(self, qicon: QIcon, text_html: str, show_reveal: bool = False) -> None:

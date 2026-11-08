@@ -1084,22 +1084,22 @@
 </context><context>
     <name>CommandPaletteDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="406" />
+        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="409" />
         <source>Command Palette</source>
         <translation>Командная палитра</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="411" />
+        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="414" />
         <source>Search links, scripts, categories...  (&gt; scripts, @sphere, / files)</source>
         <translation>Поиск ссылок, скриптов, категорий...  (&gt; скрипты, @сфера, / файлы)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="417" />
+        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="420" />
         <source>No matching links found</source>
         <translation>Подходящие ссылки не найдены</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="423" />
+        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="426" />
         <source>Enter: Launch  •  Ctrl+Enter: Show in window  •  &gt; scripts  @sphere  / files  •  Esc: Close</source>
         <translation>Enter: Запуск  •  Ctrl+Enter: Показать в окне  •  &gt; скрипты  @сфера  / файлы  •  Esc: Закрыть</translation>
     </message>
@@ -1886,7 +1886,19 @@ Do you want to terminate this process and retry restore?</source>
 </context><context>
     <name>HealthRadarDialog</name>
     <message>
-        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="893" />
+        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="425" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="723" />
+        <source>Error: {0}</source>
+        <translation>Ошибка: {0}</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="432" />
+        <location filename="..\app\controllers\ui\dialogs\system_dialog_controller.py" line="726" />
+        <source>Health Check Error</source>
+        <translation>Ошибка проверки путей</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="895" />
         <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="100" />
         <source>Checking local paths...</source>
         <translation>Проверка локальных путей...</translation>
@@ -2010,16 +2022,6 @@ Do you want to terminate this process and retry restore?</source>
         <translation>Все локальные пути в порядке! Битых ссылок не обнаружено.</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="425" />
-        <source>Error: {0}</source>
-        <translation>Ошибка: {0}</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="432" />
-        <source>Health Check Error</source>
-        <translation>Ошибка проверки путей</translation>
-    </message>
-    <message>
         <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="437" />
         <source>File</source>
         <translation>Файл</translation>
@@ -2076,16 +2078,16 @@ Do you want to terminate this process and retry restore?</source>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="842" />
-        <source>Delete Links</source>
-        <translation>Удаление ссылок</translation>
-    </message>
-    <message>
-        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="843" />
         <source>Delete {0} selected links? (You can undo this with Ctrl+Z)</source>
         <translation>Удалить выбранные ссылки ({0})? (Можно отменить через Ctrl+Z)</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="869" />
+        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="846" />
+        <source>Delete Links</source>
+        <translation>Удаление ссылок</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\health_radar_dialog.py" line="871" />
         <source>Deleted {0} links (press Ctrl+Z in main window to undo).</source>
         <translation>Удалено ссылок: {0} (нажмите Ctrl+Z в главном окне для отмены).</translation>
     </message>
@@ -3116,12 +3118,12 @@ Are you sure you want to continue?</source>
         <translation>Это действие необратимо.</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\link_operations.py" line="267" />
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="352" />
         <source>File or Program Not Found</source>
         <translation>Файл или программа не найдены</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\link_operations.py" line="268" />
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="353" />
         <source>The file or program for '{name}' was not found at:
 {path}
 
@@ -3132,17 +3134,17 @@ Would you like to locate it on this computer?</source>
 Хотите указать расположение на этом компьютере?</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\link_operations.py" line="312" />
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="397" />
         <source>Select Folder</source>
         <translation>Выбор папки</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\link_operations.py" line="318" />
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="403" />
         <source>Select File or Program</source>
         <translation>Выбор файла или программы</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\link_operations.py" line="320" />
+        <location filename="..\app\controllers\ui\links\link_operations.py" line="405" />
         <source>All Files (*.*)</source>
         <translation>Все файлы (*.*)</translation>
     </message>
@@ -3305,22 +3307,22 @@ Would you like to locate it on this computer?</source>
 </context><context>
     <name>LinksUIController</name>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="440" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="444" />
         <source>Open Links</source>
         <translation>Открытие ссылок</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="441" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="445" />
         <source>Open {limit}</source>
         <translation>Открыть {limit}</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="444" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="448" />
         <source>Cancel</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location filename="..\app\controllers\ui\links\controller.py" line="445" />
+        <location filename="..\app\controllers\ui\links\controller.py" line="449" />
         <source>You are trying to open more than {limit} links simultaneously.
 To prevent performance issues, opening is limited to {limit} links.
 Would you like to open the first {limit} selected links?</source>
@@ -3412,27 +3414,27 @@ Would you like to open the first {limit} selected links?</source>
 </context><context>
     <name>MenuActions</name>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="214" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="218" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="52" />
         <source>Error: %1</source>
         <translation>Ошибка: %1</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="563" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="161" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
         <source>Add section</source>
         <translation>Добавить раздел</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="578" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="162" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
         <source>Add category</source>
         <translation>Добавить категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="163" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="130" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="90" />
         <source>Add link</source>
@@ -3444,7 +3446,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Очистить избранное</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="165" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="92" />
         <source>Exit</source>
         <translation>Выход</translation>
@@ -3453,14 +3455,14 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\main_window.py" line="509" />
         <location filename="..\app\views\main_components\ui\topbar\top_bar_setup.py" line="473" />
         <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="656" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="763" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="167" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
         <source>Tools</source>
         <translation>Инструменты</translation>
@@ -3471,7 +3473,7 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Сохранить базу данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="169" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
         <source>Restore Database</source>
         <translation>Восстановить базу данных</translation>
@@ -3483,7 +3485,7 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="732" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="171" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
         <source>Import Bookmarks</source>
         <translation>Импортировать закладки</translation>
@@ -3516,32 +3518,32 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="731" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
         <source>Search files</source>
         <translation>Поиск файлов</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
         <source>About</source>
         <translation>О программе</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="176" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
         <source>Edit section</source>
         <translation>Редактировать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="177" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
         <source>Edit category</source>
         <translation>Редактировать категорию</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="184" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="178" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="128" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
@@ -3549,45 +3551,45 @@ Would you like to open the first {limit} selected links?</source>
         <translation>Вставить</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="179" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
         <source>Paste section</source>
         <translation>Вставить раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="180" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
         <source>Delete section</source>
         <translation>Удалить раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="181" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
         <source>Copy category</source>
         <translation>Копировать категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="182" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
         <source>Copy section</source>
         <translation>Копировать раздел</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="161" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="183" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="129" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
         <source>Cut</source>
         <translation>Вырезать</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="184" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
         <source>Delete category</source>
         <translation>Удалить категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="185" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
         <source>Delete selected</source>
         <translation>Удалить выбранное</translation>
@@ -3596,14 +3598,14 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1700" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1665" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="204" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="186" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="131" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="117" />
         <source>Select all</source>
         <translation>Выделить всё</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="187" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="132" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="118" />
         <source>Clear selection</source>
@@ -3611,20 +3613,20 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="145" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="188" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="120" />
         <source>&amp;Undo</source>
         <translation>&amp;Отменить</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="152" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="189" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="121" />
         <source>&amp;Redo</source>
         <translation>&amp;Повторить</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="190" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="123" />
         <source>Open</source>
         <translation>Открыть</translation>
@@ -3636,14 +3638,14 @@ Would you like to open the first {limit} selected links?</source>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1035" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="191" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="125" />
         <source>Edit</source>
         <translation>Редактировать</translation>
     </message>
     <message>
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="194" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="192" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="126" />
         <source>Delete</source>
         <translation>Удалить</translation>
@@ -3652,154 +3654,166 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1690" />
         <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="1655" />
         <location filename="..\app\views\windows\dialogs\base_dialog.py" line="168" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="193" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="127" />
         <source>Copy</source>
         <translation>Копирование</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="194" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="133" />
         <source>Edit note</source>
         <translation>Редактировать примечание</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="195" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="134" />
         <source>Add note</source>
         <translation>Добавить заметку</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="196" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="135" />
+        <source>Encrypt note</source>
+        <translation>Зашифровать заметку</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
         <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="136" />
+        <source>Decrypt note</source>
+        <translation>Расшифровать заметку</translation>
+    </message>
+    <message>
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="138" />
         <source>Add to favorites</source>
         <translation>Добавить в избранное</translation>
     </message>
     <message>
         <location filename="..\app\views\main_components\ui\topbar\toolbar_adapters.py" line="1047" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="197" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="137" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="139" />
         <source>Remove from favorites</source>
         <translation>Удалить из избранного</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="198" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="139" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
         <source>Share</source>
         <translation>Поделиться</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="199" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="140" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
         <source>Email</source>
         <translation>Почта</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="200" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="141" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
         <source>Telegram</source>
         <translation>Телеграм</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="201" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="142" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
         <source>WhatsApp</source>
         <translation>Ватсап</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="202" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="143" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
         <source>Viber</source>
         <translation>Вайбер</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="203" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="144" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
         <source>X (Twitter)</source>
         <translation>X (Твиттер)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="204" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="145" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
         <source>Facebook</source>
         <translation>Фейсбук</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="205" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="146" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
         <source>LinkedIn</source>
         <translation>Линкедин</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="206" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="147" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
         <source>Pinterest</source>
         <translation>Пинтерест</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="207" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="148" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
         <source>Via Gmail</source>
         <translation>Через Gmail</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="208" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="149" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
         <source>Via default client (mailto)</source>
         <translation>Через почтовый клиент (mailto)</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="209" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="150" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="213" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="152" />
         <source>Copy as email message</source>
         <translation>Скопировать как письмо</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="210" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="151" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="214" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="153" />
         <source>Export category</source>
         <translation>Экспортировать категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="211" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="152" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="215" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="154" />
         <source>Export section</source>
         <translation>Экспортировать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="212" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="155" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="216" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="157" />
         <source>Import category</source>
         <translation>Импортировать категорию</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="213" />
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="156" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="217" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="158" />
         <source>Import section</source>
         <translation>Импортировать раздел</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="164" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="166" />
         <source>Clear favorites</source>
         <translation>Очистить избранное</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="168" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
         <source>Export Database</source>
         <translation>Экспорт базы данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="170" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
         <source>Import Database</source>
         <translation>Импорт базы данных</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="172" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="174" />
         <source>Export icons</source>
         <translation>Экспорт иконок</translation>
     </message>
     <message>
-        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="173" />
+        <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="175" />
         <source>Import icons</source>
         <translation>Импорт иконок</translation>
     </message>
@@ -3964,6 +3978,55 @@ Would you like to open the first {limit} selected links?</source>
         <location filename="..\app\views\windows\dialogs\note_dialog.py" line="386" />
         <source>Close</source>
         <translation>Закрыть</translation>
+    </message>
+</context><context>
+    <name>NotePasswordDialog</name>
+    <message>
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="2003" />
+        <location filename="..\app\views\windows\dialogs\command_palette_dialog.py" line="110" />
+        <location filename="..\app\views\widgets\link\item_builders.py" line="75" />
+        <source>Encrypted</source>
+        <translation>Зашифровано</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="115" />
+        <source>Encrypt Note</source>
+        <translation>Зашифровать заметку</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="117" />
+        <source>Decrypt Note</source>
+        <translation>Расшифровать заметку</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="119" />
+        <source>Unlock Note</source>
+        <translation>Разблокировать заметку</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="124" />
+        <source>Password:</source>
+        <translation>Пароль:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="128" />
+        <source>Confirm:</source>
+        <translation>Повтор:</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="138" />
+        <source>OK</source>
+        <translation>ОК</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="171" />
+        <source>Passwords do not match</source>
+        <translation>Пароли не совпадают</translation>
+    </message>
+    <message>
+        <location filename="..\app\views\windows\dialogs\note_password_dialog.py" line="210" />
+        <source>Incorrect password</source>
+        <translation>Неверный пароль</translation>
     </message>
 </context><context>
     <name>ProfilesMixin</name>
@@ -4206,7 +4269,8 @@ Would you like to open the first {limit} selected links?</source>
         <translation>По умолчанию</translation>
     </message>
     <message>
-        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="2001" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="2006" />
+        <location filename="..\app\views\windows\dialogs\quick_look_dialog.py" line="2004" />
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>

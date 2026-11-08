@@ -280,6 +280,10 @@ class LinksUIController(QObject):
         """Show note dialog for link."""
         self.link_ops.show_note_dialog(link)
 
+    def toggle_note_encryption(self, link: dict) -> None:
+        """Encrypt or decrypt note for link."""
+        self.link_ops.toggle_note_encryption(link)
+
     def get_selected_links(self) -> list[dict]:
         """Get selected links (single source of truth).
 

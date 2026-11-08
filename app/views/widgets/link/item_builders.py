@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from PyQt6.QtCore import QCoreApplication
+
 from app.utils.links.type_labels import (
     link_type_address_tooltip,
     translate_link_type_label,
 )
+from app.utils.security.note_crypto import is_encrypted_note
 
 # Constants for magic numbers
 MAX_NOTES_DISPLAY_LENGTH = 462
@@ -11,6 +14,7 @@ MAX_NOTES_DISPLAY_LENGTH = 462
 STAR_SYMBOL = "♥"
 STAR_COLOR = "#FFD700"
 PATH_SEPARATOR = " → "
+
 
 class ItemBuildersMixin:
     """Utility mixin for building model role data.
@@ -67,6 +71,10 @@ class ItemBuildersMixin:
     ) -> tuple[str, str]:
         """Return the ``(display, tooltip)`` pair for notes."""
         raw_text = str(notes or "")
+        if is_encrypted_note(raw_text):
+            label = QCoreApplication.translate("NotePasswordDialog", "Encrypted")
+            display = f"🔒 {label}"
+            return display, display
         clean_text = " ".join(raw_text.split())
         # Visual indicator in front of notes text (emoji icon)
         has_text = bool(clean_text)

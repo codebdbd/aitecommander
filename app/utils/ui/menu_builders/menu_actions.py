@@ -132,6 +132,8 @@ class MenuTexts:
     CLEAR_SELECTION = QT_TRANSLATE_NOOP("MenuActions", "Clear selection")
     EDIT_NOTE = QT_TRANSLATE_NOOP("MenuActions", "Edit note")
     ADD_NOTE = QT_TRANSLATE_NOOP("MenuActions", "Add note")
+    ENCRYPT_NOTE = QT_TRANSLATE_NOOP("MenuActions", "Encrypt note")
+    DECRYPT_NOTE = QT_TRANSLATE_NOOP("MenuActions", "Decrypt note")
     # Favorites toggle
     ADD_TO_FAVORITES = QT_TRANSLATE_NOOP("MenuActions", "Add to favorites")
     REMOVE_FROM_FAVORITES = QT_TRANSLATE_NOOP("MenuActions", "Remove from favorites")
@@ -193,6 +195,8 @@ if False:  # pragma: no cover
     QCoreApplication.translate("MenuActions", "Copy")
     QCoreApplication.translate("MenuActions", "Edit note")
     QCoreApplication.translate("MenuActions", "Add note")
+    QCoreApplication.translate("MenuActions", "Encrypt note")
+    QCoreApplication.translate("MenuActions", "Decrypt note")
     QCoreApplication.translate("MenuActions", "Add to favorites")
     QCoreApplication.translate("MenuActions", "Remove from favorites")
     QCoreApplication.translate("MenuActions", "Share")

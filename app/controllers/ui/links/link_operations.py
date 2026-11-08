@@ -12,7 +12,14 @@ from app.utils.links.link_utils import (
     sanitize_link_dict_for_log,
     sanitize_url_for_logging,
 )
+from app.utils.security.note_crypto import (
+    NoteCryptoError,
+    decrypt_note,
+    encrypt_note,
+    is_encrypted_note,
+)
 from app.views.windows.dialogs.note_dialog import NoteDialog
+from app.views.windows.dialogs.note_password_dialog import NotePasswordDialog
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import DatabaseError, LinkValidationError
@@ -77,16 +84,44 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
         initial_notes = str(link.get("notes") or "")
         link_name = str(link.get("name") or "")
+        was_encrypted = is_encrypted_note(initial_notes)
+        active_password: str | None = None
+        plain_initial = initial_notes
 
-        dlg = NoteDialog(initial_text=initial_notes, title=link_name, parent=self.main)
+        if was_encrypted:
+            unlocked_box: dict[str, str] = {}
+
+            def _verify_unlock(pwd: str) -> bool:
+                try:
+                    unlocked_box["text"] = decrypt_note(initial_notes, pwd)
+                    unlocked_box["pwd"] = pwd
+                    return True
+                except NoteCryptoError:
+                    return False
+
+            pwd_dlg = NotePasswordDialog(
+                mode="unlock",
+                verify_callback=_verify_unlock,
+                parent=self.main,
+            )
+            if pwd_dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            plain_initial = unlocked_box.get("text", "")
+            active_password = unlocked_box.get("pwd")
+
+        dlg = NoteDialog(initial_text=plain_initial, title=link_name, parent=self.main)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            new_notes = dlg.get_notes_text()
-            # Check if notes were actually changed
-            if new_notes == initial_notes.strip():
+            new_notes_plain = dlg.get_notes_text()
+            if new_notes_plain == plain_initial.strip():
                 return
             try:
+                if was_encrypted and active_password and new_notes_plain:
+                    notes_to_store = encrypt_note(new_notes_plain, active_password)
+                else:
+                    notes_to_store = new_notes_plain
+
                 link_copy = link.copy()
-                link_copy["notes"] = new_notes
+                link_copy["notes"] = notes_to_store
                 cmd = SaveLinkCmd(
                     new_data=link_copy, old_data=link, main_window=self.main
                 )
@@ -95,6 +130,56 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             except Exception as e:
                 logger.error("Unexpected error saving note: %s", e)
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
+
+    def toggle_note_encryption(self, link: dict) -> None:
+        """Encrypt a plaintext note or decrypt an encrypted note via password dialog."""
+        if not link:
+            return
+
+        raw_notes = str(link.get("notes") or "").strip()
+        if not raw_notes:
+            return
+
+        if is_encrypted_note(raw_notes):
+            decrypted_box: dict[str, str] = {}
+
+            def _verify_decrypt(pwd: str) -> bool:
+                try:
+                    decrypted_box["text"] = decrypt_note(raw_notes, pwd)
+                    return True
+                except NoteCryptoError:
+                    return False
+
+            pwd_dlg = NotePasswordDialog(
+                mode="decrypt",
+                verify_callback=_verify_decrypt,
+                parent=self.main,
+            )
+            if pwd_dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            new_notes_value = decrypted_box.get("text", "")
+        else:
+            pwd_dlg = NotePasswordDialog(
+                mode="encrypt",
+                parent=self.main,
+            )
+            if pwd_dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            password = pwd_dlg.get_password()
+            if not password:
+                return
+            new_notes_value = encrypt_note(raw_notes, password)
+
+        try:
+            link_copy = link.copy()
+            link_copy["notes"] = new_notes_value
+            cmd = SaveLinkCmd(
+                new_data=link_copy, old_data=link, main_window=self.main
+            )
+            self.main.undo_stack.push(cmd)
+        except Exception as e:
+            logger.error("Unexpected error toggling note encryption: %s", e)
+            self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
 
     def _prepare_rotated_link(self, link: dict) -> dict:
         """Prepare link copy with args and browser_key set to next rotated Chrome profile."""

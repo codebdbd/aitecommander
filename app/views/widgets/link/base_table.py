@@ -453,7 +453,7 @@ class TableDelegate(QStyledItemDelegate):
         # Notes column: only show tooltip if note is actually elided in the cell
         if is_column(col, LinkTableColumn.NOTES):
             notes = str(link.get("notes") or "").strip()
-            if not notes:
+            if not notes or notes.startswith("aite_enc:v1:"):
                 return False
             clean_text = " ".join(notes.split())
             cell_text = "📝 " + clean_text

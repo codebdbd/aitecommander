@@ -98,7 +98,8 @@ def _score_item(item: dict[str, Any], query_cf: str, tokens_cf: list[str]) -> in
     """Calculate relevance score for a link dictionary against casefolded query."""
     name_cf = str(item.get("name") or "").casefold()
     url_cf = str(item.get("url") or "").casefold()
-    notes_cf = str(item.get("notes") or "").casefold()
+    raw_notes = str(item.get("notes") or "").strip()
+    notes_cf = "" if raw_notes.startswith("aite_enc:v1:") else raw_notes.casefold()
     args_cf = str(item.get("args") or "").casefold()
     cat_cf = str(item.get("category_name") or "").casefold()
     sect_cf = str(item.get("section_name") or "").casefold()

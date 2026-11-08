@@ -84,6 +84,10 @@ class LinksActions:
         if self.links:
             self.links.show_note_dialog(link)
 
+    def toggle_note_encryption(self, link: dict):
+        if self.links and hasattr(self.links, "toggle_note_encryption"):
+            self.links.toggle_note_encryption(link)
+
     # --- Share link ---
     def share_via_telegram(self, link: dict) -> bool:
         return self._share(link, share_service.share_via_telegram)
