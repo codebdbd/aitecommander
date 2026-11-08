@@ -37,7 +37,6 @@ ALLOWED_LINK_COLUMNS = {
     "chrome_rotation",
     "rotation_index",
     "rotation_profiles",
-    "is_group_launch",
 }
 
 LINK_ALL_COLUMNS = ", ".join(sorted(ALLOWED_LINK_COLUMNS))
@@ -79,7 +78,6 @@ class LinkModel(DatabaseBase):
                     "chrome_rotation",
                     "rotation_index",
                     "rotation_profiles",
-                    "is_group_launch",
                 ]
                 use_fields_raw = list(fields or default_fields)
                 use_fields = [
@@ -252,7 +250,6 @@ class LinkModel(DatabaseBase):
             "chrome_rotation",
             "rotation_index",
             "rotation_profiles",
-            "is_group_launch",
         ]
 
         data = {field: link.get(field) for field in all_possible_fields}

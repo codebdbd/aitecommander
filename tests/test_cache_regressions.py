@@ -219,6 +219,22 @@ def test_database_switch_rejects_old_table_and_cache_results(links):
     assert not business._cache
 
 
+def test_links_cache_get_returns_independent_copy(links):
+    business, _ = links
+    payload = [{"id": 1, "name": "Link 1", "url": "https://example.com"}]
+    business._cache_set("test_key", payload)
+
+    fetched = business._cache_get("test_key")
+    assert fetched == payload
+    assert fetched is not payload
+    assert fetched[0] is not payload[0]
+
+    # Mutating fetched data must not mutate cached data
+    fetched[0]["name"] = "Mutated"
+    cached_again = business._cache_get("test_key")
+    assert cached_again[0]["name"] == "Link 1"
+
+
 @pytest.mark.parametrize("backend", ["auto", "filelock"])
 @pytest.mark.parametrize("persistent", [False, True])
 def test_favicon_timeout_skips_all_disk_access(monkeypatch, backend, persistent):

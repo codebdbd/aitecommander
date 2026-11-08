@@ -1,6 +1,5 @@
 # app/controllers/links_business.py
 
-import copy
 import logging
 import os
 from collections import defaultdict
@@ -78,6 +77,18 @@ def _link_cache_size(value: Any) -> int:
     if isinstance(value, (list, tuple, set)):
         return max(1, len(value))
     return 1
+
+
+def _copy_link_payload(val: Any) -> Any:
+    """Return a shallow copy of link payload (list of dicts or single dict)."""
+    if isinstance(val, list):
+        return [
+            dict(item) if isinstance(item, dict) else (list(item) if isinstance(item, list) else item)
+            for item in val
+        ]
+    if isinstance(val, dict):
+        return dict(val)
+    return val
 
 
 class LinksBusinessLogic(QObject):
@@ -853,20 +864,11 @@ class LinksBusinessLogic(QObject):
                 return None
             if _metrics:
                 _metrics.record_cache_hit("links_cache")
-            if isinstance(val, list):
-                return [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in val]
-            if isinstance(val, dict):
-                return copy.deepcopy(val)
-            return val
+            return _copy_link_payload(val)
 
     def _cache_set(self, key: str, value: Any) -> None:
         """Thread-safe cache write storing a shallow copy for collections."""
-        if isinstance(value, list):
-            val_to_store = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in value]
-        elif isinstance(value, dict):
-            val_to_store = copy.deepcopy(value)
-        else:
-            val_to_store = value
+        val_to_store = _copy_link_payload(value)
         if _link_cache_size(val_to_store) > self._cache.maxsize:
             self.logger.debug("Skip caching payload exceeding maxsize for key=%s", key)
             return
@@ -929,12 +931,7 @@ class LinksBusinessLogic(QObject):
         emit_func: Callable[[Any], None],
         expected_generation: int | None = None,
     ) -> None:
-        if isinstance(data, list):
-            val_to_store = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in data]
-        elif isinstance(data, dict):
-            val_to_store = copy.deepcopy(data)
-        else:
-            val_to_store = data
+        val_to_store = _copy_link_payload(data)
         with self._tasks_lock:
             if expected_generation is not None:
                 current_gen = self._cache_generation
@@ -952,7 +949,7 @@ class LinksBusinessLogic(QObject):
                     self._cache[key] = val_to_store
                 except ValueError:
                     pass
-        emit_data = [copy.deepcopy(item) if isinstance(item, (dict, list)) else item for item in data] if isinstance(data, list) else data
+        emit_data = _copy_link_payload(data)
         emit_func(emit_data)
 
     # Helpers for handling asynchronous results
