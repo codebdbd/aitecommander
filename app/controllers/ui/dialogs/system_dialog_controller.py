@@ -11,44 +11,58 @@ logger = logging.getLogger(__name__)
 _ICON_STATUS_CONTEXT = "IconRefreshStatus"
 _SYS_CONTEXT = "SystemDialogController"
 
-_SYS_TITLE_BROWSER_IMPORT = QT_TRANSLATE_NOOP("SystemDialogController", "Browser Import")
+_SYS_TITLE_BROWSER_IMPORT = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Browser Import"
+)
 _SYS_TITLE_AUTO_SAVE = QT_TRANSLATE_NOOP("SystemDialogController", "Auto-save")
 _SYS_TITLE_ICON_REFRESH = QT_TRANSLATE_NOOP("SystemDialogController", "Icon Refresh")
 _SYS_TITLE_BAD_URL_CHECK = QT_TRANSLATE_NOOP("SystemDialogController", "Bad URL Check")
 
-_SYS_ERROR_READ_HTML = QT_TRANSLATE_NOOP("SystemDialogController", "Error reading HTML file."
+_SYS_ERROR_READ_HTML = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Error reading HTML file."
 )
-_SYS_INFO_CHECK_FILE = QT_TRANSLATE_NOOP("SystemDialogController", "Check file integrity and access rights."
+_SYS_INFO_CHECK_FILE = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Check file integrity and access rights."
 )
-_SYS_WARN_NO_LINKS = QT_TRANSLATE_NOOP("SystemDialogController", "No links found in file."
+_SYS_WARN_NO_LINKS = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "No links found in file."
 )
-_SYS_INFO_EXPORT_HTML = QT_TRANSLATE_NOOP("SystemDialogController",
+_SYS_INFO_EXPORT_HTML = QT_TRANSLATE_NOOP(
+    "SystemDialogController",
     "Export bookmarks from browser in HTML format and select correct file.",
 )
-_SYS_WARN_NO_SECTION = QT_TRANSLATE_NOOP("SystemDialogController", "No section selected for import."
+_SYS_WARN_NO_SECTION = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "No section selected for import."
 )
-_SYS_INFO_SELECT_SECTION = QT_TRANSLATE_NOOP("SystemDialogController", "Select section where categories and links will be added."
+_SYS_INFO_SELECT_SECTION = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Select section where categories and links will be added."
 )
-_SYS_AUTO_SAVE_FAILED_IMPORT = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to create auto-save before import."
+_SYS_AUTO_SAVE_FAILED_IMPORT = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Failed to create auto-save before import."
 )
-_SYS_AUTO_SAVE_FAILED_CHECK = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to create auto-save before check."
+_SYS_AUTO_SAVE_FAILED_CHECK = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Failed to create auto-save before check."
 )
-_SYS_IMPORT_COMPLETED_ERROR = QT_TRANSLATE_NOOP("SystemDialogController", "Import completed with error"
+_SYS_IMPORT_COMPLETED_ERROR = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Import completed with error"
 )
-_SYS_PROTOCOL_STATS = QT_TRANSLATE_NOOP("SystemDialogController", "Protocol statistics:"
+_SYS_PROTOCOL_STATS = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Protocol statistics:"
 )
-_SYS_HTTPS_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTPS links: {count}"
+_SYS_HTTPS_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTPS links: {count}")
+_SYS_HTTP_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTP links: {count}")
+_SYS_HTTPS_QUESTION = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Would you like to check URLs for HTTPS availability?"
 )
-_SYS_HTTP_COUNT = QT_TRANSLATE_NOOP("SystemDialogController", "HTTP links: {count}"
-)
-_SYS_HTTPS_QUESTION = QT_TRANSLATE_NOOP("SystemDialogController", "Would you like to check URLs for HTTPS availability?"
-)
-_SYS_HTTPS_QUESTION_INFO = QT_TRANSLATE_NOOP("SystemDialogController",
+_SYS_HTTPS_QUESTION_INFO = QT_TRANSLATE_NOOP(
+    "SystemDialogController",
     "This will verify which HTTP links can be upgraded to HTTPS.",
 )
-_SYS_ICON_REFRESH_FAILED = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to start icon refresh"
+_SYS_ICON_REFRESH_FAILED = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Failed to start icon refresh"
 )
-_SYS_BAD_URL_CHECK_FAILED = QT_TRANSLATE_NOOP("SystemDialogController", "Failed to start bad URL check"
+_SYS_BAD_URL_CHECK_FAILED = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Failed to start bad URL check"
 )
 
 
@@ -72,6 +86,7 @@ class SystemDialogController:
         links_business,
         icon_refresh_service_factory=None,
         bad_url_check_service_factory=None,
+        link_health_service_factory=None,
     ):
         self.main_window = main_window
         self.database_controller = database_controller
@@ -79,6 +94,7 @@ class SystemDialogController:
         self.links_business = links_business
         self._icon_refresh_service_factory = icon_refresh_service_factory
         self._bad_url_check_service_factory = bad_url_check_service_factory
+        self._link_health_service_factory = link_health_service_factory
 
         # ✅ FIX: Lazy loading dialogs
         self._about_dialog = None
@@ -86,7 +102,9 @@ class SystemDialogController:
         self._file_search_dialog = None
         self._icon_refresh_service = None  # Сервис обновления иконок
         self._bad_url_check_service = None  # Сервис проверки недоступных URL
-        self._link_health_service = None  # Сервис проверки локальных путей (Health Radar)
+        self._link_health_service = (
+            None  # Сервис проверки локальных путей (Health Radar)
+        )
 
         # Validate required dependencies
         if self.database_controller is None:
@@ -145,36 +163,34 @@ class SystemDialogController:
     def _show_import_result_and_offer_check(self, msg: str, stats: dict):
         """Show import result and offer Bad URL check if HTTP links found."""
         from PyQt6.QtWidgets import QMessageBox
-        
+
         added = stats.get("added", 0)
         http_count = stats.get("http_count", 0)
         https_count = stats.get("https_count", 0)
-        
+
         # Build detailed message
         detailed_msg = msg or ""
         stat_lines = []
         if http_count > 0 or https_count > 0:
             stat_lines.append(_tr_sys(_SYS_PROTOCOL_STATS))
             if https_count > 0:
-                stat_lines.append(
-                    _tr_sys(_SYS_HTTPS_COUNT).format(count=https_count)
-                )
+                stat_lines.append(_tr_sys(_SYS_HTTPS_COUNT).format(count=https_count))
             if http_count > 0:
                 stat_lines.append(_tr_sys(_SYS_HTTP_COUNT).format(count=http_count))
         if stat_lines:
-            detailed_msg = (
-                f"{detailed_msg}\n\n" if detailed_msg else ""
-            ) + "\n".join(stat_lines)
-        
+            detailed_msg = (f"{detailed_msg}\n\n" if detailed_msg else "") + "\n".join(
+                stat_lines
+            )
+
         # If HTTP links found, offer to check URLs
         if http_count > 0 and added > 0:
             question_lines = [
                 _tr_sys(_SYS_HTTPS_QUESTION),
                 _tr_sys(_SYS_HTTPS_QUESTION_INFO),
             ]
-            question_text = (
-                f"{detailed_msg}\n\n" if detailed_msg else ""
-            ) + "\n".join(question_lines)
+            question_text = (f"{detailed_msg}\n\n" if detailed_msg else "") + "\n".join(
+                question_lines
+            )
 
             reply = DialogManager.show_custom(
                 self.main_window,
@@ -184,7 +200,7 @@ class SystemDialogController:
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
-            
+
             if reply == QMessageBox.StandardButton.Yes:
                 # Run Bad URL check
                 logger.info("User requested Bad URL check after import")
@@ -251,7 +267,9 @@ class SystemDialogController:
                     default_section_id = dialogs.get_selected_section_id()
 
         # 2. If nothing selected in tree, try current category
-        if default_section_id is None and hasattr(self.main_window, "get_current_category_id"):
+        if default_section_id is None and hasattr(
+            self.main_window, "get_current_category_id"
+        ):
             try:
                 cat_id = self.main_window.get_current_category_id()
                 if cat_id and sb is not None and hasattr(sb, "categories"):
@@ -297,7 +315,9 @@ class SystemDialogController:
             )
             return False
 
-    def _post_import_processing(self, success: bool, msg: str, stats: dict, run_async_backup) -> None:
+    def _post_import_processing(
+        self, success: bool, msg: str, stats: dict, run_async_backup
+    ) -> None:
         """Finalize import: backup, refresh UI, and show results."""
         if not success:
             DialogManager.show_error(
@@ -349,6 +369,7 @@ class SystemDialogController:
 
         # Ensure UI is fully updated
         from PyQt6.QtWidgets import QApplication
+
         QApplication.processEvents()
 
         # Show result dialog and offer URL check
@@ -386,7 +407,7 @@ class SystemDialogController:
             from app.views.windows.dialogs.icon_refresh_dialog import IconRefreshDialog
 
             service = self._new_icon_refresh_service()
-            
+
             # Создаём диалог прогресса
             start_options = {"batch_size": 100, "delay_ms": 50, "max_workers": 10}
             dialog = IconRefreshDialog(
@@ -396,16 +417,16 @@ class SystemDialogController:
             )
             service.set_dialog(dialog)  # Связываем сервис с диалогом
             dialog.refresh_started.connect(self._on_icon_refresh_started_by_user)
-            
+
             # Подключаем обновление statusbar
             service.progress.connect(self._update_statusbar_icon_progress)
             service.finished.connect(self._on_icon_refresh_finished)
             service.error.connect(self._on_icon_refresh_error)
-            
+
             # Показываем диалог и ждём ручного запуска
             dialog.show()
             logger.info("Icon refresh dialog opened, waiting for user action")
-        
+
         except Exception as e:
             logger.error("Failed to start icon refresh: %s", e, exc_info=True)
             self._set_icon_refresh_busy(False)
@@ -415,7 +436,7 @@ class SystemDialogController:
                 _tr_sys(_SYS_TITLE_ICON_REFRESH),
                 details=str(e),
             )
-    
+
     def _update_statusbar_icon_progress(self, current: int, total: int, message: str):
         """Обновить statusbar с прогрессом обновления иконок."""
         try:
@@ -443,7 +464,7 @@ class SystemDialogController:
                 status_bar._icon_refresh_click_connected = True
         except Exception as e:
             logger.debug("Failed to update statusbar: %s", e)
-    
+
     def _on_bad_url_check_finished(self, dialog) -> None:
         """Обработчик завершения проверки битых URL — обновить таблицу."""
         try:
@@ -471,8 +492,9 @@ class SystemDialogController:
         try:
             # Process events to prevent UI freeze
             from PyQt6.QtWidgets import QApplication
+
             QApplication.processEvents()
-            
+
             # Reload links table to show updated icons
             updated = stats.get("updated", 0)
             if updated > 0:
@@ -481,10 +503,15 @@ class SystemDialogController:
                     try:
                         if hasattr(self.links_table_controller, "reload"):
                             self.links_table_controller.reload(category_id)
-                            logger.info("Links table reloaded after icon refresh (%s updated)", updated)
+                            logger.info(
+                                "Links table reloaded after icon refresh (%s updated)",
+                                updated,
+                            )
                     except Exception as e:
-                        logger.debug("Failed to reload links table after icon refresh: %s", e)
-            
+                        logger.debug(
+                            "Failed to reload links table after icon refresh: %s", e
+                        )
+
             # Update statusbar
             status_bar_getter = getattr(self.main_window, "statusBar", None)
             status_bar = status_bar_getter() if callable(status_bar_getter) else None
@@ -496,19 +523,20 @@ class SystemDialogController:
                     5000,
                 )
                 status_bar._icon_refresh_click_connected = False  # type: ignore[attr-defined]
-            
+
             self._icon_refresh_service = None
             self._set_icon_refresh_busy(False)
         except Exception as e:
             logger.debug("Failed to handle icon refresh finished: %s", e)
-    
+
     def _on_icon_refresh_error(self, error_message: str):
         """Обработчик ошибки обновления иконок."""
         try:
             # Process events to prevent UI freeze
             from PyQt6.QtWidgets import QApplication
+
             QApplication.processEvents()
-            
+
             status_bar_getter = getattr(self.main_window, "statusBar", None)
             status_bar = status_bar_getter() if callable(status_bar_getter) else None
             if status_bar is not None:
@@ -523,12 +551,12 @@ class SystemDialogController:
             self._set_icon_refresh_busy(False)
         except Exception as e:
             logger.debug("Failed to handle icon refresh error: %s", e)
-    
+
     def show_icon_refresh_dialog(self):
         """Показать диалог обновления иконок если он скрыт в фоне."""
         if self._icon_refresh_service:
             self._icon_refresh_service.show_dialog()
-    
+
     def _on_statusbar_clicked(self, event):
         """Обработчик клика по statusbar для показа скрытых диалогов."""
         # Bad URL check in background
@@ -544,10 +572,11 @@ class SystemDialogController:
         # Default: pass through
         try:
             from PyQt6.QtWidgets import QStatusBar
+
             QStatusBar.mousePressEvent(self.main_window.statusBar(), event)
         except Exception:
             pass
-    
+
     def show_file_search_dialog(self):
         """Show File Search dialog."""
         if self._file_search_dialog is None:
@@ -577,7 +606,7 @@ class SystemDialogController:
                 link={"type": "file", "url": file_paths[0]},
                 category_id=getattr(self.main_window, "current_category_id", None),
             )
-    
+
     def handle_check_bad_urls(self):
         """Запустить проверку недоступных URL."""
         try:
@@ -585,7 +614,7 @@ class SystemDialogController:
             from app.views.windows.dialogs.bad_url_cleanup_dialog import (
                 BadUrlCleanupDialog,
             )
-            
+
             # Auto-save before bad URL check
             try:
                 db = self.main_window.structure_business.db
@@ -617,19 +646,22 @@ class SystemDialogController:
             # Ensure statusbar click handler is connected for background restore
             try:
                 status_bar = self.main_window.statusBar()
-                if status_bar and not getattr(status_bar, "_icon_refresh_click_connected", False):
+                if status_bar and not getattr(
+                    status_bar, "_icon_refresh_click_connected", False
+                ):
                     status_bar.mousePressEvent = self._on_statusbar_clicked
                     status_bar._icon_refresh_click_connected = True
             except Exception:
                 pass
-            
+
             # Показываем диалог сразу (до запуска проверки)
             dialog.show()
-            
+
             # Даём диалогу отрисоваться
             from PyQt6.QtWidgets import QApplication
+
             QApplication.processEvents()
-            
+
             # Подключаем finished для обновления таблицы после проверки
             service.finished.connect(
                 lambda _bad_urls: self._on_bad_url_check_finished(dialog)
@@ -639,7 +671,7 @@ class SystemDialogController:
             if not service.start_check(max_workers=15, timeout=5, check_ssl=True):
                 logger.warning("Failed to start bad URL check")
                 dialog.close()
-        
+
         except Exception as e:
             logger.error("Failed to start bad URL check: %s", e, exc_info=True)
             DialogManager.show_error(
@@ -685,8 +717,27 @@ class SystemDialogController:
 
         return BadUrlCheckService(db, parent=self.main_window)
 
+    def _create_link_health_service(self, db):
+        """Create link health check service via injectable factory (for tests/wiring)."""
+        if self._link_health_service_factory is not None:
+            return self._link_health_service_factory(db, self.main_window)
+        from app.controllers.services.link_health_service import LinkHealthService
+
+        shutdown_ctrl = getattr(self.main_window, "app_shutdown", None)
+        return LinkHealthService(
+            db,
+            parent=self.main_window,
+            shutdown_controller=shutdown_ctrl,
+        )
+
+    def _new_link_health_service(self, db=None):
+        current_db = db if db is not None else self._get_structure_db()
+        service = self._create_link_health_service(current_db)
+        self._link_health_service = service
+        return service
+
     def handle_check_local_paths(self):
-        """Launch the Local Path Health Radar dialog."""
+        """Launch the Check Local Paths dialog."""
         try:
             if (
                 self._link_health_service is not None
@@ -694,17 +745,10 @@ class SystemDialogController:
             ):
                 return
 
-            from app.controllers.services.link_health_service import LinkHealthService
             from app.views.windows.dialogs.health_radar_dialog import HealthRadarDialog
 
             db = self._get_structure_db()
-            shutdown_ctrl = getattr(self.main_window, "app_shutdown", None)
-            service = LinkHealthService(
-                db,
-                parent=self.main_window,
-                shutdown_controller=shutdown_ctrl,
-            )
-            self._link_health_service = service
+            service = self._new_link_health_service(db)
 
             dialog = HealthRadarDialog(service, db, parent=self.main_window)
             service.set_dialog(dialog)

@@ -438,6 +438,7 @@ class MainMenuBuilder:
             self._create_action(
                 MenuTexts.CHECK_LOCAL_PATHS,
                 self._check_local_paths,
+                Shortcuts.CTRL_ALT_L,
                 icon_name="folder_check",
             )
         )

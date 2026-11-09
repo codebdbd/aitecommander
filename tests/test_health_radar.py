@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QUndoStack
 from PyQt6.QtWidgets import QApplication
 
@@ -18,6 +19,7 @@ from app.models.workers.link_health_worker import (
     propagate_folder_relink,
 )
 from app.services.links_service import LinksService
+from app.utils.db.executors.pool import get_thread_pool
 from app.views.windows.dialogs.health_radar_dialog import HealthRadarDialog
 
 _QAPP: QApplication | None = None
@@ -54,7 +56,9 @@ def _seed_test_hierarchy(db: Database) -> int:
     return category_id
 
 
-def test_link_health_worker_detects_and_auto_discovers_moved_paths(tmp_path: Path) -> None:
+def test_link_health_worker_detects_and_auto_discovers_moved_paths(
+    tmp_path: Path,
+) -> None:
     """Worker should skip healthy paths, auto-discover moved files/versioned folders, and detect duplicates."""
     db_file = tmp_path / "health_test.db"
     db = _open_test_db(db_file)
@@ -176,8 +180,7 @@ def test_link_health_worker_detects_and_auto_discovers_moved_paths(tmp_path: Pat
 
         # Duplicate target in same category should be STATUS_DUPLICATE_EXISTS
         assert (
-            issues[dup_broken_id]["status"]
-            == LinkHealthWorker.STATUS_DUPLICATE_EXISTS
+            issues[dup_broken_id]["status"] == LinkHealthWorker.STATUS_DUPLICATE_EXISTS
         )
         assert Path(issues[dup_broken_id]["suggested_url"]) == dup_target
     finally:
@@ -440,8 +443,9 @@ def test_health_radar_dialog_workflow(tmp_path: Path) -> None:
         DatabaseManager.close_all()
 
 
-
-def test_system_dialog_controller_launches_health_radar_end_to_end(tmp_path: Path) -> None:
+def test_system_dialog_controller_launches_health_radar_end_to_end(
+    tmp_path: Path,
+) -> None:
     """SystemDialogController.handle_check_local_paths must register with real AppShutdownController and run WorkerManager without errors."""
     import time
 
@@ -514,13 +518,205 @@ def test_system_dialog_controller_launches_health_radar_end_to_end(tmp_path: Pat
         finally:
             DialogManager.ask_confirmation = orig_ask  # type: ignore[method-assign]
 
-        # Wait for async DB deletion task on QThreadPool before closing DB
+        # Wait for async DB deletion task on DB thread pool before closing DB
+        get_thread_pool().waitForDone(3000)
         QThreadPool.globalInstance().waitForDone(3000)
         QApplication.processEvents()
 
         assert dlg.table_widget.rowCount() == 0
         dlg.close()
     finally:
+        get_thread_pool().waitForDone(3000)
         QThreadPool.globalInstance().waitForDone(3000)
         win.close()
+        DatabaseManager.close_all()
+
+
+def test_health_radar_compact_mode_and_transitions(tmp_path: Path) -> None:
+    """Dialog must start compact (500x140), stay compact on 0 issues, and expand on issues."""
+
+    db_file = tmp_path / "compact_test.db"
+    db = _open_test_db(db_file)
+    try:
+        service = LinkHealthService(db)
+        dlg = HealthRadarDialog(service, db)
+        dlg.show()
+
+        # 1. Start state: compact mode (fixed 500x140)
+        assert dlg.width() == 500
+        assert dlg.height() == 140
+        assert dlg.maximumWidth() == 500
+        assert dlg.maximumHeight() == 140
+        assert not dlg.progress_bar.isHidden()
+        assert not dlg.status_label.isHidden()
+        assert dlg.filter_container.isHidden()
+        assert dlg.table_widget.isHidden()
+        assert dlg.close_button.isHidden()
+        assert not dlg.cancel_button.isHidden()
+
+        # 2. Finish with 0 issues: stays compact, table hidden, close button visible
+        dlg._on_finished([])
+        assert dlg._is_finished is True
+        assert dlg.progress_bar.isHidden()
+        assert not dlg.status_label.isHidden()
+        assert dlg.filter_container.isHidden()
+        assert dlg.table_widget.isHidden()
+        assert dlg.table_widget.rowCount() == 0
+        assert not dlg.close_button.isHidden()
+        assert dlg.cancel_button.isHidden()
+
+        # 3. Finish with issues: expands to 960x540, table and filters visible
+        issues = [
+            {
+                "id": 101,
+                "category_id": 1,
+                "name": "Broken Item",
+                "url": "C:\\missing\\file.txt",
+                "suggested_url": "",
+                "status": LinkHealthWorker.STATUS_NOT_FOUND,
+                "type": "file",
+                "args": "",
+                "category_path": "Sphere1 / Sec1 / Cat1",
+                "hierarchy": {
+                    "sphere_name": "Sphere1",
+                    "sphere_icon_path": "",
+                    "section_name": "Sec1",
+                    "section_icon_path": "",
+                    "category_name": "Cat1",
+                    "category_icon_path": "",
+                },
+                "link_data": {
+                    "id": 101,
+                    "name": "Broken Item",
+                    "url": "C:\\missing\\file.txt",
+                },
+            }
+        ]
+        dlg._on_finished(issues)
+        assert dlg.width() >= 960
+        assert dlg.height() >= 540
+        assert dlg.progress_bar.isHidden()
+        assert dlg.status_label.isHidden()
+        assert not dlg.filter_container.isHidden()
+        assert not dlg.table_widget.isHidden()
+        assert dlg.table_widget.rowCount() == 1
+        assert not dlg.selection_info_label.isHidden()
+        dlg.close()
+    finally:
+        DatabaseManager.close_all()
+
+
+def test_health_radar_cascade_filters_and_tristate(tmp_path: Path) -> None:
+    """Dialog must support cascade filters (Sphere -> Section -> Category) and tristate header checkbox."""
+
+    db_file = tmp_path / "filter_test.db"
+    db = _open_test_db(db_file)
+    try:
+        service = LinkHealthService(db)
+        dlg = HealthRadarDialog(service, db)
+        dlg.show()
+
+        issues = [
+            {
+                "id": 1,
+                "category_id": 10,
+                "name": "Doc Alpha",
+                "url": "C:\\docs\\alpha.docx",
+                "suggested_url": "C:\\found\\alpha.docx",
+                "status": LinkHealthWorker.STATUS_FIX_FOUND,
+                "type": "file",
+                "args": "",
+                "category_path": "Office / Work / Docs",
+                "hierarchy": {
+                    "sphere_name": "Office",
+                    "sphere_icon_path": "",
+                    "section_name": "Work",
+                    "section_icon_path": "",
+                    "category_name": "Docs",
+                    "category_icon_path": "",
+                },
+                "link_data": {
+                    "id": 1,
+                    "name": "Doc Alpha",
+                    "url": "C:\\docs\\alpha.docx",
+                },
+            },
+            {
+                "id": 2,
+                "category_id": 20,
+                "name": "Game Beta",
+                "url": "D:\\games\\beta.exe",
+                "suggested_url": "",
+                "status": LinkHealthWorker.STATUS_NOT_FOUND,
+                "type": "program",
+                "args": "",
+                "category_path": "Fun / Gaming / Steam",
+                "hierarchy": {
+                    "sphere_name": "Fun",
+                    "sphere_icon_path": "",
+                    "section_name": "Gaming",
+                    "section_icon_path": "",
+                    "category_name": "Steam",
+                    "category_icon_path": "",
+                },
+                "link_data": {
+                    "id": 2,
+                    "name": "Game Beta",
+                    "url": "D:\\games\\beta.exe",
+                },
+            },
+        ]
+        dlg._on_finished(issues)
+        assert dlg.table_widget.rowCount() == 2
+
+        # Filter combos populated
+        assert dlg.sphere_filter_combo.count() == 3  # All, Fun, Office
+        sphere_texts = [
+            dlg.sphere_filter_combo.itemText(i)
+            for i in range(dlg.sphere_filter_combo.count())
+        ]
+        assert "Office" in sphere_texts
+        assert "Fun" in sphere_texts
+
+        # Filter by Office -> only row 0 visible
+        idx_office = dlg.sphere_filter_combo.findData("Office")
+        dlg.sphere_filter_combo.setCurrentIndex(idx_office)
+        assert not dlg.table_widget.isRowHidden(0)
+        assert dlg.table_widget.isRowHidden(1)
+
+        # Reset filter
+        dlg.sphere_filter_combo.setCurrentIndex(0)
+        assert not dlg.table_widget.isRowHidden(0)
+        assert not dlg.table_widget.isRowHidden(1)
+
+        # Test Tristate Header Checkbox
+        # Initially row 0 has fix (Checked), row 1 not_found (Unchecked) -> PartiallyChecked
+        assert dlg.header_checkbox.checkState() == Qt.CheckState.PartiallyChecked
+
+        # Toggle header checkbox -> selects all
+        dlg._on_header_checkbox_clicked()
+        assert dlg.header_checkbox.checkState() == Qt.CheckState.Checked
+        assert (
+            dlg.table_widget.item(0, dlg.COL_CHECK).checkState()
+            == Qt.CheckState.Checked
+        )
+        assert (
+            dlg.table_widget.item(1, dlg.COL_CHECK).checkState()
+            == Qt.CheckState.Checked
+        )
+
+        # Toggle header checkbox -> deselects all
+        dlg._on_header_checkbox_clicked()
+        assert dlg.header_checkbox.checkState() == Qt.CheckState.Unchecked
+        assert (
+            dlg.table_widget.item(0, dlg.COL_CHECK).checkState()
+            == Qt.CheckState.Unchecked
+        )
+        assert (
+            dlg.table_widget.item(1, dlg.COL_CHECK).checkState()
+            == Qt.CheckState.Unchecked
+        )
+
+        dlg.close()
+    finally:
         DatabaseManager.close_all()

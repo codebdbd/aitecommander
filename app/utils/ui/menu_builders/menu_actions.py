@@ -73,6 +73,7 @@ class Shortcuts:
     CTRL_ALT_E = "global.export_icons"
     CTRL_ALT_H = "global.refresh_icons"
     CTRL_ALT_U = "global.check_bad_urls"
+    CTRL_ALT_L = "global.check_local_paths"
     CTRL_ALT_B = "global.restore_db"
     CTRL_ALT_F = "global.clear_favorites"
     CTRL_C = "edit.copy"

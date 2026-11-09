@@ -1,4 +1,5 @@
 """Toolbar adapters for top-bar actions with overflow support."""
+
 from __future__ import annotations
 
 import logging
@@ -75,8 +76,6 @@ def _icon_from_path(
         return QIcon()
 
 
-
-
 def _setup_topbar_button_contrast(
     btn: QToolButton,
     normal_icon: QIcon,
@@ -110,7 +109,9 @@ def _resolve_icon_for_link_fast(link_data: dict[str, Any] | None) -> str:
     return resolve_link_type_icon(link_type)
 
 
-def _button_sizes(button_size: int | tuple[int, int], icon_size: tuple[int, int]) -> tuple[QSize, QSize]:
+def _button_sizes(
+    button_size: int | tuple[int, int], icon_size: tuple[int, int]
+) -> tuple[QSize, QSize]:
     if isinstance(button_size, (list, tuple)) and len(button_size) >= 2:
         bw, bh = int(button_size[0]), int(button_size[1])
     else:
@@ -149,7 +150,9 @@ def _format_link_rich_tooltip(link_data: dict[str, Any]) -> str:
     """Format rich HTML tooltip for a link button/action with target, category, and timestamp."""
     name = link_data.get("name") or "Unknown"
     tooltip_parts = [f"<b>{name}</b>"]
-    target_path = link_data.get("path") or link_data.get("url") or link_data.get("target")
+    target_path = (
+        link_data.get("path") or link_data.get("url") or link_data.get("target")
+    )
     if target_path:
         tooltip_parts.append(f"📍 {target_path}")
     category_name = link_data.get("category_name") or link_data.get("category")
@@ -199,7 +202,9 @@ class ToolbarSeparatorController:
 
         add_block = structure_add + quick
         if self._sep_add_tools is not None:
-            self._sep_add_tools.setVisible(add_block > 0 and (tools > 0 or recent > 0 or fav > 0))
+            self._sep_add_tools.setVisible(
+                add_block > 0 and (tools > 0 or recent > 0 or fav > 0)
+            )
         if self._sep_tools_recent is not None:
             self._sep_tools_recent.setVisible(tools > 0 and (recent > 0 or fav > 0))
         if self._sep_recent_fav is not None:
@@ -457,7 +462,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
                 self._toggle_action.setIcon(toggle_icon)
                 btn = self._toolbar.widgetForAction(self._toggle_action)
                 if isinstance(btn, QToolButton):
-                    _setup_topbar_button_contrast(btn, toggle_icon, "left_panel_close.svg")
+                    _setup_topbar_button_contrast(
+                        btn, toggle_icon, "left_panel_close.svg"
+                    )
 
             back_icon = get_menu_icon("skip_previous", theme)
             if back_icon and not back_icon.isNull():
@@ -498,7 +505,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         # Toggle sidebar
         toggle_icon = get_menu_icon("left_panel_close", theme)
         if not toggle_icon or toggle_icon.isNull():
-            toggle_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "left_panel_close.svg")
+            toggle_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "left_panel_close.svg"
+            )
         toggle_text = QCoreApplication.translate("MenuActions", "Toggle sidebar")
         toggle_action = QAction(toggle_icon, toggle_text, self._toolbar)
         toggle_action.setToolTip(toggle_text)
@@ -508,12 +517,16 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         toggle_btn = self._toolbar.widgetForAction(toggle_action)
         if isinstance(toggle_btn, QToolButton):
             toggle_btn.setObjectName("topBarToggleLeftPanelButton")
-            _setup_topbar_button_contrast(toggle_btn, toggle_icon, "left_panel_close.svg")
+            _setup_topbar_button_contrast(
+                toggle_btn, toggle_icon, "left_panel_close.svg"
+            )
 
         # Navigate back
         back_icon = get_menu_icon("skip_previous", theme)
         if not back_icon or back_icon.isNull():
-            back_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "skip_previous.svg")
+            back_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "skip_previous.svg"
+            )
         back_text = QCoreApplication.translate("MenuActions", "Back")
         back_action = QAction(back_icon, back_text, self._toolbar)
         back_action.setToolTip(f"{back_text} (Alt+Left)")
@@ -535,7 +548,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         # Navigate forward
         fwd_icon = get_menu_icon("skip_next", theme)
         if not fwd_icon or fwd_icon.isNull():
-            fwd_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "skip_next.svg")
+            fwd_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "skip_next.svg"
+            )
         fwd_text = QCoreApplication.translate("MenuActions", "Forward")
         fwd_action = QAction(fwd_icon, fwd_text, self._toolbar)
         fwd_action.setToolTip(f"{fwd_text} (Alt+Right)")
@@ -559,7 +574,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         # Add section
         sec_icon = get_menu_icon("add_section", theme)
         if not sec_icon or sec_icon.isNull():
-            sec_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "add_section.svg")
+            sec_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "add_section.svg"
+            )
         sec_text = QCoreApplication.translate("MenuActions", "Add section")
         sec_action = QAction(sec_icon, sec_text, self._toolbar)
         sec_action.setToolTip(sec_text)
@@ -574,7 +591,9 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         # Add category
         cat_icon = get_menu_icon("add_category", theme)
         if not cat_icon or cat_icon.isNull():
-            cat_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "add_category.svg")
+            cat_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "add_category.svg"
+            )
         cat_text = QCoreApplication.translate("MenuActions", "Add category")
         cat_action = QAction(cat_icon, cat_text, self._toolbar)
         cat_action.setToolTip(cat_text)
@@ -592,10 +611,15 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
             self._separator_controller.set_group_count("structure", button_count)
             add_actions = [
                 a
-                for a in (getattr(self, "_sec_action", None), getattr(self, "_cat_action", None))
+                for a in (
+                    getattr(self, "_sec_action", None),
+                    getattr(self, "_cat_action", None),
+                )
                 if a is not None
             ]
-            self._separator_controller.set_group_count("structure_add", len(add_actions))
+            self._separator_controller.set_group_count(
+                "structure_add", len(add_actions)
+            )
 
     def update_navigation_state(self, can_back: bool, can_forward: bool) -> None:
         back_base = QCoreApplication.translate("MenuActions", "Back")
@@ -603,12 +627,18 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
         empty_msg = QCoreApplication.translate("MenuActions", "history empty")
 
         if hasattr(self, "_back_action") and self._back_action is not None:
-            tip = f"{back_base} (Alt+Left)" if can_back else f"{back_base} ({empty_msg})"
+            tip = (
+                f"{back_base} (Alt+Left)" if can_back else f"{back_base} ({empty_msg})"
+            )
             self._back_action.setToolTip(tip)
             btn = self._toolbar.widgetForAction(self._back_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_back else "false"
-                btn.setCursor(Qt.CursorShape.PointingHandCursor if can_back else Qt.CursorShape.ArrowCursor)
+                btn.setCursor(
+                    Qt.CursorShape.PointingHandCursor
+                    if can_back
+                    else Qt.CursorShape.ArrowCursor
+                )
                 if btn.property("nav_available") != val:
                     btn.setProperty("nav_available", val)
                     style = btn.style()
@@ -623,12 +653,20 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
                         dimmer._effect.setOpacity(1.0)
 
         if hasattr(self, "_forward_action") and self._forward_action is not None:
-            tip = f"{fwd_base} (Alt+Right)" if can_forward else f"{fwd_base} ({empty_msg})"
+            tip = (
+                f"{fwd_base} (Alt+Right)"
+                if can_forward
+                else f"{fwd_base} ({empty_msg})"
+            )
             self._forward_action.setToolTip(tip)
             btn = self._toolbar.widgetForAction(self._forward_action)
             if isinstance(btn, QToolButton):
                 val = "true" if can_forward else "false"
-                btn.setCursor(Qt.CursorShape.PointingHandCursor if can_forward else Qt.CursorShape.ArrowCursor)
+                btn.setCursor(
+                    Qt.CursorShape.PointingHandCursor
+                    if can_forward
+                    else Qt.CursorShape.ArrowCursor
+                )
                 if btn.property("nav_available") != val:
                     btn.setProperty("nav_available", val)
                     style = btn.style()
@@ -643,33 +681,51 @@ class StructureActionsToolbarAdapter(ToolbarActionAdapter):
                         dimmer._effect.setOpacity(1.0)
 
     def _on_add_section(self) -> None:
-        if self._category_provider and hasattr(self._category_provider, "show_section_dialog"):
+        if self._category_provider and hasattr(
+            self._category_provider, "show_section_dialog"
+        ):
             self._category_provider.show_section_dialog()
 
     def _on_add_category(self) -> None:
-        if self._category_provider and hasattr(self._category_provider, "add_new_category"):
+        if self._category_provider and hasattr(
+            self._category_provider, "add_new_category"
+        ):
             self._category_provider.add_new_category()
 
     def _on_toggle_left_panel(self) -> None:
-        if self._category_provider and hasattr(self._category_provider, "toggle_left_panel"):
+        if self._category_provider and hasattr(
+            self._category_provider, "toggle_left_panel"
+        ):
             self._category_provider.toggle_left_panel()
 
     def _on_navigate_back(self) -> None:
         if QApplication.activeModalWidget() is not None:
             return
-        btn = self._toolbar.widgetForAction(self._back_action) if hasattr(self, "_back_action") else None
+        btn = (
+            self._toolbar.widgetForAction(self._back_action)
+            if hasattr(self, "_back_action")
+            else None
+        )
         if btn is not None and btn.property("nav_available") == "false":
             return
-        if self._category_provider and hasattr(self._category_provider, "navigate_back"):
+        if self._category_provider and hasattr(
+            self._category_provider, "navigate_back"
+        ):
             self._category_provider.navigate_back()
 
     def _on_navigate_forward(self) -> None:
         if QApplication.activeModalWidget() is not None:
             return
-        btn = self._toolbar.widgetForAction(self._forward_action) if hasattr(self, "_forward_action") else None
+        btn = (
+            self._toolbar.widgetForAction(self._forward_action)
+            if hasattr(self, "_forward_action")
+            else None
+        )
         if btn is not None and btn.property("nav_available") == "false":
             return
-        if self._category_provider and hasattr(self._category_provider, "navigate_forward"):
+        if self._category_provider and hasattr(
+            self._category_provider, "navigate_forward"
+        ):
             self._category_provider.navigate_forward()
 
 
@@ -699,7 +755,11 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         self._build_actions()
 
     def refresh_actions(self) -> None:
-        if hasattr(self, "_main_action") and self._actions and self._main_action is not None:
+        if (
+            hasattr(self, "_main_action")
+            and self._actions
+            and self._main_action is not None
+        ):
             theme = _resolve_theme(self._category_provider)
             from app.utils.ui.menu_builders.base import get_menu_icon
 
@@ -728,11 +788,37 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
         menu.setObjectName("topBarToolsMenu")
 
         tools_items = [
-            ("search", "search.svg", QCoreApplication.translate("MenuActions", "Search files"), self._on_file_search),
-            ("bookmark_import", "bookmark_import.svg", QCoreApplication.translate("MenuActions", "Import Bookmarks"), self._on_import_bookmarks),
+            (
+                "search",
+                "search.svg",
+                QCoreApplication.translate("MenuActions", "Search files"),
+                self._on_file_search,
+            ),
+            (
+                "bookmark_import",
+                "bookmark_import.svg",
+                QCoreApplication.translate("MenuActions", "Import Bookmarks"),
+                self._on_import_bookmarks,
+            ),
             (None, None, None, None),
-            ("link_off", "link_off.svg", QCoreApplication.translate("MenuActions", "Check Links"), self._on_check_bad_urls),
-            ("refresh", "refresh.svg", QCoreApplication.translate("MainMenu", "Refresh Icons"), self._on_refresh_icons),
+            (
+                "link_off",
+                "link_off.svg",
+                QCoreApplication.translate("MenuActions", "Check Links"),
+                self._on_check_bad_urls,
+            ),
+            (
+                "folder_check",
+                "folder_check.svg",
+                QCoreApplication.translate("MenuActions", "Check Local Paths"),
+                self._on_check_local_paths,
+            ),
+            (
+                "refresh",
+                "refresh.svg",
+                QCoreApplication.translate("MainMenu", "Refresh Icons"),
+                self._on_refresh_icons,
+            ),
         ]
 
         for icon_name, svg_file, text, handler in tools_items:
@@ -741,7 +827,9 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
                 continue
             item_icon = get_menu_icon(icon_name, theme)
             if not item_icon or item_icon.isNull():
-                item_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / svg_file)
+                item_icon = _icon_from_path(
+                    icon_path_service.get_ui_icons_dir() / "base" / svg_file
+                )
             sub_action = QAction(item_icon, text, menu)
             sub_action.setToolTip(text)
             sub_action.triggered.connect(handler)
@@ -756,7 +844,9 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
 
         tools_icon = get_menu_icon("construction", theme)
         if not tools_icon or tools_icon.isNull():
-            tools_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "construction.svg")
+            tools_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "construction.svg"
+            )
 
         menu = self._create_tools_menu(theme)
 
@@ -779,11 +869,15 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
             self._separator_controller.set_group_count("tools", len(self._actions))
 
     def _on_file_search(self) -> None:
-        if self._category_provider and hasattr(self._category_provider, "show_file_search_dialog"):
+        if self._category_provider and hasattr(
+            self._category_provider, "show_file_search_dialog"
+        ):
             self._category_provider.show_file_search_dialog()
 
     def _on_import_bookmarks(self) -> None:
-        if self._category_provider and hasattr(self._category_provider, "handle_import_browser_bookmarks"):
+        if self._category_provider and hasattr(
+            self._category_provider, "handle_import_browser_bookmarks"
+        ):
             self._category_provider.handle_import_browser_bookmarks()
 
     def _on_check_bad_urls(self) -> None:
@@ -795,6 +889,16 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
                 km = getattr(self._category_provider, "keyboard_manager", None)
                 if km and hasattr(km, "handle_check_bad_urls"):
                     km.handle_check_bad_urls()
+
+    def _on_check_local_paths(self) -> None:
+        if self._category_provider:
+            sd = getattr(self._category_provider, "system_dialogs", None)
+            if sd and hasattr(sd, "handle_check_local_paths"):
+                sd.handle_check_local_paths()
+            elif hasattr(self._category_provider, "keyboard_manager"):
+                km = getattr(self._category_provider, "keyboard_manager", None)
+                if km and hasattr(km, "handle_check_local_paths"):
+                    km.handle_check_local_paths()
 
     def _on_refresh_icons(self) -> None:
         if self._category_provider:
@@ -839,7 +943,9 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
 
             add_icon = get_menu_icon("add_link", theme)
             if not add_icon or add_icon.isNull():
-                add_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
+                add_icon_path = (
+                    icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
+                )
                 add_icon = _icon_from_path(add_icon_path, link_type="file")
             if add_icon and not add_icon.isNull():
                 self._main_action.setIcon(add_icon)
@@ -885,7 +991,9 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
 
         add_icon = get_menu_icon("add_link", theme)
         if not add_icon or add_icon.isNull():
-            add_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
+            add_icon_path = (
+                icon_path_service.get_ui_icons_dir() / "base" / "add_link.svg"
+            )
             add_icon = _icon_from_path(add_icon_path, link_type="file")
 
         menu = TopBarMenu(self._toolbar)
@@ -934,12 +1042,18 @@ class QuickAddToolbarAdapter(ToolbarActionAdapter):
         provider = self._category_provider
         if provider is None:
             return None
-        target = provider if hasattr(provider, "get_current_category_id") else getattr(provider, "facade", None)
+        target = (
+            provider
+            if hasattr(provider, "get_current_category_id")
+            else getattr(provider, "facade", None)
+        )
         if target is not None and hasattr(target, "get_current_category_id"):
             try:
                 return target.get_current_category_id()
             except (RuntimeError, AttributeError, TypeError, ValueError):
-                logger.debug("QuickAddToolbar: failed to get current category", exc_info=True)
+                logger.debug(
+                    "QuickAddToolbar: failed to get current category", exc_info=True
+                )
         return None
 
 
@@ -1004,14 +1118,18 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             action = QAction(icon, name, self._toolbar)
             action.setToolTip(_format_link_rich_tooltip(link_data))
             action.setData(link_data)
-            action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
+            action.triggered.connect(
+                lambda checked=False, data=link_data: self._on_link(data)
+            )
             self._link_actions.append(action)
             self._add_action(action)
             btn = self._toolbar.widgetForAction(action)
             if isinstance(btn, QToolButton):
                 btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 btn.customContextMenuRequested.connect(
-                    lambda pos, b=btn, data=link_data: self._show_context_menu(b.mapToGlobal(pos), data)
+                    lambda pos, b=btn, data=link_data: self._show_context_menu(
+                        b.mapToGlobal(pos), data
+                    )
                 )
 
         if self._group_name == "fav" and self._is_folded:
@@ -1021,7 +1139,9 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         self._mark_last_button()
         self._update_global_last_button()
         if self._separator_controller is not None:
-            count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            count = (
+                1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            )
             self._separator_controller.set_group_count(self._group_name, count)
 
     def _show_context_menu(self, global_pos: QPoint, link_data: dict[str, Any]) -> None:
@@ -1031,7 +1151,9 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
         edit_icon = get_menu_icon("edit", theme)
         if not edit_icon or edit_icon.isNull():
-            edit_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "edit.svg")
+            edit_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "edit.svg"
+            )
         edit_text = QCoreApplication.translate("MenuActions", "Edit")
         edit_action = QAction(edit_icon, edit_text, menu)
         edit_action.triggered.connect(
@@ -1043,7 +1165,9 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
         del_icon = get_menu_icon("delete_favorites", theme)
         if not del_icon or del_icon.isNull():
-            del_icon = _icon_from_path(icon_path_service.get_ui_icons_dir() / "base" / "delete_favorites.svg")
+            del_icon = _icon_from_path(
+                icon_path_service.get_ui_icons_dir() / "base" / "delete_favorites.svg"
+            )
         del_text = QCoreApplication.translate("MenuActions", "Remove from favorites")
         del_action = QAction(del_icon, del_text, menu)
         del_action.triggered.connect(
@@ -1057,6 +1181,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
     def _setup_more_action(self, *, fast_icons: bool = False) -> None:
         from app.utils.ui.menu_builders.base import get_menu_icon
+
         theme = _resolve_theme()
         icon = get_menu_icon("more", theme)
         if not icon or icon.isNull():
@@ -1068,11 +1193,21 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
         for link_data in self._last_items:
             name = link_data.get("name") or "Unknown"
             link_type = ((link_data.get("type") or "file").strip() or "file").lower()
-            icon_p = _resolve_icon_for_link_fast(link_data) if fast_icons else resolve_icon_for_link(link_data)
-            item_icon = _icon_from_path(Path(icon_p), link_type=link_type) if icon_p else _icon_from_path(Path(""), link_type=link_type)
+            icon_p = (
+                _resolve_icon_for_link_fast(link_data)
+                if fast_icons
+                else resolve_icon_for_link(link_data)
+            )
+            item_icon = (
+                _icon_from_path(Path(icon_p), link_type=link_type)
+                if icon_p
+                else _icon_from_path(Path(""), link_type=link_type)
+            )
             act = QAction(item_icon, name, menu)
             act.setData(link_data)
-            act.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
+            act.triggered.connect(
+                lambda checked=False, data=link_data: self._on_link(data)
+            )
             menu.addAction(act)
 
         if self._more_action is None:
@@ -1106,7 +1241,9 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
             self._setup_more_action()
         self._apply_fold_visibility()
         if self._separator_controller is not None:
-            count = 1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            count = (
+                1 if (self._is_folded and self._last_items) else len(self._link_actions)
+            )
             self._separator_controller.set_group_count(self._group_name, count)
 
     def is_folded(self) -> bool:
@@ -1133,6 +1270,7 @@ class LinksToolbarAdapter(ToolbarActionAdapter):
 
         if self._more_action is not None:
             from app.utils.ui.menu_builders.base import get_menu_icon
+
             theme = _resolve_theme()
             icon = get_menu_icon("more", theme)
             if not icon or icon.isNull():
@@ -1203,7 +1341,9 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
 
             history_icon = get_menu_icon("history", theme)
             if not history_icon or history_icon.isNull():
-                history_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
+                history_icon_path = (
+                    icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
+                )
                 history_icon = _icon_from_path(history_icon_path, link_type="file")
             if history_icon and not history_icon.isNull():
                 self._main_action.setIcon(history_icon)
@@ -1238,7 +1378,9 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
 
         history_icon = get_menu_icon("history", theme)
         if not history_icon or history_icon.isNull():
-            history_icon_path = icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
+            history_icon_path = (
+                icon_path_service.get_ui_icons_dir() / "base" / "history.svg"
+            )
             history_icon = _icon_from_path(history_icon_path, link_type="file")
 
         menu = TopBarMenu(self._toolbar)
@@ -1251,7 +1393,9 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
         else:
             for link_data in self._last_items:
                 name = link_data.get("name") or "Unknown"
-                link_type = ((link_data.get("type") or "file").strip() or "file").lower()
+                link_type = (
+                    (link_data.get("type") or "file").strip() or "file"
+                ).lower()
                 if fast_icons:
                     icon_path = _resolve_icon_for_link_fast(link_data)
                 else:
@@ -1264,7 +1408,9 @@ class RecentHistoryToolbarAdapter(ToolbarActionAdapter):
                 action = QAction(icon, name, menu)
                 action.setToolTip(_format_link_rich_tooltip(link_data))
                 action.setData(link_data)
-                action.triggered.connect(lambda checked=False, data=link_data: self._on_link(data))
+                action.triggered.connect(
+                    lambda checked=False, data=link_data: self._on_link(data)
+                )
                 menu.addAction(action)
 
         if has_main and self._main_action is not None:

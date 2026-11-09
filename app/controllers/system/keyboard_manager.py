@@ -482,6 +482,12 @@ class GlobalKeyHandler(BaseKeyHandler):
         if dialogs:
             self._safe_call(dialogs, "handle_check_bad_urls")
 
+    def handle_check_local_paths(self) -> None:
+        logger.debug("KeyboardManager: Ctrl+Alt+L pressed")
+        dialogs = self._safe_getattr(self.main_window, "system_dialogs")
+        if dialogs:
+            self._safe_call(dialogs, "handle_check_local_paths")
+
     def handle_restore_database(self) -> None:
         logger.debug("KeyboardManager: Ctrl+Alt+B pressed")
         db = self._safe_getattr(self.main_window, "database_controller")
@@ -599,6 +605,7 @@ class KeyboardManager(QObject):
             ("global.export_icons", self.global_handler.handle_export_icons),
             ("global.refresh_icons", self.global_handler.handle_refresh_icons),
             ("global.check_bad_urls", self.global_handler.handle_check_bad_urls),
+            ("global.check_local_paths", self.global_handler.handle_check_local_paths),
             ("global.restore_db", self.global_handler.handle_restore_database),
             ("global.clear_favorites", self.global_handler.handle_clear_favorites),
             ("global.undo", self.global_handler.handle_undo),

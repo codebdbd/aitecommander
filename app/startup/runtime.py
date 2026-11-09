@@ -448,6 +448,11 @@ def _register_hotkeys() -> None:
         context=Qt.ShortcutContext.WindowShortcut,
     )
     HotkeyManager.register(
+        "global.check_local_paths",
+        "Ctrl+Alt+L",
+        context=Qt.ShortcutContext.WindowShortcut,
+    )
+    HotkeyManager.register(
         "global.restore_db",
         "Ctrl+Alt+B",
         context=Qt.ShortcutContext.WindowShortcut,
