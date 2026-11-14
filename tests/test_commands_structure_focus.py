@@ -4,6 +4,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from PyQt6.QtGui import QUndoStack
+
 from app.controllers.ui.undo.commands_structure import (
     DeleteCategoryCmd,
     PasteCategoriesCmd,
@@ -67,6 +69,57 @@ class TestSaveSectionCmdSignals(unittest.TestCase):
         business.item_added.emit.assert_called_once_with("section", 101, payload)
         business.item_updated.emit.assert_not_called()
         business.section_selected.emit.assert_not_called()
+
+    def test_create_undo_redo_round_trip(self) -> None:
+        payload = {"id": 101, "name": "New section", "sphere_id": 1, "position": 3}
+        service = Mock()
+        service.create_section.side_effect = [
+            Result.success(payload),
+            Result.success(payload),
+        ]
+        service.delete_section.return_value = Result.success(payload)
+        business = self._build_business(service)
+        stack = QUndoStack()
+        cmd = SaveSectionCmd(
+            new_data={"name": "New section", "sphere_id": 1},
+            old_data=None,
+            main_window=self._main_window(),
+            business=business,
+        )
+
+        stack.push(cmd)
+        stack.undo()
+        stack.redo()
+
+        self.assertEqual(service.create_section.call_count, 2)
+        service.delete_section.assert_called_once_with(101)
+        self.assertEqual(business.item_added.emit.call_count, 2)
+
+    def test_edit_undo_redo_round_trip_reapplies_edited_data(self) -> None:
+        old_data = {"id": 9, "name": "Old", "sphere_id": 1, "position": 1}
+        new_data = {"id": 9, "name": "Renamed", "sphere_id": 1, "position": 1}
+        service = Mock()
+        service.update_section.side_effect = [
+            Result.success(new_data),
+            Result.success(old_data),
+            Result.success(new_data),
+        ]
+        business = self._build_business(service)
+        stack = QUndoStack()
+        cmd = SaveSectionCmd(
+            new_data=new_data,
+            old_data=old_data,
+            main_window=self._main_window(),
+            business=business,
+        )
+
+        stack.push(cmd)
+        stack.undo()
+        stack.redo()
+
+        self.assertEqual(
+            service.update_section.call_args_list[2].args[1]["name"], "Renamed"
+        )
 
     def test_redo_update_emits_item_updated_and_section_selected(self) -> None:
         payload = {"id": 9, "name": "Renamed", "sphere_id": 1, "position": 1}
@@ -253,6 +306,58 @@ class TestSaveCategoryCmdSignals(unittest.TestCase):
         business.item_added.emit.assert_called_once_with("category", 10, payload)
         business.item_updated.emit.assert_not_called()
         business.select_category.assert_not_called()
+
+    def test_create_undo_redo_round_trip(self) -> None:
+        payload = {"id": 77, "name": "New cat", "section_id": 10, "position": 2}
+        service = Mock()
+        service.create_category.side_effect = [
+            Result.success(payload),
+            Result.success(payload),
+        ]
+        service.delete_category.return_value = Result.success(payload)
+        business = self._build_business(service)
+        stack = QUndoStack()
+        cmd = SaveCategoryCmd(
+            new_data={"name": "New cat", "section_id": 10},
+            old_data=None,
+            main_window=SimpleNamespace(),
+            business=business,
+        )
+
+        stack.push(cmd)
+        stack.undo()
+        stack.redo()
+
+        self.assertEqual(service.create_category.call_count, 2)
+        service.delete_category.assert_called_once_with(77)
+        self.assertEqual(business.item_added.emit.call_count, 2)
+
+    def test_edit_undo_redo_round_trip_reapplies_edited_data(self) -> None:
+        old_data = {"id": 42, "name": "Old cat", "section_id": 10, "position": 1}
+        new_data = {"id": 42, "name": "Renamed cat", "section_id": 10, "position": 1}
+        service = Mock()
+        service.update_category.side_effect = [
+            Result.success(new_data),
+            Result.success(old_data),
+            Result.success(new_data),
+        ]
+        business = self._build_business(service)
+        stack = QUndoStack()
+        cmd = SaveCategoryCmd(
+            new_data=new_data,
+            old_data=old_data,
+            main_window=SimpleNamespace(),
+            business=business,
+        )
+
+        stack.push(cmd)
+        stack.undo()
+        stack.redo()
+
+        self.assertEqual(
+            service.update_category.call_args_list[2].args[1]["name"],
+            "Renamed cat",
+        )
 
     def test_redo_update_emits_item_updated_and_select_category(self) -> None:
         payload = {"id": 42, "name": "Updated cat", "section_id": 10, "position": 1}

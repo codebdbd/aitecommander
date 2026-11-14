@@ -162,17 +162,35 @@ class CategoriesListModel(QAbstractListModel):
             items.append(item)
         t_norm_done = time.perf_counter()
 
+        insert_row = self._single_insert_row(self._items, items)
+        if insert_row is not None:
+            item = items[insert_row]
+            self._prepare_inserted_icon(item, insert_row)
+
+            self.beginInsertRows(QModelIndex(), insert_row, insert_row)
+            self._pending_icon_rows = {
+                row + 1 if row >= insert_row else row
+                for row in self._pending_icon_rows
+            }
+            self._items.insert(insert_row, item)
+            self._rebuild_row_cache()
+            if bool(item.get("_icon_pending")):
+                self._pending_icon_rows.add(insert_row)
+            self.endInsertRows()
+
+            if self._lazy_icons_enabled:
+                self._schedule_icon_loads_for_visible()
+            logger.info(
+                "[Perf] CategoriesListModel.set_categories inserted row=%s total=%.2f ms",
+                insert_row,
+                (time.perf_counter() - t0) * 1000.0,
+            )
+            return
+
         self.beginResetModel()
         self._items = items
         self._pending_icon_rows.clear()
-        # Rebuild row cache by id
-        # Important: keep the index of the FIRST occurrence for compatibility with previous linear lookup
-        row_by_id: dict[int, int] = {}
-        for idx, it in enumerate(self._items):
-            cid = it["id"]
-            if cid not in row_by_id:
-                row_by_id[cid] = idx
-        self._row_by_id = row_by_id
+        self._rebuild_row_cache()
         self.endResetModel()
         t_reset_done = time.perf_counter()
 
@@ -229,6 +247,68 @@ class CategoriesListModel(QAbstractListModel):
             sync_prefetched_hits,
             len(self._pending_icon_rows),
         )
+
+    @staticmethod
+    def _single_insert_row(
+        old_items: list[dict[str, Any]], new_items: list[dict[str, Any]]
+    ) -> int | None:
+        if len(new_items) != len(old_items) + 1:
+            return None
+
+        old_row = 0
+        inserted_row = None
+        for new_row, item in enumerate(new_items):
+            signature = (
+                item.get("id"),
+                str(item.get("name", "")),
+                str(item.get("icon_path", "") or ""),
+            )
+            if old_row < len(old_items):
+                old_item = old_items[old_row]
+                old_signature = (
+                    old_item.get("id"),
+                    str(old_item.get("name", "")),
+                    str(old_item.get("icon_path", "") or ""),
+                )
+                if signature == old_signature:
+                    old_row += 1
+                    continue
+            if inserted_row is not None:
+                return None
+            inserted_row = new_row
+
+        return inserted_row if old_row == len(old_items) else None
+
+    def _prepare_inserted_icon(self, item: dict[str, Any], row: int) -> None:
+        if not self._lazy_icons_enabled:
+            return
+
+        prefetch_count = min(
+            max(0, int(self._icon_prefetch)),
+            max(0, int(self._sync_prefetch_cap)),
+        )
+        if row >= prefetch_count:
+            return
+
+        icon_path = item.get("icon_path", "") or ""
+        resolved_path = icon_loading_service.resolve_path(icon_path, category=True)
+        if not resolved_path:
+            item["_icon"] = DEFAULT_ICON
+            item["_icon_pending"] = False
+            return
+
+        item["_icon"] = icon_loading_service.get_path_icon(
+            resolved_path, category=True
+        )
+        item["_icon_pending"] = False
+
+    def _rebuild_row_cache(self) -> None:
+        row_by_id: dict[int, int] = {}
+        for idx, item in enumerate(self._items):
+            category_id = item["id"]
+            if category_id not in row_by_id:
+                row_by_id[category_id] = idx
+        self._row_by_id = row_by_id
 
     # --- helpers ---
     def find_row_by_id(self, category_id: int) -> int:

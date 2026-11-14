@@ -613,11 +613,26 @@ class KeyboardManager(QObject):
             ("global.redo_alt", self.global_handler.handle_redo),
         ]
 
+        window_shortcut_actions = {
+            "global.undo",
+            "global.redo",
+            "global.redo_alt",
+            "global.delete",
+            "global.import_browser",
+            "global.import_icons",
+            "global.import_db",
+            "global.save_db",
+            "global.export_icons",
+            "global.refresh_icons",
+            "global.check_bad_urls",
+            "global.check_local_paths",
+            "global.restore_db",
+            "global.clear_favorites",
+        }
         for action_id, handler in global_shortcuts:
             context = (
                 Qt.ShortcutContext.WindowShortcut
-                if action_id
-                in ("global.undo", "global.redo", "global.redo_alt", "global.delete")
+                if action_id in window_shortcut_actions
                 else Qt.ShortcutContext.WidgetWithChildrenShortcut
             )
             try:

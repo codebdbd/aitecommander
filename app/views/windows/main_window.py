@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtCore import QItemSelection, QItemSelectionModel, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QShowEvent, QUndoStack
@@ -163,6 +163,10 @@ class MainWindow(QMainWindow, ReTranslatable):
     def handle_import_browser_bookmarks(self) -> None:
         if self.system_dialogs:
             self.system_dialogs.handle_import_browser_bookmarks()
+
+    def handle_import_text_links(self) -> None:
+        if self.system_dialogs:
+            self.system_dialogs.handle_import_text_links()
 
     def get_current_category_id(self) -> Optional[int]:
         """Return the ID of the currently selected category."""
@@ -603,6 +607,87 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Export a section as a shareable archive."""
         self._export_structure_package("section", section_id)
 
+    def share_sections(self, section_ids: list[int]) -> None:
+        """Export multiple sections as shareable archives."""
+        if not section_ids:
+            return
+        unique_ids = list(dict.fromkeys(int(sid) for sid in section_ids))
+        if len(unique_ids) == 1:
+            self.share_section(unique_ids[0])
+            return
+
+        from PyQt6.QtCore import QCoreApplication, QUrl
+        from PyQt6.QtGui import QDesktopServices
+        from PyQt6.QtWidgets import QFileDialog
+
+        from app.controllers.ui.dialogs import DialogManager
+        from app.services.dialog_path_service import DialogPathService
+
+        sb, service = self._get_structure_share_service(
+            QCoreApplication.translate("StructureShare", "Export error")
+        )
+        if sb is None or service is None:
+            return
+
+        start_dir = DialogPathService.get_downloads_dir("Share")
+        dialog_title = QCoreApplication.translate(
+            "StructureShare", "Choose folder to export sections"
+        )
+        target_dir_str = QFileDialog.getExistingDirectory(
+            self, dialog_title, str(start_dir)
+        )
+        if not target_dir_str:
+            return
+
+        DialogPathService.remember_dir("Share", target_dir_str)
+        target_dir = Path(target_dir_str)
+
+        exported_count = 0
+        used_filenames: set[str] = {
+            f.name.casefold() for f in target_dir.iterdir() if f.is_file()
+        }
+
+        for sid in unique_ids:
+            try:
+                name = self._require_facade().resolve_export_item_name(
+                    sb, "section", int(sid)
+                )
+                base_filename = service.build_filename("section", str(name))
+                dest_filename = base_filename
+                stem = Path(base_filename).stem
+                suffix = Path(base_filename).suffix
+                counter = 1
+                while dest_filename.casefold() in used_filenames:
+                    dest_filename = f"{stem} ({counter}){suffix}"
+                    counter += 1
+                used_filenames.add(dest_filename.casefold())
+
+                dest_path = target_dir / dest_filename
+                service.export_section_archive(int(sid), dest_path)
+                exported_count += 1
+            except Exception as exc:
+                logger.warning(
+                    "Failed to export section %s: %s", sid, exc, exc_info=True
+                )
+
+        if exported_count > 0:
+            msg = QCoreApplication.translate(
+                "StructureShare", "Exported {count} section(s) to:\n{path}"
+            ).format(count=exported_count, path=target_dir)
+            set_status_message(self, msg)
+            try:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_dir)))
+            except Exception:
+                pass
+        else:
+            DialogManager.show_error(
+                self,
+                QCoreApplication.translate(
+                    "StructureShare", "Failed to export selected sections."
+                ),
+                QCoreApplication.translate("StructureShare", "Export error"),
+            )
+
     def share_category(self, category_id: int) -> None:
         """Export a category as a shareable archive."""
         self._export_structure_package("category", category_id)
@@ -734,6 +819,8 @@ class MainWindow(QMainWindow, ReTranslatable):
         from PyQt6.QtCore import QCoreApplication
 
         from app.controllers.ui.dialogs import DialogManager
+        from app.utils.ui.menu_builders.menu_actions import MenuTexts
+
         sb, service = self._get_structure_share_service(
             QCoreApplication.translate("StructureShare", "Import error")
         )
@@ -753,40 +840,236 @@ class MainWindow(QMainWindow, ReTranslatable):
             file_filter = QCoreApplication.translate(
                 "StructureShare", "Category Archive (*.aitecat);;All files (*)"
             )
-        archive_path = self._choose_archive_open_path(
-            dialog_title=dialog_title,
-            start_dir=start_dir,
-            file_filter=file_filter,
+
+        choose_paths = getattr(self, "_choose_archive_open_paths", None)
+        archive_paths = (
+            choose_paths(
+                dialog_title=dialog_title,
+                start_dir=start_dir,
+                file_filter=file_filter,
+            )
+            if callable(choose_paths)
+            else []
         )
-        if archive_path is None:
+        if not archive_paths:
+            choose_single = getattr(self, "_choose_archive_open_path", None)
+            if callable(choose_single):
+                single = choose_single(
+                    dialog_title=dialog_title,
+                    start_dir=start_dir,
+                    file_filter=file_filter,
+                )
+                archive_paths = [single] if single else []
+
+        if not archive_paths:
             return
 
-        try:
-            imported = self._import_archive(
-                service=service,
-                package_type=package_type,
-                archive_path=archive_path,
-                target_id=int(target_id),
-            )
-            if not imported:
+        if len(archive_paths) == 1:
+            try:
+                imported = self._import_structure_archive_with_undo(
+                    service=service,
+                    package_type=package_type,
+                    archive_path=archive_paths[0],
+                    target_id=int(target_id),
+                )
+                if not imported:
+                    return
+            except Exception as exc:
+                DialogManager.show_error(
+                    self,
+                    QCoreApplication.translate(
+                        "StructureShare", "Failed to import archive: {error}"
+                    ).format(error=exc),
+                    QCoreApplication.translate("StructureShare", "Import error"),
+                )
                 return
-        except Exception as exc:
+
+            self._refresh_structure_after_import(
+                section_id=int(target_id) if package_type == "category" else None
+            )
+            set_status_message(
+                self,
+                QCoreApplication.translate("StructureShare", "Import completed."),
+            )
+            return
+
+        undo_stack = self.get_undo_stack()
+        if undo_stack:
+            undo_stack.beginMacro(
+                QCoreApplication.translate(
+                    "MenuActions",
+                    MenuTexts.IMPORT_SECTIONS
+                    if package_type == "section"
+                    else "Import categories",
+                )
+            )
+
+        batch_state: dict[str, Any] = {}
+        imported_count = 0
+        failed_count = 0
+
+        try:
+            for p in archive_paths:
+                try:
+                    imported = self._import_structure_archive_with_undo(
+                        service=service,
+                        package_type=package_type,
+                        archive_path=p,
+                        target_id=int(target_id),
+                        batch_state=batch_state,
+                        has_multiple=True,
+                    )
+                    if imported:
+                        imported_count += 1
+                    elif batch_state.get("action") == "cancel":
+                        break
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to import archive %s: %s", p, exc, exc_info=True
+                    )
+                    failed_count += 1
+        finally:
+            if undo_stack:
+                undo_stack.endMacro()
+
+        if imported_count > 0:
+            self._refresh_structure_after_import(
+                section_id=int(target_id) if package_type == "category" else None
+            )
+            set_status_message(
+                self,
+                QCoreApplication.translate("StructureShare", "Import completed."),
+            )
+        elif failed_count > 0:
             DialogManager.show_error(
                 self,
                 QCoreApplication.translate(
-                    "StructureShare", "Failed to import archive: {error}"
-                ).format(error=exc),
+                    "StructureShare", "Failed to import selected archives."
+                ),
                 QCoreApplication.translate("StructureShare", "Import error"),
             )
-            return
 
-        self._refresh_structure_after_import(
-            section_id=int(target_id) if package_type == "category" else None
+    def _import_structure_archive_with_undo(
+        self,
+        *,
+        service: Any,
+        package_type: str,
+        archive_path: Path,
+        target_id: int,
+        batch_state: dict[str, Any] | None = None,
+        has_multiple: bool = False,
+    ) -> bool:
+        from PyQt6.QtCore import QCoreApplication
+
+        from app.controllers.ui.undo.commands_structure import (
+            ImportStructurePackageCmd,
         )
-        set_status_message(
-            self,
-            QCoreApplication.translate("StructureShare", "Import completed."),
+        from app.utils.ui.menu_builders.menu_actions import MenuTexts
+
+        undo_stack = self.get_undo_stack()
+        if undo_stack is None:
+            raise RuntimeError("Undo history is unavailable")
+
+        structure_service = self.structure_business.structure_service
+        manifest = service.inspect_package(archive_path)
+        item_name = str(manifest.get("item_name") or "").strip().casefold()
+        items = (
+            structure_service.get_sections(target_id)
+            if package_type == "section"
+            else structure_service.get_categories(target_id)
         )
+        before_ids = {
+            int(item["id"])
+            for item in items
+            if isinstance(item, dict) and isinstance(item.get("id"), int)
+        }
+        existing_item = next(
+            (
+                item
+                for item in items
+                if str(item.get("name") or "").strip().casefold() == item_name
+            ),
+            None,
+        )
+        before_tree = None
+        if existing_item is not None:
+            item_id = int(existing_item["id"])
+            before_tree = (
+                structure_service.export_section_tree(item_id)
+                if package_type == "section"
+                else structure_service.export_category_tree(item_id)
+            )
+
+        conflict_choices: dict[str, str] = {}
+
+        def resolve_conflict(entity_type: str, name: str, copy_name: str) -> str:
+            action = self._resolve_import_conflict(
+                entity_type,
+                name,
+                copy_name,
+                has_multiple=has_multiple,
+                batch_state=batch_state,
+            )
+            conflict_choices[entity_type] = action
+            return action
+
+        if not self._import_archive(
+            service=service,
+            package_type=package_type,
+            archive_path=archive_path,
+            target_id=target_id,
+            conflict_resolver=resolve_conflict,
+        ):
+            return False
+
+        if conflict_choices.get(package_type) == "merge" and existing_item:
+            imported_item_id = int(existing_item["id"])
+            undo_before_tree = before_tree
+        else:
+            items_after = (
+                structure_service.get_sections(target_id)
+                if package_type == "section"
+                else structure_service.get_categories(target_id)
+            )
+            added_ids = {
+                int(item["id"])
+                for item in items_after
+                if isinstance(item, dict)
+                and isinstance(item.get("id"), int)
+                and int(item["id"]) not in before_ids
+            }
+            if len(added_ids) != 1:
+                raise RuntimeError(
+                    "Could not identify the imported structure item for undo"
+                )
+            imported_item_id = added_ids.pop()
+            undo_before_tree = None
+
+        after_tree = (
+            structure_service.export_section_tree(imported_item_id)
+            if package_type == "section"
+            else structure_service.export_category_tree(imported_item_id)
+        )
+        if undo_before_tree != after_tree:
+            undo_text = QCoreApplication.translate(
+                "MenuActions",
+                MenuTexts.IMPORT_SECTION
+                if package_type == "section"
+                else MenuTexts.IMPORT_CATEGORY,
+            )
+            undo_stack.push(
+                ImportStructurePackageCmd(
+                    package_type=package_type,
+                    item_id=imported_item_id,
+                    target_id=target_id,
+                    before_tree=undo_before_tree,
+                    after_tree=after_tree,
+                    structure_service=structure_service,
+                    main_window=self,
+                    text=undo_text,
+                )
+            )
+        return True
 
     def _export_archive(
         self,
@@ -808,27 +1091,48 @@ class MainWindow(QMainWindow, ReTranslatable):
         package_type: str,
         archive_path: Path,
         target_id: int,
+        conflict_resolver: Callable[[str, str, str], str] | None = None,
     ) -> bool:
+        resolver = conflict_resolver or self._resolve_import_conflict
         if package_type == "section":
             return bool(
                 service.import_section_archive(
-                    archive_path, target_id, conflict_resolver=self._resolve_import_conflict
+                    archive_path, target_id, conflict_resolver=resolver
                 )
             )
         return bool(
             service.import_category_archive(
-                archive_path, target_id, conflict_resolver=self._resolve_import_conflict
+                archive_path, target_id, conflict_resolver=resolver
             )
         )
 
-    def _resolve_import_conflict(self, entity_type: str, name: str, copy_name: str) -> str:
+    def _resolve_import_conflict(
+        self,
+        entity_type: str,
+        name: str,
+        copy_name: str,
+        *,
+        has_multiple: bool = False,
+        batch_state: dict[str, Any] | None = None,
+    ) -> str:
+        if batch_state and batch_state.get("apply_to_all"):
+            return str(batch_state.get("action", "copy"))
+
         from PyQt6.QtWidgets import QDialog
 
         from app.views.windows.dialogs.entity_dialogs import ImportConflictDialog
 
-        dlg = ImportConflictDialog(entity_type, name, copy_name, parent=self)
+        dlg = ImportConflictDialog(
+            entity_type, name, copy_name, parent=self, has_multiple=has_multiple
+        )
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            return dlg.get_action()
+            action = dlg.get_action()
+            if batch_state is not None and dlg.apply_to_all():
+                batch_state["action"] = action
+                batch_state["apply_to_all"] = True
+            return action
+        if batch_state is not None:
+            batch_state["action"] = "cancel"
         return "cancel"
 
     def import_archive_file(
@@ -836,6 +1140,8 @@ class MainWindow(QMainWindow, ReTranslatable):
         archive_path: Path,
         target_type: str | None = None,
         target_id: int | None = None,
+        batch_state: dict[str, Any] | None = None,
+        skip_refresh: bool = False,
     ) -> bool:
         """Auto-import an archive package (.zip, .aitepack) dropped onto tree or opened."""
         from PyQt6.QtCore import QCoreApplication
@@ -874,7 +1180,12 @@ class MainWindow(QMainWindow, ReTranslatable):
             elif isinstance(target_id, int):
                 resolved_target_id = target_id
             if resolved_target_id is None:
-                resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
+                if batch_state and "resolved_sphere_id" in batch_state:
+                    resolved_target_id = batch_state["resolved_sphere_id"]
+                else:
+                    resolved_target_id = self._prompt_import_target_sphere(manifest, sb)
+                    if batch_state is not None and resolved_target_id is not None:
+                        batch_state["resolved_sphere_id"] = resolved_target_id
             if isinstance(resolved_target_id, int):
                 target_sphere_for_switch = resolved_target_id
         elif package_type == "category":
@@ -885,7 +1196,12 @@ class MainWindow(QMainWindow, ReTranslatable):
                 if hier and isinstance(hier.get("section_id"), int):
                     resolved_target_id = hier["section_id"]
             if resolved_target_id is None:
-                resolved_target_id = self._prompt_import_target_category(manifest, sb)
+                if batch_state and "resolved_category_section_id" in batch_state:
+                    resolved_target_id = batch_state["resolved_category_section_id"]
+                else:
+                    resolved_target_id = self._prompt_import_target_category(manifest, sb)
+                    if batch_state is not None and resolved_target_id is not None:
+                        batch_state["resolved_category_section_id"] = resolved_target_id
             refresh_section_id = resolved_target_id
             if isinstance(resolved_target_id, int) and hasattr(sb, "structure_service"):
                 try:
@@ -899,11 +1215,13 @@ class MainWindow(QMainWindow, ReTranslatable):
             return False
 
         try:
-            imported = self._import_archive(
+            imported = self._import_structure_archive_with_undo(
                 service=service,
                 package_type=package_type,
                 archive_path=archive_path,
                 target_id=int(resolved_target_id),
+                batch_state=batch_state,
+                has_multiple=bool(batch_state is not None),
             )
             if not imported:
                 return True
@@ -917,27 +1235,93 @@ class MainWindow(QMainWindow, ReTranslatable):
             )
             return True
 
-        # Switch active sphere if target sphere differs from current
-        if target_sphere_for_switch is not None:
-            s_ctrl = getattr(self, "spheres_bar_controller", None)
-            if s_ctrl and hasattr(s_ctrl, "switch_sphere"):
-                try:
-                    s_ctrl.switch_sphere(int(target_sphere_for_switch))
-                except Exception:
-                    pass
+        if not skip_refresh:
+            # Switch active sphere if target sphere differs from current
+            if target_sphere_for_switch is not None:
+                s_ctrl = getattr(self, "spheres_bar_controller", None)
+                if s_ctrl and hasattr(s_ctrl, "switch_sphere"):
+                    try:
+                        s_ctrl.switch_sphere(int(target_sphere_for_switch))
+                    except Exception:
+                        pass
 
-        self._refresh_structure_after_import(section_id=refresh_section_id)
-        set_status_message(
-            self,
-            QCoreApplication.translate("StructureShare", "Import completed."),
-        )
+            self._refresh_structure_after_import(section_id=refresh_section_id)
+            set_status_message(
+                self,
+                QCoreApplication.translate("StructureShare", "Import completed."),
+            )
         return True
+
+    def import_archive_files(
+        self,
+        archive_paths: list[Path],
+        target_type: str | None = None,
+        target_id: int | None = None,
+    ) -> bool:
+        """Auto-import multiple archive packages (.zip, .aitepack, .aitesec, .aitecat) dropped or opened."""
+        if not archive_paths:
+            return False
+        if len(archive_paths) == 1:
+            return self.import_archive_file(
+                archive_paths[0], target_type=target_type, target_id=target_id
+            )
+
+        from PyQt6.QtCore import QCoreApplication
+
+        undo_stack = self.get_undo_stack()
+        if undo_stack:
+            undo_stack.beginMacro(
+                QCoreApplication.translate("MenuActions", "Import sections")
+            )
+
+        imported_any = False
+        batch_state: dict[str, Any] = {}
+
+        try:
+            for p in archive_paths:
+                try:
+                    if self.import_archive_file(
+                        p,
+                        target_type=target_type,
+                        target_id=target_id,
+                        batch_state=batch_state,
+                        skip_refresh=True,
+                    ):
+                        imported_any = True
+                    if batch_state.get("action") == "cancel":
+                        break
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to import archive %s: %s", p, exc, exc_info=True
+                    )
+        finally:
+            if undo_stack:
+                undo_stack.endMacro()
+
+        if imported_any:
+            target_sphere = batch_state.get("resolved_sphere_id")
+            if target_sphere is not None:
+                s_ctrl = getattr(self, "spheres_bar_controller", None)
+                if s_ctrl and hasattr(s_ctrl, "switch_sphere"):
+                    try:
+                        s_ctrl.switch_sphere(int(target_sphere))
+                    except Exception:
+                        pass
+            self._refresh_structure_after_import()
+            set_status_message(
+                self,
+                QCoreApplication.translate("StructureShare", "Import completed."),
+            )
+        return imported_any
 
     def dragEnterEvent(self, event) -> None:  # type: ignore[override]
         from app.utils.ui.dnd.mime import MimeDataParser
 
         targets = MimeDataParser.extract_external_link_targets(event.mimeData())
-        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+        if targets and all(
+            t.lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip"))
+            for t in targets
+        ):
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
             return
@@ -947,7 +1331,10 @@ class MainWindow(QMainWindow, ReTranslatable):
         from app.utils.ui.dnd.mime import MimeDataParser
 
         targets = MimeDataParser.extract_external_link_targets(event.mimeData())
-        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+        if targets and all(
+            t.lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip"))
+            for t in targets
+        ):
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
             return
@@ -957,12 +1344,19 @@ class MainWindow(QMainWindow, ReTranslatable):
         from app.utils.ui.dnd.mime import MimeDataParser
 
         targets = MimeDataParser.extract_external_link_targets(event.mimeData())
-        if len(targets) == 1 and targets[0].lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip")):
+        if targets and all(
+            t.lower().endswith((".aitesec", ".aitecat", ".aitepack", ".zip"))
+            for t in targets
+        ):
             from pathlib import Path
 
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
-            self.import_archive_file(Path(targets[0]))
+            paths = [Path(t) for t in targets]
+            if len(paths) == 1:
+                self.import_archive_file(paths[0])
+            else:
+                self.import_archive_files(paths)
             return
         super().dropEvent(event)
 
@@ -1021,6 +1415,26 @@ class MainWindow(QMainWindow, ReTranslatable):
             return None
         DialogPathService.remember_dir("Share", path_str)
         return Path(path_str)
+
+    def _choose_archive_open_paths(
+        self,
+        *,
+        dialog_title: str,
+        start_dir: str,
+        file_filter: str,
+    ) -> list[Path]:
+        from PyQt6.QtWidgets import QFileDialog
+
+        from app.services.dialog_path_service import DialogPathService
+
+        resolved_start = start_dir or DialogPathService.get_downloads_dir("Share")
+        paths_str, _ = QFileDialog.getOpenFileNames(
+            self, dialog_title, resolved_start, file_filter
+        )
+        if not paths_str:
+            return []
+        DialogPathService.remember_dir("Share", paths_str[0])
+        return [Path(p) for p in paths_str]
 
     def _get_structure_share_service(
         self, error_title: str

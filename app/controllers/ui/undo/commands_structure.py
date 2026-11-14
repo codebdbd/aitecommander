@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -865,7 +866,6 @@ class SaveSectionCmd(BaseCommand):
                         logger.warning("SaveSectionCmd.redo: section_selected failed: %s", exc)
             if not self._target_sphere_changed(payload):
                 self._emit_reload(payload)
-            self.is_new = False
             self._store_snapshot(
                 _snapshot_from_result(result, payload=payload or self.new_data)
             )
@@ -912,7 +912,6 @@ class SaveSectionCmd(BaseCommand):
 
         def _on_restore_success(payload: dict[str, Any] | None) -> None:
             restored = dict(payload) if isinstance(payload, dict) else dict(self.old_data)
-            self.new_data = restored
             self.new_id = restored.get("id", self.new_id)
             business = self._resolve_business()
             switched = False
@@ -2325,6 +2324,154 @@ class DeleteSectionsCmd(BaseCommand):
         )
 
 
+class ImportStructurePackageCmd(BaseCommand):
+    """Undo/redo a single category or section package import."""
+
+    def __init__(
+        self,
+        *,
+        package_type: str,
+        item_id: int,
+        target_id: int,
+        before_tree: dict[str, Any] | None,
+        after_tree: dict[str, Any],
+        structure_service: StructureService,
+        main_window: Any,
+        text: str,
+    ) -> None:
+        if package_type not in {"category", "section"}:
+            raise ValueError(f"Unsupported package type: {package_type}")
+        after_entity = after_tree.get(package_type)
+        if not isinstance(after_entity, dict) or after_entity.get("id") != item_id:
+            raise ValueError("Imported snapshot does not match the target item")
+        parent_key = "section_id" if package_type == "category" else "sphere_id"
+        if after_entity.get(parent_key) != target_id:
+            raise ValueError("Imported snapshot does not match the target parent")
+        if before_tree is not None:
+            before_entity = before_tree.get(package_type)
+            if (
+                not isinstance(before_entity, dict)
+                or before_entity.get("id") != item_id
+                or before_entity.get(parent_key) != target_id
+            ):
+                raise ValueError("Previous snapshot does not match the target item")
+        super().__init__(text, main_window)
+        self._package_type = package_type
+        self._item_id = int(item_id)
+        self._target_id = int(target_id)
+        self._before_tree = deepcopy(before_tree)
+        self._after_tree = deepcopy(after_tree)
+        self._structure_service = structure_service
+        self._db = structure_service.db
+        self._skip_initial_redo = True
+
+    @log_command
+    def redo(self) -> None:
+        if self._skip_initial_redo:
+            self._skip_initial_redo = False
+            return
+        self._apply_snapshot(self._after_tree)
+
+    @log_command
+    def undo(self) -> None:
+        self._apply_snapshot(self._before_tree)
+
+    def _apply_snapshot(self, snapshot: dict[str, Any] | None) -> None:
+        with self._db.transaction():
+            current = self._export_current_tree()
+            if snapshot is None:
+                if self._tree_has_item(current):
+                    if self._package_type == "category":
+                        self._structure_service.delete_category(
+                            self._item_id
+                        ).require_value()
+                    else:
+                        self._structure_service.delete_section(
+                            self._item_id
+                        ).require_value()
+            else:
+                extra_link_ids = self._link_ids(current) - self._link_ids(snapshot)
+                if extra_link_ids:
+                    deleted = self._db.links.batch_delete_links(
+                        sorted(extra_link_ids)
+                    )
+                    if deleted != len(extra_link_ids):
+                        raise RuntimeError(
+                            "Could not remove all links added by package import"
+                        )
+
+                if self._package_type == "section":
+                    extra_category_ids = self._category_ids(
+                        current
+                    ) - self._category_ids(snapshot)
+                    if extra_category_ids:
+                        deleted = self._structure_service.delete_categories_bulk(
+                            sorted(extra_category_ids)
+                        ).require_value()
+                        if deleted != len(extra_category_ids):
+                            raise RuntimeError(
+                                "Could not remove all categories added by package import"
+                            )
+                    self._db.import_section_tree(snapshot)
+                else:
+                    self._db.import_category_tree(snapshot)
+
+        self._refresh_structure()
+
+    def _export_current_tree(self) -> dict[str, Any]:
+        if self._package_type == "category":
+            return self._structure_service.export_category_tree(self._item_id)
+        return self._structure_service.export_section_tree(self._item_id)
+
+    def _tree_has_item(self, tree: dict[str, Any]) -> bool:
+        entity_key = self._package_type
+        entity = tree.get(entity_key) or {}
+        return entity.get("id") == self._item_id
+
+    def _link_ids(self, tree: dict[str, Any]) -> set[int]:
+        if self._package_type == "category":
+            categories = [{"links": tree.get("links") or []}]
+        else:
+            categories = tree.get("categories") or []
+        return {
+            int(link["id"])
+            for category in categories
+            for link in category.get("links") or []
+            if isinstance(link, dict)
+            and isinstance(link.get("id"), int)
+            and link["id"] > 0
+        }
+
+    @staticmethod
+    def _category_ids(tree: dict[str, Any]) -> set[int]:
+        return {
+            int(item["category"]["id"])
+            for item in tree.get("categories") or []
+            if isinstance(item, dict)
+            and isinstance(item.get("category"), dict)
+            and isinstance(item["category"].get("id"), int)
+            and item["category"]["id"] > 0
+        }
+
+    def _refresh_structure(self) -> None:
+        refresh = getattr(self.main, "_refresh_structure_after_import", None)
+        if not callable(refresh):
+            logger.warning(
+                "ImportStructurePackageCmd: structure refresh handler unavailable"
+            )
+            return
+        try:
+            refresh(
+                section_id=self._target_id
+                if self._package_type == "category"
+                else None
+            )
+        except Exception:
+            logger.exception(
+                "ImportStructurePackageCmd: failed to refresh after history change"
+            )
+
+
 class PasteCategoriesCmd(BaseCommand):
     """Paste categories as a single undoable command."""
 
@@ -2703,12 +2850,20 @@ class SaveCategoryCmd(BaseCommand):
             return
         try:
             if self.old_data and payload:
-                icon_path_changed = (
-                    payload.get("icon_path") != self.old_data.get("icon_path")
-                )
-                if icon_path_changed:
-                    clear_icon_cache()
-                    logger.debug("Category icon path changed, clearing icon cache")
+                old_icon = self.old_data.get("icon_path")
+                new_icon = payload.get("icon_path")
+                if old_icon != new_icon:
+                    from app.utils.ui.icon.cache_manager import invalidate_icon
+
+                    if old_icon:
+                        invalidate_icon(old_icon)
+                    if new_icon:
+                        invalidate_icon(new_icon)
+                    logger.debug(
+                        "Category icon path changed, invalidated targeted icon cache (old=%s, new=%s)",
+                        old_icon,
+                        new_icon,
+                    )
         except Exception as exc:
             logger.warning(
                 "SaveCategoryCmd._maybe_clear_icon_cache: failed to clear cache: %s",
@@ -2771,7 +2926,6 @@ class SaveCategoryCmd(BaseCommand):
                 except Exception as exc:
                     logger.warning("SaveCategoryCmd.redo: select_category failed: %s", exc)
             self._emit_reload(payload)
-            self.is_new = False
             self._store_snapshot(
                 _snapshot_from_result(result, payload=payload or self.new_data)
             )
@@ -2824,7 +2978,6 @@ class SaveCategoryCmd(BaseCommand):
 
         def _on_restore_success(payload: dict[str, Any] | None) -> None:
             restored = dict(payload) if isinstance(payload, dict) else dict(self.old_data)
-            self.new_data = restored
             self.new_id = restored.get("id", self.new_id)
             self._maybe_clear_icon_cache(restored)
             business = self._resolve_business()

@@ -225,15 +225,24 @@ class StructureUIController(QObject):
         if not link_targets:
             return
 
-        if len(link_targets) == 1:
+        archive_targets = [
+            t
+            for t in link_targets
+            if t.lower().endswith((".zip", ".aitepack", ".aitesec", ".aitecat"))
+        ]
+        if archive_targets and len(archive_targets) == len(link_targets):
             from pathlib import Path
 
-            first_target = link_targets[0]
-            if first_target.lower().endswith((".zip", ".aitepack", ".aitesec", ".aitecat")):
-                p = Path(first_target)
-                if p.is_file() and hasattr(self.main, "import_archive_file"):
+            paths = [Path(t) for t in archive_targets if Path(t).is_file()]
+            if paths:
+                if len(paths) == 1 and hasattr(self.main, "import_archive_file"):
                     if self.main.import_archive_file(
-                        p, target_type=item_type, target_id=item_id
+                        paths[0], target_type=item_type, target_id=item_id
+                    ):
+                        return
+                elif hasattr(self.main, "import_archive_files"):
+                    if self.main.import_archive_files(
+                        paths, target_type=item_type, target_id=item_id
                     ):
                         return
 

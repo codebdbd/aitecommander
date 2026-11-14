@@ -773,31 +773,50 @@ class StructureTreeModel(QAbstractItemModel):
         if "name" in data:
             node.name = str(data.get("name", node.name))
         icon_value = data.get("icon") if "icon" in data else None
+        stored_path = None
         if "icon" in data or "icon_path" in data:
             if isinstance(icon_value, QIcon):
                 node.icon = icon_value
                 if isinstance(node.payload, dict) and "icon_path" in data:
-                    node.payload["icon_path"] = data.get("icon_path")
+                    stored_path = data.get("icon_path")
             else:
                 icon_source = (
                     icon_value if isinstance(icon_value, str) else data.get("icon_path")
                 )
+                icon_path_value = data.get("icon_path")
+                if item_type == "category":
+                    resolved_path = resolve_category_icon_path(
+                        icon_source or icon_path_value
+                    )
+                    icon_path_value = resolved_path or icon_path_value
+                    icon_source = icon_path_value
+                elif item_type == "section":
+                    resolved_path = resolve_section_icon_path(
+                        icon_source or icon_path_value
+                    )
+                    icon_path_value = resolved_path or icon_path_value
+                    icon_source = icon_path_value
                 resolved_icon, pending_path, stored_path = self._prepare_icon_fields(
                     icon_source,
-                    data.get("icon_path"),
+                    icon_path_value,
                 )
-                node.icon = resolved_icon
-                if isinstance(node.payload, dict):
-                    if stored_path is not None:
-                        node.payload["icon_path"] = stored_path
-                    elif "icon_path" in node.payload:
-                        node.payload["icon_path"] = stored_path
+                if (
+                    resolved_icon is not None
+                    and not resolved_icon.isNull()
+                    and resolved_icon is not self._placeholder_icon
+                ):
+                    node.icon = resolved_icon
+                elif node.icon is None or node.icon.isNull():
+                    node.icon = resolved_icon
+
                 if pending_path:
                     self._start_icon_loading(node, pending_path)
                 elif icon_source is None and "icon" in data:
                     node.icon = self._placeholder_icon
         if data:
             node.payload.update(data)
+        if isinstance(node.payload, dict) and stored_path is not None:
+            node.payload["icon_path"] = stored_path
         self.dataChanged.emit(
             idx,
             idx,
@@ -1343,6 +1362,9 @@ class StructureTreeModel(QAbstractItemModel):
         """Обработчик успешной загрузки иконки (вызывается в GUI-потоке)."""
         if self._shutdown:
             return
+        if icon.isNull():
+            self._on_icon_failed(icon_path, "Icon loader returned an empty icon")
+            return
 
         with self._active_icon_lock:
             waiters = self._icon_waiters_by_path.pop(icon_path, [])
@@ -1369,6 +1391,7 @@ class StructureTreeModel(QAbstractItemModel):
         """Обработчик ошибки загрузки иконки (вызывается в GUI-потоке)."""
         if self._shutdown:
             return
+        logger.warning("Tree icon load failed for %s: %s", icon_path, _message)
 
         with self._active_icon_lock:
             waiters = self._icon_waiters_by_path.pop(icon_path, [])

@@ -34,10 +34,10 @@ class SelectionActions(QObject):
         self._main = main_window
 
     # --- Tiles and business reactions ---
-    def refresh_tiles(self, section_id: int) -> None:
+    def refresh_tiles(self, section_id: int, *, switch_view: bool = True) -> None:
         try:
             t0 = time.perf_counter()
-            self._tiles_controller.refresh(int(section_id))
+            self._tiles_controller.refresh(int(section_id), switch_view=switch_view)
             t1 = time.perf_counter()
             logger.debug(
                 "[Perf] SelectionActions.refresh_tiles section=%s total=%.2fms",

@@ -99,7 +99,17 @@ class SelectionHandling(QObject):
 
     @pyqtSlot(int)
     def _on_section_selected(self, section_id: int) -> None:
-        self._actions.refresh_tiles(section_id)
+        try:
+            current = self.tree.currentIndex() if self.tree is not None else None
+            meta = get_tree_tuple(current, 0) if current and current.isValid() else None
+            is_category_active = meta is not None and meta[0] == "category"
+        except Exception:
+            is_category_active = False
+
+        if is_category_active:
+            self._actions.refresh_tiles(section_id, switch_view=False)
+        else:
+            self._actions.refresh_tiles(section_id, switch_view=True)
 
     @pyqtSlot(int)
     def _on_category_selected(self, category_id: int) -> None:

@@ -245,6 +245,57 @@ class TestStructureTreeModelIconDedup(unittest.TestCase):
         self.assertNotIn("shared.png", model._icon_waiters_by_path)
         self.assertNotIn("shared.png", model._active_icon_tasks)
 
+    def test_invalid_category_icon_update_uses_default_icon(self) -> None:
+        model = StructureTreeModel()
+        model.insert_sections(0, [{"id": 1, "name": "Section"}])
+        model.insert_categories(
+            1,
+            0,
+            [{"id": 2, "name": "Category", "icon_path": "category.png"}],
+        )
+        node = model._category_by_id[2]
+        fallback_path = (
+            Path(__file__).parents[1]
+            / "app"
+            / "resources"
+            / "ui_icons"
+            / "category.png"
+        )
+
+        def finish_with_empty_icon(node: TreeNode, icon_path: str) -> None:
+            model._icon_waiters_by_path[icon_path] = [node]
+            model._active_icon_tasks.add(icon_path)
+            model._on_icon_loaded(icon_path, QIcon())
+
+        with (
+            patch(
+                "app.views.models.structure_tree_model.resolve_category_icon_path",
+                return_value=str(fallback_path),
+            ),
+            patch.object(model, "_get_cached_icon", return_value=None),
+            patch.object(model, "_load_icon_immediately_if_safe", return_value=None),
+            patch.object(
+                model,
+                "_start_icon_loading",
+                side_effect=finish_with_empty_icon,
+            ) as start_icon_loading,
+        ):
+            model.update_item(
+                "category",
+                2,
+                {
+                    "id": 2,
+                    "name": "Category",
+                    "section_id": 1,
+                    "icon_path": "removed-icon.png",
+                    "icon": None,
+                },
+            )
+
+        start_icon_loading.assert_called_once_with(node, str(fallback_path))
+        self.assertEqual(str(fallback_path), node.payload["icon_path"])
+        self.assertFalse(node.icon.isNull())
+
 
 class TestIconLoader(unittest.TestCase):
     @classmethod

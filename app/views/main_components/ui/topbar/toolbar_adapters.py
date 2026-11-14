@@ -800,6 +800,12 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
                 QCoreApplication.translate("MenuActions", "Import Bookmarks"),
                 self._on_import_bookmarks,
             ),
+            (
+                "import_link",
+                "import_link.svg",
+                QCoreApplication.translate("MenuActions", "Import Links from File…"),
+                self._on_import_links,
+            ),
             (None, None, None, None),
             (
                 "link_off",
@@ -879,6 +885,12 @@ class ToolsToolbarAdapter(ToolbarActionAdapter):
             self._category_provider, "handle_import_browser_bookmarks"
         ):
             self._category_provider.handle_import_browser_bookmarks()
+
+    def _on_import_links(self) -> None:
+        if self._category_provider and hasattr(
+            self._category_provider, "handle_import_text_links"
+        ):
+            self._category_provider.handle_import_text_links()
 
     def _on_check_bad_urls(self) -> None:
         if self._category_provider:

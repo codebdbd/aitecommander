@@ -20,6 +20,7 @@ class _FakeCategoryProvider:
 
 def test_on_links_loaded_triggers_background_enrichment() -> None:
     main = Mock()
+    main.ui_state = Mock()
     table = _FakeTable()
     table.populate = Mock()
     business = Mock()
@@ -34,6 +35,12 @@ def test_on_links_loaded_triggers_background_enrichment() -> None:
         {"id": 2, "url": "https://second.com", "type": "web"},
     ]
 
+    def assert_table_applied(category_id: int) -> None:
+        assert category_id == 42
+        table.populate.assert_called_once_with(sample_links)
+
+    main.ui_state.on_category_loaded.side_effect = assert_table_applied
+
     with patch(
         "app.controllers.ui.links.icon_enrichment_service.enqueue_links_icon_enrichment"
     ) as mock_enqueue:
@@ -41,6 +48,23 @@ def test_on_links_loaded_triggers_background_enrichment() -> None:
 
         table.populate.assert_called_once_with(sample_links)
         mock_enqueue.assert_called_once_with(main, sample_links)
+        main.ui_state.on_category_loaded.assert_called_once_with(42)
+
+
+def test_on_links_loaded_does_not_notify_for_stale_category() -> None:
+    main = Mock()
+    main.ui_state = Mock()
+    table = _FakeTable()
+    table.populate = Mock()
+    provider = _FakeCategoryProvider(category_id=42)
+    controller = LinksTableController(
+        main, table=table, links_business=Mock(), category_provider=provider
+    )
+
+    controller.on_links_loaded([], category_id=41, task_id=1)
+
+    table.populate.assert_not_called()
+    main.ui_state.on_category_loaded.assert_not_called()
 
 
 def test_on_link_saved_with_icon_enrichment_skips_reload_on_category_mismatch() -> None:

@@ -5,7 +5,10 @@ from unittest.mock import Mock, patch
 
 from PyQt6.QtGui import QIcon
 
-from app.views.windows.dialogs.entity_dialogs import BaseEntityDialog
+from app.views.windows.dialogs.entity_dialogs import (
+    BaseEntityDialog,
+    CategoryDialog,
+)
 
 
 def test_entity_icon_cancel_resets_to_default(tmp_path: Path) -> None:
@@ -46,3 +49,37 @@ def test_entity_icon_cancel_resets_to_default(tmp_path: Path) -> None:
     assert dialog._icon_filename == "category.png"
     create_icon_mock.assert_called_once_with(str(default_icon))
     dialog.icon_btn.setIcon.assert_called_once()
+
+
+def test_category_edit_replaces_missing_icon_reference_with_default(
+    tmp_path: Path,
+) -> None:
+    fallback_icon = tmp_path / "category.png"
+    fallback_icon.write_bytes(b"icon")
+    dialog = CategoryDialog.__new__(CategoryDialog)
+    dialog.entity_name = "category"
+    dialog.entity_id = 7
+    dialog.structure_business = Mock()
+    dialog.structure_business.get_category_for_editing.return_value = {
+        "name": "Tools",
+        "section_id": 3,
+        "icon_path": "removed-icon.png",
+    }
+    dialog.structure_business.get_category_hierarchy.return_value = None
+    dialog.name_le = Mock()
+    dialog.icon_btn = Mock()
+    dialog._get_icon_path = Mock(return_value=fallback_icon)
+
+    with (
+        patch(
+            "app.utils.ui.icon.loading_service.icon_loading_service.resolve_existing_path",
+            return_value="",
+        ),
+        patch(
+            "app.views.windows.dialogs.entity_dialogs.create_icon_from_path",
+            return_value=QIcon(),
+        ),
+    ):
+        dialog._load_category()
+
+    assert dialog._icon_filename == "category.png"

@@ -224,6 +224,10 @@ class LinksTableController(QObject):
                     self.table.reset_default_sort_for_next_populate()
                 self.table.populate(links)
 
+            ui_state = getattr(self.main, "ui_state", None)
+            category_loaded = getattr(ui_state, "on_category_loaded", None)
+            if callable(category_loaded):
+                category_loaded(category_id)
             self._trigger_background_icon_enrichment(links)
         except Exception as e:
             logger.error(

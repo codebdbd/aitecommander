@@ -72,6 +72,37 @@ class StructureMenuBuilder:
         self, menu: QMenu, item: Any, section_id: Any, delete_item_cb: Callable
     ):
         """Actions for the selected section."""
+        selected_sections = self._get_selected_sections()
+        if section_id is not None:
+            try:
+                sid_int = int(section_id)
+                if sid_int not in selected_sections:
+                    selected_sections.append(sid_int)
+            except Exception:
+                pass
+
+        if len(selected_sections) > 1:
+            share_sections_fn = getattr(self.main_window, "share_sections", None)
+            menu.addAction(
+                self.actions.create(
+                    MenuTexts.EXPORT_SECTIONS,
+                    lambda: share_sections_fn(selected_sections) if callable(share_sections_fn) else None,
+                    None,
+                    get_menu_icon("save_db", self.theme),
+                )
+            )
+            menu.addAction(
+                self.actions.create(
+                    MenuTexts.IMPORT_SECTION,
+                    self.main_window.import_section_to_current_sphere,
+                    None,
+                    get_menu_icon("import_sections", self.theme),
+                )
+            )
+            menu.addSeparator()
+            self._add_common_actions(menu, edit_action=None)
+            return
+
         menu.addAction(
             self.actions.create(
                 MenuTexts.ADD_CATEGORY,
@@ -104,6 +135,14 @@ class StructureMenuBuilder:
                 lambda: self.main_window.import_category_to_section(int(section_id)),
                 None,
                 get_menu_icon("import_category", self.theme),
+            )
+        )
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.IMPORT_SECTION,
+                self.main_window.import_section_to_current_sphere,
+                None,
+                get_menu_icon("import_section", self.theme),
             )
         )
         menu.addSeparator()
@@ -209,6 +248,25 @@ class StructureMenuBuilder:
                 return 0
         except Exception:
             return 0
+
+    def _get_selected_sections(self) -> list[int]:
+        try:
+            sel = (
+                self.tree_widget.selectionModel()
+                if hasattr(self.tree_widget, "selectionModel")
+                else None
+            )
+            if sel is None:
+                return []
+            rows = sel.selectedRows(0) or []
+            section_ids: list[int] = []
+            for r in rows:
+                t = get_tree_tuple(r, 0)
+                if t and t[0] == StructureItemType.SECTION and isinstance(t[1], int):
+                    section_ids.append(t[1])
+            return section_ids
+        except Exception:
+            return []
 
     def _add_common_actions(self, menu: QMenu, edit_action):
         cut_action = self._create_context_action(

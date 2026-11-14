@@ -54,6 +54,7 @@ from app.utils.ui.icon.icon_resolver import (
     resolve_category_icon_path,
     resolve_section_icon_path,
 )
+from app.utils.ui.icon.loading_service import icon_loading_service
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.qt.combo_helpers import (
     PopupComboBox,
@@ -314,6 +315,15 @@ class BaseEntityDialog(BaseDialog):
             fallback = ""
         return Path(fallback) if fallback else ui_path
 
+    def _load_icon_for_edit(self, icon_filename: str) -> None:
+        icon_path = self._get_icon_path(icon_filename)
+        if icon_loading_service.resolve_existing_path(icon_filename):
+            self._icon_filename = icon_filename
+        else:
+            self._icon_filename = icon_path.name
+        if self.icon_btn is not None:
+            self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
+
     def _choose_icon(self):
         """Open icon picker immediately; cancel resets to the default entity icon."""
         try:
@@ -437,9 +447,7 @@ class SectionDialog(BaseEntityDialog):
         self._set_sphere_selection(section_data["sphere_id"])
 
         icon = section_data["icon_path"] or f"{self.entity_name}.png"
-        self._icon_filename = icon
-        icon_path = self._get_icon_path(icon)
-        self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
+        self._load_icon_for_edit(icon)
 
     def _on_accept(self):
         base_result = self._on_accept_base()
@@ -602,9 +610,7 @@ class CategoryDialog(BaseEntityDialog):
 
         # Set icon from stored data
         icon = category_data["icon_path"] or f"{self.entity_name}.png"
-        self._icon_filename = icon
-        icon_path = self._get_icon_path(icon)
-        self.icon_btn.setIcon(create_icon_from_path(str(icon_path)))
+        self._load_icon_for_edit(icon)
 
     def _on_accept(self):
         base_result = self._on_accept_base()

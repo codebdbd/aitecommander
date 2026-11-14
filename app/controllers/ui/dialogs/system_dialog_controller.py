@@ -14,9 +14,22 @@ _SYS_CONTEXT = "SystemDialogController"
 _SYS_TITLE_BROWSER_IMPORT = QT_TRANSLATE_NOOP(
     "SystemDialogController", "Browser Import"
 )
+_SYS_TITLE_LINKS_IMPORT = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Import Links"
+)
 _SYS_TITLE_AUTO_SAVE = QT_TRANSLATE_NOOP("SystemDialogController", "Auto-save")
 _SYS_TITLE_ICON_REFRESH = QT_TRANSLATE_NOOP("SystemDialogController", "Icon Refresh")
+_SYS_TITLE_CLEAN_ICONS = QT_TRANSLATE_NOOP("SystemDialogController", "Clean Icons")
 _SYS_TITLE_BAD_URL_CHECK = QT_TRANSLATE_NOOP("SystemDialogController", "Bad URL Check")
+_SYS_WARN_NO_CATEGORY = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Please select a category first."
+)
+_SYS_INFO_SELECT_CATEGORY = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Links must be imported into a specific category."
+)
+_SYS_ERROR_READ_FILE = QT_TRANSLATE_NOOP(
+    "SystemDialogController", "Error reading links file."
+)
 
 _SYS_ERROR_READ_HTML = QT_TRANSLATE_NOOP(
     "SystemDialogController", "Error reading HTML file."
@@ -160,10 +173,71 @@ class SystemDialogController:
 
         self._post_import_processing(success, msg, stats, run_async_backup)
 
-    def _show_import_result_and_offer_check(self, msg: str, stats: dict):
+    def handle_import_text_links(self):
+        """Import links from text/csv/tsv/md file into the current category."""
+        from app.utils.links.import_text_links import TextLinksImporter
+        from app.utils.ui.async_helpers import run_async_backup
+
+        category_id = (
+            self.main_window.get_current_category_id()
+            if hasattr(self.main_window, "get_current_category_id")
+            else None
+        )
+        if not category_id:
+            DialogManager.show_warning(
+                self.main_window,
+                _tr_sys(_SYS_WARN_NO_CATEGORY),
+                _tr_sys(_SYS_TITLE_LINKS_IMPORT),
+                informative_text=_tr_sys(_SYS_INFO_SELECT_CATEGORY),
+            )
+            return
+
+        importer = TextLinksImporter()
+        path = importer.select_file(self.main_window)
+        if not path:
+            return
+
+        try:
+            links = importer.parse_file(path)
+        except Exception as e:
+            DialogManager.show_error(
+                self.main_window,
+                _tr_sys(_SYS_ERROR_READ_FILE),
+                _tr_sys(_SYS_TITLE_LINKS_IMPORT),
+                informative_text=_tr_sys(_SYS_INFO_CHECK_FILE),
+                details=str(e),
+            )
+            return
+
+        if not links:
+            DialogManager.show_warning(
+                self.main_window,
+                _tr_sys(_SYS_WARN_NO_LINKS),
+                _tr_sys(_SYS_TITLE_LINKS_IMPORT),
+                details=f"file={path}",
+            )
+            return
+
+        if not self._backup_before_import(run_async_backup):
+            return
+
+        success, msg, stats = importer.sync_to_db(
+            links,
+            category_id,
+            self.links_business,
+        )
+
+        self._post_import_processing(
+            success, msg, stats, run_async_backup, dialog_title=_tr_sys(_SYS_TITLE_LINKS_IMPORT)
+        )
+
+    def _show_import_result_and_offer_check(
+        self, msg: str, stats: dict, dialog_title: str | None = None
+    ):
         """Show import result and offer Bad URL check if HTTP links found."""
         from PyQt6.QtWidgets import QMessageBox
 
+        title = dialog_title or _tr_sys(_SYS_TITLE_BROWSER_IMPORT)
         added = stats.get("added", 0)
         http_count = stats.get("http_count", 0)
         https_count = stats.get("https_count", 0)
@@ -195,7 +269,7 @@ class SystemDialogController:
             reply = DialogManager.show_custom(
                 self.main_window,
                 QMessageBox.Icon.Question,
-                _tr_sys(_SYS_TITLE_BROWSER_IMPORT),
+                title,
                 question_text,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
@@ -210,7 +284,7 @@ class SystemDialogController:
             DialogManager.show_info(
                 self.main_window,
                 detailed_msg,
-                _tr_sys(_SYS_TITLE_BROWSER_IMPORT),
+                title,
             )
 
     # --- Helpers to reduce complexity ---
@@ -316,14 +390,20 @@ class SystemDialogController:
             return False
 
     def _post_import_processing(
-        self, success: bool, msg: str, stats: dict, run_async_backup
+        self,
+        success: bool,
+        msg: str,
+        stats: dict,
+        run_async_backup,
+        dialog_title: str | None = None,
     ) -> None:
         """Finalize import: backup, refresh UI, and show results."""
+        title = dialog_title or _tr_sys(_SYS_TITLE_BROWSER_IMPORT)
         if not success:
             DialogManager.show_error(
                 self.main_window,
                 _tr_sys(_SYS_IMPORT_COMPLETED_ERROR),
-                _tr_sys(_SYS_TITLE_BROWSER_IMPORT),
+                title,
                 details=msg,
             )
             return
@@ -373,7 +453,7 @@ class SystemDialogController:
         QApplication.processEvents()
 
         # Show result dialog and offer URL check
-        self._show_import_result_and_offer_check(msg, stats)
+        self._show_import_result_and_offer_check(msg, stats, dialog_title=title)
 
     def show_about_dialog(self):
         """Show About dialog."""
@@ -434,6 +514,25 @@ class SystemDialogController:
                 self.main_window,
                 _tr_sys(_SYS_ICON_REFRESH_FAILED),
                 _tr_sys(_SYS_TITLE_ICON_REFRESH),
+                details=str(e),
+            )
+
+    def handle_clean_icons(self):
+        """Открыть диалог очистки неиспользуемых иконок."""
+        try:
+            from app.services.icon_reference_service import IconReferenceService
+            from app.views.windows.dialogs.clean_icons_dialog import CleanIconsDialog
+
+            db = self._get_structure_db()
+            service = IconReferenceService(db)
+            dialog = CleanIconsDialog(service, parent=self.main_window)
+            dialog.exec()
+        except Exception as e:
+            logger.error("Failed to run clean icons: %s", e, exc_info=True)
+            DialogManager.show_error(
+                self.main_window,
+                QCoreApplication.translate("SystemDialogController", "Failed to clean icons."),
+                _tr_sys(_SYS_TITLE_CLEAN_ICONS),
                 details=str(e),
             )
 

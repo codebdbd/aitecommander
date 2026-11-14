@@ -32,6 +32,7 @@ class UIStateManager:
         self._history: list[int] = []
         self._history_index: int = -1
         self._navigating_history: bool = False
+        self._pending_table_category_id: int | None = None
 
     def load_category(
         self,
@@ -120,6 +121,7 @@ class UIStateManager:
             # 4. Load data through centralized links table controller
             links_ctrl = getattr(self.main, "links_table_controller", None)
             if links_ctrl and hasattr(links_ctrl, "reload"):
+                self._pending_table_category_id = category_id
                 links_ctrl.reload(category_id)
             else:
                 logger.error(
@@ -128,8 +130,7 @@ class UIStateManager:
                 )
                 return False
 
-            # 5. Update UI state
-            self._switch_to_table_view()
+            # Keep the current panel visible until the async table load is applied.
             self._clear_tiles_selection()
 
             if not self._navigating_history:
@@ -146,6 +147,17 @@ class UIStateManager:
             return False
         finally:
             self._loading = False
+
+    def on_category_loaded(self, category_id: int) -> None:
+        """Show the table after the requested category data has been applied."""
+        if (
+            self._pending_table_category_id != category_id
+            or getattr(self.main, "current_category_id", None) != category_id
+        ):
+            return
+
+        self._pending_table_category_id = None
+        self._switch_to_table_view()
 
     def _switch_to_table_view(self):
         """Switch UI to links table view."""
@@ -201,6 +213,7 @@ class UIStateManager:
 
     def _handle_load_error(self):
         """Handle category loading errors."""
+        self._pending_table_category_id = None
         self._clear_tiles_selection()
         # Can add user notification in future
 
@@ -289,6 +302,7 @@ class UIStateManager:
         Returns:
             True if tiles data was applied via UIStateManager path.
         """
+        self._pending_table_category_id = None
         applied_tiles = False
         perf_t0 = None
         try:

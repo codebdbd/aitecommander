@@ -408,6 +408,13 @@ class MainMenuBuilder:
         )
         data_menu.addAction(
             self._create_action(
+                MenuTexts.IMPORT_LINKS,
+                self.main_window.handle_import_text_links,
+                icon_name="import_link",
+            )
+        )
+        data_menu.addAction(
+            self._create_action(
                 MenuTexts.IMPORT_ICONS,
                 self._load_icons,
                 Shortcuts.CTRL_ALT_I,
@@ -448,6 +455,13 @@ class MainMenuBuilder:
                 self._refresh_icons,
                 Shortcuts.CTRL_ALT_H,
                 icon_name="refresh",
+            )
+        )
+        data_menu.addAction(
+            self._create_action(
+                MenuTexts.CLEAN_ICONS,
+                self._clean_icons,
+                icon_name="clean_icons",
             )
         )
 
@@ -508,6 +522,11 @@ class MainMenuBuilder:
         """Refresh icons for web links — delegated to SystemDialogController."""
         if hasattr(self.main_window, "system_dialogs"):
             self.main_window.system_dialogs.handle_refresh_icons()
+
+    def _clean_icons(self):
+        """Clean unused icons — delegated to SystemDialogController."""
+        if hasattr(self.main_window, "system_dialogs"):
+            self.main_window.system_dialogs.handle_clean_icons()
     
     def _check_bad_urls(self):
         """Check bad URLs — delegated to SystemDialogController."""

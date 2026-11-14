@@ -801,11 +801,16 @@ class DragDropHandler(TreeHandlerBase):
         if not targets:
             return False
 
-        pkg_type = self._detect_package_type(targets[0]) if len(targets) == 1 else None
+        all_pkg_types = [self._detect_package_type(t) for t in targets]
+        is_all_share_pkgs = (
+            all(p in ("section", "category") for p in all_pkg_types)
+            if all_pkg_types
+            else False
+        )
         ttuple = get_tree_tuple(target_index, 0) if (target_index and target_index.isValid()) else None
 
         # Smart Routing for share packages (.aitesec, .aitecat)
-        if pkg_type in ("section", "category"):
+        if is_all_share_pkgs:
             item_type = ttuple[0] if ttuple else None
             item_id = int(ttuple[1]) if ttuple else None
             self.tree_widget.externalLinkDropped.emit(

@@ -78,6 +78,57 @@ class TestCategoriesListModelSyncPrefetch(unittest.TestCase):
         model.set_categories([{"id": 1, "name": "A", "icon_path": "same.png"}])
         self.assertIs(model._items, items_before)
 
+    def test_set_categories_inserts_new_category_without_resetting_model(self) -> None:
+        model = CategoriesListModel()
+        model._lazy_icons_enabled = False
+        with patch(
+            "app.views.models.categories_list_model.icon_loading_service.get_path_icon",
+            return_value=QIcon(),
+        ):
+            model.set_categories([
+                {"id": 1, "name": "A", "icon_path": "a.png"},
+                {"id": 3, "name": "C", "icon_path": "c.png"},
+            ])
+
+            inserted_rows: list[tuple[int, int]] = []
+            resets: list[bool] = []
+            model.rowsInserted.connect(
+                lambda _parent, first, last: inserted_rows.append((first, last))
+            )
+            model.modelReset.connect(lambda: resets.append(True))
+
+            model.set_categories([
+                {"id": 1, "name": "A", "icon_path": "a.png"},
+                {"id": 2, "name": "B", "icon_path": "b.png"},
+                {"id": 3, "name": "C", "icon_path": "c.png"},
+            ])
+
+        self.assertEqual([(1, 1)], inserted_rows)
+        self.assertEqual([], resets)
+        self.assertEqual(3, model.rowCount())
+        self.assertEqual(1, model.find_row_by_id(2))
+        self.assertEqual([1, 2, 3], [item["id"] for item in model._items])
+
+    def test_set_categories_inserts_first_category_without_resetting_model(self) -> None:
+        model = CategoriesListModel()
+        model._lazy_icons_enabled = False
+        inserted_rows: list[tuple[int, int]] = []
+        resets: list[bool] = []
+        model.rowsInserted.connect(
+            lambda _parent, first, last: inserted_rows.append((first, last))
+        )
+        model.modelReset.connect(lambda: resets.append(True))
+
+        with patch(
+            "app.views.models.categories_list_model.icon_loading_service.get_path_icon",
+            return_value=QIcon(),
+        ):
+            model.set_categories([{"id": 1, "name": "A", "icon_path": "a.png"}])
+
+        self.assertEqual([(0, 0)], inserted_rows)
+        self.assertEqual([], resets)
+        self.assertEqual(1, model.rowCount())
+
     def test_update_category_in_place_and_emits_datachanged(self) -> None:
         model = CategoriesListModel([
             {"id": 1, "name": "A", "icon_path": "a.png"},

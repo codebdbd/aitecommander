@@ -97,11 +97,13 @@ class MenuTexts:
     RESTORE_DATABASE = QT_TRANSLATE_NOOP("MenuActions", "Restore Database")
     CONNECT_DATABASE = QT_TRANSLATE_NOOP("MenuActions", "Open Database")
     IMPORT_BROWSER = QT_TRANSLATE_NOOP("MenuActions", "Import Bookmarks")
+    IMPORT_LINKS = QT_TRANSLATE_NOOP("MenuActions", "Import Links from File…")
     EXPORT_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Export Icons")
     IMPORT_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Import Icons")
     CHECK_LINKS = QT_TRANSLATE_NOOP("MenuActions", "Check Links")
     CHECK_LOCAL_PATHS = QT_TRANSLATE_NOOP("MenuActions", "Check Local Paths")
     REFRESH_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Refresh Icons")
+    CLEAN_ICONS = QT_TRANSLATE_NOOP("MenuActions", "Clean Icons")
     SEARCH_FILES = QT_TRANSLATE_NOOP("MenuActions", "Search files")
     ABOUT = QT_TRANSLATE_NOOP("MenuActions", "About")
     EDIT_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Edit section")
@@ -153,10 +155,13 @@ class MenuTexts:
     EMAIL_COPY_AS_MESSAGE = QT_TRANSLATE_NOOP("MenuActions", "Copy as email message")
     EXPORT_CATEGORY = QT_TRANSLATE_NOOP("MenuActions", "Export category")
     EXPORT_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Export section")
+    EXPORT_SECTIONS = QT_TRANSLATE_NOOP("MenuActions", "Export sections")
     SHARE_CATEGORY = EXPORT_CATEGORY
     SHARE_SECTION = EXPORT_SECTION
+    SHARE_SECTIONS = EXPORT_SECTIONS
     IMPORT_CATEGORY = QT_TRANSLATE_NOOP("MenuActions", "Import category")
     IMPORT_SECTION = QT_TRANSLATE_NOOP("MenuActions", "Import section")
+    IMPORT_SECTIONS = QT_TRANSLATE_NOOP("MenuActions", "Import sections")
 
 # NOTE: The block below is never executed; it only exists so that pylupdate6 can
 # discover all menu action texts even though we resolve them dynamically at runtime.
@@ -214,8 +219,10 @@ if False:  # pragma: no cover
     QCoreApplication.translate("MenuActions", "Copy as email message")
     QCoreApplication.translate("MenuActions", "Export category")
     QCoreApplication.translate("MenuActions", "Export section")
+    QCoreApplication.translate("MenuActions", "Export sections")
     QCoreApplication.translate("MenuActions", "Import category")
     QCoreApplication.translate("MenuActions", "Import section")
+    QCoreApplication.translate("MenuActions", "Import sections")
     QCoreApplication.translate("MenuActions", "Error: %1")
 
 
