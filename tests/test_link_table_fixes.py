@@ -177,3 +177,103 @@ def test_get_selected_rows_cell_selection_fallback(qapp):
     # selectedRows() in Qt is empty for cell selection, but get_selected_rows must resolve row 1
     assert sm.selectedRows() == []
     assert get_selected_rows(table) == [1]
+
+
+def test_incremental_populate_preserves_order_with_non_contiguous_db_positions(qapp):
+    """Toggling is_favorite when DB positions have gaps must not push the link to the bottom."""
+    table = LinksTableView()
+    db_links = [
+        {
+            "id": 10,
+            "name": "First",
+            "position": 5,
+            "type": "web",
+            "url": "https://first.example",
+            "is_favorite": 0,
+        },
+        {
+            "id": 20,
+            "name": "Second",
+            "position": 6,
+            "type": "web",
+            "url": "https://second.example",
+            "is_favorite": 0,
+        },
+        {
+            "id": 30,
+            "name": "Third",
+            "position": 7,
+            "type": "web",
+            "url": "https://third.example",
+            "is_favorite": 0,
+        },
+    ]
+
+    # Initial full populate renumbers model positions to 0, 1, 2
+    table.populate([dict(item) for item in db_links], mode="normal")
+    assert [table.model().get_link(r)["id"] for r in range(3)] == [10, 20, 30]
+
+    # Simulate category reload after toggling favorite on link 10 (DB still has positions 5, 6, 7)
+    reloaded = [dict(item) for item in db_links]
+    reloaded[0]["is_favorite"] = 1
+    table.populate(reloaded, mode="normal")
+
+    assert [table.model().get_link(r)["id"] for r in range(3)] == [10, 20, 30]
+    assert table.model().get_link(0)["is_favorite"] == 1
+    assert [table.model().get_link(r)["position"] for r in range(3)] == [0, 1, 2]
+
+
+def test_update_link_by_id_preserves_model_position(qapp):
+    table = LinksTableView()
+    table.populate(_sample_links(), mode="normal")
+
+    # Simulate single-link update from DB where DB position is 99
+    updated = dict(_sample_links()[0], is_favorite=1, position=99)
+    assert table.update_link_by_id(updated, mode="normal") is True
+
+    # Resorting by ORDER column must keep link 10 at row 0
+    table.model().sort(int(LinkTableColumn.ORDER), Qt.SortOrder.AscendingOrder)
+    assert [table.model().get_link(r)["id"] for r in range(3)] == [10, 20, 30]
+    assert table.model().get_link(0)["position"] == 0
+
+
+def test_on_links_loaded_preserves_sort_on_same_category_reload(qapp):
+    from types import SimpleNamespace
+
+    from app.controllers.ui.links.table_controller import LinksTableController
+
+    reset_calls = []
+
+    class DummyTable:
+        def reset_default_sort_for_next_populate(self):
+            reset_calls.append(True)
+
+        def populate(self, links):
+            pass
+
+        def update_link_by_id(self, link, mode="normal"):
+            return True
+
+    table = DummyTable()
+    category_provider = SimpleNamespace(current_category_id=42)
+    main = SimpleNamespace(
+        ui_state=SimpleNamespace(on_category_loaded=lambda cid: None),
+    )
+    ctrl = LinksTableController(
+        main,
+        table=table,
+        links_business=SimpleNamespace(),
+        category_provider=category_provider,
+    )
+    ctrl.on_links_loaded([], 42, 1)
+    assert len(reset_calls) == 1
+
+    # Reloading the same category (e.g. after toggle_favorite) must not reset sort
+    ctrl.on_links_loaded([], 42, 2)
+    assert len(reset_calls) == 1
+
+    # Switching to another category must reset sort
+    category_provider.current_category_id = 43
+    ctrl.on_links_loaded([], 43, 3)
+    assert len(reset_calls) == 2
+

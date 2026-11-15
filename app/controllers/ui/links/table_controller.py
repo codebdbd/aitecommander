@@ -70,6 +70,7 @@ class LinksTableController(QObject):
         self._reloading: bool = False
         self._queued_category_id: Optional[int] = None
         self._current_category_id: Optional[int] = None
+        self._loaded_category_id: Optional[int] = None
         self._current_request_id: Optional[int] = None
 
         try:
@@ -206,9 +207,13 @@ class LinksTableController(QObject):
                     current_category_id,
                 )
                 return
+            is_category_switch = self._loaded_category_id != category_id
+            self._loaded_category_id = category_id
             if _DIAG_TABLE_POPULATE:
                 t0 = time.perf_counter()
-                if hasattr(self.table, "reset_default_sort_for_next_populate"):
+                if is_category_switch and hasattr(
+                    self.table, "reset_default_sort_for_next_populate"
+                ):
                     self.table.reset_default_sort_for_next_populate()
                 self.table.populate(links)
                 elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -220,7 +225,9 @@ class LinksTableController(QObject):
                         category_id,
                     )
             else:
-                if hasattr(self.table, "reset_default_sort_for_next_populate"):
+                if is_category_switch and hasattr(
+                    self.table, "reset_default_sort_for_next_populate"
+                ):
                     self.table.reset_default_sort_for_next_populate()
                 self.table.populate(links)
 

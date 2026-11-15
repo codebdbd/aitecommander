@@ -92,6 +92,9 @@ class RowOperationsMixin:
                         break
 
             if row >= 0:
+                existing_row = table.get_link_at(row)
+                if isinstance(existing_row, dict) and "position" in existing_row:
+                    link = {**link, "position": existing_row["position"]}
                 if _debug:
                     logger.debug(
                         "update_link_by_id: found row=%s for id=%s; updating",
@@ -400,6 +403,15 @@ class RowOperationsMixin:
                 unchanged = link_data == new_data
 
             if unchanged:
+                if (
+                    "position" in new_data
+                    and link_data.get("position") != new_data.get("position")
+                ):
+                    link_data["position"] = new_data["position"]
+                    if row in self._link_cache and isinstance(
+                        self._link_cache[row], dict
+                    ):
+                        self._link_cache[row]["position"] = new_data["position"]
                 continue
 
             self._update_row(row, new_data, compare_mode)

@@ -170,6 +170,15 @@ class PopulationManagerMixin:
 
     def _perform_incremental_update(self, links, mode, sort_col):
         """Perform incremental update of table."""
+        if mode != "search":
+            from app.views.widgets.link.order_utils import renumber_link_positions
+
+            ordered_links = sorted(
+                (link for link in links if isinstance(link, dict)),
+                key=lambda item: int(item.get("position", 0) or 0),
+            )
+            links = renumber_link_positions(ordered_links)
+
         helpers = self._data_helpers()
         current_ids = helpers._get_current_link_ids()
         new_ids = helpers._get_new_link_ids(links)
