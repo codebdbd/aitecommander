@@ -38,16 +38,18 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
         current = self._get_current_theme()
 
         self.blockSignals(True)
-        self.clear()
-        for name, display_name in themes:
-            self.addItem(display_name, name)
+        try:
+            self.clear()
+            for name, display_name in themes:
+                self.addItem(display_name, name)
 
-        select_combo_data(
-            self,
-            current_data=current,
-            fallback_to_first=True,
-        )
-        self.blockSignals(False)
+            select_combo_data(
+                self,
+                current_data=current,
+                fallback_to_first=True,
+            )
+        finally:
+            self.blockSignals(False)
         self._resize_to_contents()
 
     def _resize_to_contents(self) -> None:
@@ -81,12 +83,14 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
             return
 
         self.blockSignals(True)
-        select_combo_data(
-            self,
-            current_data=target,
-            fallback_to_first=True,
-        )
-        self.blockSignals(False)
+        try:
+            select_combo_data(
+                self,
+                current_data=target,
+                fallback_to_first=True,
+            )
+        finally:
+            self.blockSignals(False)
         self._resize_to_contents()
 
     def refresh_themes(self) -> None:
@@ -107,12 +111,14 @@ class ThemeSelector(PopupComboBox, ReTranslatable):
         normalized = self._get_current_theme()
         if self.count() > 0:
             self.blockSignals(True)
-            select_combo_data(
-                self,
-                current_data=normalized,
-                fallback_to_first=True,
-            )
-            self.blockSignals(False)
+            try:
+                select_combo_data(
+                    self,
+                    current_data=normalized,
+                    fallback_to_first=True,
+                )
+            finally:
+                self.blockSignals(False)
 
 
 __all__ = ["ThemeSelector"]

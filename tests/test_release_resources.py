@@ -65,3 +65,38 @@ def test_compiled_ukrainian_matches_catalog(qt_app):
                     continue
                 assert translator.translate(context.findtext("name"), source.encode("utf-8"), None, number) == expected, source
                 assert sorted(re.findall(r"\{[^{}]*\}", source)) == sorted(re.findall(r"\{[^{}]*\}", expected)), source
+
+
+def test_spec_bundled_resources_exist():
+    spec_text = (ROOT / "aitecommander.spec").read_text(encoding="utf-8")
+    assert "upx=False" in spec_text
+    assert "upx=True" not in spec_text
+    required_paths = [
+        ROOT / "app" / "models" / "schema.sql",
+        ROOT / "app" / "models" / "migrations",
+        ROOT / "app" / "resources" / "themes",
+        ROOT / "app" / "resources" / "qss",
+        ROOT / "app" / "resources" / "ui_icons",
+        ROOT / "app" / "resources" / "logo",
+        ROOT / "app" / "resources" / "package_icon.ico",
+        ROOT / "app" / "resources" / "app_icon.ico",
+        ROOT / "app" / "config_data" / "app_config.json",
+        ROOT / "app" / "config_data" / "logging_config.json",
+    ]
+    for path in required_paths:
+        assert path.exists(), f"Missing bundled resource: {path}"
+
+
+def test_installer_languages_and_version_parity():
+    import tomllib
+
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project_version = pyproject["project"]["version"]
+    iss_text = (ROOT / "installer" / "AiteCommander.iss").read_text(encoding="utf-8")
+
+    match = re.search(r'#define\s+MyAppVersion\s+"([^"]+)"', iss_text)
+    assert match is not None
+    assert match.group(1) == project_version
+
+    for lang in ("english", "russian", "ukrainian", "german", "french", "spanish"):
+        assert f'Name: "{lang}"' in iss_text

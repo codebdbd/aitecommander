@@ -27,13 +27,38 @@ elif _SYSTEM_TEMP_ROOT.name == "aitecommander_pytest":
 TEST_TEMP_ROOT = _SYSTEM_TEMP_ROOT / "aitecommander_pytest_files"
 TEST_TEMP_ROOT.mkdir(parents=True, exist_ok=True)
 PYTEST_BASETEMP = _SYSTEM_TEMP_ROOT / f"aitecommander_pytest_run_{uuid.uuid4().hex}"
+PYTEST_PROFILE_ROOT = TEST_TEMP_ROOT / f"pytest_profile_{uuid.uuid4().hex}"
+PYTEST_APPDATA = PYTEST_PROFILE_ROOT / "AppData" / "Roaming"
+PYTEST_LOCALAPPDATA = PYTEST_PROFILE_ROOT / "AppData" / "Local"
+PYTEST_QSETTINGS = PYTEST_PROFILE_ROOT / "QSettings"
+for _dir in (PYTEST_APPDATA, PYTEST_LOCALAPPDATA, PYTEST_QSETTINGS):
+    _dir.mkdir(parents=True, exist_ok=True)
+
+os.environ["APPDATA"] = str(PYTEST_APPDATA)
+os.environ["LOCALAPPDATA"] = str(PYTEST_LOCALAPPDATA)
 os.environ["TMP"] = str(_SYSTEM_TEMP_ROOT)
 os.environ["TEMP"] = str(_SYSTEM_TEMP_ROOT)
 tempfile.tempdir = str(_SYSTEM_TEMP_ROOT)
 
+try:
+    from PyQt6.QtCore import QSettings
+
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(PYTEST_QSETTINGS),
+    )
+except Exception:
+    pass
+
 
 def pytest_configure(config) -> None:
     config.option.basetemp = str(PYTEST_BASETEMP)
+
+
+def pytest_unconfigure(config) -> None:
+    shutil.rmtree(PYTEST_PROFILE_ROOT, ignore_errors=True)
 
 
 pytest_pathlib.cleanup_dead_symlinks = lambda root: None

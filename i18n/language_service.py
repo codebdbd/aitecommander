@@ -216,22 +216,22 @@ class LanguageService(QObject):
             logger.warning("install_translator called without QApplication instance")
             return False
 
-        if self._current_language == "en":
-            logger.debug(
-                "install_translator: English locale active, translator not required"
-            )
-            return True
-
         try:
             self._remove_translators()
 
-            qt_translator = self._load_qt_translator(self._current_language)
-            if qt_translator is not None:
-                QCoreApplication.installTranslator(qt_translator)
-                self._installed_translators.append(qt_translator)
+            if self._current_language != "en":
+                qt_translator = self._load_qt_translator(self._current_language)
+                if qt_translator is not None:
+                    QCoreApplication.installTranslator(qt_translator)
+                    self._installed_translators.append(qt_translator)
 
             app_translator = self._load_app_translator(self._current_language)
             if app_translator is None:
+                if self._current_language == "en":
+                    logger.debug(
+                        "install_translator: English app translator missing, falling back to source strings"
+                    )
+                    return True
                 logger.error(
                     "install_translator: translator unavailable after load for %s",
                     self._current_language,

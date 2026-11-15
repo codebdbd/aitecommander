@@ -272,9 +272,10 @@ class MoveCategoriesCommand(BaseBulkCommand):
         self._last_moved_ids.clear()
         self._last_target_states = list(states)
         batch_started = False
+        sel_flag, tree_flag = False, False
 
         try:
-            self._suppress_ui_signals(selection, tree)
+            sel_flag, tree_flag = self._suppress_ui_signals(selection, tree)
 
             target_ids, single_target, target_section_id = self._extract_target_info(
                 states
@@ -305,7 +306,7 @@ class MoveCategoriesCommand(BaseBulkCommand):
         finally:
             if batch_started:
                 self._try_end_batch(sb)
-            self._restore_ui_signals(selection, tree)
+            self._restore_ui_signals(selection, tree, sel_flag, tree_flag)
 
     def _try_begin_batch(self, sb) -> bool:
         """Try to call begin_batch() and return True on success."""
@@ -405,26 +406,29 @@ class MoveCategoriesCommand(BaseBulkCommand):
             self._resume_preload_after_ui()
 
             def _deferred_model_moves() -> None:
+                sel_flag, tree_flag = False, False
                 try:
-                    self._suppress_ui_signals(selection, tree)
+                    sel_flag, tree_flag = self._suppress_ui_signals(selection, tree)
                     self._apply_tree_model_moves(tree)
                 finally:
-                    self._restore_ui_signals(selection, tree)
+                    self._restore_ui_signals(selection, tree, sel_flag, tree_flag)
 
             try:
                 QTimer.singleShot(0, _deferred_model_moves)
             except Exception:
+                sel_flag, tree_flag = False, False
                 try:
-                    self._suppress_ui_signals(selection, tree)
+                    sel_flag, tree_flag = self._suppress_ui_signals(selection, tree)
                     self._apply_tree_model_moves(tree)
                 finally:
-                    self._restore_ui_signals(selection, tree)
+                    self._restore_ui_signals(selection, tree, sel_flag, tree_flag)
         else:
+            sel_flag, tree_flag = False, False
             try:
-                self._suppress_ui_signals(selection, tree)
+                sel_flag, tree_flag = self._suppress_ui_signals(selection, tree)
                 self._apply_tree_model_moves(tree)
             finally:
-                self._restore_ui_signals(selection, tree)
+                self._restore_ui_signals(selection, tree, sel_flag, tree_flag)
 
             self._maybe_schedule_tree_focus(tree, first_focus_id, target_section_id)
             self._resume_preload_after_ui()

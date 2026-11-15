@@ -657,6 +657,13 @@ class LinkHealthWorker(QRunnable):
         except Exception as exc:
             logger.error("[link_health] Error during health check: %s", exc, exc_info=True)
             self.signals.error.emit(str(exc))
+        finally:
+            try:
+                from app.core.database_manager import DatabaseManager
+
+                DatabaseManager.close()
+            except Exception as close_err:
+                logger.warning("[link_health] Failed to close DB connection: %s", close_err)
 
 
 _VERSION_TOKEN_RE = re.compile(r"\d+(?:\.\d+)*")

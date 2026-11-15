@@ -41,7 +41,9 @@ class MimeDataParser:
             data = json.loads(raw)
             if isinstance(data, dict):
                 ids = data.get("ids", [])
-                if isinstance(ids, list) and all(isinstance(x, int) for x in ids):
+                if isinstance(ids, list) and all(
+                    isinstance(x, int) and not isinstance(x, bool) for x in ids
+                ):
                     return ids
             return []
         except Exception as exc:

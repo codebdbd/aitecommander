@@ -9,7 +9,7 @@ import signal
 import sys
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QCoreApplication, QSocketNotifier, QTimer
+from PyQt6.QtCore import QCoreApplication, QSocketNotifier, QThread, QTimer
 from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,11 @@ def _trigger_graceful_shutdown(
     signum: int, initializer: ApplicationInitializer | None = None
 ) -> None:
     """Initiate graceful shutdown via MainWindow if available, falling back to QCoreApplication.exit."""
+    app = QCoreApplication.instance()
+    if app is not None and QThread.currentThread() is not app.thread():
+        QTimer.singleShot(0, app, lambda: _trigger_graceful_shutdown(signum, initializer))
+        return
+
     signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
     logger.info(
         "Received %s signal, initiating graceful shutdown...",

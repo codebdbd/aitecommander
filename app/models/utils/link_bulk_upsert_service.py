@@ -194,15 +194,19 @@ class LinkBulkUpsertService:
                 f"UNIQUE constraint failed during batch update: {e}"
             ) from e
         
-        # Check which IDs actually existed
+        # Check which IDs actually existed (chunked to stay under SQLite's 999-variable limit)
         update_ids = [int(p[-1]) for p in updates]
         if update_ids:
-            placeholders = build_in_clause_placeholders(len(update_ids))
-            cursor = self.connection.execute(
-                f"SELECT id FROM link WHERE id IN ({placeholders})",
-                tuple(update_ids),
-            )
-            existed_ids = {int(r["id"]) for r in cursor.fetchall()}
+            existed_ids: set[int] = set()
+            chunk_size = 900
+            for start in range(0, len(update_ids), chunk_size):
+                chunk = update_ids[start : start + chunk_size]
+                placeholders = build_in_clause_placeholders(len(chunk))
+                cursor = self.connection.execute(
+                    f"SELECT id FROM link WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                )
+                existed_ids.update(int(r["id"]) for r in cursor.fetchall())
             
             # Collect non-existent IDs for INSERT
             for update_tuple in updates:

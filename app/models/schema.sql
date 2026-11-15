@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS link (
     args         TEXT    DEFAULT '',
     browser_key  TEXT    DEFAULT NULL,
     position     INTEGER NOT NULL DEFAULT 0,
+    chrome_rotation INTEGER NOT NULL DEFAULT 0,
+    rotation_index INTEGER NOT NULL DEFAULT 0,
+    rotation_profiles TEXT DEFAULT NULL,
     UNIQUE(category_id, name, url, args)
 );
 

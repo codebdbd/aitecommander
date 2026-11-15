@@ -26,15 +26,17 @@ class LanguageSelector(PopupComboBox, ReTranslatable):
         languages = service.available_languages()
         current = service.current_language()
         self.blockSignals(True)
-        self.clear()
-        for descriptor in languages:
-            self.addItem(descriptor.native_name, descriptor.code)
-        select_combo_data(
-            self,
-            current_data=current,
-            fallback_to_first=False,
-        )
-        self.blockSignals(False)
+        try:
+            self.clear()
+            for descriptor in languages:
+                self.addItem(descriptor.native_name, descriptor.code)
+            select_combo_data(
+                self,
+                current_data=current,
+                fallback_to_first=False,
+            )
+        finally:
+            self.blockSignals(False)
 
     def retranslateUi(self) -> None:
         # Language names are stored in native form; only tooltips need translation.
@@ -68,12 +70,14 @@ class LanguageSelector(PopupComboBox, ReTranslatable):
         )
         if self.count() > 0:
             self.blockSignals(True)
-            select_combo_data(
-                self,
-                current_data=normalized,
-                fallback_to_first=False,
-            )
-            self.blockSignals(False)
+            try:
+                select_combo_data(
+                    self,
+                    current_data=normalized,
+                    fallback_to_first=False,
+                )
+            finally:
+                self.blockSignals(False)
 
     def _ensure_service(self) -> LanguageService:
         service = getattr(self, "_service", None)

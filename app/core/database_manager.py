@@ -80,11 +80,12 @@ class DatabaseManager:
 
     @classmethod
     def get_connection(cls) -> sqlite3.Connection:
-        if cls._maintenance_mode:
-            raise RuntimeError(
-                "Database is currently in maintenance mode (restore/rebuild in progress). "
-                "New operations are temporarily blocked."
-            )
+        with cls._connection_lock:
+            if cls._maintenance_mode:
+                raise RuntimeError(
+                    "Database is currently in maintenance mode (restore/rebuild in progress). "
+                    "New operations are temporarily blocked."
+                )
         start_total = time.perf_counter()
         conn = getattr(cls._thread_local, "conn", None)
         if conn is not None:
@@ -95,12 +96,14 @@ class DatabaseManager:
                 # Fast path is safe only when this exact connection is still registered
                 # as active for current thread. After close_all() the registry is cleared
                 # across threads, so stale thread-local references must be revalidated.
-                if cls._active_connections.get(thread_id) is conn:
+                with cls._connection_lock:
                     if cls._maintenance_mode:
                         raise RuntimeError(
                             "Database is currently in maintenance mode (restore/rebuild in progress). "
                             "New operations are temporarily blocked."
                         )
+                    is_registered = cls._active_connections.get(thread_id) is conn
+                if is_registered:
                     cls._thread_local.last_used = now
                     return conn
                 try:
@@ -131,11 +134,12 @@ class DatabaseManager:
                 start_ping = time.perf_counter()
                 conn.execute("SELECT 1").fetchone()
                 ping_ms = _ms(start_ping, time.perf_counter())
-                if cls._maintenance_mode:
-                    raise RuntimeError(
-                        "Database is currently in maintenance mode (restore/rebuild in progress). "
-                        "New operations are temporarily blocked."
-                    )
+                with cls._connection_lock:
+                    if cls._maintenance_mode:
+                        raise RuntimeError(
+                            "Database is currently in maintenance mode (restore/rebuild in progress). "
+                            "New operations are temporarily blocked."
+                        )
                 cls._thread_local.last_used = now
                 total_ms = _ms(start_total, time.perf_counter())
                 if total_ms >= 100:

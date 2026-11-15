@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  release:
-    types:
-      - published
-      - released
-      - prereleased
-      - edited
   workflow_dispatch:
     inputs:
       release_tag:

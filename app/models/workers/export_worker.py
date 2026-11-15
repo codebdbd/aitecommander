@@ -19,6 +19,7 @@ class ExportStructureWorker(DatabaseWorker):
     def __init__(self, db_path: Optional[str] = None):
         super().__init__()
         self.db_path = str(db_path) if db_path else None
+        self._custom_connection: Optional[sqlite3.Connection] = None
 
     def create_connection(self):
         if self.db_path:
@@ -29,10 +30,23 @@ class ExportStructureWorker(DatabaseWorker):
                 if os.path.abspath(self.db_path) != os.path.abspath(current_path):
                     conn = sqlite3.connect(self.db_path)
                     conn.row_factory = sqlite3.Row
+                    self._custom_connection = conn
                     return conn
             except Exception as e:
                 logger.debug("Falling back to standard connection for worker: %s", e)
         return super().create_connection()
+
+    def run(self):
+        self._custom_connection = None
+        try:
+            super().run()
+        finally:
+            if self._custom_connection is not None:
+                try:
+                    self._custom_connection.close()
+                except Exception as close_err:
+                    logger.warning("Ошибка закрытия соединения экспорта: %s", close_err)
+                self._custom_connection = None
 
     def do_work(self, connection) -> dict[str, list]:
         """Выполняет экспорт структуры.

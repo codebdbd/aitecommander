@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 import traceback
 from types import TracebackType
 
@@ -18,6 +19,7 @@ class GlobalErrorHandler:
     _installed = False
     _handling = False
     _prev_hook = None
+    _prev_threading_hook = None
 
     @staticmethod
     def install() -> None:
@@ -26,7 +28,19 @@ class GlobalErrorHandler:
             return
         GlobalErrorHandler._prev_hook = sys.excepthook
         sys.excepthook = GlobalErrorHandler._handle_exception
+        GlobalErrorHandler._prev_threading_hook = getattr(threading, "excepthook", None)
+        threading.excepthook = GlobalErrorHandler._handle_threading_exception
         GlobalErrorHandler._installed = True
+
+    @staticmethod
+    def _handle_threading_exception(args: threading.ExceptHookArgs) -> None:
+        if args.exc_value is None:
+            return
+        GlobalErrorHandler._handle_exception(
+            args.exc_type,
+            args.exc_value,
+            args.exc_traceback,
+        )
 
     @staticmethod
     def _handle_exception(
@@ -68,12 +82,13 @@ class GlobalErrorHandler:
     @staticmethod
     def _safe_show_dialog(exc_value: BaseException, tb_text: str) -> None:
         try:
+            from PyQt6.QtCore import QThread
             from PyQt6.QtWidgets import QApplication
         except Exception:
             return
 
         app = QApplication.instance()
-        if app is None:
+        if app is None or QThread.currentThread() is not app.thread():
             return
 
         try:

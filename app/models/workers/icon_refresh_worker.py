@@ -172,12 +172,16 @@ class IconRefreshWorker(QRunnable):
             with db_lock:
                 cursor = self.db.connection.execute(
                     "UPDATE link SET icon_path = ? WHERE id = ?",
-                    (icon_path, link_id)
+                    (icon_path, link_id),
                 )
-            # НЕ делаем commit здесь - будет батчевый commit после обработки батча
+                self.db.connection.commit()
             return cursor.rowcount > 0
         except Exception as e:
             logger.error("Failed to update icon for link %s: %s", link_id, e)
+            try:
+                self.db.connection.rollback()
+            except Exception:
+                pass
             return False
 
     def _fetch_icon_for_link(
@@ -756,6 +760,12 @@ class IconRefreshWorker(QRunnable):
             self.signals.error.emit(QCoreApplication.translate("IconRefreshWorker", "Error: {0}").format(e))
         finally:
             self._shutdown_executor(wait=not self._is_cancelled)
+            try:
+                from app.core.database_manager import DatabaseManager
+
+                DatabaseManager.close()
+            except Exception as close_err:
+                logger.warning("[icon_refresh] Failed to close DB connection: %s", close_err)
 
 
 __all__ = ["IconRefreshWorker", "IconRefreshSignals"]

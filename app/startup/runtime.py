@@ -784,6 +784,12 @@ def run(options: StartupOptions | None = None) -> int:
                 pass
             if sys.platform == "win32":
                 try:
+                    import pythoncom
+
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+                try:
                     import ctypes
                     from ctypes import wintypes
 

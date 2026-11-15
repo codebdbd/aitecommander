@@ -86,6 +86,38 @@ class TestI18nSubsystem(unittest.TestCase):
             QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 5),
         )
 
+    def test_install_translator_loads_english_catalog(self) -> None:
+        """Verify install_translator installs app_en.qm when English is active."""
+        self.service.set_language("en")
+        self.assertTrue(self.service.install_translator(self._app))
+        self.assertGreaterEqual(len(self.service._installed_translators), 1)
+        self.assertEqual(
+            "1 item selected",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 1),
+        )
+        self.assertEqual(
+            "2 items selected",
+            QCoreApplication.translate("BaseDragDropTable", "%n item selected", "", 2),
+        )
+
+    def test_language_selector_dynamic_retranslation(self) -> None:
+        """Verify LanguageSelector reflects dynamic language switches via ReTranslatable."""
+        from app.views.widgets.language_selector import LanguageSelector
+
+        selector = LanguageSelector()
+        try:
+            codes = {selector.itemData(i) for i in range(selector.count())}
+            self.assertEqual({"en", "ru", "uk", "de", "es", "fr"}, codes)
+
+            self.service.set_language("uk")
+            self.assertEqual("uk", selector.currentData())
+
+            self.service.set_language("en")
+            self.assertEqual("en", selector.currentData())
+            self.assertEqual("Change application language", selector.toolTip())
+        finally:
+            selector.deleteLater()
+
 
 if __name__ == "__main__":
     unittest.main()

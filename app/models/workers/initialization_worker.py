@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from app.core.database_manager import DatabaseManager
+from app.models.base.db_base import db_lock
 
 from .base_worker import DatabaseWorker
 
@@ -41,9 +42,10 @@ class InitializationWorker(DatabaseWorker):
 
         self.emit_progress(0, 1, "Применение миграций...")
 
-        # Запускаем миграции через MigrationRunner
-        runner = MigrationRunner(connection, self.migrations_dir)
-        applied = runner.run_all_pending()
+        # Запускаем миграции через MigrationRunner под db_lock
+        with db_lock:
+            runner = MigrationRunner(connection, self.migrations_dir)
+            applied = runner.run_all_pending()
 
         logger.info("Миграции применены: %d", applied)
 
@@ -55,18 +57,23 @@ class InitializationWorker(DatabaseWorker):
             self.emit_progress(1, 1, "Инициализация дефолтных данных...")
 
             try:
-                # Вставляем дефолтные сферы
-                connection.execute(
-                    "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
-                    ("Работа", "", 0),
-                )
-                connection.execute(
-                    "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
-                    ("Личное", "", 1),
-                )
-                connection.commit()
+                with db_lock:
+                    # Вставляем дефолтные сферы
+                    connection.execute(
+                        "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
+                        ("Работа", "", 0),
+                    )
+                    connection.execute(
+                        "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
+                        ("Личное", "", 1),
+                    )
+                    connection.commit()
                 logger.info("Инициализированы дефолтные сферы")
             except Exception as init_err:
+                try:
+                    connection.rollback()
+                except Exception:
+                    pass
                 logger.warning(
                     "Не удалось инициализировать дефолтные сферы: %s",
                     init_err,

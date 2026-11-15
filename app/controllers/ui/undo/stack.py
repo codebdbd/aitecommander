@@ -37,6 +37,18 @@ class UndoManager:
     def clear(self) -> None:
         logger.debug("clear")
         self.stack.clear()
+        try:
+            from .base import BaseCommand
+
+            BaseCommand._keep_alive.clear()
+        except Exception:
+            pass
+        try:
+            from .commands_links import BatchRelinkCmd
+
+            BatchRelinkCmd._keep_alive.clear()
+        except Exception:
+            pass
 
     def begin_macro(self, text: str) -> None:
         logger.debug("begin_macro: %s", text)

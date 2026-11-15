@@ -21,6 +21,9 @@ from app.utils.ui.qt.roles import get_tree_tuple
 from .base import TreeHandlerBase
 
 logger = logging.getLogger(__name__)
+_PACKAGE_TYPE_CACHE: dict[tuple[str, int, int], str | None] = {}
+_PACKAGE_TYPE_CACHE_MAX = 128
+_MAX_MANIFEST_PEEK_BYTES = 1 * 1024 * 1024
 
 
 class DragDropHandler(TreeHandlerBase):
@@ -230,12 +233,23 @@ class DragDropHandler(TreeHandlerBase):
             try:
                 p = Path(file_path)
                 if p.is_file():
+                    st = p.stat()
+                    cache_key = (str(p), st.st_mtime_ns, st.st_size)
+                    if cache_key in _PACKAGE_TYPE_CACHE:
+                        return _PACKAGE_TYPE_CACHE[cache_key]
+                    detected: str | None = None
                     with zipfile.ZipFile(p, "r") as zf:
                         if "manifest.json" in zf.namelist():
-                            data = json.loads(zf.read("manifest.json").decode("utf-8"))
-                            pt = data.get("package_type")
-                            if pt in ("section", "category"):
-                                return pt
+                            info = zf.getinfo("manifest.json")
+                            if info.file_size <= _MAX_MANIFEST_PEEK_BYTES:
+                                data = json.loads(zf.read("manifest.json").decode("utf-8"))
+                                pt = data.get("package_type")
+                                if pt in ("section", "category"):
+                                    detected = pt
+                    if len(_PACKAGE_TYPE_CACHE) >= _PACKAGE_TYPE_CACHE_MAX:
+                        _PACKAGE_TYPE_CACHE.clear()
+                    _PACKAGE_TYPE_CACHE[cache_key] = detected
+                    return detected
             except Exception:
                 pass
         return None

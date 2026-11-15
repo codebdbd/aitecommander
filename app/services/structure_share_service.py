@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -153,8 +154,6 @@ class StructureShareService:
     ) -> bool:
         manifest, data, icons, workspace_files = self._read_archive(path, include_workspace=True)
         self._validate_manifest(manifest, expected_type="section")
-        valid_icons = self._install_icons(icons)
-        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
 
         section = data.get("section") or {}
         section_name = (section.get("name") or "").strip()
@@ -175,37 +174,46 @@ class StructureShareService:
             if action == "copy":
                 data["section"]["name"] = copy_name
 
+        valid_icons = self._install_icons(icons)
+        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
+
         if existing_sec and action == "merge":
             target_section_id = int(existing_sec["id"])
-            for cat_item in data.get("categories") or []:
-                if not isinstance(cat_item, dict):
-                    continue
-                cat = cat_item.get("category") or {}
-                cat_name = (cat.get("name") or "").strip()
-                existing_cats = self._ss.get_categories(target_section_id)
-                existing_cat = next(
-                    (c for c in existing_cats if str(c.get("name", "")).strip().casefold() == cat_name.casefold()),
-                    None,
-                )
-                if existing_cat:
-                    cat_id = int(existing_cat["id"])
-                    raw_links = self._sanitize_links(
-                        cat_item.get("links") or [],
-                        valid_icons=valid_icons,
-                        workspace_dir=workspace_dir,
+            tx_ctx = (
+                self._ss.db.transaction()
+                if hasattr(getattr(self._ss, "db", None), "transaction")
+                else contextlib.nullcontext()
+            )
+            with tx_ctx:
+                for cat_item in data.get("categories") or []:
+                    if not isinstance(cat_item, dict):
+                        continue
+                    cat = cat_item.get("category") or {}
+                    cat_name = (cat.get("name") or "").strip()
+                    existing_cats = self._ss.get_categories(target_section_id)
+                    existing_cat = next(
+                        (c for c in existing_cats if str(c.get("name", "")).strip().casefold() == cat_name.casefold()),
+                        None,
                     )
-                    for link in raw_links:
-                        link["category_id"] = cat_id
-                    if raw_links:
-                        self._ss.db.links._upsert_links_no_tx(raw_links)
-                else:
-                    cat_tree = self._prepare_category_tree_for_import(
-                        cat_item,
-                        target_section_id,
-                        valid_icons=valid_icons,
-                        workspace_dir=workspace_dir,
-                    )
-                    self._ss.import_category_tree(cat_tree)
+                    if existing_cat:
+                        cat_id = int(existing_cat["id"])
+                        raw_links = self._sanitize_links(
+                            cat_item.get("links") or [],
+                            valid_icons=valid_icons,
+                            workspace_dir=workspace_dir,
+                        )
+                        for link in raw_links:
+                            link["category_id"] = cat_id
+                        if raw_links:
+                            self._ss.db.links._upsert_links_no_tx(raw_links)
+                    else:
+                        cat_tree = self._prepare_category_tree_for_import(
+                            cat_item,
+                            target_section_id,
+                            valid_icons=valid_icons,
+                            workspace_dir=workspace_dir,
+                        )
+                        self._ss.import_category_tree(cat_tree)
             return True
 
         tree = self._prepare_section_tree_for_import(
@@ -222,8 +230,6 @@ class StructureShareService:
     ) -> bool:
         manifest, data, icons, workspace_files = self._read_archive(path, include_workspace=True)
         self._validate_manifest(manifest, expected_type="category")
-        valid_icons = self._install_icons(icons)
-        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
 
         category = data.get("category") or {}
         cat_name = (category.get("name") or "").strip()
@@ -244,6 +250,9 @@ class StructureShareService:
             if action == "copy":
                 data["category"]["name"] = copy_name
 
+        valid_icons = self._install_icons(icons)
+        workspace_dir = self._install_workspace_files(path.stem, workspace_files)
+
         if existing_cat and action == "merge":
             cat_id = int(existing_cat["id"])
             raw_links = self._sanitize_links(
@@ -254,7 +263,13 @@ class StructureShareService:
             for link in raw_links:
                 link["category_id"] = cat_id
             if raw_links:
-                self._ss.db.links._upsert_links_no_tx(raw_links)
+                tx_ctx = (
+                    self._ss.db.transaction()
+                    if hasattr(getattr(self._ss, "db", None), "transaction")
+                    else contextlib.nullcontext()
+                )
+                with tx_ctx:
+                    self._ss.db.links._upsert_links_no_tx(raw_links)
             return True
 
         tree = self._prepare_category_tree_for_import(
@@ -275,11 +290,13 @@ class StructureShareService:
         with zipfile.ZipFile(archive_path, "r") as zf:
             if "manifest.json" not in zf.namelist():
                 raise ValueError("Not a valid share package (missing manifest.json)")
-            manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+            manifest_bytes = self._safe_read_entry(zf, "manifest.json", MAX_MANIFEST_SIZE)
+            manifest = json.loads(manifest_bytes.decode("utf-8"))
             item_name = archive_path.stem
             if "data.json" in zf.namelist():
                 try:
-                    data = json.loads(zf.read("data.json").decode("utf-8"))
+                    data_bytes = self._safe_read_entry(zf, "data.json", MAX_DATA_JSON_SIZE)
+                    data = json.loads(data_bytes.decode("utf-8"))
                     pkg_type = manifest.get("package_type")
                     if pkg_type == "section":
                         sec = data.get("section") or {}

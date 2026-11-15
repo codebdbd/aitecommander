@@ -177,6 +177,13 @@ class DatabaseRestoreWorker(QRunnable):
 
             logger.info("Creating new Database object")
             new_db = Database()
+            app = QCoreApplication.instance()
+            if app is not None and hasattr(new_db, "moveToThread"):
+                try:
+                    if new_db.thread() is not app.thread():
+                        new_db.moveToThread(app.thread())
+                except Exception as move_err:
+                    logger.warning("Failed to move restored Database to GUI thread: %s", move_err)
 
             logger.info("Database restore completed successfully")
             return new_db, backup_path.name
@@ -192,8 +199,25 @@ class DatabaseRestoreWorker(QRunnable):
                 except Exception:
                     pass
 
+    @staticmethod
+    def _copy_stream_limited(src, dst, max_bytes: int, chunk_size: int = 65536) -> int:
+        """Copy stream to destination enforcing an exact decompressed byte limit."""
+        written = 0
+        while True:
+            chunk = src.read(chunk_size)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                raise ValueError(
+                    f"Archive entry exceeds maximum allowed extracted size ({max_bytes} bytes)."
+                )
+            dst.write(chunk)
+        return written
+
     def _extract_bundle_staging(self, bundle_path: Path, staging_root: Path) -> tuple[Path, Path]:
         """Safely extract database and icons from zip into a local staging directory."""
+        MAX_DB_EXTRACTED_SIZE = 512 * 1024 * 1024  # 512 MB max database size
         MAX_ICON_FILES = 2000
         MAX_ICON_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per icon
         MAX_TOTAL_EXTRACTED_SIZE = 100 * 1024 * 1024  # 100 MB max icons
@@ -223,7 +247,7 @@ class DatabaseRestoreWorker(QRunnable):
                 )
 
             with zipf.open(db_member, "r") as src, open(staged_db, "wb") as dst:
-                shutil.copyfileobj(src, dst)
+                self._copy_stream_limited(src, dst, MAX_DB_EXTRACTED_SIZE)
 
             # Safely extract icons without directory traversal
             total_size = 0
@@ -240,15 +264,20 @@ class DatabaseRestoreWorker(QRunnable):
                         continue
                     if member.file_size > MAX_ICON_FILE_SIZE:
                         continue
-                    total_size += member.file_size
-                    if total_size > MAX_TOTAL_EXTRACTED_SIZE:
+                    remaining_budget = MAX_TOTAL_EXTRACTED_SIZE - total_size
+                    if remaining_budget <= 0:
                         break
                     icon_count += 1
                     if icon_count > MAX_ICON_FILES:
                         break
                     target_dest = staged_icons / fname
-                    with zipf.open(member, "r") as src, open(target_dest, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
+                    entry_limit = min(MAX_ICON_FILE_SIZE, remaining_budget)
+                    try:
+                        with zipf.open(member, "r") as src, open(target_dest, "wb") as dst:
+                            total_size += self._copy_stream_limited(src, dst, entry_limit)
+                    except ValueError:
+                        target_dest.unlink(missing_ok=True)
+                        continue
 
         return staged_db, staged_icons
 

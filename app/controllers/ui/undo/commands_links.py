@@ -46,9 +46,11 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
     ui_state = getattr(main_window, "ui_state", None) or getattr(
         main_window, "ui_state_manager", None
     )
+    reloaded_via_ui_state = False
     if current_cat in unique_ids and ui_state and hasattr(ui_state, "load_category"):
         try:
             ui_state.load_category(current_cat, force_reload=True)
+            reloaded_via_ui_state = True
         except Exception as exc:
             logger.warning(
                 "ui_state.load_category force_reload failed for %s: %s",
@@ -60,6 +62,8 @@ def _reload_links_via_controller(main_window, category_ids) -> None:
         logger.warning("LinksTableController unavailable for reload")
         return
     for cat_id in unique_ids:
+        if reloaded_via_ui_state and cat_id == current_cat:
+            continue
         if isinstance(cat_id, int) and cat_id > 0:
             try:
                 ctrl.reload(cat_id)

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 import logging
 
 from app.utils.naming import UniqueNameAllocator
+from app.utils.ui.signal_suppression import restore_ui_signals, suppress_ui_signals
 
 logger = logging.getLogger(__name__)
 error_handler = BulkOperationErrorHandler()
@@ -264,6 +265,7 @@ class MoveLinksCommand(BaseBulkCommand):
 
                 if structure_business and hasattr(structure_business, 'select_category'):
                     try:
+                        reloaded_via_controller = False
                         ui_state = getattr(self.main, "ui_state", None) or getattr(self.main, "ui_state_manager", None)
                         if ui_state and hasattr(ui_state, "load_category"):
                             ui_state.load_category(
@@ -271,38 +273,47 @@ class MoveLinksCommand(BaseBulkCommand):
                                 source="MoveLinksCommand._refresh_ui",
                                 force_reload=True,
                             )
+                            reloaded_via_controller = True
                         else:
                             # Load links for new category
                             structure_business.select_category(int(focus_category_id))
+                            reloaded_via_controller = True
 
-                        # Set visual selection in tree
+                        # Set visual selection in tree without triggering another load_category
                         struct = getattr(self.main, 'structure', None)
                         if struct:
                             tree = getattr(struct, 'tree', None)
+                            selection_handler = getattr(struct, 'selection_handler', None)
                             if tree and hasattr(tree, 'model'):
                                 model = tree.model()
                                 if model and hasattr(model, 'index_for'):
                                     cat_index = model.index_for('category', int(focus_category_id))
                                     if cat_index and cat_index.isValid():
-                                        sel_model = tree.selectionModel()
-                                        if sel_model:
-                                            # Clear old selection first, then select new one
-                                            sel_model.setCurrentIndex(
-                                                cat_index,
-                                                QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,
-                                            )
-                                        else:
-                                            tree.setCurrentIndex(cat_index)
+                                        sel_flag, tree_flag = False, False
+                                        try:
+                                            sel_flag, tree_flag = suppress_ui_signals(selection_handler, tree)
+                                            sel_model = tree.selectionModel()
+                                            if sel_model:
+                                                # Clear old selection first, then select new one
+                                                sel_model.setCurrentIndex(
+                                                    cat_index,
+                                                    QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,
+                                                )
+                                            else:
+                                                tree.setCurrentIndex(cat_index)
+                                        finally:
+                                            restore_ui_signals(selection_handler, tree, sel_flag, tree_flag)
 
                         # Then focus on the moved link in table
                         self._schedule_focus_on_links(self.link_ids)
-                        links_ctrl = getattr(self.main, "links", None) or getattr(self.main, "links_controller", None)
-                        if links_ctrl and hasattr(links_ctrl, "table"):
-                            table = getattr(links_ctrl, "table", None)
-                            if table and hasattr(table, "load_links"):
-                                lb = getattr(self.main, "links_business", None)
-                                fresh_links = lb.get_links(int(focus_category_id)) if lb else []
-                                table.load_links(fresh_links)
+                        if not reloaded_via_controller:
+                            links_ctrl = getattr(self.main, "links", None) or getattr(self.main, "links_controller", None)
+                            if links_ctrl and hasattr(links_ctrl, "table"):
+                                table = getattr(links_ctrl, "table", None)
+                                if table and hasattr(table, "load_links"):
+                                    lb = getattr(self.main, "links_business", None)
+                                    fresh_links = lb.get_links(int(focus_category_id)) if lb else []
+                                    table.load_links(fresh_links)
                         return
                     except Exception as e:
                         logger.debug(

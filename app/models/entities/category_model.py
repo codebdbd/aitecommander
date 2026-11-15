@@ -677,9 +677,9 @@ class CategoryModel(DatabaseBase):
             insert_pos = max(0, min(int(base_row) - items_before_target, len(remaining_ids)))
             new_order = remaining_ids[:insert_pos] + to_move_ids + remaining_ids[insert_pos:]
 
-            updates = [(pos, cid) for pos, cid in enumerate(new_order)]
+            updates = [(target_section_id, pos, cid) for pos, cid in enumerate(new_order)]
             self._execute_many_with_error_handling(
-                f"UPDATE category SET section_id = {target_section_id}, position = ? WHERE id = ?",
+                "UPDATE category SET section_id = ?, position = ? WHERE id = ?",
                 updates,
             )
 
